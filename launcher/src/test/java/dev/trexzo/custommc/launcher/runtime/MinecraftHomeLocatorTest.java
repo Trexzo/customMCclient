@@ -15,6 +15,19 @@ final class MinecraftHomeLocatorTest {
     Path tempDir;
 
     @Test
+    void operatingSystemDetectionHandlesDarwinBeforeWindows() {
+        assertEquals(
+                OperatingSystem.MACOS,
+                OperatingSystem.detect("Darwin"));
+        assertEquals(
+                OperatingSystem.WINDOWS,
+                OperatingSystem.detect("Windows 11"));
+        assertEquals(
+                OperatingSystem.LINUX,
+                OperatingSystem.detect("Linux"));
+    }
+
+    @Test
     void explicitOverrideAlwaysWins() {
         final Path explicit =
                 tempDir.resolve("custom-home");
