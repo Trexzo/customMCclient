@@ -54,6 +54,8 @@ M38 adds retained page-content scrolling shared by rendering and hit-testing.
 
 M39 adds module presentation metadata without changing stable lifecycle identity.
 
+M40 adds optional module categories and deterministic presentation ordering while preserving registration-order compatibility by default.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -73,6 +75,10 @@ The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCo
 M39 adds `ModuleDescriptor` and `ModulePresentationRegistry` as a separate, optional UI-presentation layer. Descriptors carry a human-facing display name and description keyed by the stable module id. Registration rejects duplicate presentation authority and exposes an explicit closeable lifetime.
 
 `ModuleListPageContent` resolves presentation metadata at composition/filter time. The display name is rendered when present; modules without descriptors retain their stable id as a compatibility fallback. Search matches stable id, display name and description.
+
+M40 extends `ModuleDescriptor` with an optional category id and module priority. The legacy three-argument constructor remains valid and defaults to the `general` category with priority `0`. `ModuleCategoryDescriptor` and `ModuleCategoryRegistry` own human-facing category names plus category priority with the same explicit registration-lifetime pattern.
+
+When category metadata is present, the module list renders category headers and sorts categories by category priority, then category id. Modules inside a category sort by module priority while equal-priority entries retain original `ModuleRegistry` registration order. With no category metadata, the previous ungrouped registration-order geometry is preserved. Search also matches category ids and category display names.
 
 Pointer interaction never uses the display name as an identity key. Clicking a row still requests lifecycle changes through `ModuleController` with the underlying stable module id.
 
@@ -131,7 +137,7 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- richer module metadata/grouping and module-owned setting association;
+- module-owned setting association and per-module detail views;
 - concrete host callback wiring into `Minecraft189InputHooks`;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
