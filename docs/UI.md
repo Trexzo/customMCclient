@@ -18,6 +18,8 @@ M20 adds atomic clipping scopes for scrollable and nested retained UI.
 
 M21 adds semantic theme tokens and immutable palette ownership.
 
+M22 adds stable font handles and backend-neutral text metrics.
+
 ## Direction
 
 The UI is native and in-process. It does not require an embedded browser.
@@ -31,7 +33,7 @@ The core currently defines:
 - `UiRectCommand` — filled rectangle;
 - `UiRoundedRectCommand` — filled rectangle with validated corner radius;
 - `UiOutlineCommand` — rectangular outline with positive thickness;
-- `UiTextCommand` — text run;
+- `UiTextCommand` — text run carrying a stable `UiFontHandle`;
 - `UiClipCommand` — atomic clipped child-command scope.
 
 All geometry uses logical UI coordinates.
@@ -64,6 +66,16 @@ The eventual concrete 1.8.9 backend owns conversion from logical clip bounds to 
 
 `UiThemes.darkDefault()` provides the first neutral modern palette. Widgets should request semantic roles such as `SURFACE`, `TEXT_PRIMARY` or `ACCENT` rather than embedding those palette values directly.
 
+## Font and text measurement
+
+`UiFontHandle` is a stable logical font identity. It does not expose a Minecraft `FontRenderer`, texture id, atlas or other backend resource.
+
+`UiFonts.DEFAULT` preserves the existing text-command behavior through the logical `minecraft-default` handle, while callers may opt into named handles such as `ui-medium`.
+
+`UiTextMetrics` carries validated logical width, height and baseline geometry. `UiTextMeasurer` is the backend-neutral measurement contract used by future retained layout before commands are emitted.
+
+`UiTextCommand` now carries its font handle to the 1.8.9 graphics boundary. The eventual concrete backend resolves that handle to its owned font implementation.
+
 ## HUD layout/input
 
 `HudWidgetRegistry`, `HudLayoutEngine`, `HudLayoutState` and `HudDragController` own widget identity, resolved bounds, placement overrides and drag transactions respectively.
@@ -84,7 +96,6 @@ The actual Minecraft/LWJGL implementation of `LegacyUiGraphics` remains outside 
 
 Later UI milestones can add:
 
-- font handles and metrics;
 - generic focus/key routing;
 - retained ClickGUI widgets;
 - backend batching/state minimization;
