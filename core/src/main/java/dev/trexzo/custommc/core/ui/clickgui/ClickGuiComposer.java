@@ -23,17 +23,39 @@ public final class ClickGuiComposer {
     private static final float CONTROL_RADIUS = 6.0F;
 
     private final ClickGuiLayoutEngine layoutEngine;
+    private final ClickGuiContentRegistry contentRegistry;
 
     public ClickGuiComposer() {
-        this(new ClickGuiLayoutEngine());
+        this(
+                new ClickGuiLayoutEngine(),
+                new ClickGuiContentRegistry());
+    }
+
+    public ClickGuiComposer(
+            final ClickGuiContentRegistry contentRegistry) {
+        this(
+                new ClickGuiLayoutEngine(),
+                contentRegistry);
     }
 
     public ClickGuiComposer(
             final ClickGuiLayoutEngine layoutEngine) {
+        this(
+                layoutEngine,
+                new ClickGuiContentRegistry());
+    }
+
+    public ClickGuiComposer(
+            final ClickGuiLayoutEngine layoutEngine,
+            final ClickGuiContentRegistry contentRegistry) {
         this.layoutEngine =
                 Objects.requireNonNull(
                         layoutEngine,
                         "layoutEngine");
+        this.contentRegistry =
+                Objects.requireNonNull(
+                        contentRegistry,
+                        "contentRegistry");
     }
 
     public List<UiDrawCommand> compose(
@@ -134,19 +156,44 @@ public final class ClickGuiComposer {
 
         final ClickGuiPage selected =
                 selectedPage(snapshot);
-        final UiBounds content = layout.content();
+        final UiBounds content =
+                layout.content();
 
-        commands.add(
-                new UiTextCommand(
-                        7,
-                        content.x() + 24.0F,
-                        content.y() + 24.0F,
-                        UiFonts.DEFAULT,
-                        selected == null
-                                ? "No page selected"
-                                : selected.title(),
-                        theme.color(
-                                UiColorRole.TEXT_PRIMARY)));
+        final ClickGuiPageContent pageContent =
+                selected == null
+                        ? null
+                        : contentRegistry.find(
+                                selected.id());
+
+        if (selected != null
+                && pageContent != null) {
+            final List<UiDrawCommand> contentCommands =
+                    Objects.requireNonNull(
+                            pageContent.compose(
+                                    new ClickGuiContentContext(
+                                            snapshot,
+                                            selected,
+                                            content,
+                                            theme)),
+                            "pageContent.compose");
+            commands.add(
+                    new UiClipCommand(
+                            7,
+                            content,
+                            contentCommands));
+        } else {
+            commands.add(
+                    new UiTextCommand(
+                            7,
+                            content.x() + 24.0F,
+                            content.y() + 24.0F,
+                            UiFonts.DEFAULT,
+                            selected == null
+                                    ? "No page selected"
+                                    : selected.title(),
+                            theme.color(
+                                    UiColorRole.TEXT_PRIMARY)));
+        }
 
         return commands.seal();
     }
