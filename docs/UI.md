@@ -40,6 +40,8 @@ M31 adds content-area pointer routing and module-row lifecycle interaction.
 
 M32 adds stable setting presentation descriptors and the first read-only settings content view.
 
+M33 adds validator-owned boolean setting interaction.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -48,7 +50,7 @@ The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCo
 
 `ClickGuiComposer` is still a generic shell compositor. Registered page content receives an immutable `ClickGuiContentContext` for drawing.
 
-M31 adds a separate `ClickGuiContentInputContext` for input. It contains only the retained snapshot, selected page descriptor and logical content bounds.
+`ClickGuiContentInputContext` contains only the retained snapshot, selected page descriptor and logical content bounds.
 
 `ClickGuiPageContent.pointer(...)` defaults to no handling, so read-only page implementations do not need input code.
 
@@ -67,19 +69,23 @@ Left-clicking a visible module row requests lifecycle change only through `Modul
 
 ClickGUI does not write a parallel enabled flag and does not invoke module callbacks directly.
 
-## Setting presentation ownership
+## Setting presentation and edit authority
 
 `SettingRegistry.snapshot()` exposes registration-order immutable setting membership while the `Setting<T>` objects themselves remain the live value/validation authority.
 
 `SettingDescriptor` carries only UI presentation metadata: stable setting id, display label, explicit `SettingValueKind` and deterministic priority. `SettingPresentationRegistry` owns those descriptors with explicit registration lifetimes and rejects duplicate presentation authority.
 
-`SettingListPageContent` joins the setting snapshot with registered descriptors at composition time. Settings without a presentation descriptor remain absent from ClickGUI, which lets internal/runtime settings stay intentionally hidden.
+`SettingListPageContent` joins the setting snapshot with registered descriptors for both rendering and row hit-testing, so search/order cannot diverge between what is shown and what is interactive.
 
-The retained search query matches setting ids and labels case-insensitively. Current values are read live from `Setting<T>`; M32 does not mutate settings, bypass validators, or persist profiles.
+Settings without a presentation descriptor remain absent from ClickGUI.
+
+M33 allows a left press on a visible `BOOLEAN` row to request an inverted value through the existing `Setting<Boolean>.set(...)` method. The setting validator remains authoritative; a rejected transition leaves the value unchanged. No UI-owned value mirror or validator bypass exists.
+
+Non-boolean rows remain read-only for now.
 
 ## Input routing
 
-`ClickGuiInputController` still owns shell-level routing: search focus, navigation selection, navigation wheel scrolling and root hit-testing.
+`ClickGuiInputController` owns shell-level routing: search focus, navigation selection, navigation wheel scrolling and root hit-testing.
 
 For a pointer press inside the content region, it resolves only the selected page's registered content and supplies `ClickGuiContentInputContext`. The content implementation decides whether a row-specific action exists.
 
@@ -101,7 +107,7 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- validated setting editors built on the M32 descriptors;
+- validated numeric/text setting editors;
 - content-region scrolling;
 - module metadata beyond stable ids;
 - concrete host callback wiring into `Minecraft189InputHooks`;
