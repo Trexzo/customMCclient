@@ -2,6 +2,8 @@ package dev.trexzo.custommc.core.ui.clickgui;
 
 import dev.trexzo.custommc.core.module.Module;
 import dev.trexzo.custommc.core.module.ModuleController;
+import dev.trexzo.custommc.core.module.ModuleDescriptor;
+import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.module.ModuleState;
 import dev.trexzo.custommc.core.ui.UiBounds;
@@ -31,12 +33,23 @@ public final class ModuleListPageContent
 
     private final ModuleRegistry modules;
     private final ModuleController controller;
+    private final ModulePresentationRegistry presentations;
     private final ClickGuiContentScrollState scroll =
             new ClickGuiContentScrollState();
 
     public ModuleListPageContent(
             final ModuleRegistry modules,
             final ModuleController controller) {
+        this(
+                modules,
+                controller,
+                new ModulePresentationRegistry());
+    }
+
+    public ModuleListPageContent(
+            final ModuleRegistry modules,
+            final ModuleController controller,
+            final ModulePresentationRegistry presentations) {
         this.modules =
                 Objects.requireNonNull(
                         modules,
@@ -45,6 +58,10 @@ public final class ModuleListPageContent
                 Objects.requireNonNull(
                         controller,
                         "controller");
+        this.presentations =
+                Objects.requireNonNull(
+                        presentations,
+                        "presentations");
     }
 
     @Override
@@ -59,7 +76,7 @@ public final class ModuleListPageContent
         final UiTheme theme =
                 context.theme();
 
-        final List<Module> visible =
+        final List<Entry> visible =
                 filteredModules(
                         context.snapshot());
         final float scrollOffset =
@@ -83,9 +100,9 @@ public final class ModuleListPageContent
                         bounds,
                         scrollOffset);
 
-        for (Module module : visible) {
+        for (Entry entry : visible) {
             final String id =
-                    module.id();
+                    entry.module.id();
             final ModuleState state =
                     controller.stateOf(id);
             final UiBounds row =
@@ -114,7 +131,7 @@ public final class ModuleListPageContent
                             row.x() + 12.0F,
                             row.y() + 10.0F,
                             UiFonts.DEFAULT,
-                            id,
+                            entry.displayName(),
                             theme.color(
                                     UiColorRole.TEXT_PRIMARY)));
 
@@ -150,7 +167,7 @@ public final class ModuleListPageContent
             return false;
         }
 
-        final List<Module> visible =
+        final List<Entry> visible =
                 filteredModules(
                         context.snapshot());
         final float scrollOffset =
@@ -163,7 +180,7 @@ public final class ModuleListPageContent
                         context.bounds(),
                         scrollOffset);
 
-        for (Module module : visible) {
+        for (Entry entry : visible) {
             final UiBounds row =
                     rowBounds(
                             context.bounds(),
@@ -173,7 +190,7 @@ public final class ModuleListPageContent
                     event.x(),
                     event.y())) {
                 return toggle(
-                        module.id());
+                        entry.module.id());
             }
 
             y += ROW_HEIGHT + ROW_GAP;
@@ -218,24 +235,51 @@ public final class ModuleListPageContent
         }
     }
 
-    private List<Module> filteredModules(
+    private List<Entry> filteredModules(
             final ClickGuiSnapshot snapshot) {
         final String query =
                 snapshot.searchQuery()
                         .trim()
                         .toLowerCase(Locale.ROOT);
-        final List<Module> filtered =
-                new ArrayList<Module>();
+        final List<Entry> filtered =
+                new ArrayList<Entry>();
 
         for (Module module : modules.snapshot()) {
+            final ModuleDescriptor descriptor =
+                    presentations.find(
+                            module.id());
             if (query.isEmpty()
-                    || module.id()
-                    .toLowerCase(Locale.ROOT)
-                    .contains(query)) {
-                filtered.add(module);
+                    || matches(
+                    module,
+                    descriptor,
+                    query)) {
+                filtered.add(
+                        new Entry(
+                                module,
+                                descriptor));
             }
         }
         return filtered;
+    }
+
+    private static boolean matches(
+            final Module module,
+            final ModuleDescriptor descriptor,
+            final String query) {
+        if (module.id()
+                .toLowerCase(Locale.ROOT)
+                .contains(query)) {
+            return true;
+        }
+        if (descriptor == null) {
+            return false;
+        }
+        return descriptor.displayName()
+                .toLowerCase(Locale.ROOT)
+                .contains(query)
+                || descriptor.description()
+                .toLowerCase(Locale.ROOT)
+                .contains(query);
     }
 
     private static float firstRowY(
@@ -287,6 +331,24 @@ public final class ModuleListPageContent
             case DISABLED:
             default:
                 return UiColorRole.TEXT_MUTED;
+        }
+    }
+
+    private static final class Entry {
+        private final Module module;
+        private final ModuleDescriptor descriptor;
+
+        Entry(
+                final Module module,
+                final ModuleDescriptor descriptor) {
+            this.module = module;
+            this.descriptor = descriptor;
+        }
+
+        String displayName() {
+            return descriptor == null
+                    ? module.id()
+                    : descriptor.displayName();
         }
     }
 }
