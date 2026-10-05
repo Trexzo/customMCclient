@@ -69,6 +69,24 @@ public final class SettingNumericSpec {
         return (int) Math.round(clamped);
     }
 
+    public double stepDouble(
+            final double current,
+            final int direction) {
+        requireFinite(current, "current");
+        if (direction != -1 && direction != 1) {
+            throw new IllegalArgumentException(
+                    "direction must be -1 or 1");
+        }
+
+        final double candidate =
+                current + step * direction;
+        return Math.max(
+                minimum,
+                Math.min(
+                        maximum,
+                        candidate));
+    }
+
     private static boolean isWhole(final double value) {
         return Math.rint(value) == value;
     }
