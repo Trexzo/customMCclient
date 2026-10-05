@@ -44,6 +44,8 @@ M33 adds validator-owned boolean setting interaction.
 
 M34 adds bounded integer setting stepping through presentation metadata.
 
+M35 adds bounded double setting stepping through the same numeric metadata.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -85,7 +87,9 @@ M33 allows a left press on a visible `BOOLEAN` row to request an inverted value 
 
 M34 adds optional `SettingNumericSpec` metadata for numeric presentation bounds and step size. Integer descriptors validate that this metadata is integer-compatible. A left press steps a visible integer row upward and a right press steps it downward, clamped to the presentation bounds; the proposed value still goes through `Setting<Integer>.set(...)`, so the setting validator can reject it.
 
-Numeric descriptors without an explicit numeric spec remain read-only. Double and text editors are not implemented yet.
+M35 applies the same left/right stepping contract to visible `DOUBLE` rows. The numeric spec clamps the proposed double value and `Setting<Double>.set(...)` remains the final validator.
+
+Numeric descriptors without an explicit numeric spec remain read-only. Text editing is not implemented yet.
 
 ## Input routing
 
@@ -111,7 +115,7 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- double and text setting editors;
+- text setting editors;
 - content-region scrolling;
 - module metadata beyond stable ids;
 - concrete host callback wiring into `Minecraft189InputHooks`;

@@ -181,6 +181,14 @@ public final class SettingListPageContent
                         event.button());
             }
 
+            if (entry.descriptor.kind()
+                    == SettingValueKind.DOUBLE) {
+                return adjustDouble(
+                        entry.setting,
+                        entry.descriptor.numericSpec(),
+                        event.button());
+            }
+
             return false;
         }
 
@@ -252,6 +260,43 @@ public final class SettingListPageContent
                 || descriptor.label()
                 .toLowerCase(Locale.ROOT)
                 .contains(query);
+    }
+
+    private static boolean adjustDouble(
+            final Setting<?> setting,
+            final SettingNumericSpec numericSpec,
+            final UiPointerButton button) {
+        if (numericSpec == null) {
+            return false;
+        }
+        final int direction;
+        if (button == UiPointerButton.LEFT) {
+            direction = 1;
+        } else if (button == UiPointerButton.RIGHT) {
+            direction = -1;
+        } else {
+            return false;
+        }
+
+        final Object current = setting.get();
+        if (!(current instanceof Double)) {
+            return false;
+        }
+
+        @SuppressWarnings("unchecked")
+        final Setting<Double> doubleSetting =
+                (Setting<Double>) setting;
+        final double next =
+                numericSpec.stepDouble(
+                        (Double) current,
+                        direction);
+
+        try {
+            doubleSetting.set(next);
+        } catch (IllegalArgumentException rejected) {
+            // The Setting validator remains authoritative.
+        }
+        return true;
     }
 
     private static boolean adjustInteger(
