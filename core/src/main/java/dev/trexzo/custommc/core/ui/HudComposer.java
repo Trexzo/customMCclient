@@ -16,6 +16,9 @@ public final class HudComposer {
                 }
             };
 
+    private final HudLayoutEngine layoutEngine =
+            new HudLayoutEngine();
+
     public List<UiDrawCommand> compose(
             final UiViewport viewport,
             final HudWidgetRegistry registry) {
@@ -29,29 +32,27 @@ public final class HudComposer {
             final UiViewport viewport,
             final HudWidgetRegistry registry,
             final HudPlacementResolver placements) {
+        final HudLayoutSnapshot layout =
+                layoutEngine.layout(
+                        viewport,
+                        registry,
+                        placements);
+        return compose(layout, viewport);
+    }
+
+    public List<UiDrawCommand> compose(
+            final HudLayoutSnapshot layout,
+            final UiViewport viewport) {
+        Objects.requireNonNull(layout, "layout");
         Objects.requireNonNull(viewport, "viewport");
-        Objects.requireNonNull(registry, "registry");
-        Objects.requireNonNull(placements, "placements");
 
         final UiCommandBuffer commands =
                 new UiCommandBuffer();
 
-        for (HudWidget widget : registry.snapshot()) {
-            final UiSize size = Objects.requireNonNull(
-                    widget.measure(viewport),
-                    "widget.measure");
-            final HudPlacement placement =
-                    Objects.requireNonNull(
-                            placements.placementFor(widget),
-                            "placements.placementFor");
-            final UiBounds bounds =
-                    placement.resolve(
-                            viewport,
-                            size);
-
-            widget.draw(new HudDrawContext(
+        for (HudLayoutEntry entry : layout.entries()) {
+            entry.widget().draw(new HudDrawContext(
                     viewport,
-                    bounds,
+                    entry.bounds(),
                     commands));
         }
 

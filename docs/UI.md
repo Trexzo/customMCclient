@@ -6,6 +6,8 @@ M14 adds logical viewport scaling, nine-point anchors and explicit HUD widget ow
 
 M15 separates widget defaults from mutable/persistable HUD placement state.
 
+M16 adds immutable layout snapshots, hit-testing and cancellable HUD drag transactions.
+
 ## Direction
 
 The client UI is native and in-process. It does not require an embedded browser.
@@ -51,7 +53,13 @@ Offsets are applied after anchor resolution in logical coordinates. Widgets ther
 
 Registering a widget returns a lifetime handle. Closing it removes exactly that widget and is idempotent.
 
-`HudComposer` measures each widget, resolves a placement, provides immutable bounds through `HudDrawContext`, then seals the resulting UI command list.
+## Layout snapshots
+
+`HudLayoutEngine` converts the current widget plan plus placement resolver into an immutable `HudLayoutSnapshot`.
+
+Each entry contains the widget, the placement used for that frame and its resolved bounds. Hit-testing walks the snapshot in reverse render order, so overlapping UI selects the topmost widget deterministically.
+
+`HudComposer` consumes the same snapshot when issuing draw commands. Input and rendering therefore agree on the exact bounds for a frame instead of recomputing them independently.
 
 ## Mutable HUD placement
 
@@ -65,17 +73,26 @@ Widget code continues to declare a default anchor and offsets. User movement is 
 
 `HudLayoutState` stores overrides by stable widget id. Clearing an override returns the widget to its declared default without mutating the widget implementation.
 
-`HudPlacementCodec` implements the existing typed `SettingCodec` contract, so a placement can be persisted through the same profile/config system introduced in M2. The canonical representation is:
+`HudPlacementCodec` implements the existing typed `SettingCodec` contract, so a placement can be persisted through the same profile/config system introduced in M2.
 
-`ANCHOR;offsetX;offsetY`
+## Drag transaction
 
-The runtime layout state and durable profile orchestration remain separate responsibilities.
+`HudDragController` owns one drag transaction at a time.
+
+- only the left pointer button begins a drag;
+- the topmost hit widget is captured from a layout snapshot;
+- pointer movement updates only `HudLayoutState`;
+- commit keeps the new runtime placement;
+- cancel restores the exact previous override, or clears the temporary override when the widget originally used its default;
+- invalid re-entrant or inactive operations are rejected.
+
+Persistence is still outside the drag controller. A later orchestration layer can decide when committed layout state is written to a profile.
 
 ## Next layers
 
 Later UI milestones can add:
 
-- pointer/input routing and drag transactions;
+- generic pointer/focus routing beyond HUD dragging;
 - clipping/scissor descriptions;
 - rounded rectangles and outlines;
 - font/style handles;
