@@ -12,11 +12,22 @@ Configuration is intentionally separated into two layers.
 - optional persistence codec;
 - current in-memory value.
 
-`SettingRegistry` owns identity and persistence snapshots.
+`SettingRegistry` owns identity and persistence snapshots. M32 also exposes an immutable registration-order setting snapshot for read-only consumers such as ClickGUI; it does not copy setting values or create another setting authority.
 
 Applying a profile is transactional with respect to validation: every supplied value is decoded and validated before the first setting is changed. Unknown keys have an explicit `REJECT` or `IGNORE` policy.
 
 The core has no filesystem dependency.
+
+## Presentation metadata
+
+`SettingDescriptor` and `SettingPresentationRegistry` are deliberately separate from `Setting<T>`.
+
+A descriptor contains UI-only metadata: setting id, label, explicit value kind and priority. Descriptor registration has an explicit lifetime and duplicate descriptors for the same setting id are rejected.
+
+`SettingListPageContent` reads live setting values through `SettingRegistry` and uses descriptors only to decide which settings are exposed and how they are labelled. Settings without a descriptor remain hidden from that UI surface.
+
+Presentation code does not decode, validate, set or persist values. Future editors must still call the existing typed `Setting<T>.set()` path so validators remain authoritative.
+
 
 ## Launcher profile storage
 
