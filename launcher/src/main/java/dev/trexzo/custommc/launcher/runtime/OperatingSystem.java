@@ -17,12 +17,12 @@ public enum OperatingSystem {
                 osName,
                 "osName").toLowerCase(Locale.ROOT);
 
-        if (normalized.contains("win")) {
-            return WINDOWS;
-        }
         if (normalized.contains("mac")
                 || normalized.contains("darwin")) {
             return MACOS;
+        }
+        if (normalized.contains("win")) {
+            return WINDOWS;
         }
         return LINUX;
     }
