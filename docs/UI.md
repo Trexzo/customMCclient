@@ -50,6 +50,8 @@ M36 fixes end-to-end content pointer routing so right-click editors work through
 
 M37 adds focus-owned transactional text setting editing.
 
+M38 adds retained page-content scrolling shared by rendering and hit-testing.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -68,7 +70,7 @@ The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCo
 
 Rendering and row hit-testing share the same filtering and row geometry inside `ModuleListPageContent`. A retained search query therefore cannot make the visible row and interactive row disagree.
 
-Left-clicking a visible module row requests lifecycle change only through `ModuleController`:
+Left-clicking a visible module row requests lifecycle change only through `ModuleController`. Right/middle presses are ignored by module content even though the shell routes all content buttons:
 
 - `DISABLED -> enable`;
 - `ENABLED -> disable`;
@@ -103,6 +105,8 @@ M37 adds transactional `TEXT` editing. A left press on a text row creates a temp
 
 For a pointer press inside the content region, it resolves only the selected page's registered content and supplies `ClickGuiContentInputContext`. Content receives left, right and middle button presses; the content implementation decides whether a row-specific action exists. Search and navigation actions remain left-click-only, while other button presses inside those shell regions are consumed without changing state.
 
+Wheel input over navigation continues to use shell-owned navigation scroll. Wheel input over the content region is routed only to the selected page's content through `ClickGuiPageContent.scroll(...)`. M38 gives the module and setting list views independent retained/clamped scroll state; their render coordinates and row hit-testing derive from the same offset, so scrolling cannot desynchronize what is visible from what a click targets. Filter changes automatically clamp stale offsets against the new content height.
+
 Shell clicks remain consumed inside the ClickGUI root even when page content has no row action, preventing gameplay click-through.
 
 `UiPointerEvent`, `UiScrollEvent` and `UiKeyEvent` remain independent of Minecraft/LWJGL classes.
@@ -121,7 +125,6 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- content-region scrolling;
 - module metadata beyond stable ids;
 - concrete host callback wiring into `Minecraft189InputHooks`;
 - backend batching/state minimization;
