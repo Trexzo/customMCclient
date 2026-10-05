@@ -16,6 +16,8 @@ M19 adds rounded-rectangle and outline primitives for modern native HUD/ClickGUI
 
 M20 adds atomic clipping scopes for scrollable and nested retained UI.
 
+M21 adds semantic theme tokens and immutable palette ownership.
+
 ## Direction
 
 The UI is native and in-process. It does not require an embedded browser.
@@ -52,6 +54,16 @@ Clip exit is guaranteed in a `finally` block if a nested command fails. Nested c
 
 The eventual concrete 1.8.9 backend owns conversion from logical clip bounds to framebuffer scissor coordinates and intersection with any parent clip.
 
+## Theme ownership
+
+`UiColorRole` defines semantic color intent instead of backend or widget-specific constants.
+
+`UiTheme` is an immutable complete mapping from every semantic role to an ARGB value. Missing roles are rejected at construction, and palette input is defensively copied.
+
+`UiThemeProvider` gives retained UI a small runtime seam for later theme switching without coupling widgets to profile storage.
+
+`UiThemes.darkDefault()` provides the first neutral modern palette. Widgets should request semantic roles such as `SURFACE`, `TEXT_PRIMARY` or `ACCENT` rather than embedding those palette values directly.
+
 ## HUD layout/input
 
 `HudWidgetRegistry`, `HudLayoutEngine`, `HudLayoutState` and `HudDragController` own widget identity, resolved bounds, placement overrides and drag transactions respectively.
@@ -72,7 +84,6 @@ The actual Minecraft/LWJGL implementation of `LegacyUiGraphics` remains outside 
 
 Later UI milestones can add:
 
-- semantic theme/style tokens;
 - font handles and metrics;
 - generic focus/key routing;
 - retained ClickGUI widgets;
