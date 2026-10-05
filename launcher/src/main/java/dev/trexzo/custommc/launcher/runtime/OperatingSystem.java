@@ -4,9 +4,19 @@ import java.util.Locale;
 import java.util.Objects;
 
 public enum OperatingSystem {
-    WINDOWS,
-    MACOS,
-    LINUX;
+    WINDOWS("windows"),
+    MACOS("osx"),
+    LINUX("linux");
+
+    private final String metadataName;
+
+    OperatingSystem(final String metadataName) {
+        this.metadataName = metadataName;
+    }
+
+    public String metadataName() {
+        return metadataName;
+    }
 
     public static OperatingSystem current() {
         return detect(System.getProperty("os.name"));
