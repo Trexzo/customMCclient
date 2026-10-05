@@ -16,7 +16,9 @@ subprojects {
 
     tasks.withType<JavaCompile>().configureEach {
         options.encoding = "UTF-8"
-        options.compilerArgs.addAll(listOf("-Xlint:all", "-Xlint:-options", "-Werror"))
+        options.compilerArgs.addAll(
+            listOf("-Xlint:all", "-Xlint:-options", "-Werror")
+        )
     }
 
     tasks.withType<Test>().configureEach {
@@ -30,6 +32,7 @@ tasks.register("verifyFoundation") {
     dependsOn(
         ":core:check",
         ":platform-api:check",
+        ":platform-1.8.9:check",
         ":launcher:check"
     )
 }
