@@ -38,6 +38,17 @@ public final class UiBounds {
         return height;
     }
 
+    public boolean contains(
+            final float pointX,
+            final float pointY) {
+        requireFinite(pointX, "pointX");
+        requireFinite(pointY, "pointY");
+        return pointX >= x
+                && pointY >= y
+                && pointX < x + width
+                && pointY < y + height;
+    }
+
     private static void requireFinite(
             final float value,
             final String name) {
