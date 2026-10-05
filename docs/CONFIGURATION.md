@@ -22,11 +22,11 @@ The core has no filesystem dependency.
 
 `SettingDescriptor` and `SettingPresentationRegistry` are deliberately separate from `Setting<T>`.
 
-A descriptor contains UI-only metadata: setting id, label, explicit value kind and priority. Descriptor registration has an explicit lifetime and duplicate descriptors for the same setting id are rejected.
+A descriptor contains UI-only metadata: setting id, label, explicit value kind and priority. M34 optionally adds `SettingNumericSpec` presentation bounds and step size for numeric editors; integer descriptors reject fractional numeric specs. Descriptor registration has an explicit lifetime and duplicate descriptors for the same setting id are rejected.
 
 `SettingListPageContent` reads live setting values through `SettingRegistry` and uses descriptors only to decide which settings are exposed and how they are labelled. Settings without a descriptor remain hidden from that UI surface.
 
-Presentation code does not decode, validate, set or persist values. Future editors must still call the existing typed `Setting<T>.set()` path so validators remain authoritative.
+Presentation metadata does not replace setting validation or persistence authority. Interactive editors call the existing typed `Setting<T>.set()` path; boolean toggles and bounded integer stepping therefore remain subject to the setting validator. UI code does not write profiles directly.
 
 
 ## Launcher profile storage

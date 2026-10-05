@@ -3,6 +3,7 @@ package dev.trexzo.custommc.core;
 import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
 import dev.trexzo.custommc.core.setting.SettingDescriptor;
+import dev.trexzo.custommc.core.setting.SettingNumericSpec;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.setting.SettingValueKind;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -320,4 +322,205 @@ final class SettingListPageContentTest {
         assertFalse(handled);
         assertTrue(range.get() == 3);
     }
+
+    @Test
+    void integerRowsStepLeftAndRightWithinPresentationBounds() {
+        final SettingRegistry settings =
+                new SettingRegistry();
+        final Setting<Integer> range =
+                new Setting<Integer>(
+                        "combat.range",
+                        3,
+                        value -> value >= 1 && value <= 6,
+                        SettingCodecs.INTEGER);
+        settings.register(range);
+
+        final SettingPresentationRegistry presentations =
+                new SettingPresentationRegistry();
+        presentations.register(
+                new SettingDescriptor(
+                        "combat.range",
+                        "Attack Range",
+                        SettingValueKind.INTEGER,
+                        0,
+                        new SettingNumericSpec(
+                                1.0D,
+                                6.0D,
+                                1.0D)));
+
+        final SettingListPageContent content =
+                new SettingListPageContent(
+                        settings,
+                        presentations);
+        final ClickGuiPage page =
+                new ClickGuiPage(
+                        "settings",
+                        "Settings",
+                        0);
+        final ClickGuiContentInputContext context =
+                new ClickGuiContentInputContext(
+                        new ClickGuiSnapshot(
+                                true,
+                                "settings",
+                                "",
+                                Arrays.asList(page)),
+                        page,
+                        new UiBounds(
+                                200.0F,
+                                100.0F,
+                                600.0F,
+                                400.0F));
+
+        assertTrue(
+                content.pointer(
+                        context,
+                        new UiPointerEvent(
+                                240.0F,
+                                170.0F,
+                                UiPointerButton.LEFT,
+                                UiPointerAction.PRESS)));
+        assertEquals(
+                Integer.valueOf(4),
+                range.get());
+
+        assertTrue(
+                content.pointer(
+                        context,
+                        new UiPointerEvent(
+                                240.0F,
+                                170.0F,
+                                UiPointerButton.RIGHT,
+                                UiPointerAction.PRESS)));
+        assertEquals(
+                Integer.valueOf(3),
+                range.get());
+
+        range.set(6);
+        assertTrue(
+                content.pointer(
+                        context,
+                        new UiPointerEvent(
+                                240.0F,
+                                170.0F,
+                                UiPointerButton.LEFT,
+                                UiPointerAction.PRESS)));
+        assertEquals(
+                Integer.valueOf(6),
+                range.get());
+    }
+
+    @Test
+    void integerEditorStillHonorsSettingValidator() {
+        final SettingRegistry settings =
+                new SettingRegistry();
+        final Setting<Integer> locked =
+                new Setting<Integer>(
+                        "locked.range",
+                        3,
+                        value -> value <= 3,
+                        SettingCodecs.INTEGER);
+        settings.register(locked);
+
+        final SettingPresentationRegistry presentations =
+                new SettingPresentationRegistry();
+        presentations.register(
+                new SettingDescriptor(
+                        "locked.range",
+                        "Locked Range",
+                        SettingValueKind.INTEGER,
+                        0,
+                        new SettingNumericSpec(
+                                1.0D,
+                                6.0D,
+                                1.0D)));
+
+        final ClickGuiPage page =
+                new ClickGuiPage(
+                        "settings",
+                        "Settings",
+                        0);
+        final boolean handled =
+                new SettingListPageContent(
+                        settings,
+                        presentations)
+                        .pointer(
+                                new ClickGuiContentInputContext(
+                                        new ClickGuiSnapshot(
+                                                true,
+                                                "settings",
+                                                "",
+                                                Arrays.asList(page)),
+                                        page,
+                                        new UiBounds(
+                                                200.0F,
+                                                100.0F,
+                                                600.0F,
+                                                400.0F)),
+                                new UiPointerEvent(
+                                        240.0F,
+                                        170.0F,
+                                        UiPointerButton.LEFT,
+                                        UiPointerAction.PRESS));
+
+        assertTrue(handled);
+        assertEquals(
+                Integer.valueOf(3),
+                locked.get());
+    }
+
+    @Test
+    void integerDescriptorWithoutNumericSpecRemainsReadOnly() {
+        final SettingRegistry settings =
+                new SettingRegistry();
+        final Setting<Integer> range =
+                new Setting<Integer>(
+                        "combat.range",
+                        3,
+                        value -> true,
+                        SettingCodecs.INTEGER);
+        settings.register(range);
+
+        final SettingPresentationRegistry presentations =
+                new SettingPresentationRegistry();
+        presentations.register(
+                new SettingDescriptor(
+                        "combat.range",
+                        "Attack Range",
+                        SettingValueKind.INTEGER,
+                        0));
+
+        final ClickGuiPage page =
+                new ClickGuiPage(
+                        "settings",
+                        "Settings",
+                        0);
+        final boolean handled =
+                new SettingListPageContent(
+                        settings,
+                        presentations)
+                        .pointer(
+                                new ClickGuiContentInputContext(
+                                        new ClickGuiSnapshot(
+                                                true,
+                                                "settings",
+                                                "",
+                                                Arrays.asList(page)),
+                                        page,
+                                        new UiBounds(
+                                                200.0F,
+                                                100.0F,
+                                                600.0F,
+                                                400.0F)),
+                                new UiPointerEvent(
+                                        240.0F,
+                                        170.0F,
+                                        UiPointerButton.LEFT,
+                                        UiPointerAction.PRESS));
+
+        assertFalse(handled);
+        assertEquals(
+                Integer.valueOf(3),
+                range.get());
+    }
+
 }

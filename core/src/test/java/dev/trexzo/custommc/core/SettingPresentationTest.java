@@ -3,6 +3,7 @@ package dev.trexzo.custommc.core;
 import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
 import dev.trexzo.custommc.core.setting.SettingDescriptor;
+import dev.trexzo.custommc.core.setting.SettingNumericSpec;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.setting.SettingValueKind;
@@ -90,4 +91,47 @@ final class SettingPresentationTest {
                 registry.find(
                         "combat.autoblock"));
     }
+
+    @Test
+    void numericPresentationMetadataRejectsIncompatibleKinds() {
+        final SettingNumericSpec integerSpec =
+                new SettingNumericSpec(
+                        1.0D,
+                        20.0D,
+                        1.0D);
+
+        final SettingDescriptor descriptor =
+                new SettingDescriptor(
+                        "combat.cps",
+                        "CPS",
+                        SettingValueKind.INTEGER,
+                        0,
+                        integerSpec);
+
+        assertEquals(
+                integerSpec,
+                descriptor.numericSpec());
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SettingDescriptor(
+                        "combat.autoblock",
+                        "Auto Block",
+                        SettingValueKind.BOOLEAN,
+                        0,
+                        integerSpec));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SettingDescriptor(
+                        "combat.cps",
+                        "CPS",
+                        SettingValueKind.INTEGER,
+                        0,
+                        new SettingNumericSpec(
+                                1.0D,
+                                20.0D,
+                                0.5D)));
+    }
+
 }

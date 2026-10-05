@@ -42,6 +42,8 @@ M32 adds stable setting presentation descriptors and the first read-only setting
 
 M33 adds validator-owned boolean setting interaction.
 
+M34 adds bounded integer setting stepping through presentation metadata.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -81,7 +83,9 @@ Settings without a presentation descriptor remain absent from ClickGUI.
 
 M33 allows a left press on a visible `BOOLEAN` row to request an inverted value through the existing `Setting<Boolean>.set(...)` method. The setting validator remains authoritative; a rejected transition leaves the value unchanged. No UI-owned value mirror or validator bypass exists.
 
-Non-boolean rows remain read-only for now.
+M34 adds optional `SettingNumericSpec` metadata for numeric presentation bounds and step size. Integer descriptors validate that this metadata is integer-compatible. A left press steps a visible integer row upward and a right press steps it downward, clamped to the presentation bounds; the proposed value still goes through `Setting<Integer>.set(...)`, so the setting validator can reject it.
+
+Numeric descriptors without an explicit numeric spec remain read-only. Double and text editors are not implemented yet.
 
 ## Input routing
 
@@ -107,7 +111,7 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- validated numeric/text setting editors;
+- double and text setting editors;
 - content-region scrolling;
 - module metadata beyond stable ids;
 - concrete host callback wiring into `Minecraft189InputHooks`;
