@@ -15,6 +15,7 @@ import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiFonts;
+import dev.trexzo.custommc.core.ui.UiPointerEvent;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
