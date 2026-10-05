@@ -8,6 +8,7 @@ import dev.trexzo.custommc.core.ui.UiKeys;
 import dev.trexzo.custommc.core.ui.UiPointerAction;
 import dev.trexzo.custommc.core.ui.UiPointerButton;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
+import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiViewport;
 
 import java.util.Objects;
@@ -104,6 +105,43 @@ public final class ClickGuiInputController
         return false;
     }
 
+    public boolean scroll(
+            final UiScrollEvent event,
+            final UiViewport viewport) {
+        Objects.requireNonNull(event, "event");
+        Objects.requireNonNull(viewport, "viewport");
+
+        final ClickGuiSnapshot snapshot =
+                model.snapshot();
+        if (!snapshot.open()) {
+            return false;
+        }
+
+        final ClickGuiLayout layout =
+                layoutEngine.layout(viewport);
+        if (!layout.navigation().contains(
+                event.x(),
+                event.y())) {
+            return false;
+        }
+
+        final float current =
+                ClickGuiMetrics.clampNavigationScroll(
+                        snapshot.navigationScroll(),
+                        snapshot.pages().size(),
+                        layout.navigation().height());
+        final float next =
+                ClickGuiMetrics.clampNavigationScroll(
+                        current
+                                - event.deltaY()
+                                * ClickGuiMetrics.NAVIGATION_SCROLL_STEP,
+                        snapshot.pages().size(),
+                        layout.navigation().height());
+
+        model.setNavigationScroll(next);
+        return true;
+    }
+
     public boolean key(final UiKeyEvent event) {
         Objects.requireNonNull(event, "event");
 
@@ -134,7 +172,13 @@ public final class ClickGuiInputController
             final ClickGuiSnapshot snapshot,
             final ClickGuiLayout layout,
             final float pointerY) {
-        float rowY = layout.navigation().y();
+        final float scroll =
+                ClickGuiMetrics.clampNavigationScroll(
+                        snapshot.navigationScroll(),
+                        snapshot.pages().size(),
+                        layout.navigation().height());
+        float rowY =
+                layout.navigation().y() - scroll;
 
         for (ClickGuiPage page : snapshot.pages()) {
             if (pointerY >= rowY

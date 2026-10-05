@@ -7,6 +7,7 @@ import dev.trexzo.custommc.core.ui.UiKeys;
 import dev.trexzo.custommc.core.ui.UiPointerAction;
 import dev.trexzo.custommc.core.ui.UiPointerButton;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
+import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiViewport;
 
 import java.util.Objects;
@@ -28,12 +29,11 @@ public final class LegacyInputTranslator {
         }
 
         final float logicalX =
-                pixelX / viewport.scale();
+                logicalX(viewport, pixelX);
         final float logicalY =
-                (viewport.pixelHeight()
-                        - 1
-                        - pixelYFromBottom)
-                        / viewport.scale();
+                logicalY(
+                        viewport,
+                        pixelYFromBottom);
 
         return Optional.of(
                 new UiPointerEvent(
@@ -43,6 +43,27 @@ public final class LegacyInputTranslator {
                         pressed
                                 ? UiPointerAction.PRESS
                                 : UiPointerAction.RELEASE));
+    }
+
+    public Optional<UiScrollEvent> scrollEvent(
+            final UiViewport viewport,
+            final int pixelX,
+            final int pixelYFromBottom,
+            final int legacyWheelDelta) {
+        Objects.requireNonNull(viewport, "viewport");
+        if (legacyWheelDelta == 0) {
+            return Optional.empty();
+        }
+
+        return Optional.of(
+                new UiScrollEvent(
+                        logicalX(viewport, pixelX),
+                        logicalY(
+                                viewport,
+                                pixelYFromBottom),
+                        legacyWheelDelta > 0
+                                ? 1.0F
+                                : -1.0F));
     }
 
     public UiKeyEvent keyEvent(
@@ -74,6 +95,21 @@ public final class LegacyInputTranslator {
                 shift,
                 control,
                 alt);
+    }
+
+    private static float logicalX(
+            final UiViewport viewport,
+            final int pixelX) {
+        return pixelX / viewport.scale();
+    }
+
+    private static float logicalY(
+            final UiViewport viewport,
+            final int pixelYFromBottom) {
+        return (viewport.pixelHeight()
+                - 1
+                - pixelYFromBottom)
+                / viewport.scale();
     }
 
     private static UiPointerButton pointerButton(

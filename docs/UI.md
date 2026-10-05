@@ -32,6 +32,8 @@ M27 adds backend-neutral ClickGUI pointer and search-key interaction.
 
 M28 adds the Minecraft 1.8.9 primitive input translation bridge.
 
+M29 adds retained, clamped navigation scrolling and legacy wheel translation.
+
 ## Direction
 
 The UI is native and in-process. It does not require an embedded browser.
@@ -86,7 +88,7 @@ The eventual concrete 1.8.9 backend owns conversion from logical clip bounds to 
 
 `UiTextMetrics` carries validated logical width, height and baseline geometry. `UiTextMeasurer` is the backend-neutral measurement contract used by future retained layout before commands are emitted.
 
-`UiTextCommand` now carries its font handle to the 1.8.9 graphics boundary. The eventual concrete backend resolves that handle to its owned font implementation.
+`UiTextCommand` carries its font handle to the 1.8.9 graphics boundary. The eventual concrete backend resolves that handle to its owned font implementation.
 
 ## Focus and key routing
 
@@ -94,7 +96,7 @@ The eventual concrete 1.8.9 backend owns conversion from logical clip bounds to 
 
 Registration is an explicit lifetime. Closing the focused target's registration clears focus and emits the matching focus-loss callback, preventing stale retained widgets from continuing to receive keyboard input.
 
-`UiKey`, `UiKeys`, `UiKeyAction` and `UiKeyEvent` describe logical keyboard input without exposing LWJGL or Minecraft event classes. The platform adapter will translate native key input into these events later.
+`UiKey`, `UiKeys`, `UiKeyAction` and `UiKeyEvent` describe logical keyboard input without exposing LWJGL or Minecraft event classes.
 
 Only the focused target receives `dispatchKey`; its boolean return indicates whether the event was consumed.
 
@@ -106,7 +108,7 @@ Registered `ClickGuiPage` descriptors use stable ids and deterministic priority/
 
 Automatic selection follows the deterministic page order until the user makes an explicit page selection. Explicit selection remains stable as later pages register. Removing the selected page falls back to the first remaining ordered page.
 
-Open/closed state, the selected page id and the search query are retained independently of rendering. `ClickGuiSnapshot` exposes an immutable frame-safe view.
+Open/closed state, selected page id, search query and navigation scroll offset are retained independently of rendering. `ClickGuiSnapshot` exposes an immutable frame-safe view.
 
 ## ClickGUI layout and composition
 
@@ -114,27 +116,25 @@ Open/closed state, the selected page id and the search query are retained indepe
 
 `ClickGuiComposer` converts one immutable shell snapshot plus the current viewport/theme into the existing backend-neutral command model.
 
-The initial shell uses semantic theme roles, font-aware text commands, selected-page emphasis and a clipped navigation list. A closed snapshot emits no draw work.
+Navigation rows are shifted by the clamped retained scroll offset inside the existing `UiClipCommand`. `ClickGuiMetrics` owns row/content/max-scroll geometry so composition and input use the same calculation.
 
 The composer does not call Minecraft, OpenGL or profile storage directly.
 
-`ClickGuiRenderPass` now places the retained shell into the existing `HUD` render stage. It snapshots the model first and exits immediately while the GUI is closed, avoiding viewport, theme, composition and renderer work on the steady-state gameplay path.
-
-When open, the pass resolves the current viewport/theme, composes the shell once and forwards the immutable command list through `UiRenderer`.
+`ClickGuiRenderPass` places the retained shell into the existing `HUD` render stage. It snapshots the model first and exits immediately while the GUI is closed.
 
 ## ClickGUI input
 
-`UiPointerEvent` and `UiPointerAction` describe validated logical pointer input without exposing LWJGL or Minecraft classes.
+`UiPointerEvent`, `UiPointerAction` and `UiScrollEvent` describe validated logical pointer input without exposing LWJGL or Minecraft classes.
 
-`ClickGuiInputController` handles left-button press hit-testing for the search field, page navigation and the shell surface. Rendering and input share `ClickGuiMetrics` page-row geometry so their navigation bounds cannot silently diverge.
+`ClickGuiInputController` handles left-button press hit-testing for the search field, page navigation and shell surface. Wheel input is consumed only inside the navigation bounds and adjusts retained scrolling by a shared logical step.
+
+Navigation hit-testing applies the same clamped scroll offset as rendering, so a visible row and its click target cannot drift apart.
 
 The search field is a normal `UiFocusTarget` owned through `UiFocusManager`. Printable characters append to the retained query, Backspace deletes one character, and Enter/Escape release search focus. Escape with no focused search field closes the ClickGUI.
 
-Page clicks update the retained selected page and release search focus. Closing the input controller closes its focus registration, preventing disposed ClickGUI state from remaining ghost-focused.
+`LegacyInputTranslator` converts primitive mouse/key/wheel data into backend-neutral events. Pointer and wheel Y coordinates are converted from the legacy bottom-origin framebuffer convention into top-origin logical UI coordinates. Legacy wheel magnitude is normalized to a stable direction step before entering core.
 
-`LegacyInputTranslator` converts legacy primitive mouse/key data into the same backend-neutral events. Pointer Y coordinates are converted from the legacy bottom-origin framebuffer convention into top-origin logical UI coordinates.
-
-`Minecraft189InputHooks` resolves `ClickGuiInputController` through the existing platform `ServiceRegistry`; unsupported extra mouse buttons are ignored before service resolution. Known navigation/edit keys map to semantic `UiKeys`, while other non-negative legacy key codes retain stable `legacy-key-N` identities so character input remains routable.
+`Minecraft189InputHooks` resolves `ClickGuiInputController` through the existing platform `ServiceRegistry`. Zero wheel deltas and unsupported extra mouse buttons are ignored before retained UI mutation.
 
 ## HUD layout/input
 

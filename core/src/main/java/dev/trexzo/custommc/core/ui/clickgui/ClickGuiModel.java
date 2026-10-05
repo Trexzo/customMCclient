@@ -34,6 +34,7 @@ public final class ClickGuiModel {
     private String selectedPageId;
     private boolean selectionExplicit;
     private String searchQuery = "";
+    private float navigationScroll;
     private boolean open;
 
     public synchronized Registration register(
@@ -90,12 +91,24 @@ public final class ClickGuiModel {
                         "searchQuery");
     }
 
+    public synchronized void setNavigationScroll(
+            final float navigationScroll) {
+        if (Float.isNaN(navigationScroll)
+                || Float.isInfinite(navigationScroll)
+                || navigationScroll < 0.0F) {
+            throw new IllegalArgumentException(
+                    "navigationScroll must be finite and non-negative");
+        }
+        this.navigationScroll = navigationScroll;
+    }
+
     public synchronized ClickGuiSnapshot snapshot() {
         return new ClickGuiSnapshot(
                 open,
                 selectedPageId,
                 searchQuery,
-                orderedPages);
+                orderedPages,
+                navigationScroll);
     }
 
     private synchronized void unregister(
@@ -115,6 +128,10 @@ public final class ClickGuiModel {
             selectFirstAvailable();
         } else if (!selectionExplicit) {
             selectFirstAvailable();
+        }
+
+        if (orderedPages.isEmpty()) {
+            navigationScroll = 0.0F;
         }
     }
 

@@ -2,6 +2,7 @@ package dev.trexzo.custommc.platform.v1_8_9;
 
 import dev.trexzo.custommc.core.ui.UiKeyEvent;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
+import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiInputController;
 import dev.trexzo.custommc.platform.v1_8_9.input.LegacyInputTranslator;
@@ -59,6 +60,34 @@ public final class Minecraft189InputHooks {
         }
 
         return input().pointer(
+                event.get(),
+                viewport);
+    }
+
+    public boolean scroll(
+            final int framebufferWidth,
+            final int framebufferHeight,
+            final float uiScale,
+            final int pixelX,
+            final int pixelYFromBottom,
+            final int legacyWheelDelta) {
+        final UiViewport viewport =
+                new UiViewport(
+                        framebufferWidth,
+                        framebufferHeight,
+                        uiScale);
+        final Optional<UiScrollEvent> event =
+                translator.scrollEvent(
+                        viewport,
+                        pixelX,
+                        pixelYFromBottom,
+                        legacyWheelDelta);
+
+        if (!event.isPresent()) {
+            return false;
+        }
+
+        return input().scroll(
                 event.get(),
                 viewport);
     }
