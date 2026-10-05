@@ -26,6 +26,8 @@ M24 adds the retained ClickGUI shell state model.
 
 M25 adds responsive backend-neutral ClickGUI shell composition.
 
+M26 connects the retained ClickGUI to the staged HUD renderer.
+
 ## Direction
 
 The UI is native and in-process. It does not require an embedded browser.
@@ -110,7 +112,11 @@ Open/closed state, the selected page id and the search query are retained indepe
 
 The initial shell uses semantic theme roles, font-aware text commands, selected-page emphasis and a clipped navigation list. A closed snapshot emits no draw work.
 
-The composer does not call Minecraft, OpenGL or profile storage directly. The next render milestone can place these commands into the existing staged UI renderer.
+The composer does not call Minecraft, OpenGL or profile storage directly.
+
+`ClickGuiRenderPass` now places the retained shell into the existing `HUD` render stage. It snapshots the model first and exits immediately while the GUI is closed, avoiding viewport, theme, composition and renderer work on the steady-state gameplay path.
+
+When open, the pass resolves the current viewport/theme, composes the shell once and forwards the immutable command list through `UiRenderer`.
 
 ## HUD layout/input
 
@@ -132,7 +138,7 @@ The actual Minecraft/LWJGL implementation of `LegacyUiGraphics` remains outside 
 
 Later UI milestones can add:
 
-- ClickGUI render-pass/input wiring;
+- ClickGUI pointer/key input wiring;
 - page-specific module/setting views;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
