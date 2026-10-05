@@ -12,6 +12,7 @@ import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiPointerAction;
 import dev.trexzo.custommc.core.ui.UiPointerButton;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
+import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiThemes;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiContentContext;
@@ -671,6 +672,129 @@ final class SettingListPageContentTest {
                 1.0D,
                 locked.get(),
                 0.000001D);
+    }
+
+
+    @Test
+    void settingListRetainsAndClampsContentScrollOffset() {
+        final SettingRegistry settings =
+                new SettingRegistry();
+        final SettingPresentationRegistry presentations =
+                new SettingPresentationRegistry();
+
+        for (int i = 0; i < 12; i++) {
+            final String id =
+                    String.format(
+                            "setting.%02d",
+                            i);
+            settings.register(
+                    new Setting<Boolean>(
+                            id,
+                            Boolean.FALSE,
+                            value -> true,
+                            SettingCodecs.BOOLEAN));
+            presentations.register(
+                    new SettingDescriptor(
+                            id,
+                            "Setting " + i,
+                            SettingValueKind.BOOLEAN,
+                            i));
+        }
+
+        final SettingListPageContent content =
+                new SettingListPageContent(
+                        settings,
+                        presentations);
+        final ClickGuiPage page =
+                new ClickGuiPage(
+                        "settings",
+                        "Settings",
+                        0);
+        final ClickGuiSnapshot snapshot =
+                new ClickGuiSnapshot(
+                        true,
+                        "settings",
+                        "",
+                        Arrays.asList(page));
+        final UiBounds bounds =
+                new UiBounds(
+                        200.0F,
+                        100.0F,
+                        600.0F,
+                        200.0F);
+
+        final float before =
+                textY(
+                        content.compose(
+                                new ClickGuiContentContext(
+                                        snapshot,
+                                        page,
+                                        bounds,
+                                        UiThemes.darkDefault())),
+                        "Setting 0");
+
+        assertTrue(
+                content.scroll(
+                        new ClickGuiContentInputContext(
+                                snapshot,
+                                page,
+                                bounds),
+                        new UiScrollEvent(
+                                bounds.x() + 4.0F,
+                                bounds.y() + 4.0F,
+                                -1.0F)));
+
+        final float after =
+                textY(
+                        content.compose(
+                                new ClickGuiContentContext(
+                                        snapshot,
+                                        page,
+                                        bounds,
+                                        UiThemes.darkDefault())),
+                        "Setting 0");
+
+        assertEquals(
+                before - 28.0F,
+                after);
+
+        for (int i = 0; i < 100; i++) {
+            content.scroll(
+                    new ClickGuiContentInputContext(
+                            snapshot,
+                            page,
+                            bounds),
+                    new UiScrollEvent(
+                            bounds.x() + 4.0F,
+                            bounds.y() + 4.0F,
+                            -1.0F));
+        }
+
+        final float clamped =
+                textY(
+                        content.compose(
+                                new ClickGuiContentContext(
+                                        snapshot,
+                                        page,
+                                        bounds,
+                                        UiThemes.darkDefault())),
+                        "Setting 0");
+
+        assertTrue(clamped < after);
+    }
+
+    private static float textY(
+            final List<UiDrawCommand> commands,
+            final String expectedText) {
+        for (UiDrawCommand command : commands) {
+            if (command instanceof UiTextCommand
+                    && expectedText.equals(
+                    ((UiTextCommand) command).text())) {
+                return ((UiTextCommand) command).y();
+            }
+        }
+        throw new IllegalArgumentException(
+                "missing text command: " + expectedText);
     }
 
 }
