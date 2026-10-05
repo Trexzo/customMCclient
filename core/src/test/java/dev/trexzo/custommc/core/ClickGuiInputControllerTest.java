@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -269,6 +270,246 @@ final class ClickGuiInputControllerTest {
         assertEquals(
                 "combat",
                 model.snapshot().selectedPageId());
+    }
+
+
+    @Test
+    void textSettingDraftCommitsOnlyOnEnter() {
+        final ClickGuiModel model =
+                new ClickGuiModel();
+        model.register(
+                new ClickGuiPage(
+                        "settings",
+                        "Settings",
+                        0));
+        model.open();
+
+        final SettingRegistry settings =
+                new SettingRegistry();
+        final Setting<String> name =
+                new Setting<String>(
+                        "profile.name",
+                        "abc",
+                        value -> value.length() <= 8,
+                        SettingCodecs.STRING);
+        settings.register(name);
+
+        final SettingPresentationRegistry presentations =
+                new SettingPresentationRegistry();
+        presentations.register(
+                new SettingDescriptor(
+                        "profile.name",
+                        "Profile Name",
+                        SettingValueKind.TEXT,
+                        0));
+
+        final ClickGuiContentRegistry contents =
+                new ClickGuiContentRegistry();
+        contents.register(
+                "settings",
+                new SettingListPageContent(
+                        settings,
+                        presentations));
+
+        final UiFocusManager focus =
+                new UiFocusManager();
+        final UiViewport viewport =
+                new UiViewport(
+                        1200,
+                        800,
+                        1.0F);
+        final ClickGuiLayout layout =
+                new ClickGuiLayoutEngine()
+                        .layout(viewport);
+
+        try (ClickGuiInputController input =
+                     new ClickGuiInputController(
+                             model,
+                             contents,
+                             focus)) {
+            assertTrue(
+                    input.pointer(
+                            press(
+                                    layout.content().x() + 30.0F,
+                                    layout.content().y() + 60.0F),
+                            viewport));
+            assertNotNull(focus.focusedId());
+
+            assertTrue(input.key(character('x')));
+            assertEquals(
+                    "abc",
+                    name.get());
+
+            assertTrue(input.key(key(UiKeys.BACKSPACE)));
+            assertEquals(
+                    "abc",
+                    name.get());
+
+            assertTrue(input.key(character('z')));
+            assertEquals(
+                    "abc",
+                    name.get());
+
+            assertTrue(input.key(key(UiKeys.ENTER)));
+            assertEquals(
+                    "abcz",
+                    name.get());
+            assertNull(focus.focusedId());
+        }
+    }
+
+    @Test
+    void rejectedTextCommitStaysFocusedUntilEscapeCancelsDraft() {
+        final ClickGuiModel model =
+                new ClickGuiModel();
+        model.register(
+                new ClickGuiPage(
+                        "settings",
+                        "Settings",
+                        0));
+        model.open();
+
+        final SettingRegistry settings =
+                new SettingRegistry();
+        final Setting<String> code =
+                new Setting<String>(
+                        "profile.code",
+                        "ok",
+                        value -> value.length() <= 2,
+                        SettingCodecs.STRING);
+        settings.register(code);
+
+        final SettingPresentationRegistry presentations =
+                new SettingPresentationRegistry();
+        presentations.register(
+                new SettingDescriptor(
+                        "profile.code",
+                        "Profile Code",
+                        SettingValueKind.TEXT,
+                        0));
+
+        final ClickGuiContentRegistry contents =
+                new ClickGuiContentRegistry();
+        contents.register(
+                "settings",
+                new SettingListPageContent(
+                        settings,
+                        presentations));
+
+        final UiFocusManager focus =
+                new UiFocusManager();
+        final UiViewport viewport =
+                new UiViewport(
+                        1200,
+                        800,
+                        1.0F);
+        final ClickGuiLayout layout =
+                new ClickGuiLayoutEngine()
+                        .layout(viewport);
+
+        try (ClickGuiInputController input =
+                     new ClickGuiInputController(
+                             model,
+                             contents,
+                             focus)) {
+            assertTrue(
+                    input.pointer(
+                            press(
+                                    layout.content().x() + 30.0F,
+                                    layout.content().y() + 60.0F),
+                            viewport));
+            assertTrue(input.key(character('x')));
+
+            final String textFocusId =
+                    focus.focusedId();
+            assertNotNull(textFocusId);
+
+            assertTrue(input.key(key(UiKeys.ENTER)));
+            assertEquals(
+                    "ok",
+                    code.get());
+            assertEquals(
+                    textFocusId,
+                    focus.focusedId());
+
+            assertTrue(input.key(key(UiKeys.ESCAPE)));
+            assertNull(focus.focusedId());
+            assertEquals(
+                    "ok",
+                    code.get());
+            assertTrue(model.snapshot().open());
+        }
+    }
+
+    @Test
+    void controllerCloseCancelsActiveTextDraft() {
+        final ClickGuiModel model =
+                new ClickGuiModel();
+        model.register(
+                new ClickGuiPage(
+                        "settings",
+                        "Settings",
+                        0));
+        model.open();
+
+        final SettingRegistry settings =
+                new SettingRegistry();
+        final Setting<String> name =
+                new Setting<String>(
+                        "profile.name",
+                        "abc",
+                        value -> true,
+                        SettingCodecs.STRING);
+        settings.register(name);
+
+        final SettingPresentationRegistry presentations =
+                new SettingPresentationRegistry();
+        presentations.register(
+                new SettingDescriptor(
+                        "profile.name",
+                        "Profile Name",
+                        SettingValueKind.TEXT,
+                        0));
+
+        final ClickGuiContentRegistry contents =
+                new ClickGuiContentRegistry();
+        contents.register(
+                "settings",
+                new SettingListPageContent(
+                        settings,
+                        presentations));
+
+        final UiFocusManager focus =
+                new UiFocusManager();
+        final UiViewport viewport =
+                new UiViewport(
+                        1200,
+                        800,
+                        1.0F);
+        final ClickGuiLayout layout =
+                new ClickGuiLayoutEngine()
+                        .layout(viewport);
+        final ClickGuiInputController input =
+                new ClickGuiInputController(
+                        model,
+                        contents,
+                        focus);
+
+        assertTrue(
+                input.pointer(
+                        press(
+                                layout.content().x() + 30.0F,
+                                layout.content().y() + 60.0F),
+                        viewport));
+        assertTrue(input.key(character('x')));
+        assertNotNull(focus.focusedId());
+
+        input.close();
+
+        assertNull(focus.focusedId());
+        assertEquals(
+                "abc",
+                name.get());
     }
 
     private static ClickGuiModel model() {

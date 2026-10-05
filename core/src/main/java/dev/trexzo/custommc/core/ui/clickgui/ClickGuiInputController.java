@@ -197,6 +197,7 @@ public final class ClickGuiInputController
 
     @Override
     public void close() {
+        focusManager.clearFocus();
         searchRegistration.close();
     }
 
@@ -221,7 +222,8 @@ public final class ClickGuiInputController
                 new ClickGuiContentInputContext(
                         snapshot,
                         selected,
-                        layout.content()),
+                        layout.content(),
+                        focusManager),
                 event);
     }
 

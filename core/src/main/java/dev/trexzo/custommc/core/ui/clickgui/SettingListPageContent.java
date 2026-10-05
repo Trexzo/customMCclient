@@ -10,6 +10,11 @@ import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiFonts;
+import dev.trexzo.custommc.core.ui.UiFocusManager;
+import dev.trexzo.custommc.core.ui.UiFocusTarget;
+import dev.trexzo.custommc.core.ui.UiKeyAction;
+import dev.trexzo.custommc.core.ui.UiKeyEvent;
+import dev.trexzo.custommc.core.ui.UiKeys;
 import dev.trexzo.custommc.core.ui.UiPointerAction;
 import dev.trexzo.custommc.core.ui.UiPointerButton;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
@@ -31,6 +36,7 @@ public final class SettingListPageContent
     private static final float ROW_HEIGHT = 38.0F;
     private static final float ROW_GAP = 7.0F;
     private static final float ROW_RADIUS = 6.0F;
+    private static final int MAX_TEXT_LENGTH = 128;
 
     private static final Comparator<Entry> ENTRY_ORDER =
             new Comparator<Entry>() {
@@ -52,6 +58,7 @@ public final class SettingListPageContent
 
     private final SettingRegistry settings;
     private final SettingPresentationRegistry presentations;
+    private TextEditSession textEdit;
 
     public SettingListPageContent(
             final SettingRegistry settings,
@@ -118,6 +125,8 @@ public final class SettingListPageContent
                             theme.color(
                                     UiColorRole.TEXT_PRIMARY)));
 
+            final boolean editing =
+                    isEditing(entry.setting);
             commands.add(
                     new UiTextCommand(
                             0,
@@ -128,10 +137,12 @@ public final class SettingListPageContent
                                             - 130.0F),
                             row.y() + 10.0F,
                             UiFonts.DEFAULT,
-                            String.valueOf(
-                                    entry.setting.get()),
+                            displayValue(
+                                    entry.setting),
                             theme.color(
-                                    UiColorRole.TEXT_MUTED)));
+                                    editing
+                                            ? UiColorRole.ACCENT
+                                            : UiColorRole.TEXT_MUTED)));
         }
 
         return commands;
@@ -189,10 +200,82 @@ public final class SettingListPageContent
                         event.button());
             }
 
+            if (entry.descriptor.kind()
+                    == SettingValueKind.TEXT) {
+                if (event.button()
+                        != UiPointerButton.LEFT) {
+                    return false;
+                }
+                return beginTextEdit(
+                        context,
+                        entry.setting);
+            }
+
             return false;
         }
 
         return false;
+    }
+
+    private boolean beginTextEdit(
+            final ClickGuiContentInputContext context,
+            final Setting<?> setting) {
+        final UiFocusManager focusManager =
+                context.focusManager();
+        if (focusManager == null) {
+            return false;
+        }
+
+        final Object current = setting.get();
+        if (!(current instanceof String)) {
+            return false;
+        }
+
+        @SuppressWarnings("unchecked")
+        final Setting<String> textSetting =
+                (Setting<String>) setting;
+
+        final TextEditSession session =
+                new TextEditSession(
+                        focusManager,
+                        textSetting,
+                        "clickgui.setting-text."
+                                + context.page().id()
+                                + "."
+                                + setting.id(),
+                        (String) current);
+
+        final UiFocusManager.Registration registration;
+        try {
+            registration =
+                    focusManager.register(session);
+        } catch (IllegalArgumentException duplicate) {
+            return false;
+        }
+
+        session.attach(registration);
+        textEdit = session;
+
+        if (!focusManager.requestFocus(
+                session.id())) {
+            session.dispose();
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isEditing(
+            final Setting<?> setting) {
+        return textEdit != null
+                && textEdit.setting() == setting;
+    }
+
+    private String displayValue(
+            final Setting<?> setting) {
+        if (isEditing(setting)) {
+            return textEdit.draft() + "|";
+        }
+        return String.valueOf(setting.get());
     }
 
     private List<Entry> entries(
@@ -354,6 +437,130 @@ public final class SettingListPageContent
             // The Setting validator remains authoritative.
         }
         return true;
+    }
+
+    private final class TextEditSession
+            implements UiFocusTarget {
+        private final UiFocusManager focusManager;
+        private final Setting<String> setting;
+        private final String id;
+        private String draft;
+        private UiFocusManager.Registration registration;
+
+        TextEditSession(
+                final UiFocusManager focusManager,
+                final Setting<String> setting,
+                final String id,
+                final String draft) {
+            this.focusManager =
+                    Objects.requireNonNull(
+                            focusManager,
+                            "focusManager");
+            this.setting =
+                    Objects.requireNonNull(
+                            setting,
+                            "setting");
+            this.id =
+                    Objects.requireNonNull(
+                            id,
+                            "id");
+            this.draft =
+                    Objects.requireNonNull(
+                            draft,
+                            "draft");
+        }
+
+        void attach(
+                final UiFocusManager.Registration registration) {
+            this.registration =
+                    Objects.requireNonNull(
+                            registration,
+                            "registration");
+        }
+
+        Setting<String> setting() {
+            return setting;
+        }
+
+        String draft() {
+            return draft;
+        }
+
+        @Override
+        public String id() {
+            return id;
+        }
+
+        @Override
+        public void onFocusChanged(
+                final boolean focused) {
+            if (!focused) {
+                dispose();
+            }
+        }
+
+        @Override
+        public boolean onKey(
+                final UiKeyEvent event) {
+            Objects.requireNonNull(event, "event");
+
+            if (event.action() == UiKeyAction.RELEASE) {
+                return false;
+            }
+
+            if (UiKeys.ESCAPE.equals(event.key())) {
+                focusManager.clearFocus();
+                return true;
+            }
+
+            if (UiKeys.ENTER.equals(event.key())) {
+                try {
+                    setting.set(draft);
+                } catch (IllegalArgumentException rejected) {
+                    return true;
+                }
+                focusManager.clearFocus();
+                return true;
+            }
+
+            if (UiKeys.BACKSPACE.equals(event.key())
+                    || UiKeys.DELETE.equals(event.key())) {
+                if (!draft.isEmpty()) {
+                    draft =
+                            draft.substring(
+                                    0,
+                                    draft.length() - 1);
+                }
+                return true;
+            }
+
+            if (event.hasCharacter()
+                    && !event.control()
+                    && !event.alt()
+                    && !Character.isISOControl(
+                            event.character())) {
+                if (draft.length() < MAX_TEXT_LENGTH) {
+                    draft += event.character();
+                }
+                return true;
+            }
+
+            return false;
+        }
+
+        void dispose() {
+            if (textEdit == this) {
+                textEdit = null;
+            }
+
+            final UiFocusManager.Registration current =
+                    registration;
+            registration = null;
+            if (current != null
+                    && current.active()) {
+                current.close();
+            }
+        }
     }
 
     private static final class Entry {
