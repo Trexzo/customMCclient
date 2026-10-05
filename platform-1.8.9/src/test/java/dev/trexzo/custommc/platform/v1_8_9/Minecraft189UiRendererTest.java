@@ -2,7 +2,9 @@ package dev.trexzo.custommc.platform.v1_8_9;
 
 import dev.trexzo.custommc.core.render.RenderFrame;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
+import dev.trexzo.custommc.core.ui.UiOutlineCommand;
 import dev.trexzo.custommc.core.ui.UiRectCommand;
+import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiGraphics;
@@ -19,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189UiRendererTest {
     @Test
-    void rectAndTextTranslateInCommandOrder() {
+    void supportedCommandsTranslateInCommandOrder() {
         final List<String> calls =
                 new ArrayList<String>();
         final Minecraft189UiRenderer renderer =
@@ -37,8 +39,24 @@ final class Minecraft189UiRendererTest {
                                 3.0F,
                                 4.0F,
                                 0xFF010203),
-                        new UiTextCommand(
+                        new UiRoundedRectCommand(
                                 1,
+                                10.0F,
+                                11.0F,
+                                40.0F,
+                                20.0F,
+                                5.0F,
+                                0xFFFFFFFF),
+                        new UiOutlineCommand(
+                                2,
+                                12.0F,
+                                13.0F,
+                                50.0F,
+                                30.0F,
+                                1.5F,
+                                0xFF000000),
+                        new UiTextCommand(
+                                3,
                                 5.0F,
                                 6.0F,
                                 "hello",
@@ -48,6 +66,8 @@ final class Minecraft189UiRendererTest {
                 Arrays.asList(
                         "begin:400.0x300.0",
                         "rect:1.0,2.0,3.0,4.0,-16711165",
+                        "rounded:10.0,11.0,40.0,20.0,5.0,-1",
+                        "outline:12.0,13.0,50.0,30.0,1.5,-16777216",
                         "text:5.0,6.0,hello,-5588020",
                         "end"),
                 calls);
@@ -112,6 +132,52 @@ final class Minecraft189UiRendererTest {
                                 + width
                                 + ","
                                 + height
+                                + ","
+                                + argb);
+            }
+
+            @Override
+            public void fillRoundedRect(
+                    final float x,
+                    final float y,
+                    final float width,
+                    final float height,
+                    final float radius,
+                    final int argb) {
+                calls.add(
+                        "rounded:"
+                                + x
+                                + ","
+                                + y
+                                + ","
+                                + width
+                                + ","
+                                + height
+                                + ","
+                                + radius
+                                + ","
+                                + argb);
+            }
+
+            @Override
+            public void strokeRect(
+                    final float x,
+                    final float y,
+                    final float width,
+                    final float height,
+                    final float thickness,
+                    final int argb) {
+                calls.add(
+                        "outline:"
+                                + x
+                                + ","
+                                + y
+                                + ","
+                                + width
+                                + ","
+                                + height
+                                + ","
+                                + thickness
                                 + ","
                                 + argb);
             }
