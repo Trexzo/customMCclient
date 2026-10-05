@@ -48,6 +48,8 @@ M35 adds bounded double setting stepping through the same numeric metadata.
 
 M36 fixes end-to-end content pointer routing so right-click editors work through the real ClickGUI input controller.
 
+M37 adds focus-owned transactional text setting editing.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -56,7 +58,7 @@ The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCo
 
 `ClickGuiComposer` is still a generic shell compositor. Registered page content receives an immutable `ClickGuiContentContext` for drawing.
 
-`ClickGuiContentInputContext` contains only the retained snapshot, selected page descriptor and logical content bounds.
+`ClickGuiContentInputContext` contains the retained snapshot, selected page descriptor and logical content bounds. Controller-dispatched contexts also expose the backend-neutral `UiFocusManager` so interactive page content can participate in the same explicit focus authority as shell controls. The legacy three-argument context remains usable for read-only/direct content tests and carries no focus manager.
 
 `ClickGuiPageContent.pointer(...)` defaults to no handling, so read-only page implementations do not need input code.
 
@@ -91,7 +93,9 @@ M34 adds optional `SettingNumericSpec` metadata for numeric presentation bounds 
 
 M35 applies the same left/right stepping contract to visible `DOUBLE` rows. The numeric spec clamps the proposed double value and `Setting<Double>.set(...)` remains the final validator.
 
-Numeric descriptors without an explicit numeric spec remain read-only. Text editing is not implemented yet.
+Numeric descriptors without an explicit numeric spec remain read-only.
+
+M37 adds transactional `TEXT` editing. A left press on a text row creates a temporary draft from the live setting and requests focus through the existing `UiFocusManager`. Printable characters and Backspace/Delete modify only that draft. Enter proposes the draft through `Setting<String>.set(...)`; validator rejection leaves the live value untouched and keeps focus so the draft can be corrected. Escape, another focus request, or input-controller shutdown cancels the draft without mutating the setting. While focused, composition renders the draft rather than inventing a second persisted value authority.
 
 ## Input routing
 
@@ -117,7 +121,6 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- text setting editors;
 - content-region scrolling;
 - module metadata beyond stable ids;
 - concrete host callback wiring into `Minecraft189InputHooks`;
