@@ -34,6 +34,8 @@ M28 adds the Minecraft 1.8.9 primitive input translation bridge.
 
 M29 adds retained, clamped navigation scrolling and legacy wheel translation.
 
+M30 adds explicit page-content ownership and the first live module-list content view.
+
 ## Direction
 
 The UI is native and in-process. It does not require an embedded browser.
@@ -52,112 +54,60 @@ The core currently defines:
 
 All geometry uses logical UI coordinates.
 
-Rounded radius may not exceed half the shortest edge. Outlines require finite positive thickness. Invalid geometry is rejected before it reaches a renderer backend.
-
-## Command ordering
-
-`UiCommandBuffer` orders top-level commands by numeric layer while preserving insertion order within a layer.
-
-A `UiClipCommand` is one atomic top-level command. Its child list is immutable and renders in the order supplied. This prevents top-level layer sorting from separating clip entry and exit. A nested `UiCommandBuffer` can be sealed first when a clipped subtree needs its own layer ordering.
-
-The 1.8.9 renderer preserves the sealed top-level order and recursively translates clipped child commands.
-
-## Clip ownership
-
-`Minecraft189UiRenderer` translates a clip scope to `LegacyUiGraphics.pushClip` / `popClip`.
-
-Clip exit is guaranteed in a `finally` block if a nested command fails. Nested clip scopes are therefore safe to compose without leaking scissor state into later UI.
-
-The eventual concrete 1.8.9 backend owns conversion from logical clip bounds to framebuffer scissor coordinates and intersection with any parent clip.
-
-## Theme ownership
-
-`UiColorRole` defines semantic color intent instead of backend or widget-specific constants.
-
-`UiTheme` is an immutable complete mapping from every semantic role to an ARGB value. Missing roles are rejected at construction, and palette input is defensively copied.
-
-`UiThemeProvider` gives retained UI a small runtime seam for later theme switching without coupling widgets to profile storage.
-
-`UiThemes.darkDefault()` provides the first neutral modern palette. Widgets should request semantic roles such as `SURFACE`, `TEXT_PRIMARY` or `ACCENT` rather than embedding those palette values directly.
-
-## Font and text measurement
-
-`UiFontHandle` is a stable logical font identity. It does not expose a Minecraft `FontRenderer`, texture id, atlas or other backend resource.
-
-`UiFonts.DEFAULT` preserves the existing text-command behavior through the logical `minecraft-default` handle, while callers may opt into named handles such as `ui-medium`.
-
-`UiTextMetrics` carries validated logical width, height and baseline geometry. `UiTextMeasurer` is the backend-neutral measurement contract used by future retained layout before commands are emitted.
-
-`UiTextCommand` carries its font handle to the 1.8.9 graphics boundary. The eventual concrete backend resolves that handle to its owned font implementation.
-
-## Focus and key routing
-
-`UiFocusManager` owns exactly one focused target at a time. Targets register under stable ids and receive deterministic focus-change callbacks.
-
-Registration is an explicit lifetime. Closing the focused target's registration clears focus and emits the matching focus-loss callback, preventing stale retained widgets from continuing to receive keyboard input.
-
-`UiKey`, `UiKeys`, `UiKeyAction` and `UiKeyEvent` describe logical keyboard input without exposing LWJGL or Minecraft event classes.
-
-Only the focused target receives `dispatchKey`; its boolean return indicates whether the event was consumed.
-
 ## Retained ClickGUI shell
 
-`ClickGuiModel` owns UI state that must survive across frames instead of being recreated during rendering.
+`ClickGuiModel` owns state that survives across frames: open/closed state, selected page, search query and navigation scroll.
 
 Registered `ClickGuiPage` descriptors use stable ids and deterministic priority/id ordering. Registrations have explicit lifetimes.
 
-Automatic selection follows the deterministic page order until the user makes an explicit page selection. Explicit selection remains stable as later pages register. Removing the selected page falls back to the first remaining ordered page.
+`ClickGuiSnapshot` exposes one immutable frame-safe view.
 
-Open/closed state, selected page id, search query and navigation scroll offset are retained independently of rendering. `ClickGuiSnapshot` exposes an immutable frame-safe view.
+## ClickGUI page content
 
-## ClickGUI layout and composition
+`ClickGuiContentRegistry` maps stable page ids to `ClickGuiPageContent` implementations. Content registrations have explicit lifetimes and duplicate ownership is rejected.
 
-`ClickGuiLayoutEngine` computes a responsive centered wide panel in logical UI coordinates, with explicit sidebar, search, clipped navigation and content regions.
+`ClickGuiComposer` remains a generic shell compositor. If the selected page has registered content, the shell creates a clipped content scope and delegates through `ClickGuiContentContext`; otherwise it retains the simple title fallback.
 
-`ClickGuiComposer` converts one immutable shell snapshot plus the current viewport/theme into the existing backend-neutral command model.
+`ClickGuiContentContext` contains only the immutable shell snapshot, selected page descriptor, content bounds and current semantic theme. Page content does not receive Minecraft/OpenGL objects or profile storage.
 
-Navigation rows are shifted by the clamped retained scroll offset inside the existing `UiClipCommand`. `ClickGuiMetrics` owns row/content/max-scroll geometry so composition and input use the same calculation.
+`ModuleListPageContent` is the first real content implementation. It reads the current `ModuleRegistry` snapshot and asks `ModuleController` for lifecycle state each composition. ClickGUI does not duplicate module enable/disable authority.
 
-The composer does not call Minecraft, OpenGL or profile storage directly.
+The retained search query filters module ids case-insensitively. Enabled/failed/transitional states are represented through semantic theme roles. M30 is intentionally read-only; module toggling becomes a separate input ownership milestone.
 
-`ClickGuiRenderPass` places the retained shell into the existing `HUD` render stage. It snapshots the model first and exits immediately while the GUI is closed.
+`ClickGuiRenderPass` has an overload that accepts the content registry, while the original constructor remains valid with an empty registry.
 
-## ClickGUI input
+## Navigation scrolling
 
-`UiPointerEvent`, `UiPointerAction` and `UiScrollEvent` describe validated logical pointer input without exposing LWJGL or Minecraft classes.
+Navigation rows are shifted by the clamped retained scroll offset inside `UiClipCommand`.
 
-`ClickGuiInputController` handles left-button press hit-testing for the search field, page navigation and shell surface. Wheel input is consumed only inside the navigation bounds and adjusts retained scrolling by a shared logical step.
+`ClickGuiMetrics` owns row/content/max-scroll geometry so composition and input use the same calculation.
 
-Navigation hit-testing applies the same clamped scroll offset as rendering, so a visible row and its click target cannot drift apart.
+`UiScrollEvent` is backend-neutral. `LegacyInputTranslator` normalizes legacy wheel direction and converts bottom-origin framebuffer coordinates to top-origin logical UI coordinates before `Minecraft189InputHooks` routes the event.
 
-The search field is a normal `UiFocusTarget` owned through `UiFocusManager`. Printable characters append to the retained query, Backspace deletes one character, and Enter/Escape release search focus. Escape with no focused search field closes the ClickGUI.
+## Focus and keyboard input
 
-`LegacyInputTranslator` converts primitive mouse/key/wheel data into backend-neutral events. Pointer and wheel Y coordinates are converted from the legacy bottom-origin framebuffer convention into top-origin logical UI coordinates. Legacy wheel magnitude is normalized to a stable direction step before entering core.
+`UiFocusManager` owns exactly one focused target at a time with explicit registration lifetimes.
 
-`Minecraft189InputHooks` resolves `ClickGuiInputController` through the existing platform `ServiceRegistry`. Zero wheel deltas and unsupported extra mouse buttons are ignored before retained UI mutation.
+The search field is a normal `UiFocusTarget`. Printable characters edit the retained query, Backspace deletes one character, Enter/Escape release focus, and Escape without search focus closes the ClickGUI.
 
-## HUD layout/input
+## Rendering boundary
 
-`HudWidgetRegistry`, `HudLayoutEngine`, `HudLayoutState` and `HudDragController` own widget identity, resolved bounds, placement overrides and drag transactions respectively.
+`ClickGuiRenderPass` participates in the normal `HUD` stage and forwards backend-neutral commands through `UiRenderer`.
 
-Input and rendering can share the same immutable layout snapshot.
+The 1.8.9 path remains:
 
-## Render bridge
+`Minecraft189Hooks -> RenderPipeline -> ClickGuiRenderPass -> Minecraft189UiRenderer -> LegacyUiGraphics`
 
-`HudRenderPass` runs in the standard HUD render stage and sends the sealed command list to `UiRenderer`.
-
-The 1.8.9 path is:
-
-`Minecraft189Hooks -> RenderPipeline -> HudRenderPass -> Minecraft189UiRenderer -> LegacyUiGraphics`
-
-The actual Minecraft/LWJGL implementation of `LegacyUiGraphics` remains outside core.
+No concrete Minecraft, LWJGL, OpenGL, font atlas or profile-storage object crosses into core UI.
 
 ## Next layers
 
 Later UI milestones can add:
 
+- module-row pointer interaction through `ModuleController`;
+- setting descriptors/editors;
+- content-region scrolling;
 - concrete host callback wiring into `Minecraft189InputHooks`;
-- page-specific module/setting views;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
 
