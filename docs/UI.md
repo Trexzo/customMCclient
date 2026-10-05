@@ -58,6 +58,8 @@ M40 adds optional module categories and deterministic presentation ordering whil
 
 M41 adds explicit module-to-setting ownership metadata without moving value or lifecycle authority into the UI.
 
+M42 adds retained stable-id module selection for future detail views.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -92,6 +94,8 @@ Left-clicking a visible module row requests lifecycle change only through `Modul
 - transitional `ENABLING` / `DISABLING` states are not mutated by the UI.
 
 ClickGUI does not write a parallel enabled flag and does not invoke module callbacks directly.
+
+M42 adds `ModuleSelectionModel` as retained UI selection state over the authoritative `ModuleRegistry`. Right-clicking a visible module row can select its stable module id when a selection model is supplied; left-click lifecycle toggling remains unchanged. Selected rows receive an accent outline, and legacy constructors without a selection model preserve the prior right-click-no-op content behavior.
 
 ## Module setting ownership
 
@@ -145,7 +149,7 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- per-module detail views built on the M41 ownership registry;
+- per-module detail views built on M41 ownership + M42 retained selection;
 - concrete host callback wiring into `Minecraft189InputHooks`;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
