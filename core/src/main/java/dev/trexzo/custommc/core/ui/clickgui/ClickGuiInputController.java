@@ -151,27 +151,36 @@ public final class ClickGuiInputController
 
         final ClickGuiLayout layout =
                 layoutEngine.layout(viewport);
-        if (!layout.navigation().contains(
+        if (layout.navigation().contains(
                 event.x(),
                 event.y())) {
-            return false;
+            final float current =
+                    ClickGuiMetrics.clampNavigationScroll(
+                            snapshot.navigationScroll(),
+                            snapshot.pages().size(),
+                            layout.navigation().height());
+            final float next =
+                    ClickGuiMetrics.clampNavigationScroll(
+                            current
+                                    - event.deltaY()
+                                    * ClickGuiMetrics.NAVIGATION_SCROLL_STEP,
+                            snapshot.pages().size(),
+                            layout.navigation().height());
+
+            model.setNavigationScroll(next);
+            return true;
         }
 
-        final float current =
-                ClickGuiMetrics.clampNavigationScroll(
-                        snapshot.navigationScroll(),
-                        snapshot.pages().size(),
-                        layout.navigation().height());
-        final float next =
-                ClickGuiMetrics.clampNavigationScroll(
-                        current
-                                - event.deltaY()
-                                * ClickGuiMetrics.NAVIGATION_SCROLL_STEP,
-                        snapshot.pages().size(),
-                        layout.navigation().height());
+        if (layout.content().contains(
+                event.x(),
+                event.y())) {
+            return dispatchContentScroll(
+                    snapshot,
+                    layout,
+                    event);
+        }
 
-        model.setNavigationScroll(next);
-        return true;
+        return false;
     }
 
     public boolean key(final UiKeyEvent event) {
@@ -219,6 +228,32 @@ public final class ClickGuiInputController
         }
 
         content.pointer(
+                new ClickGuiContentInputContext(
+                        snapshot,
+                        selected,
+                        layout.content(),
+                        focusManager),
+                event);
+    }
+
+    private boolean dispatchContentScroll(
+            final ClickGuiSnapshot snapshot,
+            final ClickGuiLayout layout,
+            final UiScrollEvent event) {
+        final ClickGuiPage selected =
+                selectedPage(snapshot);
+        if (selected == null) {
+            return false;
+        }
+
+        final ClickGuiPageContent content =
+                contentRegistry.find(
+                        selected.id());
+        if (content == null) {
+            return false;
+        }
+
+        return content.scroll(
                 new ClickGuiContentInputContext(
                         snapshot,
                         selected,

@@ -19,6 +19,7 @@ import dev.trexzo.custommc.core.ui.UiPointerAction;
 import dev.trexzo.custommc.core.ui.UiPointerButton;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
+import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiTheme;
 
@@ -58,6 +59,8 @@ public final class SettingListPageContent
 
     private final SettingRegistry settings;
     private final SettingPresentationRegistry presentations;
+    private final ClickGuiContentScrollState scroll =
+            new ClickGuiContentScrollState();
     private TextEditSession textEdit;
 
     public SettingListPageContent(
@@ -80,19 +83,24 @@ public final class SettingListPageContent
                 new ArrayList<UiDrawCommand>();
         final UiBounds bounds = context.bounds();
         final UiTheme theme = context.theme();
+        final List<Entry> visible =
+                entries(context.snapshot());
+        final float scrollOffset =
+                scroll.offset(
+                        contentHeight(
+                                visible.size()),
+                        bounds.height());
 
         commands.add(
                 new UiTextCommand(
                         0,
                         bounds.x() + PADDING,
-                        bounds.y() + PADDING,
+                        bounds.y() + PADDING - scrollOffset,
                         UiFonts.DEFAULT,
                         context.page().title(),
                         theme.color(
                                 UiColorRole.TEXT_PRIMARY)));
 
-        final List<Entry> visible =
-                entries(context.snapshot());
         for (int index = 0;
              index < visible.size();
              index++) {
@@ -100,7 +108,8 @@ public final class SettingListPageContent
             final UiBounds row =
                     rowBounds(
                             bounds,
-                            index);
+                            index,
+                            scrollOffset);
 
             commands.add(
                     new UiRoundedRectCommand(
@@ -161,13 +170,19 @@ public final class SettingListPageContent
 
         final List<Entry> visible =
                 entries(context.snapshot());
+        final float scrollOffset =
+                scroll.offset(
+                        contentHeight(
+                                visible.size()),
+                        context.bounds().height());
         for (int index = 0;
              index < visible.size();
              index++) {
             final Entry entry = visible.get(index);
             if (!rowBounds(
                     context.bounds(),
-                    index)
+                    index,
+                    scrollOffset)
                     .contains(
                             event.x(),
                             event.y())) {
@@ -215,6 +230,24 @@ public final class SettingListPageContent
         }
 
         return false;
+    }
+
+    @Override
+    public boolean scroll(
+            final ClickGuiContentInputContext context,
+            final UiScrollEvent event) {
+        Objects.requireNonNull(context, "context");
+        Objects.requireNonNull(event, "event");
+
+        final int count =
+                entries(
+                        context.snapshot())
+                        .size();
+        scroll.scroll(
+                event.deltaY(),
+                contentHeight(count),
+                context.bounds().height());
+        return true;
     }
 
     private boolean beginTextEdit(
@@ -318,19 +351,35 @@ public final class SettingListPageContent
 
     private static UiBounds rowBounds(
             final UiBounds bounds,
-            final int index) {
+            final int index,
+            final float scrollOffset) {
         return new UiBounds(
                 bounds.x() + PADDING,
                 bounds.y()
                         + PADDING
                         + TITLE_GAP
                         + index
-                        * (ROW_HEIGHT + ROW_GAP),
+                        * (ROW_HEIGHT + ROW_GAP)
+                        - scrollOffset,
                 Math.max(
                         0.0F,
                         bounds.width()
                                 - PADDING * 2.0F),
                 ROW_HEIGHT);
+    }
+
+    private static float contentHeight(
+            final int rowCount) {
+        if (rowCount <= 0) {
+            return PADDING
+                    + TITLE_GAP
+                    + PADDING;
+        }
+        return PADDING
+                + TITLE_GAP
+                + rowCount * ROW_HEIGHT
+                + (rowCount - 1) * ROW_GAP
+                + PADDING;
     }
 
     private static boolean matches(
