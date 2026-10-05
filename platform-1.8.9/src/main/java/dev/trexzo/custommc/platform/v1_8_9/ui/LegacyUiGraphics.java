@@ -28,6 +28,14 @@ public interface LegacyUiGraphics {
             float thickness,
             int argb);
 
+    void pushClip(
+            float x,
+            float y,
+            float width,
+            float height);
+
+    void popClip();
+
     void drawText(
             float x,
             float y,

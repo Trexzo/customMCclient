@@ -12,6 +12,10 @@ M17 adds the backend-neutral HUD render pass.
 
 M18 adds the Minecraft 1.8.9 UI translation boundary without importing Minecraft/OpenGL types into core.
 
+M19 extends that translation boundary with rounded fills and outlines.
+
+M20 adds exception-safe nested clip scopes without exposing GL scissor state to core.
+
 ## Goals
 
 - explicit render stages;
@@ -23,7 +27,8 @@ M18 adds the Minecraft 1.8.9 UI translation boundary without importing Minecraft
 - no direct Minecraft types in core;
 - no repeated pass filtering/sorting during steady-state rendering;
 - deterministic ownership for future GPU resources;
-- UI composition isolated from the concrete graphics backend.
+- UI composition isolated from the concrete graphics backend;
+- scoped render state with deterministic restoration.
 
 ## Cached render plans and lifetime
 
@@ -43,17 +48,16 @@ The generic flow is:
 
 ## Minecraft 1.8.9 UI backend boundary
 
-M18 provides two platform-side facades:
+The platform-side facades are:
 
 - `LegacyViewportAccess` — current framebuffer dimensions and UI scale;
-- `LegacyUiGraphics` — begin/end plus logical rectangle and text drawing operations.
+- `LegacyUiGraphics` — begin/end, shape/text operations and scoped clipping.
 
 `Minecraft189ViewportProvider` reads the current display values on every render frame and creates the core `UiViewport`.
 
-`Minecraft189UiRenderer` translates the currently supported core commands:
+`Minecraft189UiRenderer` translates the currently supported core commands, including recursive `UiClipCommand` scopes.
 
-- `UiRectCommand -> LegacyUiGraphics.fillRect`
-- `UiTextCommand -> LegacyUiGraphics.drawText`
+Clip scopes call `pushClip` before nested commands and guarantee `popClip` afterward even if nested translation throws. The concrete backend will own logical-to-framebuffer scissor conversion and parent-clip intersection.
 
 Command order is preserved. `end()` is guaranteed after a successful `begin()`, even when translation fails.
 

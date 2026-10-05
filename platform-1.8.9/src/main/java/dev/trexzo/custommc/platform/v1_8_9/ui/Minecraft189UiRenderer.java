@@ -1,6 +1,7 @@
 package dev.trexzo.custommc.platform.v1_8_9.ui;
 
 import dev.trexzo.custommc.core.render.RenderFrame;
+import dev.trexzo.custommc.core.ui.UiClipCommand;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiOutlineCommand;
 import dev.trexzo.custommc.core.ui.UiRectCommand;
@@ -82,6 +83,24 @@ public final class Minecraft189UiRenderer
                     outline.height(),
                     outline.thickness(),
                     outline.argb());
+            return;
+        }
+
+        if (command instanceof UiClipCommand) {
+            final UiClipCommand clip =
+                    (UiClipCommand) command;
+            graphics.pushClip(
+                    clip.bounds().x(),
+                    clip.bounds().y(),
+                    clip.bounds().width(),
+                    clip.bounds().height());
+            try {
+                for (UiDrawCommand child : clip.commands()) {
+                    renderCommand(child);
+                }
+            } finally {
+                graphics.popClip();
+            }
             return;
         }
 
