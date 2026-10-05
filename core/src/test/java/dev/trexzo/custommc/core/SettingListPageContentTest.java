@@ -523,4 +523,154 @@ final class SettingListPageContentTest {
                 range.get());
     }
 
+
+    @Test
+    void doubleRowsStepLeftAndRightWithinPresentationBounds() {
+        final SettingRegistry settings =
+                new SettingRegistry();
+        final Setting<Double> speed =
+                new Setting<Double>(
+                        "movement.speed",
+                        1.0D,
+                        value -> value >= 0.5D && value <= 2.0D,
+                        SettingCodecs.DOUBLE);
+        settings.register(speed);
+
+        final SettingPresentationRegistry presentations =
+                new SettingPresentationRegistry();
+        presentations.register(
+                new SettingDescriptor(
+                        "movement.speed",
+                        "Speed",
+                        SettingValueKind.DOUBLE,
+                        0,
+                        new SettingNumericSpec(
+                                0.5D,
+                                2.0D,
+                                0.25D)));
+
+        final SettingListPageContent content =
+                new SettingListPageContent(
+                        settings,
+                        presentations);
+        final ClickGuiPage page =
+                new ClickGuiPage(
+                        "settings",
+                        "Settings",
+                        0);
+        final ClickGuiContentInputContext context =
+                new ClickGuiContentInputContext(
+                        new ClickGuiSnapshot(
+                                true,
+                                "settings",
+                                "",
+                                Arrays.asList(page)),
+                        page,
+                        new UiBounds(
+                                200.0F,
+                                100.0F,
+                                600.0F,
+                                400.0F));
+
+        assertTrue(
+                content.pointer(
+                        context,
+                        new UiPointerEvent(
+                                240.0F,
+                                170.0F,
+                                UiPointerButton.LEFT,
+                                UiPointerAction.PRESS)));
+        assertEquals(
+                1.25D,
+                speed.get(),
+                0.000001D);
+
+        assertTrue(
+                content.pointer(
+                        context,
+                        new UiPointerEvent(
+                                240.0F,
+                                170.0F,
+                                UiPointerButton.RIGHT,
+                                UiPointerAction.PRESS)));
+        assertEquals(
+                1.0D,
+                speed.get(),
+                0.000001D);
+
+        speed.set(2.0D);
+        assertTrue(
+                content.pointer(
+                        context,
+                        new UiPointerEvent(
+                                240.0F,
+                                170.0F,
+                                UiPointerButton.LEFT,
+                                UiPointerAction.PRESS)));
+        assertEquals(
+                2.0D,
+                speed.get(),
+                0.000001D);
+    }
+
+    @Test
+    void doubleEditorStillHonorsSettingValidator() {
+        final SettingRegistry settings =
+                new SettingRegistry();
+        final Setting<Double> locked =
+                new Setting<Double>(
+                        "locked.speed",
+                        1.0D,
+                        value -> value <= 1.0D,
+                        SettingCodecs.DOUBLE);
+        settings.register(locked);
+
+        final SettingPresentationRegistry presentations =
+                new SettingPresentationRegistry();
+        presentations.register(
+                new SettingDescriptor(
+                        "locked.speed",
+                        "Locked Speed",
+                        SettingValueKind.DOUBLE,
+                        0,
+                        new SettingNumericSpec(
+                                0.5D,
+                                2.0D,
+                                0.25D)));
+
+        final ClickGuiPage page =
+                new ClickGuiPage(
+                        "settings",
+                        "Settings",
+                        0);
+        final boolean handled =
+                new SettingListPageContent(
+                        settings,
+                        presentations)
+                        .pointer(
+                                new ClickGuiContentInputContext(
+                                        new ClickGuiSnapshot(
+                                                true,
+                                                "settings",
+                                                "",
+                                                Arrays.asList(page)),
+                                        page,
+                                        new UiBounds(
+                                                200.0F,
+                                                100.0F,
+                                                600.0F,
+                                                400.0F)),
+                                new UiPointerEvent(
+                                        240.0F,
+                                        170.0F,
+                                        UiPointerButton.LEFT,
+                                        UiPointerAction.PRESS));
+
+        assertTrue(handled);
+        assertEquals(
+                1.0D,
+                locked.get(),
+                0.000001D);
+    }
+
 }
