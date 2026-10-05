@@ -7,12 +7,27 @@ public final class SettingDescriptor {
     private final String label;
     private final SettingValueKind kind;
     private final int priority;
+    private final SettingNumericSpec numericSpec;
 
     public SettingDescriptor(
             final String settingId,
             final String label,
             final SettingValueKind kind,
             final int priority) {
+        this(
+                settingId,
+                label,
+                kind,
+                priority,
+                null);
+    }
+
+    public SettingDescriptor(
+            final String settingId,
+            final String label,
+            final SettingValueKind kind,
+            final int priority,
+            final SettingNumericSpec numericSpec) {
         this.settingId = requireText(
                 settingId,
                 "settingId");
@@ -23,6 +38,9 @@ public final class SettingDescriptor {
                 kind,
                 "kind");
         this.priority = priority;
+        this.numericSpec = validateNumericSpec(
+                this.kind,
+                numericSpec);
     }
 
     public String settingId() {
@@ -39,6 +57,29 @@ public final class SettingDescriptor {
 
     public int priority() {
         return priority;
+    }
+
+    public SettingNumericSpec numericSpec() {
+        return numericSpec;
+    }
+
+    private static SettingNumericSpec validateNumericSpec(
+            final SettingValueKind kind,
+            final SettingNumericSpec numericSpec) {
+        if (numericSpec == null) {
+            return null;
+        }
+        if (kind != SettingValueKind.INTEGER
+                && kind != SettingValueKind.DOUBLE) {
+            throw new IllegalArgumentException(
+                    "numeric spec requires numeric setting kind");
+        }
+        if (kind == SettingValueKind.INTEGER
+                && !numericSpec.integerCompatible()) {
+            throw new IllegalArgumentException(
+                    "integer setting requires integer-compatible numeric spec");
+        }
+        return numericSpec;
     }
 
     private static String requireText(
