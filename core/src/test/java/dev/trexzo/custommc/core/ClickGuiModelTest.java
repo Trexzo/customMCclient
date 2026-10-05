@@ -47,6 +47,29 @@ final class ClickGuiModelTest {
     }
 
     @Test
+    void explicitSelectionSurvivesLaterPageRegistration() {
+        final ClickGuiModel model =
+                new ClickGuiModel();
+
+        model.register(
+                new ClickGuiPage(
+                        "render",
+                        "Render",
+                        20));
+        assertTrue(model.select("render"));
+
+        model.register(
+                new ClickGuiPage(
+                        "combat",
+                        "Combat",
+                        0));
+
+        assertEquals(
+                "render",
+                model.snapshot().selectedPageId());
+    }
+
+    @Test
     void selectionOpenStateAndSearchPersistAcrossSnapshots() {
         final ClickGuiModel model =
                 new ClickGuiModel();
