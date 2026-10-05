@@ -43,6 +43,7 @@ public final class ModuleListPageContent
     private final ModulePresentationRegistry presentations;
     private final ModuleCategoryRegistry categories;
     private final ModuleSelectionModel selection;
+    private final String detailPageId;
     private final ClickGuiContentScrollState scroll =
             new ClickGuiContentScrollState();
 
@@ -54,6 +55,7 @@ public final class ModuleListPageContent
                 controller,
                 new ModulePresentationRegistry(),
                 new ModuleCategoryRegistry(),
+                null,
                 null);
     }
 
@@ -66,6 +68,7 @@ public final class ModuleListPageContent
                 controller,
                 presentations,
                 new ModuleCategoryRegistry(),
+                null,
                 null);
     }
 
@@ -79,6 +82,7 @@ public final class ModuleListPageContent
                 controller,
                 presentations,
                 categories,
+                null,
                 null);
     }
 
@@ -88,6 +92,22 @@ public final class ModuleListPageContent
             final ModulePresentationRegistry presentations,
             final ModuleCategoryRegistry categories,
             final ModuleSelectionModel selection) {
+        this(
+                modules,
+                controller,
+                presentations,
+                categories,
+                selection,
+                null);
+    }
+
+    public ModuleListPageContent(
+            final ModuleRegistry modules,
+            final ModuleController controller,
+            final ModulePresentationRegistry presentations,
+            final ModuleCategoryRegistry categories,
+            final ModuleSelectionModel selection,
+            final String detailPageId) {
         this.modules =
                 Objects.requireNonNull(
                         modules,
@@ -105,6 +125,10 @@ public final class ModuleListPageContent
                         categories,
                         "categories");
         this.selection = selection;
+        this.detailPageId =
+                detailPageId == null
+                        ? null
+                        : requirePageId(detailPageId);
     }
 
     @Override
@@ -299,6 +323,14 @@ public final class ModuleListPageContent
                 }
                 selection.select(
                         entry.module.id());
+
+                final ClickGuiNavigator navigator =
+                        context.navigator();
+                if (detailPageId != null
+                        && navigator != null) {
+                    navigator.selectPage(
+                            detailPageId);
+                }
                 return true;
             }
 
@@ -560,6 +592,20 @@ public final class ModuleListPageContent
             default:
                 return UiColorRole.TEXT_MUTED;
         }
+    }
+
+    private static String requirePageId(
+            final String pageId) {
+        final String value =
+                Objects.requireNonNull(
+                        pageId,
+                        "detailPageId")
+                        .trim();
+        if (value.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "detailPageId must not be blank");
+        }
+        return value;
     }
 
     private static final class Entry {

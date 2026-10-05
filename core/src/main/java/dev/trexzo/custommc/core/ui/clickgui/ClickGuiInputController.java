@@ -24,6 +24,7 @@ public final class ClickGuiInputController
     private final ClickGuiLayoutEngine layoutEngine;
     private final ClickGuiContentRegistry contentRegistry;
     private final UiFocusManager focusManager;
+    private final ClickGuiNavigator navigator;
     private final UiFocusManager.Registration searchRegistration;
 
     public ClickGuiInputController(
@@ -68,6 +69,15 @@ public final class ClickGuiInputController
                 Objects.requireNonNull(
                         focusManager,
                         "focusManager");
+        this.navigator =
+                new ClickGuiNavigator() {
+                    @Override
+                    public boolean selectPage(
+                            final String pageId) {
+                        return ClickGuiInputController.this.model
+                                .select(pageId);
+                    }
+                };
         this.searchRegistration =
                 focusManager.register(
                         new SearchFocusTarget());
@@ -232,7 +242,8 @@ public final class ClickGuiInputController
                         snapshot,
                         selected,
                         layout.content(),
-                        focusManager),
+                        focusManager,
+                        navigator),
                 event);
     }
 
@@ -258,7 +269,8 @@ public final class ClickGuiInputController
                         snapshot,
                         selected,
                         layout.content(),
-                        focusManager),
+                        focusManager,
+                        navigator),
                 event);
     }
 

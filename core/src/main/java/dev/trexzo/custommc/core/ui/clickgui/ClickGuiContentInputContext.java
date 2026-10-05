@@ -10,6 +10,7 @@ public final class ClickGuiContentInputContext {
     private final ClickGuiPage page;
     private final UiBounds bounds;
     private final UiFocusManager focusManager;
+    private final ClickGuiNavigator navigator;
 
     public ClickGuiContentInputContext(
             final ClickGuiSnapshot snapshot,
@@ -19,6 +20,7 @@ public final class ClickGuiContentInputContext {
                 snapshot,
                 page,
                 bounds,
+                null,
                 null);
     }
 
@@ -27,6 +29,20 @@ public final class ClickGuiContentInputContext {
             final ClickGuiPage page,
             final UiBounds bounds,
             final UiFocusManager focusManager) {
+        this(
+                snapshot,
+                page,
+                bounds,
+                focusManager,
+                null);
+    }
+
+    public ClickGuiContentInputContext(
+            final ClickGuiSnapshot snapshot,
+            final ClickGuiPage page,
+            final UiBounds bounds,
+            final UiFocusManager focusManager,
+            final ClickGuiNavigator navigator) {
         this.snapshot =
                 Objects.requireNonNull(
                         snapshot,
@@ -40,6 +56,7 @@ public final class ClickGuiContentInputContext {
                         bounds,
                         "bounds");
         this.focusManager = focusManager;
+        this.navigator = navigator;
     }
 
     public ClickGuiSnapshot snapshot() {
@@ -56,5 +73,9 @@ public final class ClickGuiContentInputContext {
 
     public UiFocusManager focusManager() {
         return focusManager;
+    }
+
+    public ClickGuiNavigator navigator() {
+        return navigator;
     }
 }

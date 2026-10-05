@@ -64,6 +64,8 @@ M43 adds a read-only selected-module detail projection over existing module, set
 
 M44 extracts one shared setting-editor authority and lets both global settings and module detail delegate mutation to it.
 
+M45 adds an explicit content-navigation seam so retained module selection can promote into a registered detail page without exposing `ClickGuiModel` to page content.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -72,7 +74,7 @@ The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCo
 
 `ClickGuiComposer` is still a generic shell compositor. Registered page content receives an immutable `ClickGuiContentContext` for drawing.
 
-`ClickGuiContentInputContext` contains the retained snapshot, selected page descriptor and logical content bounds. Controller-dispatched contexts also expose the backend-neutral `UiFocusManager` so interactive page content can participate in the same explicit focus authority as shell controls. The legacy three-argument context remains usable for read-only/direct content tests and carries no focus manager.
+`ClickGuiContentInputContext` contains the retained snapshot, selected page descriptor and logical content bounds. Controller-dispatched contexts also expose the backend-neutral `UiFocusManager` and M45 `ClickGuiNavigator`. The navigator exposes only page selection, keeping `ClickGuiModel` private to the shell/input layer. Legacy direct-test constructors remain valid and carry no focus manager or navigator.
 
 `ClickGuiPageContent.pointer(...)` defaults to no handling, so read-only page implementations do not need input code.
 
@@ -100,6 +102,8 @@ Left-clicking a visible module row requests lifecycle change only through `Modul
 ClickGUI does not write a parallel enabled flag and does not invoke module callbacks directly.
 
 M42 adds `ModuleSelectionModel` as retained UI selection state over the authoritative `ModuleRegistry`. Right-clicking a visible module row can select its stable module id when a selection model is supplied; left-click lifecycle toggling remains unchanged. Selected rows receive an accent outline, and legacy constructors without a selection model preserve the prior right-click-no-op content behavior.
+
+M45 optionally associates that module-list content with a detail page id. After a successful right-click selection, the content asks `ClickGuiNavigator` to select the configured detail page. If the page is not registered, selection is still retained and the current page remains unchanged. Left-click lifecycle actions never trigger detail navigation.
 
 ## Module detail projection
 
@@ -163,7 +167,7 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- navigation/interaction that promotes a selected module into the M43 detail surface;
+- explicit registration/bootstrap wiring that binds the module list and module-detail page in the real client composition root;
 - concrete host callback wiring into `Minecraft189InputHooks`;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
