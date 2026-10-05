@@ -22,6 +22,8 @@ M22 adds stable font handles and backend-neutral text metrics.
 
 M23 adds explicit focus ownership and backend-neutral key routing.
 
+M24 adds the retained ClickGUI shell state model.
+
 ## Direction
 
 The UI is native and in-process. It does not require an embedded browser.
@@ -88,6 +90,16 @@ Registration is an explicit lifetime. Closing the focused target's registration 
 
 Only the focused target receives `dispatchKey`; its boolean return indicates whether the event was consumed.
 
+## Retained ClickGUI shell
+
+`ClickGuiModel` owns UI state that must survive across frames instead of being recreated during rendering.
+
+Registered `ClickGuiPage` descriptors use stable ids and deterministic priority/id ordering. Registrations have explicit lifetimes.
+
+The first available page becomes selected automatically. Removing the selected page falls back to the first remaining ordered page, or no selection when the registry becomes empty.
+
+Open/closed state, the selected page id and the search query are retained independently of rendering. `ClickGuiSnapshot` exposes an immutable frame-safe view for future layout and draw composition.
+
 ## HUD layout/input
 
 `HudWidgetRegistry`, `HudLayoutEngine`, `HudLayoutState` and `HudDragController` own widget identity, resolved bounds, placement overrides and drag transactions respectively.
@@ -108,7 +120,8 @@ The actual Minecraft/LWJGL implementation of `LegacyUiGraphics` remains outside 
 
 Later UI milestones can add:
 
-- retained ClickGUI widgets;
+- retained ClickGUI layout/render composition;
+- page-specific module/setting views;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
 
