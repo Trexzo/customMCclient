@@ -21,8 +21,6 @@ import java.util.Objects;
 public final class ClickGuiComposer {
     private static final float ROOT_RADIUS = 12.0F;
     private static final float CONTROL_RADIUS = 6.0F;
-    private static final float PAGE_HEIGHT = 30.0F;
-    private static final float PAGE_GAP = 4.0F;
 
     private final ClickGuiLayoutEngine layoutEngine;
 
@@ -173,13 +171,13 @@ public final class ClickGuiComposer {
                                 navigation.x(),
                                 y,
                                 navigation.width(),
-                                PAGE_HEIGHT,
+                                ClickGuiMetrics.PAGE_HEIGHT,
                                 radiusFor(
                                         new UiBounds(
                                                 navigation.x(),
                                                 y,
                                                 navigation.width(),
-                                                PAGE_HEIGHT),
+                                                ClickGuiMetrics.PAGE_HEIGHT),
                                         CONTROL_RADIUS),
                                 theme.color(
                                         UiColorRole.SURFACE_RAISED)));
@@ -189,7 +187,7 @@ public final class ClickGuiComposer {
                                 navigation.x(),
                                 y + 5.0F,
                                 2.0F,
-                                PAGE_HEIGHT - 10.0F,
+                                ClickGuiMetrics.PAGE_HEIGHT - 10.0F,
                                 theme.color(
                                         UiColorRole.ACCENT)));
             }
@@ -206,7 +204,8 @@ public final class ClickGuiComposer {
                                             ? UiColorRole.TEXT_PRIMARY
                                             : UiColorRole.TEXT_MUTED)));
 
-            y += PAGE_HEIGHT + PAGE_GAP;
+            y += ClickGuiMetrics.PAGE_HEIGHT
+                    + ClickGuiMetrics.PAGE_GAP;
         }
 
         return commands;
