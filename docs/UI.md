@@ -60,6 +60,8 @@ M41 adds explicit module-to-setting ownership metadata without moving value or l
 
 M42 adds retained stable-id module selection for future detail views.
 
+M43 adds a read-only selected-module detail projection over existing module, setting and ownership authorities.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -96,6 +98,14 @@ Left-clicking a visible module row requests lifecycle change only through `Modul
 ClickGUI does not write a parallel enabled flag and does not invoke module callbacks directly.
 
 M42 adds `ModuleSelectionModel` as retained UI selection state over the authoritative `ModuleRegistry`. Right-clicking a visible module row can select its stable module id when a selection model is supplied; left-click lifecycle toggling remains unchanged. Selected rows receive an accent outline, and legacy constructors without a selection model preserve the prior right-click-no-op content behavior.
+
+## Module detail projection
+
+M43 adds `ModuleDetailPageContent`. With no selection it renders only an explicit selection prompt. With a selected module, it reads the human-facing module name/description from `ModulePresentationRegistry`, lifecycle state from `ModuleController`, ordered setting membership from `ModuleSettingRegistry`, labels from `SettingPresentationRegistry`, and current values directly from `Setting<?>`.
+
+Only settings explicitly owned by the selected module and carrying ClickGUI presentation metadata are rendered. Unowned settings and owned-but-hidden settings remain absent. The detail view does not copy setting values, lifecycle state, validators, persistence state, or module identity, and M43 intentionally remains read-only so the established setting editors stay the sole mutation path.
+
+The detail surface owns only its retained content-scroll offset. Selection changes and binding changes are re-projected on every compose, so stale module-setting snapshots are not retained.
 
 ## Module setting ownership
 
@@ -149,7 +159,8 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- per-module detail views built on M41 ownership + M42 retained selection;
+- navigation/interaction that promotes a selected module into the M43 detail surface;
+- shared setting-editor composition so module detail can edit through the same validator-owned path without copying editor logic;
 - concrete host callback wiring into `Minecraft189InputHooks`;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
