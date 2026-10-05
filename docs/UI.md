@@ -46,6 +46,8 @@ M34 adds bounded integer setting stepping through presentation metadata.
 
 M35 adds bounded double setting stepping through the same numeric metadata.
 
+M36 fixes end-to-end content pointer routing so right-click editors work through the real ClickGUI input controller.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -95,7 +97,7 @@ Numeric descriptors without an explicit numeric spec remain read-only. Text edit
 
 `ClickGuiInputController` owns shell-level routing: search focus, navigation selection, navigation wheel scrolling and root hit-testing.
 
-For a pointer press inside the content region, it resolves only the selected page's registered content and supplies `ClickGuiContentInputContext`. The content implementation decides whether a row-specific action exists.
+For a pointer press inside the content region, it resolves only the selected page's registered content and supplies `ClickGuiContentInputContext`. Content receives left, right and middle button presses; the content implementation decides whether a row-specific action exists. Search and navigation actions remain left-click-only, while other button presses inside those shell regions are consumed without changing state.
 
 Shell clicks remain consumed inside the ClickGUI root even when page content has no row action, preventing gameplay click-through.
 
