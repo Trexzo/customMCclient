@@ -7,7 +7,7 @@ The project is launcher-owned and version-aware. Minecraft integration is delibe
 ### Modules
 
 - `launcher` — process/runtime ownership, installation discovery, update and launch orchestration.
-- `core` — version-independent events, modules, settings, lifecycle and future services.
+- `core` — version-independent events, modules, settings, lifecycle and services.
 - `platform-api` — narrow contract between the core and a game-version adapter.
 - future `platform-1.8.9` — Minecraft 1.8.9 integration. It must not leak Minecraft classes into `core`.
 
@@ -18,6 +18,14 @@ The project is launcher-owned and version-aware. Minecraft integration is delibe
 `core` and `platform-api` compile with `--release 8`. This preserves the option to run the in-process client side on a legacy-compatible JVM even while the launcher uses a modern JVM.
 
 ## Explicit ownership
+
+Foundation state is explicit:
+
+- `ModuleRegistry` owns module identity.
+- `ModuleController` owns module lifecycle state and exposes failed transitions instead of hiding them.
+- `ServiceRegistry` owns shared cross-module services by contract type.
+- `EventBus` returns explicit subscriptions that must be closed.
+- `PlatformContext` receives these owners rather than discovering global state.
 
 The permanent architecture must avoid:
 
@@ -30,7 +38,7 @@ The permanent architecture must avoid:
 
 ## Rendering direction
 
-Rendering is not implemented in M0. The planned design is a staged renderer with cached frame data and explicit render passes. UI and effects must be measurable independently.
+Rendering is not implemented in M0/M1. The planned design is a staged renderer with cached frame data and explicit render passes. UI and effects must be measurable independently.
 
 ## Minecraft acquisition
 
