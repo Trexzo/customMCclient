@@ -30,6 +30,8 @@ M26 connects the retained ClickGUI to the staged HUD renderer.
 
 M27 adds backend-neutral ClickGUI pointer and search-key interaction.
 
+M28 adds the Minecraft 1.8.9 primitive input translation bridge.
+
 ## Direction
 
 The UI is native and in-process. It does not require an embedded browser.
@@ -130,6 +132,10 @@ The search field is a normal `UiFocusTarget` owned through `UiFocusManager`. Pri
 
 Page clicks update the retained selected page and release search focus. Closing the input controller closes its focus registration, preventing disposed ClickGUI state from remaining ghost-focused.
 
+`LegacyInputTranslator` converts legacy primitive mouse/key data into the same backend-neutral events. Pointer Y coordinates are converted from the legacy bottom-origin framebuffer convention into top-origin logical UI coordinates.
+
+`Minecraft189InputHooks` resolves `ClickGuiInputController` through the existing platform `ServiceRegistry`; unsupported extra mouse buttons are ignored before service resolution. Known navigation/edit keys map to semantic `UiKeys`, while other non-negative legacy key codes retain stable `legacy-key-N` identities so character input remains routable.
+
 ## HUD layout/input
 
 `HudWidgetRegistry`, `HudLayoutEngine`, `HudLayoutState` and `HudDragController` own widget identity, resolved bounds, placement overrides and drag transactions respectively.
@@ -150,7 +156,7 @@ The actual Minecraft/LWJGL implementation of `LegacyUiGraphics` remains outside 
 
 Later UI milestones can add:
 
-- platform pointer/key translation into the backend-neutral input events;
+- concrete host callback wiring into `Minecraft189InputHooks`;
 - page-specific module/setting views;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
