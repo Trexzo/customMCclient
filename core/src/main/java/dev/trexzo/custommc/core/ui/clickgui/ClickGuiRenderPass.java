@@ -40,6 +40,25 @@ public final class ClickGuiRenderPass
                 renderer);
     }
 
+    public ClickGuiRenderPass(
+            final String id,
+            final int priority,
+            final ClickGuiModel model,
+            final ClickGuiContentRegistry contentRegistry,
+            final UiViewportProvider viewportProvider,
+            final UiThemeProvider themeProvider,
+            final UiRenderer renderer) {
+        this(
+                id,
+                priority,
+                model,
+                new ClickGuiComposer(
+                        contentRegistry),
+                viewportProvider,
+                themeProvider,
+                renderer);
+    }
+
     ClickGuiRenderPass(
             final String id,
             final int priority,
