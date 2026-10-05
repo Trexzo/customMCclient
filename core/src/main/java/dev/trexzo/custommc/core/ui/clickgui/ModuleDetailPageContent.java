@@ -15,6 +15,7 @@ import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiFonts;
+import dev.trexzo.custommc.core.ui.UiPointerEvent;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
@@ -38,6 +39,8 @@ public final class ModuleDetailPageContent
     private final ModuleSettingRegistry moduleSettings;
     private final SettingRegistry settings;
     private final SettingPresentationRegistry settingPresentations;
+    private final SettingEditorController editor =
+            new SettingEditorController();
     private final ClickGuiContentScrollState scroll =
             new ClickGuiContentScrollState();
 
@@ -182,6 +185,9 @@ public final class ModuleDetailPageContent
                             theme.color(
                                     UiColorRole.TEXT_PRIMARY)));
 
+            final boolean editing =
+                    editor.isEditing(
+                            entry.setting);
             commands.add(
                     new UiTextCommand(
                             0,
@@ -192,13 +198,61 @@ public final class ModuleDetailPageContent
                                             - 130.0F),
                             row.y() + 10.0F,
                             UiFonts.DEFAULT,
-                            String.valueOf(
-                                    entry.setting.get()),
+                            editor.displayValue(
+                                    entry.setting),
                             theme.color(
-                                    UiColorRole.TEXT_MUTED)));
+                                    editing
+                                            ? UiColorRole.ACCENT
+                                            : UiColorRole.TEXT_MUTED)));
         }
 
         return commands;
+    }
+
+    @Override
+    public boolean pointer(
+            final ClickGuiContentInputContext context,
+            final UiPointerEvent event) {
+        Objects.requireNonNull(context, "context");
+        Objects.requireNonNull(event, "event");
+
+        final Module module = selection.selectedModule();
+        if (module == null) {
+            return false;
+        }
+
+        final List<SettingEntry> visible =
+                visibleSettings(
+                        module.id());
+        final float scrollOffset =
+                scroll.offset(
+                        contentHeight(
+                                visible.size()),
+                        context.bounds().height());
+
+        for (int index = 0;
+             index < visible.size();
+             index++) {
+            final SettingEntry entry =
+                    visible.get(index);
+            if (!rowBounds(
+                    context.bounds(),
+                    index,
+                    scrollOffset)
+                    .contains(
+                            event.x(),
+                            event.y())) {
+                continue;
+            }
+
+            return editor.pointer(
+                    context,
+                    entry.setting,
+                    entry.descriptor,
+                    event);
+        }
+
+        return false;
     }
 
     @Override
