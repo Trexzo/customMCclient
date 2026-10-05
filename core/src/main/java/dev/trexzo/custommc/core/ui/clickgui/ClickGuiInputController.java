@@ -85,8 +85,7 @@ public final class ClickGuiInputController
             return false;
         }
 
-        if (event.action() != UiPointerAction.PRESS
-                || event.button() != UiPointerButton.LEFT) {
+        if (event.action() != UiPointerAction.PRESS) {
             return false;
         }
 
@@ -96,19 +95,23 @@ public final class ClickGuiInputController
         if (layout.search().contains(
                 event.x(),
                 event.y())) {
-            focusManager.requestFocus(
-                    SEARCH_FOCUS_ID);
+            if (event.button() == UiPointerButton.LEFT) {
+                focusManager.requestFocus(
+                        SEARCH_FOCUS_ID);
+            }
             return true;
         }
 
         if (layout.navigation().contains(
                 event.x(),
                 event.y())) {
-            focusManager.clearFocus();
-            selectNavigationPage(
-                    snapshot,
-                    layout,
-                    event.y());
+            if (event.button() == UiPointerButton.LEFT) {
+                focusManager.clearFocus();
+                selectNavigationPage(
+                        snapshot,
+                        layout,
+                        event.y());
+            }
             return true;
         }
 
