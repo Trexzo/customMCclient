@@ -32,6 +32,7 @@ public final class ClickGuiModel {
     private List<ClickGuiPage> orderedPages =
             Collections.emptyList();
     private String selectedPageId;
+    private boolean selectionExplicit;
     private String searchQuery = "";
     private boolean open;
 
@@ -48,9 +49,8 @@ public final class ClickGuiModel {
         pages.put(page.id(), page);
         rebuildPages();
 
-        if (selectedPageId == null) {
-            selectedPageId =
-                    orderedPages.get(0).id();
+        if (!selectionExplicit) {
+            selectFirstAvailable();
         }
 
         return new RegistrationImpl(
@@ -78,6 +78,7 @@ public final class ClickGuiModel {
             return false;
         }
         selectedPageId = pageId;
+        selectionExplicit = true;
         return true;
     }
 
@@ -110,11 +111,18 @@ public final class ClickGuiModel {
         rebuildPages();
 
         if (id.equals(selectedPageId)) {
-            selectedPageId =
-                    orderedPages.isEmpty()
-                            ? null
-                            : orderedPages.get(0).id();
+            selectionExplicit = false;
+            selectFirstAvailable();
+        } else if (!selectionExplicit) {
+            selectFirstAvailable();
         }
+    }
+
+    private void selectFirstAvailable() {
+        selectedPageId =
+                orderedPages.isEmpty()
+                        ? null
+                        : orderedPages.get(0).id();
     }
 
     private void rebuildPages() {
