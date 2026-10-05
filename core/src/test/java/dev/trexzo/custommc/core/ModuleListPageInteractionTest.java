@@ -2,6 +2,8 @@ package dev.trexzo.custommc.core;
 
 import dev.trexzo.custommc.core.module.Module;
 import dev.trexzo.custommc.core.module.ModuleController;
+import dev.trexzo.custommc.core.module.ModuleDescriptor;
+import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.module.ModuleState;
 import dev.trexzo.custommc.core.ui.UiFocusManager;
@@ -23,11 +25,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class ModuleListPageInteractionTest {
     @Test
-    void filteredVisibleRowTogglesThroughModuleController() {
+    void presentationSearchStillTogglesStableModuleId() {
         final ModuleRegistry modules =
                 new ModuleRegistry();
         modules.register(module("fly"));
-        modules.register(module("esp"));
+        modules.register(module("esp.internal"));
+
+        final ModulePresentationRegistry presentations =
+                new ModulePresentationRegistry();
+        presentations.register(
+                new ModuleDescriptor(
+                        "esp.internal",
+                        "ESP Overlay",
+                        "Highlights players and entities"));
 
         final ModuleController controller =
                 new ModuleController(modules);
@@ -38,7 +48,7 @@ final class ModuleListPageInteractionTest {
                         "modules",
                         "Modules",
                         0));
-        model.setSearchQuery("esp");
+        model.setSearchQuery("overlay");
         model.open();
 
         final ClickGuiContentRegistry contents =
@@ -47,7 +57,8 @@ final class ModuleListPageInteractionTest {
                 "modules",
                 new ModuleListPageContent(
                         modules,
-                        controller));
+                        controller,
+                        presentations));
 
         final UiViewport viewport =
                 new UiViewport(
@@ -84,7 +95,7 @@ final class ModuleListPageInteractionTest {
 
             assertEquals(
                     ModuleState.ENABLED,
-                    controller.stateOf("esp"));
+                    controller.stateOf("esp.internal"));
             assertEquals(
                     ModuleState.DISABLED,
                     controller.stateOf("fly"));
@@ -100,7 +111,7 @@ final class ModuleListPageInteractionTest {
 
             assertEquals(
                     ModuleState.DISABLED,
-                    controller.stateOf("esp"));
+                    controller.stateOf("esp.internal"));
         }
     }
 
