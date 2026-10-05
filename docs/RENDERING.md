@@ -2,6 +2,8 @@
 
 M9 introduces a renderer contract without OpenGL, Minecraft, UI toolkit or shader dependencies.
 
+M10 wires the Minecraft 1.8.9 adapter to that contract through `ServiceRegistry`.
+
 ## Goals
 
 - explicit render stages;
@@ -21,4 +23,10 @@ M9 introduces a renderer contract without OpenGL, Minecraft, UI toolkit or shade
 
 Passes are ordered by numeric priority, then stable id. Registration is explicit.
 
-The platform adapter will later translate actual game render hooks into these stages. GL state ownership, batching, cached frame snapshots, shader resources and post-processing targets belong in later renderer milestones rather than leaking into this generic core contract.
+## Platform routing
+
+`Minecraft189Hooks` translates version-specific render callbacks into the generic stages.
+
+The adapter obtains `RenderPipeline` through the platform's explicit `ServiceRegistry`, so there is no renderer singleton and no Minecraft type crosses into core.
+
+GL state ownership, batching, cached frame snapshots, shader resources and post-processing targets belong in later renderer milestones.
