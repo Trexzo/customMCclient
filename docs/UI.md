@@ -8,15 +8,17 @@ M15 separates widget defaults from mutable/persistable HUD placement state.
 
 M16 adds immutable layout snapshots, hit-testing and cancellable HUD drag transactions.
 
+M17 connects the HUD command model to the staged renderer through backend-neutral viewport and renderer contracts.
+
 ## Direction
 
 The client UI is native and in-process. It does not require an embedded browser.
 
-Widgets and HUD systems build a per-frame `UiCommandBuffer`. The eventual 1.8.9 renderer backend consumes the sealed command list and translates it into efficient draw batches.
+Widgets and HUD systems build a per-frame `UiCommandBuffer`. The eventual 1.8.9 graphics backend consumes the sealed command list and translates it into efficient draw batches.
 
 ## Draw commands
 
-M13 starts with two primitives:
+The initial primitives are:
 
 - `UiRectCommand`
 - `UiTextCommand`
@@ -45,58 +47,51 @@ The core does not know about OpenGL, Minecraft font renderers, shaders or screen
 - center-left / center / center-right;
 - bottom-left / bottom-center / bottom-right.
 
-Offsets are applied after anchor resolution in logical coordinates. Widgets therefore do not need to know the actual framebuffer scale.
+Offsets are applied after anchor resolution in logical coordinates.
 
-## HUD widget ownership
+## HUD widget ownership and layout
 
 `HudWidgetRegistry` owns stable widget ids and a deterministic cached plan ordered by priority then id.
 
-Registering a widget returns a lifetime handle. Closing it removes exactly that widget and is idempotent.
-
-## Layout snapshots
-
 `HudLayoutEngine` converts the current widget plan plus placement resolver into an immutable `HudLayoutSnapshot`.
 
-Each entry contains the widget, the placement used for that frame and its resolved bounds. Hit-testing walks the snapshot in reverse render order, so overlapping UI selects the topmost widget deterministically.
+Hit-testing walks the snapshot in reverse render order, so overlapping UI selects the topmost widget deterministically.
 
-`HudComposer` consumes the same snapshot when issuing draw commands. Input and rendering therefore agree on the exact bounds for a frame instead of recomputing them independently.
+## Mutable HUD placement and drag ownership
 
-## Mutable HUD placement
+`HudLayoutState` stores placement overrides by stable widget id.
 
-Widget code continues to declare a default anchor and offsets. User movement is stored separately.
+`HudDragController` owns one drag transaction at a time. Movement only changes runtime layout state; commit/cancel decides whether that state remains. Durable profile writes remain outside input handling.
 
-`HudPlacement` contains:
+## Render bridge
 
-- anchor;
-- logical X offset;
-- logical Y offset.
+`HudRenderPass` is a normal `RenderPass` fixed to the `HUD` stage.
 
-`HudLayoutState` stores overrides by stable widget id. Clearing an override returns the widget to its declared default without mutating the widget implementation.
+It receives:
 
-`HudPlacementCodec` implements the existing typed `SettingCodec` contract, so a placement can be persisted through the same profile/config system introduced in M2.
+- `HudWidgetRegistry`;
+- `HudPlacementResolver`;
+- `UiViewportProvider`;
+- `UiRenderer`.
 
-## Drag transaction
+On a HUD render frame it resolves the viewport, composes the command list, then passes the immutable commands to `UiRenderer`.
 
-`HudDragController` owns one drag transaction at a time.
+The Minecraft 1.8.9 hook therefore reaches UI through the existing staged renderer:
 
-- only the left pointer button begins a drag;
-- the topmost hit widget is captured from a layout snapshot;
-- pointer movement updates only `HudLayoutState`;
-- commit keeps the new runtime placement;
-- cancel restores the exact previous override, or clears the temporary override when the widget originally used its default;
-- invalid re-entrant or inactive operations are rejected.
+`Minecraft189Hooks -> RenderPipeline -> HudRenderPass -> UiRenderer`
 
-Persistence is still outside the drag controller. A later orchestration layer can decide when committed layout state is written to a profile.
+The backend contract receives `RenderFrame`, `UiViewport` and the sealed command list. No Minecraft or OpenGL type crosses into core.
 
 ## Next layers
 
 Later UI milestones can add:
 
-- generic pointer/focus routing beyond HUD dragging;
+- a concrete 1.8.9 graphics backend;
 - clipping/scissor descriptions;
 - rounded rectangles and outlines;
 - font/style handles;
+- generic focus/key routing;
 - retained ClickGUI widgets;
-- render-backend batching.
+- draw batching and state minimization.
 
 Those layers should build on these contracts instead of bypassing them with direct graphics calls.
