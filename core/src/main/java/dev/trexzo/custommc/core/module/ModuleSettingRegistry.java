@@ -79,6 +79,11 @@ public final class ModuleSettingRegistry {
                 Objects.requireNonNull(
                         moduleId,
                         "moduleId");
+        if (modules.find(id) == null) {
+            throw new IllegalArgumentException(
+                    "unknown module: " + id);
+        }
+
         final List<Entry> entries =
                 new ArrayList<Entry>();
 
