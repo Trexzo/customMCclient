@@ -4,6 +4,8 @@ M13 introduces the first backend-neutral UI draw layer.
 
 M14 adds logical viewport scaling, nine-point anchors and explicit HUD widget ownership.
 
+M15 separates widget defaults from mutable/persistable HUD placement state.
+
 ## Direction
 
 The client UI is native and in-process. It does not require an embedded browser.
@@ -49,25 +51,34 @@ Offsets are applied after anchor resolution in logical coordinates. Widgets ther
 
 Registering a widget returns a lifetime handle. Closing it removes exactly that widget and is idempotent.
 
-`HudComposer`:
+`HudComposer` measures each widget, resolves a placement, provides immutable bounds through `HudDrawContext`, then seals the resulting UI command list.
 
-1. snapshots the registered widget plan;
-2. measures each widget against the logical viewport;
-3. resolves its anchor and offsets;
-4. provides immutable bounds through `HudDrawContext`;
-5. seals and returns the resulting UI command list.
+## Mutable HUD placement
 
-This gives future movable HUD elements a stable ownership/layout boundary without direct renderer calls.
+Widget code continues to declare a default anchor and offsets. User movement is stored separately.
+
+`HudPlacement` contains:
+
+- anchor;
+- logical X offset;
+- logical Y offset.
+
+`HudLayoutState` stores overrides by stable widget id. Clearing an override returns the widget to its declared default without mutating the widget implementation.
+
+`HudPlacementCodec` implements the existing typed `SettingCodec` contract, so a placement can be persisted through the same profile/config system introduced in M2. The canonical representation is:
+
+`ANCHOR;offsetX;offsetY`
+
+The runtime layout state and durable profile orchestration remain separate responsibilities.
 
 ## Next layers
 
 Later UI milestones can add:
 
-- persisted movable widget positions;
+- pointer/input routing and drag transactions;
 - clipping/scissor descriptions;
 - rounded rectangles and outlines;
 - font/style handles;
-- input/focus routing;
 - retained ClickGUI widgets;
 - render-backend batching.
 
