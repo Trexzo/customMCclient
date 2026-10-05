@@ -38,6 +38,8 @@ M30 adds explicit page-content ownership and the first live module-list content 
 
 M31 adds content-area pointer routing and module-row lifecycle interaction.
 
+M32 adds stable setting presentation descriptors and the first read-only settings content view.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -65,6 +67,16 @@ Left-clicking a visible module row requests lifecycle change only through `Modul
 
 ClickGUI does not write a parallel enabled flag and does not invoke module callbacks directly.
 
+## Setting presentation ownership
+
+`SettingRegistry.snapshot()` exposes registration-order immutable setting membership while the `Setting<T>` objects themselves remain the live value/validation authority.
+
+`SettingDescriptor` carries only UI presentation metadata: stable setting id, display label, explicit `SettingValueKind` and deterministic priority. `SettingPresentationRegistry` owns those descriptors with explicit registration lifetimes and rejects duplicate presentation authority.
+
+`SettingListPageContent` joins the setting snapshot with registered descriptors at composition time. Settings without a presentation descriptor remain absent from ClickGUI, which lets internal/runtime settings stay intentionally hidden.
+
+The retained search query matches setting ids and labels case-insensitively. Current values are read live from `Setting<T>`; M32 does not mutate settings, bypass validators, or persist profiles.
+
 ## Input routing
 
 `ClickGuiInputController` still owns shell-level routing: search focus, navigation selection, navigation wheel scrolling and root hit-testing.
@@ -89,7 +101,7 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- setting descriptors and editors;
+- validated setting editors built on the M32 descriptors;
 - content-region scrolling;
 - module metadata beyond stable ids;
 - concrete host callback wiring into `Minecraft189InputHooks`;

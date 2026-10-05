@@ -25,6 +25,11 @@ public final class SettingRegistry {
         return settings.get(Objects.requireNonNull(id, "id"));
     }
 
+    public synchronized List<Setting<?>> snapshot() {
+        return Collections.unmodifiableList(
+                new ArrayList<Setting<?>>(settings.values()));
+    }
+
     public synchronized Map<String, String> snapshotEncoded() {
         final Map<String, String> snapshot =
                 new TreeMap<String, String>();
