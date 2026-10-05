@@ -62,6 +62,8 @@ M42 adds retained stable-id module selection for future detail views.
 
 M43 adds a read-only selected-module detail projection over existing module, setting and ownership authorities.
 
+M44 extracts one shared setting-editor authority and lets both global settings and module detail delegate mutation to it.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -103,7 +105,9 @@ M42 adds `ModuleSelectionModel` as retained UI selection state over the authorit
 
 M43 adds `ModuleDetailPageContent`. With no selection it renders only an explicit selection prompt. With a selected module, it reads the human-facing module name/description from `ModulePresentationRegistry`, lifecycle state from `ModuleController`, ordered setting membership from `ModuleSettingRegistry`, labels from `SettingPresentationRegistry`, and current values directly from `Setting<?>`.
 
-Only settings explicitly owned by the selected module and carrying ClickGUI presentation metadata are rendered. Unowned settings and owned-but-hidden settings remain absent. The detail view does not copy setting values, lifecycle state, validators, persistence state, or module identity, and M43 intentionally remains read-only so the established setting editors stay the sole mutation path.
+Only settings explicitly owned by the selected module and carrying ClickGUI presentation metadata are rendered. Unowned settings and owned-but-hidden settings remain absent. The detail view does not copy setting values, lifecycle state, validators, persistence state, or module identity.
+
+M44 extracts the existing boolean, bounded integer/double and transactional text editing behavior into `SettingEditorController`. `SettingListPageContent` and `ModuleDetailPageContent` now delegate row mutation and text-edit display state to that same controller implementation. Each content surface owns its own editor session instance, while `Setting<T>`, `SettingNumericSpec` and `UiFocusManager` remain the actual validation/bounds/focus authorities.
 
 The detail surface owns only its retained content-scroll offset. Selection changes and binding changes are re-projected on every compose, so stale module-setting snapshots are not retained.
 
@@ -160,7 +164,6 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 Later milestones can add:
 
 - navigation/interaction that promotes a selected module into the M43 detail surface;
-- shared setting-editor composition so module detail can edit through the same validator-owned path without copying editor logic;
 - concrete host callback wiring into `Minecraft189InputHooks`;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
