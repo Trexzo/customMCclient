@@ -12,6 +12,7 @@ import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiFonts;
+import dev.trexzo.custommc.core.ui.UiOutlineCommand;
 import dev.trexzo.custommc.core.ui.UiPointerAction;
 import dev.trexzo.custommc.core.ui.UiPointerButton;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
@@ -41,6 +42,7 @@ public final class ModuleListPageContent
     private final ModuleController controller;
     private final ModulePresentationRegistry presentations;
     private final ModuleCategoryRegistry categories;
+    private final ModuleSelectionModel selection;
     private final ClickGuiContentScrollState scroll =
             new ClickGuiContentScrollState();
 
@@ -51,7 +53,8 @@ public final class ModuleListPageContent
                 modules,
                 controller,
                 new ModulePresentationRegistry(),
-                new ModuleCategoryRegistry());
+                new ModuleCategoryRegistry(),
+                null);
     }
 
     public ModuleListPageContent(
@@ -62,7 +65,8 @@ public final class ModuleListPageContent
                 modules,
                 controller,
                 presentations,
-                new ModuleCategoryRegistry());
+                new ModuleCategoryRegistry(),
+                null);
     }
 
     public ModuleListPageContent(
@@ -70,6 +74,20 @@ public final class ModuleListPageContent
             final ModuleController controller,
             final ModulePresentationRegistry presentations,
             final ModuleCategoryRegistry categories) {
+        this(
+                modules,
+                controller,
+                presentations,
+                categories,
+                null);
+    }
+
+    public ModuleListPageContent(
+            final ModuleRegistry modules,
+            final ModuleController controller,
+            final ModulePresentationRegistry presentations,
+            final ModuleCategoryRegistry categories,
+            final ModuleSelectionModel selection) {
         this.modules =
                 Objects.requireNonNull(
                         modules,
@@ -86,6 +104,7 @@ public final class ModuleListPageContent
                 Objects.requireNonNull(
                         categories,
                         "categories");
+        this.selection = selection;
     }
 
     @Override
@@ -174,6 +193,20 @@ public final class ModuleListPageContent
                                             ? UiColorRole.SURFACE_RAISED
                                             : UiColorRole.BACKGROUND)));
 
+            if (selection != null
+                    && selection.isSelected(id)) {
+                commands.add(
+                        new UiOutlineCommand(
+                                1,
+                                row.x(),
+                                row.y(),
+                                row.width(),
+                                row.height(),
+                                1.0F,
+                                theme.color(
+                                        UiColorRole.ACCENT)));
+            }
+
             commands.add(
                     new UiTextCommand(
                             0,
@@ -211,8 +244,11 @@ public final class ModuleListPageContent
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(event, "event");
 
-        if (event.action() != UiPointerAction.PRESS
-                || event.button() != UiPointerButton.LEFT) {
+        if (event.action() != UiPointerAction.PRESS) {
+            return false;
+        }
+        if (event.button() != UiPointerButton.LEFT
+                && event.button() != UiPointerButton.RIGHT) {
             return false;
         }
 
@@ -253,8 +289,17 @@ public final class ModuleListPageContent
             if (row.contains(
                     event.x(),
                     event.y())) {
-                return toggle(
+                if (event.button()
+                        == UiPointerButton.LEFT) {
+                    return toggle(
+                            entry.module.id());
+                }
+                if (selection == null) {
+                    return false;
+                }
+                selection.select(
                         entry.module.id());
+                return true;
             }
 
             y += ROW_HEIGHT + ROW_GAP;
