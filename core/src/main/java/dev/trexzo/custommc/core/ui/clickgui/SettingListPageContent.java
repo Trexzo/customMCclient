@@ -2,6 +2,7 @@ package dev.trexzo.custommc.core.ui.clickgui;
 
 import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingDescriptor;
+import dev.trexzo.custommc.core.setting.SettingNumericSpec;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.setting.SettingValueKind;
@@ -143,8 +144,7 @@ public final class SettingListPageContent
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(event, "event");
 
-        if (event.action() != UiPointerAction.PRESS
-                || event.button() != UiPointerButton.LEFT) {
+        if (event.action() != UiPointerAction.PRESS) {
             return false;
         }
 
@@ -164,11 +164,24 @@ public final class SettingListPageContent
             }
 
             if (entry.descriptor.kind()
-                    != SettingValueKind.BOOLEAN) {
-                return false;
+                    == SettingValueKind.BOOLEAN) {
+                if (event.button()
+                        != UiPointerButton.LEFT) {
+                    return false;
+                }
+                return toggleBoolean(
+                        entry.setting);
             }
 
-            return toggleBoolean(entry.setting);
+            if (entry.descriptor.kind()
+                    == SettingValueKind.INTEGER) {
+                return adjustInteger(
+                        entry.setting,
+                        entry.descriptor.numericSpec(),
+                        event.button());
+            }
+
+            return false;
         }
 
         return false;
@@ -239,6 +252,43 @@ public final class SettingListPageContent
                 || descriptor.label()
                 .toLowerCase(Locale.ROOT)
                 .contains(query);
+    }
+
+    private static boolean adjustInteger(
+            final Setting<?> setting,
+            final SettingNumericSpec numericSpec,
+            final UiPointerButton button) {
+        if (numericSpec == null) {
+            return false;
+        }
+        final int direction;
+        if (button == UiPointerButton.LEFT) {
+            direction = 1;
+        } else if (button == UiPointerButton.RIGHT) {
+            direction = -1;
+        } else {
+            return false;
+        }
+
+        final Object current = setting.get();
+        if (!(current instanceof Integer)) {
+            return false;
+        }
+
+        @SuppressWarnings("unchecked")
+        final Setting<Integer> integerSetting =
+                (Setting<Integer>) setting;
+        final int next =
+                numericSpec.stepInteger(
+                        (Integer) current,
+                        direction);
+
+        try {
+            integerSetting.set(next);
+        } catch (IllegalArgumentException rejected) {
+            // The Setting validator remains authoritative.
+        }
+        return true;
     }
 
     private static boolean toggleBoolean(
