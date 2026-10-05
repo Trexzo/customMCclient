@@ -18,11 +18,11 @@ public final class Minecraft189Descriptor {
         return Collections.unmodifiableList(Arrays.asList(
                 new RuntimeArtifact(
                         "minecraft-client",
-                        "3966a3fbe04c31f127b0255781c7cbc3a146a0c2",
-                        8461484L),
+                        "0000000000000000000000000000000000000000",
+                        0L),
                 new RuntimeArtifact(
                         "authlib",
-                        "083b74a9bfbe5c90355f16b91693a7a6c0ea32f2",
+                        "aefba0d5b53fbcb70860bc8046ab95d5854c07a5",
                         64412L)
         ));
     }
