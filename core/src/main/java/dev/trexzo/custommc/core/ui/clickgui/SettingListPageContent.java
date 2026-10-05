@@ -4,10 +4,14 @@ import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingDescriptor;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
+import dev.trexzo.custommc.core.setting.SettingValueKind;
 import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiFonts;
+import dev.trexzo.custommc.core.ui.UiPointerAction;
+import dev.trexzo.custommc.core.ui.UiPointerButton;
+import dev.trexzo.custommc.core.ui.UiPointerEvent;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiTheme;
@@ -79,22 +83,16 @@ public final class SettingListPageContent
                         theme.color(
                                 UiColorRole.TEXT_PRIMARY)));
 
-        float y =
-                bounds.y()
-                        + PADDING
-                        + TITLE_GAP;
-
-        for (Entry entry :
-                entries(context.snapshot())) {
+        final List<Entry> visible =
+                entries(context.snapshot());
+        for (int index = 0;
+             index < visible.size();
+             index++) {
+            final Entry entry = visible.get(index);
             final UiBounds row =
-                    new UiBounds(
-                            bounds.x() + PADDING,
-                            y,
-                            Math.max(
-                                    0.0F,
-                                    bounds.width()
-                                            - PADDING * 2.0F),
-                            ROW_HEIGHT);
+                    rowBounds(
+                            bounds,
+                            index);
 
             commands.add(
                     new UiRoundedRectCommand(
@@ -133,11 +131,47 @@ public final class SettingListPageContent
                                     entry.setting.get()),
                             theme.color(
                                     UiColorRole.TEXT_MUTED)));
-
-            y += ROW_HEIGHT + ROW_GAP;
         }
 
         return commands;
+    }
+
+    @Override
+    public boolean pointer(
+            final ClickGuiContentInputContext context,
+            final UiPointerEvent event) {
+        Objects.requireNonNull(context, "context");
+        Objects.requireNonNull(event, "event");
+
+        if (event.action() != UiPointerAction.PRESS
+                || event.button() != UiPointerButton.LEFT) {
+            return false;
+        }
+
+        final List<Entry> visible =
+                entries(context.snapshot());
+        for (int index = 0;
+             index < visible.size();
+             index++) {
+            final Entry entry = visible.get(index);
+            if (!rowBounds(
+                    context.bounds(),
+                    index)
+                    .contains(
+                            event.x(),
+                            event.y())) {
+                continue;
+            }
+
+            if (entry.descriptor.kind()
+                    != SettingValueKind.BOOLEAN) {
+                return false;
+            }
+
+            return toggleBoolean(entry.setting);
+        }
+
+        return false;
     }
 
     private List<Entry> entries(
@@ -178,6 +212,23 @@ public final class SettingListPageContent
         return entries;
     }
 
+    private static UiBounds rowBounds(
+            final UiBounds bounds,
+            final int index) {
+        return new UiBounds(
+                bounds.x() + PADDING,
+                bounds.y()
+                        + PADDING
+                        + TITLE_GAP
+                        + index
+                        * (ROW_HEIGHT + ROW_GAP),
+                Math.max(
+                        0.0F,
+                        bounds.width()
+                                - PADDING * 2.0F),
+                ROW_HEIGHT);
+    }
+
     private static boolean matches(
             final Setting<?> setting,
             final SettingDescriptor descriptor,
@@ -188,6 +239,26 @@ public final class SettingListPageContent
                 || descriptor.label()
                 .toLowerCase(Locale.ROOT)
                 .contains(query);
+    }
+
+    private static boolean toggleBoolean(
+            final Setting<?> setting) {
+        final Object current = setting.get();
+        if (!(current instanceof Boolean)) {
+            return false;
+        }
+
+        @SuppressWarnings("unchecked")
+        final Setting<Boolean> booleanSetting =
+                (Setting<Boolean>) setting;
+
+        try {
+            booleanSetting.set(
+                    !((Boolean) current));
+        } catch (IllegalArgumentException rejected) {
+            // The Setting validator remains authoritative.
+        }
+        return true;
     }
 
     private static final class Entry {
