@@ -1,6 +1,8 @@
 package dev.trexzo.custommc.core.ui.clickgui;
 
 import dev.trexzo.custommc.core.module.Module;
+import dev.trexzo.custommc.core.module.ModuleCategoryDescriptor;
+import dev.trexzo.custommc.core.module.ModuleCategoryRegistry;
 import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModuleDescriptor;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
@@ -19,6 +21,8 @@ import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiTheme;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -27,6 +31,8 @@ public final class ModuleListPageContent
         implements ClickGuiPageContent {
     private static final float PADDING = 24.0F;
     private static final float TITLE_GAP = 34.0F;
+    private static final float CATEGORY_HEADER_HEIGHT = 22.0F;
+    private static final float GROUP_GAP = 10.0F;
     private static final float ROW_HEIGHT = 36.0F;
     private static final float ROW_GAP = 7.0F;
     private static final float ROW_RADIUS = 6.0F;
@@ -34,6 +40,7 @@ public final class ModuleListPageContent
     private final ModuleRegistry modules;
     private final ModuleController controller;
     private final ModulePresentationRegistry presentations;
+    private final ModuleCategoryRegistry categories;
     private final ClickGuiContentScrollState scroll =
             new ClickGuiContentScrollState();
 
@@ -43,13 +50,26 @@ public final class ModuleListPageContent
         this(
                 modules,
                 controller,
-                new ModulePresentationRegistry());
+                new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry());
     }
 
     public ModuleListPageContent(
             final ModuleRegistry modules,
             final ModuleController controller,
             final ModulePresentationRegistry presentations) {
+        this(
+                modules,
+                controller,
+                presentations,
+                new ModuleCategoryRegistry());
+    }
+
+    public ModuleListPageContent(
+            final ModuleRegistry modules,
+            final ModuleController controller,
+            final ModulePresentationRegistry presentations,
+            final ModuleCategoryRegistry categories) {
         this.modules =
                 Objects.requireNonNull(
                         modules,
@@ -62,6 +82,10 @@ public final class ModuleListPageContent
                 Objects.requireNonNull(
                         presentations,
                         "presentations");
+        this.categories =
+                Objects.requireNonNull(
+                        categories,
+                        "categories");
     }
 
     @Override
@@ -79,10 +103,13 @@ public final class ModuleListPageContent
         final List<Entry> visible =
                 filteredModules(
                         context.snapshot());
+        final boolean categoryHeaders =
+                hasCategoryHeaders(visible);
         final float scrollOffset =
                 scroll.offset(
                         contentHeight(
-                                visible.size()),
+                                visible,
+                                categoryHeaders),
                         bounds.height());
 
         commands.add(
@@ -99,8 +126,30 @@ public final class ModuleListPageContent
                 firstRowY(
                         bounds,
                         scrollOffset);
+        String currentCategory = null;
 
         for (Entry entry : visible) {
+            if (categoryHeaders
+                    && !entry.categoryId()
+                    .equals(currentCategory)) {
+                if (currentCategory != null) {
+                    y += GROUP_GAP;
+                }
+                currentCategory =
+                        entry.categoryId();
+                commands.add(
+                        new UiTextCommand(
+                                0,
+                                bounds.x() + PADDING,
+                                y + 4.0F,
+                                UiFonts.DEFAULT,
+                                categoryDisplayName(
+                                        currentCategory),
+                                theme.color(
+                                        UiColorRole.TEXT_MUTED)));
+                y += CATEGORY_HEADER_HEIGHT;
+            }
+
             final String id =
                     entry.module.id();
             final ModuleState state =
@@ -170,17 +219,32 @@ public final class ModuleListPageContent
         final List<Entry> visible =
                 filteredModules(
                         context.snapshot());
+        final boolean categoryHeaders =
+                hasCategoryHeaders(visible);
         final float scrollOffset =
                 scroll.offset(
                         contentHeight(
-                                visible.size()),
+                                visible,
+                                categoryHeaders),
                         context.bounds().height());
         float y =
                 firstRowY(
                         context.bounds(),
                         scrollOffset);
+        String currentCategory = null;
 
         for (Entry entry : visible) {
+            if (categoryHeaders
+                    && !entry.categoryId()
+                    .equals(currentCategory)) {
+                if (currentCategory != null) {
+                    y += GROUP_GAP;
+                }
+                currentCategory =
+                        entry.categoryId();
+                y += CATEGORY_HEADER_HEIGHT;
+            }
+
             final UiBounds row =
                     rowBounds(
                             context.bounds(),
@@ -206,13 +270,14 @@ public final class ModuleListPageContent
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(event, "event");
 
-        final int count =
+        final List<Entry> visible =
                 filteredModules(
-                        context.snapshot())
-                        .size();
+                        context.snapshot());
         scroll.scroll(
                 event.deltaY(),
-                contentHeight(count),
+                contentHeight(
+                        visible,
+                        hasCategoryHeaders(visible)),
                 context.bounds().height());
         return true;
     }
@@ -244,6 +309,7 @@ public final class ModuleListPageContent
         final List<Entry> filtered =
                 new ArrayList<Entry>();
 
+        int registrationIndex = 0;
         for (Module module : modules.snapshot()) {
             final ModuleDescriptor descriptor =
                     presentations.find(
@@ -256,13 +322,44 @@ public final class ModuleListPageContent
                 filtered.add(
                         new Entry(
                                 module,
-                                descriptor));
+                                descriptor,
+                                registrationIndex));
             }
+            registrationIndex++;
         }
+
+        Collections.sort(
+                filtered,
+                new Comparator<Entry>() {
+                    @Override
+                    public int compare(
+                            final Entry left,
+                            final Entry right) {
+                        final int category =
+                                compareCategories(
+                                        left.categoryId(),
+                                        right.categoryId());
+                        if (category != 0) {
+                            return category;
+                        }
+
+                        final int priority =
+                                Integer.compare(
+                                        left.priority(),
+                                        right.priority());
+                        if (priority != 0) {
+                            return priority;
+                        }
+
+                        return Integer.compare(
+                                left.registrationIndex,
+                                right.registrationIndex);
+                    }
+                });
         return filtered;
     }
 
-    private static boolean matches(
+    private boolean matches(
             final Module module,
             final ModuleDescriptor descriptor,
             final String query) {
@@ -274,12 +371,83 @@ public final class ModuleListPageContent
         if (descriptor == null) {
             return false;
         }
-        return descriptor.displayName()
+        if (descriptor.displayName()
                 .toLowerCase(Locale.ROOT)
                 .contains(query)
                 || descriptor.description()
                 .toLowerCase(Locale.ROOT)
+                .contains(query)
+                || descriptor.categoryId()
+                .toLowerCase(Locale.ROOT)
+                .contains(query)) {
+            return true;
+        }
+
+        final ModuleCategoryDescriptor category =
+                categories.find(
+                        descriptor.categoryId());
+        return category != null
+                && category.displayName()
+                .toLowerCase(Locale.ROOT)
                 .contains(query);
+    }
+
+    private int compareCategories(
+            final String leftId,
+            final String rightId) {
+        if (leftId.equals(rightId)) {
+            return 0;
+        }
+
+        final int priority =
+                Integer.compare(
+                        categoryPriority(leftId),
+                        categoryPriority(rightId));
+        if (priority != 0) {
+            return priority;
+        }
+        return leftId.compareTo(rightId);
+    }
+
+    private int categoryPriority(
+            final String categoryId) {
+        final ModuleCategoryDescriptor descriptor =
+                categories.find(categoryId);
+        if (descriptor != null) {
+            return descriptor.priority();
+        }
+        if (ModuleDescriptor.DEFAULT_CATEGORY_ID
+                .equals(categoryId)) {
+            return 0;
+        }
+        return Integer.MAX_VALUE;
+    }
+
+    private String categoryDisplayName(
+            final String categoryId) {
+        final ModuleCategoryDescriptor descriptor =
+                categories.find(categoryId);
+        if (descriptor != null) {
+            return descriptor.displayName();
+        }
+        if (ModuleDescriptor.DEFAULT_CATEGORY_ID
+                .equals(categoryId)) {
+            return "General";
+        }
+        return categoryId;
+    }
+
+    private boolean hasCategoryHeaders(
+            final List<Entry> entries) {
+        for (Entry entry : entries) {
+            if (!ModuleDescriptor.DEFAULT_CATEGORY_ID
+                    .equals(entry.categoryId())
+                    || categories.find(
+                    entry.categoryId()) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static float firstRowY(
@@ -292,17 +460,32 @@ public final class ModuleListPageContent
     }
 
     private static float contentHeight(
-            final int rowCount) {
-        if (rowCount <= 0) {
-            return PADDING
-                    + TITLE_GAP
-                    + PADDING;
+            final List<Entry> entries,
+            final boolean categoryHeaders) {
+        float height =
+                PADDING
+                        + TITLE_GAP
+                        + PADDING;
+        if (entries.isEmpty()) {
+            return height;
         }
-        return PADDING
-                + TITLE_GAP
-                + rowCount * ROW_HEIGHT
-                + (rowCount - 1) * ROW_GAP
-                + PADDING;
+
+        String currentCategory = null;
+        for (Entry entry : entries) {
+            if (categoryHeaders
+                    && !entry.categoryId()
+                    .equals(currentCategory)) {
+                if (currentCategory != null) {
+                    height += GROUP_GAP;
+                }
+                currentCategory =
+                        entry.categoryId();
+                height += CATEGORY_HEADER_HEIGHT;
+            }
+            height += ROW_HEIGHT + ROW_GAP;
+        }
+
+        return height - ROW_GAP;
     }
 
     private static UiBounds rowBounds(
@@ -337,18 +520,33 @@ public final class ModuleListPageContent
     private static final class Entry {
         private final Module module;
         private final ModuleDescriptor descriptor;
+        private final int registrationIndex;
 
         Entry(
                 final Module module,
-                final ModuleDescriptor descriptor) {
+                final ModuleDescriptor descriptor,
+                final int registrationIndex) {
             this.module = module;
             this.descriptor = descriptor;
+            this.registrationIndex = registrationIndex;
         }
 
         String displayName() {
             return descriptor == null
                     ? module.id()
                     : descriptor.displayName();
+        }
+
+        String categoryId() {
+            return descriptor == null
+                    ? ModuleDescriptor.DEFAULT_CATEGORY_ID
+                    : descriptor.categoryId();
+        }
+
+        int priority() {
+            return descriptor == null
+                    ? 0
+                    : descriptor.priority();
         }
     }
 }
