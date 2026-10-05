@@ -14,20 +14,23 @@ M18 adds the Minecraft 1.8.9 translation boundary.
 
 M19 adds rounded-rectangle and outline primitives for modern native HUD/ClickGUI surfaces.
 
+M20 adds atomic clipping scopes for scrollable and nested retained UI.
+
 ## Direction
 
 The UI is native and in-process. It does not require an embedded browser.
 
 Widgets describe each frame through backend-neutral commands. The platform renderer translates the sealed command list.
 
-## Supported shape commands
+## Supported commands
 
 The core currently defines:
 
 - `UiRectCommand` — filled rectangle;
 - `UiRoundedRectCommand` — filled rectangle with validated corner radius;
 - `UiOutlineCommand` — rectangular outline with positive thickness;
-- `UiTextCommand` — text run.
+- `UiTextCommand` — text run;
+- `UiClipCommand` — atomic clipped child-command scope.
 
 All geometry uses logical UI coordinates.
 
@@ -35,9 +38,19 @@ Rounded radius may not exceed half the shortest edge. Outlines require finite po
 
 ## Command ordering
 
-`UiCommandBuffer` orders commands by numeric layer while preserving insertion order within a layer.
+`UiCommandBuffer` orders top-level commands by numeric layer while preserving insertion order within a layer.
 
-The 1.8.9 renderer preserves that sealed order when translating commands to `LegacyUiGraphics`.
+A `UiClipCommand` is one atomic top-level command. Its child list is immutable and renders in the order supplied. This prevents top-level layer sorting from separating clip entry and exit. A nested `UiCommandBuffer` can be sealed first when a clipped subtree needs its own layer ordering.
+
+The 1.8.9 renderer preserves the sealed top-level order and recursively translates clipped child commands.
+
+## Clip ownership
+
+`Minecraft189UiRenderer` translates a clip scope to `LegacyUiGraphics.pushClip` / `popClip`.
+
+Clip exit is guaranteed in a `finally` block if a nested command fails. Nested clip scopes are therefore safe to compose without leaking scissor state into later UI.
+
+The eventual concrete 1.8.9 backend owns conversion from logical clip bounds to framebuffer scissor coordinates and intersection with any parent clip.
 
 ## HUD layout/input
 
@@ -59,7 +72,6 @@ The actual Minecraft/LWJGL implementation of `LegacyUiGraphics` remains outside 
 
 Later UI milestones can add:
 
-- clipping/scissor commands;
 - semantic theme/style tokens;
 - font handles and metrics;
 - generic focus/key routing;
