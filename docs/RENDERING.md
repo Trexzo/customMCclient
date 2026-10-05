@@ -16,6 +16,8 @@ M19 extends that translation boundary with rounded fills and outlines.
 
 M20 adds exception-safe nested clip scopes without exposing GL scissor state to core.
 
+M26 adds the retained ClickGUI as a normal HUD-stage render pass with a closed-state fast path.
+
 ## Goals
 
 - explicit render stages;
@@ -45,6 +47,14 @@ Pass registrations and `RenderResourceRegistry` make render lifecycle explicit.
 The generic flow is:
 
 `Minecraft189Hooks -> RenderPipeline -> HudRenderPass -> UiRenderer`
+
+## ClickGUI render bridge
+
+`ClickGuiRenderPass` participates in the same deterministic `HUD` stage as other UI passes.
+
+It snapshots retained ClickGUI state before resolving any rendering dependencies. When closed, it returns immediately. When open, it resolves `UiViewportProvider` and `UiThemeProvider`, composes commands, then invokes `UiRenderer`.
+
+Pass priority determines ordering relative to the normal HUD pass; no second renderer singleton or special GUI rendering loop is introduced.
 
 ## Minecraft 1.8.9 UI backend boundary
 
