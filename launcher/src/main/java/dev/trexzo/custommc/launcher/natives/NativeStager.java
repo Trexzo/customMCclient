@@ -64,12 +64,19 @@ public final class NativeStager {
             return staging;
         } catch (IOException | RuntimeException failure) {
             try {
-                deleteTree(staging);
+                cleanup(staging);
             } catch (IOException cleanupFailure) {
                 failure.addSuppressed(cleanupFailure);
             }
             throw failure;
         }
+    }
+
+    public static void cleanup(final Path staging)
+            throws IOException {
+        Objects.requireNonNull(staging, "staging");
+        deleteTree(
+                staging.toAbsolutePath().normalize());
     }
 
     private static void extract(
