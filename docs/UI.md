@@ -24,6 +24,8 @@ M23 adds explicit focus ownership and backend-neutral key routing.
 
 M24 adds the retained ClickGUI shell state model.
 
+M25 adds responsive backend-neutral ClickGUI shell composition.
+
 ## Direction
 
 The UI is native and in-process. It does not require an embedded browser.
@@ -96,9 +98,19 @@ Only the focused target receives `dispatchKey`; its boolean return indicates whe
 
 Registered `ClickGuiPage` descriptors use stable ids and deterministic priority/id ordering. Registrations have explicit lifetimes.
 
-The first available page becomes selected automatically. Removing the selected page falls back to the first remaining ordered page, or no selection when the registry becomes empty.
+Automatic selection follows the deterministic page order until the user makes an explicit page selection. Explicit selection remains stable as later pages register. Removing the selected page falls back to the first remaining ordered page.
 
-Open/closed state, the selected page id and the search query are retained independently of rendering. `ClickGuiSnapshot` exposes an immutable frame-safe view for future layout and draw composition.
+Open/closed state, the selected page id and the search query are retained independently of rendering. `ClickGuiSnapshot` exposes an immutable frame-safe view.
+
+## ClickGUI layout and composition
+
+`ClickGuiLayoutEngine` computes a responsive centered wide panel in logical UI coordinates, with explicit sidebar, search, clipped navigation and content regions.
+
+`ClickGuiComposer` converts one immutable shell snapshot plus the current viewport/theme into the existing backend-neutral command model.
+
+The initial shell uses semantic theme roles, font-aware text commands, selected-page emphasis and a clipped navigation list. A closed snapshot emits no draw work.
+
+The composer does not call Minecraft, OpenGL or profile storage directly. The next render milestone can place these commands into the existing staged UI renderer.
 
 ## HUD layout/input
 
@@ -120,7 +132,7 @@ The actual Minecraft/LWJGL implementation of `LegacyUiGraphics` remains outside 
 
 Later UI milestones can add:
 
-- retained ClickGUI layout/render composition;
+- ClickGUI render-pass/input wiring;
 - page-specific module/setting views;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
