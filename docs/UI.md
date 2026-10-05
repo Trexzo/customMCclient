@@ -28,6 +28,8 @@ M25 adds responsive backend-neutral ClickGUI shell composition.
 
 M26 connects the retained ClickGUI to the staged HUD renderer.
 
+M27 adds backend-neutral ClickGUI pointer and search-key interaction.
+
 ## Direction
 
 The UI is native and in-process. It does not require an embedded browser.
@@ -118,6 +120,16 @@ The composer does not call Minecraft, OpenGL or profile storage directly.
 
 When open, the pass resolves the current viewport/theme, composes the shell once and forwards the immutable command list through `UiRenderer`.
 
+## ClickGUI input
+
+`UiPointerEvent` and `UiPointerAction` describe validated logical pointer input without exposing LWJGL or Minecraft classes.
+
+`ClickGuiInputController` handles left-button press hit-testing for the search field, page navigation and the shell surface. Rendering and input share `ClickGuiMetrics` page-row geometry so their navigation bounds cannot silently diverge.
+
+The search field is a normal `UiFocusTarget` owned through `UiFocusManager`. Printable characters append to the retained query, Backspace deletes one character, and Enter/Escape release search focus. Escape with no focused search field closes the ClickGUI.
+
+Page clicks update the retained selected page and release search focus. Closing the input controller closes its focus registration, preventing disposed ClickGUI state from remaining ghost-focused.
+
 ## HUD layout/input
 
 `HudWidgetRegistry`, `HudLayoutEngine`, `HudLayoutState` and `HudDragController` own widget identity, resolved bounds, placement overrides and drag transactions respectively.
@@ -138,7 +150,7 @@ The actual Minecraft/LWJGL implementation of `LegacyUiGraphics` remains outside 
 
 Later UI milestones can add:
 
-- ClickGUI pointer/key input wiring;
+- platform pointer/key translation into the backend-neutral input events;
 - page-specific module/setting views;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
