@@ -20,6 +20,8 @@ M21 adds semantic theme tokens and immutable palette ownership.
 
 M22 adds stable font handles and backend-neutral text metrics.
 
+M23 adds explicit focus ownership and backend-neutral key routing.
+
 ## Direction
 
 The UI is native and in-process. It does not require an embedded browser.
@@ -76,6 +78,16 @@ The eventual concrete 1.8.9 backend owns conversion from logical clip bounds to 
 
 `UiTextCommand` now carries its font handle to the 1.8.9 graphics boundary. The eventual concrete backend resolves that handle to its owned font implementation.
 
+## Focus and key routing
+
+`UiFocusManager` owns exactly one focused target at a time. Targets register under stable ids and receive deterministic focus-change callbacks.
+
+Registration is an explicit lifetime. Closing the focused target's registration clears focus and emits the matching focus-loss callback, preventing stale retained widgets from continuing to receive keyboard input.
+
+`UiKey`, `UiKeys`, `UiKeyAction` and `UiKeyEvent` describe logical keyboard input without exposing LWJGL or Minecraft event classes. The platform adapter will translate native key input into these events later.
+
+Only the focused target receives `dispatchKey`; its boolean return indicates whether the event was consumed.
+
 ## HUD layout/input
 
 `HudWidgetRegistry`, `HudLayoutEngine`, `HudLayoutState` and `HudDragController` own widget identity, resolved bounds, placement overrides and drag transactions respectively.
@@ -96,7 +108,6 @@ The actual Minecraft/LWJGL implementation of `LegacyUiGraphics` remains outside 
 
 Later UI milestones can add:
 
-- generic focus/key routing;
 - retained ClickGUI widgets;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
