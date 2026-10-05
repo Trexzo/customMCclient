@@ -1,6 +1,6 @@
 # UI foundation
 
-M13 introduces the first backend-neutral UI draw layer.
+M13 introduces the backend-neutral UI command layer.
 
 M14 adds logical viewport scaling, nine-point anchors and explicit HUD widget ownership.
 
@@ -8,90 +8,63 @@ M15 separates widget defaults from mutable/persistable HUD placement state.
 
 M16 adds immutable layout snapshots, hit-testing and cancellable HUD drag transactions.
 
-M17 connects the HUD command model to the staged renderer through backend-neutral viewport and renderer contracts.
+M17 connects HUD composition to the staged renderer.
+
+M18 adds the Minecraft 1.8.9 translation boundary.
+
+M19 adds rounded-rectangle and outline primitives for modern native HUD/ClickGUI surfaces.
 
 ## Direction
 
-The client UI is native and in-process. It does not require an embedded browser.
+The UI is native and in-process. It does not require an embedded browser.
 
-Widgets and HUD systems build a per-frame `UiCommandBuffer`. The eventual 1.8.9 graphics backend consumes the sealed command list and translates it into efficient draw batches.
+Widgets describe each frame through backend-neutral commands. The platform renderer translates the sealed command list.
 
-## Draw commands
+## Supported shape commands
 
-The initial primitives are:
+The core currently defines:
 
-- `UiRectCommand`
-- `UiTextCommand`
+- `UiRectCommand` — filled rectangle;
+- `UiRoundedRectCommand` — filled rectangle with validated corner radius;
+- `UiOutlineCommand` — rectangular outline with positive thickness;
+- `UiTextCommand` — text run.
 
-Both carry a numeric layer and backend-neutral geometry/color data.
+All geometry uses logical UI coordinates.
 
-The core does not know about OpenGL, Minecraft font renderers, shaders or screen classes.
+Rounded radius may not exceed half the shortest edge. Outlines require finite positive thickness. Invalid geometry is rejected before it reaches a renderer backend.
 
-## Command buffer contract
+## Command ordering
 
-- commands may be appended while the buffer is open;
-- sealing creates one immutable ordered view;
-- commands are sorted by layer;
-- insertion order remains stable inside the same layer;
-- sealing is idempotent;
-- mutation after sealing is rejected;
-- geometry rejects NaN/infinite coordinates and negative rectangle extents.
+`UiCommandBuffer` orders commands by numeric layer while preserving insertion order within a layer.
 
-## Viewport and anchors
+The 1.8.9 renderer preserves that sealed order when translating commands to `LegacyUiGraphics`.
 
-`UiViewport` separates physical pixel dimensions from logical UI coordinates through an explicit positive scale.
+## HUD layout/input
 
-`UiAnchor` supports nine positions:
+`HudWidgetRegistry`, `HudLayoutEngine`, `HudLayoutState` and `HudDragController` own widget identity, resolved bounds, placement overrides and drag transactions respectively.
 
-- top-left / top-center / top-right;
-- center-left / center / center-right;
-- bottom-left / bottom-center / bottom-right.
-
-Offsets are applied after anchor resolution in logical coordinates.
-
-## HUD widget ownership and layout
-
-`HudWidgetRegistry` owns stable widget ids and a deterministic cached plan ordered by priority then id.
-
-`HudLayoutEngine` converts the current widget plan plus placement resolver into an immutable `HudLayoutSnapshot`.
-
-Hit-testing walks the snapshot in reverse render order, so overlapping UI selects the topmost widget deterministically.
-
-## Mutable HUD placement and drag ownership
-
-`HudLayoutState` stores placement overrides by stable widget id.
-
-`HudDragController` owns one drag transaction at a time. Movement only changes runtime layout state; commit/cancel decides whether that state remains. Durable profile writes remain outside input handling.
+Input and rendering can share the same immutable layout snapshot.
 
 ## Render bridge
 
-`HudRenderPass` is a normal `RenderPass` fixed to the `HUD` stage.
+`HudRenderPass` runs in the standard HUD render stage and sends the sealed command list to `UiRenderer`.
 
-It receives:
+The 1.8.9 path is:
 
-- `HudWidgetRegistry`;
-- `HudPlacementResolver`;
-- `UiViewportProvider`;
-- `UiRenderer`.
+`Minecraft189Hooks -> RenderPipeline -> HudRenderPass -> Minecraft189UiRenderer -> LegacyUiGraphics`
 
-On a HUD render frame it resolves the viewport, composes the command list, then passes the immutable commands to `UiRenderer`.
-
-The Minecraft 1.8.9 hook therefore reaches UI through the existing staged renderer:
-
-`Minecraft189Hooks -> RenderPipeline -> HudRenderPass -> UiRenderer`
-
-The backend contract receives `RenderFrame`, `UiViewport` and the sealed command list. No Minecraft or OpenGL type crosses into core.
+The actual Minecraft/LWJGL implementation of `LegacyUiGraphics` remains outside core.
 
 ## Next layers
 
 Later UI milestones can add:
 
-- a concrete 1.8.9 graphics backend;
-- clipping/scissor descriptions;
-- rounded rectangles and outlines;
-- font/style handles;
+- clipping/scissor commands;
+- semantic theme/style tokens;
+- font handles and metrics;
 - generic focus/key routing;
 - retained ClickGUI widgets;
-- draw batching and state minimization.
+- backend batching/state minimization;
+- concrete legacy GL implementation.
 
 Those layers should build on these contracts instead of bypassing them with direct graphics calls.

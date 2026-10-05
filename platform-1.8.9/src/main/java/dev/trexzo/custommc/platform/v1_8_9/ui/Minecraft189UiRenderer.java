@@ -2,8 +2,10 @@ package dev.trexzo.custommc.platform.v1_8_9.ui;
 
 import dev.trexzo.custommc.core.render.RenderFrame;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
+import dev.trexzo.custommc.core.ui.UiOutlineCommand;
 import dev.trexzo.custommc.core.ui.UiRectCommand;
 import dev.trexzo.custommc.core.ui.UiRenderer;
+import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiViewport;
 
@@ -54,6 +56,32 @@ public final class Minecraft189UiRenderer
                     rect.width(),
                     rect.height(),
                     rect.argb());
+            return;
+        }
+
+        if (command instanceof UiRoundedRectCommand) {
+            final UiRoundedRectCommand rect =
+                    (UiRoundedRectCommand) command;
+            graphics.fillRoundedRect(
+                    rect.x(),
+                    rect.y(),
+                    rect.width(),
+                    rect.height(),
+                    rect.radius(),
+                    rect.argb());
+            return;
+        }
+
+        if (command instanceof UiOutlineCommand) {
+            final UiOutlineCommand outline =
+                    (UiOutlineCommand) command;
+            graphics.strokeRect(
+                    outline.x(),
+                    outline.y(),
+                    outline.width(),
+                    outline.height(),
+                    outline.thickness(),
+                    outline.argb());
             return;
         }
 

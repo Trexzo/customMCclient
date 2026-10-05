@@ -12,6 +12,22 @@ public interface LegacyUiGraphics {
             float height,
             int argb);
 
+    void fillRoundedRect(
+            float x,
+            float y,
+            float width,
+            float height,
+            float radius,
+            int argb);
+
+    void strokeRect(
+            float x,
+            float y,
+            float width,
+            float height,
+            float thickness,
+            int argb);
+
     void drawText(
             float x,
             float y,
