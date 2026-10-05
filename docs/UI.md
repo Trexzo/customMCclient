@@ -56,6 +56,8 @@ M39 adds module presentation metadata without changing stable lifecycle identity
 
 M40 adds optional module categories and deterministic presentation ordering while preserving registration-order compatibility by default.
 
+M41 adds explicit module-to-setting ownership metadata without moving value or lifecycle authority into the UI.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -90,6 +92,12 @@ Left-clicking a visible module row requests lifecycle change only through `Modul
 - transitional `ENABLING` / `DISABLING` states are not mutated by the UI.
 
 ClickGUI does not write a parallel enabled flag and does not invoke module callbacks directly.
+
+## Module setting ownership
+
+M41 adds `ModuleSettingBinding` and `ModuleSettingRegistry` as the explicit association layer between stable module ids and existing setting ids. The registry is constructed over the authoritative `ModuleRegistry` and `SettingRegistry`, rejects unknown ids at registration, and enforces at most one module owner per setting.
+
+Bindings expose only module id, setting id and presentation priority. They do not mirror setting values, validators, persistence state or module lifecycle state. `bindingsForModule(...)` returns an immutable priority-ordered view and preserves registration order for equal priorities. Closing a binding registration releases only the association, allowing deliberate reassignment later without touching the underlying setting.
 
 ## Setting presentation and edit authority
 
@@ -137,7 +145,7 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- module-owned setting association and per-module detail views;
+- per-module detail views built on the M41 ownership registry;
 - concrete host callback wiring into `Minecraft189InputHooks`;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
