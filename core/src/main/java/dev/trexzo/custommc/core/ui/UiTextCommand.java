@@ -6,6 +6,7 @@ public final class UiTextCommand implements UiDrawCommand {
     private final int layer;
     private final float x;
     private final float y;
+    private final UiFontHandle font;
     private final String text;
     private final int argb;
 
@@ -15,12 +16,33 @@ public final class UiTextCommand implements UiDrawCommand {
             final float y,
             final String text,
             final int argb) {
+        this(
+                layer,
+                x,
+                y,
+                UiFonts.DEFAULT,
+                text,
+                argb);
+    }
+
+    public UiTextCommand(
+            final int layer,
+            final float x,
+            final float y,
+            final UiFontHandle font,
+            final String text,
+            final int argb) {
         requireFinite(x, "x");
         requireFinite(y, "y");
         this.layer = layer;
         this.x = x;
         this.y = y;
-        this.text = Objects.requireNonNull(text, "text");
+        this.font = Objects.requireNonNull(
+                font,
+                "font");
+        this.text = Objects.requireNonNull(
+                text,
+                "text");
         this.argb = argb;
     }
 
@@ -35,6 +57,10 @@ public final class UiTextCommand implements UiDrawCommand {
 
     public float y() {
         return y;
+    }
+
+    public UiFontHandle font() {
+        return font;
     }
 
     public String text() {

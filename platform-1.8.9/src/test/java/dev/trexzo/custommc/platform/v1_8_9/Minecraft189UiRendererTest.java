@@ -4,6 +4,7 @@ import dev.trexzo.custommc.core.render.RenderFrame;
 import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiClipCommand;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
+import dev.trexzo.custommc.core.ui.UiFontHandle;
 import dev.trexzo.custommc.core.ui.UiOutlineCommand;
 import dev.trexzo.custommc.core.ui.UiRectCommand;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
@@ -69,6 +70,8 @@ final class Minecraft189UiRendererTest {
                                                 0,
                                                 16.0F,
                                                 17.0F,
+                                                new UiFontHandle(
+                                                        "ui-medium"),
                                                 "clipped",
                                                 0xFF112233))),
                         new UiTextCommand(
@@ -85,9 +88,9 @@ final class Minecraft189UiRendererTest {
                         "rounded:10.0,11.0,40.0,20.0,5.0,-1",
                         "outline:12.0,13.0,50.0,30.0,1.5,-16777216",
                         "clip:14.0,15.0,60.0,40.0",
-                        "text:16.0,17.0,clipped,-15654349",
+                        "text:ui-medium:16.0,17.0,clipped,-15654349",
                         "unclip",
-                        "text:5.0,6.0,hello,-5588020",
+                        "text:minecraft-default:5.0,6.0,hello,-5588020",
                         "end"),
                 calls);
     }
@@ -267,12 +270,15 @@ final class Minecraft189UiRendererTest {
 
             @Override
             public void drawText(
+                    final UiFontHandle font,
                     final float x,
                     final float y,
                     final String text,
                     final int argb) {
                 calls.add(
                         "text:"
+                                + font.id()
+                                + ":"
                                 + x
                                 + ","
                                 + y
