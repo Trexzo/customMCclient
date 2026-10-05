@@ -108,6 +108,7 @@ public final class Minecraft189UiRenderer
             final UiTextCommand text =
                     (UiTextCommand) command;
             graphics.drawText(
+                    text.font(),
                     text.x(),
                     text.y(),
                     text.text(),
