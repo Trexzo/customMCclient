@@ -6,6 +6,8 @@ M10 wires the Minecraft 1.8.9 adapter to that contract through `ServiceRegistry`
 
 M11 moves structural render work off the per-frame hot path and gives pass registrations explicit lifetimes.
 
+M12 adds explicit render-resource ownership so later OpenGL resources have deterministic cleanup.
+
 ## Goals
 
 - explicit render stages;
@@ -15,7 +17,8 @@ M11 moves structural render work off the per-frame hot path and gives pass regis
 - no hidden global renderer ownership;
 - no browser requirement for ClickGUI;
 - no direct Minecraft types in core;
-- no repeated pass filtering/sorting during steady-state rendering.
+- no repeated pass filtering/sorting during steady-state rendering;
+- deterministic ownership for future GPU resources.
 
 ## Stages
 
@@ -40,10 +43,24 @@ Unrelated stage mutations do not invalidate another stage's plan.
 
 Closing that registration removes exactly the pass instance it owns and is idempotent. This gives future module lifecycle code a deterministic cleanup handle instead of relying on global unregister calls.
 
+## Render resource lifetime
+
+`RenderResourceRegistry` is intentionally independent of OpenGL.
+
+Future shader programs, framebuffer targets, vertex buffers, font atlases and similar renderer-owned objects can implement `RenderResource` and receive a stable id plus deterministic lifetime.
+
+- duplicate ids are rejected;
+- an individual registration can release exactly its resource;
+- closing the registry releases remaining resources in reverse registration order;
+- one failed resource close does not prevent later resources from being released;
+- no resources may be registered after the registry closes.
+
+This is the ownership layer only. M12 does not introduce OpenGL calls or GPU allocation.
+
 ## Platform routing
 
 `Minecraft189Hooks` translates version-specific render callbacks into the generic stages.
 
 The adapter obtains `RenderPipeline` through the platform's explicit `ServiceRegistry`, so there is no renderer singleton and no Minecraft type crosses into core.
 
-GL state ownership, batching, cached frame snapshots, shader resources and post-processing targets belong in later renderer milestones.
+GL state ownership, batching, cached frame snapshots, shader implementations and post-processing targets belong in later renderer milestones.
