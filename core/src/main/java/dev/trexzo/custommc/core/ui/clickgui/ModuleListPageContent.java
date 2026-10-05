@@ -8,6 +8,7 @@ import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiFonts;
+import dev.trexzo.custommc.core.ui.UiPointerEvent;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiTheme;
@@ -63,37 +64,19 @@ public final class ModuleListPageContent
                         theme.color(
                                 UiColorRole.TEXT_PRIMARY)));
 
-        final String query =
-                context.snapshot()
-                        .searchQuery()
-                        .trim()
-                        .toLowerCase(Locale.ROOT);
+        float y = firstRowY(bounds);
 
-        float y =
-                bounds.y()
-                        + PADDING
-                        + TITLE_GAP;
-
-        for (Module module : modules.snapshot()) {
+        for (Module module :
+                filteredModules(
+                        context.snapshot())) {
             final String id =
                     module.id();
-            if (!query.isEmpty()
-                    && !id.toLowerCase(Locale.ROOT)
-                    .contains(query)) {
-                continue;
-            }
-
             final ModuleState state =
                     controller.stateOf(id);
             final UiBounds row =
-                    new UiBounds(
-                            bounds.x() + PADDING,
-                            y,
-                            Math.max(
-                                    0.0F,
-                                    bounds.width()
-                                            - PADDING * 2.0F),
-                            ROW_HEIGHT);
+                    rowBounds(
+                            bounds,
+                            y);
 
             commands.add(
                     new UiRoundedRectCommand(
@@ -138,6 +121,96 @@ public final class ModuleListPageContent
         }
 
         return commands;
+    }
+
+    @Override
+    public boolean pointer(
+            final ClickGuiContentInputContext context,
+            final UiPointerEvent event) {
+        Objects.requireNonNull(context, "context");
+        Objects.requireNonNull(event, "event");
+
+        float y =
+                firstRowY(
+                        context.bounds());
+
+        for (Module module :
+                filteredModules(
+                        context.snapshot())) {
+            final UiBounds row =
+                    rowBounds(
+                            context.bounds(),
+                            y);
+
+            if (row.contains(
+                    event.x(),
+                    event.y())) {
+                return toggle(
+                        module.id());
+            }
+
+            y += ROW_HEIGHT + ROW_GAP;
+        }
+
+        return false;
+    }
+
+    private boolean toggle(final String id) {
+        final ModuleState state =
+                controller.stateOf(id);
+        switch (state) {
+            case DISABLED:
+                controller.enable(id);
+                return true;
+            case ENABLED:
+            case FAILED:
+                controller.disable(id);
+                return true;
+            case ENABLING:
+            case DISABLING:
+            default:
+                return false;
+        }
+    }
+
+    private List<Module> filteredModules(
+            final ClickGuiSnapshot snapshot) {
+        final String query =
+                snapshot.searchQuery()
+                        .trim()
+                        .toLowerCase(Locale.ROOT);
+        final List<Module> filtered =
+                new ArrayList<Module>();
+
+        for (Module module : modules.snapshot()) {
+            if (query.isEmpty()
+                    || module.id()
+                    .toLowerCase(Locale.ROOT)
+                    .contains(query)) {
+                filtered.add(module);
+            }
+        }
+        return filtered;
+    }
+
+    private static float firstRowY(
+            final UiBounds bounds) {
+        return bounds.y()
+                + PADDING
+                + TITLE_GAP;
+    }
+
+    private static UiBounds rowBounds(
+            final UiBounds bounds,
+            final float y) {
+        return new UiBounds(
+                bounds.x() + PADDING,
+                y,
+                Math.max(
+                        0.0F,
+                        bounds.width()
+                                - PADDING * 2.0F),
+                ROW_HEIGHT);
     }
 
     private static UiColorRole stateColorRole(

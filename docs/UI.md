@@ -36,79 +36,64 @@ M29 adds retained, clamped navigation scrolling and legacy wheel translation.
 
 M30 adds explicit page-content ownership and the first live module-list content view.
 
-## Direction
+M31 adds content-area pointer routing and module-row lifecycle interaction.
 
-The UI is native and in-process. It does not require an embedded browser.
+## Architecture
 
-Widgets describe each frame through backend-neutral commands. The platform renderer translates the sealed command list.
+The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
 
-## Supported commands
+`ClickGuiModel` owns retained shell state. `ClickGuiContentRegistry` owns page-content bindings with explicit registration lifetimes.
 
-The core currently defines:
+`ClickGuiComposer` is still a generic shell compositor. Registered page content receives an immutable `ClickGuiContentContext` for drawing.
 
-- `UiRectCommand` — filled rectangle;
-- `UiRoundedRectCommand` — filled rectangle with validated corner radius;
-- `UiOutlineCommand` — rectangular outline with positive thickness;
-- `UiTextCommand` — text run carrying a stable `UiFontHandle`;
-- `UiClipCommand` — atomic clipped child-command scope.
+M31 adds a separate `ClickGuiContentInputContext` for input. It contains only the retained snapshot, selected page descriptor and logical content bounds.
 
-All geometry uses logical UI coordinates.
+`ClickGuiPageContent.pointer(...)` defaults to no handling, so read-only page implementations do not need input code.
 
-## Retained ClickGUI shell
+## Module page lifecycle authority
 
-`ClickGuiModel` owns state that survives across frames: open/closed state, selected page, search query and navigation scroll.
+`ModuleListPageContent` reads module identity from `ModuleRegistry` and lifecycle state from `ModuleController`.
 
-Registered `ClickGuiPage` descriptors use stable ids and deterministic priority/id ordering. Registrations have explicit lifetimes.
+Rendering and row hit-testing share the same filtering and row geometry inside `ModuleListPageContent`. A retained search query therefore cannot make the visible row and interactive row disagree.
 
-`ClickGuiSnapshot` exposes one immutable frame-safe view.
+Left-clicking a visible module row requests lifecycle change only through `ModuleController`:
 
-## ClickGUI page content
+- `DISABLED -> enable`;
+- `ENABLED -> disable`;
+- `FAILED -> disable` to return through the controller cleanup path;
+- transitional `ENABLING` / `DISABLING` states are not mutated by the UI.
 
-`ClickGuiContentRegistry` maps stable page ids to `ClickGuiPageContent` implementations. Content registrations have explicit lifetimes and duplicate ownership is rejected.
+ClickGUI does not write a parallel enabled flag and does not invoke module callbacks directly.
 
-`ClickGuiComposer` remains a generic shell compositor. If the selected page has registered content, the shell creates a clipped content scope and delegates through `ClickGuiContentContext`; otherwise it retains the simple title fallback.
+## Input routing
 
-`ClickGuiContentContext` contains only the immutable shell snapshot, selected page descriptor, content bounds and current semantic theme. Page content does not receive Minecraft/OpenGL objects or profile storage.
+`ClickGuiInputController` still owns shell-level routing: search focus, navigation selection, navigation wheel scrolling and root hit-testing.
 
-`ModuleListPageContent` is the first real content implementation. It reads the current `ModuleRegistry` snapshot and asks `ModuleController` for lifecycle state each composition. ClickGUI does not duplicate module enable/disable authority.
+For a pointer press inside the content region, it resolves only the selected page's registered content and supplies `ClickGuiContentInputContext`. The content implementation decides whether a row-specific action exists.
 
-The retained search query filters module ids case-insensitively. Enabled/failed/transitional states are represented through semantic theme roles. M30 is intentionally read-only; module toggling becomes a separate input ownership milestone.
+Shell clicks remain consumed inside the ClickGUI root even when page content has no row action, preventing gameplay click-through.
 
-`ClickGuiRenderPass` has an overload that accepts the content registry, while the original constructor remains valid with an empty registry.
-
-## Navigation scrolling
-
-Navigation rows are shifted by the clamped retained scroll offset inside `UiClipCommand`.
-
-`ClickGuiMetrics` owns row/content/max-scroll geometry so composition and input use the same calculation.
-
-`UiScrollEvent` is backend-neutral. `LegacyInputTranslator` normalizes legacy wheel direction and converts bottom-origin framebuffer coordinates to top-origin logical UI coordinates before `Minecraft189InputHooks` routes the event.
-
-## Focus and keyboard input
-
-`UiFocusManager` owns exactly one focused target at a time with explicit registration lifetimes.
-
-The search field is a normal `UiFocusTarget`. Printable characters edit the retained query, Backspace deletes one character, Enter/Escape release focus, and Escape without search focus closes the ClickGUI.
+`UiPointerEvent`, `UiScrollEvent` and `UiKeyEvent` remain independent of Minecraft/LWJGL classes.
 
 ## Rendering boundary
 
-`ClickGuiRenderPass` participates in the normal `HUD` stage and forwards backend-neutral commands through `UiRenderer`.
+`ClickGuiRenderPass` participates in the normal `HUD` render stage and forwards backend-neutral commands through `UiRenderer`.
 
-The 1.8.9 path remains:
+The platform path remains:
 
 `Minecraft189Hooks -> RenderPipeline -> ClickGuiRenderPass -> Minecraft189UiRenderer -> LegacyUiGraphics`
 
-No concrete Minecraft, LWJGL, OpenGL, font atlas or profile-storage object crosses into core UI.
+No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object crosses into core UI.
 
 ## Next layers
 
-Later UI milestones can add:
+Later milestones can add:
 
-- module-row pointer interaction through `ModuleController`;
-- setting descriptors/editors;
+- setting descriptors and editors;
 - content-region scrolling;
+- module metadata beyond stable ids;
 - concrete host callback wiring into `Minecraft189InputHooks`;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
 
-Those layers should build on these contracts instead of bypassing them with direct graphics calls.
+Those layers should extend the existing ownership seams rather than bypassing them.
