@@ -8,7 +8,9 @@ M11 moves structural render work off the per-frame hot path and gives pass regis
 
 M12 adds explicit render-resource ownership so later OpenGL resources have deterministic cleanup.
 
-M17 adds the first backend-neutral HUD render pass on top of the staged pipeline.
+M17 adds the backend-neutral HUD render pass.
+
+M18 adds the Minecraft 1.8.9 UI translation boundary without importing Minecraft/OpenGL types into core.
 
 ## Goals
 
@@ -23,43 +25,44 @@ M17 adds the first backend-neutral HUD render pass on top of the staged pipeline
 - deterministic ownership for future GPU resources;
 - UI composition isolated from the concrete graphics backend.
 
-## Stages
+## Cached render plans and lifetime
 
-1. `WORLD`
-2. `WORLD_OVERLAY`
-3. `HUD`
-4. `POST_PROCESS`
+`RenderPipeline` maintains one immutable plan per stage. Registering or unregistering a pass rebuilds only the affected stage.
 
-Passes are ordered by numeric priority, then stable id. Registration is explicit.
-
-## Cached render plans
-
-`RenderPipeline` maintains one immutable plan per stage.
-
-Registering or unregistering a pass rebuilds only the affected stage. A normal render callback reads the already-sorted immutable plan and invokes it directly.
-
-## Pass and resource lifetime
-
-`RenderPipeline.register` returns a pass registration lifetime.
-
-`RenderResourceRegistry` owns future renderer resources such as shader programs, framebuffer targets, vertex buffers and font atlases.
-
-Both models make cleanup explicit instead of relying on global renderer state.
+Pass registrations and `RenderResourceRegistry` make render lifecycle explicit.
 
 ## HUD render bridge
 
-`HudRenderPass` participates in the normal `HUD` stage and composes backend-neutral UI commands.
+`HudRenderPass` composes backend-neutral UI commands in the normal `HUD` stage.
 
-`UiViewportProvider` owns the conversion from platform framebuffer state into the logical UI viewport.
+`UiViewportProvider` owns the viewport boundary and `UiRenderer` owns command translation.
 
-`UiRenderer` owns translation from the command list into backend operations.
+The generic flow is:
 
-This separation means the later 1.8.9 renderer can use LWJGL/OpenGL without leaking those types into UI widgets or core layout logic.
+`Minecraft189Hooks -> RenderPipeline -> HudRenderPass -> UiRenderer`
+
+## Minecraft 1.8.9 UI backend boundary
+
+M18 provides two platform-side facades:
+
+- `LegacyViewportAccess` — current framebuffer dimensions and UI scale;
+- `LegacyUiGraphics` — begin/end plus logical rectangle and text drawing operations.
+
+`Minecraft189ViewportProvider` reads the current display values on every render frame and creates the core `UiViewport`.
+
+`Minecraft189UiRenderer` translates the currently supported core commands:
+
+- `UiRectCommand -> LegacyUiGraphics.fillRect`
+- `UiTextCommand -> LegacyUiGraphics.drawText`
+
+Command order is preserved. `end()` is guaranteed after a successful `begin()`, even when translation fails.
+
+Unknown command types fail explicitly rather than silently disappearing. That makes future command additions versioned work at the backend boundary.
+
+The actual Minecraft/LWJGL implementation of `LegacyUiGraphics` and `LegacyViewportAccess` remains a later integration milestone. This keeps the current source testable without committing Mojang classes.
 
 ## Platform routing
 
-`Minecraft189Hooks` translates version-specific render callbacks into the generic stages.
+`Minecraft189Hooks` translates version-specific render callbacks into generic stages and obtains `RenderPipeline` through the explicit service registry.
 
-The adapter obtains `RenderPipeline` through the platform's explicit `ServiceRegistry`, so there is no renderer singleton and no Minecraft type crosses into core.
-
-Concrete GL state ownership, batching, font resources, shaders and post-processing targets belong in later renderer milestones.
+Concrete GL state ownership, batching, font resources, shaders and post-processing targets remain later renderer milestones.
