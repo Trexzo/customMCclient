@@ -4,11 +4,34 @@ import java.util.List;
 import java.util.Objects;
 
 public final class HudComposer {
+    private static final HudPlacementResolver DEFAULT_PLACEMENT =
+            new HudPlacementResolver() {
+                @Override
+                public HudPlacement placementFor(
+                        final HudWidget widget) {
+                    return new HudPlacement(
+                            widget.anchor(),
+                            widget.offsetX(),
+                            widget.offsetY());
+                }
+            };
+
     public List<UiDrawCommand> compose(
             final UiViewport viewport,
             final HudWidgetRegistry registry) {
+        return compose(
+                viewport,
+                registry,
+                DEFAULT_PLACEMENT);
+    }
+
+    public List<UiDrawCommand> compose(
+            final UiViewport viewport,
+            final HudWidgetRegistry registry,
+            final HudPlacementResolver placements) {
         Objects.requireNonNull(viewport, "viewport");
         Objects.requireNonNull(registry, "registry");
+        Objects.requireNonNull(placements, "placements");
 
         final UiCommandBuffer commands =
                 new UiCommandBuffer();
@@ -17,12 +40,14 @@ public final class HudComposer {
             final UiSize size = Objects.requireNonNull(
                     widget.measure(viewport),
                     "widget.measure");
+            final HudPlacement placement =
+                    Objects.requireNonNull(
+                            placements.placementFor(widget),
+                            "placements.placementFor");
             final UiBounds bounds =
-                    widget.anchor().resolve(
+                    placement.resolve(
                             viewport,
-                            size,
-                            widget.offsetX(),
-                            widget.offsetY());
+                            size);
 
             widget.draw(new HudDrawContext(
                     viewport,
