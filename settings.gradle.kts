@@ -17,5 +17,6 @@ rootProject.name = "customMCclient"
 include(
     "core",
     "launcher",
-    "platform-api"
+    "platform-api",
+    "platform-1.8.9"
 )
