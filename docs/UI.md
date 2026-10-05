@@ -52,6 +52,8 @@ M37 adds focus-owned transactional text setting editing.
 
 M38 adds retained page-content scrolling shared by rendering and hit-testing.
 
+M39 adds module presentation metadata without changing stable lifecycle identity.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -64,11 +66,15 @@ The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCo
 
 `ClickGuiPageContent.pointer(...)` defaults to no handling, so read-only page implementations do not need input code.
 
-## Module page lifecycle authority
+## Module page lifecycle and presentation authority
 
-`ModuleListPageContent` reads module identity from `ModuleRegistry` and lifecycle state from `ModuleController`.
+`ModuleRegistry` and `ModuleController` continue to use the exact stable `Module.id()` as module identity and lifecycle authority.
 
-Rendering and row hit-testing share the same filtering and row geometry inside `ModuleListPageContent`. A retained search query therefore cannot make the visible row and interactive row disagree.
+M39 adds `ModuleDescriptor` and `ModulePresentationRegistry` as a separate, optional UI-presentation layer. Descriptors carry a human-facing display name and description keyed by the stable module id. Registration rejects duplicate presentation authority and exposes an explicit closeable lifetime.
+
+`ModuleListPageContent` resolves presentation metadata at composition/filter time. The display name is rendered when present; modules without descriptors retain their stable id as a compatibility fallback. Search matches stable id, display name and description.
+
+Pointer interaction never uses the display name as an identity key. Clicking a row still requests lifecycle changes through `ModuleController` with the underlying stable module id.
 
 Left-clicking a visible module row requests lifecycle change only through `ModuleController`. Right/middle presses are ignored by module content even though the shell routes all content buttons:
 
@@ -125,7 +131,7 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- module metadata beyond stable ids;
+- richer module metadata/grouping and module-owned setting association;
 - concrete host callback wiring into `Minecraft189InputHooks`;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
