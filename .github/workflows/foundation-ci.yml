@@ -1,0 +1,37 @@
+name: Foundation CI
+
+on:
+  push:
+    branches:
+      - main
+      - "foundation/**"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Verify foundation
+        run: gradle --no-daemon verifyFoundation
+
+      - name: Run launcher smoke test
+        run: gradle --no-daemon :launcher:run
