@@ -157,7 +157,12 @@ public final class ClickGuiComposer {
             final UiTheme theme) {
         final List<UiDrawCommand> commands =
                 new ArrayList<UiDrawCommand>();
-        float y = navigation.y();
+        final float scroll =
+                ClickGuiMetrics.clampNavigationScroll(
+                        snapshot.navigationScroll(),
+                        snapshot.pages().size(),
+                        navigation.height());
+        float y = navigation.y() - scroll;
 
         for (ClickGuiPage page : snapshot.pages()) {
             final boolean selected =
