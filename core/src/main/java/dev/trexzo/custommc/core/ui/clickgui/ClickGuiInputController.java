@@ -22,6 +22,7 @@ public final class ClickGuiInputController
 
     private final ClickGuiModel model;
     private final ClickGuiLayoutEngine layoutEngine;
+    private final ClickGuiContentRegistry contentRegistry;
     private final UiFocusManager focusManager;
     private final UiFocusManager.Registration searchRegistration;
 
@@ -31,12 +32,25 @@ public final class ClickGuiInputController
         this(
                 model,
                 new ClickGuiLayoutEngine(),
+                new ClickGuiContentRegistry(),
+                focusManager);
+    }
+
+    public ClickGuiInputController(
+            final ClickGuiModel model,
+            final ClickGuiContentRegistry contentRegistry,
+            final UiFocusManager focusManager) {
+        this(
+                model,
+                new ClickGuiLayoutEngine(),
+                contentRegistry,
                 focusManager);
     }
 
     ClickGuiInputController(
             final ClickGuiModel model,
             final ClickGuiLayoutEngine layoutEngine,
+            final ClickGuiContentRegistry contentRegistry,
             final UiFocusManager focusManager) {
         this.model =
                 Objects.requireNonNull(
@@ -46,6 +60,10 @@ public final class ClickGuiInputController
                 Objects.requireNonNull(
                         layoutEngine,
                         "layoutEngine");
+        this.contentRegistry =
+                Objects.requireNonNull(
+                        contentRegistry,
+                        "contentRegistry");
         this.focusManager =
                 Objects.requireNonNull(
                         focusManager,
@@ -91,6 +109,17 @@ public final class ClickGuiInputController
                     snapshot,
                     layout,
                     event.y());
+            return true;
+        }
+
+        if (layout.content().contains(
+                event.x(),
+                event.y())) {
+            focusManager.clearFocus();
+            dispatchContentPointer(
+                    snapshot,
+                    layout,
+                    event);
             return true;
         }
 
@@ -168,6 +197,31 @@ public final class ClickGuiInputController
         searchRegistration.close();
     }
 
+    private void dispatchContentPointer(
+            final ClickGuiSnapshot snapshot,
+            final ClickGuiLayout layout,
+            final UiPointerEvent event) {
+        final ClickGuiPage selected =
+                selectedPage(snapshot);
+        if (selected == null) {
+            return;
+        }
+
+        final ClickGuiPageContent content =
+                contentRegistry.find(
+                        selected.id());
+        if (content == null) {
+            return;
+        }
+
+        content.pointer(
+                new ClickGuiContentInputContext(
+                        snapshot,
+                        selected,
+                        layout.content()),
+                event);
+    }
+
     private void selectNavigationPage(
             final ClickGuiSnapshot snapshot,
             final ClickGuiLayout layout,
@@ -191,6 +245,22 @@ public final class ClickGuiInputController
             rowY += ClickGuiMetrics.PAGE_HEIGHT
                     + ClickGuiMetrics.PAGE_GAP;
         }
+    }
+
+    private static ClickGuiPage selectedPage(
+            final ClickGuiSnapshot snapshot) {
+        final String selectedId =
+                snapshot.selectedPageId();
+        if (selectedId == null) {
+            return null;
+        }
+
+        for (ClickGuiPage page : snapshot.pages()) {
+            if (selectedId.equals(page.id())) {
+                return page;
+            }
+        }
+        return null;
     }
 
     private final class SearchFocusTarget
