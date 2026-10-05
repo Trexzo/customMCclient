@@ -8,7 +8,10 @@ import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiFonts;
+import dev.trexzo.custommc.core.ui.UiPointerAction;
+import dev.trexzo.custommc.core.ui.UiPointerButton;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
+import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiTheme;
@@ -28,6 +31,8 @@ public final class ModuleListPageContent
 
     private final ModuleRegistry modules;
     private final ModuleController controller;
+    private final ClickGuiContentScrollState scroll =
+            new ClickGuiContentScrollState();
 
     public ModuleListPageContent(
             final ModuleRegistry modules,
@@ -54,21 +59,31 @@ public final class ModuleListPageContent
         final UiTheme theme =
                 context.theme();
 
+        final List<Module> visible =
+                filteredModules(
+                        context.snapshot());
+        final float scrollOffset =
+                scroll.offset(
+                        contentHeight(
+                                visible.size()),
+                        bounds.height());
+
         commands.add(
                 new UiTextCommand(
                         0,
                         bounds.x() + PADDING,
-                        bounds.y() + PADDING,
+                        bounds.y() + PADDING - scrollOffset,
                         UiFonts.DEFAULT,
                         context.page().title(),
                         theme.color(
                                 UiColorRole.TEXT_PRIMARY)));
 
-        float y = firstRowY(bounds);
+        float y =
+                firstRowY(
+                        bounds,
+                        scrollOffset);
 
-        for (Module module :
-                filteredModules(
-                        context.snapshot())) {
+        for (Module module : visible) {
             final String id =
                     module.id();
             final ModuleState state =
@@ -130,13 +145,25 @@ public final class ModuleListPageContent
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(event, "event");
 
+        if (event.action() != UiPointerAction.PRESS
+                || event.button() != UiPointerButton.LEFT) {
+            return false;
+        }
+
+        final List<Module> visible =
+                filteredModules(
+                        context.snapshot());
+        final float scrollOffset =
+                scroll.offset(
+                        contentHeight(
+                                visible.size()),
+                        context.bounds().height());
         float y =
                 firstRowY(
-                        context.bounds());
+                        context.bounds(),
+                        scrollOffset);
 
-        for (Module module :
-                filteredModules(
-                        context.snapshot())) {
+        for (Module module : visible) {
             final UiBounds row =
                     rowBounds(
                             context.bounds(),
@@ -153,6 +180,24 @@ public final class ModuleListPageContent
         }
 
         return false;
+    }
+
+    @Override
+    public boolean scroll(
+            final ClickGuiContentInputContext context,
+            final UiScrollEvent event) {
+        Objects.requireNonNull(context, "context");
+        Objects.requireNonNull(event, "event");
+
+        final int count =
+                filteredModules(
+                        context.snapshot())
+                        .size();
+        scroll.scroll(
+                event.deltaY(),
+                contentHeight(count),
+                context.bounds().height());
+        return true;
     }
 
     private boolean toggle(final String id) {
@@ -194,10 +239,26 @@ public final class ModuleListPageContent
     }
 
     private static float firstRowY(
-            final UiBounds bounds) {
+            final UiBounds bounds,
+            final float scrollOffset) {
         return bounds.y()
                 + PADDING
-                + TITLE_GAP;
+                + TITLE_GAP
+                - scrollOffset;
+    }
+
+    private static float contentHeight(
+            final int rowCount) {
+        if (rowCount <= 0) {
+            return PADDING
+                    + TITLE_GAP
+                    + PADDING;
+        }
+        return PADDING
+                + TITLE_GAP
+                + rowCount * ROW_HEIGHT
+                + (rowCount - 1) * ROW_GAP
+                + PADDING;
     }
 
     private static UiBounds rowBounds(
