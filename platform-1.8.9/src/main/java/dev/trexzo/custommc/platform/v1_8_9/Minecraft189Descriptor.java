@@ -14,12 +14,8 @@ public final class Minecraft189Descriptor {
     private Minecraft189Descriptor() {
     }
 
-    public static List<RuntimeArtifact> requiredArtifacts() {
+    public static List<RuntimeArtifact> verifiedLibraryArtifacts() {
         return Collections.unmodifiableList(Arrays.asList(
-                new RuntimeArtifact(
-                        "minecraft-client",
-                        "0000000000000000000000000000000000000000",
-                        0L),
                 new RuntimeArtifact(
                         "authlib",
                         "aefba0d5b53fbcb70860bc8046ab95d5854c07a5",
