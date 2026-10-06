@@ -372,6 +372,10 @@ final class Minecraft189MappedHostTransformationTest {
                     .setDouble(
                             player,
                             -42.75D);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            91.25F);
             minecraftClass.getField("h")
                     .set(
                             minecraft,
@@ -544,6 +548,16 @@ final class Minecraft189MappedHostTransformationTest {
                     0.0D,
                     speed.blocksPerSecond());
 
+            final Minecraft189PlayerRotationState.Snapshot rotation =
+                    runtime.requireHostRuntime()
+                            .playerRotationState()
+                            .snapshot();
+            assertTrue(
+                    rotation.available());
+            assertEquals(
+                    91.25F,
+                    rotation.yaw());
+
             minecraftClass.getField("h")
                     .set(
                             minecraft,
@@ -557,6 +571,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .movementSpeedTracker()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .playerRotationState()
                             .snapshot()
                             .available());
 
