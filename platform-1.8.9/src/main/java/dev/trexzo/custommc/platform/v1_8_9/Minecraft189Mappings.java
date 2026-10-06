@@ -55,6 +55,10 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "pr",
                     "net/minecraft/entity/EntityLivingBase");
+    public static final MappedClass ITEM_STACK =
+            new MappedClass(
+                    "zx",
+                    "net/minecraft/item/ItemStack");
 
     public static final MappedField MINECRAFT_PLAYER =
             new MappedField(
@@ -247,6 +251,13 @@ public final class Minecraft189Mappings {
                     "()F",
                     "func_110138_aP",
                     "getMaxHealth");
+    public static final MappedMethod ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT =
+            new MappedMethod(
+                    ENTITY_LIVING_BASE,
+                    "p",
+                    "(I)Lzx;",
+                    "func_71124_b",
+                    "getEquipmentInSlot");
 
     private Minecraft189Mappings() {
     }
