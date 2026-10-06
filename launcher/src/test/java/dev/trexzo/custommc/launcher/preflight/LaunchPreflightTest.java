@@ -2,6 +2,7 @@ package dev.trexzo.custommc.launcher.preflight;
 
 import dev.trexzo.custommc.launcher.command.LaunchIdentity;
 import dev.trexzo.custommc.launcher.command.LaunchRuntimeOverlay;
+import dev.trexzo.custommc.launcher.command.Minecraft189RuntimeBundle;
 import dev.trexzo.custommc.launcher.java.JavaRuntime;
 import dev.trexzo.custommc.launcher.java.JavaRuntimeInspection;
 import dev.trexzo.custommc.launcher.java.JavaRuntimeProbe;
@@ -139,6 +140,110 @@ final class LaunchPreflightTest {
             assertTrue(
                     arguments.contains(
                             installation.versionId()));
+        }
+    }
+
+
+    @Test
+    void runtimeBundleResolvesOverlayFromAuthoritativeTemplateMainClass()
+            throws Exception {
+        final MinecraftInstallation installation =
+                createInstallation(true);
+        final JavaRuntime javaRuntime =
+                createJavaRuntime();
+
+        final Path runtimeDirectory =
+                tempDir.resolve("runtime-overlay");
+        Files.createDirectories(runtimeDirectory);
+        final Path bootstrap =
+                runtimeDirectory.resolve("bootstrap.jar");
+        final Path core =
+                runtimeDirectory.resolve("core.jar");
+        final Path platformApi =
+                runtimeDirectory.resolve("platform-api.jar");
+        final Path platform189 =
+                runtimeDirectory.resolve("platform-1.8.9.jar");
+        Files.write(bootstrap, new byte[] {1});
+        Files.write(core, new byte[] {2});
+        Files.write(platformApi, new byte[] {3});
+        Files.write(platform189, new byte[] {4});
+
+        final Minecraft189RuntimeBundle bundle =
+                Minecraft189RuntimeBundle.fromDirectory(
+                        runtimeDirectory);
+
+        final LaunchPreflightRequest request =
+                new LaunchPreflightRequest(
+                        installation,
+                        new RuntimeTarget(
+                                OperatingSystem.LINUX,
+                                CpuArchitecture.X64,
+                                "6.0"),
+                        javaRuntime,
+                        new LaunchIdentity(
+                                "Player",
+                                "uuid",
+                                "secret-token",
+                                "{}",
+                                "mojang"),
+                        tempDir.resolve("game-bundle"),
+                        tempDir.resolve("bundle-staging"),
+                        512,
+                        1024,
+                        bundle);
+
+        try (LaunchPreflightResult result =
+                new LaunchPreflight().prepare(request)) {
+            final java.util.List<String> arguments =
+                    result.command()
+                            .arguments();
+            final int classpathIndex =
+                    arguments.indexOf("-cp") + 1;
+            final String classpath =
+                    arguments.get(classpathIndex);
+
+            final String expectedPrefix =
+                    bootstrap.toAbsolutePath()
+                            .normalize()
+                            .toString()
+                            + ":"
+                            + core.toAbsolutePath()
+                            .normalize()
+                            .toString()
+                            + ":"
+                            + platformApi.toAbsolutePath()
+                            .normalize()
+                            .toString()
+                            + ":"
+                            + platform189.toAbsolutePath()
+                            .normalize()
+                            .toString()
+                            + ":";
+
+            assertTrue(
+                    classpath.startsWith(
+                            expectedPrefix));
+
+            final int bootstrapMainIndex =
+                    arguments.indexOf(
+                            "dev.trexzo.custommc.bootstrap.CustomMcBootstrapMain");
+            assertTrue(bootstrapMainIndex >= 0);
+            assertTrue(
+                    arguments.get(
+                            bootstrapMainIndex + 1)
+                            .equals(
+                                    "--custommc-runtime"));
+            assertTrue(
+                    arguments.get(
+                            bootstrapMainIndex + 2)
+                            .equals(
+                                    Minecraft189RuntimeBundle
+                                            .RUNTIME_INITIALIZER_CLASS));
+            assertTrue(
+                    arguments.get(
+                            bootstrapMainIndex + 3)
+                            .equals(
+                                    "net.minecraft.client.main.Main"));
         }
     }
 
