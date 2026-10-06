@@ -121,8 +121,20 @@ final class Lwjgl2Minecraft189ViewportSourceTest {
 
     private static final class MutableSettings
             implements Minecraft189GuiSettingsAccess {
+        private float gamma;
         private int guiScale;
         private boolean unicode;
+
+        @Override
+        public float gammaSetting() {
+            return gamma;
+        }
+
+        @Override
+        public void gammaSetting(
+                final float value) {
+            gamma = value;
+        }
 
         @Override
         public int configuredGuiScale() {
