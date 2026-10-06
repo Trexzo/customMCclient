@@ -178,3 +178,14 @@ M73 adds `Minecraft189RuntimeBridge` as the narrow static target future Minecraf
 The bridge does not expose the bootstrap runtime object or create parallel state. Host installation still delegates to the M72 owner, while tick/render/input entry points forward into that same `Minecraft189HostRuntime`. Callback entry points are deliberately inert when no active host exists, and input returns `false`; this makes late callbacks during startup/shutdown harmless rather than able to reach partially torn-down services.
 
 M73 is only the stable callback target. It still performs no Minecraft class transformation and imports no Mojang implementation classes.
+
+
+## Concrete LWJGL2 viewport and default-font host binding
+
+M74 supplies the first concrete M73 host composition that can be installed without importing Mojang implementation classes. `Lwjgl2Minecraft189ViewportSource` reads the live LWJGL2 display dimensions and reproduces Minecraft 1.8.9 GUI scale-factor selection: GUI scale 0 behaves as auto, scaling stops before the logical viewport would fall below 320x240, and Unicode mode corrects odd scale factors above one down to an even factor.
+
+Minecraft-owned GUI settings remain behind the narrow `Minecraft189GuiSettingsAccess` contract so the upcoming game callback patch can supply the live values without reflection or obfuscated-field lookup inside the platform renderer. Invalid non-positive framebuffer dimensions and negative scale settings fail explicitly instead of creating an invalid `UiViewport`.
+
+`Minecraft189DefaultFontRenderer` maps only the semantic `UiFonts.DEFAULT` handle to `Minecraft189FontRendererAccess.drawString(..., shadow=false)`. Unknown semantic fonts are rejected rather than silently aliasing to the Minecraft font. `Minecraft189LwjglHostBinding.install(...)` composes that text adapter with the existing certified LWJGL2 GL renderer and installs the resulting host through the M73 runtime bridge.
+
+M74 still does not patch Minecraft classes. It leaves one deliberately small game-side responsibility: provide the live GUI-setting/font-renderer access objects and forward actual 1.8.9 callbacks into the M73 bridge.
