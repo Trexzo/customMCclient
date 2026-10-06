@@ -76,17 +76,7 @@ final class Minecraft189BootstrapInitializerTest {
                         .snapshot()
                         .isEmpty());
 
-        final AtomicLong observedTick =
-                new AtomicLong(-1L);
-        runtime.events()
-                .subscribe(
-                        Minecraft189Hooks.TickEvent.class,
-                        event -> observedTick.set(
-                                event.tickIndex()));
-        Minecraft189RuntimeBridge.publishTick(42L);
-        assertEquals(
-                42L,
-                observedTick.get());
+        assertTrue(Minecraft189RuntimeBridge.active());
 
         runtime.close();
 
@@ -107,6 +97,7 @@ final class Minecraft189BootstrapInitializerTest {
                         .closed());
 
         runtime.close();
+        assertFalse(Minecraft189RuntimeBridge.active());
         assertTrue(runtime.closed());
     }
 
@@ -138,6 +129,18 @@ final class Minecraft189BootstrapInitializerTest {
                 runtime.services()
                         .contains(
                                 ClickGuiInputController.class));
+
+        final AtomicLong observedTick =
+                new AtomicLong(-1L);
+        runtime.events()
+                .subscribe(
+                        Minecraft189Hooks.TickEvent.class,
+                        event -> observedTick.set(
+                                event.tickIndex()));
+        Minecraft189RuntimeBridge.publishTick(42L);
+        assertEquals(
+                42L,
+                observedTick.get());
 
         assertThrows(
                 IllegalStateException.class,
