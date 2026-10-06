@@ -169,3 +169,12 @@ M72 joins the M66 bootstrap graph to the already-certified M54-M61 host façade 
 Host activation is explicit and one-shot. A duplicate activation or activation after bootstrap shutdown is rejected. Bootstrap teardown closes the host runtime before keybind services, render-pipeline service registration and platform attachment are released, so ClickGUI services cannot outlive the owners they route through. The host still does not own or detach the platform itself.
 
 M72 deliberately stops at this ownership seam. The subsequent Minecraft callback/binding layer can now target one bootstrap-owned host runtime instead of reconstructing UI/input/render state or relying on an unowned global runtime.
+
+
+## Lifecycle-owned Minecraft callback bridge
+
+M73 adds `Minecraft189RuntimeBridge` as the narrow static target future Minecraft 1.8.9 bytecode/callback bindings can call. Bootstrap owns the bridge through an explicit registration token: only one bootstrap runtime may be published at a time, overlapping runtime creation is rejected, and shutdown unpublishes the bridge before host/UI, keybind, render-pipeline and platform teardown begins.
+
+The bridge does not expose the bootstrap runtime object or create parallel state. Host installation still delegates to the M72 owner, while tick/render/input entry points forward into that same `Minecraft189HostRuntime`. Callback entry points are deliberately inert when no active host exists, and input returns `false`; this makes late callbacks during startup/shutdown harmless rather than able to reach partially torn-down services.
+
+M73 is only the stable callback target. It still performs no Minecraft class transformation and imports no Mojang implementation classes.
