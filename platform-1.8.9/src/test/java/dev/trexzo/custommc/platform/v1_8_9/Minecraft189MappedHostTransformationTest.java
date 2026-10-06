@@ -396,6 +396,17 @@ final class Minecraft189MappedHostTransformationTest {
                     -42.75D,
                     position.z());
 
+            minecraftClass.getField("h")
+                    .set(
+                            minecraft,
+                            null);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .playerPositionState()
+                            .snapshot()
+                            .available());
+
             final Object entityRenderer =
                     loader.loadClass("bfk")
                             .getDeclaredConstructor()
