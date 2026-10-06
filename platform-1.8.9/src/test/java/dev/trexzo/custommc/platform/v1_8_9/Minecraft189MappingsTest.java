@@ -37,6 +37,10 @@ final class Minecraft189MappingsTest {
                 "ave",
                 "net/minecraft/client/Minecraft");
         assertClass(
+                Minecraft189Mappings.KEY_BINDING,
+                "avb",
+                "net/minecraft/client/settings/KeyBinding");
+        assertClass(
                 Minecraft189Mappings.GAME_SETTINGS,
                 "avh",
                 "net/minecraft/client/settings/GameSettings");
@@ -149,6 +153,13 @@ final class Minecraft189MappingsTest {
                 "func_152348_aa",
                 "dispatchKeypresses");
         assertMethod(
+                Minecraft189Mappings.KEY_BINDING_SET_KEY_BIND_STATE,
+                Minecraft189Mappings.KEY_BINDING,
+                "a",
+                "(IZ)V",
+                "func_74510_a",
+                "setKeyBindState");
+        assertMethod(
                 Minecraft189Mappings.FONT_RENDERER_DRAW_STRING,
                 Minecraft189Mappings.FONT_RENDERER,
                 "a",
@@ -175,6 +186,8 @@ final class Minecraft189MappingsTest {
     void mappedClassShapeGatesAcceptExactOwnersAndMembers() {
         Minecraft189ClassShapeVerifier.verifyMinecraft(
                 minecraftShape());
+        Minecraft189ClassShapeVerifier.verifyKeyBinding(
+                keyBindingShape());
         Minecraft189ClassShapeVerifier.verifyGameSettings(
                 gameSettingsShape());
         Minecraft189ClassShapeVerifier.verifyFontRenderer(
@@ -248,6 +261,18 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.MINECRAFT_DISPATCH_KEYPRESSES);
+        return finish(writer);
+    }
+
+    private static byte[] keyBindingShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.KEY_BINDING
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings
+                        .KEY_BINDING_SET_KEY_BIND_STATE);
         return finish(writer);
     }
 
