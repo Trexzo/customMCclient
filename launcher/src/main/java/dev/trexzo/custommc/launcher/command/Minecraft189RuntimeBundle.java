@@ -18,6 +18,19 @@ public final class Minecraft189RuntimeBundle {
     private final Path platformApiArtifact;
     private final Path platform189Artifact;
 
+    public static Minecraft189RuntimeBundle fromDirectory(
+            final Path directory) {
+        final Path root =
+                normalize(
+                        directory,
+                        "directory");
+        return new Minecraft189RuntimeBundle(
+                root.resolve("bootstrap.jar"),
+                root.resolve("core.jar"),
+                root.resolve("platform-api.jar"),
+                root.resolve("platform-1.8.9.jar"));
+    }
+
     public Minecraft189RuntimeBundle(
             final Path bootstrapArtifact,
             final Path coreArtifact,
