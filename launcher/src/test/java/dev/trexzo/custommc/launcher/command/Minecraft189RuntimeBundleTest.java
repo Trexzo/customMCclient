@@ -21,6 +21,8 @@ final class Minecraft189RuntimeBundleTest {
                 tempDir.resolve("core.jar");
         final Path platformApi =
                 tempDir.resolve("platform-api.jar");
+        final Path asm =
+                tempDir.resolve("asm.jar");
         final Path platform189 =
                 tempDir.resolve("platform-1.8.9.jar");
 
@@ -29,6 +31,7 @@ final class Minecraft189RuntimeBundleTest {
                         bootstrap,
                         core,
                         platformApi,
+                        asm,
                         platform189);
 
         assertEquals(
@@ -36,6 +39,7 @@ final class Minecraft189RuntimeBundleTest {
                         bootstrap.toAbsolutePath().normalize(),
                         core.toAbsolutePath().normalize(),
                         platformApi.toAbsolutePath().normalize(),
+                        asm.toAbsolutePath().normalize(),
                         platform189.toAbsolutePath().normalize()),
                 bundle.artifacts());
 
@@ -78,6 +82,9 @@ final class Minecraft189RuntimeBundleTest {
                         root.resolve("platform-api.jar")
                                 .toAbsolutePath()
                                 .normalize(),
+                        root.resolve("asm.jar")
+                                .toAbsolutePath()
+                                .normalize(),
                         root.resolve("platform-1.8.9.jar")
                                 .toAbsolutePath()
                                 .normalize()),
@@ -97,6 +104,7 @@ final class Minecraft189RuntimeBundleTest {
                                 root.resolve(".")
                                         .resolve("bootstrap.jar"),
                                 root.resolve("platform-api.jar"),
+                                root.resolve("asm.jar"),
                                 root.resolve("platform-1.8.9.jar")));
 
         assertEquals(
@@ -111,6 +119,7 @@ final class Minecraft189RuntimeBundleTest {
                         tempDir.resolve("bootstrap.jar"),
                         tempDir.resolve("core.jar"),
                         tempDir.resolve("platform-api.jar"),
+                        tempDir.resolve("asm.jar"),
                         tempDir.resolve("platform-1.8.9.jar"));
 
         assertThrows(
