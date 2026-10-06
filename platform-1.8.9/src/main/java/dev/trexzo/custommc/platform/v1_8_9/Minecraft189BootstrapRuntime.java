@@ -45,6 +45,7 @@ public final class Minecraft189BootstrapRuntime
     private TransformingTargetClassLoader targetLoader;
     private Minecraft189HostRuntime hostRuntime;
     private boolean targetMainEntered;
+    private long nextTickIndex;
     private boolean closed;
 
     private Minecraft189BootstrapRuntime(
@@ -291,6 +292,23 @@ public final class Minecraft189BootstrapRuntime
         return !closed
                 && hostRuntime != null
                 && !hostRuntime.closed();
+    }
+
+    synchronized void publishGameTick() {
+        if (closed
+                || hostRuntime == null
+                || hostRuntime.closed()) {
+            return;
+        }
+
+        final long tickIndex =
+                nextTickIndex;
+        nextTickIndex =
+                Math.addExact(
+                        nextTickIndex,
+                        1L);
+        hostRuntime.publishTick(
+                tickIndex);
     }
 
     synchronized Minecraft189HostRuntime requireHostRuntime() {
