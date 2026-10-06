@@ -607,6 +607,16 @@ public final class Minecraft189ClassTransformer
                     public void visitEnd() {
                         addFloatFieldGetter(
                                 cv,
+                                "fovSetting",
+                                Minecraft189Mappings
+                                        .GAME_SETTINGS_FOV);
+                        addFloatFieldSetter(
+                                cv,
+                                "fovSetting",
+                                Minecraft189Mappings
+                                        .GAME_SETTINGS_FOV);
+                        addFloatFieldGetter(
+                                cv,
                                 "gammaSetting",
                                 Minecraft189Mappings
                                         .GAME_SETTINGS_GAMMA);

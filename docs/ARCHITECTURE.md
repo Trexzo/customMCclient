@@ -478,3 +478,14 @@ The canonical LWJGL host binding retains the live transformed GameSettings objec
 Enabling Fullbright captures the exact current gamma value and sets a boosted gamma of `16.0F`. Disabling restores the captured value exactly. A later enable captures the then-current value again rather than restoring an obsolete startup value. Feature/catalog teardown disables the module first, so closing the client while Fullbright is enabled also restores the user's prior gamma.
 
 Executable regressions prove the transformed `avh.aJ` getter/setter, canonical startGame installation, `0.35 -> 16.0 -> 0.35` live behavior, fresh capture on repeated enable cycles, and restoration/removal when the feature is closed while enabled.
+
+
+## Live mapped FOV Changer
+
+M99 extends the same exact GameSettings authority used by M98 with `fovSetting` as obfuscated `avh.aI` (`field_74334_X`, descriptor `F`). The GameSettings structural gate requires that field before transformation, and the parent-owned settings access contract exposes typed FOV get/set without reflection.
+
+The canonical live LWJGL binding installs **FOV Changer** through the existing feature catalog. The module owns one persistent integer setting, `render.fov.value`, presented through the generic module-detail editor with range `30..179` and default `110`.
+
+Enabling captures the exact current game FOV and applies the configured target immediately. While enabled, the module owns a subscription to the already-certified tick event and re-applies the latest configured value each tick, so ClickGUI edits become live without adding a separate setting-listener framework. Disabling closes that subscription and restores the exact pre-enable FOV. Re-enabling captures a fresh user value, and feature/catalog teardown restores the captured value before removing the module and its setting ownership.
+
+Regression coverage proves exact `avh.aI` transformation, live `70 -> 110 -> 120 -> 70` behavior through a tick-delivered setting edit, fresh capture on later enable cycles, and restoration/removal when the feature is closed while enabled.

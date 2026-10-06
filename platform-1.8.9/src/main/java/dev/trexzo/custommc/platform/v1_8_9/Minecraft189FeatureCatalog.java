@@ -27,6 +27,9 @@ public final class Minecraft189FeatureCatalog
     private final ModuleRegistry modules;
     private final ModuleController moduleController;
     private final ModulePresentationRegistry modulePresentations;
+    private final ModuleSettingRegistry moduleSettings;
+    private final SettingRegistry settings;
+    private final SettingPresentationRegistry settingPresentations;
     private final Minecraft189WatermarkModule watermark;
     private final ModuleRegistry.Registration watermarkRegistration;
     private final ModulePresentationRegistry.Registration watermarkPresentation;
@@ -47,12 +50,16 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189CoordinatesFeature coordinatesFeature;
     private final Minecraft189SpeedFeature speedFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
+    private Minecraft189FovFeature fovFeature;
     private boolean closed;
 
     private Minecraft189FeatureCatalog(
             final ModuleRegistry modules,
             final ModuleController moduleController,
             final ModulePresentationRegistry modulePresentations,
+            final ModuleSettingRegistry moduleSettings,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations,
             final Minecraft189WatermarkModule watermark,
             final ModuleRegistry.Registration watermarkRegistration,
             final ModulePresentationRegistry.Registration watermarkPresentation,
@@ -75,6 +82,9 @@ public final class Minecraft189FeatureCatalog
         this.modules = modules;
         this.moduleController = moduleController;
         this.modulePresentations = modulePresentations;
+        this.moduleSettings = moduleSettings;
+        this.settings = settings;
+        this.settingPresentations = settingPresentations;
         this.watermark = watermark;
         this.watermarkRegistration = watermarkRegistration;
         this.watermarkPresentation = watermarkPresentation;
@@ -302,6 +312,9 @@ public final class Minecraft189FeatureCatalog
                     modules,
                     moduleController,
                     presentations,
+                    moduleSettings,
+                    settings,
+                    settingPresentations,
                     watermark,
                     module,
                     presentation,
@@ -398,6 +411,41 @@ public final class Minecraft189FeatureCatalog
         return fullbrightFeature.module();
     }
 
+    public synchronized Minecraft189FovModule installFovChanger(
+            final dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189GuiSettingsAccess gameSettings,
+            final dev.trexzo.custommc.core.event.EventBus events) {
+        requireOpen();
+        if (fovFeature != null) {
+            throw new IllegalStateException(
+                    "FOV feature already installed");
+        }
+
+        fovFeature =
+                Minecraft189FovFeature.install(
+                        modules,
+                        moduleController,
+                        modulePresentations,
+                        moduleSettings,
+                        settings,
+                        settingPresentations,
+                        java.util.Objects.requireNonNull(
+                                gameSettings,
+                                "gameSettings"),
+                        java.util.Objects.requireNonNull(
+                                events,
+                                "events"));
+        return fovFeature.module();
+    }
+
+    public synchronized Minecraft189FovModule fovChanger() {
+        requireOpen();
+        if (fovFeature == null) {
+            throw new IllegalStateException(
+                    "FOV feature is not installed");
+        }
+        return fovFeature.module();
+    }
+
     public synchronized Minecraft189FullbrightModule fullbright() {
         requireOpen();
         if (fullbrightFeature == null) {
@@ -421,11 +469,21 @@ public final class Minecraft189FeatureCatalog
         }
 
         RuntimeException failure = null;
+        if (fovFeature != null) {
+            try {
+                fovFeature.close();
+            } catch (RuntimeException closeFailure) {
+                failure = closeFailure;
+            }
+        }
+
         if (fullbrightFeature != null) {
             try {
                 fullbrightFeature.close();
             } catch (RuntimeException closeFailure) {
-                failure = closeFailure;
+                failure = append(
+                        failure,
+                        closeFailure);
             }
         }
 
