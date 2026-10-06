@@ -106,3 +106,7 @@ For the canonical M67 bundle, preflight order is now:
 8. hand the result to the M62 process owner.
 
 This makes the M64-M67 bootstrap path consumable by the real preflight pipeline without duplicate main-class resolution.
+
+## Canonical start path
+
+M69 exposes `Minecraft189LaunchRequest` as the canonical fully-specified 1.8.9 launch input and `Minecraft189Launcher.start(...)` as the composition point that connects template-aware preflight to M62 process start. The M67 runtime bundle remains a resolver rather than a precomputed overlay, so the authoritative Minecraft main class is still obtained exactly once from resolved metadata before the bootstrap command is produced.
