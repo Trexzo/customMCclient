@@ -35,7 +35,7 @@ public final class CustomMcBootstrapMain {
                     loader);
         } catch (Throwable throwable) {
             failure = throwable;
-            throw throwable;
+            rethrow(throwable);
         } finally {
             if (session != null) {
                 try {
@@ -55,6 +55,18 @@ public final class CustomMcBootstrapMain {
                 }
             }
         }
+    }
+
+    private static void rethrow(
+            final Throwable failure)
+            throws Exception {
+        if (failure instanceof Exception) {
+            throw (Exception) failure;
+        }
+        if (failure instanceof Error) {
+            throw (Error) failure;
+        }
+        throw new RuntimeException(failure);
     }
 
     private static BootstrapRuntimeSession initializeRuntime(
