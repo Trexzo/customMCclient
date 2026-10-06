@@ -489,3 +489,19 @@ The canonical live LWJGL binding installs **FOV Changer** through the existing f
 Enabling captures the exact current game FOV and applies the configured target immediately. While enabled, the module owns a subscription to the already-certified tick event and re-applies the latest configured value each tick, so ClickGUI edits become live without adding a separate setting-listener framework. Disabling closes that subscription and restores the exact pre-enable FOV. Re-enabling captures a fresh user value, and feature/catalog teardown restores the captured value before removing the module and its setting ownership.
 
 Regression coverage proves exact `avh.aI` transformation, live `70 -> 110 -> 120 -> 70` behavior through a tick-delivered setting edit, fresh capture on later enable cycles, and restoration/removal when the feature is closed while enabled.
+
+
+## Custom Crosshair
+
+M100 adds **Custom Crosshair** as another independently owned Visuals module without introducing any new Minecraft mappings. It renders through the certified HUD geometry path at the logical viewport center, so GUI scaling is handled by the existing viewport authority rather than by hard-coded framebuffer coordinates.
+
+The module owns four persistent settings through the existing generic settings/ClickGUI path:
+
+- `render.crosshair.length` — arm length, `1..20`, default `4`;
+- `render.crosshair.gap` — center gap, `0..12`, default `2`;
+- `render.crosshair.thickness` — arm thickness, `1..6`, default `1`;
+- `render.crosshair.dot` — optional center dot, default `false`.
+
+While enabled, the HUD pass draws four centered rectangles and optionally one center rectangle. Disabling removes the pass immediately; feature teardown removes the module, presentation, all four settings, setting presentations and module-setting bindings.
+
+Regression coverage uses a 1280x720 framebuffer at UI scale 2 and proves the exact logical geometry for configured length 6, gap 3, thickness 2 and center dot enabled, plus persisted setting encoding and complete teardown removal.
