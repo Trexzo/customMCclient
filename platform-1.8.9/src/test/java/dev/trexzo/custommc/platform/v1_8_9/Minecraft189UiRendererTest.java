@@ -220,6 +220,11 @@ final class Minecraft189UiRendererTest {
                     }
 
                     @Override
+                    public boolean supportsShapeBatching() {
+                        return true;
+                    }
+
+                    @Override
                     public void beginShapeBatch() {
                         calls.add("batch-begin");
                     }
@@ -408,6 +413,11 @@ final class Minecraft189UiRendererTest {
             public void begin(
                     final UiViewport viewport) {
                 delegate.begin(viewport);
+            }
+
+            @Override
+            public boolean supportsShapeBatching() {
+                return true;
             }
 
             @Override
