@@ -387,3 +387,14 @@ The module reads the authoritative live `ModuleRegistry` and `ModuleController` 
 Array List owns persistent X/Y settings (`render.array-list.x`, `render.array-list.y`) through the same M89 setting-registration, presentation and module-setting ownership paths. Its default position is 8,24 with 12 logical pixels between entries. The feature shares the existing Visuals category rather than creating a duplicate category owner.
 
 Regression coverage enables Watermark plus Array List and proves the actual HUD output sequence is `CustomMC`, `Watermark`, `Array List` at the configured coordinates; after Watermark is disabled, the next HUD render contains only `Array List`. Host shutdown removes the Array List module and both owned settings.
+
+
+## Live Keystrokes HUD
+
+M91 adds host-owned raw input state and the third real Visuals feature: `render.keystrokes` / **Keystrokes**.
+
+The input state is updated in `Minecraft189HostRuntime` before keyboard or pointer events are forwarded to ClickGUI and module-keybind handling. This means physical press/release state remains authoritative even when another input layer consumes the event. The state is lifecycle-owned by the host and is cleared before feature teardown.
+
+Keystrokes renders W/A/S/D plus LMB/RMB through the existing HUD and legacy UI host path. Pressed and idle keys use distinct backgrounds/text colors, and the module owns persistent X/Y settings through the generic setting-registration and module-detail editing system.
+
+Regression coverage proves a Right Shift event consumed by the ClickGUI toggle still updates raw state, then proves mapped-style W/LMB press and release transitions change the rendered Keystrokes state at configured coordinates. Host shutdown clears retained raw state and removes the Keystrokes module and its settings.
