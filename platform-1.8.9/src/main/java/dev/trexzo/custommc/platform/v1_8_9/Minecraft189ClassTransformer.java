@@ -175,9 +175,13 @@ public final class Minecraft189ClassTransformer
                 new ClassWriter(
                         reader,
                         ClassWriter.COMPUTE_MAXS);
-        final boolean[] found =
+        final boolean[] foundStartGame =
                 new boolean[]{false};
-        final boolean[] injected =
+        final boolean[] injectedHost =
+                new boolean[]{false};
+        final boolean[] foundRunTick =
+                new boolean[]{false};
+        final boolean[] injectedTick =
                 new boolean[]{false};
 
         reader.accept(
@@ -198,39 +202,75 @@ public final class Minecraft189ClassTransformer
                                         descriptor,
                                         signature,
                                         exceptions);
+
                         final Minecraft189Mappings.MappedMethod startGame =
                                 Minecraft189Mappings.MINECRAFT_START_GAME;
-                        if (!startGame.obfuscatedName().equals(name)
-                                || !startGame.descriptor().equals(
+                        if (startGame.obfuscatedName().equals(name)
+                                && startGame.descriptor().equals(
                                 descriptor)) {
-                            return delegate;
-                        }
-                        if (found[0]) {
-                            throw new IllegalStateException(
-                                    "duplicate mapped Minecraft startGame method");
-                        }
-                        found[0] = true;
-
-                        return new MethodVisitor(
-                                Opcodes.ASM9,
-                                delegate) {
-                            @Override
-                            public void visitInsn(
-                                    final int opcode) {
-                                if (opcode == Opcodes.RETURN) {
-                                    injectHostInstall(this);
-                                    injected[0] = true;
-                                }
-                                super.visitInsn(opcode);
+                            if (foundStartGame[0]) {
+                                throw new IllegalStateException(
+                                        "duplicate mapped Minecraft startGame method");
                             }
-                        };
+                            foundStartGame[0] = true;
+
+                            return new MethodVisitor(
+                                    Opcodes.ASM9,
+                                    delegate) {
+                                @Override
+                                public void visitInsn(
+                                        final int opcode) {
+                                    if (opcode == Opcodes.RETURN) {
+                                        injectHostInstall(this);
+                                        injectedHost[0] = true;
+                                    }
+                                    super.visitInsn(opcode);
+                                }
+                            };
+                        }
+
+                        final Minecraft189Mappings.MappedMethod runTick =
+                                Minecraft189Mappings.MINECRAFT_RUN_TICK;
+                        if (runTick.obfuscatedName().equals(name)
+                                && runTick.descriptor().equals(
+                                descriptor)) {
+                            if (foundRunTick[0]) {
+                                throw new IllegalStateException(
+                                        "duplicate mapped Minecraft runTick method");
+                            }
+                            foundRunTick[0] = true;
+
+                            return new MethodVisitor(
+                                    Opcodes.ASM9,
+                                    delegate) {
+                                @Override
+                                public void visitCode() {
+                                    super.visitCode();
+                                    super.visitMethodInsn(
+                                            Opcodes.INVOKESTATIC,
+                                            RUNTIME_BRIDGE_INTERNAL_NAME,
+                                            "gameTick",
+                                            "()V",
+                                            false);
+                                    injectedTick[0] = true;
+                                }
+                            };
+                        }
+
+                        return delegate;
                     }
                 },
                 0);
 
-        if (!found[0] || !injected[0]) {
+        if (!foundStartGame[0]
+                || !injectedHost[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft startGame method was not patchable");
+        }
+        if (!foundRunTick[0]
+                || !injectedTick[0]) {
+            throw new IllegalStateException(
+                    "mapped Minecraft runTick method was not patchable");
         }
         return writer.toByteArray();
     }
