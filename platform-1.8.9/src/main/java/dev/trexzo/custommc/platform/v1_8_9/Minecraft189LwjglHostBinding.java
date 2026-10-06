@@ -32,6 +32,12 @@ public final class Minecraft189LwjglHostBinding {
             runtime.featureCatalog()
                     .installFullbright(
                             liveSettings);
+            runtime.featureCatalog()
+                    .installFovChanger(
+                            liveSettings,
+                            runtime.platform()
+                                    .requireContext()
+                                    .events());
             return runtime;
         } catch (RuntimeException failure) {
             try {
