@@ -34,7 +34,7 @@ M71 adds the root `assembleLauncherDistribution` task. It composes the launcher 
 
 - `bin/launcher` and `bin/launcher.bat`;
 - launcher runtime jars under `lib/`;
-- exactly four stable runtime jars under `runtime-overlay/`;
+- exactly five stable runtime jars under `runtime-overlay/` (`bootstrap.jar`, `core.jar`, `platform-api.jar`, `asm.jar`, `platform-1.8.9.jar`);
 - the project README.
 
 `verifyLauncherDistribution` validates that shape and is part of `verifyFoundation`. A packaged launch therefore points `--runtime-overlay` at the sibling `runtime-overlay` directory inside this distribution.

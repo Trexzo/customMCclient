@@ -2,6 +2,8 @@ package dev.trexzo.custommc.platform.v1_8_9;
 
 import dev.trexzo.custommc.bootstrap.BootstrapContext;
 import dev.trexzo.custommc.bootstrap.BootstrapRuntimeSession;
+import dev.trexzo.custommc.bootstrap.BootstrapTargetClassLoaderProvider;
+import dev.trexzo.custommc.bootstrap.TransformingTargetClassLoader;
 import dev.trexzo.custommc.core.event.EventBus;
 import dev.trexzo.custommc.core.module.ModuleCategoryRegistry;
 import dev.trexzo.custommc.core.module.ModuleController;
@@ -17,10 +19,12 @@ import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.platform.PlatformContext;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 
+import java.io.IOException;
 import java.util.Objects;
 
 public final class Minecraft189BootstrapRuntime
-        implements BootstrapRuntimeSession {
+        implements BootstrapRuntimeSession,
+        BootstrapTargetClassLoaderProvider {
     private final BootstrapContext bootstrapContext;
     private final EventBus events;
     private final ModuleRegistry modules;
@@ -38,7 +42,9 @@ public final class Minecraft189BootstrapRuntime
     private final ServiceRegistry.Registration renderPipelineRegistration;
     private final Minecraft189ModuleKeybindRuntime keybindRuntime;
     private Minecraft189RuntimeBridge.Registration bridgeRegistration;
+    private TransformingTargetClassLoader targetLoader;
     private Minecraft189HostRuntime hostRuntime;
+    private boolean targetMainEntered;
     private boolean closed;
 
     private Minecraft189BootstrapRuntime(
@@ -227,6 +233,35 @@ public final class Minecraft189BootstrapRuntime
         return platform;
     }
 
+    @Override
+    public synchronized ClassLoader targetClassLoader(
+            final ClassLoader bootstrapLoader) {
+        requireOpen();
+        if (targetLoader == null) {
+            targetLoader =
+                    TransformingTargetClassLoader
+                            .fromJavaClassPath(
+                                    Objects.requireNonNull(
+                                            bootstrapLoader,
+                                            "bootstrapLoader"),
+                                    new Minecraft189ClassTransformer());
+        }
+        return targetLoader;
+    }
+
+    synchronized void markTargetMainEntered() {
+        requireOpen();
+        if (targetMainEntered) {
+            throw new IllegalStateException(
+                    "minecraft 1.8.9 target main already entered");
+        }
+        targetMainEntered = true;
+    }
+
+    public synchronized boolean targetMainEntered() {
+        return targetMainEntered;
+    }
+
     public synchronized Minecraft189HostRuntime installHost(
             final LegacyUiHostCallbacks hostCallbacks) {
         requireOpen();
@@ -288,6 +323,18 @@ public final class Minecraft189BootstrapRuntime
                 bridgeRegistration.close();
             } catch (RuntimeException closeFailure) {
                 failure = closeFailure;
+            }
+        }
+
+        if (targetLoader != null) {
+            try {
+                targetLoader.close();
+            } catch (IOException closeFailure) {
+                failure = append(
+                        failure,
+                        new IllegalStateException(
+                                "failed closing Minecraft 1.8.9 target loader",
+                                closeFailure));
             }
         }
 

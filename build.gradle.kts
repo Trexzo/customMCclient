@@ -7,6 +7,15 @@ allprojects {
     version = "0.1.0-SNAPSHOT"
 }
 
+val minecraftRuntimeAsm by configurations.creating
+
+dependencies {
+    add(
+        minecraftRuntimeAsm.name,
+        "org.ow2.asm:asm:9.7.1"
+    )
+}
+
 subprojects {
     apply(plugin = "java")
 
@@ -64,6 +73,10 @@ val assembleRuntimeOverlay by tasks.registering(Sync::class) {
         rename { "platform-api.jar" }
     }
 
+    from(minecraftRuntimeAsm) {
+        rename { "asm.jar" }
+    }
+
     from(
         project(":platform-1.8.9").layout.buildDirectory.file(
             "libs/platform-1.8.9-${project(":platform-1.8.9").version}.jar"
@@ -115,6 +128,7 @@ abstract class VerifyLauncherDistributionTask : DefaultTask() {
             "runtime-overlay/bootstrap.jar",
             "runtime-overlay/core.jar",
             "runtime-overlay/platform-api.jar",
+            "runtime-overlay/asm.jar",
             "runtime-overlay/platform-1.8.9.jar",
             "README.md"
         )
@@ -143,6 +157,7 @@ abstract class VerifyLauncherDistributionTask : DefaultTask() {
 
         check(
             overlayNames == listOf(
+                "asm.jar",
                 "bootstrap.jar",
                 "core.jar",
                 "platform-1.8.9.jar",

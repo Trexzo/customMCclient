@@ -19,6 +19,7 @@ public final class Minecraft189RuntimeBundle
     private final Path bootstrapArtifact;
     private final Path coreArtifact;
     private final Path platformApiArtifact;
+    private final Path asmArtifact;
     private final Path platform189Artifact;
 
     public static Minecraft189RuntimeBundle fromDirectory(
@@ -31,6 +32,7 @@ public final class Minecraft189RuntimeBundle
                 root.resolve("bootstrap.jar"),
                 root.resolve("core.jar"),
                 root.resolve("platform-api.jar"),
+                root.resolve("asm.jar"),
                 root.resolve("platform-1.8.9.jar"));
     }
 
@@ -38,6 +40,7 @@ public final class Minecraft189RuntimeBundle
             final Path bootstrapArtifact,
             final Path coreArtifact,
             final Path platformApiArtifact,
+            final Path asmArtifact,
             final Path platform189Artifact) {
         this.bootstrapArtifact =
                 normalize(
@@ -51,6 +54,10 @@ public final class Minecraft189RuntimeBundle
                 normalize(
                         platformApiArtifact,
                         "platformApiArtifact");
+        this.asmArtifact =
+                normalize(
+                        asmArtifact,
+                        "asmArtifact");
         this.platform189Artifact =
                 normalize(
                         platform189Artifact,
@@ -59,7 +66,7 @@ public final class Minecraft189RuntimeBundle
         final Set<Path> distinct =
                 new LinkedHashSet<Path>(
                         artifacts());
-        if (distinct.size() != 4) {
+        if (distinct.size() != 5) {
             throw new IllegalArgumentException(
                     "runtime bundle artifacts must be distinct");
         }
@@ -77,6 +84,10 @@ public final class Minecraft189RuntimeBundle
         return platformApiArtifact;
     }
 
+    public Path asmArtifact() {
+        return asmArtifact;
+    }
+
     public Path platform189Artifact() {
         return platform189Artifact;
     }
@@ -87,6 +98,7 @@ public final class Minecraft189RuntimeBundle
                         bootstrapArtifact,
                         coreArtifact,
                         platformApiArtifact,
+                        asmArtifact,
                         platform189Artifact));
     }
 
@@ -95,6 +107,7 @@ public final class Minecraft189RuntimeBundle
                 Arrays.asList(
                         coreArtifact,
                         platformApiArtifact,
+                        asmArtifact,
                         platform189Artifact));
     }
 

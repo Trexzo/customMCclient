@@ -34,6 +34,11 @@ public final class Minecraft189RuntimeBridge {
                 && activeRuntime.hostInstalled();
     }
 
+    public static synchronized void targetMainEntered() {
+        requireRuntime()
+                .markTargetMainEntered();
+    }
+
     public static synchronized Minecraft189HostRuntime installHost(
             final LegacyUiHostCallbacks hostCallbacks) {
         return requireRuntime()

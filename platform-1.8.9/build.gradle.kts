@@ -10,6 +10,8 @@ dependencies {
     api(project(":platform-api"))
     api(project(":bootstrap"))
 
+    implementation("org.ow2.asm:asm:9.7.1")
+
     compileOnly("org.lwjgl.lwjgl:lwjgl:2.9.3") {
         isTransitive = false
     }
