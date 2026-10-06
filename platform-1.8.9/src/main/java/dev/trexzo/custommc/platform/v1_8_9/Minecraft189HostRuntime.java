@@ -28,6 +28,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189PlayerPositionState playerPositionState;
     private final Minecraft189PlayerRotationState playerRotationState;
     private final Minecraft189PlayerHealthState playerHealthState;
+    private final Minecraft189PlayerArmorState playerArmorState;
     private final Minecraft189MovementSpeedTracker movementSpeedTracker;
     private final Minecraft189FeatureCatalog featureCatalog;
     private final Minecraft189Hooks renderHooks;
@@ -45,6 +46,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerPositionState playerPositionState,
             final Minecraft189PlayerRotationState playerRotationState,
             final Minecraft189PlayerHealthState playerHealthState,
+            final Minecraft189PlayerArmorState playerArmorState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
             final Minecraft189FeatureCatalog featureCatalog,
             final Minecraft189Hooks renderHooks,
@@ -59,6 +61,7 @@ public final class Minecraft189HostRuntime
         this.playerPositionState = playerPositionState;
         this.playerRotationState = playerRotationState;
         this.playerHealthState = playerHealthState;
+        this.playerArmorState = playerArmorState;
         this.movementSpeedTracker = movementSpeedTracker;
         this.featureCatalog = featureCatalog;
         this.renderHooks = renderHooks;
@@ -133,6 +136,8 @@ public final class Minecraft189HostRuntime
                 new Minecraft189PlayerRotationState();
         final Minecraft189PlayerHealthState playerHealthState =
                 new Minecraft189PlayerHealthState();
+        final Minecraft189PlayerArmorState playerArmorState =
+                new Minecraft189PlayerArmorState();
         final Minecraft189MovementSpeedTracker movementSpeedTracker =
                 new Minecraft189MovementSpeedTracker();
         try {
@@ -165,6 +170,7 @@ public final class Minecraft189HostRuntime
                             playerPositionState,
                             playerRotationState,
                             playerHealthState,
+                            playerArmorState,
                             movementSpeedTracker,
                             services.require(
                                     RenderPipeline.class),
@@ -181,6 +187,7 @@ public final class Minecraft189HostRuntime
                     playerPositionState,
                     playerRotationState,
                     playerHealthState,
+                    playerArmorState,
                     movementSpeedTracker,
                     featureCatalog,
                     new Minecraft189Hooks(platform),
@@ -249,6 +256,11 @@ public final class Minecraft189HostRuntime
         return playerHealthState;
     }
 
+    public Minecraft189PlayerArmorState playerArmorState() {
+        requireOpen();
+        return playerArmorState;
+    }
+
     public Minecraft189MovementSpeedTracker movementSpeedTracker() {
         requireOpen();
         return movementSpeedTracker;
@@ -298,6 +310,20 @@ public final class Minecraft189HostRuntime
         playerHealthState.update(
                 player.customMcHealth(),
                 player.customMcMaxHealth());
+    }
+
+    void playerArmor(
+            final Minecraft189PlayerArmorAccess player) {
+        requireOpen();
+        if (player == null) {
+            playerArmorState.clear();
+            return;
+        }
+        playerArmorState.update(
+                player.customMcArmorBoots(),
+                player.customMcArmorLeggings(),
+                player.customMcArmorChestplate(),
+                player.customMcArmorHelmet());
     }
 
     void frameStarted(
@@ -433,6 +459,7 @@ public final class Minecraft189HostRuntime
         playerPositionState.clear();
         playerRotationState.clear();
         playerHealthState.clear();
+        playerArmorState.clear();
         movementSpeedTracker.clear();
         try {
             featureCatalog.close();
