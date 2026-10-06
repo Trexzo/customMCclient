@@ -18,6 +18,7 @@ public final class Minecraft189ClassShapeVerifier {
                 classBytes,
                 Minecraft189Mappings.MINECRAFT,
                 new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.MINECRAFT_THE_PLAYER,
                         Minecraft189Mappings.MINECRAFT_FONT_RENDERER,
                         Minecraft189Mappings.MINECRAFT_ENTITY_RENDERER,
                         Minecraft189Mappings.MINECRAFT_INGAME_GUI,
