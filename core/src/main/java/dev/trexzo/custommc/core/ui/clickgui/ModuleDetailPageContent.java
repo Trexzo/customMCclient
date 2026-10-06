@@ -4,6 +4,7 @@ import dev.trexzo.custommc.core.module.Module;
 import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModuleDescriptor;
 import dev.trexzo.custommc.core.module.ModuleKeybind;
+import dev.trexzo.custommc.core.module.ModuleKeybindAssignments;
 import dev.trexzo.custommc.core.module.ModuleKeybindRegistry;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleSettingBinding;
@@ -17,6 +18,8 @@ import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiFonts;
+import dev.trexzo.custommc.core.ui.UiPointerAction;
+import dev.trexzo.custommc.core.ui.UiPointerButton;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiScrollEvent;
@@ -40,6 +43,7 @@ public final class ModuleDetailPageContent
     private final ModulePresentationRegistry modulePresentations;
     private final ModuleSettingRegistry moduleSettings;
     private final ModuleKeybindRegistry moduleKeybinds;
+    private final ModuleKeybindEditorController keybindEditor;
     private final SettingRegistry settings;
     private final SettingPresentationRegistry settingPresentations;
     private final SettingEditorController editor =
@@ -60,6 +64,7 @@ public final class ModuleDetailPageContent
                 modulePresentations,
                 moduleSettings,
                 null,
+                null,
                 settings,
                 settingPresentations);
     }
@@ -70,6 +75,26 @@ public final class ModuleDetailPageContent
             final ModulePresentationRegistry modulePresentations,
             final ModuleSettingRegistry moduleSettings,
             final ModuleKeybindRegistry moduleKeybinds,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations) {
+        this(
+                selection,
+                controller,
+                modulePresentations,
+                moduleSettings,
+                moduleKeybinds,
+                null,
+                settings,
+                settingPresentations);
+    }
+
+    public ModuleDetailPageContent(
+            final ModuleSelectionModel selection,
+            final ModuleController controller,
+            final ModulePresentationRegistry modulePresentations,
+            final ModuleSettingRegistry moduleSettings,
+            final ModuleKeybindRegistry moduleKeybinds,
+            final ModuleKeybindAssignments moduleKeybindAssignments,
             final SettingRegistry settings,
             final SettingPresentationRegistry settingPresentations) {
         this.selection = Objects.requireNonNull(
@@ -85,6 +110,11 @@ public final class ModuleDetailPageContent
                 moduleSettings,
                 "moduleSettings");
         this.moduleKeybinds = moduleKeybinds;
+        this.keybindEditor =
+                moduleKeybindAssignments == null
+                        ? null
+                        : new ModuleKeybindEditorController(
+                                moduleKeybindAssignments);
         this.settings = Objects.requireNonNull(
                 settings,
                 "settings");
@@ -177,17 +207,26 @@ public final class ModuleDetailPageContent
             final ModuleKeybind binding =
                     moduleKeybinds.findByModule(
                             moduleId);
+            final String captureLabel =
+                    keybindEditor == null
+                            ? null
+                            : keybindEditor.captureLabel(
+                                    moduleId);
             commands.add(
                     new UiTextCommand(
                             0,
                             bounds.x() + PADDING,
                             bounds.y() + PADDING + 44.0F - scrollOffset,
                             UiFonts.DEFAULT,
-                            binding == null
+                            captureLabel != null
+                                    ? captureLabel
+                                    : binding == null
                                     ? "Bind: Unbound"
                                     : "Bind: " + binding.chord(),
                             theme.color(
-                                    UiColorRole.TEXT_MUTED)));
+                                    captureLabel != null
+                                            ? UiColorRole.ACCENT
+                                            : UiColorRole.TEXT_MUTED)));
         }
 
         for (int index = 0;
@@ -269,6 +308,20 @@ public final class ModuleDetailPageContent
                                 visible.size()),
                         context.bounds().height());
 
+        if (keybindEditor != null
+                && event.action() == UiPointerAction.PRESS
+                && event.button() == UiPointerButton.LEFT
+                && bindBounds(
+                context.bounds(),
+                scrollOffset)
+                .contains(
+                        event.x(),
+                        event.y())) {
+            return keybindEditor.begin(
+                    context,
+                    module.id());
+        }
+
         for (int index = 0;
              index < visible.size();
              index++) {
@@ -343,6 +396,24 @@ public final class ModuleDetailPageContent
         }
 
         return result;
+    }
+
+    private static UiBounds bindBounds(
+            final UiBounds bounds,
+            final float scrollOffset) {
+        return new UiBounds(
+                bounds.x() + PADDING,
+                bounds.y()
+                        + PADDING
+                        + 38.0F
+                        - scrollOffset,
+                Math.max(
+                        0.0F,
+                        Math.min(
+                                280.0F,
+                                bounds.width()
+                                        - PADDING * 2.0F)),
+                28.0F);
     }
 
     private static UiBounds rowBounds(
