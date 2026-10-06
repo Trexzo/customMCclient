@@ -407,3 +407,14 @@ M92 derives FPS from the certified mapped render-frame lifecycle rather than add
 `Minecraft189BootstrapRuntime.beginRenderFrame(...)` now forwards each lifecycle-owned frame start to the installed host tracker after allocating the frame index. The fourth Visuals feature, `render.fps` / **FPS**, renders the current measured value as `FPS: N` through the existing HUD/font path and owns persistent X/Y settings through the generic module-detail settings system.
 
 Deterministic clock tests prove the one-second rolling window and reset behavior. A module test proves live FPS text and configured position, host-lifetime tests prove its module/settings ownership is removed on shutdown, and the transformed EntityRenderer regression proves the real mapped frame-start hook reaches the FPS tracker.
+
+
+## Live CPS HUD
+
+M93 adds host-owned rolling click-rate authority and the fifth Visuals feature: `render.cps` / **CPS**.
+
+The existing M85 mapped mouse path already filters raw `KeyBinding.setKeyBindState` calls down to encoded mouse buttons before reaching the host. `Minecraft189HostRuntime.pointerButton(...)` now compares the previous M91 raw button state with the incoming state and records a click only on a left/right `false -> true` transition. Repeated pressed-state updates while a button remains held therefore cannot inflate CPS.
+
+`Minecraft189ClickRateTracker` keeps independent one-second rolling windows for LMB and RMB. The HUD reads both counts through one atomic timestamped snapshot and renders `CPS: L N | R N`, with persistent X/Y settings owned through the generic feature/settings architecture.
+
+Deterministic tests prove independent rolling-window aging and atomic HUD output. Host integration coverage proves duplicate press updates count once, release-then-press counts again, left/right remain separate, and shutdown clears the tracker plus removes the CPS module and its settings.
