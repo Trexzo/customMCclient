@@ -386,6 +386,11 @@ final class Minecraft189MappedHostTransformationTest {
                             "hud:1@0.5",
                             "post:1@0.5"),
                     renderOrder);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .frameRateTracker()
+                            .framesPerSecond()
+                            >= 1);
         } finally {
             runtime.close();
         }
