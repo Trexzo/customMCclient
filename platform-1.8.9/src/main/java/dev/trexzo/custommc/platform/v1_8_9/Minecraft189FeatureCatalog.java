@@ -43,6 +43,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189FpsFeature fpsFeature;
     private final Minecraft189CpsFeature cpsFeature;
     private final Minecraft189CoordinatesFeature coordinatesFeature;
+    private final Minecraft189SpeedFeature speedFeature;
     private boolean closed;
 
     private Minecraft189FeatureCatalog(
@@ -64,7 +65,8 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189KeystrokesFeature keystrokesFeature,
             final Minecraft189FpsFeature fpsFeature,
             final Minecraft189CpsFeature cpsFeature,
-            final Minecraft189CoordinatesFeature coordinatesFeature) {
+            final Minecraft189CoordinatesFeature coordinatesFeature,
+            final Minecraft189SpeedFeature speedFeature) {
         this.moduleController = moduleController;
         this.watermark = watermark;
         this.watermarkRegistration = watermarkRegistration;
@@ -84,6 +86,7 @@ public final class Minecraft189FeatureCatalog
         this.fpsFeature = fpsFeature;
         this.cpsFeature = cpsFeature;
         this.coordinatesFeature = coordinatesFeature;
+        this.speedFeature = speedFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -98,6 +101,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189FrameRateTracker frameRateTracker,
             final Minecraft189ClickRateTracker clickRateTracker,
             final Minecraft189PlayerPositionState playerPositionState,
+            final Minecraft189MovementSpeedTracker movementSpeedTracker,
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
         Objects.requireNonNull(modules, "modules");
@@ -111,6 +115,7 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(frameRateTracker, "frameRateTracker");
         Objects.requireNonNull(clickRateTracker, "clickRateTracker");
         Objects.requireNonNull(playerPositionState, "playerPositionState");
+        Objects.requireNonNull(movementSpeedTracker, "movementSpeedTracker");
         Objects.requireNonNull(renderPipeline, "renderPipeline");
         Objects.requireNonNull(hostCallbacks, "hostCallbacks");
 
@@ -131,6 +136,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189FpsFeature fpsFeature = null;
         Minecraft189CpsFeature cpsFeature = null;
         Minecraft189CoordinatesFeature coordinatesFeature = null;
+        Minecraft189SpeedFeature speedFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -273,6 +279,18 @@ public final class Minecraft189FeatureCatalog
                             renderPipeline,
                             hostCallbacks);
 
+            speedFeature =
+                    Minecraft189SpeedFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            movementSpeedTracker,
+                            renderPipeline,
+                            hostCallbacks);
+
             return new Minecraft189FeatureCatalog(
                     moduleController,
                     watermark,
@@ -292,8 +310,10 @@ public final class Minecraft189FeatureCatalog
                     keystrokesFeature,
                     fpsFeature,
                     cpsFeature,
-                    coordinatesFeature);
+                    coordinatesFeature,
+                    speedFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(speedFeature, failure);
             closeQuietly(coordinatesFeature, failure);
             closeQuietly(cpsFeature, failure);
             closeQuietly(fpsFeature, failure);
@@ -345,6 +365,11 @@ public final class Minecraft189FeatureCatalog
         return coordinatesFeature.module();
     }
 
+    public Minecraft189SpeedModule speed() {
+        requireOpen();
+        return speedFeature.module();
+    }
+
     public synchronized boolean closed() {
         return closed;
     }
@@ -360,9 +385,17 @@ public final class Minecraft189FeatureCatalog
 
         RuntimeException failure = null;
         try {
-            coordinatesFeature.close();
+            speedFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = closeFailure;
+        }
+
+        try {
+            coordinatesFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
         }
 
         try {
