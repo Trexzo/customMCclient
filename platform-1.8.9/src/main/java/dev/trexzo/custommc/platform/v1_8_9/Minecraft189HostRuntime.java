@@ -26,6 +26,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189FrameRateTracker frameRateTracker;
     private final Minecraft189ClickRateTracker clickRateTracker;
     private final Minecraft189PlayerPositionState playerPositionState;
+    private final Minecraft189MovementSpeedTracker movementSpeedTracker;
     private final Minecraft189FeatureCatalog featureCatalog;
     private final Minecraft189Hooks renderHooks;
     private final Minecraft189HostInputBridge inputBridge;
@@ -40,6 +41,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189FrameRateTracker frameRateTracker,
             final Minecraft189ClickRateTracker clickRateTracker,
             final Minecraft189PlayerPositionState playerPositionState,
+            final Minecraft189MovementSpeedTracker movementSpeedTracker,
             final Minecraft189FeatureCatalog featureCatalog,
             final Minecraft189Hooks renderHooks,
             final Minecraft189HostInputBridge inputBridge) {
@@ -51,6 +53,7 @@ public final class Minecraft189HostRuntime
         this.frameRateTracker = frameRateTracker;
         this.clickRateTracker = clickRateTracker;
         this.playerPositionState = playerPositionState;
+        this.movementSpeedTracker = movementSpeedTracker;
         this.featureCatalog = featureCatalog;
         this.renderHooks = renderHooks;
         this.inputBridge = inputBridge;
@@ -120,6 +123,8 @@ public final class Minecraft189HostRuntime
                 new Minecraft189ClickRateTracker();
         final Minecraft189PlayerPositionState playerPositionState =
                 new Minecraft189PlayerPositionState();
+        final Minecraft189MovementSpeedTracker movementSpeedTracker =
+                new Minecraft189MovementSpeedTracker();
         try {
             final ServiceRegistry services =
                     platform.requireContext()
@@ -148,6 +153,7 @@ public final class Minecraft189HostRuntime
                             frameRateTracker,
                             clickRateTracker,
                             playerPositionState,
+                            movementSpeedTracker,
                             services.require(
                                     RenderPipeline.class),
                             hostCallbacks);
@@ -161,6 +167,7 @@ public final class Minecraft189HostRuntime
                     frameRateTracker,
                     clickRateTracker,
                     playerPositionState,
+                    movementSpeedTracker,
                     featureCatalog,
                     new Minecraft189Hooks(platform),
                     new Minecraft189HostInputBridge(
@@ -218,17 +225,32 @@ public final class Minecraft189HostRuntime
         return playerPositionState;
     }
 
+    public Minecraft189MovementSpeedTracker movementSpeedTracker() {
+        requireOpen();
+        return movementSpeedTracker;
+    }
+
     void playerPosition(
             final Minecraft189PlayerPositionAccess player) {
         requireOpen();
         if (player == null) {
             playerPositionState.clear();
+            movementSpeedTracker.clear();
             return;
         }
+        final double x =
+                player.customMcPositionX();
+        final double y =
+                player.customMcPositionY();
+        final double z =
+                player.customMcPositionZ();
         playerPositionState.update(
-                player.customMcPositionX(),
-                player.customMcPositionY(),
-                player.customMcPositionZ());
+                x,
+                y,
+                z);
+        movementSpeedTracker.sample(
+                x,
+                z);
     }
 
     void frameStarted(
@@ -362,6 +384,7 @@ public final class Minecraft189HostRuntime
         frameRateTracker.clear();
         clickRateTracker.clear();
         playerPositionState.clear();
+        movementSpeedTracker.clear();
         try {
             featureCatalog.close();
         } catch (RuntimeException closeFailure) {
