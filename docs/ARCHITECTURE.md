@@ -458,3 +458,12 @@ Immediately before each normal return from exact mapped `Minecraft.runTick()`, t
 The new Visuals module `render.coordinates` / **Coordinates** renders only when a live player position is available. It displays one-decimal `XYZ: x / y / z` using Locale.ROOT and owns persistent X/Y settings through the existing generic setting/presentation/module-binding path.
 
 Regression coverage executes transformed `pk`, synthetic `bew extends pk`, and transformed `ave.runTick()` to prove mapped position values reach the host snapshot. Separate HUD coverage proves unavailable state draws nothing, live state renders the expected coordinates at configured position, clear hides output again, and non-finite coordinates are rejected.
+
+
+## Live horizontal Speed HUD
+
+M97 derives horizontal movement speed from the same certified post-runTick player-position samples introduced by M96; it adds no Minecraft mappings and performs no second game-state lookup. `Minecraft189HostRuntime` owns one `Minecraft189MovementSpeedTracker`. The first live sample establishes a baseline, each later sample computes `sqrt(dx^2 + dz^2) * 20` blocks per second, and a null player or host teardown clears both baseline and availability.
+
+The new Visuals module `render.speed` / **Speed** renders `Speed: <value> BPS` with two decimal places only after two live position samples exist. It owns persistent X/Y settings through the same generic settings/presentation/module-binding path as the other HUD modules.
+
+Regression coverage proves a 3-4-5 horizontal displacement in one tick produces `100.00 BPS`, the configured HUD location is respected, baseline/clear states render nothing, non-finite samples are rejected, and executed transformed `runTick` calls feed then clear the same host-owned speed authority.
