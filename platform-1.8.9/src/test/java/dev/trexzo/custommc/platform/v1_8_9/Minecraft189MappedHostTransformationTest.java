@@ -36,6 +36,9 @@ final class Minecraft189MappedHostTransformationTest {
     private static final String HOST_BINDING =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189LwjglHostBinding";
+    private static final String KEYBOARD_BINDING =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189LwjglKeyboardBinding";
 
     @Test
     void transformerClaimsOnlyStableMainAndMappedHostOwners() {
@@ -140,6 +143,10 @@ final class Minecraft189MappedHostTransformationTest {
         assertEquals(
                 1,
                 gameTickCalls(
+                        transformedMinecraft));
+        assertEquals(
+                1,
+                keyboardForwardCalls(
                         transformedMinecraft));
 
         final ByteMapClassLoader loader =
@@ -451,6 +458,53 @@ final class Minecraft189MappedHostTransformationTest {
                                                 .equals(owner)
                                                 && "gameTick".equals(
                                                 methodName)
+                                                && "()V".equals(
+                                                methodDescriptor)) {
+                                            calls[0]++;
+                                        }
+                                    }
+                                };
+                            }
+                        },
+                        0);
+        return calls[0];
+    }
+
+    private static int keyboardForwardCalls(
+            final byte[] bytes) {
+        final int[] calls =
+                new int[]{0};
+        new ClassReader(bytes)
+                .accept(
+                        new ClassVisitor(
+                                Opcodes.ASM9) {
+                            @Override
+                            public MethodVisitor visitMethod(
+                                    final int access,
+                                    final String name,
+                                    final String descriptor,
+                                    final String signature,
+                                    final String[] exceptions) {
+                                if (!"Z".equals(name)
+                                        || !"()V".equals(
+                                        descriptor)) {
+                                    return null;
+                                }
+                                return new MethodVisitor(
+                                        Opcodes.ASM9) {
+                                    @Override
+                                    public void visitMethodInsn(
+                                            final int opcode,
+                                            final String owner,
+                                            final String methodName,
+                                            final String methodDescriptor,
+                                            final boolean isInterface) {
+                                        if (opcode
+                                                == Opcodes.INVOKESTATIC
+                                                && KEYBOARD_BINDING.equals(
+                                                owner)
+                                                && "forwardCurrentEvent"
+                                                .equals(methodName)
                                                 && "()V".equals(
                                                 methodDescriptor)) {
                                             calls[0]++;
