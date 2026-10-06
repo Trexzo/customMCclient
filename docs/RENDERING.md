@@ -80,3 +80,13 @@ The actual Minecraft/LWJGL implementation of `LegacyUiGraphics` and `LegacyViewp
 `Minecraft189Hooks` translates version-specific render callbacks into generic stages and obtains `RenderPipeline` through the explicit service registry.
 
 Concrete GL state ownership, batching, font resources, shaders and post-processing targets remain later renderer milestones.
+
+## M54 legacy host UI bridge
+
+M54 adds `LegacyUiHostCallbacks` as the single host-facing callback contract for Minecraft 1.8.9 UI integration and `LegacyUiHostBridge` as the concrete adapter that implements both `LegacyUiGraphics` and `LegacyUiViewportSource` over that one host object.
+
+The bridge owns frame-state validation: draw calls require an open UI frame, nested begins are rejected, clip underflow is rejected, and `end()` unwinds leaked clip scopes before resetting bridge state. This prevents a bad host callback path from leaving later frames in a permanently clipped/open state.
+
+`Minecraft189ClickGuiRuntime.install(..., LegacyUiHostCallbacks)` constructs one bridge and supplies it to both the live viewport provider and renderer. Host framebuffer dimensions/UI scale and drawing therefore come from one integration object instead of separately wired adapters.
+
+M54 still does not embed Minecraft/LWJGL classes in the platform module. The final injected/legacy host is responsible only for implementing `LegacyUiHostCallbacks` against the actual game/font/GL APIs.
