@@ -19,6 +19,7 @@ import dev.trexzo.custommc.core.ui.clickgui.ClickGuiLayoutEngine;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiModel;
 import dev.trexzo.custommc.platform.PlatformContext;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiGraphics;
+import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiViewportSource;
 import org.junit.jupiter.api.Test;
 
@@ -210,6 +211,86 @@ final class Minecraft189ClickGuiRuntimeTest {
         assertTrue(runtime.closed());
     }
 
+
+    @Test
+    void singleHostCallbacksDriveViewportAndRendering() {
+        final ModuleRegistry modules =
+                new ModuleRegistry();
+        final ModuleController controller =
+                new ModuleController(modules);
+        final SettingRegistry settings =
+                new SettingRegistry();
+        final ServiceRegistry services =
+                new ServiceRegistry();
+        final RenderPipeline pipeline =
+                new RenderPipeline();
+        services.register(
+                RenderPipeline.class,
+                pipeline);
+
+        final Minecraft189Platform platform =
+                new Minecraft189Platform();
+        platform.attach(
+                new PlatformContext(
+                        new EventBus(),
+                        modules,
+                        controller,
+                        services));
+
+        final RecordingHostCallbacks host =
+                new RecordingHostCallbacks();
+
+        final Minecraft189ClickGuiRuntime runtime =
+                Minecraft189ClickGuiRuntime.install(
+                        platform,
+                        new ModulePresentationRegistry(),
+                        new ModuleCategoryRegistry(),
+                        new ModuleSettingRegistry(
+                                modules,
+                                settings),
+                        null,
+                        null,
+                        settings,
+                        new SettingPresentationRegistry(),
+                        host);
+
+        final UiViewport viewport =
+                runtime.viewportProvider()
+                        .viewport(
+                                new RenderFrame(
+                                        0L,
+                                        0.0F));
+        assertEquals(
+                1024,
+                viewport.pixelWidth());
+        assertEquals(
+                768,
+                viewport.pixelHeight());
+        assertEquals(
+                1.5F,
+                viewport.scale());
+
+        runtime.coreRuntime()
+                .model()
+                .open();
+        new Minecraft189Hooks(platform)
+                .renderHud(
+                        1L,
+                        0.0F);
+
+        assertEquals(
+                1,
+                host.beginCalls.get());
+        assertEquals(
+                1,
+                host.endCalls.get());
+        assertTrue(
+                host.textCalls.get() > 0);
+
+        runtime.close();
+        assertTrue(runtime.closed());
+    }
+
     private static final class MutableViewportSource
             implements LegacyUiViewportSource {
         private int width;
@@ -238,6 +319,94 @@ final class Minecraft189ClickGuiRuntimeTest {
         @Override
         public float uiScale() {
             return scale;
+        }
+    }
+
+
+    private static final class RecordingHostCallbacks
+            implements LegacyUiHostCallbacks {
+        private final AtomicInteger beginCalls =
+                new AtomicInteger();
+        private final AtomicInteger endCalls =
+                new AtomicInteger();
+        private final AtomicInteger textCalls =
+                new AtomicInteger();
+
+        @Override
+        public int framebufferWidth() {
+            return 1024;
+        }
+
+        @Override
+        public int framebufferHeight() {
+            return 768;
+        }
+
+        @Override
+        public float uiScale() {
+            return 1.5F;
+        }
+
+        @Override
+        public void beginUi(
+                final UiViewport viewport) {
+            beginCalls.incrementAndGet();
+        }
+
+        @Override
+        public void fillRect(
+                final float x,
+                final float y,
+                final float width,
+                final float height,
+                final int argb) {
+        }
+
+        @Override
+        public void fillRoundedRect(
+                final float x,
+                final float y,
+                final float width,
+                final float height,
+                final float radius,
+                final int argb) {
+        }
+
+        @Override
+        public void strokeRect(
+                final float x,
+                final float y,
+                final float width,
+                final float height,
+                final float thickness,
+                final int argb) {
+        }
+
+        @Override
+        public void pushClip(
+                final float x,
+                final float y,
+                final float width,
+                final float height) {
+        }
+
+        @Override
+        public void popClip() {
+        }
+
+        @Override
+        public void drawText(
+                final UiFontHandle font,
+                final float x,
+                final float y,
+                final String text,
+                final int argb) {
+            textCalls.incrementAndGet();
+        }
+
+        @Override
+        public void endUi() {
+            endCalls.incrementAndGet();
         }
     }
 
