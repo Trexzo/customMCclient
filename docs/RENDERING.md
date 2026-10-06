@@ -90,3 +90,13 @@ The bridge owns frame-state validation: draw calls require an open UI frame, nes
 `Minecraft189ClickGuiRuntime.install(..., LegacyUiHostCallbacks)` constructs one bridge and supplies it to both the live viewport provider and renderer. Host framebuffer dimensions/UI scale and drawing therefore come from one integration object instead of separately wired adapters.
 
 M54 still does not embed Minecraft/LWJGL classes in the platform module. The final injected/legacy host is responsible only for implementing `LegacyUiHostCallbacks` against the actual game/font/GL APIs.
+
+## M56 unified legacy host runtime
+
+M56 adds `Minecraft189HostRuntime` as the final platform-side composition façade over the already-certified hook/runtime pieces. Its installer accepts the attached `Minecraft189Platform`, module/setting presentation authorities, optional keybind authorities, and one M54 `LegacyUiHostCallbacks` instance.
+
+The façade installs exactly one `Minecraft189ClickGuiRuntime`, then owns one `Minecraft189Hooks` and one M55 `Minecraft189HostInputBridge`. Host integrations can therefore forward tick, render-stage, mouse, wheel and keyboard callbacks through one object instead of manually composing those surfaces.
+
+Ownership remains narrow: closing `Minecraft189HostRuntime` closes only the ClickGUI runtime it installed. It does not detach `Minecraft189Platform`, close borrowed module-keybind assignments, or remove unrelated services. After close, callback methods reject use deterministically and repeated close is idempotent.
+
+The remaining final integration step is host-specific implementation of `LegacyUiHostCallbacks` plus forwarding the actual Minecraft/LWJGL callbacks into this façade.
