@@ -22,6 +22,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189ClickGuiRuntime clickGuiRuntime;
     private final Minecraft189ClickGuiToggleController clickGuiToggleController;
     private final ServiceRegistry.Registration clickGuiToggleRegistration;
+    private final Minecraft189InputState inputState;
     private final Minecraft189FeatureCatalog featureCatalog;
     private final Minecraft189Hooks renderHooks;
     private final Minecraft189HostInputBridge inputBridge;
@@ -32,6 +33,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189ClickGuiRuntime clickGuiRuntime,
             final Minecraft189ClickGuiToggleController clickGuiToggleController,
             final ServiceRegistry.Registration clickGuiToggleRegistration,
+            final Minecraft189InputState inputState,
             final Minecraft189FeatureCatalog featureCatalog,
             final Minecraft189Hooks renderHooks,
             final Minecraft189HostInputBridge inputBridge) {
@@ -39,6 +41,7 @@ public final class Minecraft189HostRuntime
         this.clickGuiRuntime = clickGuiRuntime;
         this.clickGuiToggleController = clickGuiToggleController;
         this.clickGuiToggleRegistration = clickGuiToggleRegistration;
+        this.inputState = inputState;
         this.featureCatalog = featureCatalog;
         this.renderHooks = renderHooks;
         this.inputBridge = inputBridge;
@@ -100,6 +103,8 @@ public final class Minecraft189HostRuntime
 
         ServiceRegistry.Registration toggleRegistration = null;
         Minecraft189FeatureCatalog featureCatalog = null;
+        final Minecraft189InputState inputState =
+                new Minecraft189InputState();
         try {
             final ServiceRegistry services =
                     platform.requireContext()
@@ -124,6 +129,7 @@ public final class Minecraft189HostRuntime
                             moduleSettings,
                             settings,
                             settingPresentations,
+                            inputState,
                             services.require(
                                     RenderPipeline.class),
                             hostCallbacks);
@@ -133,6 +139,7 @@ public final class Minecraft189HostRuntime
                     clickGuiRuntime,
                     toggleController,
                     toggleRegistration,
+                    inputState,
                     featureCatalog,
                     new Minecraft189Hooks(platform),
                     new Minecraft189HostInputBridge(
@@ -168,6 +175,11 @@ public final class Minecraft189HostRuntime
     public Minecraft189FeatureCatalog featureCatalog() {
         requireOpen();
         return featureCatalog;
+    }
+
+    public Minecraft189InputState inputState() {
+        requireOpen();
+        return inputState;
     }
 
     public void publishTick(
@@ -218,6 +230,9 @@ public final class Minecraft189HostRuntime
             final int legacyButton,
             final boolean pressed) {
         requireOpen();
+        inputState.pointerButton(
+                legacyButton,
+                pressed);
         return inputBridge.pointerButton(
                 pixelX,
                 pixelYFromBottom,
@@ -245,6 +260,9 @@ public final class Minecraft189HostRuntime
             final boolean control,
             final boolean alt) {
         requireOpen();
+        inputState.key(
+                legacyKeyCode,
+                pressed);
         return inputBridge.key(
                 legacyKeyCode,
                 character,
@@ -272,6 +290,7 @@ public final class Minecraft189HostRuntime
             closed = true;
         }
         RuntimeException failure = null;
+        inputState.clear();
         try {
             featureCatalog.close();
         } catch (RuntimeException closeFailure) {
