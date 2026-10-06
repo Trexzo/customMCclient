@@ -25,6 +25,9 @@ public final class Minecraft189ClassTransformer
     private static final String HOST_BINDING_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189LwjglHostBinding";
+    private static final String KEYBOARD_BINDING_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189LwjglKeyboardBinding";
     private static final String HOST_RUNTIME_DESCRIPTOR =
             "Ldev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189HostRuntime;";
@@ -203,6 +206,10 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedTick =
                 new boolean[]{false};
+        final boolean[] foundDispatchKeypresses =
+                new boolean[]{false};
+        final boolean[] injectedKeyboard =
+                new boolean[]{false};
 
         reader.accept(
                 new ClassVisitor(
@@ -277,6 +284,35 @@ public final class Minecraft189ClassTransformer
                             };
                         }
 
+                        final Minecraft189Mappings.MappedMethod dispatchKeypresses =
+                                Minecraft189Mappings
+                                        .MINECRAFT_DISPATCH_KEYPRESSES;
+                        if (dispatchKeypresses.obfuscatedName().equals(name)
+                                && dispatchKeypresses.descriptor().equals(
+                                descriptor)) {
+                            if (foundDispatchKeypresses[0]) {
+                                throw new IllegalStateException(
+                                        "duplicate mapped Minecraft dispatchKeypresses method");
+                            }
+                            foundDispatchKeypresses[0] = true;
+
+                            return new MethodVisitor(
+                                    Opcodes.ASM9,
+                                    delegate) {
+                                @Override
+                                public void visitCode() {
+                                    super.visitCode();
+                                    super.visitMethodInsn(
+                                            Opcodes.INVOKESTATIC,
+                                            KEYBOARD_BINDING_INTERNAL_NAME,
+                                            "forwardCurrentEvent",
+                                            "()V",
+                                            false);
+                                    injectedKeyboard[0] = true;
+                                }
+                            };
+                        }
+
                         return delegate;
                     }
                 },
@@ -291,6 +327,11 @@ public final class Minecraft189ClassTransformer
                 || !injectedTick[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
+        }
+        if (!foundDispatchKeypresses[0]
+                || !injectedKeyboard[0]) {
+            throw new IllegalStateException(
+                    "mapped Minecraft dispatchKeypresses method was not patchable");
         }
         return writer.toByteArray();
     }
