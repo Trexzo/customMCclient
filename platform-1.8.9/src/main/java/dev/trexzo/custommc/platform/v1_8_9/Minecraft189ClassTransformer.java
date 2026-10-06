@@ -60,6 +60,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerRotationAccess";
     private static final String PLAYER_ROTATION_ACCESS_DESCRIPTOR =
             "L" + PLAYER_ROTATION_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_HEALTH_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerHealthAccess";
+    private static final String PLAYER_HEALTH_ACCESS_DESCRIPTOR =
+            "L" + PLAYER_HEALTH_ACCESS_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -85,6 +90,9 @@ public final class Minecraft189ClassTransformer
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.ENTITY
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.ENTITY_LIVING_BASE
                 .obfuscatedBinaryName()
                 .equals(binaryClassName);
     }
@@ -150,6 +158,13 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyEntity(input);
             return transformEntity(input);
+        }
+        if (Minecraft189Mappings.ENTITY_LIVING_BASE
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyEntityLivingBase(input);
+            return transformEntityLivingBase(input);
         }
 
         throw new IllegalArgumentException(
@@ -248,6 +263,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedPosition =
                 new boolean[]{false};
         final boolean[] injectedRotation =
+                new boolean[]{false};
+        final boolean[] injectedHealth =
                 new boolean[]{false};
         final boolean[] foundDispatchKeypresses =
                 new boolean[]{false};
@@ -377,6 +394,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedRotation[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_HEALTH_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerHealth",
+                                                "("
+                                                        + PLAYER_HEALTH_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedHealth[0] = true;
                                     }
                                     super.visitInsn(opcode);
                                 }
@@ -458,7 +497,8 @@ public final class Minecraft189ClassTransformer
         if (!foundRunTick[0]
                 || !injectedTick[0]
                 || !injectedPosition[0]
-                || !injectedRotation[0]) {
+                || !injectedRotation[0]
+                || !injectedHealth[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
         }
@@ -998,6 +1038,87 @@ public final class Minecraft189ClassTransformer
                 0);
 
         return writer.toByteArray();
+    }
+
+    private static byte[] transformEntityLivingBase(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public void visit(
+                            final int version,
+                            final int access,
+                            final String name,
+                            final String signature,
+                            final String superName,
+                            final String[] interfaces) {
+                        super.visit(
+                                version,
+                                access,
+                                name,
+                                signature,
+                                superName,
+                                withInterface(
+                                        interfaces,
+                                        PLAYER_HEALTH_ACCESS_INTERNAL_NAME));
+                    }
+
+                    @Override
+                    public void visitEnd() {
+                        addFloatMethodDelegate(
+                                cv,
+                                "customMcHealth",
+                                Minecraft189Mappings
+                                        .ENTITY_LIVING_BASE_GET_HEALTH);
+                        addFloatMethodDelegate(
+                                cv,
+                                "customMcMaxHealth",
+                                Minecraft189Mappings
+                                        .ENTITY_LIVING_BASE_GET_MAX_HEALTH);
+                        super.visitEnd();
+                    }
+                },
+                0);
+
+        return writer.toByteArray();
+    }
+
+    private static void addFloatMethodDelegate(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedMethod target) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()F",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                target.owner().obfuscatedInternalName(),
+                target.obfuscatedName(),
+                target.descriptor(),
+                false);
+        method.visitInsn(
+                Opcodes.FRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
     }
 
     private static void addDoubleFieldGetter(
