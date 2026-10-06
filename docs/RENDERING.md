@@ -128,3 +128,11 @@ When batching is supported, `Minecraft189UiRenderer` wraps only adjacent runs of
 Batch teardown is exception-safe: a shape failure still closes the batch before the frame-level `end()`. `LegacyUiHostBridge` also owns host batch-state validation, rejects clip/text operations while a batch is open, and closes a leaked host batch before clip/frame cleanup.
 
 The concrete Minecraft/LWJGL backend can use these scopes to keep compatible shape state/geometry submission open across a run without forcing that optimization onto legacy or test backends.
+
+## M60 GL-ready UI geometry
+
+M60 adds immutable `LegacyUiGeometry` plus `LegacyUiPrimitiveMode` and `LegacyUiGeometryFactory` so concrete legacy GL code can consume tested packed XY geometry instead of rebuilding shape math inside OpenGL calls.
+
+Rectangles use stable clockwise `QUADS` vertices, outlines use the same perimeter as a `LINE_LOOP`, and rounded rectangles use a convex `TRIANGLE_FAN`. Rounded-corner tessellation is deterministic: the factory owns an explicit segments-per-quarter value, defaults to 8, and rejects values outside 1..64. Radius 0 falls back to plain quad geometry.
+
+Geometry defensively copies coordinates, rejects non-finite values, validates primitive vertex topology, and exposes indexed XY access plus a defensive packed-coordinate snapshot. M60 contains no GL calls and no Minecraft/LWJGL types; it is the geometry input layer for the concrete host renderer.
