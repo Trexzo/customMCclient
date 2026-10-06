@@ -100,3 +100,13 @@ The façade installs exactly one `Minecraft189ClickGuiRuntime`, then owns one `M
 Ownership remains narrow: closing `Minecraft189HostRuntime` closes only the ClickGUI runtime it installed. It does not detach `Minecraft189Platform`, close borrowed module-keybind assignments, or remove unrelated services. After close, callback methods reject use deterministically and repeated close is idempotent.
 
 The remaining final integration step is host-specific implementation of `LegacyUiHostCallbacks` plus forwarding the actual Minecraft/LWJGL callbacks into this façade.
+
+## M57 framebuffer scissor mapping
+
+M57 moves OpenGL scissor coordinate math into a tested platform utility instead of leaving it to the final host implementation. `LegacyUiFramebufferMapper` converts logical top-left `UiBounds` into bottom-left framebuffer `LegacyFramebufferRect` values using the live `UiViewport` scale.
+
+Coverage is conservative: left/top edges use floor, right/bottom edges use ceil, then all edges clamp to the framebuffer. This preserves partially covered logical pixels and yields zero-area rectangles for fully off-screen clips without producing negative sizes.
+
+`LegacyScissorStack` maps each pushed logical clip and intersects it with the currently active framebuffer clip. Push returns the active rectangle to apply to GL; pop returns the restored parent rectangle or `null` when scissoring should be disabled. Underflow is rejected.
+
+The final LWJGL host therefore does not need to duplicate coordinate inversion, scale rounding, clamping or nested intersection logic; it only needs to apply the returned framebuffer rectangle to the actual scissor API.
