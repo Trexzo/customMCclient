@@ -24,7 +24,9 @@ public final class Minecraft189FeatureCatalog
     public static final String VISUALS_CATEGORY_ID =
             "visuals";
 
+    private final ModuleRegistry modules;
     private final ModuleController moduleController;
+    private final ModulePresentationRegistry modulePresentations;
     private final Minecraft189WatermarkModule watermark;
     private final ModuleRegistry.Registration watermarkRegistration;
     private final ModulePresentationRegistry.Registration watermarkPresentation;
@@ -44,10 +46,13 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189CpsFeature cpsFeature;
     private final Minecraft189CoordinatesFeature coordinatesFeature;
     private final Minecraft189SpeedFeature speedFeature;
+    private Minecraft189FullbrightFeature fullbrightFeature;
     private boolean closed;
 
     private Minecraft189FeatureCatalog(
+            final ModuleRegistry modules,
             final ModuleController moduleController,
+            final ModulePresentationRegistry modulePresentations,
             final Minecraft189WatermarkModule watermark,
             final ModuleRegistry.Registration watermarkRegistration,
             final ModulePresentationRegistry.Registration watermarkPresentation,
@@ -67,7 +72,9 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189CpsFeature cpsFeature,
             final Minecraft189CoordinatesFeature coordinatesFeature,
             final Minecraft189SpeedFeature speedFeature) {
+        this.modules = modules;
         this.moduleController = moduleController;
+        this.modulePresentations = modulePresentations;
         this.watermark = watermark;
         this.watermarkRegistration = watermarkRegistration;
         this.watermarkPresentation = watermarkPresentation;
@@ -292,7 +299,9 @@ public final class Minecraft189FeatureCatalog
                             hostCallbacks);
 
             return new Minecraft189FeatureCatalog(
+                    modules,
                     moduleController,
+                    presentations,
                     watermark,
                     module,
                     presentation,
@@ -370,6 +379,34 @@ public final class Minecraft189FeatureCatalog
         return speedFeature.module();
     }
 
+    public synchronized Minecraft189FullbrightModule installFullbright(
+            final dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189GuiSettingsAccess settings) {
+        requireOpen();
+        if (fullbrightFeature != null) {
+            throw new IllegalStateException(
+                    "fullbright feature already installed");
+        }
+
+        fullbrightFeature =
+                Minecraft189FullbrightFeature.install(
+                        modules,
+                        moduleController,
+                        modulePresentations,
+                        java.util.Objects.requireNonNull(
+                                settings,
+                                "settings"));
+        return fullbrightFeature.module();
+    }
+
+    public synchronized Minecraft189FullbrightModule fullbright() {
+        requireOpen();
+        if (fullbrightFeature == null) {
+            throw new IllegalStateException(
+                    "fullbright feature is not installed");
+        }
+        return fullbrightFeature.module();
+    }
+
     public synchronized boolean closed() {
         return closed;
     }
@@ -384,10 +421,20 @@ public final class Minecraft189FeatureCatalog
         }
 
         RuntimeException failure = null;
+        if (fullbrightFeature != null) {
+            try {
+                fullbrightFeature.close();
+            } catch (RuntimeException closeFailure) {
+                failure = closeFailure;
+            }
+        }
+
         try {
             speedFeature.close();
         } catch (RuntimeException closeFailure) {
-            failure = closeFailure;
+            failure = append(
+                    failure,
+                    closeFailure);
         }
 
         try {

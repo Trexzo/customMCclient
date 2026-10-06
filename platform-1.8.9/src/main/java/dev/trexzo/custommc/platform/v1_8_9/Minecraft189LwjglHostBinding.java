@@ -15,15 +15,32 @@ public final class Minecraft189LwjglHostBinding {
     public static Minecraft189HostRuntime install(
             final Minecraft189GuiSettingsAccess settings,
             final Minecraft189FontRendererAccess fontRenderer) {
-        return Minecraft189RuntimeBridge.installHost(
-                new Lwjgl2LegacyUiHostCallbacks(
-                        new Lwjgl2Minecraft189ViewportSource(
-                                Objects.requireNonNull(
-                                        settings,
-                                        "settings")),
-                        new Minecraft189DefaultFontRenderer(
-                                Objects.requireNonNull(
-                                        fontRenderer,
-                                        "fontRenderer"))));
+        final Minecraft189GuiSettingsAccess liveSettings =
+                Objects.requireNonNull(
+                        settings,
+                        "settings");
+        final Minecraft189HostRuntime runtime =
+                Minecraft189RuntimeBridge.installHost(
+                        new Lwjgl2LegacyUiHostCallbacks(
+                                new Lwjgl2Minecraft189ViewportSource(
+                                        liveSettings),
+                                new Minecraft189DefaultFontRenderer(
+                                        Objects.requireNonNull(
+                                                fontRenderer,
+                                                "fontRenderer"))));
+        try {
+            runtime.featureCatalog()
+                    .installFullbright(
+                            liveSettings);
+            return runtime;
+        } catch (RuntimeException failure) {
+            try {
+                runtime.close();
+            } catch (RuntimeException closeFailure) {
+                failure.addSuppressed(
+                        closeFailure);
+            }
+            throw failure;
+        }
     }
 }

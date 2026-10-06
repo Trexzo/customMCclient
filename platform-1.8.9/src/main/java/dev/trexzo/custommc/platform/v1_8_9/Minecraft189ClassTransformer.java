@@ -605,6 +605,16 @@ public final class Minecraft189ClassTransformer
 
                     @Override
                     public void visitEnd() {
+                        addFloatFieldGetter(
+                                cv,
+                                "gammaSetting",
+                                Minecraft189Mappings
+                                        .GAME_SETTINGS_GAMMA);
+                        addFloatFieldSetter(
+                                cv,
+                                "gammaSetting",
+                                Minecraft189Mappings
+                                        .GAME_SETTINGS_GAMMA);
                         addIntFieldGetter(
                                 cv,
                                 "configuredGuiScale",
@@ -956,6 +966,65 @@ public final class Minecraft189ClassTransformer
                 field.descriptor());
         method.visitInsn(
                 Opcodes.DRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addFloatFieldGetter(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedField field) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()F",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                field.owner().obfuscatedInternalName(),
+                field.obfuscatedName(),
+                field.descriptor());
+        method.visitInsn(
+                Opcodes.FRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addFloatFieldSetter(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedField field) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "(F)V",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitVarInsn(
+                Opcodes.FLOAD,
+                1);
+        method.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                field.owner().obfuscatedInternalName(),
+                field.obfuscatedName(),
+                field.descriptor());
+        method.visitInsn(
+                Opcodes.RETURN);
         method.visitMaxs(
                 0,
                 0);

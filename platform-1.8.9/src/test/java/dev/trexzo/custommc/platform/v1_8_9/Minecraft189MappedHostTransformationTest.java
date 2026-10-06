@@ -140,15 +140,26 @@ final class Minecraft189MappedHostTransformationTest {
         final Object settings =
                 settingsClass.getDeclaredConstructor()
                         .newInstance();
+        final Field gamma =
+                settingsClass.getField("aJ");
         final Field guiScale =
                 settingsClass.getField("aL");
         final Field unicode =
                 settingsClass.getField("aO");
+        gamma.setFloat(settings, 0.35F);
         guiScale.setInt(settings, 3);
         unicode.setBoolean(settings, true);
 
         final Minecraft189GuiSettingsAccess settingsAccess =
                 (Minecraft189GuiSettingsAccess) settings;
+        assertEquals(
+                0.35F,
+                settingsAccess.gammaSetting());
+        settingsAccess.gammaSetting(
+                1.25F);
+        assertEquals(
+                1.25F,
+                gamma.getFloat(settings));
         assertEquals(
                 3,
                 settingsAccess.configuredGuiScale());
@@ -347,12 +358,19 @@ final class Minecraft189MappedHostTransformationTest {
                             minecraft,
                             player);
 
+            final Class<?> settingsClass =
+                    loader.loadClass("avh");
+            final Object liveSettings =
+                    settingsClass.getDeclaredConstructor()
+                            .newInstance();
+            settingsClass.getField("aJ")
+                    .setFloat(
+                            liveSettings,
+                            0.35F);
             minecraftClass.getField("t")
                     .set(
                             minecraft,
-                            loader.loadClass("avh")
-                                    .getDeclaredConstructor()
-                                    .newInstance());
+                            liveSettings);
             minecraftClass.getField("k")
                     .set(
                             minecraft,
@@ -368,6 +386,34 @@ final class Minecraft189MappedHostTransformationTest {
                     Minecraft189RuntimeBridge
                             .hostInstalled());
             assertTrue(runtime.hostInstalled());
+            assertTrue(
+                    runtime.modules()
+                            .find(
+                                    Minecraft189FullbrightModule.ID)
+                            != null);
+            assertEquals(
+                    0.35F,
+                    settingsClass.getField("aJ")
+                            .getFloat(
+                                    liveSettings));
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189FullbrightModule.ID);
+            assertEquals(
+                    Minecraft189FullbrightModule.fullbrightGamma(),
+                    settingsClass.getField("aJ")
+                            .getFloat(
+                                    liveSettings));
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189FullbrightModule.ID);
+            assertEquals(
+                    0.35F,
+                    settingsClass.getField("aJ")
+                            .getFloat(
+                                    liveSettings));
 
             final Method runTick =
                     minecraftClass.getMethod("s");
@@ -786,6 +832,7 @@ final class Minecraft189MappedHostTransformationTest {
     private static byte[] gameSettingsShape() {
         final ClassWriter writer =
                 classWriter("avh");
+        field(writer, "aJ", "F");
         field(writer, "aL", "I");
         field(writer, "aO", "Z");
         endDefaultConstructor(writer, "avh");

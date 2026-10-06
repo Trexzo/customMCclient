@@ -109,6 +109,13 @@ public final class Minecraft189Mappings {
                     "field_70161_v",
                     "posZ");
 
+    public static final MappedField GAME_SETTINGS_GAMMA =
+            new MappedField(
+                    GAME_SETTINGS,
+                    "aJ",
+                    "F",
+                    "field_74333_Y",
+                    "gammaSetting");
     public static final MappedField GAME_SETTINGS_GUI_SCALE =
             new MappedField(
                     GAME_SETTINGS,
