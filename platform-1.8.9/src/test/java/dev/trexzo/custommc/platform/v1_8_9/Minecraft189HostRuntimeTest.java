@@ -272,6 +272,10 @@ final class Minecraft189HostRuntimeTest {
         assertFalse(
                 services.contains(
                         Minecraft189ClickGuiToggleController.class));
+        assertEquals(
+                null,
+                modules.find(
+                        Minecraft189WatermarkModule.ID));
 
         assertThrows(
                 IllegalStateException.class,
