@@ -274,3 +274,12 @@ M80 adds the first recurring mapped game-loop callback on top of the certified M
 Tick numbering is not static bridge state. `Minecraft189BootstrapRuntime` owns the monotonic sequence, beginning at `0` for each runtime lifetime, and publishes through the already-installed M72 `Minecraft189HostRuntime`. If the host is not installed or runtime teardown has begun, the callback is inert. Closing and recreating the bootstrap runtime therefore resets tick authority naturally.
 
 Executable regression coverage loads the transformed mapped Minecraft fixture, installs the M79 host through transformed `startGame()`, invokes transformed `runTick()` twice, and proves the core event bus receives tick indexes `0` then `1`. M80 does not yet add HUD, world-render or input callbacks.
+
+
+## Mapped render-frame and HUD callbacks
+
+M81 establishes shared render-frame identity before adding more render stages. The exact M78 `EntityRenderer.updateCameraAndRender` mapping (`bfk.a(FJ)V`) now injects `Minecraft189RuntimeBridge.renderFrameStarted(partialTicks)` at method entry. The bootstrap runtime owns the monotonic frame sequence, beginning at `0` for each runtime lifetime and retaining the current frame index for downstream stage callbacks.
+
+The exact mapped `GuiIngame.renderGameOverlay` method (`avo.a(F)V`) injects `renderHudFrame(partialTicks)` immediately before every normal return, so CustomMC HUD passes execute after the vanilla overlay while sharing the frame index established by the enclosing renderer call. Startup/teardown callbacks remain inert if no live host/current frame exists.
+
+Both `bfk` and `avo` are M78-shape-verified before transformation. Executable regression coverage runs transformed frame-start and HUD fixture methods after the M79 host install and proves HUD frames `0@0.25` then `1@0.5`. M81 does not yet publish WORLD, WORLD_OVERLAY, POST_PROCESS, mouse, keyboard or wheel callbacks.
