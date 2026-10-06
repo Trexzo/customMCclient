@@ -418,14 +418,6 @@ public final class Minecraft189FeatureCatalog
     public synchronized Minecraft189FullbrightModule installFullbright(
             final dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189GuiSettingsAccess settings) {
         requireOpen();
-        try {
-            crosshairFeature.close();
-        } catch (RuntimeException closeFailure) {
-            failure = append(
-                    failure,
-                    closeFailure);
-        }
-
         if (fullbrightFeature != null) {
             throw new IllegalStateException(
                     "fullbright feature already installed");
@@ -544,6 +536,14 @@ public final class Minecraft189FeatureCatalog
                         failure,
                         closeFailure);
             }
+        }
+
+        try {
+            crosshairFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
         }
 
         if (fullbrightFeature != null) {
