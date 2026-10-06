@@ -79,6 +79,14 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void renderPostProcessFrame(
+            final float partialTicks) {
+        if (activeRuntime != null) {
+            activeRuntime.renderPostProcessFrame(
+                    partialTicks);
+        }
+    }
+
     public static synchronized void renderWorld(
             final long frameIndex,
             final float partialTicks) {

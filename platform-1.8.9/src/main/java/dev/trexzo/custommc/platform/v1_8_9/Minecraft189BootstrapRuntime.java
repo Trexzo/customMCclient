@@ -342,6 +342,24 @@ public final class Minecraft189BootstrapRuntime
                 partialTicks);
     }
 
+    synchronized void renderPostProcessFrame(
+            final float partialTicks) {
+        if (closed
+                || hostRuntime == null
+                || hostRuntime.closed()
+                || currentFrameIndex < 0L) {
+            return;
+        }
+
+        try {
+            hostRuntime.renderPostProcess(
+                    currentFrameIndex,
+                    partialTicks);
+        } finally {
+            currentFrameIndex = -1L;
+        }
+    }
+
     synchronized Minecraft189HostRuntime requireHostRuntime() {
         requireOpen();
         if (hostRuntime == null

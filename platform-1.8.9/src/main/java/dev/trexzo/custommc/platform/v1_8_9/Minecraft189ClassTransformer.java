@@ -565,7 +565,9 @@ public final class Minecraft189ClassTransformer
                         ClassWriter.COMPUTE_MAXS);
         final boolean[] found =
                 new boolean[]{false};
-        final boolean[] injected =
+        final boolean[] injectedStart =
+                new boolean[]{false};
+        final boolean[] injectedEnd =
                 new boolean[]{false};
 
         reader.accept(
@@ -615,14 +617,34 @@ public final class Minecraft189ClassTransformer
                                         "renderFrameStarted",
                                         "(F)V",
                                         false);
-                                injected[0] = true;
+                                injectedStart[0] = true;
+                            }
+
+                            @Override
+                            public void visitInsn(
+                                    final int opcode) {
+                                if (opcode == Opcodes.RETURN) {
+                                    super.visitVarInsn(
+                                            Opcodes.FLOAD,
+                                            1);
+                                    super.visitMethodInsn(
+                                            Opcodes.INVOKESTATIC,
+                                            RUNTIME_BRIDGE_INTERNAL_NAME,
+                                            "renderPostProcessFrame",
+                                            "(F)V",
+                                            false);
+                                    injectedEnd[0] = true;
+                                }
+                                super.visitInsn(opcode);
                             }
                         };
                     }
                 },
                 0);
 
-        if (!found[0] || !injected[0]) {
+        if (!found[0]
+                || !injectedStart[0]
+                || !injectedEnd[0]) {
             throw new IllegalStateException(
                     "mapped EntityRenderer updateCameraAndRender method was not patchable");
         }

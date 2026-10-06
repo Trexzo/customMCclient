@@ -283,3 +283,12 @@ M81 establishes shared render-frame identity before adding more render stages. T
 The exact mapped `GuiIngame.renderGameOverlay` method (`avo.a(F)V`) injects `renderHudFrame(partialTicks)` immediately before every normal return, so CustomMC HUD passes execute after the vanilla overlay while sharing the frame index established by the enclosing renderer call. Startup/teardown callbacks remain inert if no live host/current frame exists.
 
 Both `bfk` and `avo` are M78-shape-verified before transformation. Executable regression coverage runs transformed frame-start and HUD fixture methods after the M79 host install and proves HUD frames `0@0.25` then `1@0.5`. M81 does not yet publish WORLD, WORLD_OVERLAY, POST_PROCESS, mouse, keyboard or wheel callbacks.
+
+
+## Mapped post-process frame completion
+
+M82 closes the shared M81 render-frame lifecycle at the exact mapped `EntityRenderer.updateCameraAndRender(F,J)` normal return. The transformer now invokes `Minecraft189RuntimeBridge.renderPostProcessFrame(partialTicks)` immediately before each normal `RETURN`, after the vanilla frame body has completed.
+
+The bootstrap runtime publishes the existing POST_PROCESS stage with the current M81 frame index and then clears that active frame identity in a `finally` block. A late HUD callback after frame completion is therefore inert until the next mapped frame-start callback establishes a new index. Exceptional method exits deliberately do not synthesize a successful post-process stage; the next frame start overwrites any stale in-progress identity.
+
+Executable regression coverage makes the transformed EntityRenderer fixture invoke transformed GuiIngame inside the mapped frame body, proving the production ordering for two frames: HUD `0@0.25` then POST_PROCESS `0@0.25`, followed by HUD `1@0.5` then POST_PROCESS `1@0.5`. WORLD and WORLD_OVERLAY still require more precise mapped anchors and remain out of M82.

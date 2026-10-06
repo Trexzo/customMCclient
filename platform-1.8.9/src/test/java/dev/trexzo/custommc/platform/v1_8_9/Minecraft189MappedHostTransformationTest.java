@@ -190,6 +190,10 @@ final class Minecraft189MappedHostTransformationTest {
 
             final List<String> hudFrames =
                     new ArrayList<String>();
+            final List<String> postFrames =
+                    new ArrayList<String>();
+            final List<String> renderOrder =
+                    new ArrayList<String>();
             runtime.renderPipeline()
                     .register(
                             new RenderPass() {
@@ -211,10 +215,43 @@ final class Minecraft189MappedHostTransformationTest {
                                 @Override
                                 public void render(
                                         final RenderFrame frame) {
-                                    hudFrames.add(
+                                    final String value =
                                             frame.frameIndex()
                                                     + "@"
-                                                    + frame.partialTicks());
+                                                    + frame.partialTicks();
+                                    hudFrames.add(value);
+                                    renderOrder.add(
+                                            "hud:" + value);
+                                }
+                            });
+            runtime.renderPipeline()
+                    .register(
+                            new RenderPass() {
+                                @Override
+                                public String id() {
+                                    return "m82-test-post";
+                                }
+
+                                @Override
+                                public RenderStage stage() {
+                                    return RenderStage.POST_PROCESS;
+                                }
+
+                                @Override
+                                public int priority() {
+                                    return 0;
+                                }
+
+                                @Override
+                                public void render(
+                                        final RenderFrame frame) {
+                                    final String value =
+                                            frame.frameIndex()
+                                                    + "@"
+                                                    + frame.partialTicks();
+                                    postFrames.add(value);
+                                    renderOrder.add(
+                                            "post:" + value);
                                 }
                             });
 
@@ -267,36 +304,33 @@ final class Minecraft189MappedHostTransformationTest {
                                     "a",
                                     float.class,
                                     long.class);
-            final Object guiIngame =
-                    loader.loadClass("avo")
-                            .getDeclaredConstructor()
-                            .newInstance();
-            final Method renderHud =
-                    guiIngame.getClass()
-                            .getMethod(
-                                    "a",
-                                    float.class);
 
             renderFrame.invoke(
                     entityRenderer,
                     0.25F,
                     100L);
-            renderHud.invoke(
-                    guiIngame,
-                    0.25F);
             renderFrame.invoke(
                     entityRenderer,
                     0.5F,
                     101L);
-            renderHud.invoke(
-                    guiIngame,
-                    0.5F);
 
             assertEquals(
                     Arrays.asList(
                             "0@0.25",
                             "1@0.5"),
                     hudFrames);
+            assertEquals(
+                    Arrays.asList(
+                            "0@0.25",
+                            "1@0.5"),
+                    postFrames);
+            assertEquals(
+                    Arrays.asList(
+                            "hud:0@0.25",
+                            "post:0@0.25",
+                            "hud:1@0.5",
+                            "post:1@0.5"),
+                    renderOrder);
         } finally {
             runtime.close();
         }
@@ -531,9 +565,29 @@ final class Minecraft189MappedHostTransformationTest {
                         null,
                         null);
         render.visitCode();
+        render.visitTypeInsn(
+                Opcodes.NEW,
+                "avo");
+        render.visitInsn(
+                Opcodes.DUP);
+        render.visitMethodInsn(
+                Opcodes.INVOKESPECIAL,
+                "avo",
+                "<init>",
+                "()V",
+                false);
+        render.visitVarInsn(
+                Opcodes.FLOAD,
+                1);
+        render.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                "avo",
+                "a",
+                "(F)V",
+                false);
         render.visitInsn(
                 Opcodes.RETURN);
-        render.visitMaxs(0, 4);
+        render.visitMaxs(3, 4);
         render.visitEnd();
 
         writer.visitEnd();
