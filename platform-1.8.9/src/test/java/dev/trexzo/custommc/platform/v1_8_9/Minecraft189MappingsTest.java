@@ -126,6 +126,13 @@ final class Minecraft189MappingsTest {
                 "posZ");
 
         assertField(
+                Minecraft189Mappings.GAME_SETTINGS_VIEW_BOBBING,
+                Minecraft189Mappings.GAME_SETTINGS,
+                "d",
+                "Z",
+                "field_74336_f",
+                "viewBobbing");
+        assertField(
                 Minecraft189Mappings.GAME_SETTINGS_FOV,
                 Minecraft189Mappings.GAME_SETTINGS,
                 "aI",
@@ -288,11 +295,44 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
+    void gameSettingsShapeGateRejectsMissingViewBobbingField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.GAME_SETTINGS
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.GAME_SETTINGS_FOV);
+        addField(
+                writer,
+                Minecraft189Mappings.GAME_SETTINGS_GAMMA);
+        addField(
+                writer,
+                Minecraft189Mappings.GAME_SETTINGS_GUI_SCALE);
+        addField(
+                writer,
+                Minecraft189Mappings.GAME_SETTINGS_FORCE_UNICODE);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyGameSettings(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: avh.d Z (viewBobbing)",
+                failure.getMessage());
+    }
+
+    @Test
     void gameSettingsShapeGateRejectsMissingFovField() {
         final ClassWriter writer =
                 writer(
                         Minecraft189Mappings.GAME_SETTINGS
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.GAME_SETTINGS_VIEW_BOBBING);
         addField(
                 writer,
                 Minecraft189Mappings.GAME_SETTINGS_GAMMA);
@@ -320,6 +360,9 @@ final class Minecraft189MappingsTest {
                 writer(
                         Minecraft189Mappings.GAME_SETTINGS
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.GAME_SETTINGS_VIEW_BOBBING);
         addField(
                 writer,
                 Minecraft189Mappings.GAME_SETTINGS_FOV);
@@ -412,6 +455,9 @@ final class Minecraft189MappingsTest {
                 writer(
                         Minecraft189Mappings.GAME_SETTINGS
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.GAME_SETTINGS_VIEW_BOBBING);
         addField(
                 writer,
                 Minecraft189Mappings.GAME_SETTINGS_FOV);
