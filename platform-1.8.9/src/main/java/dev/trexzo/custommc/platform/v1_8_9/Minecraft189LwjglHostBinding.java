@@ -38,6 +38,9 @@ public final class Minecraft189LwjglHostBinding {
                             runtime.platform()
                                     .requireContext()
                                     .events());
+            runtime.featureCatalog()
+                    .installNoBobbing(
+                            liveSettings);
             return runtime;
         } catch (RuntimeException failure) {
             try {
