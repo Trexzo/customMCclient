@@ -9,6 +9,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -143,6 +144,84 @@ final class CustomMcBootstrapMainTest {
     }
 
     @Test
+    void runtimeMaySelectTargetLoaderAndThreadContextIsRestored()
+            throws Exception {
+        EVENTS.clear();
+        TargetMain.lastArguments = null;
+        TargetMain.lastContextClassLoader = null;
+        LoaderSelectingInitializer.lastLoader = null;
+
+        final ClassLoader original =
+                Thread.currentThread()
+                        .getContextClassLoader();
+
+        CustomMcBootstrapMain.main(
+                new String[]{
+                        BootstrapInvocation.RUNTIME_MARKER,
+                        LoaderSelectingInitializer.class.getName(),
+                        TargetMain.class.getName(),
+                        "through-loader"
+                });
+
+        assertSame(
+                original,
+                Thread.currentThread()
+                        .getContextClassLoader());
+        assertSame(
+                LoaderSelectingInitializer.lastLoader,
+                TargetMain.lastContextClassLoader);
+        assertTrue(
+                LoaderSelectingInitializer.lastLoader
+                        .targetRequested);
+        assertArrayEquals(
+                new String[]{"through-loader"},
+                TargetMain.lastArguments);
+        assertEquals(
+                Arrays.asList(
+                        "initialize-loader",
+                        "select-loader",
+                        "target",
+                        "close-loader"),
+                EVENTS);
+    }
+
+    @Test
+    void targetFailureThroughSelectedLoaderStillRestoresThreadContext()
+            throws Exception {
+        EVENTS.clear();
+        LoaderSelectingInitializer.lastLoader = null;
+
+        final ClassLoader original =
+                Thread.currentThread()
+                        .getContextClassLoader();
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> CustomMcBootstrapMain.main(
+                                new String[]{
+                                        BootstrapInvocation.RUNTIME_MARKER,
+                                        LoaderSelectingInitializer.class.getName(),
+                                        FailingMain.class.getName()
+                                }));
+
+        assertEquals(
+                "boom",
+                failure.getMessage());
+        assertSame(
+                original,
+                Thread.currentThread()
+                        .getContextClassLoader());
+        assertEquals(
+                Arrays.asList(
+                        "initialize-loader",
+                        "select-loader",
+                        "target-fail",
+                        "close-loader"),
+                EVENTS);
+    }
+
+    @Test
     void targetFailureIsUnwrappedAndSessionStillCloses()
             throws Exception {
         EVENTS.clear();
@@ -252,10 +331,14 @@ final class CustomMcBootstrapMainTest {
 
     public static final class TargetMain {
         private static String[] lastArguments;
+        private static ClassLoader lastContextClassLoader;
 
         public static void main(
                 final String[] arguments) {
             EVENTS.add("target");
+            lastContextClassLoader =
+                    Thread.currentThread()
+                            .getContextClassLoader();
             lastArguments =
                     Arrays.copyOf(
                             arguments,
@@ -292,6 +375,67 @@ final class CustomMcBootstrapMainTest {
                     EVENTS.add("close");
                 }
             };
+        }
+    }
+
+    public static final class LoaderSelectingInitializer
+            implements BootstrapRuntimeInitializer {
+        private static RecordingTargetLoader lastLoader;
+
+        public LoaderSelectingInitializer() {
+        }
+
+        @Override
+        public BootstrapRuntimeSession initialize(
+                final BootstrapContext context) {
+            EVENTS.add("initialize-loader");
+            return new LoaderSelectingSession();
+        }
+    }
+
+    private static final class LoaderSelectingSession
+            implements BootstrapRuntimeSession,
+            BootstrapTargetClassLoaderProvider {
+        @Override
+        public ClassLoader targetClassLoader(
+                final ClassLoader bootstrapLoader) {
+            EVENTS.add("select-loader");
+            final RecordingTargetLoader loader =
+                    new RecordingTargetLoader(
+                            bootstrapLoader);
+            LoaderSelectingInitializer.lastLoader =
+                    loader;
+            return loader;
+        }
+
+        @Override
+        public void close() {
+            EVENTS.add("close-loader");
+        }
+    }
+
+    private static final class RecordingTargetLoader
+            extends ClassLoader {
+        private boolean targetRequested;
+
+        RecordingTargetLoader(
+                final ClassLoader parent) {
+            super(parent);
+        }
+
+        @Override
+        protected Class<?> loadClass(
+                final String name,
+                final boolean resolve)
+                throws ClassNotFoundException {
+            if (TargetMain.class
+                    .getName()
+                    .equals(name)) {
+                targetRequested = true;
+            }
+            return super.loadClass(
+                    name,
+                    resolve);
         }
     }
 
