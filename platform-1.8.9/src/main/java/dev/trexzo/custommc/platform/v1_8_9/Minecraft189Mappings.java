@@ -51,6 +51,10 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "pk",
                     "net/minecraft/entity/Entity");
+    public static final MappedClass ENTITY_LIVING_BASE =
+            new MappedClass(
+                    "pr",
+                    "net/minecraft/entity/EntityLivingBase");
 
     public static final MappedField MINECRAFT_PLAYER =
             new MappedField(
@@ -229,6 +233,20 @@ public final class Minecraft189Mappings {
                     "(FJ)V",
                     "func_181560_a",
                     "updateCameraAndRender");
+    public static final MappedMethod ENTITY_LIVING_BASE_GET_HEALTH =
+            new MappedMethod(
+                    ENTITY_LIVING_BASE,
+                    "bn",
+                    "()F",
+                    "func_110143_aJ",
+                    "getHealth");
+    public static final MappedMethod ENTITY_LIVING_BASE_GET_MAX_HEALTH =
+            new MappedMethod(
+                    ENTITY_LIVING_BASE,
+                    "bu",
+                    "()F",
+                    "func_110138_aP",
+                    "getMaxHealth");
 
     private Minecraft189Mappings() {
     }
