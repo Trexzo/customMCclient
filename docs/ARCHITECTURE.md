@@ -418,3 +418,16 @@ The existing M85 mapped mouse path already filters raw `KeyBinding.setKeyBindSta
 `Minecraft189ClickRateTracker` keeps independent one-second rolling windows for LMB and RMB. The HUD reads both counts through one atomic timestamped snapshot and renders `CPS: L N | R N`, with persistent X/Y settings owned through the generic feature/settings architecture.
 
 Deterministic tests prove independent rolling-window aging and atomic HUD output. Host integration coverage proves duplicate press updates count once, release-then-press counts again, left/right remain separate, and shutdown clears the tracker plus removes the CPS module and its settings.
+
+
+## Module-state profile persistence
+
+M94 extends the existing launcher profile namespace so settings, owned keybinds and stable module enabled/disabled state can round-trip through one atomic profile document. New snapshots reserve `@module/<module-id>` keys and encode only `enabled` or `disabled`; transient `ENABLING`, `DISABLING` and `FAILED` states are rejected as non-profile-stable.
+
+The original two-argument `LauncherProfileState` constructor remains supported for settings/keybind-only callers. The new constructor additionally receives the authoritative `ModuleRegistry` and `ModuleController`. Profiles without any `@module/` entries leave current module states untouched, preserving compatibility with previously written profile files.
+
+Profile apply preflights module entries before mutating settings. When module-state authority is present, settings are applied, owned keybinds are replaced, then requested module transitions are performed through `ModuleController`; no module callback is bypassed. A failure during keybind or module application triggers rollback of the previous stable module states, owned keybind set and persistent settings, with rollback failures attached as suppressed evidence.
+
+Unknown `@module/` entries follow the existing profile unknown-value policy: REJECT fails before mutation, while IGNORE skips missing modules. Persistent setting IDs may not use either reserved `@keybind/` or `@module/` namespaces.
+
+Regression coverage proves module-state snapshot/apply, compatibility with old profiles, unknown-module handling, rollback after a failing module enable, reserved namespace rejection, and round-trip through `AtomicProfileStore`.

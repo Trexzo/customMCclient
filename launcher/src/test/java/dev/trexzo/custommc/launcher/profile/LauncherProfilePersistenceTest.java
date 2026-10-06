@@ -1,7 +1,9 @@
 package dev.trexzo.custommc.launcher.profile;
 
 import dev.trexzo.custommc.core.module.Module;
+import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModuleKeyChord;
+import dev.trexzo.custommc.core.module.ModuleState;
 import dev.trexzo.custommc.core.module.ModuleKeybindAssignments;
 import dev.trexzo.custommc.core.module.ModuleKeybindRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
@@ -35,6 +37,8 @@ final class LauncherProfilePersistenceTest {
                     }
                 });
 
+        final ModuleController controller =
+                new ModuleController(modules);
         final SettingRegistry settings =
                 new SettingRegistry();
         final Setting<Integer> range =
@@ -58,11 +62,15 @@ final class LauncherProfilePersistenceTest {
                         true,
                         false));
         range.set(5);
+        controller.enable(
+                "combat.aura");
 
         final LauncherProfileState profile =
                 new LauncherProfileState(
                         settings,
-                        assignments);
+                        assignments,
+                        modules,
+                        controller);
         final AtomicProfileStore store =
                 new AtomicProfileStore();
         final Path target =
@@ -75,6 +83,8 @@ final class LauncherProfilePersistenceTest {
 
         range.set(2);
         assignments.unbind(
+                "combat.aura");
+        controller.disable(
                 "combat.aura");
 
         final Map<String, String> restored =
@@ -95,6 +105,10 @@ final class LauncherProfilePersistenceTest {
                 assignments.binding(
                         "combat.aura")
                         .chord());
+        assertEquals(
+                ModuleState.ENABLED,
+                controller.stateOf(
+                        "combat.aura"));
 
         assignments.close();
         assertTrue(assignments.closed());

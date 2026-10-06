@@ -1,7 +1,9 @@
 package dev.trexzo.custommc.launcher.profile;
 
 import dev.trexzo.custommc.core.module.Module;
+import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModuleKeyChord;
+import dev.trexzo.custommc.core.module.ModuleState;
 import dev.trexzo.custommc.core.module.ModuleKeybindAssignments;
 import dev.trexzo.custommc.core.module.ModuleKeybindRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
@@ -83,6 +85,293 @@ final class LauncherProfileStateTest {
                 null,
                 assignments.binding(
                         "render.esp"));
+    }
+
+    @Test
+    void snapshotAndApplyRoundTripStableModuleStates() {
+        final ModuleRegistry modules =
+                modules(
+                        "render.watermark",
+                        "render.fps");
+        final ModuleController controller =
+                new ModuleController(modules);
+        final SettingRegistry settings =
+                settings();
+        final ModuleKeybindAssignments assignments =
+                new ModuleKeybindAssignments(
+                        new ModuleKeybindRegistry(
+                                modules));
+
+        controller.enable(
+                "render.watermark");
+
+        final LauncherProfileState profile =
+                new LauncherProfileState(
+                        settings,
+                        assignments,
+                        modules,
+                        controller);
+        final Map<String, String> snapshot =
+                profile.snapshot();
+
+        assertEquals(
+                "enabled",
+                snapshot.get(
+                        "@module/render.watermark"));
+        assertEquals(
+                "disabled",
+                snapshot.get(
+                        "@module/render.fps"));
+
+        controller.disable(
+                "render.watermark");
+        controller.enable(
+                "render.fps");
+
+        profile.apply(
+                snapshot,
+                UnknownSettingPolicy.REJECT);
+
+        assertEquals(
+                ModuleState.ENABLED,
+                controller.stateOf(
+                        "render.watermark"));
+        assertEquals(
+                ModuleState.DISABLED,
+                controller.stateOf(
+                        "render.fps"));
+    }
+
+    @Test
+    void legacyProfileWithoutModuleEntriesLeavesCurrentStatesUntouched() {
+        final ModuleRegistry modules =
+                modules(
+                        "render.watermark");
+        final ModuleController controller =
+                new ModuleController(modules);
+        final SettingRegistry settings =
+                settings();
+        final ModuleKeybindAssignments assignments =
+                new ModuleKeybindAssignments(
+                        new ModuleKeybindRegistry(
+                                modules));
+        final LauncherProfileState profile =
+                new LauncherProfileState(
+                        settings,
+                        assignments,
+                        modules,
+                        controller);
+
+        controller.enable(
+                "render.watermark");
+
+        final Map<String, String> legacy =
+                new LinkedHashMap<String, String>();
+        legacy.put(
+                "combat.range",
+                "5");
+
+        profile.apply(
+                legacy,
+                UnknownSettingPolicy.REJECT);
+
+        assertEquals(
+                ModuleState.ENABLED,
+                controller.stateOf(
+                        "render.watermark"));
+    }
+
+    @Test
+    void unknownModuleStateFollowsUnknownPolicyBeforeMutation() {
+        final ModuleRegistry modules =
+                modules(
+                        "render.watermark");
+        final ModuleController controller =
+                new ModuleController(modules);
+        final SettingRegistry settings =
+                settings();
+        final ModuleKeybindAssignments assignments =
+                new ModuleKeybindAssignments(
+                        new ModuleKeybindRegistry(
+                                modules));
+        final LauncherProfileState profile =
+                new LauncherProfileState(
+                        settings,
+                        assignments,
+                        modules,
+                        controller);
+
+        @SuppressWarnings("unchecked")
+        final Setting<Integer> range =
+                (Setting<Integer>) settings.find(
+                        "combat.range");
+
+        final Map<String, String> values =
+                new LinkedHashMap<String, String>();
+        values.put(
+                "combat.range",
+                "6");
+        values.put(
+                "@module/missing",
+                "enabled");
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> profile.apply(
+                        values,
+                        UnknownSettingPolicy.REJECT));
+        assertEquals(
+                Integer.valueOf(3),
+                range.get());
+
+        profile.apply(
+                values,
+                UnknownSettingPolicy.IGNORE);
+        assertEquals(
+                Integer.valueOf(6),
+                range.get());
+        assertEquals(
+                ModuleState.DISABLED,
+                controller.stateOf(
+                        "render.watermark"));
+    }
+
+    @Test
+    void moduleEnableFailureRollsSettingsKeybindsAndStatesBack() {
+        final ModuleRegistry modules =
+                new ModuleRegistry();
+        modules.register(
+                new Module() {
+                    @Override
+                    public String id() {
+                        return "render.stable";
+                    }
+                });
+        modules.register(
+                new Module() {
+                    @Override
+                    public String id() {
+                        return "render.failing";
+                    }
+
+                    @Override
+                    public void onEnable() {
+                        throw new IllegalStateException(
+                                "boom");
+                    }
+                });
+        final ModuleController controller =
+                new ModuleController(modules);
+        final SettingRegistry settings =
+                settings();
+        final ModuleKeybindAssignments assignments =
+                new ModuleKeybindAssignments(
+                        new ModuleKeybindRegistry(
+                                modules));
+
+        assignments.bind(
+                "render.stable",
+                ModuleKeyChord.key(
+                        "legacy-key-37"));
+        controller.enable(
+                "render.stable");
+
+        final LauncherProfileState profile =
+                new LauncherProfileState(
+                        settings,
+                        assignments,
+                        modules,
+                        controller);
+
+        @SuppressWarnings("unchecked")
+        final Setting<Integer> range =
+                (Setting<Integer>) settings.find(
+                        "combat.range");
+
+        final Map<String, String> values =
+                new LinkedHashMap<String, String>();
+        values.put(
+                "combat.range",
+                "6");
+        values.put(
+                "@module/render.stable",
+                "disabled");
+        values.put(
+                "@module/render.failing",
+                "enabled");
+
+        assertThrows(
+                RuntimeException.class,
+                () -> profile.apply(
+                        values,
+                        UnknownSettingPolicy.REJECT));
+
+        assertEquals(
+                Integer.valueOf(3),
+                range.get());
+        assertEquals(
+                ModuleState.ENABLED,
+                controller.stateOf(
+                        "render.stable"));
+        assertEquals(
+                ModuleState.DISABLED,
+                controller.stateOf(
+                        "render.failing"));
+        assertEquals(
+                ModuleKeyChord.key(
+                        "legacy-key-37"),
+                assignments.binding(
+                        "render.stable")
+                        .chord());
+    }
+
+    @Test
+    void malformedModuleStateIsRejectedBeforeSettingMutation() {
+        final ModuleRegistry modules =
+                modules(
+                        "render.watermark");
+        final ModuleController controller =
+                new ModuleController(modules);
+        final SettingRegistry settings =
+                settings();
+        final ModuleKeybindAssignments assignments =
+                new ModuleKeybindAssignments(
+                        new ModuleKeybindRegistry(
+                                modules));
+        final LauncherProfileState profile =
+                new LauncherProfileState(
+                        settings,
+                        assignments,
+                        modules,
+                        controller);
+
+        @SuppressWarnings("unchecked")
+        final Setting<Integer> range =
+                (Setting<Integer>) settings.find(
+                        "combat.range");
+
+        final Map<String, String> values =
+                new LinkedHashMap<String, String>();
+        values.put(
+                "combat.range",
+                "6");
+        values.put(
+                "@module/render.watermark",
+                "maybe");
+
+        assertThrows(
+                ProfileFormatException.class,
+                () -> profile.apply(
+                        values,
+                        UnknownSettingPolicy.REJECT));
+
+        assertEquals(
+                Integer.valueOf(3),
+                range.get());
+        assertEquals(
+                ModuleState.DISABLED,
+                controller.stateOf(
+                        "render.watermark"));
     }
 
     @Test
@@ -199,6 +488,34 @@ final class LauncherProfileStateTest {
                 () -> new LauncherProfileState(
                         settings,
                         assignments)
+                        .snapshot());
+    }
+
+    @Test
+    void reservedModuleNamespaceCannotBeUsedByPersistentSetting() {
+        final SettingRegistry settings =
+                new SettingRegistry();
+        settings.register(
+                new Setting<String>(
+                        "@module/render.watermark",
+                        "x",
+                        value -> true,
+                        SettingCodecs.STRING));
+
+        final ModuleRegistry modules =
+                modules("render.watermark");
+        final ModuleKeybindAssignments assignments =
+                new ModuleKeybindAssignments(
+                        new ModuleKeybindRegistry(
+                                modules));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> new LauncherProfileState(
+                        settings,
+                        assignments,
+                        modules,
+                        new ModuleController(modules))
                         .snapshot());
     }
 
