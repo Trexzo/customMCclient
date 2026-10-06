@@ -139,3 +139,12 @@ The bundle fixes the concrete initializer to `dev.trexzo.custommc.platform.v1_8_
 The root `assembleRuntimeOverlay` Gradle task builds those four module jars and copies only those artifacts into `build/runtime-overlay` using the stable names above. `assembleRuntimeOverlay` is a Gradle `Sync` task, so its destination is reconciled to exactly those four stable jar names on every run; `verifyFoundation` depends on that assembly task.
 
 M67 also corrects the top-level verification gate to include `:platform-1.8.9:check`. Platform adapter tests are therefore explicitly part of the same Ubuntu + Windows authority gate as bootstrap, core, platform API and launcher tests.
+
+
+## Template-aware runtime overlay resolution
+
+M68 removes a launch-order mismatch between version metadata and the M67 runtime bundle. A runtime overlay may now be represented by `LaunchRuntimeOverlayResolver`, which receives the authoritative resolved `MinecraftLaunchTemplate` and returns the concrete overlay for that launch.
+
+Existing fixed `LaunchRuntimeOverlay` request constructors remain valid; they are wrapped as fixed resolvers and preserve their previous behavior. `Minecraft189RuntimeBundle` implements the resolver directly and derives the bootstrap target from `template.mainClass()`.
+
+`LaunchPreflight` now resolves the template first, passes that template to the overlay resolver, validates the resulting overlay entries, and only then stages natives/builds the JVM command. The launcher therefore no longer has to predict or separately re-resolve Mojang's main class merely to construct the CustomMC bootstrap overlay.
