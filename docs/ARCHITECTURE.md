@@ -23,10 +23,13 @@ Foundation state is explicit:
 
 - `ModuleRegistry` owns module identity.
 - `ModuleController` owns module lifecycle state and exposes failed transitions instead of hiding them.
+- `ModuleKeybindRegistry` owns optional module-to-key-chord associations; `ModuleKeybindController` translates bound presses into the existing lifecycle authority.
 - `ServiceRegistry` owns shared cross-module services by contract type.
 - `EventBus` returns explicit subscriptions that must be closed.
 - `PlatformContext` receives these owners rather than discovering global state.
 - each `GamePlatform` has an explicit attach/detach lifecycle.
+
+Module key chords are backend-neutral stable key ids plus Shift/Control/Alt flags. A module may own at most one active chord and a chord may target at most one module. Closing the registration releases only that association. Keybind presses never invoke module callbacks directly; they route through `ModuleController`, including the existing `FAILED -> disable` cleanup path.
 
 The permanent architecture must avoid:
 
@@ -50,3 +53,7 @@ Rendering is not implemented yet. The planned design is a staged renderer with c
 ## Minecraft acquisition
 
 The repository does not contain Mojang/Minecraft source or game binaries. The launcher resolves and verifies a legitimate installed runtime before launch.
+
+## Module input direction
+
+M48 establishes the core module-keybind authority without coupling it to ClickGUI or Minecraft input classes. The Minecraft 1.8.9 adapter can translate its existing key events into `ModuleKeyChord` values in a later routing milestone. Press/repeat/release policy stays at that adapter boundary; the core controller accepts a deliberate chord press and owns only bind lookup plus lifecycle routing.
