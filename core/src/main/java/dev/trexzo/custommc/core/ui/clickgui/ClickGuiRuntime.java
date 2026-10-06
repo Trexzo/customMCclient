@@ -3,6 +3,7 @@ package dev.trexzo.custommc.core.ui.clickgui;
 import dev.trexzo.custommc.core.module.ModuleCategoryRegistry;
 import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
+import dev.trexzo.custommc.core.module.ModuleKeybindAssignments;
 import dev.trexzo.custommc.core.module.ModuleKeybindRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
@@ -107,6 +108,7 @@ public final class ClickGuiRuntime
                 moduleCategories,
                 moduleSettings,
                 null,
+                null,
                 settings,
                 settingPresentations,
                 renderPipeline,
@@ -123,6 +125,38 @@ public final class ClickGuiRuntime
             final ModuleCategoryRegistry moduleCategories,
             final ModuleSettingRegistry moduleSettings,
             final ModuleKeybindRegistry moduleKeybinds,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations,
+            final RenderPipeline renderPipeline,
+            final ServiceRegistry services,
+            final UiViewportProvider viewportProvider,
+            final UiThemeProvider themeProvider,
+            final UiRenderer renderer) {
+        return install(
+                modules,
+                moduleController,
+                modulePresentations,
+                moduleCategories,
+                moduleSettings,
+                moduleKeybinds,
+                null,
+                settings,
+                settingPresentations,
+                renderPipeline,
+                services,
+                viewportProvider,
+                themeProvider,
+                renderer);
+    }
+
+    public static ClickGuiRuntime install(
+            final ModuleRegistry modules,
+            final ModuleController moduleController,
+            final ModulePresentationRegistry modulePresentations,
+            final ModuleCategoryRegistry moduleCategories,
+            final ModuleSettingRegistry moduleSettings,
+            final ModuleKeybindRegistry moduleKeybinds,
+            final ModuleKeybindAssignments moduleKeybindAssignments,
             final SettingRegistry settings,
             final SettingPresentationRegistry settingPresentations,
             final RenderPipeline renderPipeline,
@@ -173,6 +207,7 @@ public final class ClickGuiRuntime
                         modulePresentations,
                         moduleSettings,
                         moduleKeybinds,
+                        moduleKeybindAssignments,
                         settings,
                         settingPresentations);
         final ClickGuiInputController input =
