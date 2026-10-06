@@ -5,6 +5,7 @@ import dev.trexzo.custommc.core.module.ModuleKeybindAssignments;
 import dev.trexzo.custommc.core.module.ModuleKeybindRegistry;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
+import dev.trexzo.custommc.core.render.RenderPipeline;
 import dev.trexzo.custommc.core.service.ServiceRegistry;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
@@ -21,6 +22,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189ClickGuiRuntime clickGuiRuntime;
     private final Minecraft189ClickGuiToggleController clickGuiToggleController;
     private final ServiceRegistry.Registration clickGuiToggleRegistration;
+    private final Minecraft189FeatureCatalog featureCatalog;
     private final Minecraft189Hooks renderHooks;
     private final Minecraft189HostInputBridge inputBridge;
     private boolean closed;
@@ -30,12 +32,14 @@ public final class Minecraft189HostRuntime
             final Minecraft189ClickGuiRuntime clickGuiRuntime,
             final Minecraft189ClickGuiToggleController clickGuiToggleController,
             final ServiceRegistry.Registration clickGuiToggleRegistration,
+            final Minecraft189FeatureCatalog featureCatalog,
             final Minecraft189Hooks renderHooks,
             final Minecraft189HostInputBridge inputBridge) {
         this.platform = platform;
         this.clickGuiRuntime = clickGuiRuntime;
         this.clickGuiToggleController = clickGuiToggleController;
         this.clickGuiToggleRegistration = clickGuiToggleRegistration;
+        this.featureCatalog = featureCatalog;
         this.renderHooks = renderHooks;
         this.inputBridge = inputBridge;
     }
@@ -95,6 +99,7 @@ public final class Minecraft189HostRuntime
                         hostCallbacks);
 
         ServiceRegistry.Registration toggleRegistration = null;
+        Minecraft189FeatureCatalog featureCatalog = null;
         try {
             final ServiceRegistry services =
                     platform.requireContext()
@@ -108,16 +113,37 @@ public final class Minecraft189HostRuntime
                             Minecraft189ClickGuiToggleController.class,
                             toggleController);
 
+            featureCatalog =
+                    Minecraft189FeatureCatalog.install(
+                            platform.requireContext()
+                                    .modules(),
+                            platform.requireContext()
+                                    .moduleController(),
+                            modulePresentations,
+                            moduleCategories,
+                            services.require(
+                                    RenderPipeline.class),
+                            hostCallbacks);
+
             return new Minecraft189HostRuntime(
                     platform,
                     clickGuiRuntime,
                     toggleController,
                     toggleRegistration,
+                    featureCatalog,
                     new Minecraft189Hooks(platform),
                     new Minecraft189HostInputBridge(
                             platform,
                             hostCallbacks));
         } catch (RuntimeException failure) {
+            if (featureCatalog != null) {
+                try {
+                    featureCatalog.close();
+                } catch (RuntimeException cleanupFailure) {
+                    failure.addSuppressed(
+                            cleanupFailure);
+                }
+            }
             if (toggleRegistration != null) {
                 toggleRegistration.close();
             }
@@ -134,6 +160,11 @@ public final class Minecraft189HostRuntime
     public Minecraft189ClickGuiToggleController clickGuiToggleController() {
         requireOpen();
         return clickGuiToggleController;
+    }
+
+    public Minecraft189FeatureCatalog featureCatalog() {
+        requireOpen();
+        return featureCatalog;
     }
 
     public void publishTick(
@@ -237,8 +268,35 @@ public final class Minecraft189HostRuntime
             }
             closed = true;
         }
-        clickGuiToggleRegistration.close();
-        clickGuiRuntime.close();
+        RuntimeException failure = null;
+        try {
+            featureCatalog.close();
+        } catch (RuntimeException closeFailure) {
+            failure = closeFailure;
+        }
+        try {
+            clickGuiToggleRegistration.close();
+        } catch (RuntimeException closeFailure) {
+            if (failure == null) {
+                failure = closeFailure;
+            } else {
+                failure.addSuppressed(
+                        closeFailure);
+            }
+        }
+        try {
+            clickGuiRuntime.close();
+        } catch (RuntimeException closeFailure) {
+            if (failure == null) {
+                failure = closeFailure;
+            } else {
+                failure.addSuppressed(
+                        closeFailure);
+            }
+        }
+        if (failure != null) {
+            throw failure;
+        }
     }
 
     private synchronized void requireOpen() {
