@@ -1,6 +1,7 @@
 package dev.trexzo.custommc.launcher.preflight;
 
 import dev.trexzo.custommc.launcher.command.LaunchIdentity;
+import dev.trexzo.custommc.launcher.command.LaunchRuntimeOverlay;
 import dev.trexzo.custommc.launcher.java.JavaRuntime;
 import dev.trexzo.custommc.launcher.runtime.MinecraftInstallation;
 import dev.trexzo.custommc.launcher.runtime.RuntimeTarget;
@@ -17,6 +18,7 @@ public final class LaunchPreflightRequest {
     private final Path nativeStagingParent;
     private final int minimumMemoryMb;
     private final int maximumMemoryMb;
+    private final LaunchRuntimeOverlay runtimeOverlay;
 
     public LaunchPreflightRequest(
             final MinecraftInstallation installation,
@@ -27,6 +29,28 @@ public final class LaunchPreflightRequest {
             final Path nativeStagingParent,
             final int minimumMemoryMb,
             final int maximumMemoryMb) {
+        this(
+                installation,
+                runtimeTarget,
+                javaRuntime,
+                identity,
+                gameDirectory,
+                nativeStagingParent,
+                minimumMemoryMb,
+                maximumMemoryMb,
+                LaunchRuntimeOverlay.none());
+    }
+
+    public LaunchPreflightRequest(
+            final MinecraftInstallation installation,
+            final RuntimeTarget runtimeTarget,
+            final JavaRuntime javaRuntime,
+            final LaunchIdentity identity,
+            final Path gameDirectory,
+            final Path nativeStagingParent,
+            final int minimumMemoryMb,
+            final int maximumMemoryMb,
+            final LaunchRuntimeOverlay runtimeOverlay) {
         this.installation = Objects.requireNonNull(
                 installation,
                 "installation");
@@ -45,6 +69,9 @@ public final class LaunchPreflightRequest {
         this.nativeStagingParent = normalize(
                 nativeStagingParent,
                 "nativeStagingParent");
+        this.runtimeOverlay = Objects.requireNonNull(
+                runtimeOverlay,
+                "runtimeOverlay");
 
         if (minimumMemoryMb <= 0) {
             throw new IllegalArgumentException(
@@ -89,6 +116,10 @@ public final class LaunchPreflightRequest {
 
     public int maximumMemoryMb() {
         return maximumMemoryMb;
+    }
+
+    public LaunchRuntimeOverlay runtimeOverlay() {
+        return runtimeOverlay;
     }
 
     private static Path normalize(
