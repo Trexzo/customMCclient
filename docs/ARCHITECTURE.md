@@ -559,3 +559,13 @@ The existing `EntityLivingBase` shape gate now requires this exact method alongs
 
 Regression coverage pins the `zx` class and exact equipment method owner/name/descriptor and rejects an `EntityLivingBase` shape that omits the method. This milestone deliberately stops before transformation or HUD registration.
 
+## Live Armor HUD
+
+M107 consumes the independently certified M106 equipment-slot authority without allowing any `ItemStack` instance to cross the child-loader boundary. Transformed `EntityLivingBase` now implements `Minecraft189PlayerArmorAccess` alongside the existing health contract. Four generated boolean accessors call exact mapped `pr.p(I)Lzx;` with vanilla armor slots `1..4` and reduce each result to present/absent inside transformed code.
+
+Immediately before each normal return from mapped `Minecraft.runTick()`, the mapped player is forwarded through `Minecraft189RuntimeBridge.playerArmor(...)`. `Minecraft189HostRuntime` collapses boots, leggings, chestplate and helmet occupancy into a host-owned four-bit `Minecraft189PlayerArmorState`; null player and host teardown clear availability.
+
+The new Visuals module `render.armor` / **Armor** renders a compact slot summary such as `Armor: 3/4 [H C - B]`, preserving slot identity rather than only reporting an aggregate count. Persistent X/Y settings participate in the existing settings, presentation, profile and module-binding paths.
+
+Executable regression coverage loads synthetic `zx`, transformed `pk`, transformed `pr extends pk`, synthetic `bew extends pr`, and transformed `ave.runTick()`. A mixed slot array with boots/chestplate/helmet occupied and leggings empty must produce exact mask `13`, count `3`, and then clear on null player. Separate HUD coverage proves text, configured position, persistent settings and complete feature teardown.
+
