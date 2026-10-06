@@ -273,6 +273,30 @@ final class Minecraft189MappingsTest {
                 memberFailure.getMessage());
     }
 
+    @Test
+    void entityShapeGateRejectsMissingPositionField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_X);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Y);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntity(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: pk.u D (posZ)",
+                failure.getMessage());
+    }
+
     private static byte[] minecraftShape() {
         final ClassWriter writer =
                 writer(
