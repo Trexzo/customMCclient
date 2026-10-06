@@ -56,4 +56,6 @@ The repository does not contain Mojang/Minecraft source or game binaries. The la
 
 ## Module input direction
 
-M48 establishes the core module-keybind authority without coupling it to ClickGUI or Minecraft input classes. The Minecraft 1.8.9 adapter can translate its existing key events into `ModuleKeyChord` values in a later routing milestone. Press/repeat/release policy stays at that adapter boundary; the core controller accepts a deliberate chord press and owns only bind lookup plus lifecycle routing.
+M48 establishes the core module-keybind authority without coupling it to ClickGUI or Minecraft input classes. The core controller accepts a deliberate chord press and owns only bind lookup plus lifecycle routing.
+
+M49 adds `Minecraft189ModuleKeybindRuntime`, which publishes one `ModuleKeybindController` through the attached platform `ServiceRegistry` with an explicit managed lifetime. `Minecraft189InputHooks.key(...)` gives an installed ClickGUI first chance to consume the translated event, suppresses module binds while that ClickGUI model is open, ignores repeat/release for module activation, then translates the remaining press into a `ModuleKeyChord` using the existing backend-neutral key id and modifier flags. Keybind routing therefore works even when ClickGUI is not installed, and runtime teardown removes only the keybind service.
