@@ -569,3 +569,15 @@ The new Visuals module `render.armor` / **Armor** renders a compact slot summary
 
 Executable regression coverage loads synthetic `zx`, transformed `pk`, transformed `pr extends pk`, synthetic `bew extends pr`, and transformed `ave.runTick()`. A mixed slot array with boots/chestplate/helmet occupied and leggings empty must produce exact mask `13`, count `3`, and then clear on null player. Separate HUD coverage proves text, configured position, persistent settings and complete feature teardown.
 
+## Hunger mapping authority
+
+M108 extends the pinned Minecraft 1.8.9 gameplay-state surface with exact hunger authority. Base `EntityPlayer` is obfuscated class `wn`, `FoodStats` is obfuscated class `xg`, and the exact methods are:
+
+- `wn.cl()Lxg;` / Searge `func_71024_bL` / `getFoodStats()`;
+- `xg.a()I` / Searge `func_75116_a` / `getFoodLevel()`;
+- `xg.e()F` / Searge `func_75115_e` / `getSaturationLevel()`.
+
+Dedicated `EntityPlayer` and `FoodStats` shape gates require those exact methods before a future consumer may transform or read hunger state. Regression coverage pins both classes, all three methods, accepts exact synthetic shapes, and rejects missing player-food or saturation methods.
+
+This milestone is authority-only. It does not yet transform `wn` or `xg`, publish hunger state, or register a HUD.
+

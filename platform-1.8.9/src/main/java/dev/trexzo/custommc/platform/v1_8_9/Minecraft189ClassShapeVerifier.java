@@ -110,6 +110,29 @@ public final class Minecraft189ClassShapeVerifier {
                 });
     }
 
+    public static void verifyEntityPlayer(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.ENTITY_PLAYER,
+                new Minecraft189Mappings.MappedField[0],
+                new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS
+                });
+    }
+
+    public static void verifyFoodStats(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.FOOD_STATS,
+                new Minecraft189Mappings.MappedField[0],
+                new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.FOOD_STATS_GET_FOOD_LEVEL,
+                        Minecraft189Mappings.FOOD_STATS_GET_SATURATION_LEVEL
+                });
+    }
+
     public static void verifyEntityRenderer(
             final byte[] classBytes) {
         verify(

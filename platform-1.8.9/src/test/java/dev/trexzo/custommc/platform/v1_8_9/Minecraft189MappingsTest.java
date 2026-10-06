@@ -61,6 +61,10 @@ final class Minecraft189MappingsTest {
                 "bew",
                 "net/minecraft/client/entity/EntityPlayerSP");
         assertClass(
+                Minecraft189Mappings.ENTITY_PLAYER,
+                "wn",
+                "net/minecraft/entity/player/EntityPlayer");
+        assertClass(
                 Minecraft189Mappings.ENTITY,
                 "pk",
                 "net/minecraft/entity/Entity");
@@ -72,6 +76,10 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.ITEM_STACK,
                 "zx",
                 "net/minecraft/item/ItemStack");
+        assertClass(
+                Minecraft189Mappings.FOOD_STATS,
+                "xg",
+                "net/minecraft/util/FoodStats");
     }
 
     @Test
@@ -274,6 +282,27 @@ final class Minecraft189MappingsTest {
                 "(I)Lzx;",
                 "func_71124_b",
                 "getEquipmentInSlot");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS,
+                Minecraft189Mappings.ENTITY_PLAYER,
+                "cl",
+                "()Lxg;",
+                "func_71024_bL",
+                "getFoodStats");
+        assertMethod(
+                Minecraft189Mappings.FOOD_STATS_GET_FOOD_LEVEL,
+                Minecraft189Mappings.FOOD_STATS,
+                "a",
+                "()I",
+                "func_75116_a",
+                "getFoodLevel");
+        assertMethod(
+                Minecraft189Mappings.FOOD_STATS_GET_SATURATION_LEVEL,
+                Minecraft189Mappings.FOOD_STATS,
+                "e",
+                "()F",
+                "func_75115_e",
+                "getSaturationLevel");
     }
 
     @Test
@@ -294,6 +323,10 @@ final class Minecraft189MappingsTest {
                 entityShape());
         Minecraft189ClassShapeVerifier.verifyEntityLivingBase(
                 entityLivingBaseShape());
+        Minecraft189ClassShapeVerifier.verifyEntityPlayer(
+                entityPlayerShape());
+        Minecraft189ClassShapeVerifier.verifyFoodStats(
+                foodStatsShape());
     }
 
     @Test
@@ -639,6 +672,65 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT);
+        return finish(writer);
+    }
+
+    @Test
+    void entityPlayerShapeGateRejectsMissingFoodStatsMethod() {
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntityPlayer(
+                                        emptyClass("wn")));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: wn.cl()Lxg; (getFoodStats)",
+                failure.getMessage());
+    }
+
+    @Test
+    void foodStatsShapeGateRejectsMissingSaturationMethod() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.FOOD_STATS
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.FOOD_STATS_GET_FOOD_LEVEL);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyFoodStats(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: xg.e()F (getSaturationLevel)",
+                failure.getMessage());
+    }
+
+    private static byte[] entityPlayerShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY_PLAYER
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS);
+        return finish(writer);
+    }
+
+    private static byte[] foodStatsShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.FOOD_STATS
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.FOOD_STATS_GET_FOOD_LEVEL);
+        addMethod(
+                writer,
+                Minecraft189Mappings.FOOD_STATS_GET_SATURATION_LEVEL);
         return finish(writer);
     }
 
