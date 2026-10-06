@@ -51,6 +51,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189DirectionFeature directionFeature;
     private final Minecraft189HealthFeature healthFeature;
     private final Minecraft189ArmorFeature armorFeature;
+    private final Minecraft189HungerFeature hungerFeature;
     private final Minecraft189SpeedFeature speedFeature;
     private final Minecraft189CrosshairFeature crosshairFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
@@ -86,6 +87,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189DirectionFeature directionFeature,
             final Minecraft189HealthFeature healthFeature,
             final Minecraft189ArmorFeature armorFeature,
+            final Minecraft189HungerFeature hungerFeature,
             final Minecraft189SpeedFeature speedFeature,
             final Minecraft189CrosshairFeature crosshairFeature) {
         this.modules = modules;
@@ -115,6 +117,7 @@ public final class Minecraft189FeatureCatalog
         this.directionFeature = directionFeature;
         this.healthFeature = healthFeature;
         this.armorFeature = armorFeature;
+        this.hungerFeature = hungerFeature;
         this.speedFeature = speedFeature;
         this.crosshairFeature = crosshairFeature;
     }
@@ -134,6 +137,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189PlayerRotationState playerRotationState,
             final Minecraft189PlayerHealthState playerHealthState,
             final Minecraft189PlayerArmorState playerArmorState,
+            final Minecraft189PlayerHungerState playerHungerState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
@@ -151,6 +155,7 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(playerRotationState, "playerRotationState");
         Objects.requireNonNull(playerHealthState, "playerHealthState");
         Objects.requireNonNull(playerArmorState, "playerArmorState");
+        Objects.requireNonNull(playerHungerState, "playerHungerState");
         Objects.requireNonNull(movementSpeedTracker, "movementSpeedTracker");
         Objects.requireNonNull(renderPipeline, "renderPipeline");
         Objects.requireNonNull(hostCallbacks, "hostCallbacks");
@@ -175,6 +180,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189DirectionFeature directionFeature = null;
         Minecraft189HealthFeature healthFeature = null;
         Minecraft189ArmorFeature armorFeature = null;
+        Minecraft189HungerFeature hungerFeature = null;
         Minecraft189SpeedFeature speedFeature = null;
         Minecraft189CrosshairFeature crosshairFeature = null;
 
@@ -355,6 +361,18 @@ public final class Minecraft189FeatureCatalog
                             renderPipeline,
                             hostCallbacks);
 
+            hungerFeature =
+                    Minecraft189HungerFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            playerHungerState,
+                            renderPipeline,
+                            hostCallbacks);
+
             speedFeature =
                     Minecraft189SpeedFeature.install(
                             modules,
@@ -406,11 +424,13 @@ public final class Minecraft189FeatureCatalog
                     directionFeature,
                     healthFeature,
                     armorFeature,
+                    hungerFeature,
                     speedFeature,
                     crosshairFeature);
         } catch (RuntimeException failure) {
             closeQuietly(crosshairFeature, failure);
             closeQuietly(speedFeature, failure);
+            closeQuietly(hungerFeature, failure);
             closeQuietly(armorFeature, failure);
             closeQuietly(healthFeature, failure);
             closeQuietly(directionFeature, failure);
@@ -478,6 +498,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189ArmorModule armor() {
         requireOpen();
         return armorFeature.module();
+    }
+
+    public Minecraft189HungerModule hunger() {
+        requireOpen();
+        return hungerFeature.module();
     }
 
     public Minecraft189SpeedModule speed() {
@@ -633,6 +658,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             speedFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            hungerFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,
