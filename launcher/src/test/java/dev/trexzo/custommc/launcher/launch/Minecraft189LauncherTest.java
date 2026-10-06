@@ -77,9 +77,11 @@ final class Minecraft189LauncherTest {
                         .classpathPrefix());
         assertEquals(
                 bundle.resolve(template)
-                        .mainClassOverride(),
+                        .mainClass(
+                                template.mainClass()),
                 preflight.resolveRuntimeOverlay(template)
-                        .mainClassOverride());
+                        .mainClass(
+                                template.mainClass()));
     }
 
     @Test
