@@ -23,6 +23,10 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "ave",
                     "net/minecraft/client/Minecraft");
+    public static final MappedClass KEY_BINDING =
+            new MappedClass(
+                    "avb",
+                    "net/minecraft/client/settings/KeyBinding");
     public static final MappedClass GAME_SETTINGS =
             new MappedClass(
                     "avh",
@@ -132,6 +136,13 @@ public final class Minecraft189Mappings {
                     "()V",
                     "func_152348_aa",
                     "dispatchKeypresses");
+    public static final MappedMethod KEY_BINDING_SET_KEY_BIND_STATE =
+            new MappedMethod(
+                    KEY_BINDING,
+                    "a",
+                    "(IZ)V",
+                    "func_74510_a",
+                    "setKeyBindState");
     public static final MappedMethod FONT_RENDERER_DRAW_STRING =
             new MappedMethod(
                     FONT_RENDERER,
