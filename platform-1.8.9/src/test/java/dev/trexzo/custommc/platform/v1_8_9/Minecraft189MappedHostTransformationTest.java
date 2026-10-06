@@ -211,6 +211,9 @@ final class Minecraft189MappedHostTransformationTest {
                         "avn",
                         fontRendererShape()));
         loader.put(
+                "bew",
+                emptyClass("bew"));
+        loader.put(
                 "bfk",
                 transformer.transform(
                         "bfk",
