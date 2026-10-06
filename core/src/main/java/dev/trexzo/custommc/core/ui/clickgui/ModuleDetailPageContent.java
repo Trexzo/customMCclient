@@ -3,6 +3,8 @@ package dev.trexzo.custommc.core.ui.clickgui;
 import dev.trexzo.custommc.core.module.Module;
 import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModuleDescriptor;
+import dev.trexzo.custommc.core.module.ModuleKeybind;
+import dev.trexzo.custommc.core.module.ModuleKeybindRegistry;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleSettingBinding;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
@@ -37,6 +39,7 @@ public final class ModuleDetailPageContent
     private final ModuleController controller;
     private final ModulePresentationRegistry modulePresentations;
     private final ModuleSettingRegistry moduleSettings;
+    private final ModuleKeybindRegistry moduleKeybinds;
     private final SettingRegistry settings;
     private final SettingPresentationRegistry settingPresentations;
     private final SettingEditorController editor =
@@ -51,6 +54,24 @@ public final class ModuleDetailPageContent
             final ModuleSettingRegistry moduleSettings,
             final SettingRegistry settings,
             final SettingPresentationRegistry settingPresentations) {
+        this(
+                selection,
+                controller,
+                modulePresentations,
+                moduleSettings,
+                null,
+                settings,
+                settingPresentations);
+    }
+
+    public ModuleDetailPageContent(
+            final ModuleSelectionModel selection,
+            final ModuleController controller,
+            final ModulePresentationRegistry modulePresentations,
+            final ModuleSettingRegistry moduleSettings,
+            final ModuleKeybindRegistry moduleKeybinds,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations) {
         this.selection = Objects.requireNonNull(
                 selection,
                 "selection");
@@ -63,6 +84,7 @@ public final class ModuleDetailPageContent
         this.moduleSettings = Objects.requireNonNull(
                 moduleSettings,
                 "moduleSettings");
+        this.moduleKeybinds = moduleKeybinds;
         this.settings = Objects.requireNonNull(
                 settings,
                 "settings");
@@ -147,6 +169,23 @@ public final class ModuleDetailPageContent
                             bounds.y() + PADDING + 22.0F - scrollOffset,
                             UiFonts.DEFAULT,
                             moduleDescriptor.description(),
+                            theme.color(
+                                    UiColorRole.TEXT_MUTED)));
+        }
+
+        if (moduleKeybinds != null) {
+            final ModuleKeybind binding =
+                    moduleKeybinds.findByModule(
+                            moduleId);
+            commands.add(
+                    new UiTextCommand(
+                            0,
+                            bounds.x() + PADDING,
+                            bounds.y() + PADDING + 44.0F - scrollOffset,
+                            UiFonts.DEFAULT,
+                            binding == null
+                                    ? "Bind: Unbound"
+                                    : "Bind: " + binding.chord(),
                             theme.color(
                                     UiColorRole.TEXT_MUTED)));
         }
