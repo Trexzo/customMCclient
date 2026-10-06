@@ -498,3 +498,19 @@ M100 pins `GameSettings.viewBobbing` to exact obfuscated field `avh.d` (`field_7
 The canonical live host binding installs **No Bobbing** through the existing Visuals feature catalog. Enabling captures the user's exact current view-bobbing preference and writes `false`. Disabling restores the captured value exactly. Re-enabling captures the then-current preference again, so a user who normally keeps bobbing disabled is restored to disabled rather than forced on.
 
 Feature/catalog shutdown disables No Bobbing before removing its module registration, guaranteeing restoration if the client closes while the module is active. Executable regressions prove transformed `avh.d` access, canonical host installation, `true -> false -> true` live behavior, preservation of an originally-false preference, explicit mapping-drift rejection, and teardown restoration.
+
+
+## Custom Crosshair
+
+M101 adds **Custom Crosshair** as another independently owned Visuals module while preserving the concurrent M100 No Bobbing lane unchanged. It renders through the certified HUD geometry path at the logical viewport center, so GUI scaling is handled by the existing viewport authority rather than hard-coded framebuffer coordinates.
+
+The module owns four persistent settings through the existing generic settings/ClickGUI path:
+
+- `render.crosshair.length` — arm length, `1..20`, default `4`;
+- `render.crosshair.gap` — center gap, `0..12`, default `2`;
+- `render.crosshair.thickness` — arm thickness, `1..6`, default `1`;
+- `render.crosshair.dot` — optional center dot, default `false`.
+
+While enabled, the HUD pass draws four centered rectangles and optionally one center rectangle. Disabling removes the pass immediately; feature teardown removes the module, presentation, all four settings, setting presentations and module-setting bindings.
+
+Regression coverage uses a 1280x720 framebuffer at UI scale 2 and proves the exact logical geometry for configured length 6, gap 3, thickness 2 and center dot enabled, plus persisted setting encoding and complete teardown removal.
