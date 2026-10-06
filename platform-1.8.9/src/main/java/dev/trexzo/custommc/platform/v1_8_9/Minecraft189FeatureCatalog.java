@@ -38,6 +38,7 @@ public final class Minecraft189FeatureCatalog
     private final ModuleSettingRegistry.Registration textBinding;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final Minecraft189ArrayListFeature arrayListFeature;
     private boolean closed;
 
     private Minecraft189FeatureCatalog(
@@ -54,7 +55,8 @@ public final class Minecraft189FeatureCatalog
             final SettingPresentationRegistry.Registration yPresentation,
             final ModuleSettingRegistry.Registration textBinding,
             final ModuleSettingRegistry.Registration xBinding,
-            final ModuleSettingRegistry.Registration yBinding) {
+            final ModuleSettingRegistry.Registration yBinding,
+            final Minecraft189ArrayListFeature arrayListFeature) {
         this.moduleController = moduleController;
         this.watermark = watermark;
         this.watermarkRegistration = watermarkRegistration;
@@ -69,6 +71,7 @@ public final class Minecraft189FeatureCatalog
         this.textBinding = textBinding;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.arrayListFeature = arrayListFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -103,6 +106,7 @@ public final class Minecraft189FeatureCatalog
         ModuleSettingRegistry.Registration textBinding = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        Minecraft189ArrayListFeature arrayListFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -186,6 +190,17 @@ public final class Minecraft189FeatureCatalog
                                     Minecraft189WatermarkModule.Y_SETTING_ID,
                                     20));
 
+            arrayListFeature =
+                    Minecraft189ArrayListFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            renderPipeline,
+                            hostCallbacks);
+
             return new Minecraft189FeatureCatalog(
                     moduleController,
                     watermark,
@@ -200,8 +215,10 @@ public final class Minecraft189FeatureCatalog
                     yPresentation,
                     textBinding,
                     xBinding,
-                    yBinding);
+                    yBinding,
+                    arrayListFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(arrayListFeature, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
             closeQuietly(textBinding, failure);
@@ -223,6 +240,11 @@ public final class Minecraft189FeatureCatalog
         return watermark;
     }
 
+    public Minecraft189ArrayListModule arrayList() {
+        requireOpen();
+        return arrayListFeature.module();
+    }
+
     public synchronized boolean closed() {
         return closed;
     }
@@ -237,6 +259,12 @@ public final class Minecraft189FeatureCatalog
         }
 
         RuntimeException failure = null;
+        try {
+            arrayListFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = closeFailure;
+        }
+
         try {
             if (moduleController.stateOf(
                     Minecraft189WatermarkModule.ID)
