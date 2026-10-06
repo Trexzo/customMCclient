@@ -91,7 +91,8 @@ public final class Minecraft189ClassShapeVerifier {
                 new Minecraft189Mappings.MappedField[]{
                         Minecraft189Mappings.ENTITY_POS_X,
                         Minecraft189Mappings.ENTITY_POS_Y,
-                        Minecraft189Mappings.ENTITY_POS_Z
+                        Minecraft189Mappings.ENTITY_POS_Z,
+                        Minecraft189Mappings.ENTITY_ROTATION_YAW
                 },
                 new Minecraft189Mappings.MappedMethod[0]);
     }
