@@ -181,6 +181,11 @@ final class LegacyUiGeometryFactoryTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new LegacyUiGeometryFactory(0));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new LegacyUiGeometryFactory(
+                        LegacyUiGeometryFactory.MAX_CORNER_SEGMENTS
+                                + 1));
 
         final LegacyUiGeometryFactory factory =
                 new LegacyUiGeometryFactory();
@@ -213,7 +218,19 @@ final class LegacyUiGeometryFactoryTest {
                         LegacyUiPrimitiveMode.QUADS,
                         new float[] {
                                 Float.NaN,
-                                1.0F
+                                1.0F,
+                                2.0F, 3.0F,
+                                4.0F, 5.0F,
+                                6.0F, 7.0F
+                        }));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new LegacyUiGeometry(
+                        LegacyUiPrimitiveMode.QUADS,
+                        new float[] {
+                                0.0F, 0.0F,
+                                1.0F, 0.0F,
+                                1.0F, 1.0F
                         }));
     }
 
