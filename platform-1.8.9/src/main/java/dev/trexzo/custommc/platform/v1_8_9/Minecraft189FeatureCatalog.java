@@ -51,6 +51,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189SpeedFeature speedFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
     private Minecraft189FovFeature fovFeature;
+    private Minecraft189NoBobbingFeature noBobbingFeature;
     private boolean closed;
 
     private Minecraft189FeatureCatalog(
@@ -437,6 +438,34 @@ public final class Minecraft189FeatureCatalog
         return fovFeature.module();
     }
 
+    public synchronized Minecraft189NoBobbingModule installNoBobbing(
+            final dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189GuiSettingsAccess gameSettings) {
+        requireOpen();
+        if (noBobbingFeature != null) {
+            throw new IllegalStateException(
+                    "no-bobbing feature already installed");
+        }
+
+        noBobbingFeature =
+                Minecraft189NoBobbingFeature.install(
+                        modules,
+                        moduleController,
+                        modulePresentations,
+                        java.util.Objects.requireNonNull(
+                                gameSettings,
+                                "gameSettings"));
+        return noBobbingFeature.module();
+    }
+
+    public synchronized Minecraft189NoBobbingModule noBobbing() {
+        requireOpen();
+        if (noBobbingFeature == null) {
+            throw new IllegalStateException(
+                    "no-bobbing feature is not installed");
+        }
+        return noBobbingFeature.module();
+    }
+
     public synchronized Minecraft189FovModule fovChanger() {
         requireOpen();
         if (fovFeature == null) {
@@ -469,11 +498,21 @@ public final class Minecraft189FeatureCatalog
         }
 
         RuntimeException failure = null;
+        if (noBobbingFeature != null) {
+            try {
+                noBobbingFeature.close();
+            } catch (RuntimeException closeFailure) {
+                failure = closeFailure;
+            }
+        }
+
         if (fovFeature != null) {
             try {
                 fovFeature.close();
             } catch (RuntimeException closeFailure) {
-                failure = closeFailure;
+                failure = append(
+                        failure,
+                        closeFailure);
             }
         }
 
