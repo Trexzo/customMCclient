@@ -161,12 +161,15 @@ final class LaunchPreflightTest {
                 runtimeDirectory.resolve("core.jar");
         final Path platformApi =
                 runtimeDirectory.resolve("platform-api.jar");
+        final Path asm =
+                runtimeDirectory.resolve("asm.jar");
         final Path platform189 =
                 runtimeDirectory.resolve("platform-1.8.9.jar");
         Files.write(bootstrap, new byte[] {1});
         Files.write(core, new byte[] {2});
         Files.write(platformApi, new byte[] {3});
-        Files.write(platform189, new byte[] {4});
+        Files.write(asm, new byte[] {4});
+        Files.write(platform189, new byte[] {5});
 
         final Minecraft189RuntimeBundle bundle =
                 Minecraft189RuntimeBundle.fromDirectory(
@@ -212,6 +215,10 @@ final class LaunchPreflightTest {
                             .toString()
                             + ":"
                             + platformApi.toAbsolutePath()
+                            .normalize()
+                            .toString()
+                            + ":"
+                            + asm.toAbsolutePath()
                             .normalize()
                             .toString()
                             + ":"
