@@ -192,6 +192,10 @@ final class Minecraft189MappedHostTransformationTest {
                 1,
                 keyboardForwardCalls(
                         transformedMinecraft));
+        assertEquals(
+                1,
+                wheelForwardCalls(
+                        transformedMinecraft));
 
         final ByteMapClassLoader loader =
                 new ByteMapClassLoader(
@@ -655,6 +659,53 @@ final class Minecraft189MappedHostTransformationTest {
         return writer.toByteArray();
     }
 
+    private static int wheelForwardCalls(
+            final byte[] bytes) {
+        final int[] calls =
+                new int[]{0};
+        new ClassReader(bytes)
+                .accept(
+                        new ClassVisitor(
+                                Opcodes.ASM9) {
+                            @Override
+                            public MethodVisitor visitMethod(
+                                    final int access,
+                                    final String name,
+                                    final String descriptor,
+                                    final String signature,
+                                    final String[] exceptions) {
+                                if (!"s".equals(name)
+                                        || !"()V".equals(
+                                        descriptor)) {
+                                    return null;
+                                }
+                                return new MethodVisitor(
+                                        Opcodes.ASM9) {
+                                    @Override
+                                    public void visitMethodInsn(
+                                            final int opcode,
+                                            final String owner,
+                                            final String methodName,
+                                            final String methodDescriptor,
+                                            final boolean isInterface) {
+                                        if (opcode
+                                                == Opcodes.INVOKESTATIC
+                                                && MOUSE_BINDING.equals(
+                                                owner)
+                                                && "forwardWheelDelta"
+                                                .equals(methodName)
+                                                && "(I)V".equals(
+                                                methodDescriptor)) {
+                                            calls[0]++;
+                                        }
+                                    }
+                                };
+                            }
+                        },
+                        0);
+        return calls[0];
+    }
+
     private static byte[] gameSettingsShape() {
         final ClassWriter writer =
                 classWriter("avh");
@@ -716,7 +767,7 @@ final class Minecraft189MappedHostTransformationTest {
         getMinecraft.visitEnd();
 
         voidMethod(writer, "am");
-        voidMethod(writer, "s");
+        runTickMethod(writer);
         voidMethod(writer, "aw");
         voidMethod(writer, "ax");
         voidMethod(writer, "az");
@@ -851,6 +902,47 @@ final class Minecraft189MappedHostTransformationTest {
                 Opcodes.RETURN);
         constructor.visitMaxs(1, 1);
         constructor.visitEnd();
+    }
+
+    private static void runTickMethod(
+            final ClassWriter writer) {
+        final MethodVisitor method =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "s",
+                        "()V",
+                        null,
+                        null);
+        method.visitCode();
+        final org.objectweb.asm.Label skipWheel =
+                new org.objectweb.asm.Label();
+        method.visitInsn(
+                Opcodes.ICONST_0);
+        method.visitJumpInsn(
+                Opcodes.IFEQ,
+                skipWheel);
+        method.visitMethodInsn(
+                Opcodes.INVOKESTATIC,
+                "org/lwjgl/input/Mouse",
+                "getEventDWheel",
+                "()I",
+                false);
+        method.visitInsn(
+                Opcodes.POP);
+        method.visitLabel(
+                skipWheel);
+        method.visitFrame(
+                Opcodes.F_SAME,
+                0,
+                null,
+                0,
+                null);
+        method.visitInsn(
+                Opcodes.RETURN);
+        method.visitMaxs(
+                1,
+                1);
+        method.visitEnd();
     }
 
     private static void voidMethod(

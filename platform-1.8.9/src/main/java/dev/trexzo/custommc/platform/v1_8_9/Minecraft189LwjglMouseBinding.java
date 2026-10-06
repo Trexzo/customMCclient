@@ -11,6 +11,32 @@ public final class Minecraft189LwjglMouseBinding {
     private Minecraft189LwjglMouseBinding() {
     }
 
+    public static void forwardWheelDelta(
+            final int wheelDelta) {
+        forwardWheelDelta(
+                wheelDelta,
+                LwjglMousePositionSource.INSTANCE);
+    }
+
+    static boolean forwardWheelDelta(
+            final int wheelDelta,
+            final MousePositionSource source) {
+        if (wheelDelta == 0) {
+            return false;
+        }
+
+        final MousePositionSource positionSource =
+                Objects.requireNonNull(
+                        source,
+                        "source");
+
+        return Minecraft189RuntimeBridge
+                .scroll(
+                        positionSource.x(),
+                        positionSource.yFromBottom(),
+                        wheelDelta);
+    }
+
     public static void forwardKeyBindingState(
             final int keyCode,
             final boolean pressed) {

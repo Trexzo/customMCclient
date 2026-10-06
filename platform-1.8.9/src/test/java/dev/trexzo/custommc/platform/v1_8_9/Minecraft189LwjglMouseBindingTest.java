@@ -86,6 +86,68 @@ final class Minecraft189LwjglMouseBindingTest {
     }
 
     @Test
+    void wheelDeltaRoutesAtLiveCursorWithoutConsumingVanillaValue() {
+        final Minecraft189BootstrapRuntime runtime =
+                Minecraft189BootstrapRuntime.create(
+                        new BootstrapContext(
+                                Minecraft189ClassTransformer
+                                        .TARGET_MAIN_CLASS,
+                                new String[0]));
+        try {
+            runtime.installHost(
+                    new NoOpHostCallbacks());
+
+            final ClickGuiModel model =
+                    runtime.services()
+                            .require(
+                                    ClickGuiModel.class);
+            model.open();
+
+            final UiViewport viewport =
+                    new UiViewport(
+                            1200,
+                            800,
+                            1.0F);
+            final ClickGuiLayout layout =
+                    new ClickGuiLayoutEngine()
+                            .layout(viewport);
+            final int pixelX =
+                    Math.round(
+                            layout.navigation().x()
+                                    + 2.0F);
+            final int logicalY =
+                    Math.round(
+                            layout.navigation().y()
+                                    + 2.0F);
+            final int pixelYFromBottom =
+                    viewport.pixelHeight()
+                            - 1
+                            - logicalY;
+
+            assertTrue(
+                    Minecraft189LwjglMouseBinding
+                            .forwardWheelDelta(
+                                    -120,
+                                    new FixedMousePosition(
+                                            pixelX,
+                                            pixelYFromBottom)));
+
+            final CountingMousePosition zero =
+                    new CountingMousePosition();
+            assertFalse(
+                    Minecraft189LwjglMouseBinding
+                            .forwardWheelDelta(
+                                    0,
+                                    zero));
+            assertEquals(
+                    0,
+                    zero.reads);
+        } finally {
+            runtime.close();
+        }
+    }
+
+    @Test
     void keyboardAndUnsupportedMouseCodesDoNotReadCursorState() {
         final CountingMousePosition source =
                 new CountingMousePosition();

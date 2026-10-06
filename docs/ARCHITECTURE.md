@@ -330,3 +330,14 @@ Vanilla Minecraft calls this method for every raw mouse button transition using 
 As with M84 keyboard forwarding, M85 does not advance `Mouse.next()` and does not suppress the original `KeyBinding.setKeyBindState` body. Regression coverage proves a raw left press can focus the retained ClickGUI search field and then accept keyboard text, while release is forwarded but not consumed by the current press-only UI controller. Separate transformed-bytecode coverage executes the child-defined `avb.a(IZ)V` method and proves the original body still runs after the injected callback.
 
 Wheel input and any conditional suppression of vanilla gameplay actions remain separate milestones.
+
+
+## Mapped non-consuming mouse-wheel forwarding
+
+M86 adds wheel input without advancing or replacing the LWJGL event queue. Inside the already mapped and structurally verified `Minecraft.runTick()` method, the transformer requires exactly one stable `org.lwjgl.input.Mouse.getEventDWheel()I` invocation.
+
+Immediately after that invocation, the transformer duplicates the returned integer, passes only the duplicate to `Minecraft189LwjglMouseBinding.forwardWheelDelta(int)`, and leaves the original integer on the operand stack. Vanilla therefore receives the exact same wheel delta for spectator or hotbar behavior. A missing or duplicated wheel-read site fails transformation explicitly instead of silently binding to an ambiguous location.
+
+The parent-owned mouse binding ignores zero deltas without reading cursor state; non-zero deltas reuse the live LWJGL X/Y position and the existing viewport-aware M73 scroll bridge. Regression coverage proves retained ClickGUI scroll routing with a fake cursor source, proves zero-delta isolation, and verifies exactly one wheel callback is injected. The transformed tick fixture retains a JVM-verifiable but unreachable LWJGL wheel read so existing executable tick-index regressions remain native-free.
+
+M86 is still non-consuming. Conditional suppression while the retained ClickGUI is open remains a later policy milestone.
