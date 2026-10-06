@@ -292,3 +292,19 @@ M82 closes the shared M81 render-frame lifecycle at the exact mapped `EntityRend
 The bootstrap runtime publishes the existing POST_PROCESS stage with the current M81 frame index and then clears that active frame identity in a `finally` block. A late HUD callback after frame completion is therefore inert until the next mapped frame-start callback establishes a new index. Exceptional method exits deliberately do not synthesize a successful post-process stage; the next frame start overwrites any stale in-progress identity.
 
 Executable regression coverage makes the transformed EntityRenderer fixture invoke transformed GuiIngame inside the mapped frame body, proving the production ordering for two frames: HUD `0@0.25` then POST_PROCESS `0@0.25`, followed by HUD `1@0.5` then POST_PROCESS `1@0.5`. WORLD and WORLD_OVERLAY still require more precise mapped anchors and remain out of M82.
+
+
+## Pinned Minecraft input mapping authority
+
+M83 extends the M78 mapping authority before any consuming/raw input transformation is attempted. The same pinned 1.8.9 `methods.csv` and `joined.srg` sources now explicitly require these exact Minecraft methods:
+
+| MCP member | Obfuscated member | Descriptor |
+| --- | --- | --- |
+| `Minecraft.clickMouse` | `ave.aw` | `()V` |
+| `Minecraft.rightClickMouse` | `ave.ax` | `()V` |
+| `Minecraft.middleClickMouse` | `ave.az` | `()V` |
+| `Minecraft.dispatchKeypresses` | `ave.Z` | `()V` |
+
+The source rows resolve respectively through `func_147116_af`, `func_147121_ag`, `func_147112_ai`, and `func_152348_aa`. `Minecraft189ClassShapeVerifier.verifyMinecraft(...)` now requires all four methods in addition to the previously certified startup/tick members before `ave` is transformable.
+
+M83 deliberately performs no input injection. Minecraft 1.8.9 drains LWJGL event queues inside `runTick()`; pinning the exact dispatch/action members first prevents a later keyboard/mouse hook from relying on ambiguous short obfuscated names or accidentally consuming vanilla events at the wrong site.

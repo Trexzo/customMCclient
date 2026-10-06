@@ -26,7 +26,11 @@ public final class Minecraft189ClassShapeVerifier {
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.MINECRAFT_GET_MINECRAFT,
                         Minecraft189Mappings.MINECRAFT_START_GAME,
-                        Minecraft189Mappings.MINECRAFT_RUN_TICK
+                        Minecraft189Mappings.MINECRAFT_RUN_TICK,
+                        Minecraft189Mappings.MINECRAFT_CLICK_MOUSE,
+                        Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_MOUSE,
+                        Minecraft189Mappings.MINECRAFT_MIDDLE_CLICK_MOUSE,
+                        Minecraft189Mappings.MINECRAFT_DISPATCH_KEYPRESSES
                 });
     }
 

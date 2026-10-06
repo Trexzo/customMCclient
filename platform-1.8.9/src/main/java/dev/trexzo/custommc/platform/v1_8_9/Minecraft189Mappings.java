@@ -104,6 +104,34 @@ public final class Minecraft189Mappings {
                     "()V",
                     "func_71407_l",
                     "runTick");
+    public static final MappedMethod MINECRAFT_CLICK_MOUSE =
+            new MappedMethod(
+                    MINECRAFT,
+                    "aw",
+                    "()V",
+                    "func_147116_af",
+                    "clickMouse");
+    public static final MappedMethod MINECRAFT_RIGHT_CLICK_MOUSE =
+            new MappedMethod(
+                    MINECRAFT,
+                    "ax",
+                    "()V",
+                    "func_147121_ag",
+                    "rightClickMouse");
+    public static final MappedMethod MINECRAFT_MIDDLE_CLICK_MOUSE =
+            new MappedMethod(
+                    MINECRAFT,
+                    "az",
+                    "()V",
+                    "func_147112_ai",
+                    "middleClickMouse");
+    public static final MappedMethod MINECRAFT_DISPATCH_KEYPRESSES =
+            new MappedMethod(
+                    MINECRAFT,
+                    "Z",
+                    "()V",
+                    "func_152348_aa",
+                    "dispatchKeypresses");
     public static final MappedMethod FONT_RENDERER_DRAW_STRING =
             new MappedMethod(
                     FONT_RENDERER,

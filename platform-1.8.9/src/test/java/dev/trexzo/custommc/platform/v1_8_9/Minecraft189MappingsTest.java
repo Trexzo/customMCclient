@@ -121,6 +121,34 @@ final class Minecraft189MappingsTest {
                 "func_71407_l",
                 "runTick");
         assertMethod(
+                Minecraft189Mappings.MINECRAFT_CLICK_MOUSE,
+                Minecraft189Mappings.MINECRAFT,
+                "aw",
+                "()V",
+                "func_147116_af",
+                "clickMouse");
+        assertMethod(
+                Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_MOUSE,
+                Minecraft189Mappings.MINECRAFT,
+                "ax",
+                "()V",
+                "func_147121_ag",
+                "rightClickMouse");
+        assertMethod(
+                Minecraft189Mappings.MINECRAFT_MIDDLE_CLICK_MOUSE,
+                Minecraft189Mappings.MINECRAFT,
+                "az",
+                "()V",
+                "func_147112_ai",
+                "middleClickMouse");
+        assertMethod(
+                Minecraft189Mappings.MINECRAFT_DISPATCH_KEYPRESSES,
+                Minecraft189Mappings.MINECRAFT,
+                "Z",
+                "()V",
+                "func_152348_aa",
+                "dispatchKeypresses");
+        assertMethod(
                 Minecraft189Mappings.FONT_RENDERER_DRAW_STRING,
                 Minecraft189Mappings.FONT_RENDERER,
                 "a",
@@ -208,6 +236,18 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.MINECRAFT_RUN_TICK);
+        addMethod(
+                writer,
+                Minecraft189Mappings.MINECRAFT_CLICK_MOUSE);
+        addMethod(
+                writer,
+                Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_MOUSE);
+        addMethod(
+                writer,
+                Minecraft189Mappings.MINECRAFT_MIDDLE_CLICK_MOUSE);
+        addMethod(
+                writer,
+                Minecraft189Mappings.MINECRAFT_DISPATCH_KEYPRESSES);
         return finish(writer);
     }
 
