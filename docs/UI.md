@@ -70,6 +70,8 @@ M46 adds the first explicit ClickGUI runtime composition root and managed servic
 
 M47 adds the Minecraft 1.8.9 platform installer and live viewport adapter for that runtime.
 
+M50 adds read-only module keybind projection to selected-module details.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -129,6 +131,8 @@ M44 extracts the existing boolean, bounded integer/double and transactional text
 
 The detail surface owns only its retained content-scroll offset. Selection changes and binding changes are re-projected on every compose, so stale module-setting snapshots are not retained.
 
+M50 optionally gives `ModuleDetailPageContent` the same `ModuleKeybindRegistry` authority introduced by M48. When present, the header projects the selected module's current chord as `Bind: ...` or `Bind: Unbound`. Registration close/rebind changes appear on the next compose; the detail surface stores no bind mirror and does not mutate keybinds. Existing constructors and runtime-install overloads remain valid without a keybind registry.
+
 ## Module setting ownership
 
 M41 adds `ModuleSettingBinding` and `ModuleSettingRegistry` as the explicit association layer between stable module ids and existing setting ids. The registry is constructed over the authoritative `ModuleRegistry` and `SettingRegistry`, rejects unknown ids at registration, and enforces at most one module owner per setting.
@@ -181,6 +185,7 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
+- transactional keybind capture/rebinding built on M48/M50 without bypassing bind registration ownership;
 - concrete host implementation of `LegacyUiGraphics` and `LegacyUiViewportSource` against Minecraft/LWJGL;
 - concrete host callback wiring into `Minecraft189InputHooks`;
 - backend batching/state minimization;
