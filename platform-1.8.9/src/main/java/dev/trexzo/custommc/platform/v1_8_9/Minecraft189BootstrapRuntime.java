@@ -46,6 +46,8 @@ public final class Minecraft189BootstrapRuntime
     private Minecraft189HostRuntime hostRuntime;
     private boolean targetMainEntered;
     private long nextTickIndex;
+    private long nextFrameIndex;
+    private long currentFrameIndex = -1L;
     private boolean closed;
 
     private Minecraft189BootstrapRuntime(
@@ -311,6 +313,35 @@ public final class Minecraft189BootstrapRuntime
                 tickIndex);
     }
 
+    synchronized void beginRenderFrame(
+            final float partialTicks) {
+        if (closed
+                || hostRuntime == null
+                || hostRuntime.closed()) {
+            return;
+        }
+        requirePartialTicks(partialTicks);
+        currentFrameIndex =
+                nextFrameIndex;
+        nextFrameIndex =
+                Math.addExact(
+                        nextFrameIndex,
+                        1L);
+    }
+
+    synchronized void renderHudFrame(
+            final float partialTicks) {
+        if (closed
+                || hostRuntime == null
+                || hostRuntime.closed()
+                || currentFrameIndex < 0L) {
+            return;
+        }
+        hostRuntime.renderHud(
+                currentFrameIndex,
+                partialTicks);
+    }
+
     synchronized Minecraft189HostRuntime requireHostRuntime() {
         requireOpen();
         if (hostRuntime == null
@@ -400,6 +431,16 @@ public final class Minecraft189BootstrapRuntime
 
         if (failure != null) {
             throw failure;
+        }
+    }
+
+    private static void requirePartialTicks(
+            final float partialTicks) {
+        if (Float.isNaN(partialTicks)
+                || partialTicks < 0.0F
+                || partialTicks > 1.0F) {
+            throw new IllegalArgumentException(
+                    "partialTicks must be within [0,1]");
         }
     }
 
