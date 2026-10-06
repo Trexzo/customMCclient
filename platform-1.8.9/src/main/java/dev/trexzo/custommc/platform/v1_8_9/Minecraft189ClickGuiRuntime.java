@@ -13,6 +13,8 @@ import dev.trexzo.custommc.core.ui.UiThemes;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiRuntime;
 import dev.trexzo.custommc.platform.PlatformContext;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiGraphics;
+import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostBridge;
+import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiViewportSource;
 import dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189UiRenderer;
 import dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189UiViewportProvider;
@@ -33,6 +35,60 @@ public final class Minecraft189ClickGuiRuntime
         this.coreRuntime = coreRuntime;
         this.viewportProvider = viewportProvider;
         this.renderer = renderer;
+    }
+
+    public static Minecraft189ClickGuiRuntime install(
+            final Minecraft189Platform platform,
+            final ModulePresentationRegistry modulePresentations,
+            final ModuleCategoryRegistry moduleCategories,
+            final ModuleSettingRegistry moduleSettings,
+            final ModuleKeybindRegistry moduleKeybinds,
+            final ModuleKeybindAssignments moduleKeybindAssignments,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations,
+            final LegacyUiHostCallbacks hostCallbacks) {
+        return install(
+                platform,
+                modulePresentations,
+                moduleCategories,
+                moduleSettings,
+                moduleKeybinds,
+                moduleKeybindAssignments,
+                settings,
+                settingPresentations,
+                UiThemes::darkDefault,
+                hostCallbacks);
+    }
+
+    public static Minecraft189ClickGuiRuntime install(
+            final Minecraft189Platform platform,
+            final ModulePresentationRegistry modulePresentations,
+            final ModuleCategoryRegistry moduleCategories,
+            final ModuleSettingRegistry moduleSettings,
+            final ModuleKeybindRegistry moduleKeybinds,
+            final ModuleKeybindAssignments moduleKeybindAssignments,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations,
+            final UiThemeProvider themeProvider,
+            final LegacyUiHostCallbacks hostCallbacks) {
+        Objects.requireNonNull(
+                hostCallbacks,
+                "hostCallbacks");
+        final LegacyUiHostBridge bridge =
+                new LegacyUiHostBridge(
+                        hostCallbacks);
+        return install(
+                platform,
+                modulePresentations,
+                moduleCategories,
+                moduleSettings,
+                moduleKeybinds,
+                moduleKeybindAssignments,
+                settings,
+                settingPresentations,
+                bridge,
+                themeProvider,
+                bridge);
     }
 
     public static Minecraft189ClickGuiRuntime install(
