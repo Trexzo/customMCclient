@@ -326,6 +326,55 @@ final class LauncherProfileStateTest {
     }
 
     @Test
+    void malformedModuleStateIsRejectedBeforeSettingMutation() {
+        final ModuleRegistry modules =
+                modules(
+                        "render.watermark");
+        final ModuleController controller =
+                new ModuleController(modules);
+        final SettingRegistry settings =
+                settings();
+        final ModuleKeybindAssignments assignments =
+                new ModuleKeybindAssignments(
+                        new ModuleKeybindRegistry(
+                                modules));
+        final LauncherProfileState profile =
+                new LauncherProfileState(
+                        settings,
+                        assignments,
+                        modules,
+                        controller);
+
+        @SuppressWarnings("unchecked")
+        final Setting<Integer> range =
+                (Setting<Integer>) settings.find(
+                        "combat.range");
+
+        final Map<String, String> values =
+                new LinkedHashMap<String, String>();
+        values.put(
+                "combat.range",
+                "6");
+        values.put(
+                "@module/render.watermark",
+                "maybe");
+
+        assertThrows(
+                ProfileFormatException.class,
+                () -> profile.apply(
+                        values,
+                        UnknownSettingPolicy.REJECT));
+
+        assertEquals(
+                Integer.valueOf(3),
+                range.get());
+        assertEquals(
+                ModuleState.DISABLED,
+                controller.stateOf(
+                        "render.watermark"));
+    }
+
+    @Test
     void malformedKeybindIsRejectedBeforeSettingMutation() {
         final SettingRegistry settings =
                 settings();
