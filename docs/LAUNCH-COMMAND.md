@@ -76,3 +76,15 @@ M63-M65 allow the launcher to hand process entry to the Java-8 CustomMC bootstra
 4. append the unchanged expanded game arguments.
 
 Sensitive argument indexes remain owned by the M63 command builder and are offset after these bootstrap-prefix arguments.
+
+
+## Canonical assembled runtime directory
+
+M67 adds `Minecraft189RuntimeBundle.fromDirectory(...)` for the output of the root `assembleRuntimeOverlay` task. The directory contains exactly:
+
+- `bootstrap.jar`;
+- `core.jar`;
+- `platform-api.jar`;
+- `platform-1.8.9.jar`.
+
+Calling `bundle.overlay(resolvedMainClass)` produces the M65 initialized bootstrap overlay using the M66 concrete initializer. Existing M63 preflight remains responsible for verifying that every resulting classpath entry actually exists before native staging and process launch.

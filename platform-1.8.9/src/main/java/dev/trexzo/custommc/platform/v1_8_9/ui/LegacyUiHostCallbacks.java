@@ -3,13 +3,8 @@ package dev.trexzo.custommc.platform.v1_8_9.ui;
 import dev.trexzo.custommc.core.ui.UiFontHandle;
 import dev.trexzo.custommc.core.ui.UiViewport;
 
-public interface LegacyUiHostCallbacks {
-    int framebufferWidth();
-
-    int framebufferHeight();
-
-    float uiScale();
-
+public interface LegacyUiHostCallbacks
+        extends LegacyUiViewportSource {
     void beginUi(UiViewport viewport);
 
     void fillRect(

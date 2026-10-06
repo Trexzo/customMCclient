@@ -123,3 +123,19 @@ Initialization constructs one owned in-process runtime graph before Minecraft ma
 `Minecraft189BootstrapRuntime` is the M65 session object and owns teardown. Closing it removes the keybind-controller service, closes only bootstrap-owned keybind assignments, removes the render-pipeline service, and detaches the 1.8.9 platform. Repeated close is idempotent. Construction is rollback-safe: a failure after partial attachment unwinds the pieces already installed before surfacing the error.
 
 M66 intentionally has no global runtime holder and does not yet install ClickGUI, LWJGL host callbacks, Minecraft event hooks, modules, settings, or class transformation. Those require the next explicit hook/binding layer rather than being hidden inside bootstrap assembly.
+
+
+## Canonical Minecraft 1.8.9 runtime bundle
+
+M67 gives the launcher one canonical bundle definition for the executable M64-M66 runtime path. `Minecraft189RuntimeBundle` owns exactly four normalized, distinct CustomMC artifacts in classpath order:
+
+1. `bootstrap.jar`;
+2. `core.jar`;
+3. `platform-api.jar`;
+4. `platform-1.8.9.jar`.
+
+The bundle fixes the concrete initializer to `dev.trexzo.custommc.platform.v1_8_9.Minecraft189BootstrapInitializer` and produces the initialized M65 overlay for the resolved Mojang main class. `fromDirectory(...)` maps the stable assembly filenames directly, avoiding launch-time filename/version reconstruction.
+
+The root `assembleRuntimeOverlay` Gradle task builds those four module jars and copies only those artifacts into `build/runtime-overlay` using the stable names above. `assembleRuntimeOverlay` is a Gradle `Sync` task, so its destination is reconciled to exactly those four stable jar names on every run; `verifyFoundation` depends on that assembly task.
+
+M67 also corrects the top-level verification gate to include `:platform-1.8.9:check`. Platform adapter tests are therefore explicitly part of the same Ubuntu + Windows authority gate as bootstrap, core, platform API and launcher tests.
