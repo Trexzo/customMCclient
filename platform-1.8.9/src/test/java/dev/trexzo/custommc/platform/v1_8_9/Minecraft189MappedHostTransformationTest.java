@@ -749,6 +749,7 @@ final class Minecraft189MappedHostTransformationTest {
     private static byte[] minecraftShape() {
         final ClassWriter writer =
                 classWriter("ave");
+        field(writer, "h", "Lbew;");
         field(writer, "k", "Lavn;");
         field(writer, "o", "Lbfk;");
         field(writer, "q", "Lavo;");
