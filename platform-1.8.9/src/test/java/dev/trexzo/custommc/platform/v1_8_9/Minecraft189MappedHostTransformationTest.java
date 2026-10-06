@@ -248,6 +248,9 @@ final class Minecraft189MappedHostTransformationTest {
                         "pk",
                         entityShape()));
         loader.put(
+                "zx",
+                emptyClass("zx"));
+        loader.put(
                 "pr",
                 transformer.transform(
                         "pr",
@@ -390,6 +393,33 @@ final class Minecraft189MappedHostTransformationTest {
                     .setFloat(
                             player,
                             20.0F);
+
+            final Class<?> itemStackClass =
+                    loader.loadClass("zx");
+            final Object equipmentSlots =
+                    java.lang.reflect.Array.newInstance(
+                            itemStackClass,
+                            5);
+            java.lang.reflect.Array.set(
+                    equipmentSlots,
+                    1,
+                    itemStackClass.getDeclaredConstructor()
+                            .newInstance());
+            java.lang.reflect.Array.set(
+                    equipmentSlots,
+                    3,
+                    itemStackClass.getDeclaredConstructor()
+                            .newInstance());
+            java.lang.reflect.Array.set(
+                    equipmentSlots,
+                    4,
+                    itemStackClass.getDeclaredConstructor()
+                            .newInstance());
+            playerClass.getField("equipmentSlots")
+                    .set(
+                            player,
+                            equipmentSlots);
+
             minecraftClass.getField("h")
                     .set(
                             minecraft,
@@ -585,6 +615,27 @@ final class Minecraft189MappedHostTransformationTest {
                     20.0F,
                     health.maxHealth());
 
+            final Minecraft189PlayerArmorState.Snapshot armor =
+                    runtime.requireHostRuntime()
+                            .playerArmorState()
+                            .snapshot();
+            assertTrue(
+                    armor.available());
+            assertEquals(
+                    13,
+                    armor.mask());
+            assertEquals(
+                    3,
+                    armor.equippedCount());
+            assertTrue(
+                    armor.helmet());
+            assertTrue(
+                    armor.chestplate());
+            assertFalse(
+                    armor.leggings());
+            assertTrue(
+                    armor.boots());
+
             minecraftClass.getField("h")
                     .set(
                             minecraft,
@@ -608,6 +659,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .playerHealthState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .playerArmorState()
                             .snapshot()
                             .available());
 
@@ -1072,6 +1128,7 @@ final class Minecraft189MappedHostTransformationTest {
                 null);
         field(writer, "health", "F");
         field(writer, "maxHealth", "F");
+        field(writer, "equipmentSlots", "[Lzx;");
 
         final MethodVisitor constructor =
                 writer.visitMethod(
@@ -1151,12 +1208,23 @@ final class Minecraft189MappedHostTransformationTest {
                         null,
                         null);
         getEquipmentInSlot.visitCode();
+        getEquipmentInSlot.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getEquipmentInSlot.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pr",
+                "equipmentSlots",
+                "[Lzx;");
+        getEquipmentInSlot.visitVarInsn(
+                Opcodes.ILOAD,
+                1);
         getEquipmentInSlot.visitInsn(
-                Opcodes.ACONST_NULL);
+                Opcodes.AALOAD);
         getEquipmentInSlot.visitInsn(
                 Opcodes.ARETURN);
         getEquipmentInSlot.visitMaxs(
-                1,
+                2,
                 2);
         getEquipmentInSlot.visitEnd();
 
