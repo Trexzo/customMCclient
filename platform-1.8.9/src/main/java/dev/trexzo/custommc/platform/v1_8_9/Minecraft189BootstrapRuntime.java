@@ -267,6 +267,14 @@ public final class Minecraft189BootstrapRuntime
 
     public synchronized Minecraft189HostRuntime installHost(
             final LegacyUiHostCallbacks hostCallbacks) {
+        return installHost(
+                hostCallbacks,
+                Minecraft189PlayerPositionAccess.NONE);
+    }
+
+    public synchronized Minecraft189HostRuntime installHost(
+            final LegacyUiHostCallbacks hostCallbacks,
+            final Minecraft189PlayerPositionAccess playerPosition) {
         requireOpen();
         if (hostRuntime != null) {
             throw new IllegalStateException(
@@ -283,6 +291,9 @@ public final class Minecraft189BootstrapRuntime
                         moduleKeybindAssignments,
                         settings,
                         settingPresentations,
+                        Objects.requireNonNull(
+                                playerPosition,
+                                "playerPosition"),
                         Objects.requireNonNull(
                                 hostCallbacks,
                                 "hostCallbacks"));
