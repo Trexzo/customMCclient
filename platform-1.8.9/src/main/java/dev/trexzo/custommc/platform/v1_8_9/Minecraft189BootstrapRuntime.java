@@ -15,6 +15,7 @@ import dev.trexzo.custommc.core.service.ServiceRegistry;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.platform.PlatformContext;
+import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 
 import java.util.Objects;
 
@@ -36,6 +37,7 @@ public final class Minecraft189BootstrapRuntime
     private final Minecraft189Platform platform;
     private final ServiceRegistry.Registration renderPipelineRegistration;
     private final Minecraft189ModuleKeybindRuntime keybindRuntime;
+    private Minecraft189HostRuntime hostRuntime;
     private boolean closed;
 
     private Minecraft189BootstrapRuntime(
@@ -219,6 +221,36 @@ public final class Minecraft189BootstrapRuntime
         return platform;
     }
 
+    public synchronized Minecraft189HostRuntime installHost(
+            final LegacyUiHostCallbacks hostCallbacks) {
+        requireOpen();
+        if (hostRuntime != null) {
+            throw new IllegalStateException(
+                    "minecraft 1.8.9 bootstrap host is already installed");
+        }
+
+        final Minecraft189HostRuntime installed =
+                Minecraft189HostRuntime.install(
+                        platform,
+                        modulePresentations,
+                        moduleCategories,
+                        moduleSettings,
+                        moduleKeybinds,
+                        moduleKeybindAssignments,
+                        settings,
+                        settingPresentations,
+                        Objects.requireNonNull(
+                                hostCallbacks,
+                                "hostCallbacks"));
+        hostRuntime = installed;
+        return installed;
+    }
+
+    public synchronized boolean hostInstalled() {
+        return hostRuntime != null
+                && !hostRuntime.closed();
+    }
+
     public synchronized boolean closed() {
         return closed;
     }
@@ -234,10 +266,20 @@ public final class Minecraft189BootstrapRuntime
 
         RuntimeException failure = null;
 
+        if (hostRuntime != null) {
+            try {
+                hostRuntime.close();
+            } catch (RuntimeException closeFailure) {
+                failure = closeFailure;
+            }
+        }
+
         try {
             keybindRuntime.close();
         } catch (RuntimeException closeFailure) {
-            failure = closeFailure;
+            failure = append(
+                    failure,
+                    closeFailure);
         }
 
         try {
@@ -266,6 +308,13 @@ public final class Minecraft189BootstrapRuntime
 
         if (failure != null) {
             throw failure;
+        }
+    }
+
+    private synchronized void requireOpen() {
+        if (closed) {
+            throw new IllegalStateException(
+                    "minecraft 1.8.9 bootstrap runtime is closed");
         }
     }
 

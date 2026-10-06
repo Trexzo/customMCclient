@@ -160,3 +160,12 @@ M69 adds `Minecraft189LaunchRequest` and `Minecraft189Launcher` as the first one
 M71 composes the existing Gradle application distribution with the M67 canonical runtime overlay. `assembleLauncherDistribution` emits `build/custommc-distribution` without rebuilding or repackaging the underlying jars: launcher scripts/libs come from `:launcher:installDist`, while `runtime-overlay/` comes from the certified `assembleRuntimeOverlay` task.
 
 `verifyLauncherDistribution` is part of `verifyFoundation` and requires both platform launcher scripts, a non-empty launcher `lib/` directory, the README, and exactly the four stable runtime-overlay jar names. This makes the final handoff one reproducible directory rather than a set of separately located build outputs.
+
+
+## Bootstrap-owned Minecraft 1.8.9 host runtime
+
+M72 joins the M66 bootstrap graph to the already-certified M54-M61 host façade without creating a second set of module, setting, service or render owners. `Minecraft189BootstrapRuntime.installHost(...)` installs exactly one `Minecraft189HostRuntime` against the bootstrap-owned registries and attached platform.
+
+Host activation is explicit and one-shot. A duplicate activation or activation after bootstrap shutdown is rejected. Bootstrap teardown closes the host runtime before keybind services, render-pipeline service registration and platform attachment are released, so ClickGUI services cannot outlive the owners they route through. The host still does not own or detach the platform itself.
+
+M72 deliberately stops at this ownership seam. The subsequent Minecraft callback/binding layer can now target one bootstrap-owned host runtime instead of reconstructing UI/input/render state or relying on an unowned global runtime.
