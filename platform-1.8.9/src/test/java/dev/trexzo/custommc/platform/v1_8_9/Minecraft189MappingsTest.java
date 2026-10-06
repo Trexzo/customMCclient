@@ -56,10 +56,25 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.ENTITY_RENDERER,
                 "bfk",
                 "net/minecraft/client/renderer/EntityRenderer");
+        assertClass(
+                Minecraft189Mappings.ENTITY_PLAYER_SP,
+                "bew",
+                "net/minecraft/client/entity/EntityPlayerSP");
+        assertClass(
+                Minecraft189Mappings.ENTITY,
+                "pk",
+                "net/minecraft/entity/Entity");
     }
 
     @Test
     void authorityPinsExactFieldsAndMethodsNeededByHostHooks() {
+        assertField(
+                Minecraft189Mappings.MINECRAFT_PLAYER,
+                Minecraft189Mappings.MINECRAFT,
+                "h",
+                "Lbew;",
+                "field_71439_g",
+                "thePlayer");
         assertField(
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER,
                 Minecraft189Mappings.MINECRAFT,
@@ -88,6 +103,28 @@ final class Minecraft189MappingsTest {
                 "Lavh;",
                 "field_71474_y",
                 "gameSettings");
+        assertField(
+                Minecraft189Mappings.ENTITY_POS_X,
+                Minecraft189Mappings.ENTITY,
+                "s",
+                "D",
+                "field_70165_t",
+                "posX");
+        assertField(
+                Minecraft189Mappings.ENTITY_POS_Y,
+                Minecraft189Mappings.ENTITY,
+                "t",
+                "D",
+                "field_70163_u",
+                "posY");
+        assertField(
+                Minecraft189Mappings.ENTITY_POS_Z,
+                Minecraft189Mappings.ENTITY,
+                "u",
+                "D",
+                "field_70161_v",
+                "posZ");
+
         assertField(
                 Minecraft189Mappings.GAME_SETTINGS_GUI_SCALE,
                 Minecraft189Mappings.GAME_SETTINGS,
@@ -196,6 +233,8 @@ final class Minecraft189MappingsTest {
                 guiIngameShape());
         Minecraft189ClassShapeVerifier.verifyEntityRenderer(
                 entityRendererShape());
+        Minecraft189ClassShapeVerifier.verifyEntity(
+                entityShape());
     }
 
     @Test
@@ -312,6 +351,23 @@ final class Minecraft189MappingsTest {
         return finish(writer);
     }
 
+    private static byte[] entityShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_X);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Y);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Z);
+        return finish(writer);
+    }
+
     private static byte[] entityRendererShape() {
         final ClassWriter writer =
                 writer(
@@ -326,6 +382,9 @@ final class Minecraft189MappingsTest {
 
     private static void addMinecraftFields(
             final ClassWriter writer) {
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER);
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
