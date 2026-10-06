@@ -28,6 +28,7 @@ tasks.register("verifyFoundation") {
     group = "verification"
     description = "Runs all foundation verification gates."
     dependsOn(
+        ":bootstrap:check",
         ":core:check",
         ":platform-api:check",
         ":launcher:check"

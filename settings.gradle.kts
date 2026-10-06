@@ -15,6 +15,7 @@ dependencyResolutionManagement {
 rootProject.name = "customMCclient"
 
 include(
+    "bootstrap",
     "core",
     "launcher",
     "platform-api",
