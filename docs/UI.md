@@ -195,10 +195,10 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 The remaining major UI/platform work is now concentrated at the actual host boundary:
 
-- concrete Minecraft 1.8.9 implementation of `LegacyUiHostCallbacks`;
-- wiring real game tick/render/mouse/wheel/key callbacks into `Minecraft189HostRuntime`;
-- mapping M57/M58 framebuffer scissor state into the host GL API;
-- concrete font drawing and shape rendering;
-- optional M59 shape batching can be implemented by the host immediately; additional text/font batching should wait for real host measurements.
+- bind the real Minecraft 1.8.9 framebuffer dimensions/UI scale into `LegacyUiViewportSource`;
+- bind the real Minecraft font renderer into `LegacyUiTextRenderer`;
+- construct M61 `Lwjgl2LegacyUiHostCallbacks` from those two game adapters;
+- forward real game tick/render/mouse/wheel/key callbacks into `Minecraft189HostRuntime`;
+- evaluate additional text/font batching only after measuring the real host path.
 
 Those layers should extend the existing ownership seams rather than bypassing them.
