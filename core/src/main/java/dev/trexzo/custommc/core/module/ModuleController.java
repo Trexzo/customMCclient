@@ -6,16 +6,16 @@ import java.util.Objects;
 
 public final class ModuleController {
     private final ModuleRegistry registry;
-    private final Map<String, ModuleState> states =
-            new LinkedHashMap<String, ModuleState>();
+    private final Map<Module, ModuleState> states =
+            new LinkedHashMap<Module, ModuleState>();
 
     public ModuleController(final ModuleRegistry registry) {
         this.registry = Objects.requireNonNull(registry, "registry");
     }
 
     public synchronized ModuleState stateOf(final String id) {
-        requireModule(id);
-        final ModuleState state = states.get(id);
+        final Module module = requireModule(id);
+        final ModuleState state = states.get(module);
         return state == null ? ModuleState.DISABLED : state;
     }
 
@@ -31,12 +31,12 @@ public final class ModuleController {
                     "cannot enable " + id + " from " + current);
         }
 
-        states.put(id, ModuleState.ENABLING);
+        states.put(module, ModuleState.ENABLING);
         try {
             module.onEnable();
-            states.put(id, ModuleState.ENABLED);
+            states.put(module, ModuleState.ENABLED);
         } catch (RuntimeException failure) {
-            states.put(id, ModuleState.FAILED);
+            states.put(module, ModuleState.FAILED);
             throw new ModuleLifecycleException(
                     "module enable failed: " + id,
                     failure);
@@ -56,12 +56,12 @@ public final class ModuleController {
                     "cannot disable " + id + " from " + current);
         }
 
-        states.put(id, ModuleState.DISABLING);
+        states.put(module, ModuleState.DISABLING);
         try {
             module.onDisable();
-            states.put(id, ModuleState.DISABLED);
+            states.put(module, ModuleState.DISABLED);
         } catch (RuntimeException failure) {
-            states.put(id, ModuleState.FAILED);
+            states.put(module, ModuleState.FAILED);
             throw new ModuleLifecycleException(
                     "module disable failed: " + id,
                     failure);

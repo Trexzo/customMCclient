@@ -352,3 +352,12 @@ The default platform binding is explicitly named as LWJGL Right Shift (`LegacyKe
 `Minecraft189InputHooks.key(...)` routes events through the toggle controller before retained ClickGUI content input and module keybind handling. Regression coverage proves the actual M84 mapped-keyboard adapter opens a previously closed retained ClickGUI with Right Shift, Escape still closes it through the existing input controller, repeated Right Shift does not retrigger, and the toggle service disappears with the host runtime.
 
 M87 deliberately does not persist or rebind this client-action chord yet. Module-key persistence remains a separate authority, and vanilla keyboard behavior is still non-consuming at the transformed Minecraft boundary.
+
+
+## First runtime feature module
+
+M88 crosses from framework-only runtime work into the first real client feature. `ModuleRegistry.register(...)` now returns an exact ownership handle; closing it removes only the same registered module instance. `ModuleController` keys lifecycle state by module identity instead of only stable id, so removing and later re-registering the same id starts from a fresh DISABLED state rather than inheriting stale lifecycle state.
+
+The Minecraft 1.8.9 host now owns `Minecraft189FeatureCatalog`. Its first feature is `render.watermark` / **Watermark** in the **Visuals** category. Enabling the module registers a real HUD render pass; the pass opens the already-certified legacy UI host frame, draws `CustomMC` with the semantic default Minecraft font at the top-left, and restores the UI frame in a failure-safe `finally` path. Disabling the module unregisters that render pass.
+
+The feature catalog owns the category, presentation and module registrations. Host shutdown disables the feature if necessary, removes its presentation/module/category ownership, then continues the existing ClickGUI teardown. Regression coverage proves disabled → no watermark draw, enabled → one HUD watermark draw, disabled again → no additional draw, and host close removes the module registration entirely.
