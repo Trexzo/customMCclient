@@ -47,6 +47,10 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "bew",
                     "net/minecraft/client/entity/EntityPlayerSP");
+    public static final MappedClass ENTITY_PLAYER =
+            new MappedClass(
+                    "wn",
+                    "net/minecraft/entity/player/EntityPlayer");
     public static final MappedClass ENTITY =
             new MappedClass(
                     "pk",
@@ -59,6 +63,10 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "zx",
                     "net/minecraft/item/ItemStack");
+    public static final MappedClass FOOD_STATS =
+            new MappedClass(
+                    "xg",
+                    "net/minecraft/util/FoodStats");
 
     public static final MappedField MINECRAFT_PLAYER =
             new MappedField(
@@ -258,6 +266,27 @@ public final class Minecraft189Mappings {
                     "(I)Lzx;",
                     "func_71124_b",
                     "getEquipmentInSlot");
+    public static final MappedMethod ENTITY_PLAYER_GET_FOOD_STATS =
+            new MappedMethod(
+                    ENTITY_PLAYER,
+                    "cl",
+                    "()Lxg;",
+                    "func_71024_bL",
+                    "getFoodStats");
+    public static final MappedMethod FOOD_STATS_GET_FOOD_LEVEL =
+            new MappedMethod(
+                    FOOD_STATS,
+                    "a",
+                    "()I",
+                    "func_75116_a",
+                    "getFoodLevel");
+    public static final MappedMethod FOOD_STATS_GET_SATURATION_LEVEL =
+            new MappedMethod(
+                    FOOD_STATS,
+                    "e",
+                    "()F",
+                    "func_75115_e",
+                    "getSaturationLevel");
 
     private Minecraft189Mappings() {
     }
