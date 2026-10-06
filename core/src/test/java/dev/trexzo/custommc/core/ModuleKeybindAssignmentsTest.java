@@ -220,6 +220,112 @@ final class ModuleKeybindAssignmentsTest {
                                 "legacy-key-37")));
     }
 
+
+    @Test
+    void bulkReplaceCanSwapOwnedChordsAndRollsBackOnFailure() {
+        final ModuleRegistry modules =
+                modules(
+                        "combat.aura",
+                        "render.esp");
+        final ModuleKeybindRegistry registry =
+                new ModuleKeybindRegistry(modules);
+        final ModuleKeybindAssignments assignments =
+                new ModuleKeybindAssignments(registry);
+
+        final ModuleKeyChord first =
+                ModuleKeyChord.key(
+                        "legacy-key-37");
+        final ModuleKeyChord second =
+                ModuleKeyChord.key(
+                        "legacy-key-38");
+
+        assignments.bind(
+                "combat.aura",
+                first);
+        assignments.bind(
+                "render.esp",
+                second);
+
+        final java.util.Map<String, ModuleKeyChord> swapped =
+                new java.util.LinkedHashMap<String, ModuleKeyChord>();
+        swapped.put(
+                "combat.aura",
+                second);
+        swapped.put(
+                "render.esp",
+                first);
+
+        assertTrue(
+                assignments.replaceOwnedBindings(
+                        swapped));
+        assertEquals(
+                second,
+                registry.findByModule(
+                        "combat.aura")
+                        .chord());
+        assertEquals(
+                first,
+                registry.findByModule(
+                        "render.esp")
+                        .chord());
+
+        final java.util.Map<String, ModuleKeyChord> invalid =
+                new java.util.LinkedHashMap<String, ModuleKeyChord>();
+        invalid.put(
+                "combat.aura",
+                first);
+        invalid.put(
+                "missing.module",
+                second);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> assignments.replaceOwnedBindings(
+                        invalid));
+
+        assertEquals(
+                second,
+                registry.findByModule(
+                        "combat.aura")
+                        .chord());
+        assertEquals(
+                first,
+                registry.findByModule(
+                        "render.esp")
+                        .chord());
+    }
+
+    @Test
+    void ownedSnapshotIsImmutableAndBulkNoopIsReported() {
+        final ModuleRegistry modules =
+                modules("combat.aura");
+        final ModuleKeybindRegistry registry =
+                new ModuleKeybindRegistry(modules);
+        final ModuleKeybindAssignments assignments =
+                new ModuleKeybindAssignments(registry);
+        final ModuleKeyChord chord =
+                ModuleKeyChord.key(
+                        "legacy-key-37");
+
+        assignments.bind(
+                "combat.aura",
+                chord);
+
+        final java.util.Map<String, ModuleKeyChord> snapshot =
+                assignments.snapshotOwnedBindings();
+
+        assertEquals(
+                chord,
+                snapshot.get(
+                        "combat.aura"));
+        assertThrows(
+                UnsupportedOperationException.class,
+                snapshot::clear);
+        assertFalse(
+                assignments.replaceOwnedBindings(
+                        snapshot));
+    }
+
     private static ModuleRegistry modules(
             final String... ids) {
         final ModuleRegistry modules =
