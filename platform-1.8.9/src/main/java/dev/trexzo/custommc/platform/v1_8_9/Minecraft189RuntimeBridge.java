@@ -41,11 +41,22 @@ public final class Minecraft189RuntimeBridge {
 
     public static synchronized Minecraft189HostRuntime installHost(
             final LegacyUiHostCallbacks hostCallbacks) {
+        return installHost(
+                hostCallbacks,
+                Minecraft189PlayerPositionAccess.NONE);
+    }
+
+    public static synchronized Minecraft189HostRuntime installHost(
+            final LegacyUiHostCallbacks hostCallbacks,
+            final Minecraft189PlayerPositionAccess playerPosition) {
         return requireRuntime()
                 .installHost(
                         Objects.requireNonNull(
                                 hostCallbacks,
-                                "hostCallbacks"));
+                                "hostCallbacks"),
+                        Objects.requireNonNull(
+                                playerPosition,
+                                "playerPosition"));
     }
 
     public static synchronized void gameTick() {
