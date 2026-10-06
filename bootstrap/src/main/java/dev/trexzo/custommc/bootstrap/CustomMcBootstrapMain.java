@@ -1,8 +1,10 @@
 package dev.trexzo.custommc.bootstrap;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Objects;
 
 public final class CustomMcBootstrapMain {
     private CustomMcBootstrapMain() {
@@ -14,10 +16,87 @@ public final class CustomMcBootstrapMain {
         final BootstrapInvocation invocation =
                 BootstrapInvocation.parse(
                         arguments);
-
         final ClassLoader loader =
                 Thread.currentThread()
                         .getContextClassLoader();
+
+        BootstrapRuntimeSession session = null;
+        Throwable failure = null;
+        try {
+            if (invocation.hasRuntimeInitializer()) {
+                session =
+                        initializeRuntime(
+                                invocation,
+                                loader);
+            }
+
+            invokeTarget(
+                    invocation,
+                    loader);
+        } catch (Throwable throwable) {
+            failure = throwable;
+            throw throwable;
+        } finally {
+            if (session != null) {
+                try {
+                    session.close();
+                } catch (Throwable closeFailure) {
+                    if (failure != null) {
+                        failure.addSuppressed(
+                                closeFailure);
+                    } else if (closeFailure instanceof Exception) {
+                        throw (Exception) closeFailure;
+                    } else if (closeFailure instanceof Error) {
+                        throw (Error) closeFailure;
+                    } else {
+                        throw new RuntimeException(
+                                closeFailure);
+                    }
+                }
+            }
+        }
+    }
+
+    private static BootstrapRuntimeSession initializeRuntime(
+            final BootstrapInvocation invocation,
+            final ClassLoader loader)
+            throws Exception {
+        final Class<?> initializerClass =
+                Class.forName(
+                        invocation.runtimeInitializerClass(),
+                        true,
+                        loader);
+
+        if (!BootstrapRuntimeInitializer.class
+                .isAssignableFrom(
+                        initializerClass)) {
+            throw new IllegalArgumentException(
+                    "runtime initializer must implement "
+                            + BootstrapRuntimeInitializer.class
+                            .getName());
+        }
+
+        final Constructor<?> constructor =
+                initializerClass.getDeclaredConstructor();
+        if (!Modifier.isPublic(
+                constructor.getModifiers())) {
+            throw new IllegalArgumentException(
+                    "runtime initializer constructor must be public");
+        }
+
+        final BootstrapRuntimeInitializer initializer =
+                (BootstrapRuntimeInitializer)
+                        constructor.newInstance();
+        return Objects.requireNonNull(
+                initializer.initialize(
+                        invocation.context()),
+                "runtime initializer session");
+    }
+
+    private static void invokeTarget(
+            final BootstrapInvocation invocation,
+            final ClassLoader loader)
+            throws Exception {
         final Class<?> target =
                 Class.forName(
                         invocation.targetMainClass(),
