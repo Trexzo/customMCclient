@@ -525,6 +525,10 @@ final class Minecraft189MappedHostTransformationTest {
 
         voidMethod(writer, "am");
         voidMethod(writer, "s");
+        voidMethod(writer, "aw");
+        voidMethod(writer, "ax");
+        voidMethod(writer, "az");
+        voidMethod(writer, "Z");
 
         writer.visitEnd();
         return writer.toByteArray();
