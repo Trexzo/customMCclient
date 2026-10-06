@@ -551,3 +551,11 @@ The new Visuals module `render.health` / **Health** renders `Health: current / m
 
 Executable regression coverage loads transformed `pk`, transformed `pr extends pk`, synthetic `bew extends pr`, and transformed `ave.runTick()` to prove live `17.5 / 20.0` health reaches the host snapshot and clears with a null player. Separate HUD coverage proves live text/position, persistent setting encoding, invalid-value rejection and complete feature teardown.
 
+## Armor-equipment mapping authority
+
+M106 extends the pinned Minecraft 1.8.9 equipment surface without yet exposing any item object to the parent runtime. `ItemStack` is obfuscated class `zx`, and `EntityLivingBase.getEquipmentInSlot(int)` is exact `pr.p(I)Lzx;` / Searge `func_71124_b`.
+
+The existing `EntityLivingBase` shape gate now requires this exact method alongside the M104 health methods. Independent 1.8.9 source verification confirms the vanilla slot contract used by players: slot `0` is the held item and slots `1..4` are armor. A future consumer can therefore reduce the four armor slots to parent-owned booleans without allowing `ItemStack` to cross the transforming classloader boundary.
+
+Regression coverage pins the `zx` class and exact equipment method owner/name/descriptor and rejects an `EntityLivingBase` shape that omits the method. This milestone deliberately stops before transformation or HUD registration.
+
