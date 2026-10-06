@@ -57,6 +57,8 @@ public final class Minecraft189UiRenderer
                             index);
 
             if (graphics instanceof LegacyUiBatchGraphics
+                    && ((LegacyUiBatchGraphics) graphics)
+                    .supportsShapeBatching()
                     && shapeRunEnd - index >= 2) {
                 renderShapeBatch(
                         (LegacyUiBatchGraphics) graphics,
