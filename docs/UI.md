@@ -199,6 +199,6 @@ The remaining major UI/platform work is now concentrated at the actual host boun
 - wiring real game tick/render/mouse/wheel/key callbacks into `Minecraft189HostRuntime`;
 - mapping M57/M58 framebuffer scissor state into the host GL API;
 - concrete font drawing and shape rendering;
-- further batching of compatible shape/text work once real host costs can be measured.
+- optional M59 shape batching can be implemented by the host immediately; additional text/font batching should wait for real host measurements.
 
 Those layers should extend the existing ownership seams rather than bypassing them.
