@@ -37,6 +37,14 @@ final class Minecraft189MappingsTest {
                 "ave",
                 "net/minecraft/client/Minecraft");
         assertClass(
+                Minecraft189Mappings.ENTITY_PLAYER_SP,
+                "bew",
+                "net/minecraft/client/entity/EntityPlayerSP");
+        assertClass(
+                Minecraft189Mappings.ENTITY,
+                "pk",
+                "net/minecraft/entity/Entity");
+        assertClass(
                 Minecraft189Mappings.KEY_BINDING,
                 "avb",
                 "net/minecraft/client/settings/KeyBinding");
@@ -60,6 +68,13 @@ final class Minecraft189MappingsTest {
 
     @Test
     void authorityPinsExactFieldsAndMethodsNeededByHostHooks() {
+        assertField(
+                Minecraft189Mappings.MINECRAFT_THE_PLAYER,
+                Minecraft189Mappings.MINECRAFT,
+                "h",
+                "Lbew;",
+                "field_71439_g",
+                "thePlayer");
         assertField(
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER,
                 Minecraft189Mappings.MINECRAFT,
@@ -88,6 +103,27 @@ final class Minecraft189MappingsTest {
                 "Lavh;",
                 "field_71474_y",
                 "gameSettings");
+        assertField(
+                Minecraft189Mappings.ENTITY_POS_X,
+                Minecraft189Mappings.ENTITY,
+                "s",
+                "D",
+                "field_70165_t",
+                "posX");
+        assertField(
+                Minecraft189Mappings.ENTITY_POS_Y,
+                Minecraft189Mappings.ENTITY,
+                "t",
+                "D",
+                "field_70163_u",
+                "posY");
+        assertField(
+                Minecraft189Mappings.ENTITY_POS_Z,
+                Minecraft189Mappings.ENTITY,
+                "u",
+                "D",
+                "field_70161_v",
+                "posZ");
         assertField(
                 Minecraft189Mappings.GAME_SETTINGS_GUI_SCALE,
                 Minecraft189Mappings.GAME_SETTINGS,
@@ -326,6 +362,9 @@ final class Minecraft189MappingsTest {
 
     private static void addMinecraftFields(
             final ClassWriter writer) {
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_THE_PLAYER);
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
