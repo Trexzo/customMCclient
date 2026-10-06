@@ -523,3 +523,13 @@ The Entity class-shape gate now requires `rotationYaw` alongside the already-cer
 
 This milestone is authority-only: it does not expose a new runtime interface, read yaw from the child loader, or add a HUD. The next clean consumer is a narrow live rotation snapshot and Direction HUD built on this independently certified mapping.
 
+## Live Direction HUD
+
+M103 consumes the independently certified M102 `Entity.rotationYaw` mapping. Transformed base Entity now implements a second narrow parent-owned contract, `Minecraft189PlayerRotationAccess`, exposing only `customMcRotationYaw()F`; the existing position contract remains separate.
+
+Immediately before each normal return from mapped `Minecraft.runTick()`, the exact mapped `thePlayer` reference is also forwarded through `Minecraft189RuntimeBridge.playerRotation(...)`. A null player clears the rotation snapshot. `Minecraft189HostRuntime` owns `Minecraft189PlayerRotationState` and clears it during teardown, so no child-loader Minecraft type escapes into feature code.
+
+The new Visuals module `render.direction` / **Direction** renders only while a live yaw sample exists. It normalizes arbitrary finite yaw to `0..359`, uses Minecraft's yaw convention (`0=S`, `90=W`, `180=N`, `270=E`) with eight cardinal/intercardinal sectors, and displays the rounded yaw. Persistent `render.direction.x` and `render.direction.y` settings use the existing generic settings, presentation and module-binding path.
+
+Executable regression coverage proves transformed `pk.y` reaches the host snapshot, null-player clearing removes it, the HUD renders `Direction: W (91°)` for `91.2`, negative yaw normalizes correctly, non-finite yaw is rejected, settings persist, and feature teardown removes all owned registrations.
+
