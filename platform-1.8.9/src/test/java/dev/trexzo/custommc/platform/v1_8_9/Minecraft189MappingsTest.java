@@ -322,6 +322,9 @@ final class Minecraft189MappingsTest {
                                 .obfuscatedInternalName());
         addField(
                 writer,
+                Minecraft189Mappings.GAME_SETTINGS_FOV);
+        addField(
+                writer,
                 Minecraft189Mappings.GAME_SETTINGS_GUI_SCALE);
         addField(
                 writer,
