@@ -3,6 +3,9 @@ package dev.trexzo.custommc.core;
 import dev.trexzo.custommc.core.module.Module;
 import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModuleDescriptor;
+import dev.trexzo.custommc.core.module.ModuleKeyChord;
+import dev.trexzo.custommc.core.module.ModuleKeybind;
+import dev.trexzo.custommc.core.module.ModuleKeybindRegistry;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.module.ModuleSettingBinding;
@@ -50,6 +53,53 @@ final class ModuleDetailPageContentTest {
         assertFalse(
                 text.contains(
                         "Aura Enabled"));
+    }
+
+    @Test
+    void selectedDetailProjectsLiveKeybindAuthority() {
+        final Fixture fixture = new Fixture();
+
+        fixture.selection.select(
+                "combat.aura");
+
+        final List<String> unbound =
+                texts(
+                        fixture.content.compose(
+                                fixture.context()));
+        assertTrue(
+                unbound.contains(
+                        "Bind: Unbound"));
+
+        final ModuleKeybindRegistry.Registration registration =
+                fixture.keybinds.register(
+                        new ModuleKeybind(
+                                "combat.aura",
+                                new ModuleKeyChord(
+                                        "legacy-key-37",
+                                        false,
+                                        true,
+                                        false)));
+
+        final List<String> bound =
+                texts(
+                        fixture.content.compose(
+                                fixture.context()));
+        assertTrue(
+                bound.contains(
+                        "Bind: CTRL+legacy-key-37"));
+        assertFalse(
+                bound.contains(
+                        "Bind: Unbound"));
+
+        registration.close();
+
+        final List<String> released =
+                texts(
+                        fixture.content.compose(
+                                fixture.context()));
+        assertTrue(
+                released.contains(
+                        "Bind: Unbound"));
     }
 
     @Test
@@ -139,6 +189,7 @@ final class ModuleDetailPageContentTest {
                 new SettingRegistry();
         private final ModuleController controller;
         private final ModuleSelectionModel selection;
+        private final ModuleKeybindRegistry keybinds;
         private final ModuleDetailPageContent content;
         private final Setting<Boolean> enabled;
 
@@ -237,12 +288,15 @@ final class ModuleDetailPageContentTest {
                     new ModuleController(modules);
             selection =
                     new ModuleSelectionModel(modules);
+            keybinds =
+                    new ModuleKeybindRegistry(modules);
             content =
                     new ModuleDetailPageContent(
                             selection,
                             controller,
                             modulePresentations,
                             moduleSettings,
+                            keybinds,
                             settings,
                             settingPresentations);
         }
