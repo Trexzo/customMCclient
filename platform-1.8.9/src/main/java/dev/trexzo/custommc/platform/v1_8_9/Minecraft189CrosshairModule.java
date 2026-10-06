@@ -1,0 +1,218 @@
+package dev.trexzo.custommc.platform.v1_8_9;
+
+import dev.trexzo.custommc.core.module.Module;
+import dev.trexzo.custommc.core.render.RenderFrame;
+import dev.trexzo.custommc.core.render.RenderPass;
+import dev.trexzo.custommc.core.render.RenderPipeline;
+import dev.trexzo.custommc.core.render.RenderStage;
+import dev.trexzo.custommc.core.setting.Setting;
+import dev.trexzo.custommc.core.setting.SettingCodecs;
+import dev.trexzo.custommc.core.ui.UiViewport;
+import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
+
+import java.util.Objects;
+
+public final class Minecraft189CrosshairModule
+        implements Module {
+    public static final String ID =
+            "render.crosshair";
+    public static final String LENGTH_SETTING_ID =
+            "render.crosshair.length";
+    public static final String GAP_SETTING_ID =
+            "render.crosshair.gap";
+    public static final String THICKNESS_SETTING_ID =
+            "render.crosshair.thickness";
+    public static final String DOT_SETTING_ID =
+            "render.crosshair.dot";
+    public static final String RENDER_PASS_ID =
+            "crosshair";
+
+    private static final int PRIORITY = 130;
+    private static final int COLOR_ARGB = 0xFFFFFFFF;
+
+    private final RenderPipeline renderPipeline;
+    private final LegacyUiHostCallbacks hostCallbacks;
+    private final Setting<Integer> length =
+            new Setting<Integer>(
+                    LENGTH_SETTING_ID,
+                    4,
+                    value -> value >= 1
+                            && value <= 20,
+                    SettingCodecs.INTEGER);
+    private final Setting<Integer> gap =
+            new Setting<Integer>(
+                    GAP_SETTING_ID,
+                    2,
+                    value -> value >= 0
+                            && value <= 12,
+                    SettingCodecs.INTEGER);
+    private final Setting<Integer> thickness =
+            new Setting<Integer>(
+                    THICKNESS_SETTING_ID,
+                    1,
+                    value -> value >= 1
+                            && value <= 6,
+                    SettingCodecs.INTEGER);
+    private final Setting<Boolean> dot =
+            new Setting<Boolean>(
+                    DOT_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> true,
+                    SettingCodecs.BOOLEAN);
+    private RenderPipeline.Registration renderRegistration;
+
+    public Minecraft189CrosshairModule(
+            final RenderPipeline renderPipeline,
+            final LegacyUiHostCallbacks hostCallbacks) {
+        this.renderPipeline =
+                Objects.requireNonNull(
+                        renderPipeline,
+                        "renderPipeline");
+        this.hostCallbacks =
+                Objects.requireNonNull(
+                        hostCallbacks,
+                        "hostCallbacks");
+    }
+
+    @Override
+    public String id() {
+        return ID;
+    }
+
+    public Setting<Integer> lengthSetting() {
+        return length;
+    }
+
+    public Setting<Integer> gapSetting() {
+        return gap;
+    }
+
+    public Setting<Integer> thicknessSetting() {
+        return thickness;
+    }
+
+    public Setting<Boolean> dotSetting() {
+        return dot;
+    }
+
+    @Override
+    public synchronized void onEnable() {
+        if (renderRegistration != null) {
+            throw new IllegalStateException(
+                    "crosshair render pass already installed");
+        }
+        renderRegistration =
+                renderPipeline.register(
+                        new CrosshairRenderPass());
+    }
+
+    @Override
+    public synchronized void onDisable() {
+        if (renderRegistration == null) {
+            return;
+        }
+        renderRegistration.close();
+        renderRegistration = null;
+    }
+
+    synchronized boolean renderPassInstalled() {
+        return renderRegistration != null
+                && renderRegistration.active();
+    }
+
+    private final class CrosshairRenderPass
+            implements RenderPass {
+        @Override
+        public String id() {
+            return RENDER_PASS_ID;
+        }
+
+        @Override
+        public RenderStage stage() {
+            return RenderStage.HUD;
+        }
+
+        @Override
+        public int priority() {
+            return PRIORITY;
+        }
+
+        @Override
+        public void render(
+                final RenderFrame frame) {
+            Objects.requireNonNull(
+                    frame,
+                    "frame");
+
+            final UiViewport viewport =
+                    new UiViewport(
+                            hostCallbacks.framebufferWidth(),
+                            hostCallbacks.framebufferHeight(),
+                            hostCallbacks.uiScale());
+            final float centerX =
+                    viewport.logicalWidth() / 2.0F;
+            final float centerY =
+                    viewport.logicalHeight() / 2.0F;
+            final float lineLength =
+                    length.get().floatValue();
+            final float lineGap =
+                    gap.get().floatValue();
+            final float lineThickness =
+                    thickness.get().floatValue();
+            final float halfThickness =
+                    lineThickness / 2.0F;
+
+            hostCallbacks.beginUi(viewport);
+            RuntimeException failure = null;
+            try {
+                hostCallbacks.fillRect(
+                        centerX - lineGap - lineLength,
+                        centerY - halfThickness,
+                        lineLength,
+                        lineThickness,
+                        COLOR_ARGB);
+                hostCallbacks.fillRect(
+                        centerX + lineGap,
+                        centerY - halfThickness,
+                        lineLength,
+                        lineThickness,
+                        COLOR_ARGB);
+                hostCallbacks.fillRect(
+                        centerX - halfThickness,
+                        centerY - lineGap - lineLength,
+                        lineThickness,
+                        lineLength,
+                        COLOR_ARGB);
+                hostCallbacks.fillRect(
+                        centerX - halfThickness,
+                        centerY + lineGap,
+                        lineThickness,
+                        lineLength,
+                        COLOR_ARGB);
+
+                if (dot.get().booleanValue()) {
+                    hostCallbacks.fillRect(
+                            centerX - halfThickness,
+                            centerY - halfThickness,
+                            lineThickness,
+                            lineThickness,
+                            COLOR_ARGB);
+                }
+            } catch (RuntimeException drawFailure) {
+                failure = drawFailure;
+                throw drawFailure;
+            } finally {
+                try {
+                    hostCallbacks.endUi();
+                } catch (RuntimeException closeFailure) {
+                    if (failure != null) {
+                        failure.addSuppressed(
+                                closeFailure);
+                    } else {
+                        throw closeFailure;
+                    }
+                }
+            }
+        }
+    }
+}
