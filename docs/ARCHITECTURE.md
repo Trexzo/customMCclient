@@ -398,3 +398,12 @@ The input state is updated in `Minecraft189HostRuntime` before keyboard or point
 Keystrokes renders W/A/S/D plus LMB/RMB through the existing HUD and legacy UI host path. Pressed and idle keys use distinct backgrounds/text colors, and the module owns persistent X/Y settings through the generic setting-registration and module-detail editing system.
 
 Regression coverage proves a Right Shift event consumed by the ClickGUI toggle still updates raw state, then proves mapped-style W/LMB press and release transitions change the rendered Keystrokes state at configured coordinates. Host shutdown clears retained raw state and removes the Keystrokes module and its settings.
+
+
+## Live FPS HUD
+
+M92 derives FPS from the certified mapped render-frame lifecycle rather than adding a Minecraft debug-field mapping. `Minecraft189FrameRateTracker` is host-owned and records each `renderFrameStarted` callback into a rolling one-second monotonic-time window. Querying FPS ages stale frames out, and a backwards clock is rejected rather than silently corrupting the metric.
+
+`Minecraft189BootstrapRuntime.beginRenderFrame(...)` now forwards each lifecycle-owned frame start to the installed host tracker after allocating the frame index. The fourth Visuals feature, `render.fps` / **FPS**, renders the current measured value as `FPS: N` through the existing HUD/font path and owns persistent X/Y settings through the generic module-detail settings system.
+
+Deterministic clock tests prove the one-second rolling window and reset behavior. A module test proves live FPS text and configured position, host-lifetime tests prove its module/settings ownership is removed on shutdown, and the transformed EntityRenderer regression proves the real mapped frame-start hook reaches the FPS tracker.
