@@ -341,3 +341,14 @@ Immediately after that invocation, the transformer duplicates the returned integ
 The parent-owned mouse binding ignores zero deltas without reading cursor state; non-zero deltas reuse the live LWJGL X/Y position and the existing viewport-aware M73 scroll bridge. Regression coverage proves retained ClickGUI scroll routing with a fake cursor source, proves zero-delta isolation, and verifies exactly one wheel callback is injected. The transformed tick fixture retains a JVM-verifiable but unreachable LWJGL wheel read so existing executable tick-index regressions remain native-free.
 
 M86 is still non-consuming. Conditional suppression while the retained ClickGUI is open remains a later policy milestone.
+
+
+## Host-owned ClickGUI toggle binding
+
+M87 closes the remaining live-use gap in the retained UI: the M84 mapped keyboard path can now open the ClickGUI as well as interact with and close it. A dedicated `Minecraft189ClickGuiToggleController` is registered as a managed host service after ClickGUI installation and removed before ClickGUI teardown.
+
+The default platform binding is explicitly named as LWJGL Right Shift (`LegacyKeyboardCodes.RIGHT_SHIFT = 54`). The controller owns the toggle policy rather than embedding a raw key-code comparison in the bytecode transformer. Only the initial press toggles; release and keyboard-repeat events are ignored so holding Right Shift cannot oscillate UI state.
+
+`Minecraft189InputHooks.key(...)` routes events through the toggle controller before retained ClickGUI content input and module keybind handling. Regression coverage proves the actual M84 mapped-keyboard adapter opens a previously closed retained ClickGUI with Right Shift, Escape still closes it through the existing input controller, repeated Right Shift does not retrigger, and the toggle service disappears with the host runtime.
+
+M87 deliberately does not persist or rebind this client-action chord yet. Module-key persistence remains a separate authority, and vanilla keyboard behavior is still non-consuming at the transformed Minecraft boundary.
