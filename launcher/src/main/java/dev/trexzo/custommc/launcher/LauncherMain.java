@@ -4,6 +4,7 @@ import dev.trexzo.custommc.core.event.EventBus;
 import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.service.ServiceRegistry;
+import dev.trexzo.custommc.launcher.launch.Minecraft189LaunchCli;
 import dev.trexzo.custommc.launcher.runtime.InstallationInspection;
 import dev.trexzo.custommc.launcher.runtime.MinecraftHomeLocator;
 import dev.trexzo.custommc.launcher.runtime.MinecraftInstallation;
@@ -11,12 +12,35 @@ import dev.trexzo.custommc.launcher.runtime.MinecraftInstallationProbe;
 import dev.trexzo.custommc.platform.PlatformContext;
 
 import java.nio.file.Path;
+import java.util.Arrays;
 
 public final class LauncherMain {
     private LauncherMain() {
     }
 
-    public static void main(final String[] args) {
+    public static void main(final String[] args)
+            throws Exception {
+        if (args.length > 0) {
+            if (!"launch".equals(args[0])) {
+                throw new IllegalArgumentException(
+                        "unknown launcher command: "
+                                + args[0]);
+            }
+
+            final int exitCode =
+                    Minecraft189LaunchCli.run(
+                            Arrays.copyOfRange(
+                                    args,
+                                    1,
+                                    args.length));
+            if (exitCode != 0) {
+                throw new IllegalStateException(
+                        "Minecraft exited with code "
+                                + exitCode);
+            }
+            return;
+        }
+
         final EventBus events = new EventBus();
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController moduleController =
