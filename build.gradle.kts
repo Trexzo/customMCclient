@@ -24,6 +24,84 @@ subprojects {
     }
 }
 
+val runtimeOverlayDirectory =
+    layout.buildDirectory.dir("runtime-overlay")
+
+val assembleRuntimeOverlay by tasks.registering(Sync::class) {
+    group = "distribution"
+    description = "Assembles the canonical CustomMC Minecraft 1.8.9 runtime overlay."
+
+    dependsOn(
+        ":bootstrap:jar",
+        ":core:jar",
+        ":platform-api:jar",
+        ":platform-1.8.9:jar"
+    )
+
+    into(runtimeOverlayDirectory)
+
+    from(
+        project(":bootstrap").layout.buildDirectory.file(
+            "libs/bootstrap-${project(":bootstrap").version}.jar"
+        )
+    ) {
+        rename { "bootstrap.jar" }
+    }
+
+    from(
+        project(":core").layout.buildDirectory.file(
+            "libs/core-${project(":core").version}.jar"
+        )
+    ) {
+        rename { "core.jar" }
+    }
+
+    from(
+        project(":platform-api").layout.buildDirectory.file(
+            "libs/platform-api-${project(":platform-api").version}.jar"
+        )
+    ) {
+        rename { "platform-api.jar" }
+    }
+
+    from(
+        project(":platform-1.8.9").layout.buildDirectory.file(
+            "libs/platform-1.8.9-${project(":platform-1.8.9").version}.jar"
+        )
+    ) {
+        rename { "platform-1.8.9.jar" }
+    }
+}
+
+val verifyRuntimeOverlayBundle by tasks.registering {
+    group = "verification"
+    description = "Verifies the canonical runtime overlay contains exactly the expected jars."
+
+    dependsOn(assembleRuntimeOverlay)
+
+    doLast {
+        val directory =
+            runtimeOverlayDirectory.get().asFile
+        val actual =
+            directory.listFiles()
+                ?.filter { it.isFile }
+                ?.map { it.name }
+                ?.sorted()
+                ?: emptyList()
+        val expected =
+            listOf(
+                "bootstrap.jar",
+                "core.jar",
+                "platform-1.8.9.jar",
+                "platform-api.jar"
+            )
+
+        check(actual == expected) {
+            "runtime overlay mismatch expected=$expected actual=$actual"
+        }
+    }
+}
+
 tasks.register("verifyFoundation") {
     group = "verification"
     description = "Runs all foundation verification gates."
@@ -31,6 +109,8 @@ tasks.register("verifyFoundation") {
         ":bootstrap:check",
         ":core:check",
         ":platform-api:check",
-        ":launcher:check"
+        ":platform-1.8.9:check",
+        ":launcher:check",
+        verifyRuntimeOverlayBundle
     )
 }
