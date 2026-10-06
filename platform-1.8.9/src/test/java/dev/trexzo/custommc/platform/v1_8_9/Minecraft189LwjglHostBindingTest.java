@@ -40,6 +40,19 @@ final class Minecraft189LwjglHostBindingTest {
 
     private static final class FixedSettings
             implements Minecraft189GuiSettingsAccess {
+        private float gamma = 0.5F;
+
+        @Override
+        public float gammaSetting() {
+            return gamma;
+        }
+
+        @Override
+        public void gammaSetting(
+                final float value) {
+            gamma = value;
+        }
+
         @Override
         public int configuredGuiScale() {
             return 2;
