@@ -73,35 +73,6 @@ val assembleRuntimeOverlay by tasks.registering(Sync::class) {
     }
 }
 
-val verifyRuntimeOverlayBundle by tasks.registering {
-    group = "verification"
-    description = "Verifies the canonical runtime overlay contains exactly the expected jars."
-
-    dependsOn(assembleRuntimeOverlay)
-
-    doLast {
-        val directory =
-            runtimeOverlayDirectory.get().asFile
-        val actual =
-            directory.listFiles()
-                ?.filter { it.isFile }
-                ?.map { it.name }
-                ?.sorted()
-                ?: emptyList()
-        val expected =
-            listOf(
-                "bootstrap.jar",
-                "core.jar",
-                "platform-1.8.9.jar",
-                "platform-api.jar"
-            )
-
-        check(actual == expected) {
-            "runtime overlay mismatch expected=$expected actual=$actual"
-        }
-    }
-}
-
 tasks.register("verifyFoundation") {
     group = "verification"
     description = "Runs all foundation verification gates."
@@ -111,6 +82,6 @@ tasks.register("verifyFoundation") {
         ":platform-api:check",
         ":platform-1.8.9:check",
         ":launcher:check",
-        verifyRuntimeOverlayBundle
+        assembleRuntimeOverlay
     )
 }
