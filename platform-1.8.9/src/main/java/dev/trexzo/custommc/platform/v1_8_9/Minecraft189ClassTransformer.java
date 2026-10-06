@@ -65,6 +65,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerHealthAccess";
     private static final String PLAYER_HEALTH_ACCESS_DESCRIPTOR =
             "L" + PLAYER_HEALTH_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_ARMOR_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerArmorAccess";
+    private static final String PLAYER_ARMOR_ACCESS_DESCRIPTOR =
+            "L" + PLAYER_ARMOR_ACCESS_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -266,6 +271,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedHealth =
                 new boolean[]{false};
+        final boolean[] injectedArmor =
+                new boolean[]{false};
         final boolean[] foundDispatchKeypresses =
                 new boolean[]{false};
         final boolean[] injectedKeyboard =
@@ -416,6 +423,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedHealth[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_ARMOR_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerArmor",
+                                                "("
+                                                        + PLAYER_ARMOR_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedArmor[0] = true;
                                     }
                                     super.visitInsn(opcode);
                                 }
@@ -498,7 +527,8 @@ public final class Minecraft189ClassTransformer
                 || !injectedTick[0]
                 || !injectedPosition[0]
                 || !injectedRotation[0]
-                || !injectedHealth[0]) {
+                || !injectedHealth[0]
+                || !injectedArmor[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
         }
@@ -1068,8 +1098,10 @@ public final class Minecraft189ClassTransformer
                                 signature,
                                 superName,
                                 withInterface(
-                                        interfaces,
-                                        PLAYER_HEALTH_ACCESS_INTERNAL_NAME));
+                                        withInterface(
+                                                interfaces,
+                                                PLAYER_HEALTH_ACCESS_INTERNAL_NAME),
+                                        PLAYER_ARMOR_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1084,12 +1116,69 @@ public final class Minecraft189ClassTransformer
                                 "customMcMaxHealth",
                                 Minecraft189Mappings
                                         .ENTITY_LIVING_BASE_GET_MAX_HEALTH);
+                        addEquipmentPresentGetter(
+                                cv,
+                                "customMcArmorBoots",
+                                1);
+                        addEquipmentPresentGetter(
+                                cv,
+                                "customMcArmorLeggings",
+                                2);
+                        addEquipmentPresentGetter(
+                                cv,
+                                "customMcArmorChestplate",
+                                3);
+                        addEquipmentPresentGetter(
+                                cv,
+                                "customMcArmorHelmet",
+                                4);
                         super.visitEnd();
                     }
                 },
                 0);
 
         return writer.toByteArray();
+    }
+
+    private static void addEquipmentPresentGetter(
+            final ClassVisitor visitor,
+            final String methodName,
+            final int slot) {
+        final Minecraft189Mappings.MappedMethod equipment =
+                Minecraft189Mappings
+                        .ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT;
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()Z",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitIntInsn(
+                Opcodes.BIPUSH,
+                slot);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                equipment.owner().obfuscatedInternalName(),
+                equipment.obfuscatedName(),
+                equipment.descriptor(),
+                false);
+        method.visitMethodInsn(
+                Opcodes.INVOKESTATIC,
+                "java/util/Objects",
+                "nonNull",
+                "(Ljava/lang/Object;)Z",
+                false);
+        method.visitInsn(
+                Opcodes.IRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
     }
 
     private static void addFloatMethodDelegate(
