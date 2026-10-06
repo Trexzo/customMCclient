@@ -50,6 +50,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189FontRendererAccess";
     private static final String FONT_RENDERER_ACCESS_DESCRIPTOR =
             "L" + FONT_RENDERER_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_POSITION_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerPositionAccess";
+    private static final String PLAYER_POSITION_ACCESS_DESCRIPTOR =
+            "L" + PLAYER_POSITION_ACCESS_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -72,6 +77,9 @@ public final class Minecraft189ClassTransformer
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.ENTITY_RENDERER
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.ENTITY
                 .obfuscatedBinaryName()
                 .equals(binaryClassName);
     }
@@ -130,6 +138,13 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyEntityRenderer(input);
             return transformEntityRenderer(input);
+        }
+        if (Minecraft189Mappings.ENTITY
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyEntity(input);
+            return transformEntity(input);
         }
 
         throw new IllegalArgumentException(
@@ -225,6 +240,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedTick =
                 new boolean[]{false};
+        final boolean[] injectedPosition =
+                new boolean[]{false};
         final boolean[] foundDispatchKeypresses =
                 new boolean[]{false};
         final boolean[] injectedKeyboard =
@@ -304,6 +321,38 @@ public final class Minecraft189ClassTransformer
                                 }
 
                                 @Override
+                                public void visitInsn(
+                                        final int opcode) {
+                                    if (opcode == Opcodes.RETURN) {
+                                        final Minecraft189Mappings.MappedField player =
+                                                Minecraft189Mappings
+                                                        .MINECRAFT_PLAYER;
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_POSITION_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerPosition",
+                                                "("
+                                                        + PLAYER_POSITION_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedPosition[0] = true;
+                                    }
+                                    super.visitInsn(opcode);
+                                }
+
+                                @Override
                                 public void visitMethodInsn(
                                         final int opcode,
                                         final String owner,
@@ -378,7 +427,8 @@ public final class Minecraft189ClassTransformer
                     "mapped Minecraft startGame method was not patchable");
         }
         if (!foundRunTick[0]
-                || !injectedTick[0]) {
+                || !injectedTick[0]
+                || !injectedPosition[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
         }
@@ -828,6 +878,88 @@ public final class Minecraft189ClassTransformer
                     "mapped EntityRenderer updateCameraAndRender method was not patchable");
         }
         return writer.toByteArray();
+    }
+
+    private static byte[] transformEntity(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public void visit(
+                            final int version,
+                            final int access,
+                            final String name,
+                            final String signature,
+                            final String superName,
+                            final String[] interfaces) {
+                        super.visit(
+                                version,
+                                access,
+                                name,
+                                signature,
+                                superName,
+                                withInterface(
+                                        interfaces,
+                                        PLAYER_POSITION_ACCESS_INTERNAL_NAME));
+                    }
+
+                    @Override
+                    public void visitEnd() {
+                        addDoubleFieldGetter(
+                                cv,
+                                "customMcPositionX",
+                                Minecraft189Mappings.ENTITY_POS_X);
+                        addDoubleFieldGetter(
+                                cv,
+                                "customMcPositionY",
+                                Minecraft189Mappings.ENTITY_POS_Y);
+                        addDoubleFieldGetter(
+                                cv,
+                                "customMcPositionZ",
+                                Minecraft189Mappings.ENTITY_POS_Z);
+                        super.visitEnd();
+                    }
+                },
+                0);
+
+        return writer.toByteArray();
+    }
+
+    private static void addDoubleFieldGetter(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedField field) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()D",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                field.owner().obfuscatedInternalName(),
+                field.obfuscatedName(),
+                field.descriptor());
+        method.visitInsn(
+                Opcodes.DRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
     }
 
     private static void addIntFieldGetter(
