@@ -42,6 +42,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189KeystrokesFeature keystrokesFeature;
     private final Minecraft189FpsFeature fpsFeature;
     private final Minecraft189CpsFeature cpsFeature;
+    private final Minecraft189CoordinatesFeature coordinatesFeature;
     private boolean closed;
 
     private Minecraft189FeatureCatalog(
@@ -62,7 +63,8 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189ArrayListFeature arrayListFeature,
             final Minecraft189KeystrokesFeature keystrokesFeature,
             final Minecraft189FpsFeature fpsFeature,
-            final Minecraft189CpsFeature cpsFeature) {
+            final Minecraft189CpsFeature cpsFeature,
+            final Minecraft189CoordinatesFeature coordinatesFeature) {
         this.moduleController = moduleController;
         this.watermark = watermark;
         this.watermarkRegistration = watermarkRegistration;
@@ -81,6 +83,7 @@ public final class Minecraft189FeatureCatalog
         this.keystrokesFeature = keystrokesFeature;
         this.fpsFeature = fpsFeature;
         this.cpsFeature = cpsFeature;
+        this.coordinatesFeature = coordinatesFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -94,6 +97,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189InputState inputState,
             final Minecraft189FrameRateTracker frameRateTracker,
             final Minecraft189ClickRateTracker clickRateTracker,
+            final Minecraft189PlayerPositionState playerPositionState,
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
         Objects.requireNonNull(modules, "modules");
@@ -125,6 +129,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189KeystrokesFeature keystrokesFeature = null;
         Minecraft189FpsFeature fpsFeature = null;
         Minecraft189CpsFeature cpsFeature = null;
+        Minecraft189CoordinatesFeature coordinatesFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -255,6 +260,18 @@ public final class Minecraft189FeatureCatalog
                             renderPipeline,
                             hostCallbacks);
 
+            coordinatesFeature =
+                    Minecraft189CoordinatesFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            playerPositionState,
+                            renderPipeline,
+                            hostCallbacks);
+
             return new Minecraft189FeatureCatalog(
                     moduleController,
                     watermark,
@@ -273,8 +290,10 @@ public final class Minecraft189FeatureCatalog
                     arrayListFeature,
                     keystrokesFeature,
                     fpsFeature,
-                    cpsFeature);
+                    cpsFeature,
+                    coordinatesFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(coordinatesFeature, failure);
             closeQuietly(cpsFeature, failure);
             closeQuietly(fpsFeature, failure);
             closeQuietly(keystrokesFeature, failure);
@@ -320,6 +339,11 @@ public final class Minecraft189FeatureCatalog
         return cpsFeature.module();
     }
 
+    public Minecraft189CoordinatesModule coordinates() {
+        requireOpen();
+        return coordinatesFeature.module();
+    }
+
     public synchronized boolean closed() {
         return closed;
     }
@@ -335,9 +359,17 @@ public final class Minecraft189FeatureCatalog
 
         RuntimeException failure = null;
         try {
-            cpsFeature.close();
+            coordinatesFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = closeFailure;
+        }
+
+        try {
+            cpsFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
         }
 
         try {
