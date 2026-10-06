@@ -136,3 +136,13 @@ M60 adds immutable `LegacyUiGeometry` plus `LegacyUiPrimitiveMode` and `LegacyUi
 Rectangles use stable clockwise `QUADS` vertices, outlines use the same perimeter as a `LINE_LOOP`, and rounded rectangles use a convex `TRIANGLE_FAN`. Rounded-corner tessellation is deterministic: the factory owns an explicit segments-per-quarter value, defaults to 8, and rejects values outside 1..64. Radius 0 falls back to plain quad geometry.
 
 Geometry defensively copies coordinates, rejects non-finite values, validates primitive vertex topology, and exposes indexed XY access plus a defensive packed-coordinate snapshot. M60 contains no GL calls and no Minecraft/LWJGL types; it is the geometry input layer for the concrete host renderer.
+
+## M61 concrete LWJGL 2 host backend
+
+M61 is the first concrete OpenGL implementation layer. The platform module now compiles against `org.lwjgl.lwjgl:lwjgl:2.9.3` as a non-transitive compile-only dependency; the launcher/client does not bundle a second copy of LWJGL or platform natives.
+
+`Lwjgl2LegacyGlApi` implements the tested `LegacyGlApi` seam with GL11. It owns a scoped orthographic projection over logical UI coordinates, targeted server-state preservation through the attribute stack, blend/depth/cull/lighting/texture/alpha preparation, ARGB color conversion, line width, primitive begin/vertex/end, and framebuffer scissor application. Frame teardown restores model-view/projection matrices, the prior matrix mode, and pushed GL attributes; leaked primitive state is closed before restoration.
+
+`Lwjgl2LegacyUiHostCallbacks` composes that GL API with the M57/M58 scissor controller, M59 batching scopes and M60 geometry factory. Consecutive batched shapes reuse prepared shape state, standalone shapes prepare it on demand, outlines apply their requested line width, and text switches to text-safe GL state before delegating to an injected `LegacyUiTextRenderer`.
+
+Framebuffer dimensions/UI scale remain injected through `LegacyUiViewportSource`, and Minecraft font drawing remains injected through `LegacyUiTextRenderer`. This keeps Mojang classes out of the platform source while leaving only the final game-specific adapters/callback forwarding to bind.
