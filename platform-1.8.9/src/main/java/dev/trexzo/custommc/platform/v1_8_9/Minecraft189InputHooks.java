@@ -1,10 +1,15 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
+import dev.trexzo.custommc.core.module.ModuleKeyChord;
+import dev.trexzo.custommc.core.module.ModuleKeybindController;
+import dev.trexzo.custommc.core.service.ServiceRegistry;
+import dev.trexzo.custommc.core.ui.UiKeyAction;
 import dev.trexzo.custommc.core.ui.UiKeyEvent;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
 import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiInputController;
+import dev.trexzo.custommc.core.ui.clickgui.ClickGuiModel;
 import dev.trexzo.custommc.platform.v1_8_9.input.LegacyInputTranslator;
 
 import java.util.Objects;
@@ -109,7 +114,41 @@ public final class Minecraft189InputHooks {
                         shift,
                         control,
                         alt);
-        return input().key(event);
+        final ServiceRegistry services =
+                platform.requireContext()
+                        .services();
+
+        if (services.contains(
+                ClickGuiInputController.class)
+                && services.require(
+                ClickGuiInputController.class)
+                .key(event)) {
+            return true;
+        }
+
+        if (services.contains(
+                ClickGuiModel.class)
+                && services.require(
+                ClickGuiModel.class)
+                .snapshot()
+                .open()) {
+            return false;
+        }
+
+        if (event.action() != UiKeyAction.PRESS
+                || !services.contains(
+                ModuleKeybindController.class)) {
+            return false;
+        }
+
+        return services.require(
+                ModuleKeybindController.class)
+                .press(
+                        new ModuleKeyChord(
+                                event.key().id(),
+                                event.shift(),
+                                event.control(),
+                                event.alt()));
     }
 
     private ClickGuiInputController input() {
