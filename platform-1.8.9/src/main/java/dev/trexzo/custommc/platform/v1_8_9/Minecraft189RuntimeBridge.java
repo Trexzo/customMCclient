@@ -63,6 +63,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerRotation(
+            final Minecraft189PlayerRotationAccess player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerRotation(player);
+        }
+    }
+
     public static synchronized void publishTick(
             final long tickIndex) {
         final Minecraft189HostRuntime host =
