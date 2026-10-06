@@ -193,12 +193,12 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 ## Next layers
 
-Later milestones can add:
+The remaining major UI/platform work is now concentrated at the actual host boundary:
 
-- keybind persistence/profile integration over the M51 assignment owner;
-- concrete host implementation of `LegacyUiGraphics` and `LegacyUiViewportSource` against Minecraft/LWJGL;
-- concrete host callback wiring into `Minecraft189InputHooks`;
-- backend batching/state minimization;
-- concrete legacy GL implementation.
+- concrete Minecraft 1.8.9 implementation of `LegacyUiHostCallbacks`;
+- wiring real game tick/render/mouse/wheel/key callbacks into `Minecraft189HostRuntime`;
+- mapping M57/M58 framebuffer scissor state into the host GL API;
+- concrete font drawing and shape rendering;
+- further batching of compatible shape/text work once real host costs can be measured.
 
 Those layers should extend the existing ownership seams rather than bypassing them.

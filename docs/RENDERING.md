@@ -110,3 +110,11 @@ Coverage is conservative: left/top edges use floor, right/bottom edges use ceil,
 `LegacyScissorStack` maps each pushed logical clip and intersects it with the currently active framebuffer clip. Push returns the active rectangle to apply to GL; pop returns the restored parent rectangle or `null` when scissoring should be disabled. Underflow is rejected.
 
 The final LWJGL host therefore does not need to duplicate coordinate inversion, scale rounding, clamping or nested intersection logic; it only needs to apply the returned framebuffer rectangle to the actual scissor API.
+
+## M58 scissor state minimization
+
+M58 adds `LegacyScissorStateController` over the M57 mapping/stack utilities plus a minimal `LegacyScissorStateSink` host contract. The controller tracks the effective framebuffer rectangle already applied by the host and suppresses redundant state writes when a nested logical clip resolves to the same active intersection.
+
+A real intersection change emits exactly one `apply(...)`; popping back to a different parent emits exactly one restore; leaving the outermost clip emits one `disable()`. `reset()` discards all retained nested clip state and disables scissoring once without replaying intermediate parent rectangles, making frame teardown cheap and deterministic.
+
+The final GL callback implementation can map the sink directly to its scissor enable/box calls. M58 therefore moves both coordinate math and redundant-state suppression out of ad hoc host code while still leaving actual OpenGL ownership at the host boundary.
