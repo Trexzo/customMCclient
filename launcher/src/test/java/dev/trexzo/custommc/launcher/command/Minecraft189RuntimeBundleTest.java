@@ -58,6 +58,32 @@ final class Minecraft189RuntimeBundleTest {
                 overlay.mainArgumentsPrefix());
     }
 
+
+    @Test
+    void canonicalDirectoryFactoryUsesStableBundleNames() {
+        final Path root =
+                tempDir.resolve("runtime-overlay");
+
+        final Minecraft189RuntimeBundle bundle =
+                Minecraft189RuntimeBundle.fromDirectory(root);
+
+        assertEquals(
+                Arrays.asList(
+                        root.resolve("bootstrap.jar")
+                                .toAbsolutePath()
+                                .normalize(),
+                        root.resolve("core.jar")
+                                .toAbsolutePath()
+                                .normalize(),
+                        root.resolve("platform-api.jar")
+                                .toAbsolutePath()
+                                .normalize(),
+                        root.resolve("platform-1.8.9.jar")
+                                .toAbsolutePath()
+                                .normalize()),
+                bundle.artifacts());
+    }
+
     @Test
     void bundleNormalizesPathsAndRejectsAliasedArtifacts() {
         final Path root =
