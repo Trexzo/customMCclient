@@ -121,8 +121,7 @@ public final class Minecraft189HostRuntime
             if (toggleRegistration != null) {
                 toggleRegistration.close();
             }
-            clickGuiToggleRegistration.close();
-        clickGuiRuntime.close();
+            clickGuiRuntime.close();
             throw failure;
         }
     }
