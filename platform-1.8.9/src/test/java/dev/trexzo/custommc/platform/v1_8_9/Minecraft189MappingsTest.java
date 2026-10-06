@@ -124,6 +124,13 @@ final class Minecraft189MappingsTest {
                 "D",
                 "field_70161_v",
                 "posZ");
+        assertField(
+                Minecraft189Mappings.ENTITY_ROTATION_YAW,
+                Minecraft189Mappings.ENTITY,
+                "y",
+                "F",
+                "field_70177_z",
+                "rotationYaw");
 
         assertField(
                 Minecraft189Mappings.GAME_SETTINGS_VIEW_BOBBING,
@@ -408,6 +415,33 @@ final class Minecraft189MappingsTest {
                 failure.getMessage());
     }
 
+    @Test
+    void entityShapeGateRejectsMissingRotationYawField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_X);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Y);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Z);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntity(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: pk.y F (rotationYaw)",
+                failure.getMessage());
+    }
+
     private static byte[] minecraftShape() {
         final ClassWriter writer =
                 writer(
@@ -509,6 +543,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_POS_Z);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ROTATION_YAW);
         return finish(writer);
     }
 
