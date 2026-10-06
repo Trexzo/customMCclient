@@ -117,12 +117,24 @@ final class Minecraft189FovModuleTest {
 
     private static final class RecordingSettings
             implements Minecraft189GuiSettingsAccess {
+        private boolean viewBobbing = true;
         private float fov;
         private float gamma = 0.5F;
 
         private RecordingSettings(
                 final float fov) {
             this.fov = fov;
+        }
+
+        @Override
+        public boolean viewBobbing() {
+            return viewBobbing;
+        }
+
+        @Override
+        public void viewBobbing(
+                final boolean value) {
+            viewBobbing = value;
         }
 
         @Override
