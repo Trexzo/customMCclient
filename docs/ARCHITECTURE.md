@@ -148,3 +148,9 @@ M68 removes a launch-order mismatch between version metadata and the M67 runtime
 Existing fixed `LaunchRuntimeOverlay` request constructors remain valid; they are wrapped as fixed resolvers and preserve their previous behavior. `Minecraft189RuntimeBundle` implements the resolver directly and derives the bootstrap target from `template.mainClass()`.
 
 `LaunchPreflight` now resolves the template first, passes that template to the overlay resolver, validates the resulting overlay entries, and only then stages natives/builds the JVM command. The launcher therefore no longer has to predict or separately re-resolve Mojang's main class merely to construct the CustomMC bootstrap overlay.
+
+## Canonical Minecraft 1.8.9 launch orchestration
+
+M69 adds `Minecraft189LaunchRequest` and `Minecraft189Launcher` as the first one-call launcher composition over the certified launch path. The request is explicitly version-locked to Minecraft 1.8.9 and converts directly to the M68 template-aware `LaunchPreflightRequest` using the canonical `Minecraft189RuntimeBundle`.
+
+`Minecraft189Launcher.start(...)` performs only two ownership transfers: M7/M68 `LaunchPreflight.prepare(...)`, then M62 `LaunchProcessRunner.start(...)`. It does not duplicate metadata resolution, artifact verification, overlay validation, native staging, command construction, child-process cleanup or session lifetime rules.
