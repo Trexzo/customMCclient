@@ -50,7 +50,7 @@ The adapter owns only the version-specific in-process boundary. Hooks publish ty
 
 Rendering now uses a staged backend-neutral pipeline with cached stage plans, explicit resource ownership and retained UI command composition. `platform-1.8.9` translates those commands through a narrow legacy host boundary rather than leaking Minecraft/LWJGL types into core.
 
-M54-M56 provide the guarded host UI bridge, shared-viewport input bridge and unified host runtime façade. M57 adds deterministic logical-to-framebuffer scissor mapping plus nested clip intersection. The remaining host-specific step is implementing the narrow callback contract against the actual Minecraft 1.8.9 font/GL APIs and forwarding real game callbacks into the certified façade.
+M54-M56 provide the guarded host UI bridge, shared-viewport input bridge and unified host runtime façade. M57-M58 add deterministic logical-to-framebuffer scissor mapping plus redundant-state suppression. M59 adds optional order-preserving shape batch scopes, and M60 adds validated packed geometry for rect, outline and rounded-rect drawing. The remaining host-specific step is implementing the narrow callback contract against the actual Minecraft 1.8.9 font/GL APIs and forwarding real game callbacks into the certified façade.
 
 ## Minecraft acquisition
 
