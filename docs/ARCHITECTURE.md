@@ -541,3 +541,13 @@ A dedicated `EntityLivingBase` class-shape gate now requires both exact methods 
 
 This milestone is authority-only. It does not transform `pr`, read player health, or register a HUD. The next clean consumer can expose a narrow parent-owned health contract and a live Health HUD only after this exact head is certified.
 
+## Live Health HUD
+
+M105 consumes the independently certified M104 `EntityLivingBase` health method authority. The transforming loader now claims exact `pr`, shape-verifies `bn()F` / `bu()F`, and adds only a parent-owned `Minecraft189PlayerHealthAccess` contract. Its getters delegate to the exact mapped methods; no health field layout is guessed and no reflection is introduced.
+
+Immediately before each normal return from mapped `Minecraft.runTick()`, the mapped `thePlayer` reference is forwarded through `Minecraft189RuntimeBridge.playerHealth(...)`. `Minecraft189HostRuntime` owns a synchronized `Minecraft189PlayerHealthState`; null player and host teardown clear availability. Samples reject non-finite values and non-positive maximum health.
+
+The new Visuals module `render.health` / **Health** renders `Health: current / max` to one decimal place only while a live sample exists. Persistent X/Y settings use the existing generic setting, presentation, profile and module-binding architecture.
+
+Executable regression coverage loads transformed `pk`, transformed `pr extends pk`, synthetic `bew extends pr`, and transformed `ave.runTick()` to prove live `17.5 / 20.0` health reaches the host snapshot and clears with a null player. Separate HUD coverage proves live text/position, persistent setting encoding, invalid-value rejection and complete feature teardown.
+
