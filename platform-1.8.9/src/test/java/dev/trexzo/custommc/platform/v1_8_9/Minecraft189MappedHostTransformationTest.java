@@ -395,6 +395,15 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(
                     -42.75D,
                     position.z());
+            final Minecraft189MovementSpeedTracker.Snapshot speed =
+                    runtime.requireHostRuntime()
+                            .movementSpeedTracker()
+                            .snapshot();
+            assertTrue(
+                    speed.available());
+            assertEquals(
+                    0.0D,
+                    speed.blocksPerSecond());
 
             minecraftClass.getField("h")
                     .set(
@@ -404,6 +413,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .playerPositionState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .movementSpeedTracker()
                             .snapshot()
                             .available());
 
