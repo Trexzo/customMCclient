@@ -97,6 +97,18 @@ public final class Minecraft189ClassShapeVerifier {
                 new Minecraft189Mappings.MappedMethod[0]);
     }
 
+    public static void verifyEntityLivingBase(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.ENTITY_LIVING_BASE,
+                new Minecraft189Mappings.MappedField[0],
+                new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH,
+                        Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH
+                });
+    }
+
     public static void verifyEntityRenderer(
             final byte[] classBytes) {
         verify(
