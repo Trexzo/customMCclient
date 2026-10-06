@@ -59,6 +59,7 @@ final class Minecraft189MappedHostTransformationTest {
         assertTrue(transformer.handles("avo"));
         assertTrue(transformer.handles("bfk"));
         assertTrue(transformer.handles("pk"));
+        assertTrue(transformer.handles("pr"));
 
         assertFalse(
                 transformer.handles(
@@ -247,6 +248,11 @@ final class Minecraft189MappedHostTransformationTest {
                         "pk",
                         entityShape()));
         loader.put(
+                "pr",
+                transformer.transform(
+                        "pr",
+                        entityLivingBaseShape()));
+        loader.put(
                 "bew",
                 playerShape());
         loader.put(
@@ -376,6 +382,14 @@ final class Minecraft189MappedHostTransformationTest {
                     .setFloat(
                             player,
                             91.25F);
+            playerClass.getField("health")
+                    .setFloat(
+                            player,
+                            17.5F);
+            playerClass.getField("maxHealth")
+                    .setFloat(
+                            player,
+                            20.0F);
             minecraftClass.getField("h")
                     .set(
                             minecraft,
@@ -558,6 +572,19 @@ final class Minecraft189MappedHostTransformationTest {
                     91.25F,
                     rotation.yaw());
 
+            final Minecraft189PlayerHealthState.Snapshot health =
+                    runtime.requireHostRuntime()
+                            .playerHealthState()
+                            .snapshot();
+            assertTrue(
+                    health.available());
+            assertEquals(
+                    17.5F,
+                    health.health());
+            assertEquals(
+                    20.0F,
+                    health.maxHealth());
+
             minecraftClass.getField("h")
                     .set(
                             minecraft,
@@ -576,6 +603,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .playerRotationState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .playerHealthState()
                             .snapshot()
                             .available());
 
@@ -1028,16 +1060,19 @@ final class Minecraft189MappedHostTransformationTest {
         return writer.toByteArray();
     }
 
-    private static byte[] playerShape() {
+    private static byte[] entityLivingBaseShape() {
         final ClassWriter writer =
                 new ClassWriter(0);
         writer.visit(
                 Opcodes.V1_8,
                 Opcodes.ACC_PUBLIC,
-                "bew",
+                "pr",
                 null,
                 "pk",
                 null);
+        field(writer, "health", "F");
+        field(writer, "maxHealth", "F");
+
         final MethodVisitor constructor =
                 writer.visitMethod(
                         Opcodes.ACC_PUBLIC,
@@ -1052,6 +1087,90 @@ final class Minecraft189MappedHostTransformationTest {
         constructor.visitMethodInsn(
                 Opcodes.INVOKESPECIAL,
                 "pk",
+                "<init>",
+                "()V",
+                false);
+        constructor.visitInsn(
+                Opcodes.RETURN);
+        constructor.visitMaxs(
+                1,
+                1);
+        constructor.visitEnd();
+
+        final MethodVisitor getHealth =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "bn",
+                        "()F",
+                        null,
+                        null);
+        getHealth.visitCode();
+        getHealth.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getHealth.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pr",
+                "health",
+                "F");
+        getHealth.visitInsn(
+                Opcodes.FRETURN);
+        getHealth.visitMaxs(
+                1,
+                1);
+        getHealth.visitEnd();
+
+        final MethodVisitor getMaxHealth =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "bu",
+                        "()F",
+                        null,
+                        null);
+        getMaxHealth.visitCode();
+        getMaxHealth.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getMaxHealth.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pr",
+                "maxHealth",
+                "F");
+        getMaxHealth.visitInsn(
+                Opcodes.FRETURN);
+        getMaxHealth.visitMaxs(
+                1,
+                1);
+        getMaxHealth.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] playerShape() {
+        final ClassWriter writer =
+                new ClassWriter(0);
+        writer.visit(
+                Opcodes.V1_8,
+                Opcodes.ACC_PUBLIC,
+                "bew",
+                null,
+                "pr",
+                null);
+        final MethodVisitor constructor =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "<init>",
+                        "()V",
+                        null,
+                        null);
+        constructor.visitCode();
+        constructor.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        constructor.visitMethodInsn(
+                Opcodes.INVOKESPECIAL,
+                "pr",
                 "<init>",
                 "()V",
                 false);
