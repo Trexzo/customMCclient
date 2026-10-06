@@ -1,7 +1,5 @@
 package dev.trexzo.custommc.bootstrap;
 
-public interface BootstrapRuntimeSession
-        extends AutoCloseable {
-    @Override
+public interface BootstrapRuntimeSession {
     void close() throws Exception;
 }
