@@ -198,3 +198,14 @@ M75 lets an initialized bootstrap session optionally implement `BootstrapTargetC
 When a target loader is selected, `CustomMcBootstrapMain` uses it for target class resolution and temporarily makes it the thread context classloader for the entire target-main invocation. The previous thread context loader is restored in a `finally` block on both success and target failure, and the runtime session still closes after target execution.
 
 Sessions that do not implement the provider preserve the exact M64-M74 behavior. M75 introduces no transformation by itself; it creates the non-agent ownership seam required for a future Minecraft 1.8.9 transforming loader while keeping initializer/runtime classes in the existing parent loader.
+
+
+## Explicit transforming target classloader
+
+M76 implements the non-agent execution mechanism enabled by M75. `TransformingTargetClassLoader` is constructed from an explicit URL classpath plus parent loader and `BootstrapClassTransformer`. A transformer must claim a binary class name before the loader will child-define it; every unclaimed class preserves ordinary parent delegation and therefore keeps the existing CustomMC/bootstrap/runtime type identities.
+
+Claimed classes are read from the target loader's own classpath URLs, transformed before definition, and never silently delegated back to the parent if their bytes are missing. A null/empty transformation is rejected. `fromJavaClassPath(...)` provides the launcher-process composition path by converting the JVM's resolved `java.class.path` entries into target URLs.
+
+Regression coverage does not mock class definition: it loads a second copy of a real test class through the child loader, rewrites the classfile UTF-8 constant `original` to the equal-length `mutated!`, and proves the method executed by the JVM returns the transformed value. The same coverage proves unclaimed classes retain parent identity and a claimed missing class cannot bypass transformation.
+
+M76 still contains no Minecraft-specific bytecode edits. The next 1.8.9 milestone can implement a narrowly scoped transformer and return this loader from the M75 runtime-provider contract without using a Java agent, JNI or JVMTI injection.
