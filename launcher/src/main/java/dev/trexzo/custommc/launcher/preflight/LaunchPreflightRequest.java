@@ -2,7 +2,9 @@ package dev.trexzo.custommc.launcher.preflight;
 
 import dev.trexzo.custommc.launcher.command.LaunchIdentity;
 import dev.trexzo.custommc.launcher.command.LaunchRuntimeOverlay;
+import dev.trexzo.custommc.launcher.command.LaunchRuntimeOverlayResolver;
 import dev.trexzo.custommc.launcher.java.JavaRuntime;
+import dev.trexzo.custommc.launcher.metadata.MinecraftLaunchTemplate;
 import dev.trexzo.custommc.launcher.runtime.MinecraftInstallation;
 import dev.trexzo.custommc.launcher.runtime.RuntimeTarget;
 
@@ -18,7 +20,8 @@ public final class LaunchPreflightRequest {
     private final Path nativeStagingParent;
     private final int minimumMemoryMb;
     private final int maximumMemoryMb;
-    private final LaunchRuntimeOverlay runtimeOverlay;
+    private final LaunchRuntimeOverlay fixedRuntimeOverlay;
+    private final LaunchRuntimeOverlayResolver runtimeOverlayResolver;
 
     public LaunchPreflightRequest(
             final MinecraftInstallation installation,
@@ -51,6 +54,58 @@ public final class LaunchPreflightRequest {
             final int minimumMemoryMb,
             final int maximumMemoryMb,
             final LaunchRuntimeOverlay runtimeOverlay) {
+        this(
+                installation,
+                runtimeTarget,
+                javaRuntime,
+                identity,
+                gameDirectory,
+                nativeStagingParent,
+                minimumMemoryMb,
+                maximumMemoryMb,
+                Objects.requireNonNull(
+                        runtimeOverlay,
+                        "runtimeOverlay"),
+                LaunchRuntimeOverlayResolver.fixed(
+                        runtimeOverlay));
+    }
+
+    public LaunchPreflightRequest(
+            final MinecraftInstallation installation,
+            final RuntimeTarget runtimeTarget,
+            final JavaRuntime javaRuntime,
+            final LaunchIdentity identity,
+            final Path gameDirectory,
+            final Path nativeStagingParent,
+            final int minimumMemoryMb,
+            final int maximumMemoryMb,
+            final LaunchRuntimeOverlayResolver runtimeOverlayResolver) {
+        this(
+                installation,
+                runtimeTarget,
+                javaRuntime,
+                identity,
+                gameDirectory,
+                nativeStagingParent,
+                minimumMemoryMb,
+                maximumMemoryMb,
+                null,
+                Objects.requireNonNull(
+                        runtimeOverlayResolver,
+                        "runtimeOverlayResolver"));
+    }
+
+    private LaunchPreflightRequest(
+            final MinecraftInstallation installation,
+            final RuntimeTarget runtimeTarget,
+            final JavaRuntime javaRuntime,
+            final LaunchIdentity identity,
+            final Path gameDirectory,
+            final Path nativeStagingParent,
+            final int minimumMemoryMb,
+            final int maximumMemoryMb,
+            final LaunchRuntimeOverlay fixedRuntimeOverlay,
+            final LaunchRuntimeOverlayResolver runtimeOverlayResolver) {
         this.installation = Objects.requireNonNull(
                 installation,
                 "installation");
@@ -69,9 +124,11 @@ public final class LaunchPreflightRequest {
         this.nativeStagingParent = normalize(
                 nativeStagingParent,
                 "nativeStagingParent");
-        this.runtimeOverlay = Objects.requireNonNull(
-                runtimeOverlay,
-                "runtimeOverlay");
+        this.fixedRuntimeOverlay = fixedRuntimeOverlay;
+        this.runtimeOverlayResolver =
+                Objects.requireNonNull(
+                        runtimeOverlayResolver,
+                        "runtimeOverlayResolver");
 
         if (minimumMemoryMb <= 0) {
             throw new IllegalArgumentException(
@@ -119,7 +176,21 @@ public final class LaunchPreflightRequest {
     }
 
     public LaunchRuntimeOverlay runtimeOverlay() {
-        return runtimeOverlay;
+        if (fixedRuntimeOverlay == null) {
+            throw new IllegalStateException(
+                    "runtime overlay is template-aware");
+        }
+        return fixedRuntimeOverlay;
+    }
+
+    public LaunchRuntimeOverlay resolveRuntimeOverlay(
+            final MinecraftLaunchTemplate template) {
+        return Objects.requireNonNull(
+                runtimeOverlayResolver.resolve(
+                        Objects.requireNonNull(
+                                template,
+                                "template")),
+                "resolved runtime overlay");
     }
 
     private static Path normalize(
