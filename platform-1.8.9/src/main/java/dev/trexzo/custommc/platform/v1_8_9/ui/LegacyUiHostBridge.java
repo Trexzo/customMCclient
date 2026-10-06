@@ -6,9 +6,10 @@ import dev.trexzo.custommc.core.ui.UiViewport;
 import java.util.Objects;
 
 public final class LegacyUiHostBridge
-        implements LegacyUiGraphics, LegacyUiViewportSource {
+        implements LegacyUiBatchGraphics, LegacyUiViewportSource {
     private final LegacyUiHostCallbacks callbacks;
     private boolean frameOpen;
+    private boolean shapeBatchOpen;
     private int clipDepth;
 
     public LegacyUiHostBridge(
@@ -46,7 +47,46 @@ public final class LegacyUiHostBridge
 
         callbacks.beginUi(viewport);
         frameOpen = true;
+        shapeBatchOpen = false;
         clipDepth = 0;
+    }
+
+    @Override
+    public synchronized boolean supportsShapeBatching() {
+        return callbacks instanceof LegacyUiBatchHostCallbacks;
+    }
+
+    @Override
+    public synchronized void beginShapeBatch() {
+        requireFrame();
+        if (!supportsShapeBatching()) {
+            throw new IllegalStateException(
+                    "legacy UI host does not support shape batching");
+        }
+        if (shapeBatchOpen) {
+            throw new IllegalStateException(
+                    "legacy UI shape batch already open");
+        }
+
+        ((LegacyUiBatchHostCallbacks) callbacks)
+                .beginShapeBatch();
+        shapeBatchOpen = true;
+    }
+
+    @Override
+    public synchronized void endShapeBatch() {
+        requireFrame();
+        if (!shapeBatchOpen) {
+            throw new IllegalStateException(
+                    "legacy UI shape batch is not open");
+        }
+
+        try {
+            ((LegacyUiBatchHostCallbacks) callbacks)
+                    .endShapeBatch();
+        } finally {
+            shapeBatchOpen = false;
+        }
     }
 
     @Override
@@ -108,6 +148,7 @@ public final class LegacyUiHostBridge
             final float width,
             final float height) {
         requireFrame();
+        requireNoShapeBatch();
         callbacks.pushClip(
                 x,
                 y,
@@ -119,6 +160,7 @@ public final class LegacyUiHostBridge
     @Override
     public synchronized void popClip() {
         requireFrame();
+        requireNoShapeBatch();
         if (clipDepth <= 0) {
             throw new IllegalStateException(
                     "legacy UI clip stack underflow");
@@ -136,6 +178,7 @@ public final class LegacyUiHostBridge
             final String text,
             final int argb) {
         requireFrame();
+        requireNoShapeBatch();
         callbacks.drawText(
                 Objects.requireNonNull(
                         font,
@@ -153,11 +196,33 @@ public final class LegacyUiHostBridge
         requireFrame();
 
         RuntimeException failure = null;
-        if (clipDepth != 0) {
+
+        if (shapeBatchOpen) {
             failure =
+                    new IllegalStateException(
+                            "legacy UI shape batch unbalanced");
+            try {
+                ((LegacyUiBatchHostCallbacks) callbacks)
+                        .endShapeBatch();
+            } catch (RuntimeException cleanupFailure) {
+                failure.addSuppressed(
+                        cleanupFailure);
+            } finally {
+                shapeBatchOpen = false;
+            }
+        }
+
+        if (clipDepth != 0) {
+            final IllegalStateException clipFailure =
                     new IllegalStateException(
                             "legacy UI clip stack unbalanced: "
                                     + clipDepth);
+            if (failure == null) {
+                failure = clipFailure;
+            } else {
+                failure.addSuppressed(
+                        clipFailure);
+            }
         }
 
         while (clipDepth > 0) {
@@ -186,6 +251,7 @@ public final class LegacyUiHostBridge
             }
         } finally {
             frameOpen = false;
+            shapeBatchOpen = false;
             clipDepth = 0;
         }
 
@@ -198,6 +264,10 @@ public final class LegacyUiHostBridge
         return frameOpen;
     }
 
+    public synchronized boolean shapeBatchOpen() {
+        return shapeBatchOpen;
+    }
+
     public synchronized int clipDepth() {
         return clipDepth;
     }
@@ -206,6 +276,13 @@ public final class LegacyUiHostBridge
         if (!frameOpen) {
             throw new IllegalStateException(
                     "legacy UI frame is not open");
+        }
+    }
+
+    private void requireNoShapeBatch() {
+        if (shapeBatchOpen) {
+            throw new IllegalStateException(
+                    "legacy UI shape batch must be closed first");
         }
     }
 }
