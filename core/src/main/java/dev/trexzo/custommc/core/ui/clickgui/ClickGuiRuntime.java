@@ -3,6 +3,7 @@ package dev.trexzo.custommc.core.ui.clickgui;
 import dev.trexzo.custommc.core.module.ModuleCategoryRegistry;
 import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
+import dev.trexzo.custommc.core.module.ModuleKeybindRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
 import dev.trexzo.custommc.core.render.RenderPass;
@@ -99,6 +100,36 @@ public final class ClickGuiRuntime
             final UiViewportProvider viewportProvider,
             final UiThemeProvider themeProvider,
             final UiRenderer renderer) {
+        return install(
+                modules,
+                moduleController,
+                modulePresentations,
+                moduleCategories,
+                moduleSettings,
+                null,
+                settings,
+                settingPresentations,
+                renderPipeline,
+                services,
+                viewportProvider,
+                themeProvider,
+                renderer);
+    }
+
+    public static ClickGuiRuntime install(
+            final ModuleRegistry modules,
+            final ModuleController moduleController,
+            final ModulePresentationRegistry modulePresentations,
+            final ModuleCategoryRegistry moduleCategories,
+            final ModuleSettingRegistry moduleSettings,
+            final ModuleKeybindRegistry moduleKeybinds,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations,
+            final RenderPipeline renderPipeline,
+            final ServiceRegistry services,
+            final UiViewportProvider viewportProvider,
+            final UiThemeProvider themeProvider,
+            final UiRenderer renderer) {
         Objects.requireNonNull(modules, "modules");
         Objects.requireNonNull(moduleController, "moduleController");
         Objects.requireNonNull(modulePresentations, "modulePresentations");
@@ -141,6 +172,7 @@ public final class ClickGuiRuntime
                         moduleController,
                         modulePresentations,
                         moduleSettings,
+                        moduleKeybinds,
                         settings,
                         settingPresentations);
         final ClickGuiInputController input =
