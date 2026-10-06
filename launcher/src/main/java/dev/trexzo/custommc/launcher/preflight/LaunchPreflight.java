@@ -101,7 +101,8 @@ public final class LaunchPreflight {
                             request.runtimeTarget()
                                     .operatingSystem(),
                             request.minimumMemoryMb(),
-                            request.maximumMemoryMb());
+                            request.maximumMemoryMb(),
+                            request.runtimeOverlay());
 
             final LaunchCommand command =
                     commandBuilder.build(launchRequest);
