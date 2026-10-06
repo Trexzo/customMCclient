@@ -66,6 +66,8 @@ M44 extracts one shared setting-editor authority and lets both global settings a
 
 M45 adds an explicit content-navigation seam so retained module selection can promote into a registered detail page without exposing `ClickGuiModel` to page content.
 
+M46 adds the first explicit ClickGUI runtime composition root and managed service-registration lifetimes.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -77,6 +79,14 @@ The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCo
 `ClickGuiContentInputContext` contains the retained snapshot, selected page descriptor and logical content bounds. Controller-dispatched contexts also expose the backend-neutral `UiFocusManager` and M45 `ClickGuiNavigator`. The navigator exposes only page selection, keeping `ClickGuiModel` private to the shell/input layer. Legacy direct-test constructors remain valid and carry no focus manager or navigator.
 
 `ClickGuiPageContent.pointer(...)` defaults to no handling, so read-only page implementations do not need input code.
+
+## Runtime composition
+
+M46 adds `ClickGuiRuntime.install(...)` as the single core composition root for the retained ClickGUI subsystem. It creates one shared `ClickGuiModel`, `ClickGuiContentRegistry`, `ModuleSelectionModel`, `UiFocusManager`, `ClickGuiInputController` and `ClickGuiRenderPass`; registers the Modules, Settings and Module Details pages; binds their existing page-content implementations; registers the HUD render pass; and publishes the model plus input controller through the existing `ServiceRegistry`.
+
+The composition root accepts the existing `UiViewportProvider`, `UiThemeProvider` and `UiRenderer` seams instead of inventing a concrete legacy GL backend. This keeps host-specific rendering outside core while making the already-built UI/input architecture installable as one unit.
+
+`ServiceRegistry.registerManaged(...)` adds explicit closeable service lifetimes without changing legacy `register(...)` behavior. `ClickGuiRuntime.close()` removes its input/model services, closes focus/input ownership, unregisters the HUD pass, removes all page-content/page registrations, clears retained selection and is idempotent. Installation preflights existing ClickGUI services and render-pass identity so an already-installed runtime is rejected before partial wiring.
 
 ## Module page lifecycle and presentation authority
 
@@ -167,7 +177,7 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- explicit registration/bootstrap wiring that binds the module list and module-detail page in the real client composition root;
+- platform-side creation of the concrete viewport/theme/renderer providers passed into M46;
 - concrete host callback wiring into `Minecraft189InputHooks`;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
