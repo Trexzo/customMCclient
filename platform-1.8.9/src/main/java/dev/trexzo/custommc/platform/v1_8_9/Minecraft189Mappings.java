@@ -109,6 +109,13 @@ public final class Minecraft189Mappings {
                     "field_70161_v",
                     "posZ");
 
+    public static final MappedField GAME_SETTINGS_FOV =
+            new MappedField(
+                    GAME_SETTINGS,
+                    "aI",
+                    "F",
+                    "field_74334_X",
+                    "fovSetting");
     public static final MappedField GAME_SETTINGS_GAMMA =
             new MappedField(
                     GAME_SETTINGS,
