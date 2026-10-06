@@ -72,7 +72,32 @@ public final class Minecraft189HostRuntime
                 moduleKeybindAssignments,
                 settings,
                 settingPresentations,
+                Minecraft189PlayerPositionAccess.NONE,
+                hostCallbacks);
+    }
+
+    public static Minecraft189HostRuntime install(
+            final Minecraft189Platform platform,
+            final ModulePresentationRegistry modulePresentations,
+            final ModuleCategoryRegistry moduleCategories,
+            final ModuleSettingRegistry moduleSettings,
+            final ModuleKeybindRegistry moduleKeybinds,
+            final ModuleKeybindAssignments moduleKeybindAssignments,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations,
+            final Minecraft189PlayerPositionAccess playerPosition,
+            final LegacyUiHostCallbacks hostCallbacks) {
+        return install(
+                platform,
+                modulePresentations,
+                moduleCategories,
+                moduleSettings,
+                moduleKeybinds,
+                moduleKeybindAssignments,
+                settings,
+                settingPresentations,
                 UiThemes::darkDefault,
+                playerPosition,
                 hostCallbacks);
     }
 
@@ -87,9 +112,38 @@ public final class Minecraft189HostRuntime
             final SettingPresentationRegistry settingPresentations,
             final UiThemeProvider themeProvider,
             final LegacyUiHostCallbacks hostCallbacks) {
+        return install(
+                platform,
+                modulePresentations,
+                moduleCategories,
+                moduleSettings,
+                moduleKeybinds,
+                moduleKeybindAssignments,
+                settings,
+                settingPresentations,
+                themeProvider,
+                Minecraft189PlayerPositionAccess.NONE,
+                hostCallbacks);
+    }
+
+    public static Minecraft189HostRuntime install(
+            final Minecraft189Platform platform,
+            final ModulePresentationRegistry modulePresentations,
+            final ModuleCategoryRegistry moduleCategories,
+            final ModuleSettingRegistry moduleSettings,
+            final ModuleKeybindRegistry moduleKeybinds,
+            final ModuleKeybindAssignments moduleKeybindAssignments,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations,
+            final UiThemeProvider themeProvider,
+            final Minecraft189PlayerPositionAccess playerPosition,
+            final LegacyUiHostCallbacks hostCallbacks) {
         Objects.requireNonNull(
                 platform,
                 "platform");
+        Objects.requireNonNull(
+                playerPosition,
+                "playerPosition");
         Objects.requireNonNull(
                 hostCallbacks,
                 "hostCallbacks");
@@ -139,6 +193,7 @@ public final class Minecraft189HostRuntime
                             moduleSettings,
                             settings,
                             settingPresentations,
+                            playerPosition,
                             inputState,
                             frameRateTracker,
                             clickRateTracker,
