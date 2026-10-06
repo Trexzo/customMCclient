@@ -55,3 +55,24 @@ A later milestone will combine:
 - command construction;
 
 into one preflight transaction before process execution is enabled.
+
+
+## CustomMC runtime overlay
+
+M63-M65 allow the launcher to hand process entry to the Java-8 CustomMC bootstrap while preserving the original Minecraft argument vector.
+
+`CustomMcBootstrapOverlay.create(...)` uses the M64 delegate-only mode:
+
+1. prepend the bootstrap artifact to classpath;
+2. set process main class to `CustomMcBootstrapMain`;
+3. prefix the original resolved Minecraft main class;
+4. append the unchanged expanded game arguments.
+
+`createWithRuntime(...)` uses the M65 initialized mode:
+
+1. prepend bootstrap, then ordered runtime artifacts;
+2. set process main class to `CustomMcBootstrapMain`;
+3. prefix `--custommc-runtime`, the exact initializer class, and original Minecraft main class;
+4. append the unchanged expanded game arguments.
+
+Sensitive argument indexes remain owned by the M63 command builder and are offset after these bootstrap-prefix arguments.
