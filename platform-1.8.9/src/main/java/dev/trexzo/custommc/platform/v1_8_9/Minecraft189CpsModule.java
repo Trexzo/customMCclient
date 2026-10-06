@@ -135,16 +135,16 @@ public final class Minecraft189CpsModule
             hostCallbacks.beginUi(viewport);
             RuntimeException failure = null;
             try {
+                final Minecraft189ClickRateTracker.Rates rates =
+                        clickRateTracker.snapshot();
                 hostCallbacks.drawText(
                         UiFonts.DEFAULT,
                         x.get().floatValue(),
                         y.get().floatValue(),
                         "CPS: L "
-                                + clickRateTracker.clicksPerSecond(
-                                Minecraft189ClickRateTracker.LEFT_BUTTON)
+                                + rates.left()
                                 + " | R "
-                                + clickRateTracker.clicksPerSecond(
-                                Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                                + rates.right(),
                         TEXT_ARGB);
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
