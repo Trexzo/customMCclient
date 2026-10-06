@@ -118,3 +118,13 @@ M58 adds `LegacyScissorStateController` over the M57 mapping/stack utilities plu
 A real intersection change emits exactly one `apply(...)`; popping back to a different parent emits exactly one restore; leaving the outermost clip emits one `disable()`. `reset()` discards all retained nested clip state and disables scissoring once without replaying intermediate parent rectangles, making frame teardown cheap and deterministic.
 
 The final GL callback implementation can map the sink directly to its scissor enable/box calls. M58 therefore moves both coordinate math and redundant-state suppression out of ad hoc host code while still leaving actual OpenGL ownership at the host boundary.
+
+## M59 optional shape batching
+
+M59 adds `LegacyUiBatchGraphics` as an optional renderer capability and `LegacyUiBatchHostCallbacks` as the matching host opt-in. Backends that do not advertise shape batching continue through the exact pre-M59 primitive call path.
+
+When batching is supported, `Minecraft189UiRenderer` wraps only adjacent runs of two or more shape commands (`UiRectCommand`, `UiRoundedRectCommand`, `UiOutlineCommand`) in one `beginShapeBatch()/endShapeBatch()` scope. Text, clip scopes, unsupported commands and list boundaries always terminate the current batch, and batching recurses independently inside nested clips. Draw order is never changed.
+
+Batch teardown is exception-safe: a shape failure still closes the batch before the frame-level `end()`. `LegacyUiHostBridge` also owns host batch-state validation, rejects clip/text operations while a batch is open, and closes a leaked host batch before clip/frame cleanup.
+
+The concrete Minecraft/LWJGL backend can use these scopes to keep compatible shape state/geometry submission open across a run without forcing that optimization onto legacy or test backends.
