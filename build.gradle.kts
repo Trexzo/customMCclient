@@ -101,14 +101,13 @@ val assembleLauncherDistribution by tasks.registering(Sync::class) {
     from("README.md")
 }
 
-val verifyLauncherDistribution by tasks.registering {
-    group = "verification"
-    description = "Verifies the assembled runnable launcher distribution shape."
+abstract class VerifyLauncherDistributionTask : DefaultTask() {
+    @get:InputDirectory
+    abstract val distributionDirectory: DirectoryProperty
 
-    dependsOn(assembleLauncherDistribution)
-
-    doLast {
-        val root = launcherDistributionDirectory.get().asFile
+    @TaskAction
+    fun verifyDistribution() {
+        val root = distributionDirectory.get().asFile
 
         val required = listOf(
             "bin/launcher",
@@ -153,6 +152,16 @@ val verifyLauncherDistribution by tasks.registering {
             "Unexpected runtime overlay contents: $overlayNames"
         }
     }
+}
+
+val verifyLauncherDistribution by tasks.registering(
+    VerifyLauncherDistributionTask::class
+) {
+    group = "verification"
+    description = "Verifies the assembled runnable launcher distribution shape."
+
+    dependsOn(assembleLauncherDistribution)
+    distributionDirectory.set(launcherDistributionDirectory)
 }
 
 tasks.register("verifyFoundation") {
