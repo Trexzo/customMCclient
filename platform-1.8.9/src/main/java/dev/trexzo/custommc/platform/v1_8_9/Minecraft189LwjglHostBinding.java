@@ -15,6 +15,16 @@ public final class Minecraft189LwjglHostBinding {
     public static Minecraft189HostRuntime install(
             final Minecraft189GuiSettingsAccess settings,
             final Minecraft189FontRendererAccess fontRenderer) {
+        return install(
+                settings,
+                fontRenderer,
+                Minecraft189PlayerPositionAccess.NONE);
+    }
+
+    public static Minecraft189HostRuntime install(
+            final Minecraft189GuiSettingsAccess settings,
+            final Minecraft189FontRendererAccess fontRenderer,
+            final Minecraft189PlayerPositionAccess playerPosition) {
         return Minecraft189RuntimeBridge.installHost(
                 new Lwjgl2LegacyUiHostCallbacks(
                         new Lwjgl2Minecraft189ViewportSource(
@@ -24,6 +34,9 @@ public final class Minecraft189LwjglHostBinding {
                         new Minecraft189DefaultFontRenderer(
                                 Objects.requireNonNull(
                                         fontRenderer,
-                                        "fontRenderer"))));
+                                        "fontRenderer"))),
+                Objects.requireNonNull(
+                        playerPosition,
+                        "playerPosition"));
     }
 }
