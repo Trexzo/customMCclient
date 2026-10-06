@@ -581,3 +581,15 @@ Dedicated `EntityPlayer` and `FoodStats` shape gates require those exact methods
 
 This milestone is authority-only. It does not yet transform `wn` or `xg`, publish hunger state, or register a HUD.
 
+## Live Hunger HUD
+
+M109 consumes the independently certified M108 hunger authority. The transforming loader now claims exact base `EntityPlayer` `wn` and shape-verifies exact `FoodStats` `xg`; `xg` itself remains otherwise unchanged.
+
+Transformed `wn` implements only the parent-owned `Minecraft189PlayerHungerAccess` contract. Its generated primitive getters call exact mapped `wn.cl()Lxg;` and then `xg.a()I` / `xg.e()F`, so the child-loader `FoodStats` object never crosses into parent runtime code.
+
+Immediately before each normal return from mapped `Minecraft.runTick()`, the mapped player is forwarded through `Minecraft189RuntimeBridge.playerHunger(...)`. `Minecraft189HostRuntime` owns a synchronized `Minecraft189PlayerHungerState`, validates food level `0..20` and finite saturation `0..20`, and clears availability on null player and teardown.
+
+The new Visuals module `render.hunger` / **Hunger** renders `Hunger: 17/20 | Sat: 6.5` only while a live sample exists. Persistent X/Y settings use the existing generic setting, presentation, profile and module-binding paths.
+
+Executable regression coverage now models the real inheritance chain `pk -> pr -> wn -> bew`, shape-verifies a synthetic `xg`, publishes live `17 / 6.5` through transformed `runTick()`, and proves null-player clearing. Separate HUD coverage proves rendered text/position, persistence, invalid-value rejection and complete feature teardown.
+
