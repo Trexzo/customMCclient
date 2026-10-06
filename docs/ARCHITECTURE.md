@@ -361,3 +361,18 @@ M88 crosses from framework-only runtime work into the first real client feature.
 The Minecraft 1.8.9 host now owns `Minecraft189FeatureCatalog`. Its first feature is `render.watermark` / **Watermark** in the **Visuals** category. Enabling the module registers a real HUD render pass; the pass opens the already-certified legacy UI host frame, draws `CustomMC` with the semantic default Minecraft font at the top-left, and restores the UI frame in a failure-safe `finally` path. Disabling the module unregisters that render pass.
 
 The feature catalog owns the category, presentation and module registrations. Host shutdown disables the feature if necessary, removes its presentation/module/category ownership, then continues the existing ClickGUI teardown. Regression coverage proves disabled → no watermark draw, enabled → one HUD watermark draw, disabled again → no additional draw, and host close removes the module registration entirely.
+
+
+## Configurable watermark settings
+
+M89 makes the first runtime feature participate in the same explicit settings architecture as future modules. `SettingRegistry.register(...)` now returns an exact ownership handle, allowing host-owned feature settings to be removed deterministically instead of surviving after their feature lifetime.
+
+The Watermark module now owns three persistent settings:
+
+- `render.watermark.text` — text, default `CustomMC`, non-blank and at most 32 characters;
+- `render.watermark.x` — integer HUD X coordinate, default `8`, range `0..4096`;
+- `render.watermark.y` — integer HUD Y coordinate, default `8`, range `0..4096`.
+
+The feature catalog registers each setting, its ClickGUI presentation descriptor and its explicit module-setting ownership binding. The existing module-detail editor can therefore edit the text and numeric position without feature-specific UI code. The watermark render pass reads the live setting values each HUD frame, while `SettingRegistry.snapshotEncoded()` automatically includes all three values through their existing persistent codecs.
+
+Feature-catalog teardown closes module-setting bindings first, then presentation registrations, then the owned setting registrations before removing the module/category. Regression coverage proves persisted encoding, live rendered text/coordinates and complete setting removal on host shutdown.
