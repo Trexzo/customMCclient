@@ -533,3 +533,11 @@ The new Visuals module `render.direction` / **Direction** renders only while a l
 
 Executable regression coverage proves transformed `pk.y` reaches the host snapshot, null-player clearing removes it, the HUD renders `Direction: W (91°)` for `91.2`, negative yaw normalizes correctly, non-finite yaw is rejected, settings persist, and feature teardown removes all owned registrations.
 
+## Player-health mapping authority
+
+M104 extends the pinned Minecraft 1.8.9 MCP-derived mapping surface with exact player-health authority. `EntityLivingBase` is obfuscated class `pr`; `getHealth()` is `pr.bn()F` / Searge `func_110143_aJ`; and `getMaxHealth()` is `pr.bu()F` / Searge `func_110138_aP`.
+
+A dedicated `EntityLivingBase` class-shape gate now requires both exact methods before any future transformation may consume this surface. Regression coverage pins the class, both method owners/names/descriptors, accepts the exact synthetic shape, and rejects a class missing `getMaxHealth()`.
+
+This milestone is authority-only. It does not transform `pr`, read player health, or register a HUD. The next clean consumer can expose a narrow parent-owned health contract and a live Health HUD only after this exact head is certified.
+
