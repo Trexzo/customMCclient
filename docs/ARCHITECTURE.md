@@ -189,3 +189,12 @@ Minecraft-owned GUI settings remain behind the narrow `Minecraft189GuiSettingsAc
 `Minecraft189DefaultFontRenderer` maps only the semantic `UiFonts.DEFAULT` handle to `Minecraft189FontRendererAccess.drawString(..., shadow=false)`. Unknown semantic fonts are rejected rather than silently aliasing to the Minecraft font. `Minecraft189LwjglHostBinding.install(...)` composes that text adapter with the existing certified LWJGL2 GL renderer and installs the resulting host through the M73 runtime bridge.
 
 M74 still does not patch Minecraft classes. It leaves one deliberately small game-side responsibility: provide the live GUI-setting/font-renderer access objects and forward actual 1.8.9 callbacks into the M73 bridge.
+
+
+## Runtime-selected target classloader handoff
+
+M75 lets an initialized bootstrap session optionally implement `BootstrapTargetClassLoaderProvider`. The bootstrap initializer itself is still resolved and constructed through the original process context loader, but the session may explicitly select a different loader for the target Minecraft main class.
+
+When a target loader is selected, `CustomMcBootstrapMain` uses it for target class resolution and temporarily makes it the thread context classloader for the entire target-main invocation. The previous thread context loader is restored in a `finally` block on both success and target failure, and the runtime session still closes after target execution.
+
+Sessions that do not implement the provider preserve the exact M64-M74 behavior. M75 introduces no transformation by itself; it creates the non-agent ownership seam required for a future Minecraft 1.8.9 transforming loader while keeping initializer/runtime classes in the existing parent loader.

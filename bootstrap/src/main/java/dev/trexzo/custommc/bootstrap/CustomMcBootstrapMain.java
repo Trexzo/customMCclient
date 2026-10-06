@@ -30,9 +30,14 @@ public final class CustomMcBootstrapMain {
                                 loader);
             }
 
+            final ClassLoader targetLoader =
+                    targetLoader(
+                            session,
+                            loader);
+
             invokeTarget(
                     invocation,
-                    loader);
+                    targetLoader);
         } catch (Throwable throwable) {
             failure = throwable;
             rethrow(throwable);
@@ -105,42 +110,76 @@ public final class CustomMcBootstrapMain {
                 "runtime initializer session");
     }
 
+    private static ClassLoader targetLoader(
+            final BootstrapRuntimeSession session,
+            final ClassLoader bootstrapLoader)
+            throws Exception {
+        if (!(session instanceof BootstrapTargetClassLoaderProvider)) {
+            return bootstrapLoader;
+        }
+
+        return Objects.requireNonNull(
+                ((BootstrapTargetClassLoaderProvider) session)
+                        .targetClassLoader(
+                                bootstrapLoader),
+                "target class loader");
+    }
+
     private static void invokeTarget(
             final BootstrapInvocation invocation,
             final ClassLoader loader)
             throws Exception {
-        final Class<?> target =
-                Class.forName(
-                        invocation.targetMainClass(),
-                        true,
-                        loader);
-        final Method main =
-                target.getMethod(
-                        "main",
-                        String[].class);
+        final Thread thread =
+                Thread.currentThread();
+        final ClassLoader previous =
+                thread.getContextClassLoader();
+        final boolean changed =
+                previous != loader;
 
-        if (!Modifier.isStatic(
-                main.getModifiers())
-                || main.getReturnType()
-                != Void.TYPE) {
-            throw new IllegalArgumentException(
-                    "target main must be static void main(String[])");
+        if (changed) {
+            thread.setContextClassLoader(
+                    loader);
         }
 
         try {
-            main.invoke(
-                    null,
-                    (Object) invocation.targetArguments());
-        } catch (InvocationTargetException failure) {
-            final Throwable cause =
-                    failure.getCause();
-            if (cause instanceof Exception) {
-                throw (Exception) cause;
+            final Class<?> target =
+                    Class.forName(
+                            invocation.targetMainClass(),
+                            true,
+                            loader);
+            final Method main =
+                    target.getMethod(
+                            "main",
+                            String[].class);
+
+            if (!Modifier.isStatic(
+                    main.getModifiers())
+                    || main.getReturnType()
+                    != Void.TYPE) {
+                throw new IllegalArgumentException(
+                        "target main must be static void main(String[])");
             }
-            if (cause instanceof Error) {
-                throw (Error) cause;
+
+            try {
+                main.invoke(
+                        null,
+                        (Object) invocation.targetArguments());
+            } catch (InvocationTargetException failure) {
+                final Throwable cause =
+                        failure.getCause();
+                if (cause instanceof Exception) {
+                    throw (Exception) cause;
+                }
+                if (cause instanceof Error) {
+                    throw (Error) cause;
+                }
+                throw failure;
             }
-            throw failure;
+        } finally {
+            if (changed) {
+                thread.setContextClassLoader(
+                        previous);
+            }
         }
     }
 }
