@@ -30,6 +30,16 @@ final class Minecraft189LwjglHostBindingTest {
         assertSame(
                 runtime.platform(),
                 host.platform());
+        assertTrue(
+                runtime.modules()
+                        .find(
+                                Minecraft189FullbrightModule.ID)
+                        != null);
+        assertTrue(
+                runtime.modules()
+                        .find(
+                                Minecraft189FovModule.ID)
+                        != null);
 
         runtime.close();
 
