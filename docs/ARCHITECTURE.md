@@ -319,3 +319,14 @@ The binding reads the current LWJGL event key, character, press/release state, r
 The LWJGL source is isolated behind a package-private event-source contract so regression coverage can execute the routing without native display initialization. Tests prove an injected keyboard event reaches the installed retained ClickGUI input controller, closes the open GUI on Escape, and is inert before host installation or after runtime teardown. Separate bytecode coverage proves exactly one forward call is injected into mapped `ave.Z()`.
 
 Mouse buttons, wheel input, explicit ClickGUI-open policy and any consuming/suppression behavior remain separate milestones.
+
+
+## Mapped raw mouse-button forwarding
+
+M85 adds the first raw mouse button path without touching the LWJGL event iterator. The M78/M83 authority is extended with exact `KeyBinding` owner `avb` and static `setKeyBindState(int,boolean)` member `avb.a(IZ)V` / `func_74510_a`. The class is structurally verified before transformation.
+
+Vanilla Minecraft calls this method for every raw mouse button transition using `button - 100`, so the transformed method forwards `-100/-99/-98` as left/right/middle press or release through parent-owned `Minecraft189LwjglMouseBinding`. The binding reads the current LWJGL X/Y position only for those supported mouse codes, then uses the existing M73 viewport-aware pointer bridge. Keyboard codes and unsupported mouse buttons do not read cursor state.
+
+As with M84 keyboard forwarding, M85 does not advance `Mouse.next()` and does not suppress the original `KeyBinding.setKeyBindState` body. Regression coverage proves a raw left press can focus the retained ClickGUI search field and then accept keyboard text, while release is forwarded but not consumed by the current press-only UI controller. Separate transformed-bytecode coverage executes the child-defined `avb.a(IZ)V` method and proves the original body still runs after the injected callback.
+
+Wheel input and any conditional suppression of vanilla gameplay actions remain separate milestones.
