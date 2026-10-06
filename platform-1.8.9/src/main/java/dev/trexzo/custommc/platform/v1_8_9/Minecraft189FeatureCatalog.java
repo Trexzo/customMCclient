@@ -48,6 +48,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189FpsFeature fpsFeature;
     private final Minecraft189CpsFeature cpsFeature;
     private final Minecraft189CoordinatesFeature coordinatesFeature;
+    private final Minecraft189DirectionFeature directionFeature;
     private final Minecraft189SpeedFeature speedFeature;
     private final Minecraft189CrosshairFeature crosshairFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
@@ -80,6 +81,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189FpsFeature fpsFeature,
             final Minecraft189CpsFeature cpsFeature,
             final Minecraft189CoordinatesFeature coordinatesFeature,
+            final Minecraft189DirectionFeature directionFeature,
             final Minecraft189SpeedFeature speedFeature,
             final Minecraft189CrosshairFeature crosshairFeature) {
         this.modules = modules;
@@ -106,6 +108,7 @@ public final class Minecraft189FeatureCatalog
         this.fpsFeature = fpsFeature;
         this.cpsFeature = cpsFeature;
         this.coordinatesFeature = coordinatesFeature;
+        this.directionFeature = directionFeature;
         this.speedFeature = speedFeature;
         this.crosshairFeature = crosshairFeature;
     }
@@ -122,6 +125,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189FrameRateTracker frameRateTracker,
             final Minecraft189ClickRateTracker clickRateTracker,
             final Minecraft189PlayerPositionState playerPositionState,
+            final Minecraft189PlayerRotationState playerRotationState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
@@ -157,6 +161,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189FpsFeature fpsFeature = null;
         Minecraft189CpsFeature cpsFeature = null;
         Minecraft189CoordinatesFeature coordinatesFeature = null;
+        Minecraft189DirectionFeature directionFeature = null;
         Minecraft189SpeedFeature speedFeature = null;
         Minecraft189CrosshairFeature crosshairFeature = null;
 
@@ -301,6 +306,18 @@ public final class Minecraft189FeatureCatalog
                             renderPipeline,
                             hostCallbacks);
 
+            directionFeature =
+                    Minecraft189DirectionFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            playerRotationState,
+                            renderPipeline,
+                            hostCallbacks);
+
             speedFeature =
                     Minecraft189SpeedFeature.install(
                             modules,
@@ -349,11 +366,13 @@ public final class Minecraft189FeatureCatalog
                     fpsFeature,
                     cpsFeature,
                     coordinatesFeature,
+                    directionFeature,
                     speedFeature,
                     crosshairFeature);
         } catch (RuntimeException failure) {
             closeQuietly(crosshairFeature, failure);
             closeQuietly(speedFeature, failure);
+            closeQuietly(directionFeature, failure);
             closeQuietly(coordinatesFeature, failure);
             closeQuietly(cpsFeature, failure);
             closeQuietly(fpsFeature, failure);
@@ -403,6 +422,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189CoordinatesModule coordinates() {
         requireOpen();
         return coordinatesFeature.module();
+    }
+
+    public Minecraft189DirectionModule direction() {
+        requireOpen();
+        return directionFeature.module();
     }
 
     public Minecraft189SpeedModule speed() {
@@ -558,6 +582,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             speedFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            directionFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,
