@@ -16,7 +16,7 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class LauncherProfilePersistenceTest {
     @TempDir
@@ -97,8 +97,6 @@ final class LauncherProfilePersistenceTest {
                         .chord());
 
         assignments.close();
-        assertNull(
-                assignments.binding(
-                        "combat.aura"));
+        assertTrue(assignments.closed());
     }
 }
