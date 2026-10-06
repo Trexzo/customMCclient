@@ -8,7 +8,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-public final class Minecraft189RuntimeBundle {
+import dev.trexzo.custommc.launcher.metadata.MinecraftLaunchTemplate;
+
+public final class Minecraft189RuntimeBundle
+        implements LaunchRuntimeOverlayResolver {
     public static final String RUNTIME_INITIALIZER_CLASS =
             "dev.trexzo.custommc.platform.v1_8_9."
                     + "Minecraft189BootstrapInitializer";
@@ -93,6 +96,16 @@ public final class Minecraft189RuntimeBundle {
                         coreArtifact,
                         platformApiArtifact,
                         platform189Artifact));
+    }
+
+    @Override
+    public LaunchRuntimeOverlay resolve(
+            final MinecraftLaunchTemplate template) {
+        return overlay(
+                Objects.requireNonNull(
+                        template,
+                        "template")
+                        .mainClass());
     }
 
     public LaunchRuntimeOverlay overlay(

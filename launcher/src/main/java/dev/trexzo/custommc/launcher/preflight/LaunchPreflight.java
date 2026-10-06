@@ -85,8 +85,13 @@ public final class LaunchPreflight {
                         "artifact integrity gate failed");
             }
 
+            final dev.trexzo.custommc.launcher.command.LaunchRuntimeOverlay
+                    runtimeOverlay =
+                    request.resolveRuntimeOverlay(
+                            template);
+
             validateRuntimeOverlay(
-                    request.runtimeOverlay());
+                    runtimeOverlay);
 
             nativeDirectory = nativeStager.stage(
                     template.nativeArchives(),
@@ -106,7 +111,7 @@ public final class LaunchPreflight {
                                     .operatingSystem(),
                             request.minimumMemoryMb(),
                             request.maximumMemoryMb(),
-                            request.runtimeOverlay());
+                            runtimeOverlay);
 
             final LaunchCommand command =
                     commandBuilder.build(launchRequest);

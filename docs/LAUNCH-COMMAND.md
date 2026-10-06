@@ -88,3 +88,21 @@ M67 adds `Minecraft189RuntimeBundle.fromDirectory(...)` for the output of the ro
 - `platform-1.8.9.jar`.
 
 Calling `bundle.overlay(resolvedMainClass)` produces the M65 initialized bootstrap overlay using the M66 concrete initializer. Existing M63 preflight remains responsible for verifying that every resulting classpath entry actually exists before native staging and process launch.
+
+
+## Template-aware overlay resolution
+
+M68 allows `LaunchPreflightRequest` to carry a `LaunchRuntimeOverlayResolver` instead of requiring a fully materialized overlay before Minecraft version metadata has been resolved. Fixed-overlay constructors remain source-compatible.
+
+For the canonical M67 bundle, preflight order is now:
+
+1. inspect installation;
+2. resolve the authoritative `MinecraftLaunchTemplate`;
+3. verify Minecraft artifacts;
+4. resolve the runtime bundle overlay from `template.mainClass()`;
+5. verify every CustomMC overlay classpath entry exists;
+6. stage natives;
+7. build the final JVM command;
+8. hand the result to the M62 process owner.
+
+This makes the M64-M67 bootstrap path consumable by the real preflight pipeline without duplicate main-class resolution.
