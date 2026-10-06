@@ -73,6 +73,97 @@ val assembleRuntimeOverlay by tasks.registering(Sync::class) {
     }
 }
 
+
+val launcherDistributionDirectory =
+    layout.buildDirectory.dir("custommc-distribution")
+
+val assembleLauncherDistribution by tasks.registering(Sync::class) {
+    group = "distribution"
+    description = "Assembles the runnable CustomMC launcher plus canonical Minecraft 1.8.9 runtime overlay."
+
+    dependsOn(
+        ":launcher:installDist",
+        assembleRuntimeOverlay
+    )
+
+    into(launcherDistributionDirectory)
+
+    from(
+        project(":launcher").layout.buildDirectory.dir(
+            "install/launcher"
+        )
+    )
+
+    from(runtimeOverlayDirectory) {
+        into("runtime-overlay")
+    }
+
+    from("README.md")
+}
+
+abstract class VerifyLauncherDistributionTask : DefaultTask() {
+    @get:InputDirectory
+    abstract val distributionDirectory: DirectoryProperty
+
+    @TaskAction
+    fun verifyDistribution() {
+        val root = distributionDirectory.get().asFile
+
+        val required = listOf(
+            "bin/launcher",
+            "bin/launcher.bat",
+            "runtime-overlay/bootstrap.jar",
+            "runtime-overlay/core.jar",
+            "runtime-overlay/platform-api.jar",
+            "runtime-overlay/platform-1.8.9.jar",
+            "README.md"
+        )
+
+        required.forEach { relative ->
+            val file = root.resolve(relative)
+            check(file.isFile) {
+                "Missing launcher distribution file: $relative"
+            }
+        }
+
+        val libs = root.resolve("lib")
+        check(libs.isDirectory) {
+            "Missing launcher distribution lib directory"
+        }
+        check(libs.listFiles()?.any { it.isFile && it.extension == "jar" } == true) {
+            "Launcher distribution lib directory contains no jars"
+        }
+
+        val overlayNames = root.resolve("runtime-overlay")
+            .listFiles()
+            ?.filter { it.isFile }
+            ?.map { it.name }
+            ?.sorted()
+            ?: emptyList()
+
+        check(
+            overlayNames == listOf(
+                "bootstrap.jar",
+                "core.jar",
+                "platform-1.8.9.jar",
+                "platform-api.jar"
+            )
+        ) {
+            "Unexpected runtime overlay contents: $overlayNames"
+        }
+    }
+}
+
+val verifyLauncherDistribution by tasks.registering(
+    VerifyLauncherDistributionTask::class
+) {
+    group = "verification"
+    description = "Verifies the assembled runnable launcher distribution shape."
+
+    dependsOn(assembleLauncherDistribution)
+    distributionDirectory.set(launcherDistributionDirectory)
+}
+
 tasks.register("verifyFoundation") {
     group = "verification"
     description = "Runs all foundation verification gates."
@@ -82,6 +173,7 @@ tasks.register("verifyFoundation") {
         ":platform-api:check",
         ":platform-1.8.9:check",
         ":launcher:check",
-        assembleRuntimeOverlay
+        assembleRuntimeOverlay,
+        verifyLauncherDistribution
     )
 }
