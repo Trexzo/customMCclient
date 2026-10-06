@@ -90,6 +90,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerHunger(
+            final Minecraft189PlayerHungerAccess player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerHunger(player);
+        }
+    }
+
     public static synchronized void publishTick(
             final long tickIndex) {
         final Minecraft189HostRuntime host =
