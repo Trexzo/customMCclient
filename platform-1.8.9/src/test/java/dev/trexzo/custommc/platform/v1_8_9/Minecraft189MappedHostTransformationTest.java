@@ -140,6 +140,8 @@ final class Minecraft189MappedHostTransformationTest {
         final Object settings =
                 settingsClass.getDeclaredConstructor()
                         .newInstance();
+        final Field viewBobbing =
+                settingsClass.getField("d");
         final Field fov =
                 settingsClass.getField("aI");
         final Field gamma =
@@ -148,6 +150,7 @@ final class Minecraft189MappedHostTransformationTest {
                 settingsClass.getField("aL");
         final Field unicode =
                 settingsClass.getField("aO");
+        viewBobbing.setBoolean(settings, true);
         fov.setFloat(settings, 70.0F);
         gamma.setFloat(settings, 0.35F);
         guiScale.setInt(settings, 3);
@@ -155,6 +158,11 @@ final class Minecraft189MappedHostTransformationTest {
 
         final Minecraft189GuiSettingsAccess settingsAccess =
                 (Minecraft189GuiSettingsAccess) settings;
+        assertTrue(
+                settingsAccess.viewBobbing());
+        settingsAccess.viewBobbing(false);
+        assertFalse(
+                viewBobbing.getBoolean(settings));
         assertEquals(
                 70.0F,
                 settingsAccess.fovSetting());
@@ -374,6 +382,10 @@ final class Minecraft189MappedHostTransformationTest {
             final Object liveSettings =
                     settingsClass.getDeclaredConstructor()
                             .newInstance();
+            settingsClass.getField("d")
+                    .setBoolean(
+                            liveSettings,
+                            true);
             settingsClass.getField("aI")
                     .setFloat(
                             liveSettings,
@@ -411,6 +423,11 @@ final class Minecraft189MappedHostTransformationTest {
                             .find(
                                     Minecraft189FovModule.ID)
                             != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
+                                    Minecraft189NoBobbingModule.ID)
+                            != null);
             assertEquals(
                     0.35F,
                     settingsClass.getField("aJ")
@@ -422,6 +439,25 @@ final class Minecraft189MappedHostTransformationTest {
                     settingsClass.getField("aI")
                             .getFloat(
                                     liveSettings));
+            assertTrue(
+                    settingsClass.getField("d")
+                            .getBoolean(
+                                    liveSettings));
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189NoBobbingModule.ID);
+            assertFalse(
+                    settingsClass.getField("d")
+                            .getBoolean(
+                                    liveSettings));
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189NoBobbingModule.ID);
+            assertTrue(
+                    settingsClass.getField("d")
+                            .getBoolean(
+                                    liveSettings));
+
             runtime.moduleController()
                     .enable(
                             Minecraft189FovModule.ID);
@@ -889,6 +925,7 @@ final class Minecraft189MappedHostTransformationTest {
     private static byte[] gameSettingsShape() {
         final ClassWriter writer =
                 classWriter("avh");
+        field(writer, "d", "Z");
         field(writer, "aI", "F");
         field(writer, "aJ", "F");
         field(writer, "aL", "I");

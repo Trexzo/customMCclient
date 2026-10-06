@@ -121,10 +121,22 @@ final class Lwjgl2Minecraft189ViewportSourceTest {
 
     private static final class MutableSettings
             implements Minecraft189GuiSettingsAccess {
+        private boolean viewBobbing = true;
         private float fov;
         private float gamma;
         private int guiScale;
         private boolean unicode;
+
+        @Override
+        public boolean viewBobbing() {
+            return viewBobbing;
+        }
+
+        @Override
+        public void viewBobbing(
+                final boolean value) {
+            viewBobbing = value;
+        }
 
         @Override
         public float fovSetting() {

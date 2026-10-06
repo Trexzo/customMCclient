@@ -6,97 +6,77 @@ import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189GuiSettingsAccess;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-final class Minecraft189FullbrightModuleTest {
+final class Minecraft189NoBobbingModuleTest {
     @Test
-    void featureCloseRestoresExactPreEnableGamma() {
+    void enableDisableRestoresExactPriorPreference() {
+        final RecordingSettings settings =
+                new RecordingSettings(true);
+        final Minecraft189NoBobbingModule module =
+                new Minecraft189NoBobbingModule(
+                        settings);
+
+        module.onEnable();
+        assertTrue(module.active());
+        assertTrue(module.originalViewBobbing());
+        assertFalse(settings.viewBobbing());
+
+        module.onDisable();
+        assertTrue(settings.viewBobbing());
+        assertFalse(module.active());
+
+        settings.viewBobbing(false);
+        module.onEnable();
+        assertFalse(module.originalViewBobbing());
+        module.onDisable();
+        assertFalse(settings.viewBobbing());
+    }
+
+    @Test
+    void featureCloseRestoresAndRemovesModule() {
+        final RecordingSettings settings =
+                new RecordingSettings(true);
         final ModuleRegistry modules =
                 new ModuleRegistry();
         final ModuleController controller =
                 new ModuleController(modules);
         final ModulePresentationRegistry presentations =
                 new ModulePresentationRegistry();
-        final RecordingSettings settings =
-                new RecordingSettings(0.42F);
 
-        final Minecraft189FullbrightFeature feature =
-                Minecraft189FullbrightFeature.install(
+        final Minecraft189NoBobbingFeature feature =
+                Minecraft189NoBobbingFeature.install(
                         modules,
                         controller,
                         presentations,
                         settings);
 
         controller.enable(
-                Minecraft189FullbrightModule.ID);
-
-        assertTrue(
-                feature.module()
-                        .active());
-        assertEquals(
-                Minecraft189FullbrightModule.fullbrightGamma(),
-                settings.gammaSetting());
+                Minecraft189NoBobbingModule.ID);
+        assertFalse(settings.viewBobbing());
 
         feature.close();
 
-        assertEquals(
-                0.42F,
-                settings.gammaSetting());
+        assertTrue(settings.viewBobbing());
         assertNull(
                 modules.find(
-                        Minecraft189FullbrightModule.ID));
+                        Minecraft189NoBobbingModule.ID));
         assertNull(
                 presentations.find(
-                        Minecraft189FullbrightModule.ID));
-
-        feature.close();
-        assertEquals(
-                0.42F,
-                settings.gammaSetting());
-    }
-
-    @Test
-    void repeatedEnableDisableCapturesFreshUserGammaEachTime() {
-        final RecordingSettings settings =
-                new RecordingSettings(0.3F);
-        final Minecraft189FullbrightModule module =
-                new Minecraft189FullbrightModule(
-                        settings);
-
-        module.onEnable();
-        assertEquals(
-                Minecraft189FullbrightModule.fullbrightGamma(),
-                settings.gammaSetting());
-        module.onDisable();
-        assertEquals(
-                0.3F,
-                settings.gammaSetting());
-        assertFalse(module.active());
-
-        settings.gammaSetting(
-                0.8F);
-        module.onEnable();
-        assertEquals(
-                0.8F,
-                module.originalGamma());
-        module.onDisable();
-        assertEquals(
-                0.8F,
-                settings.gammaSetting());
+                        Minecraft189NoBobbingModule.ID));
     }
 
     private static final class RecordingSettings
             implements Minecraft189GuiSettingsAccess {
-        private boolean viewBobbing = true;
+        private boolean viewBobbing;
         private float fov = 70.0F;
-        private float gamma;
+        private float gamma = 0.5F;
 
         private RecordingSettings(
-                final float gamma) {
-            this.gamma = gamma;
+                final boolean viewBobbing) {
+            this.viewBobbing = viewBobbing;
         }
 
         @Override

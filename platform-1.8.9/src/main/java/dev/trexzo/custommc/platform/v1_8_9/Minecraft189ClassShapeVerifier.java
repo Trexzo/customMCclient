@@ -52,6 +52,7 @@ public final class Minecraft189ClassShapeVerifier {
                 classBytes,
                 Minecraft189Mappings.GAME_SETTINGS,
                 new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.GAME_SETTINGS_VIEW_BOBBING,
                         Minecraft189Mappings.GAME_SETTINGS_FOV,
                         Minecraft189Mappings.GAME_SETTINGS_GAMMA,
                         Minecraft189Mappings.GAME_SETTINGS_GUI_SCALE,

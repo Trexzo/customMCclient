@@ -109,6 +109,13 @@ public final class Minecraft189Mappings {
                     "field_70161_v",
                     "posZ");
 
+    public static final MappedField GAME_SETTINGS_VIEW_BOBBING =
+            new MappedField(
+                    GAME_SETTINGS,
+                    "d",
+                    "Z",
+                    "field_74336_f",
+                    "viewBobbing");
     public static final MappedField GAME_SETTINGS_FOV =
             new MappedField(
                     GAME_SETTINGS,

@@ -489,3 +489,12 @@ The canonical live LWJGL binding installs **FOV Changer** through the existing f
 Enabling captures the exact current game FOV and applies the configured target immediately. While enabled, the module owns a subscription to the already-certified tick event and re-applies the latest configured value each tick, so ClickGUI edits become live without adding a separate setting-listener framework. Disabling closes that subscription and restores the exact pre-enable FOV. Re-enabling captures a fresh user value, and feature/catalog teardown restores the captured value before removing the module and its setting ownership.
 
 Regression coverage proves exact `avh.aI` transformation, live `70 -> 110 -> 120 -> 70` behavior through a tick-delivered setting edit, fresh capture on later enable cycles, and restoration/removal when the feature is closed while enabled.
+
+
+## Live mapped No Bobbing
+
+M100 pins `GameSettings.viewBobbing` to exact obfuscated field `avh.d` (`field_74336_f`, descriptor `Z`) in the same version-locked mapping authority used by Fullbright and FOV Changer. The GameSettings shape verifier requires that field before transformation, and the transformed settings contract exposes typed boolean get/set without reflection.
+
+The canonical live host binding installs **No Bobbing** through the existing Visuals feature catalog. Enabling captures the user's exact current view-bobbing preference and writes `false`. Disabling restores the captured value exactly. Re-enabling captures the then-current preference again, so a user who normally keeps bobbing disabled is restored to disabled rather than forced on.
+
+Feature/catalog shutdown disables No Bobbing before removing its module registration, guaranteeing restoration if the client closes while the module is active. Executable regressions prove transformed `avh.d` access, canonical host installation, `true -> false -> true` live behavior, preservation of an originally-false preference, explicit mapping-drift rejection, and teardown restoration.

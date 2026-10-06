@@ -605,6 +605,16 @@ public final class Minecraft189ClassTransformer
 
                     @Override
                     public void visitEnd() {
+                        addBooleanFieldGetter(
+                                cv,
+                                "viewBobbing",
+                                Minecraft189Mappings
+                                        .GAME_SETTINGS_VIEW_BOBBING);
+                        addBooleanFieldSetter(
+                                cv,
+                                "viewBobbing",
+                                Minecraft189Mappings
+                                        .GAME_SETTINGS_VIEW_BOBBING);
                         addFloatFieldGetter(
                                 cv,
                                 "fovSetting",
@@ -1063,6 +1073,37 @@ public final class Minecraft189ClassTransformer
                 field.descriptor());
         method.visitInsn(
                 Opcodes.IRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addBooleanFieldSetter(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedField field) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "(Z)V",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                1);
+        method.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                field.owner().obfuscatedInternalName(),
+                field.obfuscatedName(),
+                field.descriptor());
+        method.visitInsn(
+                Opcodes.RETURN);
         method.visitMaxs(
                 0,
                 0);
