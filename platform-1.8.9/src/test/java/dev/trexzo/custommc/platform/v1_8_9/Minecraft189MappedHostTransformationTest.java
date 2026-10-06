@@ -39,6 +39,9 @@ final class Minecraft189MappedHostTransformationTest {
     private static final String KEYBOARD_BINDING =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189LwjglKeyboardBinding";
+    private static final String MOUSE_BINDING =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189LwjglMouseBinding";
 
     @Test
     void transformerClaimsOnlyStableMainAndMappedHostOwners() {
@@ -50,6 +53,7 @@ final class Minecraft189MappedHostTransformationTest {
                         Minecraft189ClassTransformer
                                 .TARGET_MAIN_CLASS));
         assertTrue(transformer.handles("ave"));
+        assertTrue(transformer.handles("avb"));
         assertTrue(transformer.handles("avh"));
         assertTrue(transformer.handles("avn"));
         assertTrue(transformer.handles("avo"));
@@ -58,6 +62,46 @@ final class Minecraft189MappedHostTransformationTest {
         assertFalse(
                 transformer.handles(
                         "net.minecraft.client.Minecraft"));
+    }
+
+
+    @Test
+    void mappedKeyBindingForwardsRawMouseStateBeforeOriginalBody()
+            throws Exception {
+        final Minecraft189ClassTransformer transformer =
+                new Minecraft189ClassTransformer();
+        final byte[] transformed =
+                transformer.transform(
+                        "avb",
+                        keyBindingShape());
+
+        assertEquals(
+                1,
+                mouseForwardCalls(
+                        transformed));
+
+        final ByteMapClassLoader loader =
+                new ByteMapClassLoader(
+                        getClass().getClassLoader());
+        loader.put(
+                "avb",
+                transformed);
+
+        final Class<?> keyBinding =
+                loader.loadClass("avb");
+        keyBinding.getMethod(
+                        "a",
+                        int.class,
+                        boolean.class)
+                .invoke(
+                        null,
+                        30,
+                        true);
+
+        assertEquals(
+                1,
+                keyBinding.getField("calls")
+                        .getInt(null));
     }
 
     @Test
@@ -515,6 +559,100 @@ final class Minecraft189MappedHostTransformationTest {
                         },
                         0);
         return calls[0];
+    }
+
+    private static int mouseForwardCalls(
+            final byte[] bytes) {
+        final int[] calls =
+                new int[]{0};
+        new ClassReader(bytes)
+                .accept(
+                        new ClassVisitor(
+                                Opcodes.ASM9) {
+                            @Override
+                            public MethodVisitor visitMethod(
+                                    final int access,
+                                    final String name,
+                                    final String descriptor,
+                                    final String signature,
+                                    final String[] exceptions) {
+                                if (!"a".equals(name)
+                                        || !"(IZ)V".equals(
+                                        descriptor)
+                                        || (access & Opcodes.ACC_STATIC) == 0) {
+                                    return null;
+                                }
+                                return new MethodVisitor(
+                                        Opcodes.ASM9) {
+                                    @Override
+                                    public void visitMethodInsn(
+                                            final int opcode,
+                                            final String owner,
+                                            final String methodName,
+                                            final String methodDescriptor,
+                                            final boolean isInterface) {
+                                        if (opcode
+                                                == Opcodes.INVOKESTATIC
+                                                && MOUSE_BINDING.equals(
+                                                owner)
+                                                && "forwardKeyBindingState"
+                                                .equals(methodName)
+                                                && "(IZ)V".equals(
+                                                methodDescriptor)) {
+                                            calls[0]++;
+                                        }
+                                    }
+                                };
+                            }
+                        },
+                        0);
+        return calls[0];
+    }
+
+    private static byte[] keyBindingShape() {
+        final ClassWriter writer =
+                classWriter("avb");
+        writer.visitField(
+                        Opcodes.ACC_PUBLIC
+                                | Opcodes.ACC_STATIC,
+                        "calls",
+                        "I",
+                        null,
+                        null)
+                .visitEnd();
+
+        final MethodVisitor method =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC
+                                | Opcodes.ACC_STATIC,
+                        "a",
+                        "(IZ)V",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitFieldInsn(
+                Opcodes.GETSTATIC,
+                "avb",
+                "calls",
+                "I");
+        method.visitInsn(
+                Opcodes.ICONST_1);
+        method.visitInsn(
+                Opcodes.IADD);
+        method.visitFieldInsn(
+                Opcodes.PUTSTATIC,
+                "avb",
+                "calls",
+                "I");
+        method.visitInsn(
+                Opcodes.RETURN);
+        method.visitMaxs(
+                2,
+                2);
+        method.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
     }
 
     private static byte[] gameSettingsShape() {

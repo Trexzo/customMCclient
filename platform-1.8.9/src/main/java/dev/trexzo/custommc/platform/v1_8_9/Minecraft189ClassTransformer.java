@@ -28,6 +28,9 @@ public final class Minecraft189ClassTransformer
     private static final String KEYBOARD_BINDING_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189LwjglKeyboardBinding";
+    private static final String MOUSE_BINDING_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189LwjglMouseBinding";
     private static final String HOST_RUNTIME_DESCRIPTOR =
             "Ldev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189HostRuntime;";
@@ -48,6 +51,9 @@ public final class Minecraft189ClassTransformer
         return TARGET_MAIN_CLASS.equals(
                 binaryClassName)
                 || Minecraft189Mappings.MINECRAFT
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.KEY_BINDING
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.GAME_SETTINGS
@@ -83,6 +89,13 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyMinecraft(input);
             return transformMinecraft(input);
+        }
+        if (Minecraft189Mappings.KEY_BINDING
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyKeyBinding(input);
+            return transformKeyBinding(input);
         }
         if (Minecraft189Mappings.GAME_SETTINGS
                 .obfuscatedBinaryName()
@@ -381,6 +394,84 @@ public final class Minecraft189ClassTransformer
                 false);
         visitor.visitInsn(
                 Opcodes.POP);
+    }
+
+    private static byte[] transformKeyBinding(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+        final boolean[] found =
+                new boolean[]{false};
+        final boolean[] injected =
+                new boolean[]{false};
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public MethodVisitor visitMethod(
+                            final int access,
+                            final String name,
+                            final String descriptor,
+                            final String signature,
+                            final String[] exceptions) {
+                        final MethodVisitor delegate =
+                                super.visitMethod(
+                                        access,
+                                        name,
+                                        descriptor,
+                                        signature,
+                                        exceptions);
+                        final Minecraft189Mappings.MappedMethod state =
+                                Minecraft189Mappings
+                                        .KEY_BINDING_SET_KEY_BIND_STATE;
+                        if (!state.obfuscatedName().equals(name)
+                                || !state.descriptor().equals(
+                                descriptor)
+                                || (access & Opcodes.ACC_STATIC) == 0) {
+                            return delegate;
+                        }
+                        if (found[0]) {
+                            throw new IllegalStateException(
+                                    "duplicate mapped KeyBinding setKeyBindState method");
+                        }
+                        found[0] = true;
+
+                        return new MethodVisitor(
+                                Opcodes.ASM9,
+                                delegate) {
+                            @Override
+                            public void visitCode() {
+                                super.visitCode();
+                                super.visitVarInsn(
+                                        Opcodes.ILOAD,
+                                        0);
+                                super.visitVarInsn(
+                                        Opcodes.ILOAD,
+                                        1);
+                                super.visitMethodInsn(
+                                        Opcodes.INVOKESTATIC,
+                                        MOUSE_BINDING_INTERNAL_NAME,
+                                        "forwardKeyBindingState",
+                                        "(IZ)V",
+                                        false);
+                                injected[0] = true;
+                            }
+                        };
+                    }
+                },
+                0);
+
+        if (!found[0] || !injected[0]) {
+            throw new IllegalStateException(
+                    "mapped KeyBinding setKeyBindState method was not patchable");
+        }
+        return writer.toByteArray();
     }
 
     private static byte[] transformGameSettings(

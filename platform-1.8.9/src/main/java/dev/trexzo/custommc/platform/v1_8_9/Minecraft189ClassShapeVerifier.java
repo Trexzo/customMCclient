@@ -34,6 +34,17 @@ public final class Minecraft189ClassShapeVerifier {
                 });
     }
 
+    public static void verifyKeyBinding(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.KEY_BINDING,
+                new Minecraft189Mappings.MappedField[0],
+                new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.KEY_BINDING_SET_KEY_BIND_STATE
+                });
+    }
+
     public static void verifyGameSettings(
             final byte[] classBytes) {
         verify(
