@@ -48,6 +48,12 @@ public final class Minecraft189RuntimeBridge {
                                 "hostCallbacks"));
     }
 
+    public static synchronized void gameTick() {
+        if (activeRuntime != null) {
+            activeRuntime.publishGameTick();
+        }
+    }
+
     public static synchronized void publishTick(
             final long tickIndex) {
         final Minecraft189HostRuntime host =
