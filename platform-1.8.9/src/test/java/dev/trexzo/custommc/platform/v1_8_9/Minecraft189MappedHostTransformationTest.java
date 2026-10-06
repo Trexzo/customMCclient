@@ -1,6 +1,9 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
 import dev.trexzo.custommc.bootstrap.BootstrapContext;
+import dev.trexzo.custommc.core.render.RenderFrame;
+import dev.trexzo.custommc.core.render.RenderPass;
+import dev.trexzo.custommc.core.render.RenderStage;
 import dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189FontRendererAccess;
 import dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189GuiSettingsAccess;
 import org.junit.jupiter.api.Test;
@@ -46,9 +49,9 @@ final class Minecraft189MappedHostTransformationTest {
         assertTrue(transformer.handles("ave"));
         assertTrue(transformer.handles("avh"));
         assertTrue(transformer.handles("avn"));
+        assertTrue(transformer.handles("avo"));
+        assertTrue(transformer.handles("bfk"));
 
-        assertFalse(transformer.handles("avo"));
-        assertFalse(transformer.handles("bfk"));
         assertFalse(
                 transformer.handles(
                         "net.minecraft.client.Minecraft"));
@@ -154,10 +157,14 @@ final class Minecraft189MappedHostTransformationTest {
                         fontRendererShape()));
         loader.put(
                 "bfk",
-                emptyClass("bfk"));
+                transformer.transform(
+                        "bfk",
+                        entityRendererShape()));
         loader.put(
                 "avo",
-                emptyClass("avo"));
+                transformer.transform(
+                        "avo",
+                        guiIngameShape()));
         loader.put(
                 "ave",
                 transformedMinecraft);
@@ -180,6 +187,36 @@ final class Minecraft189MappedHostTransformationTest {
                             Minecraft189Hooks.TickEvent.class,
                             event -> ticks.add(
                                     event.tickIndex()));
+
+            final List<String> hudFrames =
+                    new ArrayList<String>();
+            runtime.renderPipeline()
+                    .register(
+                            new RenderPass() {
+                                @Override
+                                public String id() {
+                                    return "m81-test-hud";
+                                }
+
+                                @Override
+                                public RenderStage stage() {
+                                    return RenderStage.HUD;
+                                }
+
+                                @Override
+                                public int priority() {
+                                    return 0;
+                                }
+
+                                @Override
+                                public void render(
+                                        final RenderFrame frame) {
+                                    hudFrames.add(
+                                            frame.frameIndex()
+                                                    + "@"
+                                                    + frame.partialTicks());
+                                }
+                            });
 
             final Class<?> minecraftClass =
                     loader.loadClass("ave");
@@ -219,6 +256,47 @@ final class Minecraft189MappedHostTransformationTest {
                             0L,
                             1L),
                     ticks);
+
+            final Object entityRenderer =
+                    loader.loadClass("bfk")
+                            .getDeclaredConstructor()
+                            .newInstance();
+            final Method renderFrame =
+                    entityRenderer.getClass()
+                            .getMethod(
+                                    "a",
+                                    float.class,
+                                    long.class);
+            final Object guiIngame =
+                    loader.loadClass("avo")
+                            .getDeclaredConstructor()
+                            .newInstance();
+            final Method renderHud =
+                    guiIngame.getClass()
+                            .getMethod(
+                                    "a",
+                                    float.class);
+
+            renderFrame.invoke(
+                    entityRenderer,
+                    0.25F,
+                    100L);
+            renderHud.invoke(
+                    guiIngame,
+                    0.25F);
+            renderFrame.invoke(
+                    entityRenderer,
+                    0.5F,
+                    101L);
+            renderHud.invoke(
+                    guiIngame,
+                    0.5F);
+
+            assertEquals(
+                    Arrays.asList(
+                            "0@0.25",
+                            "1@0.5"),
+                    hudFrames);
         } finally {
             runtime.close();
         }
@@ -413,6 +491,50 @@ final class Minecraft189MappedHostTransformationTest {
 
         voidMethod(writer, "am");
         voidMethod(writer, "s");
+
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] guiIngameShape() {
+        final ClassWriter writer =
+                classWriter("avo");
+        endDefaultConstructor(writer, "avo");
+
+        final MethodVisitor overlay =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "a",
+                        "(F)V",
+                        null,
+                        null);
+        overlay.visitCode();
+        overlay.visitInsn(
+                Opcodes.RETURN);
+        overlay.visitMaxs(0, 2);
+        overlay.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] entityRendererShape() {
+        final ClassWriter writer =
+                classWriter("bfk");
+        endDefaultConstructor(writer, "bfk");
+
+        final MethodVisitor render =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "a",
+                        "(FJ)V",
+                        null,
+                        null);
+        render.visitCode();
+        render.visitInsn(
+                Opcodes.RETURN);
+        render.visitMaxs(0, 4);
+        render.visitEnd();
 
         writer.visitEnd();
         return writer.toByteArray();
