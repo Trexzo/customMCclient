@@ -10,6 +10,7 @@ import dev.trexzo.custommc.core.ui.UiRectCommand;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiViewport;
+import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiBatchGraphics;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiGraphics;
 import dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189UiRenderer;
 import dev.trexzo.custommc.platform.v1_8_9.ui.UnsupportedUiCommandException;
@@ -95,6 +96,235 @@ final class Minecraft189UiRendererTest {
                 calls);
     }
 
+
+    @Test
+    void optionalBatchGraphicsGroupsAdjacentShapesWithoutCrossingBoundaries() {
+        final List<String> calls =
+                new ArrayList<String>();
+        final Minecraft189UiRenderer renderer =
+                new Minecraft189UiRenderer(
+                        batchGraphics(calls));
+
+        renderer.render(
+                new RenderFrame(0L, 0.0F),
+                new UiViewport(800, 600, 1.0F),
+                Arrays.<UiDrawCommand>asList(
+                        new UiRectCommand(
+                                0,
+                                1.0F,
+                                2.0F,
+                                3.0F,
+                                4.0F,
+                                1),
+                        new UiRoundedRectCommand(
+                                0,
+                                5.0F,
+                                6.0F,
+                                20.0F,
+                                10.0F,
+                                2.0F,
+                                2),
+                        new UiOutlineCommand(
+                                0,
+                                7.0F,
+                                8.0F,
+                                30.0F,
+                                15.0F,
+                                1.0F,
+                                3),
+                        new UiTextCommand(
+                                0,
+                                9.0F,
+                                10.0F,
+                                "split",
+                                4),
+                        new UiRectCommand(
+                                0,
+                                11.0F,
+                                12.0F,
+                                13.0F,
+                                14.0F,
+                                5),
+                        new UiRectCommand(
+                                0,
+                                15.0F,
+                                16.0F,
+                                17.0F,
+                                18.0F,
+                                6),
+                        new UiClipCommand(
+                                0,
+                                new UiBounds(
+                                        20.0F,
+                                        21.0F,
+                                        100.0F,
+                                        80.0F),
+                                Arrays.<UiDrawCommand>asList(
+                                        new UiRectCommand(
+                                                0,
+                                                22.0F,
+                                                23.0F,
+                                                24.0F,
+                                                25.0F,
+                                                7),
+                                        new UiOutlineCommand(
+                                                0,
+                                                26.0F,
+                                                27.0F,
+                                                28.0F,
+                                                29.0F,
+                                                1.0F,
+                                                8))),
+                        new UiRectCommand(
+                                0,
+                                30.0F,
+                                31.0F,
+                                32.0F,
+                                33.0F,
+                                9)));
+
+        assertEquals(
+                Arrays.asList(
+                        "begin:800.0x600.0",
+                        "batch-begin",
+                        "rect:1.0,2.0,3.0,4.0,1",
+                        "rounded:5.0,6.0,20.0,10.0,2.0,2",
+                        "outline:7.0,8.0,30.0,15.0,1.0,3",
+                        "batch-end",
+                        "text:minecraft-default:9.0,10.0,split,4",
+                        "batch-begin",
+                        "rect:11.0,12.0,13.0,14.0,5",
+                        "rect:15.0,16.0,17.0,18.0,6",
+                        "batch-end",
+                        "clip:20.0,21.0,100.0,80.0",
+                        "batch-begin",
+                        "rect:22.0,23.0,24.0,25.0,7",
+                        "outline:26.0,27.0,28.0,29.0,1.0,8",
+                        "batch-end",
+                        "unclip",
+                        "rect:30.0,31.0,32.0,33.0,9",
+                        "end"),
+                calls);
+    }
+
+    @Test
+    void failingShapeClosesBatchBeforeFrameEnd() {
+        final List<String> calls =
+                new ArrayList<String>();
+        final LegacyUiBatchGraphics graphics =
+                new LegacyUiBatchGraphics() {
+                    @Override
+                    public void begin(
+                            final UiViewport viewport) {
+                        calls.add("begin");
+                    }
+
+                    @Override
+                    public void beginShapeBatch() {
+                        calls.add("batch-begin");
+                    }
+
+                    @Override
+                    public void fillRect(
+                            final float x,
+                            final float y,
+                            final float width,
+                            final float height,
+                            final int argb) {
+                        calls.add("rect");
+                    }
+
+                    @Override
+                    public void fillRoundedRect(
+                            final float x,
+                            final float y,
+                            final float width,
+                            final float height,
+                            final float radius,
+                            final int argb) {
+                        calls.add("rounded");
+                        throw new IllegalStateException(
+                                "shape failure");
+                    }
+
+                    @Override
+                    public void strokeRect(
+                            final float x,
+                            final float y,
+                            final float width,
+                            final float height,
+                            final float thickness,
+                            final int argb) {
+                    }
+
+                    @Override
+                    public void pushClip(
+                            final float x,
+                            final float y,
+                            final float width,
+                            final float height) {
+                    }
+
+                    @Override
+                    public void popClip() {
+                    }
+
+                    @Override
+                    public void drawText(
+                            final UiFontHandle font,
+                            final float x,
+                            final float y,
+                            final String text,
+                            final int argb) {
+                    }
+
+                    @Override
+                    public void endShapeBatch() {
+                        calls.add("batch-end");
+                    }
+
+                    @Override
+                    public void end() {
+                        calls.add("end");
+                    }
+                };
+
+        final Minecraft189UiRenderer renderer =
+                new Minecraft189UiRenderer(graphics);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> renderer.render(
+                        new RenderFrame(0L, 0.0F),
+                        new UiViewport(800, 600, 1.0F),
+                        Arrays.<UiDrawCommand>asList(
+                                new UiRectCommand(
+                                        0,
+                                        1.0F,
+                                        2.0F,
+                                        3.0F,
+                                        4.0F,
+                                        1),
+                                new UiRoundedRectCommand(
+                                        0,
+                                        5.0F,
+                                        6.0F,
+                                        20.0F,
+                                        10.0F,
+                                        2.0F,
+                                        2))));
+
+        assertEquals(
+                Arrays.asList(
+                        "begin",
+                        "batch-begin",
+                        "rect",
+                        "rounded",
+                        "batch-end",
+                        "end"),
+                calls);
+    }
+
     @Test
     void endRunsWhenCommandTranslationFails() {
         final List<String> calls =
@@ -165,6 +395,118 @@ final class Minecraft189UiRendererTest {
                         "unclip",
                         "end"),
                 calls);
+    }
+
+
+    private static LegacyUiBatchGraphics batchGraphics(
+            final List<String> calls) {
+        return new LegacyUiBatchGraphics() {
+            private final LegacyUiGraphics delegate =
+                    graphics(calls);
+
+            @Override
+            public void begin(
+                    final UiViewport viewport) {
+                delegate.begin(viewport);
+            }
+
+            @Override
+            public void beginShapeBatch() {
+                calls.add("batch-begin");
+            }
+
+            @Override
+            public void fillRect(
+                    final float x,
+                    final float y,
+                    final float width,
+                    final float height,
+                    final int argb) {
+                delegate.fillRect(
+                        x,
+                        y,
+                        width,
+                        height,
+                        argb);
+            }
+
+            @Override
+            public void fillRoundedRect(
+                    final float x,
+                    final float y,
+                    final float width,
+                    final float height,
+                    final float radius,
+                    final int argb) {
+                delegate.fillRoundedRect(
+                        x,
+                        y,
+                        width,
+                        height,
+                        radius,
+                        argb);
+            }
+
+            @Override
+            public void strokeRect(
+                    final float x,
+                    final float y,
+                    final float width,
+                    final float height,
+                    final float thickness,
+                    final int argb) {
+                delegate.strokeRect(
+                        x,
+                        y,
+                        width,
+                        height,
+                        thickness,
+                        argb);
+            }
+
+            @Override
+            public void pushClip(
+                    final float x,
+                    final float y,
+                    final float width,
+                    final float height) {
+                delegate.pushClip(
+                        x,
+                        y,
+                        width,
+                        height);
+            }
+
+            @Override
+            public void popClip() {
+                delegate.popClip();
+            }
+
+            @Override
+            public void drawText(
+                    final UiFontHandle font,
+                    final float x,
+                    final float y,
+                    final String text,
+                    final int argb) {
+                delegate.drawText(
+                        font,
+                        x,
+                        y,
+                        text,
+                        argb);
+            }
+
+            @Override
+            public void endShapeBatch() {
+                calls.add("batch-end");
+            }
+
+            @Override
+            public void end() {
+                delegate.end();
+            }
+        };
     }
 
     private static LegacyUiGraphics graphics(
