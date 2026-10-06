@@ -931,6 +931,12 @@ final class Minecraft189MappedHostTransformationTest {
                 Opcodes.POP);
         method.visitLabel(
                 skipWheel);
+        method.visitFrame(
+                Opcodes.F_SAME,
+                0,
+                null,
+                0,
+                null);
         method.visitInsn(
                 Opcodes.RETURN);
         method.visitMaxs(
