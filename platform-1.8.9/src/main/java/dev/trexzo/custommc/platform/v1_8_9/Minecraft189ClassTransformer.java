@@ -55,6 +55,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerPositionAccess";
     private static final String PLAYER_POSITION_ACCESS_DESCRIPTOR =
             "L" + PLAYER_POSITION_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_ROTATION_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerRotationAccess";
+    private static final String PLAYER_ROTATION_ACCESS_DESCRIPTOR =
+            "L" + PLAYER_ROTATION_ACCESS_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -242,6 +247,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedPosition =
                 new boolean[]{false};
+        final boolean[] injectedRotation =
+                new boolean[]{false};
         final boolean[] foundDispatchKeypresses =
                 new boolean[]{false};
         final boolean[] injectedKeyboard =
@@ -348,6 +355,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedPosition[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_ROTATION_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerRotation",
+                                                "("
+                                                        + PLAYER_ROTATION_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedRotation[0] = true;
                                     }
                                     super.visitInsn(opcode);
                                 }
@@ -428,7 +457,8 @@ public final class Minecraft189ClassTransformer
         }
         if (!foundRunTick[0]
                 || !injectedTick[0]
-                || !injectedPosition[0]) {
+                || !injectedPosition[0]
+                || !injectedRotation[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
         }
@@ -938,8 +968,10 @@ public final class Minecraft189ClassTransformer
                                 signature,
                                 superName,
                                 withInterface(
-                                        interfaces,
-                                        PLAYER_POSITION_ACCESS_INTERNAL_NAME));
+                                        withInterface(
+                                                interfaces,
+                                                PLAYER_POSITION_ACCESS_INTERNAL_NAME),
+                                        PLAYER_ROTATION_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -956,6 +988,10 @@ public final class Minecraft189ClassTransformer
                                 cv,
                                 "customMcPositionZ",
                                 Minecraft189Mappings.ENTITY_POS_Z);
+                        addFloatFieldGetter(
+                                cv,
+                                "customMcRotationYaw",
+                                Minecraft189Mappings.ENTITY_ROTATION_YAW);
                         super.visitEnd();
                     }
                 },
