@@ -53,6 +53,10 @@ final class LaunchProcessRunnerTest {
                 runner.start(preflight);
 
         assertTrue(
+                Files.isDirectory(
+                        preflight.command()
+                                .workingDirectory()));
+        assertTrue(
                 Files.exists(nativeDirectory));
         assertFalse(session.cleaned());
         assertFalse(session.closed());
