@@ -4,6 +4,7 @@ import dev.trexzo.custommc.core.event.EventBus;
 import dev.trexzo.custommc.core.module.ModuleCategoryRegistry;
 import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
+import dev.trexzo.custommc.core.module.ModuleState;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
 import dev.trexzo.custommc.core.render.RenderPipeline;
@@ -85,6 +86,17 @@ final class Minecraft189HostRuntimeTest {
                 runtime.clickGuiToggleController()
                         .toggleKeyCode());
 
+        assertEquals(
+                ModuleState.DISABLED,
+                controller.stateOf(
+                        Minecraft189WatermarkModule.ID));
+        assertTrue(
+                runtime.featureCatalog()
+                        .watermark()
+                        .id()
+                        .equals(
+                                Minecraft189WatermarkModule.ID));
+
         assertFalse(
                 runtime.clickGuiRuntime()
                         .coreRuntime()
@@ -135,6 +147,68 @@ final class Minecraft189HostRuntimeTest {
                 host.endCalls.get());
         assertTrue(
                 host.textCalls.get() > 0);
+
+        runtime.key(
+                LegacyKeyboardCodes.RIGHT_SHIFT,
+                '\0',
+                true,
+                false,
+                true,
+                false,
+                false);
+        assertFalse(
+                runtime.clickGuiRuntime()
+                        .coreRuntime()
+                        .model()
+                        .snapshot()
+                        .open());
+
+        final int beforeWatermarkText =
+                host.textCalls.get();
+        controller.enable(
+                Minecraft189WatermarkModule.ID);
+        assertEquals(
+                ModuleState.ENABLED,
+                controller.stateOf(
+                        Minecraft189WatermarkModule.ID));
+        assertTrue(
+                runtime.featureCatalog()
+                        .watermark()
+                        .renderPassInstalled());
+
+        runtime.renderHud(
+                1L,
+                0.0F);
+        assertEquals(
+                beforeWatermarkText + 1,
+                host.textCalls.get());
+
+        controller.disable(
+                Minecraft189WatermarkModule.ID);
+        assertEquals(
+                ModuleState.DISABLED,
+                controller.stateOf(
+                        Minecraft189WatermarkModule.ID));
+        assertFalse(
+                runtime.featureCatalog()
+                        .watermark()
+                        .renderPassInstalled());
+
+        runtime.renderHud(
+                2L,
+                0.0F);
+        assertEquals(
+                beforeWatermarkText + 1,
+                host.textCalls.get());
+
+        runtime.key(
+                LegacyKeyboardCodes.RIGHT_SHIFT,
+                '\0',
+                true,
+                false,
+                true,
+                false,
+                false);
 
         final UiViewport viewport =
                 new UiViewport(
