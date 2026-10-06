@@ -50,8 +50,19 @@ public final class Minecraft189ClickRateTracker {
 
     public synchronized int clicksPerSecond(
             final int legacyButton) {
-        final Deque<Long> clicks =
-                clicks(legacyButton);
+        final Rates rates =
+                snapshot();
+        if (legacyButton == LEFT_BUTTON) {
+            return rates.left();
+        }
+        if (legacyButton == RIGHT_BUTTON) {
+            return rates.right();
+        }
+        throw new IllegalArgumentException(
+                "CPS supports only left/right mouse buttons");
+    }
+
+    public synchronized Rates snapshot() {
         final long now =
                 nanoClock.getAsLong();
         requireMonotonic(now);
@@ -62,7 +73,9 @@ public final class Minecraft189ClickRateTracker {
         trim(
                 rightClicks,
                 now);
-        return clicks.size();
+        return new Rates(
+                leftClicks.size(),
+                rightClicks.size());
     }
 
     public synchronized void clear() {
@@ -102,6 +115,26 @@ public final class Minecraft189ClickRateTracker {
                 legacyButton,
                 leftClicks,
                 rightClicks);
+    }
+
+    public static final class Rates {
+        private final int left;
+        private final int right;
+
+        private Rates(
+                final int left,
+                final int right) {
+            this.left = left;
+            this.right = right;
+        }
+
+        public int left() {
+            return left;
+        }
+
+        public int right() {
+            return right;
+        }
     }
 
     private void requireMonotonic(
