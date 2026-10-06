@@ -237,6 +237,7 @@ public final class Minecraft189HostRuntime
             }
             closed = true;
         }
+        clickGuiToggleRegistration.close();
         clickGuiRuntime.close();
     }
 
