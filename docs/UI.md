@@ -68,6 +68,8 @@ M45 adds an explicit content-navigation seam so retained module selection can pr
 
 M46 adds the first explicit ClickGUI runtime composition root and managed service-registration lifetimes.
 
+M47 adds the Minecraft 1.8.9 platform installer and live viewport adapter for that runtime.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -87,6 +89,8 @@ M46 adds `ClickGuiRuntime.install(...)` as the single core composition root for 
 The composition root accepts the existing `UiViewportProvider`, `UiThemeProvider` and `UiRenderer` seams instead of inventing a concrete legacy GL backend. This keeps host-specific rendering outside core while making the already-built UI/input architecture installable as one unit.
 
 `ServiceRegistry.registerManaged(...)` adds explicit closeable service lifetimes without changing legacy `register(...)` behavior. `ClickGuiRuntime.close()` removes its input/model services, closes focus/input ownership, unregisters the HUD pass, removes all page-content/page registrations, clears retained selection and is idempotent. Installation preflights existing ClickGUI services and render-pass identity so an already-installed runtime is rejected before partial wiring.
+
+M47 adds `Minecraft189ClickGuiRuntime.install(...)`. It resolves the authoritative `RenderPipeline`, module registry/controller and `ServiceRegistry` from the attached `Minecraft189Platform` context, builds `Minecraft189UiRenderer` over the existing `LegacyUiGraphics` boundary, adapts live framebuffer dimensions/UI scale through `Minecraft189UiViewportProvider`, supplies the default semantic dark theme unless another `UiThemeProvider` is explicitly passed, and delegates all retained UI ownership to M46. Closing the platform runtime delegates to the same core teardown without detaching the platform or removing unrelated services.
 
 ## Module page lifecycle and presentation authority
 
@@ -177,7 +181,7 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- platform-side creation of the concrete viewport/theme/renderer providers passed into M46;
+- concrete host implementation of `LegacyUiGraphics` and `LegacyUiViewportSource` against Minecraft/LWJGL;
 - concrete host callback wiring into `Minecraft189InputHooks`;
 - backend batching/state minimization;
 - concrete legacy GL implementation.
