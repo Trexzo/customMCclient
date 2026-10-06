@@ -140,18 +140,29 @@ final class Minecraft189MappedHostTransformationTest {
         final Object settings =
                 settingsClass.getDeclaredConstructor()
                         .newInstance();
+        final Field fov =
+                settingsClass.getField("aI");
         final Field gamma =
                 settingsClass.getField("aJ");
         final Field guiScale =
                 settingsClass.getField("aL");
         final Field unicode =
                 settingsClass.getField("aO");
+        fov.setFloat(settings, 70.0F);
         gamma.setFloat(settings, 0.35F);
         guiScale.setInt(settings, 3);
         unicode.setBoolean(settings, true);
 
         final Minecraft189GuiSettingsAccess settingsAccess =
                 (Minecraft189GuiSettingsAccess) settings;
+        assertEquals(
+                70.0F,
+                settingsAccess.fovSetting());
+        settingsAccess.fovSetting(
+                95.0F);
+        assertEquals(
+                95.0F,
+                fov.getFloat(settings));
         assertEquals(
                 0.35F,
                 settingsAccess.gammaSetting());
@@ -363,6 +374,10 @@ final class Minecraft189MappedHostTransformationTest {
             final Object liveSettings =
                     settingsClass.getDeclaredConstructor()
                             .newInstance();
+            settingsClass.getField("aI")
+                    .setFloat(
+                            liveSettings,
+                            70.0F);
             settingsClass.getField("aJ")
                     .setFloat(
                             liveSettings,
@@ -391,9 +406,50 @@ final class Minecraft189MappedHostTransformationTest {
                             .find(
                                     Minecraft189FullbrightModule.ID)
                             != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
+                                    Minecraft189FovModule.ID)
+                            != null);
             assertEquals(
                     0.35F,
                     settingsClass.getField("aJ")
+                            .getFloat(
+                                    liveSettings));
+
+            assertEquals(
+                    70.0F,
+                    settingsClass.getField("aI")
+                            .getFloat(
+                                    liveSettings));
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189FovModule.ID);
+            assertEquals(
+                    110.0F,
+                    settingsClass.getField("aI")
+                            .getFloat(
+                                    liveSettings));
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .fovChanger()
+                    .targetFovSetting()
+                    .set(120);
+            runtime.events()
+                    .publish(
+                            new Minecraft189Hooks.TickEvent(
+                                    99L));
+            assertEquals(
+                    120.0F,
+                    settingsClass.getField("aI")
+                            .getFloat(
+                                    liveSettings));
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189FovModule.ID);
+            assertEquals(
+                    70.0F,
+                    settingsClass.getField("aI")
                             .getFloat(
                                     liveSettings));
 
@@ -832,6 +888,7 @@ final class Minecraft189MappedHostTransformationTest {
     private static byte[] gameSettingsShape() {
         final ClassWriter writer =
                 classWriter("avh");
+        field(writer, "aI", "F");
         field(writer, "aJ", "F");
         field(writer, "aL", "I");
         field(writer, "aO", "Z");
