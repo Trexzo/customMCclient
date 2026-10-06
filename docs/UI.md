@@ -72,6 +72,8 @@ M47 adds the Minecraft 1.8.9 platform installer and live viewport adapter for th
 
 M50 adds read-only module keybind projection to selected-module details.
 
+M52 adds focus-owned transactional keybind capture on that projected detail header.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -133,6 +135,10 @@ The detail surface owns only its retained content-scroll offset. Selection chang
 
 M50 optionally gives `ModuleDetailPageContent` the same `ModuleKeybindRegistry` authority introduced by M48. When present, the header projects the selected module's current chord as `Bind: ...` or `Bind: Unbound`. Registration close/rebind changes appear on the next compose; the detail surface stores no bind mirror and does not mutate keybinds. Existing constructors and runtime-install overloads remain valid without a keybind registry.
 
+M52 optionally adds the M51 `ModuleKeybindAssignments` mutation authority to the same detail surface. Left-clicking the bind header starts a `UiFocusTarget` capture session; the displayed value becomes `Bind: Press a key...` in the accent role. Escape cancels without mutation, Delete/Backspace requests unbind, and another key press proposes an exact `ModuleKeyChord` from the existing backend-neutral key id plus Shift/Control/Alt state. Chord conflicts preserve the previous bind and keep capture active as `Bind: Key in use`; externally-owned registrations surface as `Bind: Cannot edit`. Repeat/release are consumed by the capture session. Because capture participates in the same `UiFocusManager` used by `ClickGuiInputController`, M49's platform routing gives it first chance to consume keys before module activation.
+
+The assignment owner is borrowed, not owned by `ClickGuiRuntime`: closing the GUI runtime cancels focus/capture but does not close M51 or release bindings that may also serve platform key routing or persistence. Pre-M52 constructors and install overloads remain source-compatible and read-only.
+
 ## Module setting ownership
 
 M41 adds `ModuleSettingBinding` and `ModuleSettingRegistry` as the explicit association layer between stable module ids and existing setting ids. The registry is constructed over the authoritative `ModuleRegistry` and `SettingRegistry`, rejects unknown ids at registration, and enforces at most one module owner per setting.
@@ -185,7 +191,7 @@ No concrete Minecraft, LWJGL, OpenGL, font-atlas or profile-storage object cross
 
 Later milestones can add:
 
-- transactional keybind capture/rebinding built on M48/M50 without bypassing bind registration ownership;
+- keybind persistence/profile integration over the M51 assignment owner;
 - concrete host implementation of `LegacyUiGraphics` and `LegacyUiViewportSource` against Minecraft/LWJGL;
 - concrete host callback wiring into `Minecraft189InputHooks`;
 - backend batching/state minimization;

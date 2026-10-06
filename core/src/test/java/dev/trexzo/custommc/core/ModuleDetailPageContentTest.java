@@ -5,6 +5,7 @@ import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModuleDescriptor;
 import dev.trexzo.custommc.core.module.ModuleKeyChord;
 import dev.trexzo.custommc.core.module.ModuleKeybind;
+import dev.trexzo.custommc.core.module.ModuleKeybindAssignments;
 import dev.trexzo.custommc.core.module.ModuleKeybindRegistry;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
@@ -17,10 +18,19 @@ import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.setting.SettingValueKind;
 import dev.trexzo.custommc.core.ui.UiBounds;
+import dev.trexzo.custommc.core.ui.UiFocusManager;
+import dev.trexzo.custommc.core.ui.UiKey;
+import dev.trexzo.custommc.core.ui.UiKeyAction;
+import dev.trexzo.custommc.core.ui.UiKeyEvent;
+import dev.trexzo.custommc.core.ui.UiKeys;
+import dev.trexzo.custommc.core.ui.UiPointerAction;
+import dev.trexzo.custommc.core.ui.UiPointerButton;
+import dev.trexzo.custommc.core.ui.UiPointerEvent;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiThemes;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiContentContext;
+import dev.trexzo.custommc.core.ui.clickgui.ClickGuiContentInputContext;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiPage;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiSnapshot;
 import dev.trexzo.custommc.core.ui.clickgui.ModuleDetailPageContent;
@@ -31,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -100,6 +111,129 @@ final class ModuleDetailPageContentTest {
         assertTrue(
                 released.contains(
                         "Bind: Unbound"));
+    }
+
+    @Test
+    void bindHeaderCapturesCancelsClearsAndPreservesOnConflict() {
+        final Fixture fixture = new Fixture();
+        fixture.selection.select(
+                "combat.aura");
+
+        final UiFocusManager focus =
+                new UiFocusManager();
+        final ClickGuiContentInputContext input =
+                fixture.inputContext(focus);
+
+        assertTrue(
+                fixture.content.pointer(
+                        input,
+                        new UiPointerEvent(
+                                130.0F,
+                                170.0F,
+                                UiPointerButton.LEFT,
+                                UiPointerAction.PRESS)));
+        assertTrue(
+                texts(
+                        fixture.content.compose(
+                                fixture.context()))
+                        .contains(
+                                "Bind: Press a key..."));
+
+        assertTrue(
+                focus.dispatchKey(
+                        new UiKeyEvent(
+                                new UiKey(
+                                        "legacy-key-37"),
+                                UiKeyAction.PRESS,
+                                'k',
+                                false,
+                                true,
+                                false)));
+        assertTrue(
+                texts(
+                        fixture.content.compose(
+                                fixture.context()))
+                        .contains(
+                                "Bind: CTRL+legacy-key-37"));
+
+        assertTrue(
+                fixture.content.pointer(
+                        input,
+                        new UiPointerEvent(
+                                130.0F,
+                                170.0F,
+                                UiPointerButton.LEFT,
+                                UiPointerAction.PRESS)));
+        assertTrue(
+                focus.dispatchKey(
+                        new UiKeyEvent(
+                                UiKeys.ESCAPE,
+                                UiKeyAction.PRESS,
+                                '\0',
+                                false,
+                                false,
+                                false)));
+        assertTrue(
+                texts(
+                        fixture.content.compose(
+                                fixture.context()))
+                        .contains(
+                                "Bind: CTRL+legacy-key-37"));
+
+        fixture.assignments.bind(
+                "render.esp",
+                ModuleKeyChord.key(
+                        "legacy-key-38"));
+
+        assertTrue(
+                fixture.content.pointer(
+                        input,
+                        new UiPointerEvent(
+                                130.0F,
+                                170.0F,
+                                UiPointerButton.LEFT,
+                                UiPointerAction.PRESS)));
+        assertTrue(
+                focus.dispatchKey(
+                        new UiKeyEvent(
+                                new UiKey(
+                                        "legacy-key-38"),
+                                UiKeyAction.PRESS,
+                                '\0',
+                                false,
+                                false,
+                                false)));
+
+        final List<String> conflict =
+                texts(
+                        fixture.content.compose(
+                                fixture.context()));
+        assertTrue(
+                conflict.contains(
+                        "Bind: Key in use"));
+        assertEquals(
+                "legacy-key-37",
+                fixture.keybinds
+                        .findByModule(
+                                "combat.aura")
+                        .chord()
+                        .keyId());
+
+        assertTrue(
+                focus.dispatchKey(
+                        new UiKeyEvent(
+                                UiKeys.DELETE,
+                                UiKeyAction.PRESS,
+                                '\0',
+                                false,
+                                false,
+                                false)));
+        assertTrue(
+                texts(
+                        fixture.content.compose(
+                                fixture.context()))
+                        .contains(
+                                "Bind: Unbound"));
     }
 
     @Test
@@ -190,6 +324,7 @@ final class ModuleDetailPageContentTest {
         private final ModuleController controller;
         private final ModuleSelectionModel selection;
         private final ModuleKeybindRegistry keybinds;
+        private final ModuleKeybindAssignments assignments;
         private final ModuleDetailPageContent content;
         private final Setting<Boolean> enabled;
 
@@ -290,6 +425,9 @@ final class ModuleDetailPageContentTest {
                     new ModuleSelectionModel(modules);
             keybinds =
                     new ModuleKeybindRegistry(modules);
+            assignments =
+                    new ModuleKeybindAssignments(
+                            keybinds);
             content =
                     new ModuleDetailPageContent(
                             selection,
@@ -297,8 +435,31 @@ final class ModuleDetailPageContentTest {
                             modulePresentations,
                             moduleSettings,
                             keybinds,
+                            assignments,
                             settings,
                             settingPresentations);
+        }
+
+        ClickGuiContentInputContext inputContext(
+                final UiFocusManager focus) {
+            final ClickGuiPage page =
+                    new ClickGuiPage(
+                            "module-detail",
+                            "Module Details",
+                            0);
+            return new ClickGuiContentInputContext(
+                    new ClickGuiSnapshot(
+                            true,
+                            "module-detail",
+                            "",
+                            Arrays.asList(page)),
+                    page,
+                    new UiBounds(
+                            100.0F,
+                            100.0F,
+                            700.0F,
+                            500.0F),
+                    focus);
         }
 
         ClickGuiContentContext context() {

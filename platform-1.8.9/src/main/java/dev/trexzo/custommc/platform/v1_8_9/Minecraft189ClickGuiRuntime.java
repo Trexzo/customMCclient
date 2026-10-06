@@ -2,6 +2,7 @@ package dev.trexzo.custommc.platform.v1_8_9;
 
 import dev.trexzo.custommc.core.module.ModuleCategoryRegistry;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
+import dev.trexzo.custommc.core.module.ModuleKeybindAssignments;
 import dev.trexzo.custommc.core.module.ModuleKeybindRegistry;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
 import dev.trexzo.custommc.core.render.RenderPipeline;
@@ -72,6 +73,32 @@ public final class Minecraft189ClickGuiRuntime
                 moduleCategories,
                 moduleSettings,
                 moduleKeybinds,
+                null,
+                settings,
+                settingPresentations,
+                viewportSource,
+                UiThemes::darkDefault,
+                graphics);
+    }
+
+    public static Minecraft189ClickGuiRuntime install(
+            final Minecraft189Platform platform,
+            final ModulePresentationRegistry modulePresentations,
+            final ModuleCategoryRegistry moduleCategories,
+            final ModuleSettingRegistry moduleSettings,
+            final ModuleKeybindRegistry moduleKeybinds,
+            final ModuleKeybindAssignments moduleKeybindAssignments,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations,
+            final LegacyUiViewportSource viewportSource,
+            final LegacyUiGraphics graphics) {
+        return install(
+                platform,
+                modulePresentations,
+                moduleCategories,
+                moduleSettings,
+                moduleKeybinds,
+                moduleKeybindAssignments,
                 settings,
                 settingPresentations,
                 viewportSource,
@@ -113,6 +140,32 @@ public final class Minecraft189ClickGuiRuntime
             final LegacyUiViewportSource viewportSource,
             final UiThemeProvider themeProvider,
             final LegacyUiGraphics graphics) {
+        return install(
+                platform,
+                modulePresentations,
+                moduleCategories,
+                moduleSettings,
+                moduleKeybinds,
+                null,
+                settings,
+                settingPresentations,
+                viewportSource,
+                themeProvider,
+                graphics);
+    }
+
+    public static Minecraft189ClickGuiRuntime install(
+            final Minecraft189Platform platform,
+            final ModulePresentationRegistry modulePresentations,
+            final ModuleCategoryRegistry moduleCategories,
+            final ModuleSettingRegistry moduleSettings,
+            final ModuleKeybindRegistry moduleKeybinds,
+            final ModuleKeybindAssignments moduleKeybindAssignments,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations,
+            final LegacyUiViewportSource viewportSource,
+            final UiThemeProvider themeProvider,
+            final LegacyUiGraphics graphics) {
         Objects.requireNonNull(platform, "platform");
         Objects.requireNonNull(modulePresentations, "modulePresentations");
         Objects.requireNonNull(moduleCategories, "moduleCategories");
@@ -142,6 +195,7 @@ public final class Minecraft189ClickGuiRuntime
                         moduleCategories,
                         moduleSettings,
                         moduleKeybinds,
+                        moduleKeybindAssignments,
                         settings,
                         settingPresentations,
                         renderPipeline,
