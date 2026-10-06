@@ -308,3 +308,14 @@ M83 extends the M78 mapping authority before any consuming/raw input transformat
 The source rows resolve respectively through `func_147116_af`, `func_147121_ag`, `func_147112_ai`, and `func_152348_aa`. `Minecraft189ClassShapeVerifier.verifyMinecraft(...)` now requires all four methods in addition to the previously certified startup/tick members before `ave` is transformable.
 
 M83 deliberately performs no input injection. Minecraft 1.8.9 drains LWJGL event queues inside `runTick()`; pinning the exact dispatch/action members first prevents a later keyboard/mouse hook from relying on ambiguous short obfuscated names or accidentally consuming vanilla events at the wrong site.
+
+
+## Mapped non-consuming keyboard event forwarding
+
+M84 turns the M83 `Minecraft.dispatchKeypresses` authority (`ave.Z()V`) into the first live raw-input bridge. The mapped method is shape-verified before transformation and receives exactly one call to parent-owned `Minecraft189LwjglKeyboardBinding.forwardCurrentEvent()` at method entry.
+
+The binding reads the current LWJGL event key, character, press/release state, repeat flag and left/right Shift/Ctrl/Alt state, then forwards those primitives through the existing M73 `Minecraft189RuntimeBridge.key(...)` path. It never calls `Keyboard.next()`, never clears the queue and does not branch on the returned consumed flag, so vanilla 1.8.9 still processes the same event normally. This is intentionally observation/forwarding, not input suppression.
+
+The LWJGL source is isolated behind a package-private event-source contract so regression coverage can execute the routing without native display initialization. Tests prove an injected keyboard event reaches the installed retained ClickGUI input controller, closes the open GUI on Escape, and is inert before host installation or after runtime teardown. Separate bytecode coverage proves exactly one forward call is injected into mapped `ave.Z()`.
+
+Mouse buttons, wheel input, explicit ClickGUI-open policy and any consuming/suppression behavior remain separate milestones.
