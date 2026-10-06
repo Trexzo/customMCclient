@@ -39,6 +39,7 @@ public final class Minecraft189FeatureCatalog
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
     private final Minecraft189ArrayListFeature arrayListFeature;
+    private final Minecraft189KeystrokesFeature keystrokesFeature;
     private boolean closed;
 
     private Minecraft189FeatureCatalog(
@@ -56,7 +57,8 @@ public final class Minecraft189FeatureCatalog
             final ModuleSettingRegistry.Registration textBinding,
             final ModuleSettingRegistry.Registration xBinding,
             final ModuleSettingRegistry.Registration yBinding,
-            final Minecraft189ArrayListFeature arrayListFeature) {
+            final Minecraft189ArrayListFeature arrayListFeature,
+            final Minecraft189KeystrokesFeature keystrokesFeature) {
         this.moduleController = moduleController;
         this.watermark = watermark;
         this.watermarkRegistration = watermarkRegistration;
@@ -72,6 +74,7 @@ public final class Minecraft189FeatureCatalog
         this.xBinding = xBinding;
         this.yBinding = yBinding;
         this.arrayListFeature = arrayListFeature;
+        this.keystrokesFeature = keystrokesFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -82,6 +85,7 @@ public final class Minecraft189FeatureCatalog
             final ModuleSettingRegistry moduleSettings,
             final SettingRegistry settings,
             final SettingPresentationRegistry settingPresentations,
+            final Minecraft189InputState inputState,
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
         Objects.requireNonNull(modules, "modules");
@@ -91,6 +95,7 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(moduleSettings, "moduleSettings");
         Objects.requireNonNull(settings, "settings");
         Objects.requireNonNull(settingPresentations, "settingPresentations");
+        Objects.requireNonNull(inputState, "inputState");
         Objects.requireNonNull(renderPipeline, "renderPipeline");
         Objects.requireNonNull(hostCallbacks, "hostCallbacks");
 
@@ -107,6 +112,7 @@ public final class Minecraft189FeatureCatalog
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
         Minecraft189ArrayListFeature arrayListFeature = null;
+        Minecraft189KeystrokesFeature keystrokesFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -201,6 +207,18 @@ public final class Minecraft189FeatureCatalog
                             renderPipeline,
                             hostCallbacks);
 
+            keystrokesFeature =
+                    Minecraft189KeystrokesFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            inputState,
+                            renderPipeline,
+                            hostCallbacks);
+
             return new Minecraft189FeatureCatalog(
                     moduleController,
                     watermark,
@@ -216,8 +234,10 @@ public final class Minecraft189FeatureCatalog
                     textBinding,
                     xBinding,
                     yBinding,
-                    arrayListFeature);
+                    arrayListFeature,
+                    keystrokesFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(keystrokesFeature, failure);
             closeQuietly(arrayListFeature, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
@@ -245,6 +265,11 @@ public final class Minecraft189FeatureCatalog
         return arrayListFeature.module();
     }
 
+    public Minecraft189KeystrokesModule keystrokes() {
+        requireOpen();
+        return keystrokesFeature.module();
+    }
+
     public synchronized boolean closed() {
         return closed;
     }
@@ -259,6 +284,12 @@ public final class Minecraft189FeatureCatalog
         }
 
         RuntimeException failure = null;
+        try {
+            keystrokesFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = closeFailure;
+        }
+
         try {
             arrayListFeature.close();
         } catch (RuntimeException closeFailure) {
