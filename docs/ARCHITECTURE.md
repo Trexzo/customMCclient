@@ -376,3 +376,14 @@ The Watermark module now owns three persistent settings:
 The feature catalog registers each setting, its ClickGUI presentation descriptor and its explicit module-setting ownership binding. The existing module-detail editor can therefore edit the text and numeric position without feature-specific UI code. The watermark render pass reads the live setting values each HUD frame, while `SettingRegistry.snapshotEncoded()` automatically includes all three values through their existing persistent codecs.
 
 Feature-catalog teardown closes module-setting bindings first, then presentation registrations, then the owned setting registrations before removing the module/category. Regression coverage proves persisted encoding, live rendered text/coordinates and complete setting removal on host shutdown.
+
+
+## Enabled-module Array List
+
+M90 adds the second real Visuals feature: `render.array-list` / **Array List**. It is independently lifecycle-owned by the host feature catalog and registers its own HUD render pass only while enabled.
+
+The module reads the authoritative live `ModuleRegistry` and `ModuleController` state each HUD frame, resolves human-readable names through `ModulePresentationRegistry`, and renders only currently enabled modules. It therefore updates immediately when another module is enabled or disabled and does not maintain a second shadow list of module state.
+
+Array List owns persistent X/Y settings (`render.array-list.x`, `render.array-list.y`) through the same M89 setting-registration, presentation and module-setting ownership paths. Its default position is 8,24 with 12 logical pixels between entries. The feature shares the existing Visuals category rather than creating a duplicate category owner.
+
+Regression coverage enables Watermark plus Array List and proves the actual HUD output sequence is `CustomMC`, `Watermark`, `Array List` at the configured coordinates; after Watermark is disabled, the next HUD render contains only `Array List`. Host shutdown removes the Array List module and both owned settings.
