@@ -220,3 +220,37 @@ M77 turns the M75-M76 loader path on for the real stable Minecraft entry class. 
 This is the first production Minecraft-specific bytecode edit in the project. It does not depend on MCP/deobfuscated Minecraft classes, guessed obfuscated names, a Java agent, JNI or JVMTI injection. Regression coverage loads a Minecraft-shaped target fixture through the child loader and proves the injected callback crosses back into the active parent-owned bootstrap runtime before the original main body executes.
 
 M77 does not yet patch the obfuscated game loop, renderer, mouse or keyboard classes. Those callback sites remain the next mapping-sensitive layer.
+
+
+## Pinned Minecraft 1.8.9 mapping authority
+
+M78 replaces informal obfuscation-name assumptions with a checked-in mapping authority. The source is pinned to `BigBroadBean/mappings-extracted` commit `2265da88e93c20411ec70f0b892f4fbc84ebc3c9`, whose 1.8.9 metadata identifies its files as copied official MCP data. The exact source blobs retained in `Minecraft189Mappings` are:
+
+- classes: `17967e48db6c8ec20ae622409be13971e2c77706`;
+- fields: `a8c5928cb64455dcc2712078dbfe018ae97cafb9`;
+- methods: `683d45abbd02a1525008c5654a40b50efbc47c6d`;
+- joined SRG: `0b1e3f1d0156abcbd70e2b09b720379fc0c1eae6`.
+
+The first callback/host mapping set is exact rather than inferred:
+
+| MCP owner/member | Obfuscated owner/member | Descriptor |
+| --- | --- | --- |
+| `Minecraft` | `ave` | class |
+| `Minecraft.fontRendererObj` | `ave.k` | `Lavn;` |
+| `Minecraft.entityRenderer` | `ave.o` | `Lbfk;` |
+| `Minecraft.ingameGUI` | `ave.q` | `Lavo;` |
+| `Minecraft.gameSettings` | `ave.t` | `Lavh;` |
+| `Minecraft.getMinecraft` | `ave.A` | `()Lave;` |
+| `Minecraft.startGame` | `ave.am` | `()V` |
+| `Minecraft.runTick` | `ave.s` | `()V` |
+| `GameSettings` | `avh` | class |
+| `GameSettings.guiScale` | `avh.aL` | `I` |
+| `GameSettings.forceUnicodeFont` | `avh.aO` | `Z` |
+| `FontRenderer` | `avn` | class |
+| `FontRenderer.drawString` | `avn.a` | `(Ljava/lang/String;FFIZ)I` |
+| `GuiIngame.renderGameOverlay` | `avo.a` | `(F)V` |
+| `EntityRenderer.updateCameraAndRender` | `bfk.a` | `(FJ)V` |
+
+`Minecraft189ClassShapeVerifier` turns those rows into runtime transformation preconditions. It validates the exact obfuscated class owner and every field/method name plus descriptor required by the planned host/tick/HUD/render hooks. A missing or drifted member fails explicitly before transformation instead of allowing a patch to bind to a coincidental method with the same short obfuscated name.
+
+M78 does not inject any new callback. Its purpose is to make the next mapping-sensitive transformations depend on version-pinned evidence and structural verification rather than guessed 1.8.9 names.
