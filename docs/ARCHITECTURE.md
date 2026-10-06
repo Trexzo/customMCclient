@@ -447,3 +447,14 @@ M95 extends the existing pinned Minecraft 1.8.9 mapping authority without yet tr
 The Minecraft class-shape gate now requires the exact `thePlayer` field in addition to the previously certified host fields. A new Entity shape gate requires all three exact position fields on `pk`. This milestone deliberately stops at authority: it does not add reflection, transform Entity, expose child-loader Minecraft objects, or publish coordinates yet.
 
 The next consumer can therefore add a narrow parent-owned position-access interface and live Coordinates HUD only after this exact mapping surface is independently certified.
+
+
+## Live Coordinates HUD
+
+M96 consumes the independently certified M95 player-position mapping surface. The transforming loader now claims exact base Entity `pk`, shape-verifies `posX/posY/posZ`, and adds only the parent-owned `Minecraft189PlayerPositionAccess` interface with three double getters. No Minecraft implementation type crosses into the parent runtime.
+
+Immediately before each normal return from exact mapped `Minecraft.runTick()`, transformed `ave` reads mapped `thePlayer` (`h : Lbew;`), casts it to the inherited position-access contract, and forwards it through `Minecraft189RuntimeBridge`. A null player clears position availability. `Minecraft189HostRuntime` owns one synchronized `Minecraft189PlayerPositionState` snapshot and clears it again during teardown.
+
+The new Visuals module `render.coordinates` / **Coordinates** renders only when a live player position is available. It displays one-decimal `XYZ: x / y / z` using Locale.ROOT and owns persistent X/Y settings through the existing generic setting/presentation/module-binding path.
+
+Regression coverage executes transformed `pk`, synthetic `bew extends pk`, and transformed `ave.runTick()` to prove mapped position values reach the host snapshot. Separate HUD coverage proves unavailable state draws nothing, live state renders the expected coordinates at configured position, clear hides output again, and non-finite coordinates are rejected.

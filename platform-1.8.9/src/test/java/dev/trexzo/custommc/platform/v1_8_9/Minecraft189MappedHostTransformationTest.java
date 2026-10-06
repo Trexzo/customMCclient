@@ -58,6 +58,7 @@ final class Minecraft189MappedHostTransformationTest {
         assertTrue(transformer.handles("avn"));
         assertTrue(transformer.handles("avo"));
         assertTrue(transformer.handles("bfk"));
+        assertTrue(transformer.handles("pk"));
 
         assertFalse(
                 transformer.handles(
@@ -211,8 +212,13 @@ final class Minecraft189MappedHostTransformationTest {
                         "avn",
                         fontRendererShape()));
         loader.put(
+                "pk",
+                transformer.transform(
+                        "pk",
+                        entityShape()));
+        loader.put(
                 "bew",
-                emptyClass("bew"));
+                playerShape());
         loader.put(
                 "bfk",
                 transformer.transform(
@@ -319,6 +325,28 @@ final class Minecraft189MappedHostTransformationTest {
                     minecraftClass.getDeclaredConstructor()
                             .newInstance();
 
+            final Class<?> playerClass =
+                    loader.loadClass("bew");
+            final Object player =
+                    playerClass.getDeclaredConstructor()
+                            .newInstance();
+            playerClass.getField("s")
+                    .setDouble(
+                            player,
+                            123.25D);
+            playerClass.getField("t")
+                    .setDouble(
+                            player,
+                            64.5D);
+            playerClass.getField("u")
+                    .setDouble(
+                            player,
+                            -42.75D);
+            minecraftClass.getField("h")
+                    .set(
+                            minecraft,
+                            player);
+
             minecraftClass.getField("t")
                     .set(
                             minecraft,
@@ -351,6 +379,33 @@ final class Minecraft189MappedHostTransformationTest {
                             0L,
                             1L),
                     ticks);
+
+            final Minecraft189PlayerPositionState.Snapshot position =
+                    runtime.requireHostRuntime()
+                            .playerPositionState()
+                            .snapshot();
+            assertTrue(
+                    position.available());
+            assertEquals(
+                    123.25D,
+                    position.x());
+            assertEquals(
+                    64.5D,
+                    position.y());
+            assertEquals(
+                    -42.75D,
+                    position.z());
+
+            minecraftClass.getField("h")
+                    .set(
+                            minecraft,
+                            null);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .playerPositionState()
+                            .snapshot()
+                            .available());
 
             final Object entityRenderer =
                     loader.loadClass("bfk")
@@ -782,6 +837,54 @@ final class Minecraft189MappedHostTransformationTest {
         voidMethod(writer, "az");
         voidMethod(writer, "Z");
 
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] entityShape() {
+        final ClassWriter writer =
+                classWriter("pk");
+        field(writer, "s", "D");
+        field(writer, "t", "D");
+        field(writer, "u", "D");
+        endDefaultConstructor(writer, "pk");
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] playerShape() {
+        final ClassWriter writer =
+                new ClassWriter(0);
+        writer.visit(
+                Opcodes.V1_8,
+                Opcodes.ACC_PUBLIC,
+                "bew",
+                null,
+                "pk",
+                null);
+        final MethodVisitor constructor =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "<init>",
+                        "()V",
+                        null,
+                        null);
+        constructor.visitCode();
+        constructor.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        constructor.visitMethodInsn(
+                Opcodes.INVOKESPECIAL,
+                "pk",
+                "<init>",
+                "()V",
+                false);
+        constructor.visitInsn(
+                Opcodes.RETURN);
+        constructor.visitMaxs(
+                1,
+                1);
+        constructor.visitEnd();
         writer.visitEnd();
         return writer.toByteArray();
     }
