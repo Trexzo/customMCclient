@@ -265,3 +265,12 @@ Every mapped class is passed through its M78 structural verifier before any byte
 On every normal return from mapped `Minecraft.startGame()`, the transformed Minecraft class passes those two typed live objects to the existing M74 `Minecraft189LwjglHostBinding.install(...)`. Host ownership therefore remains M72/M73-owned; the transformed game classes supply only the minimum live access surface already defined by the platform adapter.
 
 Regression coverage executes transformed `avh`, `avn` and `ave` fixture bytecode through a child classloader and proves that mapped field/font access works and that returning from `startGame()` installs the existing host runtime. M79 intentionally does not yet add tick, HUD, world-render or input callbacks; those can now be layered independently on top of a certified live host.
+
+
+## Mapped game-tick callback
+
+M80 adds the first recurring mapped game-loop callback on top of the certified M79 live host. The exact M78 `Minecraft.runTick` mapping (`ave.s()V`) is required by the existing structural verifier before transformation, and the transformer injects one parent-owned `Minecraft189RuntimeBridge.gameTick()` call at method entry.
+
+Tick numbering is not static bridge state. `Minecraft189BootstrapRuntime` owns the monotonic sequence, beginning at `0` for each runtime lifetime, and publishes through the already-installed M72 `Minecraft189HostRuntime`. If the host is not installed or runtime teardown has begun, the callback is inert. Closing and recreating the bootstrap runtime therefore resets tick authority naturally.
+
+Executable regression coverage loads the transformed mapped Minecraft fixture, installs the M79 host through transformed `startGame()`, invokes transformed `runTick()` twice, and proves the core event bus receives tick indexes `0` then `1`. M80 does not yet add HUD, world-render or input callbacks.
