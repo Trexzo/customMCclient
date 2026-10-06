@@ -23,6 +23,10 @@ public final class LegacyUiGeometry {
                     "coordinates must contain one or more XY pairs");
         }
 
+        validateVertexCount(
+                this.primitive,
+                coordinates.length / 2);
+
         this.coordinates =
                 Arrays.copyOf(
                         coordinates,
@@ -56,6 +60,34 @@ public final class LegacyUiGeometry {
         return Arrays.copyOf(
                 coordinates,
                 coordinates.length);
+    }
+
+    private static void validateVertexCount(
+            final LegacyUiPrimitiveMode primitive,
+            final int vertexCount) {
+        switch (primitive) {
+            case QUADS:
+                if (vertexCount % 4 != 0) {
+                    throw new IllegalArgumentException(
+                            "QUADS requires a multiple of four vertices");
+                }
+                return;
+            case TRIANGLE_FAN:
+                if (vertexCount < 3) {
+                    throw new IllegalArgumentException(
+                            "TRIANGLE_FAN requires at least three vertices");
+                }
+                return;
+            case LINE_LOOP:
+                if (vertexCount < 3) {
+                    throw new IllegalArgumentException(
+                            "LINE_LOOP requires at least three vertices");
+                }
+                return;
+            default:
+                throw new IllegalArgumentException(
+                        "unsupported primitive: " + primitive);
+        }
     }
 
     private int index(final int vertexIndex) {
