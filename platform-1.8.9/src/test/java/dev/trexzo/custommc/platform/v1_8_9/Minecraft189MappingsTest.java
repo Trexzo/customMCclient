@@ -64,6 +64,10 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.ENTITY,
                 "pk",
                 "net/minecraft/entity/Entity");
+        assertClass(
+                Minecraft189Mappings.ENTITY_LIVING_BASE,
+                "pr",
+                "net/minecraft/entity/EntityLivingBase");
     }
 
     @Test
@@ -245,6 +249,20 @@ final class Minecraft189MappingsTest {
                 "(FJ)V",
                 "func_181560_a",
                 "updateCameraAndRender");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH,
+                Minecraft189Mappings.ENTITY_LIVING_BASE,
+                "bn",
+                "()F",
+                "func_110143_aJ",
+                "getHealth");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH,
+                Minecraft189Mappings.ENTITY_LIVING_BASE,
+                "bu",
+                "()F",
+                "func_110138_aP",
+                "getMaxHealth");
     }
 
     @Test
@@ -263,6 +281,8 @@ final class Minecraft189MappingsTest {
                 entityRendererShape());
         Minecraft189ClassShapeVerifier.verifyEntity(
                 entityShape());
+        Minecraft189ClassShapeVerifier.verifyEntityLivingBase(
+                entityLivingBaseShape());
     }
 
     @Test
@@ -442,6 +462,27 @@ final class Minecraft189MappingsTest {
                 failure.getMessage());
     }
 
+    @Test
+    void entityLivingBaseShapeGateRejectsMissingMaxHealthMethod() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY_LIVING_BASE
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntityLivingBase(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: pr.bu()F (getMaxHealth)",
+                failure.getMessage());
+    }
+
     private static byte[] minecraftShape() {
         final ClassWriter writer =
                 writer(
@@ -546,6 +587,20 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        return finish(writer);
+    }
+
+    private static byte[] entityLivingBaseShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY_LIVING_BASE
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH);
         return finish(writer);
     }
 
