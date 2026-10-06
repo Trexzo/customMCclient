@@ -70,6 +70,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerArmorAccess";
     private static final String PLAYER_ARMOR_ACCESS_DESCRIPTOR =
             "L" + PLAYER_ARMOR_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_HUNGER_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerHungerAccess";
+    private static final String PLAYER_HUNGER_ACCESS_DESCRIPTOR =
+            "L" + PLAYER_HUNGER_ACCESS_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -98,6 +103,12 @@ public final class Minecraft189ClassTransformer
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.ENTITY_LIVING_BASE
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.ENTITY_PLAYER
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.FOOD_STATS
                 .obfuscatedBinaryName()
                 .equals(binaryClassName);
     }
@@ -170,6 +181,20 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyEntityLivingBase(input);
             return transformEntityLivingBase(input);
+        }
+        if (Minecraft189Mappings.ENTITY_PLAYER
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyEntityPlayer(input);
+            return transformEntityPlayer(input);
+        }
+        if (Minecraft189Mappings.FOOD_STATS
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyFoodStats(input);
+            return input;
         }
 
         throw new IllegalArgumentException(
@@ -272,6 +297,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedHealth =
                 new boolean[]{false};
         final boolean[] injectedArmor =
+                new boolean[]{false};
+        final boolean[] injectedHunger =
                 new boolean[]{false};
         final boolean[] foundDispatchKeypresses =
                 new boolean[]{false};
@@ -445,6 +472,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedArmor[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_HUNGER_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerHunger",
+                                                "("
+                                                        + PLAYER_HUNGER_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedHunger[0] = true;
                                     }
                                     super.visitInsn(opcode);
                                 }
@@ -528,7 +577,8 @@ public final class Minecraft189ClassTransformer
                 || !injectedPosition[0]
                 || !injectedRotation[0]
                 || !injectedHealth[0]
-                || !injectedArmor[0]) {
+                || !injectedArmor[0]
+                || !injectedHunger[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
         }
@@ -1138,6 +1188,130 @@ public final class Minecraft189ClassTransformer
                 0);
 
         return writer.toByteArray();
+    }
+
+    private static byte[] transformEntityPlayer(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public void visit(
+                            final int version,
+                            final int access,
+                            final String name,
+                            final String signature,
+                            final String superName,
+                            final String[] interfaces) {
+                        super.visit(
+                                version,
+                                access,
+                                name,
+                                signature,
+                                superName,
+                                withInterface(
+                                        interfaces,
+                                        PLAYER_HUNGER_ACCESS_INTERNAL_NAME));
+                    }
+
+                    @Override
+                    public void visitEnd() {
+                        addFoodLevelGetter(
+                                cv,
+                                "customMcFoodLevel");
+                        addSaturationLevelGetter(
+                                cv,
+                                "customMcSaturationLevel");
+                        super.visitEnd();
+                    }
+                },
+                0);
+
+        return writer.toByteArray();
+    }
+
+    private static void addFoodLevelGetter(
+            final ClassVisitor visitor,
+            final String methodName) {
+        final Minecraft189Mappings.MappedMethod foodStats =
+                Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS;
+        final Minecraft189Mappings.MappedMethod foodLevel =
+                Minecraft189Mappings.FOOD_STATS_GET_FOOD_LEVEL;
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()I",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                foodStats.owner().obfuscatedInternalName(),
+                foodStats.obfuscatedName(),
+                foodStats.descriptor(),
+                false);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                foodLevel.owner().obfuscatedInternalName(),
+                foodLevel.obfuscatedName(),
+                foodLevel.descriptor(),
+                false);
+        method.visitInsn(
+                Opcodes.IRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addSaturationLevelGetter(
+            final ClassVisitor visitor,
+            final String methodName) {
+        final Minecraft189Mappings.MappedMethod foodStats =
+                Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS;
+        final Minecraft189Mappings.MappedMethod saturation =
+                Minecraft189Mappings.FOOD_STATS_GET_SATURATION_LEVEL;
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()F",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                foodStats.owner().obfuscatedInternalName(),
+                foodStats.obfuscatedName(),
+                foodStats.descriptor(),
+                false);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                saturation.owner().obfuscatedInternalName(),
+                saturation.obfuscatedName(),
+                saturation.descriptor(),
+                false);
+        method.visitInsn(
+                Opcodes.FRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
     }
 
     private static void addEquipmentPresentGetter(
