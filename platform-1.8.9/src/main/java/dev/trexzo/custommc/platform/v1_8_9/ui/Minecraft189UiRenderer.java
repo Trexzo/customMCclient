@@ -35,18 +35,118 @@ public final class Minecraft189UiRenderer
 
         graphics.begin(viewport);
         try {
-            for (UiDrawCommand command : commands) {
-                renderCommand(
-                        Objects.requireNonNull(
-                                command,
-                                "command"));
-            }
+            renderCommands(commands);
         } finally {
             graphics.end();
         }
     }
 
+    private void renderCommands(
+            final List<UiDrawCommand> commands) {
+        int index = 0;
+
+        while (index < commands.size()) {
+            final UiDrawCommand command =
+                    Objects.requireNonNull(
+                            commands.get(index),
+                            "command");
+
+            final int shapeRunEnd =
+                    shapeRunEnd(
+                            commands,
+                            index);
+
+            if (graphics instanceof LegacyUiBatchGraphics
+                    && shapeRunEnd - index >= 2) {
+                renderShapeBatch(
+                        (LegacyUiBatchGraphics) graphics,
+                        commands,
+                        index,
+                        shapeRunEnd);
+                index = shapeRunEnd;
+                continue;
+            }
+
+            renderCommand(command);
+            index++;
+        }
+    }
+
+    private void renderShapeBatch(
+            final LegacyUiBatchGraphics batchGraphics,
+            final List<UiDrawCommand> commands,
+            final int start,
+            final int end) {
+        batchGraphics.beginShapeBatch();
+
+        RuntimeException failure = null;
+        try {
+            for (int index = start;
+                 index < end;
+                 index++) {
+                renderShape(
+                        Objects.requireNonNull(
+                                commands.get(index),
+                                "command"));
+            }
+        } catch (RuntimeException error) {
+            failure = error;
+            throw error;
+        } finally {
+            try {
+                batchGraphics.endShapeBatch();
+            } catch (RuntimeException closeFailure) {
+                if (failure != null) {
+                    failure.addSuppressed(
+                            closeFailure);
+                } else {
+                    throw closeFailure;
+                }
+            }
+        }
+    }
+
     private void renderCommand(
+            final UiDrawCommand command) {
+        if (isShape(command)) {
+            renderShape(command);
+            return;
+        }
+
+        if (command instanceof UiClipCommand) {
+            final UiClipCommand clip =
+                    (UiClipCommand) command;
+            graphics.pushClip(
+                    clip.bounds().x(),
+                    clip.bounds().y(),
+                    clip.bounds().width(),
+                    clip.bounds().height());
+            try {
+                renderCommands(
+                        clip.commands());
+            } finally {
+                graphics.popClip();
+            }
+            return;
+        }
+
+        if (command instanceof UiTextCommand) {
+            final UiTextCommand text =
+                    (UiTextCommand) command;
+            graphics.drawText(
+                    text.font(),
+                    text.x(),
+                    text.y(),
+                    text.text(),
+                    text.argb());
+            return;
+        }
+
+        throw new UnsupportedUiCommandException(
+                command.getClass().getName());
+    }
+
+    private void renderShape(
             final UiDrawCommand command) {
         if (command instanceof UiRectCommand) {
             final UiRectCommand rect =
@@ -86,37 +186,29 @@ public final class Minecraft189UiRenderer
             return;
         }
 
-        if (command instanceof UiClipCommand) {
-            final UiClipCommand clip =
-                    (UiClipCommand) command;
-            graphics.pushClip(
-                    clip.bounds().x(),
-                    clip.bounds().y(),
-                    clip.bounds().width(),
-                    clip.bounds().height());
-            try {
-                for (UiDrawCommand child : clip.commands()) {
-                    renderCommand(child);
-                }
-            } finally {
-                graphics.popClip();
-            }
-            return;
-        }
+        throw new IllegalArgumentException(
+                "not a shape command: "
+                        + command.getClass().getName());
+    }
 
-        if (command instanceof UiTextCommand) {
-            final UiTextCommand text =
-                    (UiTextCommand) command;
-            graphics.drawText(
-                    text.font(),
-                    text.x(),
-                    text.y(),
-                    text.text(),
-                    text.argb());
-            return;
+    private static int shapeRunEnd(
+            final List<UiDrawCommand> commands,
+            final int start) {
+        int index = start;
+        while (index < commands.size()
+                && isShape(
+                Objects.requireNonNull(
+                        commands.get(index),
+                        "command"))) {
+            index++;
         }
+        return index;
+    }
 
-        throw new UnsupportedUiCommandException(
-                command.getClass().getName());
+    private static boolean isShape(
+            final UiDrawCommand command) {
+        return command instanceof UiRectCommand
+                || command instanceof UiRoundedRectCommand
+                || command instanceof UiOutlineCommand;
     }
 }
