@@ -4,6 +4,7 @@ import dev.trexzo.custommc.launcher.command.LaunchCommand;
 import dev.trexzo.custommc.launcher.preflight.LaunchPreflightResult;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Objects;
 
 public final class LaunchProcessRunner {
@@ -52,6 +53,8 @@ public final class LaunchProcessRunner {
 
         final Process process;
         try {
+            Files.createDirectories(
+                    command.workingDirectory());
             process = starter.start(builder);
         } catch (IOException
                 | RuntimeException failure) {
