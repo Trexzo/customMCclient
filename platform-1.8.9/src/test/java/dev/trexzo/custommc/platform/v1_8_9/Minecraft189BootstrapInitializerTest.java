@@ -11,7 +11,10 @@ import dev.trexzo.custommc.core.ui.clickgui.ClickGuiModel;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -73,6 +76,8 @@ final class Minecraft189BootstrapInitializerTest {
                         .snapshot()
                         .isEmpty());
 
+        assertTrue(Minecraft189RuntimeBridge.active());
+
         runtime.close();
 
         assertTrue(runtime.closed());
@@ -92,6 +97,7 @@ final class Minecraft189BootstrapInitializerTest {
                         .closed());
 
         runtime.close();
+        assertFalse(Minecraft189RuntimeBridge.active());
         assertTrue(runtime.closed());
     }
 
@@ -106,12 +112,15 @@ final class Minecraft189BootstrapInitializerTest {
                                                 new String[0]));
 
         assertFalse(runtime.hostInstalled());
+        assertTrue(Minecraft189RuntimeBridge.active());
+        assertFalse(Minecraft189RuntimeBridge.hostInstalled());
 
         final Minecraft189HostRuntime hostRuntime =
-                runtime.installHost(
+                Minecraft189RuntimeBridge.installHost(
                         new NoOpHostCallbacks());
 
         assertTrue(runtime.hostInstalled());
+        assertTrue(Minecraft189RuntimeBridge.hostInstalled());
         assertTrue(
                 runtime.services()
                         .contains(
@@ -120,6 +129,18 @@ final class Minecraft189BootstrapInitializerTest {
                 runtime.services()
                         .contains(
                                 ClickGuiInputController.class));
+
+        final AtomicLong observedTick =
+                new AtomicLong(-1L);
+        runtime.events()
+                .subscribe(
+                        Minecraft189Hooks.TickEvent.class,
+                        event -> observedTick.set(
+                                event.tickIndex()));
+        Minecraft189RuntimeBridge.publishTick(42L);
+        assertEquals(
+                42L,
+                observedTick.get());
 
         assertThrows(
                 IllegalStateException.class,
@@ -131,6 +152,20 @@ final class Minecraft189BootstrapInitializerTest {
         assertTrue(runtime.closed());
         assertTrue(hostRuntime.closed());
         assertFalse(runtime.hostInstalled());
+        assertFalse(Minecraft189RuntimeBridge.active());
+        assertFalse(Minecraft189RuntimeBridge.hostInstalled());
+
+        Minecraft189RuntimeBridge.publishTick(43L);
+        assertEquals(
+                42L,
+                observedTick.get());
+        assertFalse(
+                Minecraft189RuntimeBridge.pointerButton(
+                        0,
+                        0,
+                        0,
+                        true));
+
         assertFalse(
                 runtime.services()
                         .contains(
@@ -147,6 +182,41 @@ final class Minecraft189BootstrapInitializerTest {
                 IllegalStateException.class,
                 () -> runtime.installHost(
                         new NoOpHostCallbacks()));
+        assertThrows(
+                IllegalStateException.class,
+                () -> Minecraft189RuntimeBridge.installHost(
+                        new NoOpHostCallbacks()));
+    }
+
+    @Test
+    void runtimeBridgeRejectsOverlappingBootstrapOwnersAndRecoversAfterClose() {
+        final BootstrapContext context =
+                new BootstrapContext(
+                        "net.minecraft.client.main.Main",
+                        new String[0]);
+
+        final Minecraft189BootstrapRuntime first =
+                Minecraft189BootstrapRuntime.create(
+                        context);
+
+        assertTrue(Minecraft189RuntimeBridge.active());
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> Minecraft189BootstrapRuntime.create(
+                        context));
+        assertTrue(Minecraft189RuntimeBridge.active());
+
+        first.close();
+        assertFalse(Minecraft189RuntimeBridge.active());
+
+        final Minecraft189BootstrapRuntime second =
+                Minecraft189BootstrapRuntime.create(
+                        context);
+        assertTrue(Minecraft189RuntimeBridge.active());
+
+        second.close();
+        assertFalse(Minecraft189RuntimeBridge.active());
     }
 
     private static final class NoOpHostCallbacks

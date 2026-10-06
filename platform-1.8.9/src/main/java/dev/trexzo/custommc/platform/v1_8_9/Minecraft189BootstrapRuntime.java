@@ -37,6 +37,7 @@ public final class Minecraft189BootstrapRuntime
     private final Minecraft189Platform platform;
     private final ServiceRegistry.Registration renderPipelineRegistration;
     private final Minecraft189ModuleKeybindRuntime keybindRuntime;
+    private Minecraft189RuntimeBridge.Registration bridgeRegistration;
     private Minecraft189HostRuntime hostRuntime;
     private boolean closed;
 
@@ -133,23 +134,28 @@ public final class Minecraft189BootstrapRuntime
                             platform,
                             moduleKeybinds);
 
-            return new Minecraft189BootstrapRuntime(
-                    context,
-                    events,
-                    modules,
-                    moduleController,
-                    services,
-                    renderPipeline,
-                    settings,
-                    settingPresentations,
-                    modulePresentations,
-                    moduleCategories,
-                    moduleSettings,
-                    moduleKeybinds,
-                    moduleKeybindAssignments,
-                    platform,
-                    renderRegistration,
-                    keybindRuntime);
+            final Minecraft189BootstrapRuntime runtime =
+                    new Minecraft189BootstrapRuntime(
+                            context,
+                            events,
+                            modules,
+                            moduleController,
+                            services,
+                            renderPipeline,
+                            settings,
+                            settingPresentations,
+                            modulePresentations,
+                            moduleCategories,
+                            moduleSettings,
+                            moduleKeybinds,
+                            moduleKeybindAssignments,
+                            platform,
+                            renderRegistration,
+                            keybindRuntime);
+            runtime.bridgeRegistration =
+                    Minecraft189RuntimeBridge.install(
+                            runtime);
+            return runtime;
         } catch (RuntimeException failure) {
             if (keybindRuntime != null) {
                 keybindRuntime.close();
@@ -247,8 +253,19 @@ public final class Minecraft189BootstrapRuntime
     }
 
     public synchronized boolean hostInstalled() {
-        return hostRuntime != null
+        return !closed
+                && hostRuntime != null
                 && !hostRuntime.closed();
+    }
+
+    synchronized Minecraft189HostRuntime requireHostRuntime() {
+        requireOpen();
+        if (hostRuntime == null
+                || hostRuntime.closed()) {
+            throw new IllegalStateException(
+                    "minecraft 1.8.9 bootstrap host is not installed");
+        }
+        return hostRuntime;
     }
 
     public synchronized boolean closed() {
@@ -266,11 +283,21 @@ public final class Minecraft189BootstrapRuntime
 
         RuntimeException failure = null;
 
+        if (bridgeRegistration != null) {
+            try {
+                bridgeRegistration.close();
+            } catch (RuntimeException closeFailure) {
+                failure = closeFailure;
+            }
+        }
+
         if (hostRuntime != null) {
             try {
                 hostRuntime.close();
             } catch (RuntimeException closeFailure) {
-                failure = closeFailure;
+                failure = append(
+                        failure,
+                        closeFailure);
             }
         }
 
