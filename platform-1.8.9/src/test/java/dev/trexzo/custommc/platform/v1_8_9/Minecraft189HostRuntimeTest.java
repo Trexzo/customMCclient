@@ -105,6 +105,19 @@ final class Minecraft189HostRuntimeTest {
                         .equals(
                                 Minecraft189WatermarkModule.ID));
         assertEquals(
+                Minecraft189FpsModule.ID,
+                runtime.featureCatalog()
+                        .fps()
+                        .id());
+        assertTrue(
+                settings.find(
+                        Minecraft189FpsModule.X_SETTING_ID)
+                        != null);
+        assertTrue(
+                settings.find(
+                        Minecraft189FpsModule.Y_SETTING_ID)
+                        != null);
+        assertEquals(
                 3,
                 moduleSettings.bindingsForModule(
                         Minecraft189WatermarkModule.ID)
@@ -350,6 +363,18 @@ final class Minecraft189HostRuntimeTest {
                 null,
                 settings.find(
                         Minecraft189WatermarkModule.Y_SETTING_ID));
+        assertEquals(
+                null,
+                modules.find(
+                        Minecraft189FpsModule.ID));
+        assertEquals(
+                null,
+                settings.find(
+                        Minecraft189FpsModule.X_SETTING_ID));
+        assertEquals(
+                null,
+                settings.find(
+                        Minecraft189FpsModule.Y_SETTING_ID));
 
         assertThrows(
                 IllegalStateException.class,
