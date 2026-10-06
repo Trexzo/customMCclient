@@ -74,6 +74,8 @@ M50 adds read-only module keybind projection to selected-module details.
 
 M52 adds focus-owned transactional keybind capture on that projected detail header.
 
+M55 adds a shared-viewport legacy input host bridge so raw mouse/wheel callbacks resolve coordinates from the same live viewport authority used by rendering.
+
 ## Architecture
 
 The UI remains native, in-process and backend-neutral. Rendering emits `UiDrawCommand` objects; platform adapters translate them.
@@ -176,6 +178,8 @@ Wheel input over navigation continues to use shell-owned navigation scroll. Whee
 Shell clicks remain consumed inside the ClickGUI root even when page content has no row action, preventing gameplay click-through.
 
 `UiPointerEvent`, `UiScrollEvent` and `UiKeyEvent` remain independent of Minecraft/LWJGL classes.
+
+M55 adds `Minecraft189HostInputBridge` around `Minecraft189InputHooks`. Pointer and wheel callbacks snapshot framebuffer width, framebuffer height and UI scale from one `LegacyUiViewportSource` for each event before delegating to the existing translator/router; keyboard callbacks forward the exact legacy key/character/modifier/repeat state unchanged. When paired with M54's `LegacyUiHostBridge`, rendering and input therefore consume the same host viewport authority instead of requiring duplicate dimension arguments at every call site.
 
 ## Rendering boundary
 
