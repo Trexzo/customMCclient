@@ -108,6 +108,13 @@ public final class Minecraft189Mappings {
                     "D",
                     "field_70161_v",
                     "posZ");
+    public static final MappedField ENTITY_ROTATION_YAW =
+            new MappedField(
+                    ENTITY,
+                    "y",
+                    "F",
+                    "field_70177_z",
+                    "rotationYaw");
 
     public static final MappedField GAME_SETTINGS_VIEW_BOBBING =
             new MappedField(
