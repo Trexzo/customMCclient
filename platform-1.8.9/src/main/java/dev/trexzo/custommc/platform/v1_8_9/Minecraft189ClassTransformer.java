@@ -52,6 +52,12 @@ public final class Minecraft189ClassTransformer
                 .equals(binaryClassName)
                 || Minecraft189Mappings.FONT_RENDERER
                 .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.GUI_INGAME
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.ENTITY_RENDERER
+                .obfuscatedBinaryName()
                 .equals(binaryClassName);
     }
 
@@ -88,6 +94,20 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyFontRenderer(input);
             return transformFontRenderer(input);
+        }
+        if (Minecraft189Mappings.GUI_INGAME
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyGuiIngame(input);
+            return transformGuiIngame(input);
+        }
+        if (Minecraft189Mappings.ENTITY_RENDERER
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyEntityRenderer(input);
+            return transformEntityRenderer(input);
         }
 
         throw new IllegalArgumentException(
@@ -455,6 +475,157 @@ public final class Minecraft189ClassTransformer
                 },
                 0);
 
+        return writer.toByteArray();
+    }
+
+    private static byte[] transformGuiIngame(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+        final boolean[] found =
+                new boolean[]{false};
+        final boolean[] injected =
+                new boolean[]{false};
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public MethodVisitor visitMethod(
+                            final int access,
+                            final String name,
+                            final String descriptor,
+                            final String signature,
+                            final String[] exceptions) {
+                        final MethodVisitor delegate =
+                                super.visitMethod(
+                                        access,
+                                        name,
+                                        descriptor,
+                                        signature,
+                                        exceptions);
+                        final Minecraft189Mappings.MappedMethod overlay =
+                                Minecraft189Mappings
+                                        .GUI_INGAME_RENDER_OVERLAY;
+                        if (!overlay.obfuscatedName().equals(name)
+                                || !overlay.descriptor().equals(
+                                descriptor)) {
+                            return delegate;
+                        }
+                        if (found[0]) {
+                            throw new IllegalStateException(
+                                    "duplicate mapped GuiIngame renderGameOverlay method");
+                        }
+                        found[0] = true;
+
+                        return new MethodVisitor(
+                                Opcodes.ASM9,
+                                delegate) {
+                            @Override
+                            public void visitInsn(
+                                    final int opcode) {
+                                if (opcode == Opcodes.RETURN) {
+                                    super.visitVarInsn(
+                                            Opcodes.FLOAD,
+                                            1);
+                                    super.visitMethodInsn(
+                                            Opcodes.INVOKESTATIC,
+                                            RUNTIME_BRIDGE_INTERNAL_NAME,
+                                            "renderHudFrame",
+                                            "(F)V",
+                                            false);
+                                    injected[0] = true;
+                                }
+                                super.visitInsn(opcode);
+                            }
+                        };
+                    }
+                },
+                0);
+
+        if (!found[0] || !injected[0]) {
+            throw new IllegalStateException(
+                    "mapped GuiIngame renderGameOverlay method was not patchable");
+        }
+        return writer.toByteArray();
+    }
+
+    private static byte[] transformEntityRenderer(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+        final boolean[] found =
+                new boolean[]{false};
+        final boolean[] injected =
+                new boolean[]{false};
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public MethodVisitor visitMethod(
+                            final int access,
+                            final String name,
+                            final String descriptor,
+                            final String signature,
+                            final String[] exceptions) {
+                        final MethodVisitor delegate =
+                                super.visitMethod(
+                                        access,
+                                        name,
+                                        descriptor,
+                                        signature,
+                                        exceptions);
+                        final Minecraft189Mappings.MappedMethod render =
+                                Minecraft189Mappings
+                                        .ENTITY_RENDERER_UPDATE_CAMERA_AND_RENDER;
+                        if (!render.obfuscatedName().equals(name)
+                                || !render.descriptor().equals(
+                                descriptor)) {
+                            return delegate;
+                        }
+                        if (found[0]) {
+                            throw new IllegalStateException(
+                                    "duplicate mapped EntityRenderer updateCameraAndRender method");
+                        }
+                        found[0] = true;
+
+                        return new MethodVisitor(
+                                Opcodes.ASM9,
+                                delegate) {
+                            @Override
+                            public void visitCode() {
+                                super.visitCode();
+                                super.visitVarInsn(
+                                        Opcodes.FLOAD,
+                                        1);
+                                super.visitMethodInsn(
+                                        Opcodes.INVOKESTATIC,
+                                        RUNTIME_BRIDGE_INTERNAL_NAME,
+                                        "renderFrameStarted",
+                                        "(F)V",
+                                        false);
+                                injected[0] = true;
+                            }
+                        };
+                    }
+                },
+                0);
+
+        if (!found[0] || !injected[0]) {
+            throw new IllegalStateException(
+                    "mapped EntityRenderer updateCameraAndRender method was not patchable");
+        }
         return writer.toByteArray();
     }
 
