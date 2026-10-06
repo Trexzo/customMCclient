@@ -110,6 +110,7 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(inputState, "inputState");
         Objects.requireNonNull(frameRateTracker, "frameRateTracker");
         Objects.requireNonNull(clickRateTracker, "clickRateTracker");
+        Objects.requireNonNull(playerPositionState, "playerPositionState");
         Objects.requireNonNull(renderPipeline, "renderPipeline");
         Objects.requireNonNull(hostCallbacks, "hostCallbacks");
 
