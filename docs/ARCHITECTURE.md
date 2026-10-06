@@ -254,3 +254,14 @@ The first callback/host mapping set is exact rather than inferred:
 `Minecraft189ClassShapeVerifier` turns those rows into runtime transformation preconditions. It validates the exact obfuscated class owner and every field/method name plus descriptor required by the planned host/tick/HUD/render hooks. A missing or drifted member fails explicitly before transformation instead of allowing a patch to bind to a coincidental method with the same short obfuscated name.
 
 M78 does not inject any new callback. Its purpose is to make the next mapping-sensitive transformations depend on version-pinned evidence and structural verification rather than guessed 1.8.9 names.
+
+
+## Mapped host-access transformation
+
+M79 consumes the M78 mapping authority for the first live obfuscated host-binding path. `Minecraft189ClassTransformer` now claims exactly the mapped production `Minecraft` (`ave`), `GameSettings` (`avh`) and `FontRenderer` (`avn`) owners in addition to the stable launcher main class.
+
+Every mapped class is passed through its M78 structural verifier before any bytes are changed. The transformed `GameSettings` class implements the existing parent-owned `Minecraft189GuiSettingsAccess` contract by exposing only mapped `guiScale` and `forceUnicodeFont` fields. The transformed `FontRenderer` class implements `Minecraft189FontRendererAccess` by delegating directly to the exact mapped `drawString(String,float,float,int,boolean)` method. No reflection or guessed names are introduced.
+
+On every normal return from mapped `Minecraft.startGame()`, the transformed Minecraft class passes those two typed live objects to the existing M74 `Minecraft189LwjglHostBinding.install(...)`. Host ownership therefore remains M72/M73-owned; the transformed game classes supply only the minimum live access surface already defined by the platform adapter.
+
+Regression coverage executes transformed `avh`, `avn` and `ave` fixture bytecode through a child classloader and proves that mapped field/font access works and that returning from `startGame()` installs the existing host runtime. M79 intentionally does not yet add tick, HUD, world-render or input callbacks; those can now be layered independently on top of a certified live host.
