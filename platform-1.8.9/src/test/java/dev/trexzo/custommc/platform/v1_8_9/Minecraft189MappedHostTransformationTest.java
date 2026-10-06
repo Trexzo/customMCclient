@@ -13,7 +13,10 @@ import org.objectweb.asm.Opcodes;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -131,6 +134,10 @@ final class Minecraft189MappedHostTransformationTest {
                 1,
                 hostInstallCalls(
                         transformedMinecraft));
+        assertEquals(
+                1,
+                gameTickCalls(
+                        transformedMinecraft));
 
         final ByteMapClassLoader loader =
                 new ByteMapClassLoader(
@@ -166,6 +173,14 @@ final class Minecraft189MappedHostTransformationTest {
                     Minecraft189RuntimeBridge
                             .hostInstalled());
 
+            final List<Long> ticks =
+                    new ArrayList<Long>();
+            runtime.events()
+                    .subscribe(
+                            Minecraft189Hooks.TickEvent.class,
+                            event -> ticks.add(
+                                    event.tickIndex()));
+
             final Class<?> minecraftClass =
                     loader.loadClass("ave");
             final Object minecraft =
@@ -193,6 +208,17 @@ final class Minecraft189MappedHostTransformationTest {
                     Minecraft189RuntimeBridge
                             .hostInstalled());
             assertTrue(runtime.hostInstalled());
+
+            final Method runTick =
+                    minecraftClass.getMethod("s");
+            runTick.invoke(minecraft);
+            runTick.invoke(minecraft);
+
+            assertEquals(
+                    Arrays.asList(
+                            0L,
+                            1L),
+                    ticks);
         } finally {
             runtime.close();
         }
@@ -268,6 +294,53 @@ final class Minecraft189MappedHostTransformationTest {
                                                 owner)
                                                 && "install".equals(
                                                 methodName)) {
+                                            calls[0]++;
+                                        }
+                                    }
+                                };
+                            }
+                        },
+                        0);
+        return calls[0];
+    }
+
+    private static int gameTickCalls(
+            final byte[] bytes) {
+        final int[] calls =
+                new int[]{0};
+        new ClassReader(bytes)
+                .accept(
+                        new ClassVisitor(
+                                Opcodes.ASM9) {
+                            @Override
+                            public MethodVisitor visitMethod(
+                                    final int access,
+                                    final String name,
+                                    final String descriptor,
+                                    final String signature,
+                                    final String[] exceptions) {
+                                if (!"s".equals(name)
+                                        || !"()V".equals(
+                                        descriptor)) {
+                                    return null;
+                                }
+                                return new MethodVisitor(
+                                        Opcodes.ASM9) {
+                                    @Override
+                                    public void visitMethodInsn(
+                                            final int opcode,
+                                            final String owner,
+                                            final String methodName,
+                                            final String methodDescriptor,
+                                            final boolean isInterface) {
+                                        if (opcode
+                                                == Opcodes.INVOKESTATIC
+                                                && "dev/trexzo/custommc/platform/v1_8_9/Minecraft189RuntimeBridge"
+                                                .equals(owner)
+                                                && "gameTick".equals(
+                                                methodName)
+                                                && "()V".equals(
+                                                methodDescriptor)) {
                                             calls[0]++;
                                         }
                                     }
