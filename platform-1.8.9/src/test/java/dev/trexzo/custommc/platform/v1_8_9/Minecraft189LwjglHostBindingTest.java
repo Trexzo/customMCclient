@@ -40,7 +40,19 @@ final class Minecraft189LwjglHostBindingTest {
 
     private static final class FixedSettings
             implements Minecraft189GuiSettingsAccess {
+        private float fov = 70.0F;
         private float gamma = 0.5F;
+
+        @Override
+        public float fovSetting() {
+            return fov;
+        }
+
+        @Override
+        public void fovSetting(
+                final float value) {
+            fov = value;
+        }
 
         @Override
         public float gammaSetting() {
