@@ -8,6 +8,7 @@ tasks.withType<JavaCompile>().configureEach {
 
 dependencies {
     api(project(":platform-api"))
+    api(project(":bootstrap"))
 
     compileOnly("org.lwjgl.lwjgl:lwjgl:2.9.3") {
         isTransitive = false
