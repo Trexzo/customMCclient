@@ -126,6 +126,13 @@ final class Minecraft189MappingsTest {
                 "posZ");
 
         assertField(
+                Minecraft189Mappings.GAME_SETTINGS_GAMMA,
+                Minecraft189Mappings.GAME_SETTINGS,
+                "aJ",
+                "F",
+                "field_74333_Y",
+                "gammaSetting");
+        assertField(
                 Minecraft189Mappings.GAME_SETTINGS_GUI_SCALE,
                 Minecraft189Mappings.GAME_SETTINGS,
                 "aL",
@@ -344,6 +351,9 @@ final class Minecraft189MappingsTest {
                 writer(
                         Minecraft189Mappings.GAME_SETTINGS
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.GAME_SETTINGS_GAMMA);
         addField(
                 writer,
                 Minecraft189Mappings.GAME_SETTINGS_GUI_SCALE);
