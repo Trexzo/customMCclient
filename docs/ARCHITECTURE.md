@@ -431,3 +431,19 @@ Profile apply preflights module entries before mutating settings. When module-st
 Unknown `@module/` entries follow the existing profile unknown-value policy: REJECT fails before mutation, while IGNORE skips missing modules. Persistent setting IDs may not use either reserved `@keybind/` or `@module/` namespaces.
 
 Regression coverage proves module-state snapshot/apply, compatibility with old profiles, unknown-module handling, rollback after a failing module enable, reserved namespace rejection, and round-trip through `AtomicProfileStore`.
+
+
+## Player-position mapping authority
+
+M95 extends the existing pinned Minecraft 1.8.9 mapping authority without yet transforming or reading player state. The same exact `BigBroadBean/mappings-extracted` commit and blob provenance now pins:
+
+- `Minecraft.thePlayer` as `ave.h : Lbew;`;
+- `EntityPlayerSP` as obfuscated class `bew`;
+- base `Entity` as obfuscated class `pk`;
+- `Entity.posX` as `pk.s : D`;
+- `Entity.posY` as `pk.t : D`;
+- `Entity.posZ` as `pk.u : D`.
+
+The Minecraft class-shape gate now requires the exact `thePlayer` field in addition to the previously certified host fields. A new Entity shape gate requires all three exact position fields on `pk`. This milestone deliberately stops at authority: it does not add reflection, transform Entity, expose child-loader Minecraft objects, or publish coordinates yet.
+
+The next consumer can therefore add a narrow parent-owned position-access interface and live Coordinates HUD only after this exact mapping surface is independently certified.

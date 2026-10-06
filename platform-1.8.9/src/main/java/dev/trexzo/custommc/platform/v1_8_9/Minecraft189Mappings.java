@@ -43,7 +43,22 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "bfk",
                     "net/minecraft/client/renderer/EntityRenderer");
+    public static final MappedClass ENTITY_PLAYER_SP =
+            new MappedClass(
+                    "bew",
+                    "net/minecraft/client/entity/EntityPlayerSP");
+    public static final MappedClass ENTITY =
+            new MappedClass(
+                    "pk",
+                    "net/minecraft/entity/Entity");
 
+    public static final MappedField MINECRAFT_PLAYER =
+            new MappedField(
+                    MINECRAFT,
+                    "h",
+                    "Lbew;",
+                    "field_71439_g",
+                    "thePlayer");
     public static final MappedField MINECRAFT_FONT_RENDERER =
             new MappedField(
                     MINECRAFT,
@@ -72,6 +87,28 @@ public final class Minecraft189Mappings {
                     "Lavh;",
                     "field_71474_y",
                     "gameSettings");
+    public static final MappedField ENTITY_POS_X =
+            new MappedField(
+                    ENTITY,
+                    "s",
+                    "D",
+                    "field_70165_t",
+                    "posX");
+    public static final MappedField ENTITY_POS_Y =
+            new MappedField(
+                    ENTITY,
+                    "t",
+                    "D",
+                    "field_70163_u",
+                    "posY");
+    public static final MappedField ENTITY_POS_Z =
+            new MappedField(
+                    ENTITY,
+                    "u",
+                    "D",
+                    "field_70161_v",
+                    "posZ");
+
     public static final MappedField GAME_SETTINGS_GUI_SCALE =
             new MappedField(
                     GAME_SETTINGS,

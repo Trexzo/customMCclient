@@ -211,6 +211,9 @@ final class Minecraft189MappedHostTransformationTest {
                         "avn",
                         fontRendererShape()));
         loader.put(
+                "bew",
+                emptyClass("bew"));
+        loader.put(
                 "bfk",
                 transformer.transform(
                         "bfk",
@@ -749,6 +752,7 @@ final class Minecraft189MappedHostTransformationTest {
     private static byte[] minecraftShape() {
         final ClassWriter writer =
                 classWriter("ave");
+        field(writer, "h", "Lbew;");
         field(writer, "k", "Lavn;");
         field(writer, "o", "Lbfk;");
         field(writer, "q", "Lavo;");
