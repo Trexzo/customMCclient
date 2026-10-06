@@ -87,6 +87,27 @@ final class Minecraft189SpeedModuleTest {
     }
 
     @Test
+    void horizontalTrackerDoesNotCountVerticalOnlyMovement() {
+        final Minecraft189MovementSpeedTracker tracker =
+                new Minecraft189MovementSpeedTracker();
+
+        tracker.sample(
+                12.0D,
+                -8.0D);
+        tracker.sample(
+                12.0D,
+                -8.0D);
+
+        final Minecraft189MovementSpeedTracker.Snapshot speed =
+                tracker.snapshot();
+        assertTrue(
+                speed.available());
+        assertEquals(
+                0.0D,
+                speed.blocksPerSecond());
+    }
+
+    @Test
     void trackerRejectsNonFiniteSamples() {
         final Minecraft189MovementSpeedTracker tracker =
                 new Minecraft189MovementSpeedTracker();
