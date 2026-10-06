@@ -2,6 +2,7 @@ package dev.trexzo.custommc.platform.v1_8_9.ui;
 
 public final class LegacyUiGeometryFactory {
     public static final int DEFAULT_CORNER_SEGMENTS = 8;
+    public static final int MAX_CORNER_SEGMENTS = 64;
 
     private final int cornerSegments;
 
@@ -11,9 +12,11 @@ public final class LegacyUiGeometryFactory {
 
     public LegacyUiGeometryFactory(
             final int cornerSegments) {
-        if (cornerSegments < 1) {
+        if (cornerSegments < 1
+                || cornerSegments > MAX_CORNER_SEGMENTS) {
             throw new IllegalArgumentException(
-                    "cornerSegments must be positive");
+                    "cornerSegments must be between 1 and "
+                            + MAX_CORNER_SEGMENTS);
         }
         this.cornerSegments = cornerSegments;
     }
