@@ -1143,6 +1143,23 @@ final class Minecraft189MappedHostTransformationTest {
                 1);
         getMaxHealth.visitEnd();
 
+        final MethodVisitor getEquipmentInSlot =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "p",
+                        "(I)Lzx;",
+                        null,
+                        null);
+        getEquipmentInSlot.visitCode();
+        getEquipmentInSlot.visitInsn(
+                Opcodes.ACONST_NULL);
+        getEquipmentInSlot.visitInsn(
+                Opcodes.ARETURN);
+        getEquipmentInSlot.visitMaxs(
+                1,
+                2);
+        getEquipmentInSlot.visitEnd();
+
         writer.visitEnd();
         return writer.toByteArray();
     }

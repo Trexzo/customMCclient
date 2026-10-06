@@ -105,7 +105,8 @@ public final class Minecraft189ClassShapeVerifier {
                 new Minecraft189Mappings.MappedField[0],
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH,
-                        Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH
+                        Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH,
+                        Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT
                 });
     }
 

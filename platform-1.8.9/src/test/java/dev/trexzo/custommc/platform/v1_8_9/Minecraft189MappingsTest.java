@@ -68,6 +68,10 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.ENTITY_LIVING_BASE,
                 "pr",
                 "net/minecraft/entity/EntityLivingBase");
+        assertClass(
+                Minecraft189Mappings.ITEM_STACK,
+                "zx",
+                "net/minecraft/item/ItemStack");
     }
 
     @Test
@@ -263,6 +267,13 @@ final class Minecraft189MappingsTest {
                 "()F",
                 "func_110138_aP",
                 "getMaxHealth");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT,
+                Minecraft189Mappings.ENTITY_LIVING_BASE,
+                "p",
+                "(I)Lzx;",
+                "func_71124_b",
+                "getEquipmentInSlot");
     }
 
     @Test
@@ -483,6 +494,30 @@ final class Minecraft189MappingsTest {
                 failure.getMessage());
     }
 
+    @Test
+    void entityLivingBaseShapeGateRejectsMissingEquipmentMethod() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY_LIVING_BASE
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntityLivingBase(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: pr.p(I)Lzx; (getEquipmentInSlot)",
+                failure.getMessage());
+    }
+
     private static byte[] minecraftShape() {
         final ClassWriter writer =
                 writer(
@@ -601,6 +636,9 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT);
         return finish(writer);
     }
 
