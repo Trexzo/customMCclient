@@ -72,6 +72,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerHealth(
+            final Minecraft189PlayerHealthAccess player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerHealth(player);
+        }
+    }
+
     public static synchronized void publishTick(
             final long tickIndex) {
         final Minecraft189HostRuntime host =
