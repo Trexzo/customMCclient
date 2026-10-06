@@ -31,6 +31,12 @@ public final class Minecraft189ClassTransformer
     private static final String MOUSE_BINDING_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189LwjglMouseBinding";
+    private static final String LWJGL_MOUSE_INTERNAL_NAME =
+            "org/lwjgl/input/Mouse";
+    private static final String LWJGL_GET_EVENT_DWHEEL =
+            "getEventDWheel";
+    private static final String LWJGL_GET_EVENT_DWHEEL_DESCRIPTOR =
+            "()I";
     private static final String HOST_RUNTIME_DESCRIPTOR =
             "Ldev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189HostRuntime;";
@@ -223,6 +229,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedKeyboard =
                 new boolean[]{false};
+        final int[] wheelReads =
+                new int[]{0};
 
         reader.accept(
                 new ClassVisitor(
@@ -294,6 +302,39 @@ public final class Minecraft189ClassTransformer
                                             false);
                                     injectedTick[0] = true;
                                 }
+
+                                @Override
+                                public void visitMethodInsn(
+                                        final int opcode,
+                                        final String owner,
+                                        final String methodName,
+                                        final String methodDescriptor,
+                                        final boolean isInterface) {
+                                    super.visitMethodInsn(
+                                            opcode,
+                                            owner,
+                                            methodName,
+                                            methodDescriptor,
+                                            isInterface);
+
+                                    if (opcode == Opcodes.INVOKESTATIC
+                                            && LWJGL_MOUSE_INTERNAL_NAME.equals(
+                                            owner)
+                                            && LWJGL_GET_EVENT_DWHEEL.equals(
+                                            methodName)
+                                            && LWJGL_GET_EVENT_DWHEEL_DESCRIPTOR
+                                            .equals(methodDescriptor)) {
+                                        super.visitInsn(
+                                                Opcodes.DUP);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                MOUSE_BINDING_INTERNAL_NAME,
+                                                "forwardWheelDelta",
+                                                "(I)V",
+                                                false);
+                                        wheelReads[0]++;
+                                    }
+                                }
                             };
                         }
 
@@ -340,6 +381,12 @@ public final class Minecraft189ClassTransformer
                 || !injectedTick[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
+        }
+        if (wheelReads[0] != 1) {
+            throw new IllegalStateException(
+                    "mapped Minecraft runTick must contain exactly one "
+                            + "Mouse.getEventDWheel()I call, found "
+                            + wheelReads[0]);
         }
         if (!foundDispatchKeypresses[0]
                 || !injectedKeyboard[0]) {
