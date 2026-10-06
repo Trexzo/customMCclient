@@ -514,3 +514,12 @@ The module owns four persistent settings through the existing generic settings/C
 While enabled, the HUD pass draws four centered rectangles and optionally one center rectangle. Disabling removes the pass immediately; feature teardown removes the module, presentation, all four settings, setting presentations and module-setting bindings.
 
 Regression coverage uses a 1280x720 framebuffer at UI scale 2 and proves the exact logical geometry for configured length 6, gap 3, thickness 2 and center dot enabled, plus persisted setting encoding and complete teardown removal.
+
+## Player-rotation mapping authority
+
+M102 extends the same pinned Minecraft 1.8.9 mapping authority with exact player-facing yaw metadata. Base `Entity.rotationYaw` is pinned as obfuscated `pk.y : F` / Searge `field_70177_z`, sourced from the already-recorded `BigBroadBean/mappings-extracted` 1.8.9 MCP conversion.
+
+The Entity class-shape gate now requires `rotationYaw` alongside the already-certified `posX/posY/posZ` fields before any Entity transformation is accepted. Transformation fixtures were tightened to carry the exact field as well.
+
+This milestone is authority-only: it does not expose a new runtime interface, read yaw from the child loader, or add a HUD. The next clean consumer is a narrow live rotation snapshot and Direction HUD built on this independently certified mapping.
+
