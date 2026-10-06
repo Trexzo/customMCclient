@@ -14,7 +14,6 @@ public final class ModuleController {
     }
 
     public synchronized ModuleState stateOf(final String id) {
-        requireModule(id);
         final Module module = requireModule(id);
         final ModuleState state = states.get(module);
         return state == null ? ModuleState.DISABLED : state;
