@@ -28,7 +28,21 @@ final class Minecraft189LwjglKeyboardBindingTest {
                     runtime.services()
                             .require(
                                     ClickGuiModel.class);
-            model.open();
+
+            assertFalse(
+                    model.snapshot()
+                            .open());
+            assertTrue(
+                    Minecraft189LwjglKeyboardBinding
+                            .forward(
+                                    new FakeKeyboardEventSource(
+                                            LegacyKeyboardCodes.RIGHT_SHIFT,
+                                            '\0',
+                                            true,
+                                            false)));
+            assertTrue(
+                    model.snapshot()
+                            .open());
 
             final FakeKeyboardEventSource escape =
                     new FakeKeyboardEventSource(

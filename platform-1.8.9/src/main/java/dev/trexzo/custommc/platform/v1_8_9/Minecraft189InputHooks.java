@@ -119,6 +119,17 @@ public final class Minecraft189InputHooks {
                         .services();
 
         if (services.contains(
+                Minecraft189ClickGuiToggleController.class)
+                && services.require(
+                Minecraft189ClickGuiToggleController.class)
+                .key(
+                        legacyKeyCode,
+                        pressed,
+                        repeat)) {
+            return true;
+        }
+
+        if (services.contains(
                 ClickGuiInputController.class)
                 && services.require(
                 ClickGuiInputController.class)

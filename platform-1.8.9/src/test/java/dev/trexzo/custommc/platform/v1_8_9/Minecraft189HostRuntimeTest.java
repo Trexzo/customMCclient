@@ -17,6 +17,7 @@ import dev.trexzo.custommc.core.ui.clickgui.ClickGuiLayout;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiLayoutEngine;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiModel;
 import dev.trexzo.custommc.platform.PlatformContext;
+import dev.trexzo.custommc.platform.v1_8_9.input.LegacyKeyboardCodes;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import org.junit.jupiter.api.Test;
 
@@ -76,11 +77,51 @@ final class Minecraft189HostRuntimeTest {
         assertTrue(
                 services.contains(
                         ClickGuiInputController.class));
+        assertTrue(
+                services.contains(
+                        Minecraft189ClickGuiToggleController.class));
+        assertEquals(
+                LegacyKeyboardCodes.RIGHT_SHIFT,
+                runtime.clickGuiToggleController()
+                        .toggleKeyCode());
 
-        runtime.clickGuiRuntime()
-                .coreRuntime()
-                .model()
-                .open();
+        assertFalse(
+                runtime.clickGuiRuntime()
+                        .coreRuntime()
+                        .model()
+                        .snapshot()
+                        .open());
+        assertTrue(
+                runtime.key(
+                        LegacyKeyboardCodes.RIGHT_SHIFT,
+                        '\0',
+                        true,
+                        false,
+                        true,
+                        false,
+                        false));
+        assertTrue(
+                runtime.clickGuiRuntime()
+                        .coreRuntime()
+                        .model()
+                        .snapshot()
+                        .open());
+
+        assertFalse(
+                runtime.key(
+                        LegacyKeyboardCodes.RIGHT_SHIFT,
+                        '\0',
+                        true,
+                        true,
+                        true,
+                        false,
+                        false));
+        assertTrue(
+                runtime.clickGuiRuntime()
+                        .coreRuntime()
+                        .model()
+                        .snapshot()
+                        .open());
 
         runtime.renderHud(
                 0L,
@@ -154,6 +195,9 @@ final class Minecraft189HostRuntimeTest {
         assertFalse(
                 services.contains(
                         ClickGuiInputController.class));
+        assertFalse(
+                services.contains(
+                        Minecraft189ClickGuiToggleController.class));
 
         assertThrows(
                 IllegalStateException.class,

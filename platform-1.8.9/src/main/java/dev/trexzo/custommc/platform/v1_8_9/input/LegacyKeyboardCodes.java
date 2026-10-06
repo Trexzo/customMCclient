@@ -5,6 +5,7 @@ public final class LegacyKeyboardCodes {
     public static final int BACKSPACE = 14;
     public static final int TAB = 15;
     public static final int ENTER = 28;
+    public static final int RIGHT_SHIFT = 54;
     public static final int SPACE = 57;
     public static final int HOME = 199;
     public static final int UP = 200;
