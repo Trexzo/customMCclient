@@ -90,11 +90,23 @@ final class Minecraft189FullbrightModuleTest {
 
     private static final class RecordingSettings
             implements Minecraft189GuiSettingsAccess {
+        private float fov = 70.0F;
         private float gamma;
 
         private RecordingSettings(
                 final float gamma) {
             this.gamma = gamma;
+        }
+
+        @Override
+        public float fovSetting() {
+            return fov;
+        }
+
+        @Override
+        public void fovSetting(
+                final float value) {
+            fov = value;
         }
 
         @Override
