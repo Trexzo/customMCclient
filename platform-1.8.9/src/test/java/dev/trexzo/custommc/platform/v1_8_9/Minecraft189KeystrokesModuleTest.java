@@ -95,6 +95,35 @@ final class Minecraft189KeystrokesModuleTest {
                             LegacyKeyboardCodes.RIGHT_SHIFT));
 
             runtime.key(
+                    LegacyKeyboardCodes.RIGHT_SHIFT,
+                    '\0',
+                    false,
+                    false,
+                    false,
+                    false,
+                    false);
+            assertFalse(
+                    inputState.keyPressed(
+                            LegacyKeyboardCodes.RIGHT_SHIFT));
+            assertTrue(
+                    runtime.key(
+                            LegacyKeyboardCodes.RIGHT_SHIFT,
+                            '\0',
+                            true,
+                            false,
+                            true,
+                            false,
+                            false));
+            runtime.key(
+                    LegacyKeyboardCodes.RIGHT_SHIFT,
+                    '\0',
+                    false,
+                    false,
+                    false,
+                    false,
+                    false);
+
+            runtime.key(
                     LegacyKeyboardCodes.W,
                     'w',
                     true,
