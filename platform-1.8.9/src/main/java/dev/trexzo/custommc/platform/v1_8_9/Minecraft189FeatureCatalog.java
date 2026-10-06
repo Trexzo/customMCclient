@@ -49,6 +49,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189CpsFeature cpsFeature;
     private final Minecraft189CoordinatesFeature coordinatesFeature;
     private final Minecraft189SpeedFeature speedFeature;
+    private final Minecraft189CrosshairFeature crosshairFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
     private Minecraft189FovFeature fovFeature;
     private Minecraft189NoBobbingFeature noBobbingFeature;
@@ -79,7 +80,8 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189FpsFeature fpsFeature,
             final Minecraft189CpsFeature cpsFeature,
             final Minecraft189CoordinatesFeature coordinatesFeature,
-            final Minecraft189SpeedFeature speedFeature) {
+            final Minecraft189SpeedFeature speedFeature,
+            final Minecraft189CrosshairFeature crosshairFeature) {
         this.modules = modules;
         this.moduleController = moduleController;
         this.modulePresentations = modulePresentations;
@@ -105,6 +107,7 @@ public final class Minecraft189FeatureCatalog
         this.cpsFeature = cpsFeature;
         this.coordinatesFeature = coordinatesFeature;
         this.speedFeature = speedFeature;
+        this.crosshairFeature = crosshairFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -155,6 +158,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189CpsFeature cpsFeature = null;
         Minecraft189CoordinatesFeature coordinatesFeature = null;
         Minecraft189SpeedFeature speedFeature = null;
+        Minecraft189CrosshairFeature crosshairFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -309,6 +313,17 @@ public final class Minecraft189FeatureCatalog
                             renderPipeline,
                             hostCallbacks);
 
+            crosshairFeature =
+                    Minecraft189CrosshairFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            renderPipeline,
+                            hostCallbacks);
+
             return new Minecraft189FeatureCatalog(
                     modules,
                     moduleController,
@@ -334,8 +349,10 @@ public final class Minecraft189FeatureCatalog
                     fpsFeature,
                     cpsFeature,
                     coordinatesFeature,
-                    speedFeature);
+                    speedFeature,
+                    crosshairFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(crosshairFeature, failure);
             closeQuietly(speedFeature, failure);
             closeQuietly(coordinatesFeature, failure);
             closeQuietly(cpsFeature, failure);
@@ -393,9 +410,22 @@ public final class Minecraft189FeatureCatalog
         return speedFeature.module();
     }
 
+    public Minecraft189CrosshairModule crosshair() {
+        requireOpen();
+        return crosshairFeature.module();
+    }
+
     public synchronized Minecraft189FullbrightModule installFullbright(
             final dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189GuiSettingsAccess settings) {
         requireOpen();
+        try {
+            crosshairFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
         if (fullbrightFeature != null) {
             throw new IllegalStateException(
                     "fullbright feature already installed");
