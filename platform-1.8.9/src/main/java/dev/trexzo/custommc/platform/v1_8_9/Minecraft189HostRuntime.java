@@ -121,6 +121,9 @@ public final class Minecraft189HostRuntime
                                     .moduleController(),
                             modulePresentations,
                             moduleCategories,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
                             services.require(
                                     RenderPipeline.class),
                             hostCallbacks);

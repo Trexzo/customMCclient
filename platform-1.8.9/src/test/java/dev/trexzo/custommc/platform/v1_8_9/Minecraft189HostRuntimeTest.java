@@ -55,19 +55,27 @@ final class Minecraft189HostRuntimeTest {
 
         final RecordingHostCallbacks host =
                 new RecordingHostCallbacks();
+        final ModulePresentationRegistry modulePresentations =
+                new ModulePresentationRegistry();
+        final ModuleCategoryRegistry moduleCategories =
+                new ModuleCategoryRegistry();
+        final ModuleSettingRegistry moduleSettings =
+                new ModuleSettingRegistry(
+                        modules,
+                        settings);
+        final SettingPresentationRegistry settingPresentations =
+                new SettingPresentationRegistry();
 
         final Minecraft189HostRuntime runtime =
                 Minecraft189HostRuntime.install(
                         platform,
-                        new ModulePresentationRegistry(),
-                        new ModuleCategoryRegistry(),
-                        new ModuleSettingRegistry(
-                                modules,
-                                settings),
+                        modulePresentations,
+                        moduleCategories,
+                        moduleSettings,
                         null,
                         null,
                         settings,
-                        new SettingPresentationRegistry(),
+                        settingPresentations,
                         host);
 
         assertTrue(platform.attached());
@@ -96,6 +104,23 @@ final class Minecraft189HostRuntimeTest {
                         .id()
                         .equals(
                                 Minecraft189WatermarkModule.ID));
+        assertEquals(
+                3,
+                moduleSettings.bindingsForModule(
+                        Minecraft189WatermarkModule.ID)
+                        .size());
+        assertTrue(
+                settings.find(
+                        Minecraft189WatermarkModule.TEXT_SETTING_ID)
+                        != null);
+        assertTrue(
+                settings.find(
+                        Minecraft189WatermarkModule.X_SETTING_ID)
+                        != null);
+        assertTrue(
+                settings.find(
+                        Minecraft189WatermarkModule.Y_SETTING_ID)
+                        != null);
 
         assertFalse(
                 runtime.clickGuiRuntime()
@@ -165,6 +190,19 @@ final class Minecraft189HostRuntimeTest {
 
         final int beforeWatermarkText =
                 host.textCalls.get();
+        runtime.featureCatalog()
+                .watermark()
+                .textSetting()
+                .set("Trexzo");
+        runtime.featureCatalog()
+                .watermark()
+                .xSetting()
+                .set(24);
+        runtime.featureCatalog()
+                .watermark()
+                .ySetting()
+                .set(36);
+
         controller.enable(
                 Minecraft189WatermarkModule.ID);
         assertEquals(
@@ -182,6 +220,30 @@ final class Minecraft189HostRuntimeTest {
         assertEquals(
                 beforeWatermarkText + 1,
                 host.textCalls.get());
+        assertEquals(
+                "Trexzo",
+                host.lastText);
+        assertEquals(
+                24.0F,
+                host.lastTextX);
+        assertEquals(
+                36.0F,
+                host.lastTextY);
+        assertEquals(
+                "Trexzo",
+                settings.snapshotEncoded()
+                        .get(
+                                Minecraft189WatermarkModule.TEXT_SETTING_ID));
+        assertEquals(
+                "24",
+                settings.snapshotEncoded()
+                        .get(
+                                Minecraft189WatermarkModule.X_SETTING_ID));
+        assertEquals(
+                "36",
+                settings.snapshotEncoded()
+                        .get(
+                                Minecraft189WatermarkModule.Y_SETTING_ID));
 
         controller.disable(
                 Minecraft189WatermarkModule.ID);
@@ -276,6 +338,18 @@ final class Minecraft189HostRuntimeTest {
                 null,
                 modules.find(
                         Minecraft189WatermarkModule.ID));
+        assertEquals(
+                null,
+                settings.find(
+                        Minecraft189WatermarkModule.TEXT_SETTING_ID));
+        assertEquals(
+                null,
+                settings.find(
+                        Minecraft189WatermarkModule.X_SETTING_ID));
+        assertEquals(
+                null,
+                settings.find(
+                        Minecraft189WatermarkModule.Y_SETTING_ID));
 
         assertThrows(
                 IllegalStateException.class,
@@ -302,6 +376,9 @@ final class Minecraft189HostRuntimeTest {
                 new AtomicInteger();
         private final AtomicInteger textCalls =
                 new AtomicInteger();
+        private String lastText;
+        private float lastTextX;
+        private float lastTextY;
 
         @Override
         public int framebufferWidth() {
@@ -373,6 +450,9 @@ final class Minecraft189HostRuntimeTest {
                 final String text,
                 final int argb) {
             textCalls.incrementAndGet();
+            lastText = text;
+            lastTextX = x;
+            lastTextY = y;
         }
 
         @Override

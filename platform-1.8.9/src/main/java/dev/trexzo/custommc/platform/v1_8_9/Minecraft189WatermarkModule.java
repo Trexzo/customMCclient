@@ -5,6 +5,8 @@ import dev.trexzo.custommc.core.render.RenderFrame;
 import dev.trexzo.custommc.core.render.RenderPass;
 import dev.trexzo.custommc.core.render.RenderPipeline;
 import dev.trexzo.custommc.core.render.RenderStage;
+import dev.trexzo.custommc.core.setting.Setting;
+import dev.trexzo.custommc.core.setting.SettingCodecs;
 import dev.trexzo.custommc.core.ui.UiFonts;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
@@ -15,16 +17,41 @@ public final class Minecraft189WatermarkModule
         implements Module {
     public static final String ID =
             "render.watermark";
+    public static final String TEXT_SETTING_ID =
+            "render.watermark.text";
+    public static final String X_SETTING_ID =
+            "render.watermark.x";
+    public static final String Y_SETTING_ID =
+            "render.watermark.y";
     public static final String RENDER_PASS_ID =
             "watermark";
 
     private static final int PRIORITY = 100;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
-    private static final float X = 8.0F;
-    private static final float Y = 8.0F;
 
     private final RenderPipeline renderPipeline;
     private final LegacyUiHostCallbacks hostCallbacks;
+    private final Setting<String> text =
+            new Setting<String>(
+                    TEXT_SETTING_ID,
+                    "CustomMC",
+                    value -> !value.trim().isEmpty()
+                            && value.length() <= 32,
+                    SettingCodecs.STRING);
+    private final Setting<Integer> x =
+            new Setting<Integer>(
+                    X_SETTING_ID,
+                    8,
+                    value -> value >= 0
+                            && value <= 4096,
+                    SettingCodecs.INTEGER);
+    private final Setting<Integer> y =
+            new Setting<Integer>(
+                    Y_SETTING_ID,
+                    8,
+                    value -> value >= 0
+                            && value <= 4096,
+                    SettingCodecs.INTEGER);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189WatermarkModule(
@@ -43,6 +70,18 @@ public final class Minecraft189WatermarkModule
     @Override
     public String id() {
         return ID;
+    }
+
+    public Setting<String> textSetting() {
+        return text;
+    }
+
+    public Setting<Integer> xSetting() {
+        return x;
+    }
+
+    public Setting<Integer> ySetting() {
+        return y;
     }
 
     @Override
@@ -105,9 +144,9 @@ public final class Minecraft189WatermarkModule
             try {
                 hostCallbacks.drawText(
                         UiFonts.DEFAULT,
-                        X,
-                        Y,
-                        "CustomMC",
+                        x.get().floatValue(),
+                        y.get().floatValue(),
+                        text.get(),
                         TEXT_ARGB);
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;

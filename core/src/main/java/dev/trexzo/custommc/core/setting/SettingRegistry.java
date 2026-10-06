@@ -12,13 +12,16 @@ public final class SettingRegistry {
     private final Map<String, Setting<?>> settings =
             new LinkedHashMap<String, Setting<?>>();
 
-    public synchronized void register(final Setting<?> setting) {
+    public synchronized Registration register(final Setting<?> setting) {
         Objects.requireNonNull(setting, "setting");
         if (settings.containsKey(setting.id())) {
             throw new IllegalArgumentException(
                     "duplicate setting id: " + setting.id());
         }
         settings.put(setting.id(), setting);
+        return new RegistrationImpl(
+                this,
+                setting);
     }
 
     public synchronized Setting<?> find(final String id) {
@@ -71,6 +74,62 @@ public final class SettingRegistry {
 
         for (Runnable change : prepared) {
             change.run();
+        }
+    }
+
+    private synchronized void unregister(
+            final Setting<?> expected) {
+        final Setting<?> current =
+                settings.get(
+                        expected.id());
+        if (current == expected) {
+            settings.remove(
+                    expected.id());
+        }
+    }
+
+    public interface Registration extends AutoCloseable {
+        Setting<?> setting();
+
+        boolean active();
+
+        @Override
+        void close();
+    }
+
+    private static final class RegistrationImpl
+            implements Registration {
+        private final SettingRegistry registry;
+        private final Setting<?> setting;
+        private boolean active = true;
+
+        RegistrationImpl(
+                final SettingRegistry registry,
+                final Setting<?> setting) {
+            this.registry = registry;
+            this.setting = setting;
+        }
+
+        @Override
+        public Setting<?> setting() {
+            return setting;
+        }
+
+        @Override
+        public synchronized boolean active() {
+            return active;
+        }
+
+        @Override
+        public void close() {
+            synchronized (this) {
+                if (!active) {
+                    return;
+                }
+                active = false;
+            }
+            registry.unregister(
+                    setting);
         }
     }
 
