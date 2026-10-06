@@ -24,6 +24,7 @@ public final class Minecraft189HostRuntime
     private final ServiceRegistry.Registration clickGuiToggleRegistration;
     private final Minecraft189InputState inputState;
     private final Minecraft189FrameRateTracker frameRateTracker;
+    private final Minecraft189ClickRateTracker clickRateTracker;
     private final Minecraft189FeatureCatalog featureCatalog;
     private final Minecraft189Hooks renderHooks;
     private final Minecraft189HostInputBridge inputBridge;
@@ -36,6 +37,7 @@ public final class Minecraft189HostRuntime
             final ServiceRegistry.Registration clickGuiToggleRegistration,
             final Minecraft189InputState inputState,
             final Minecraft189FrameRateTracker frameRateTracker,
+            final Minecraft189ClickRateTracker clickRateTracker,
             final Minecraft189FeatureCatalog featureCatalog,
             final Minecraft189Hooks renderHooks,
             final Minecraft189HostInputBridge inputBridge) {
@@ -45,6 +47,7 @@ public final class Minecraft189HostRuntime
         this.clickGuiToggleRegistration = clickGuiToggleRegistration;
         this.inputState = inputState;
         this.frameRateTracker = frameRateTracker;
+        this.clickRateTracker = clickRateTracker;
         this.featureCatalog = featureCatalog;
         this.renderHooks = renderHooks;
         this.inputBridge = inputBridge;
@@ -110,6 +113,8 @@ public final class Minecraft189HostRuntime
                 new Minecraft189InputState();
         final Minecraft189FrameRateTracker frameRateTracker =
                 new Minecraft189FrameRateTracker();
+        final Minecraft189ClickRateTracker clickRateTracker =
+                new Minecraft189ClickRateTracker();
         try {
             final ServiceRegistry services =
                     platform.requireContext()
@@ -136,6 +141,7 @@ public final class Minecraft189HostRuntime
                             settingPresentations,
                             inputState,
                             frameRateTracker,
+                            clickRateTracker,
                             services.require(
                                     RenderPipeline.class),
                             hostCallbacks);
@@ -147,6 +153,7 @@ public final class Minecraft189HostRuntime
                     toggleRegistration,
                     inputState,
                     frameRateTracker,
+                    clickRateTracker,
                     featureCatalog,
                     new Minecraft189Hooks(platform),
                     new Minecraft189HostInputBridge(
@@ -192,6 +199,11 @@ public final class Minecraft189HostRuntime
     public Minecraft189FrameRateTracker frameRateTracker() {
         requireOpen();
         return frameRateTracker;
+    }
+
+    public Minecraft189ClickRateTracker clickRateTracker() {
+        requireOpen();
+        return clickRateTracker;
     }
 
     void frameStarted(
@@ -249,9 +261,21 @@ public final class Minecraft189HostRuntime
             final int legacyButton,
             final boolean pressed) {
         requireOpen();
+        final boolean wasPressed =
+                inputState.pointerPressed(
+                        legacyButton);
         inputState.pointerButton(
                 legacyButton,
                 pressed);
+        if (pressed
+                && !wasPressed
+                && (legacyButton
+                == Minecraft189ClickRateTracker.LEFT_BUTTON
+                || legacyButton
+                == Minecraft189ClickRateTracker.RIGHT_BUTTON)) {
+            clickRateTracker.recordPress(
+                    legacyButton);
+        }
         return inputBridge.pointerButton(
                 pixelX,
                 pixelYFromBottom,
@@ -311,6 +335,7 @@ public final class Minecraft189HostRuntime
         RuntimeException failure = null;
         inputState.clear();
         frameRateTracker.clear();
+        clickRateTracker.clear();
         try {
             featureCatalog.close();
         } catch (RuntimeException closeFailure) {
