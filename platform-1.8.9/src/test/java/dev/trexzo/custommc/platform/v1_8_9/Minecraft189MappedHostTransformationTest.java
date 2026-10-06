@@ -60,6 +60,8 @@ final class Minecraft189MappedHostTransformationTest {
         assertTrue(transformer.handles("bfk"));
         assertTrue(transformer.handles("pk"));
         assertTrue(transformer.handles("pr"));
+        assertTrue(transformer.handles("wn"));
+        assertTrue(transformer.handles("xg"));
 
         assertFalse(
                 transformer.handles(
@@ -256,6 +258,16 @@ final class Minecraft189MappedHostTransformationTest {
                         "pr",
                         entityLivingBaseShape()));
         loader.put(
+                "xg",
+                transformer.transform(
+                        "xg",
+                        foodStatsShape()));
+        loader.put(
+                "wn",
+                transformer.transform(
+                        "wn",
+                        entityPlayerShape()));
+        loader.put(
                 "bew",
                 playerShape());
         loader.put(
@@ -419,6 +431,24 @@ final class Minecraft189MappedHostTransformationTest {
                     .set(
                             player,
                             equipmentSlots);
+
+            final Class<?> foodStatsClass =
+                    loader.loadClass("xg");
+            final Object foodStats =
+                    foodStatsClass.getDeclaredConstructor()
+                            .newInstance();
+            foodStatsClass.getField("foodLevel")
+                    .setInt(
+                            foodStats,
+                            17);
+            foodStatsClass.getField("saturationLevel")
+                    .setFloat(
+                            foodStats,
+                            6.5F);
+            playerClass.getField("foodStats")
+                    .set(
+                            player,
+                            foodStats);
 
             minecraftClass.getField("h")
                     .set(
@@ -636,6 +666,19 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     armor.boots());
 
+            final Minecraft189PlayerHungerState.Snapshot hunger =
+                    runtime.requireHostRuntime()
+                            .playerHungerState()
+                            .snapshot();
+            assertTrue(
+                    hunger.available());
+            assertEquals(
+                    17,
+                    hunger.foodLevel());
+            assertEquals(
+                    6.5F,
+                    hunger.saturationLevel());
+
             minecraftClass.getField("h")
                     .set(
                             minecraft,
@@ -664,6 +707,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .playerArmorState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .playerHungerState()
                             .snapshot()
                             .available());
 
@@ -1232,16 +1280,77 @@ final class Minecraft189MappedHostTransformationTest {
         return writer.toByteArray();
     }
 
-    private static byte[] playerShape() {
+    private static byte[] foodStatsShape() {
+        final ClassWriter writer =
+                classWriter("xg");
+        field(writer, "foodLevel", "I");
+        field(writer, "saturationLevel", "F");
+        endDefaultConstructor(
+                writer,
+                "xg");
+
+        final MethodVisitor getFoodLevel =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "a",
+                        "()I",
+                        null,
+                        null);
+        getFoodLevel.visitCode();
+        getFoodLevel.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getFoodLevel.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "xg",
+                "foodLevel",
+                "I");
+        getFoodLevel.visitInsn(
+                Opcodes.IRETURN);
+        getFoodLevel.visitMaxs(
+                1,
+                1);
+        getFoodLevel.visitEnd();
+
+        final MethodVisitor getSaturationLevel =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "e",
+                        "()F",
+                        null,
+                        null);
+        getSaturationLevel.visitCode();
+        getSaturationLevel.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getSaturationLevel.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "xg",
+                "saturationLevel",
+                "F");
+        getSaturationLevel.visitInsn(
+                Opcodes.FRETURN);
+        getSaturationLevel.visitMaxs(
+                1,
+                1);
+        getSaturationLevel.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] entityPlayerShape() {
         final ClassWriter writer =
                 new ClassWriter(0);
         writer.visit(
                 Opcodes.V1_8,
                 Opcodes.ACC_PUBLIC,
-                "bew",
+                "wn",
                 null,
                 "pr",
                 null);
+        field(writer, "foodStats", "Lxg;");
+
         final MethodVisitor constructor =
                 writer.visitMethod(
                         Opcodes.ACC_PUBLIC,
@@ -1256,6 +1365,67 @@ final class Minecraft189MappedHostTransformationTest {
         constructor.visitMethodInsn(
                 Opcodes.INVOKESPECIAL,
                 "pr",
+                "<init>",
+                "()V",
+                false);
+        constructor.visitInsn(
+                Opcodes.RETURN);
+        constructor.visitMaxs(
+                1,
+                1);
+        constructor.visitEnd();
+
+        final MethodVisitor getFoodStats =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "cl",
+                        "()Lxg;",
+                        null,
+                        null);
+        getFoodStats.visitCode();
+        getFoodStats.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getFoodStats.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "wn",
+                "foodStats",
+                "Lxg;");
+        getFoodStats.visitInsn(
+                Opcodes.ARETURN);
+        getFoodStats.visitMaxs(
+                1,
+                1);
+        getFoodStats.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] playerShape() {
+        final ClassWriter writer =
+                new ClassWriter(0);
+        writer.visit(
+                Opcodes.V1_8,
+                Opcodes.ACC_PUBLIC,
+                "bew",
+                null,
+                "wn",
+                null);
+        final MethodVisitor constructor =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "<init>",
+                        "()V",
+                        null,
+                        null);
+        constructor.visitCode();
+        constructor.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        constructor.visitMethodInsn(
+                Opcodes.INVOKESPECIAL,
+                "wn",
                 "<init>",
                 "()V",
                 false);
