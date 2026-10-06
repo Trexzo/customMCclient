@@ -5,10 +5,12 @@ import dev.trexzo.custommc.core.module.ModuleKeybindAssignments;
 import dev.trexzo.custommc.core.module.ModuleKeybindRegistry;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
+import dev.trexzo.custommc.core.service.ServiceRegistry;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.ui.UiThemeProvider;
 import dev.trexzo.custommc.core.ui.UiThemes;
+import dev.trexzo.custommc.core.ui.clickgui.ClickGuiModel;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 
 import java.util.Objects;
@@ -17,6 +19,8 @@ public final class Minecraft189HostRuntime
         implements AutoCloseable {
     private final Minecraft189Platform platform;
     private final Minecraft189ClickGuiRuntime clickGuiRuntime;
+    private final Minecraft189ClickGuiToggleController clickGuiToggleController;
+    private final ServiceRegistry.Registration clickGuiToggleRegistration;
     private final Minecraft189Hooks renderHooks;
     private final Minecraft189HostInputBridge inputBridge;
     private boolean closed;
@@ -24,10 +28,14 @@ public final class Minecraft189HostRuntime
     private Minecraft189HostRuntime(
             final Minecraft189Platform platform,
             final Minecraft189ClickGuiRuntime clickGuiRuntime,
+            final Minecraft189ClickGuiToggleController clickGuiToggleController,
+            final ServiceRegistry.Registration clickGuiToggleRegistration,
             final Minecraft189Hooks renderHooks,
             final Minecraft189HostInputBridge inputBridge) {
         this.platform = platform;
         this.clickGuiRuntime = clickGuiRuntime;
+        this.clickGuiToggleController = clickGuiToggleController;
+        this.clickGuiToggleRegistration = clickGuiToggleRegistration;
         this.renderHooks = renderHooks;
         this.inputBridge = inputBridge;
     }
@@ -86,18 +94,47 @@ public final class Minecraft189HostRuntime
                         themeProvider,
                         hostCallbacks);
 
-        return new Minecraft189HostRuntime(
-                platform,
-                clickGuiRuntime,
-                new Minecraft189Hooks(platform),
-                new Minecraft189HostInputBridge(
-                        platform,
-                        hostCallbacks));
+        ServiceRegistry.Registration toggleRegistration = null;
+        try {
+            final ServiceRegistry services =
+                    platform.requireContext()
+                            .services();
+            final Minecraft189ClickGuiToggleController toggleController =
+                    new Minecraft189ClickGuiToggleController(
+                            services.require(
+                                    ClickGuiModel.class));
+            toggleRegistration =
+                    services.registerManaged(
+                            Minecraft189ClickGuiToggleController.class,
+                            toggleController);
+
+            return new Minecraft189HostRuntime(
+                    platform,
+                    clickGuiRuntime,
+                    toggleController,
+                    toggleRegistration,
+                    new Minecraft189Hooks(platform),
+                    new Minecraft189HostInputBridge(
+                            platform,
+                            hostCallbacks));
+        } catch (RuntimeException failure) {
+            if (toggleRegistration != null) {
+                toggleRegistration.close();
+            }
+            clickGuiToggleRegistration.close();
+        clickGuiRuntime.close();
+            throw failure;
+        }
     }
 
     public Minecraft189ClickGuiRuntime clickGuiRuntime() {
         requireOpen();
         return clickGuiRuntime;
+    }
+
+    public Minecraft189ClickGuiToggleController clickGuiToggleController() {
+        requireOpen();
+        return clickGuiToggleController;
     }
 
     public void publishTick(
