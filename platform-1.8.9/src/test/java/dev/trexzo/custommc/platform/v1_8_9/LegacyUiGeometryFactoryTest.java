@@ -147,7 +147,8 @@ final class LegacyUiGeometryFactoryTest {
         final float[] source =
                 new float[] {
                         1.0F, 2.0F,
-                        3.0F, 4.0F
+                        3.0F, 4.0F,
+                        5.0F, 6.0F
                 };
         final LegacyUiGeometry geometry =
                 new LegacyUiGeometry(
@@ -173,7 +174,7 @@ final class LegacyUiGeometryFactoryTest {
                 () -> geometry.x(-1));
         assertThrows(
                 IndexOutOfBoundsException.class,
-                () -> geometry.y(2));
+                () -> geometry.y(3));
     }
 
     @Test
