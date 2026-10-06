@@ -293,7 +293,9 @@ public final class Minecraft189FeatureCatalog
         try {
             arrayListFeature.close();
         } catch (RuntimeException closeFailure) {
-            failure = closeFailure;
+            failure = append(
+                    failure,
+                    closeFailure);
         }
 
         try {
@@ -304,7 +306,9 @@ public final class Minecraft189FeatureCatalog
                         Minecraft189WatermarkModule.ID);
             }
         } catch (RuntimeException closeFailure) {
-            failure = closeFailure;
+            failure = append(
+                    failure,
+                    closeFailure);
         }
 
         failure = close(yBinding, failure);
