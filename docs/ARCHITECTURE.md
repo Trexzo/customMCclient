@@ -101,3 +101,25 @@ The initializer class is resolved only by its exact supplied name and must imple
 That session owns the in-process CustomMC lifetime around the target game main: initialization completes before Minecraft main is invoked, and session close runs after the target returns or throws. Target failures remain primary; a cleanup failure is attached as suppressed evidence rather than replacing the game/runtime failure.
 
 `CustomMcBootstrapOverlay.createWithRuntime(...)` constructs this protocol explicitly. The classpath order is bootstrap artifact first, followed by ordered runtime artifacts, then the resolved Minecraft classpath from M63. There is still no classpath scanning, module discovery, bytecode transformation, JNI/JVMTI agent, or implicit global bootstrap state.
+
+
+## Minecraft 1.8.9 bootstrap runtime assembly
+
+M66 provides the first concrete implementation of the M65 runtime-initializer contract: `Minecraft189BootstrapInitializer`.
+
+Initialization constructs one owned in-process runtime graph before Minecraft main executes:
+
+- `EventBus`;
+- `ModuleRegistry` + `ModuleController`;
+- `ServiceRegistry`;
+- `RenderPipeline`, published as a managed service;
+- `SettingRegistry` + setting presentation registry;
+- module presentation/category registries;
+- explicit module-to-setting ownership registry;
+- module keybind registry + M51 assignment owner;
+- attached `Minecraft189Platform`;
+- installed `Minecraft189ModuleKeybindRuntime`, publishing the keybind controller service.
+
+`Minecraft189BootstrapRuntime` is the M65 session object and owns teardown. Closing it removes the keybind-controller service, closes only bootstrap-owned keybind assignments, removes the render-pipeline service, and detaches the 1.8.9 platform. Repeated close is idempotent. Construction is rollback-safe: a failure after partial attachment unwinds the pieces already installed before surfacing the error.
+
+M66 intentionally has no global runtime holder and does not yet install ClickGUI, LWJGL host callbacks, Minecraft event hooks, modules, settings, or class transformation. Those require the next explicit hook/binding layer rather than being hidden inside bootstrap assembly.
