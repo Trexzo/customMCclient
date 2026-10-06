@@ -452,6 +452,7 @@ final class Minecraft189MappedHostTransformationTest {
                     settingsClass.getField("aI")
                             .getFloat(
                                     liveSettings));
+            ticks.clear();
 
             runtime.moduleController()
                     .enable(
