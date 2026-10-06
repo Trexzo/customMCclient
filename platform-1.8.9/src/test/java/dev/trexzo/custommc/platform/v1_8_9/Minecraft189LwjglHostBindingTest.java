@@ -40,6 +40,11 @@ final class Minecraft189LwjglHostBindingTest {
                         .find(
                                 Minecraft189FovModule.ID)
                         != null);
+        assertTrue(
+                runtime.modules()
+                        .find(
+                                Minecraft189NoBobbingModule.ID)
+                        != null);
 
         runtime.close();
 
