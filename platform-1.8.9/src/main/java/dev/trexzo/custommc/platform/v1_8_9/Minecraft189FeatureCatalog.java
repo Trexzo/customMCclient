@@ -40,6 +40,7 @@ public final class Minecraft189FeatureCatalog
     private final ModuleSettingRegistry.Registration yBinding;
     private final Minecraft189ArrayListFeature arrayListFeature;
     private final Minecraft189KeystrokesFeature keystrokesFeature;
+    private final Minecraft189FpsFeature fpsFeature;
     private boolean closed;
 
     private Minecraft189FeatureCatalog(
@@ -58,7 +59,8 @@ public final class Minecraft189FeatureCatalog
             final ModuleSettingRegistry.Registration xBinding,
             final ModuleSettingRegistry.Registration yBinding,
             final Minecraft189ArrayListFeature arrayListFeature,
-            final Minecraft189KeystrokesFeature keystrokesFeature) {
+            final Minecraft189KeystrokesFeature keystrokesFeature,
+            final Minecraft189FpsFeature fpsFeature) {
         this.moduleController = moduleController;
         this.watermark = watermark;
         this.watermarkRegistration = watermarkRegistration;
@@ -75,6 +77,7 @@ public final class Minecraft189FeatureCatalog
         this.yBinding = yBinding;
         this.arrayListFeature = arrayListFeature;
         this.keystrokesFeature = keystrokesFeature;
+        this.fpsFeature = fpsFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -86,6 +89,7 @@ public final class Minecraft189FeatureCatalog
             final SettingRegistry settings,
             final SettingPresentationRegistry settingPresentations,
             final Minecraft189InputState inputState,
+            final Minecraft189FrameRateTracker frameRateTracker,
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
         Objects.requireNonNull(modules, "modules");
@@ -96,6 +100,7 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(settings, "settings");
         Objects.requireNonNull(settingPresentations, "settingPresentations");
         Objects.requireNonNull(inputState, "inputState");
+        Objects.requireNonNull(frameRateTracker, "frameRateTracker");
         Objects.requireNonNull(renderPipeline, "renderPipeline");
         Objects.requireNonNull(hostCallbacks, "hostCallbacks");
 
@@ -113,6 +118,7 @@ public final class Minecraft189FeatureCatalog
         ModuleSettingRegistry.Registration yBinding = null;
         Minecraft189ArrayListFeature arrayListFeature = null;
         Minecraft189KeystrokesFeature keystrokesFeature = null;
+        Minecraft189FpsFeature fpsFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -219,6 +225,18 @@ public final class Minecraft189FeatureCatalog
                             renderPipeline,
                             hostCallbacks);
 
+            fpsFeature =
+                    Minecraft189FpsFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            frameRateTracker,
+                            renderPipeline,
+                            hostCallbacks);
+
             return new Minecraft189FeatureCatalog(
                     moduleController,
                     watermark,
@@ -235,8 +253,10 @@ public final class Minecraft189FeatureCatalog
                     xBinding,
                     yBinding,
                     arrayListFeature,
-                    keystrokesFeature);
+                    keystrokesFeature,
+                    fpsFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(fpsFeature, failure);
             closeQuietly(keystrokesFeature, failure);
             closeQuietly(arrayListFeature, failure);
             closeQuietly(yBinding, failure);
@@ -270,6 +290,11 @@ public final class Minecraft189FeatureCatalog
         return keystrokesFeature.module();
     }
 
+    public Minecraft189FpsModule fps() {
+        requireOpen();
+        return fpsFeature.module();
+    }
+
     public synchronized boolean closed() {
         return closed;
     }
@@ -285,9 +310,17 @@ public final class Minecraft189FeatureCatalog
 
         RuntimeException failure = null;
         try {
-            keystrokesFeature.close();
+            fpsFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = closeFailure;
+        }
+
+        try {
+            keystrokesFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
         }
 
         try {
