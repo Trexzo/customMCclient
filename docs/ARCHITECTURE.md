@@ -467,3 +467,14 @@ M97 derives horizontal movement speed from the same certified post-runTick playe
 The new Visuals module `render.speed` / **Speed** renders `Speed: <value> BPS` with two decimal places only after two live position samples exist. It owns persistent X/Y settings through the same generic settings/presentation/module-binding path as the other HUD modules.
 
 Regression coverage proves a 3-4-5 horizontal displacement in one tick produces `100.00 BPS`, the configured HUD location is respected, baseline/clear states render nothing, non-finite samples are rejected, and executed transformed `runTick` calls feed then clear the same host-owned speed authority.
+
+
+## Live mapped Fullbright
+
+M98 adds the first state-modifying runtime feature. The pinned 1.8.9 mapping authority now includes `GameSettings.gammaSetting` as exact obfuscated field `avh.aJ` (`field_74333_Y`, descriptor `F`). The GameSettings structural verifier requires that field before transformation, and the transformed parent-owned `Minecraft189GuiSettingsAccess` contract exposes only typed gamma get/set alongside the existing GUI-scale/Unicode access.
+
+The canonical LWJGL host binding retains the live transformed GameSettings object long enough to install one **Fullbright** module through the existing host-owned feature catalog. No reflection or secondary Minecraft lookup is introduced.
+
+Enabling Fullbright captures the exact current gamma value and sets a boosted gamma of `16.0F`. Disabling restores the captured value exactly. A later enable captures the then-current value again rather than restoring an obsolete startup value. Feature/catalog teardown disables the module first, so closing the client while Fullbright is enabled also restores the user's prior gamma.
+
+Executable regressions prove the transformed `avh.aJ` getter/setter, canonical startGame installation, `0.35 -> 16.0 -> 0.35` live behavior, fresh capture on repeated enable cycles, and restoration/removal when the feature is closed while enabled.
