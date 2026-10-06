@@ -50,8 +50,20 @@ final class Minecraft189LwjglHostBindingTest {
 
     private static final class FixedSettings
             implements Minecraft189GuiSettingsAccess {
+        private boolean viewBobbing = true;
         private float fov = 70.0F;
         private float gamma = 0.5F;
+
+        @Override
+        public boolean viewBobbing() {
+            return viewBobbing;
+        }
+
+        @Override
+        public void viewBobbing(
+                final boolean value) {
+            viewBobbing = value;
+        }
 
         @Override
         public float fovSetting() {
