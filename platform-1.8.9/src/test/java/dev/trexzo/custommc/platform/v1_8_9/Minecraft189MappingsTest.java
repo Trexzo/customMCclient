@@ -281,6 +281,30 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
+    void gameSettingsShapeGateRejectsMissingGammaField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.GAME_SETTINGS
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.GAME_SETTINGS_GUI_SCALE);
+        addField(
+                writer,
+                Minecraft189Mappings.GAME_SETTINGS_FORCE_UNICODE);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyGameSettings(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: avh.aJ F (gammaSetting)",
+                failure.getMessage());
+    }
+
+    @Test
     void entityShapeGateRejectsMissingPositionField() {
         final ClassWriter writer =
                 writer(
