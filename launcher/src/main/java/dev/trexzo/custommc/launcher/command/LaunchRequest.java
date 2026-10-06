@@ -16,6 +16,7 @@ public final class LaunchRequest {
     private final OperatingSystem operatingSystem;
     private final int minimumMemoryMb;
     private final int maximumMemoryMb;
+    private final LaunchRuntimeOverlay runtimeOverlay;
 
     public LaunchRequest(
             final Path javaExecutable,
@@ -27,6 +28,30 @@ public final class LaunchRequest {
             final OperatingSystem operatingSystem,
             final int minimumMemoryMb,
             final int maximumMemoryMb) {
+        this(
+                javaExecutable,
+                gameDirectory,
+                assetsDirectory,
+                nativeDirectory,
+                template,
+                identity,
+                operatingSystem,
+                minimumMemoryMb,
+                maximumMemoryMb,
+                LaunchRuntimeOverlay.none());
+    }
+
+    public LaunchRequest(
+            final Path javaExecutable,
+            final Path gameDirectory,
+            final Path assetsDirectory,
+            final Path nativeDirectory,
+            final MinecraftLaunchTemplate template,
+            final LaunchIdentity identity,
+            final OperatingSystem operatingSystem,
+            final int minimumMemoryMb,
+            final int maximumMemoryMb,
+            final LaunchRuntimeOverlay runtimeOverlay) {
         if (minimumMemoryMb <= 0) {
             throw new IllegalArgumentException(
                     "minimumMemoryMb must be positive");
@@ -59,6 +84,9 @@ public final class LaunchRequest {
                 "operatingSystem");
         this.minimumMemoryMb = minimumMemoryMb;
         this.maximumMemoryMb = maximumMemoryMb;
+        this.runtimeOverlay = Objects.requireNonNull(
+                runtimeOverlay,
+                "runtimeOverlay");
     }
 
     public Path javaExecutable() {
@@ -95,6 +123,10 @@ public final class LaunchRequest {
 
     public int maximumMemoryMb() {
         return maximumMemoryMb;
+    }
+
+    public LaunchRuntimeOverlay runtimeOverlay() {
+        return runtimeOverlay;
     }
 
     private static Path normalize(

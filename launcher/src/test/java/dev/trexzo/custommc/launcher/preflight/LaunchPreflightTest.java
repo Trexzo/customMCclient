@@ -1,6 +1,7 @@
 package dev.trexzo.custommc.launcher.preflight;
 
 import dev.trexzo.custommc.launcher.command.LaunchIdentity;
+import dev.trexzo.custommc.launcher.command.LaunchRuntimeOverlay;
 import dev.trexzo.custommc.launcher.java.JavaRuntime;
 import dev.trexzo.custommc.launcher.java.JavaRuntimeInspection;
 import dev.trexzo.custommc.launcher.java.JavaRuntimeProbe;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -72,6 +74,116 @@ final class LaunchPreflightTest {
         }
 
         assertFalse(Files.exists(staged));
+    }
+
+
+    @Test
+    void runtimeOverlaySurvivesPreflightIntoFinalCommand()
+            throws Exception {
+        final MinecraftInstallation installation =
+                createInstallation(true);
+        final JavaRuntime javaRuntime =
+                createJavaRuntime();
+        final Path runtimeJar =
+                tempDir.resolve("custom-runtime.jar");
+        Files.write(
+                runtimeJar,
+                new byte[] {9});
+
+        final LaunchRuntimeOverlay overlay =
+                new LaunchRuntimeOverlay(
+                        Collections.singletonList(
+                                runtimeJar),
+                        "custom.bootstrap.Main",
+                        Collections.singletonList(
+                                installation.versionId()));
+
+        final LaunchPreflightRequest request =
+                new LaunchPreflightRequest(
+                        installation,
+                        new RuntimeTarget(
+                                OperatingSystem.LINUX,
+                                CpuArchitecture.X64,
+                                "6.0"),
+                        javaRuntime,
+                        new LaunchIdentity(
+                                "Player",
+                                "uuid",
+                                "secret-token",
+                                "{}",
+                                "mojang"),
+                        tempDir.resolve("game-overlay"),
+                        tempDir.resolve("overlay-staging"),
+                        512,
+                        1024,
+                        overlay);
+
+        try (LaunchPreflightResult result =
+                new LaunchPreflight().prepare(request)) {
+            final java.util.List<String> arguments =
+                    result.command()
+                            .arguments();
+            final int classpathIndex =
+                    arguments.indexOf("-cp") + 1;
+
+            assertTrue(
+                    arguments.get(classpathIndex)
+                            .startsWith(
+                                    runtimeJar.toAbsolutePath()
+                                            .normalize()
+                                            .toString()
+                                            + ":"));
+            assertTrue(
+                    arguments.contains(
+                            "custom.bootstrap.Main"));
+            assertTrue(
+                    arguments.contains(
+                            installation.versionId()));
+        }
+    }
+
+    @Test
+    void missingRuntimeOverlayFailsBeforeNativeStaging()
+            throws Exception {
+        final MinecraftInstallation installation =
+                createInstallation(true);
+        final Path stagingParent =
+                tempDir.resolve(
+                        "missing-overlay-staging");
+
+        final LaunchPreflightRequest request =
+                new LaunchPreflightRequest(
+                        installation,
+                        new RuntimeTarget(
+                                OperatingSystem.LINUX,
+                                CpuArchitecture.X64,
+                                "6.0"),
+                        createJavaRuntime(),
+                        new LaunchIdentity(
+                                "Player",
+                                "uuid",
+                                "",
+                                "{}",
+                                "mojang"),
+                        tempDir.resolve("game"),
+                        stagingParent,
+                        512,
+                        1024,
+                        new LaunchRuntimeOverlay(
+                                Collections.singletonList(
+                                        tempDir.resolve(
+                                                "missing-runtime.jar")),
+                                "custom.bootstrap.Main",
+                                Collections.emptyList()));
+
+        assertThrows(
+                LaunchPreflightException.class,
+                () -> new LaunchPreflight()
+                        .prepare(request));
+
+        assertFalse(
+                Files.exists(
+                        stagingParent));
     }
 
     @Test

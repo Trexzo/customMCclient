@@ -13,6 +13,7 @@ import dev.trexzo.custommc.launcher.runtime.InstallationInspection;
 import dev.trexzo.custommc.launcher.runtime.MinecraftInstallationProbe;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
 
@@ -84,6 +85,9 @@ public final class LaunchPreflight {
                         "artifact integrity gate failed");
             }
 
+            validateRuntimeOverlay(
+                    request.runtimeOverlay());
+
             nativeDirectory = nativeStager.stage(
                     template.nativeArchives(),
                     request.nativeStagingParent());
@@ -101,7 +105,8 @@ public final class LaunchPreflight {
                             request.runtimeTarget()
                                     .operatingSystem(),
                             request.minimumMemoryMb(),
-                            request.maximumMemoryMb());
+                            request.maximumMemoryMb(),
+                            request.runtimeOverlay());
 
             final LaunchCommand command =
                     commandBuilder.build(launchRequest);
@@ -129,6 +134,19 @@ public final class LaunchPreflight {
                     nativeDirectory,
                     failure);
             throw failure;
+        }
+    }
+
+    private static void validateRuntimeOverlay(
+            final dev.trexzo.custommc.launcher.command.LaunchRuntimeOverlay overlay)
+            throws LaunchPreflightException {
+        for (Path entry : overlay.classpathPrefix()) {
+            if (!Files.isRegularFile(entry)
+                    && !Files.isDirectory(entry)) {
+                throw new LaunchPreflightException(
+                        "runtime overlay classpath entry is missing: "
+                                + entry);
+            }
         }
     }
 

@@ -3,6 +3,7 @@ package dev.trexzo.custommc.launcher.command;
 import dev.trexzo.custommc.launcher.metadata.ResolvedArtifact;
 import dev.trexzo.custommc.launcher.runtime.OperatingSystem;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -31,6 +32,9 @@ public final class JvmLaunchCommandBuilder {
                         replacements,
                         sensitivePlaceholders);
 
+        final LaunchRuntimeOverlay overlay =
+                request.runtimeOverlay();
+
         final List<String> command =
                 new ArrayList<String>();
         command.add(
@@ -49,7 +53,11 @@ public final class JvmLaunchCommandBuilder {
         command.add("-cp");
         command.add(classpath(request));
         command.add(
-                request.template().mainClass());
+                overlay.mainClass(
+                        request.template()
+                                .mainClass()));
+        command.addAll(
+                overlay.mainArgumentsPrefix());
 
         final int gameArgumentOffset =
                 command.size();
@@ -117,14 +125,34 @@ public final class JvmLaunchCommandBuilder {
 
         final StringBuilder classpath =
                 new StringBuilder();
+
+        for (Path path
+                : request.runtimeOverlay()
+                .classpathPrefix()) {
+            appendClasspath(
+                    classpath,
+                    separator,
+                    path.toString());
+        }
+
         for (ResolvedArtifact artifact
                 : request.template().classpath()) {
-            if (classpath.length() > 0) {
-                classpath.append(separator);
-            }
-            classpath.append(
+            appendClasspath(
+                    classpath,
+                    separator,
                     artifact.path().toString());
         }
+
         return classpath.toString();
+    }
+
+    private static void appendClasspath(
+            final StringBuilder classpath,
+            final String separator,
+            final String entry) {
+        if (classpath.length() > 0) {
+            classpath.append(separator);
+        }
+        classpath.append(entry);
     }
 }
