@@ -327,6 +327,9 @@ public final class Minecraft189BootstrapRuntime
                 Math.addExact(
                         nextFrameIndex,
                         1L);
+        hostRuntime.frameStarted(
+                currentFrameIndex,
+                partialTicks);
     }
 
     synchronized void renderHudFrame(
