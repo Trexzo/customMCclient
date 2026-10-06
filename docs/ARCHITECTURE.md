@@ -127,7 +127,7 @@ M66 intentionally has no global runtime holder and does not yet install ClickGUI
 
 ## Canonical Minecraft 1.8.9 runtime bundle
 
-M67 gives the launcher one canonical bundle definition for the executable M64-M66 runtime path. `Minecraft189RuntimeBundle` owns exactly four normalized, distinct CustomMC artifacts in classpath order:
+M67 originally gave the launcher one canonical bundle definition for the executable M64-M66 runtime path. At that milestone, `Minecraft189RuntimeBundle` owned exactly four normalized, distinct CustomMC artifacts in classpath order:
 
 1. `bootstrap.jar`;
 2. `core.jar`;
@@ -136,7 +136,7 @@ M67 gives the launcher one canonical bundle definition for the executable M64-M6
 
 The bundle fixes the concrete initializer to `dev.trexzo.custommc.platform.v1_8_9.Minecraft189BootstrapInitializer` and produces the initialized M65 overlay for the resolved Mojang main class. `fromDirectory(...)` maps the stable assembly filenames directly, avoiding launch-time filename/version reconstruction.
 
-The root `assembleRuntimeOverlay` Gradle task builds those four module jars and copies only those artifacts into `build/runtime-overlay` using the stable names above. `assembleRuntimeOverlay` is a Gradle `Sync` task, so its destination is reconciled to exactly those four stable jar names on every run; `verifyFoundation` depends on that assembly task.
+At M67, the root `assembleRuntimeOverlay` Gradle task built those four module jars and reconciled `build/runtime-overlay` to those four stable names. M77 extends the canonical runtime shape with the separately versioned ASM runtime dependency described below.
 
 M67 also corrects the top-level verification gate to include `:platform-1.8.9:check`. Platform adapter tests are therefore explicitly part of the same Ubuntu + Windows authority gate as bootstrap, core, platform API and launcher tests.
 
@@ -159,7 +159,7 @@ M69 adds `Minecraft189LaunchRequest` and `Minecraft189Launcher` as the first one
 
 M71 composes the existing Gradle application distribution with the M67 canonical runtime overlay. `assembleLauncherDistribution` emits `build/custommc-distribution` without rebuilding or repackaging the underlying jars: launcher scripts/libs come from `:launcher:installDist`, while `runtime-overlay/` comes from the certified `assembleRuntimeOverlay` task.
 
-`verifyLauncherDistribution` is part of `verifyFoundation` and requires both platform launcher scripts, a non-empty launcher `lib/` directory, the README, and exactly the four stable runtime-overlay jar names. This makes the final handoff one reproducible directory rather than a set of separately located build outputs.
+`verifyLauncherDistribution` is part of `verifyFoundation` and requires both platform launcher scripts, a non-empty launcher `lib/` directory, the README, and the exact canonical runtime-overlay jar set. M71 initially certified four runtime jars; M77 extends the current set to five. This makes the final handoff one reproducible directory rather than a set of separately located build outputs.
 
 
 ## Bootstrap-owned Minecraft 1.8.9 host runtime
@@ -209,3 +209,14 @@ Claimed classes are read from the target loader's own classpath URLs, transforme
 Regression coverage does not mock class definition: it loads a second copy of a real test class through the child loader, rewrites the classfile UTF-8 constant `original` to the equal-length `mutated!`, and proves the method executed by the JVM returns the transformed value. The same coverage proves unclaimed classes retain parent identity and a claimed missing class cannot bypass transformation.
 
 M76 still contains no Minecraft-specific bytecode edits. The next 1.8.9 milestone can implement a narrowly scoped transformer and return this loader from the M75 runtime-provider contract without using a Java agent, JNI or JVMTI injection.
+
+
+## First Minecraft class transformation
+
+M77 turns the M75-M76 loader path on for the real stable Minecraft entry class. The canonical runtime bundle now contains five distinct artifacts in classpath order: `bootstrap.jar`, `core.jar`, `platform-api.jar`, `asm.jar`, and `platform-1.8.9.jar`. ASM is an explicit runtime artifact rather than an undeclared transitive dependency, and both runtime-overlay and launcher-distribution verification require the five-file shape.
+
+`Minecraft189BootstrapRuntime` now implements `BootstrapTargetClassLoaderProvider` and lazily owns one M76 `TransformingTargetClassLoader`. The loader uses `Minecraft189ClassTransformer`, whose first deliberately narrow target is only `net.minecraft.client.main.Main`. At the beginning of its exact static `main(String[])` method, the transformer injects a call to parent-owned `Minecraft189RuntimeBridge.targetMainEntered()`.
+
+This is the first production Minecraft-specific bytecode edit in the project. It does not depend on MCP/deobfuscated Minecraft classes, guessed obfuscated names, a Java agent, JNI or JVMTI injection. Regression coverage loads a Minecraft-shaped target fixture through the child loader and proves the injected callback crosses back into the active parent-owned bootstrap runtime before the original main body executes.
+
+M77 does not yet patch the obfuscated game loop, renderer, mouse or keyboard classes. Those callback sites remain the next mapping-sensitive layer.
