@@ -135,8 +135,8 @@ public final class LaunchProcessSession
             if (cleaned) {
                 return;
             }
+            preflight.close();
             cleaned = true;
         }
-        preflight.close();
     }
 }
