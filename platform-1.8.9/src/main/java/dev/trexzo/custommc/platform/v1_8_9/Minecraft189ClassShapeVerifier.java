@@ -18,6 +18,7 @@ public final class Minecraft189ClassShapeVerifier {
                 classBytes,
                 Minecraft189Mappings.MINECRAFT,
                 new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.MINECRAFT_PLAYER,
                         Minecraft189Mappings.MINECRAFT_FONT_RENDERER,
                         Minecraft189Mappings.MINECRAFT_ENTITY_RENDERER,
                         Minecraft189Mappings.MINECRAFT_INGAME_GUI,
@@ -77,6 +78,19 @@ public final class Minecraft189ClassShapeVerifier {
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.GUI_INGAME_RENDER_OVERLAY
                 });
+    }
+
+    public static void verifyEntity(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.ENTITY,
+                new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.ENTITY_POS_X,
+                        Minecraft189Mappings.ENTITY_POS_Y,
+                        Minecraft189Mappings.ENTITY_POS_Z
+                },
+                new Minecraft189Mappings.MappedMethod[0]);
     }
 
     public static void verifyEntityRenderer(
