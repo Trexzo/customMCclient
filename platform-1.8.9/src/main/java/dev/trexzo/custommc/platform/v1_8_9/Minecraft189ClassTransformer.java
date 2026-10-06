@@ -50,6 +50,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189FontRendererAccess";
     private static final String FONT_RENDERER_ACCESS_DESCRIPTOR =
             "L" + FONT_RENDERER_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_POSITION_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerPositionAccess";
+    private static final String PLAYER_POSITION_ACCESS_DESCRIPTOR =
+            "L" + PLAYER_POSITION_ACCESS_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -237,6 +242,25 @@ public final class Minecraft189ClassTransformer
                         Opcodes.ASM9,
                         writer) {
                     @Override
+                    public void visit(
+                            final int version,
+                            final int access,
+                            final String name,
+                            final String signature,
+                            final String superName,
+                            final String[] interfaces) {
+                        super.visit(
+                                version,
+                                access,
+                                name,
+                                signature,
+                                superName,
+                                withInterface(
+                                        interfaces,
+                                        PLAYER_POSITION_ACCESS_INTERNAL_NAME));
+                    }
+
+                    @Override
                     public MethodVisitor visitMethod(
                             final int access,
                             final String name,
@@ -369,6 +393,24 @@ public final class Minecraft189ClassTransformer
 
                         return delegate;
                     }
+
+                    @Override
+                    public void visitEnd() {
+                        addPlayerPresentMethod(cv);
+                        addPlayerCoordinateGetter(
+                                cv,
+                                "playerX",
+                                Minecraft189Mappings.ENTITY_POS_X);
+                        addPlayerCoordinateGetter(
+                                cv,
+                                "playerY",
+                                Minecraft189Mappings.ENTITY_POS_Y);
+                        addPlayerCoordinateGetter(
+                                cv,
+                                "playerZ",
+                                Minecraft189Mappings.ENTITY_POS_Z);
+                        super.visitEnd();
+                    }
                 },
                 0);
 
@@ -429,6 +471,13 @@ public final class Minecraft189ClassTransformer
                 Opcodes.CHECKCAST,
                 FONT_RENDERER_ACCESS_INTERNAL_NAME);
 
+        visitor.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        visitor.visitTypeInsn(
+                Opcodes.CHECKCAST,
+                PLAYER_POSITION_ACCESS_INTERNAL_NAME);
+
         visitor.visitMethodInsn(
                 Opcodes.INVOKESTATIC,
                 HOST_BINDING_INTERNAL_NAME,
@@ -436,6 +485,7 @@ public final class Minecraft189ClassTransformer
                 "("
                         + GUI_SETTINGS_ACCESS_DESCRIPTOR
                         + FONT_RENDERER_ACCESS_DESCRIPTOR
+                        + PLAYER_POSITION_ACCESS_DESCRIPTOR
                         + ")"
                         + HOST_RUNTIME_DESCRIPTOR,
                 false);
@@ -828,6 +878,75 @@ public final class Minecraft189ClassTransformer
                     "mapped EntityRenderer updateCameraAndRender method was not patchable");
         }
         return writer.toByteArray();
+    }
+
+    private static void addPlayerPresentMethod(
+            final ClassVisitor visitor) {
+        final Minecraft189Mappings.MappedField player =
+                Minecraft189Mappings.MINECRAFT_THE_PLAYER;
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "playerPresent",
+                        "()Z",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                player.owner().obfuscatedInternalName(),
+                player.obfuscatedName(),
+                player.descriptor());
+        method.visitMethodInsn(
+                Opcodes.INVOKESTATIC,
+                "java/util/Objects",
+                "nonNull",
+                "(Ljava/lang/Object;)Z",
+                false);
+        method.visitInsn(
+                Opcodes.IRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addPlayerCoordinateGetter(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedField positionField) {
+        final Minecraft189Mappings.MappedField player =
+                Minecraft189Mappings.MINECRAFT_THE_PLAYER;
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()D",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                player.owner().obfuscatedInternalName(),
+                player.obfuscatedName(),
+                player.descriptor());
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                positionField.owner().obfuscatedInternalName(),
+                positionField.obfuscatedName(),
+                positionField.descriptor());
+        method.visitInsn(
+                Opcodes.DRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
     }
 
     private static void addIntFieldGetter(
