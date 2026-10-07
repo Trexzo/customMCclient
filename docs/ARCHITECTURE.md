@@ -1311,3 +1311,15 @@ The frozen mapping source already recorded by `Minecraft189Mappings` resolves th
 The authority is now represented as `Minecraft189Mappings.ENTITY_ROTATION_PITCH`, included in the Entity class-shape gate, covered by an exact mapping assertion, and guarded by a dedicated missing-field failure regression. The transformed-host Entity fixture also contains exact `pk.z : F`, so future pitch consumers cannot silently rely on a synthetic host that omits the real mapped field.
 
 No runtime feature writes or reads pitch in M186; this milestone establishes mapping authority only.
+
+## Live rotation pitch bridge
+
+M187 promotes the M186 `rotationPitch` mapping into the same loader-safe primitive snapshot boundary already used for yaw.
+
+The transformed 1.8.9 Entity implementation now exposes `customMcRotationPitch()` through the parent-owned `Minecraft189PlayerRotationAccess` interface. `Minecraft189HostRuntime.playerRotation()` samples yaw and pitch together in one call, and `Minecraft189PlayerRotationState.Snapshot` carries both values atomically.
+
+No child-loader Entity instance is retained by parent runtime code. Only primitive `float` yaw/pitch values cross the boundary. Non-finite yaw or pitch values are rejected before state mutation, and `clear()` resets availability plus both primitive values.
+
+Focused state coverage proves initial unavailable state, atomic yaw/pitch updates, rejection of non-finite values without corrupting the prior snapshot, and clear semantics. Transformed-host coverage proves exact mapped `pk.y` / `pk.z` values reach the parent-owned snapshot during the normal `Minecraft.runTick()` path.
+
+M187 is read-only authority plumbing; feature-level rotation mutation remains a later milestone.
