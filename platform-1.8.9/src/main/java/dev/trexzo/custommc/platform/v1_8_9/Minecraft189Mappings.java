@@ -276,6 +276,13 @@ public final class Minecraft189Mappings {
                     "F",
                     "field_70138_W",
                     "stepHeight");
+    public static final MappedField ENTITY_FALL_DISTANCE =
+            new MappedField(
+                    ENTITY,
+                    "O",
+                    "F",
+                    "field_70143_R",
+                    "fallDistance");
     public static final MappedField ENTITY_PLAYER_SP_MOVEMENT_INPUT =
             new MappedField(
                     ENTITY_PLAYER_SP,

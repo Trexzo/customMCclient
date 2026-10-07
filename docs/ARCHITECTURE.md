@@ -975,3 +975,11 @@ M151 consumes certified M150 `Entity.stepHeight = pk.S F / field_70138_W` throug
 
 Focused coverage verifies registration, persistence, configured height changes, disable restoration, null safety and teardown. Transformed-host coverage proves the inherited `bew -> ... -> pk` boundary reads and writes exact synthetic `pk.S`, including disabled restoration to `0.6F`, enabled `1.75F`, and restoration after disable.
 
+## Fall-distance mapping authority
+
+M152 pins exact Minecraft 1.8.9 Entity fall-distance authority: `Entity.fallDistance = pk.O F` / Searge `field_70143_R`.
+
+The existing Entity class-shape gate now requires this exact float field alongside position, rotation, dimension, movement-state and step-height authority. Mapping regression rejects a missing fall-distance field explicitly, and transformed-host fixture parity now carries concrete synthetic `pk.O F` state for the consumer milestone.
+
+This milestone is authority-only. It does not reset fall distance or register a No Fall module.
+
