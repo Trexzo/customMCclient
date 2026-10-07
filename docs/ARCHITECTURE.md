@@ -1415,3 +1415,11 @@ The module is edge-triggered. On a fresh physical left-button press, if the capt
 Sprint ownership is explicit: **W-Tap > Auto Sprint** on the reset tick. The host skips Auto Sprint only when W-Tap actually writes. On the next held tick W-Tap yields ownership, so Auto Sprint can restore sprint from the newly captured non-sprinting snapshot. This produces a deterministic one-tick sprint reset without adding any Minecraft mapping or transformer injection.
 
 Focused coverage proves fresh-press triggering, held-button suppression, release rearming, non-sprinting no-op and lifecycle teardown. Transformed-host coverage proves exact mapped sprint reset on the fresh LMB tick followed by Auto Sprint restoration on the next held tick.
+
+## W-Tap ground-only mode
+
+M198 extends **Combat → W-Tap** with persistent BOOLEAN setting `combat.wTap.requireGround`, presented as **Ground Only** and defaulting to `false`. The default preserves M197 exactly.
+
+When enabled, a fresh physical LMB press is consumed normally but only writes sprint `false` when the captured movement snapshot reports `onGround=true`. An airborne press therefore does not suddenly fire on landing while the same button remains held; release is still required to rearm the next edge.
+
+No new Minecraft mapping or transformer hook is introduced. Focused coverage proves default parity, airborne suppression, held-button non-retrigger after landing, release rearm, grounded reset and teardown. Transformed-host coverage proves the same behavior against exact mapped `Entity.onGround` and sprint state while Auto Sprint remains enabled.
