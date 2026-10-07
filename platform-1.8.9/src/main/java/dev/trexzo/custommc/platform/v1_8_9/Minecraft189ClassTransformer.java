@@ -66,6 +66,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerDimensionAccess";
     private static final String PLAYER_DIMENSION_ACCESS_DESCRIPTOR =
             "L" + PLAYER_DIMENSION_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_MOVEMENT_STATE_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerMovementStateAccess";
+    private static final String PLAYER_MOVEMENT_STATE_ACCESS_DESCRIPTOR =
+            "L" + PLAYER_MOVEMENT_STATE_ACCESS_INTERNAL_NAME + ";";
     private static final String PLAYER_HEALTH_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189PlayerHealthAccess";
@@ -427,6 +432,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedDimension =
                 new boolean[]{false};
+        final boolean[] injectedMovementState =
+                new boolean[]{false};
         final boolean[] injectedHealth =
                 new boolean[]{false};
         final boolean[] injectedArmor =
@@ -599,6 +606,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedDimension[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_MOVEMENT_STATE_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerMovementState",
+                                                "("
+                                                        + PLAYER_MOVEMENT_STATE_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedMovementState[0] = true;
 
                                         super.visitVarInsn(
                                                 Opcodes.ALOAD,
@@ -930,6 +959,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedPosition[0]
                 || !injectedRotation[0]
                 || !injectedDimension[0]
+                || !injectedMovementState[0]
                 || !injectedHealth[0]
                 || !injectedArmor[0]
                 || !injectedHunger[0]
@@ -1452,10 +1482,12 @@ public final class Minecraft189ClassTransformer
                                 withInterface(
                                         withInterface(
                                                 withInterface(
-                                                        interfaces,
-                                                        PLAYER_POSITION_ACCESS_INTERNAL_NAME),
-                                                PLAYER_ROTATION_ACCESS_INTERNAL_NAME),
-                                        PLAYER_DIMENSION_ACCESS_INTERNAL_NAME));
+                                                        withInterface(
+                                                                interfaces,
+                                                                PLAYER_POSITION_ACCESS_INTERNAL_NAME),
+                                                        PLAYER_ROTATION_ACCESS_INTERNAL_NAME),
+                                                PLAYER_DIMENSION_ACCESS_INTERNAL_NAME),
+                                        PLAYER_MOVEMENT_STATE_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1480,6 +1512,18 @@ public final class Minecraft189ClassTransformer
                                 cv,
                                 "customMcDimension",
                                 Minecraft189Mappings.ENTITY_DIMENSION);
+                        addBooleanFieldGetter(
+                                cv,
+                                "customMcOnGround",
+                                Minecraft189Mappings.ENTITY_ON_GROUND);
+                        addBooleanMethodDelegate(
+                                cv,
+                                "customMcSneaking",
+                                Minecraft189Mappings.ENTITY_IS_SNEAKING);
+                        addBooleanMethodDelegate(
+                                cv,
+                                "customMcSprinting",
+                                Minecraft189Mappings.ENTITY_IS_SPRINTING);
                         super.visitEnd();
                     }
                 },
