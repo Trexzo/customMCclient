@@ -70,6 +70,16 @@ final class Minecraft189NoSlowModuleTest {
                     ModuleState.DISABLED,
                     controller.stateOf(
                             Minecraft189NoSlowModule.ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189NoSlowModule.SPEED_PERCENT_SETTING_ID));
+            assertEquals(
+                    Minecraft189NoSlowModule.DEFAULT_SPEED_PERCENT,
+                    runtime.featureCatalog()
+                            .noSlow()
+                            .speedPercentSetting()
+                            .get()
+                            .intValue());
             assertEquals(
                     0.2F,
                     runtime.adjustNoSlowMovement(
@@ -96,6 +106,22 @@ final class Minecraft189NoSlowModuleTest {
                             -0.15F),
                     0.000001F);
 
+            runtime.featureCatalog()
+                    .noSlow()
+                    .speedPercentSetting()
+                    .set(
+                            60);
+            assertEquals(
+                    0.6F,
+                    runtime.adjustNoSlowMovement(
+                            0.2F),
+                    0.000001F);
+            assertEquals(
+                    -0.45F,
+                    runtime.adjustNoSlowMovement(
+                            -0.15F),
+                    0.000001F);
+
             controller.disable(
                     Minecraft189NoSlowModule.ID);
             assertEquals(
@@ -109,6 +135,9 @@ final class Minecraft189NoSlowModuleTest {
         assertNull(
                 modules.find(
                         Minecraft189NoSlowModule.ID));
+        assertNull(
+                settings.find(
+                        Minecraft189NoSlowModule.SPEED_PERCENT_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));

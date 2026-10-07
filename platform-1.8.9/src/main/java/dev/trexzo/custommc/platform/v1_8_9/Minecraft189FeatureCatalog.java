@@ -507,7 +507,10 @@ public final class Minecraft189FeatureCatalog
                     Minecraft189NoSlowFeature.install(
                             modules,
                             moduleController,
-                            presentations);
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             stepFeature =
                     Minecraft189StepFeature.install(

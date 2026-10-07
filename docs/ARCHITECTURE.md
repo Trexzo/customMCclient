@@ -1232,3 +1232,13 @@ M179 extends **Combat → No Hit Delay** without introducing a new Minecraft map
 `combat.noHitDelay.delay` is now a persistent INTEGER setting with default `0`, range `0..10`, and step `1`. The default preserves the previous No Hit Delay behavior exactly: positive counters are clamped to zero. A nonzero configured value clamps only counters above that threshold, while equal, lower, zero, and negative counters are preserved.
 
 The setting uses the normal registry, presentation, module-binding, and teardown lifecycle. Focused coverage proves the unchanged zero-delay default, a configured three-tick cap, preservation below the cap, disabled behavior, and teardown. Transformed-host coverage proves the same behavior against the exact mapped Minecraft left-click counter through `runTick()`.
+
+## Configurable No Slow speed
+
+M180 extends **Movement → No Slow** without introducing a new Minecraft mapping. The existing certified item-use movement-input adjustment remains authoritative.
+
+`movement.noSlow.speedPercent` is a persistent INTEGER setting with default `100`, range `20..100`, and step `5`. Vanilla item use reduces movement input to 20% before the module's adjustment, so 20% leaves that vanilla slowdown unchanged while 100% applies the existing ×5 restoration and preserves the previous full NoSlow behavior exactly.
+
+Intermediate values scale the already-slowed movement deterministically: for example 60% turns a vanilla 0.20 input into 0.60, and -0.15 into -0.45. Disabled behavior remains a pass-through.
+
+The setting uses the normal registry, presentation, module-binding, and teardown lifecycle. Focused coverage proves the unchanged 100% default, 60% partial restoration, disabled pass-through, and teardown. Transformed-host coverage proves the same values through the exact mapped item-use `onLivingUpdate` movement-input path.
