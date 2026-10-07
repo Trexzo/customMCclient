@@ -507,6 +507,10 @@ final class Minecraft189MappedHostTransformationTest {
                     .setBoolean(
                             player,
                             false);
+            playerClass.getField("S")
+                    .setFloat(
+                            player,
+                            1.25F);
             playerClass.getField("sneaking")
                     .setBoolean(
                             player,
@@ -817,6 +821,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189StepModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189AutoSneakModule.ID)
                             != null);
             assertTrue(
@@ -964,6 +973,12 @@ final class Minecraft189MappedHostTransformationTest {
                     minecraftClass.getField("clickMouseCalls")
                             .getInt(
                                     minecraft));
+            assertEquals(
+                    Minecraft189StepModule.VANILLA_STEP_HEIGHT,
+                    playerClass.getField("S")
+                            .getFloat(
+                                    player),
+                    0.000001F);
 
             final Minecraft189PlayerPositionState.Snapshot position =
                     runtime.requireHostRuntime()
@@ -1147,6 +1162,43 @@ final class Minecraft189MappedHostTransformationTest {
                             .featureCatalog()
                             .autoJump()
                             .active());
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189StepModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .step()
+                            .active());
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .step()
+                    .heightPercentSetting()
+                    .set(175);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    1.75F,
+                    playerClass.getField("S")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189StepModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .step()
+                            .active());
+            runTick.invoke(minecraft);
+            assertEquals(
+                    Minecraft189StepModule.VANILLA_STEP_HEIGHT,
+                    playerClass.getField("S")
+                            .getFloat(
+                                    player),
+                    0.000001F);
             playerClass.getField("C")
                     .setBoolean(
                             player,

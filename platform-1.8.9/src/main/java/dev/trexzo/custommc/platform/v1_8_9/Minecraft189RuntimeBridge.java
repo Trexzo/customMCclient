@@ -127,6 +127,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerStepControl(
+            final Minecraft189PlayerStepControl player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerStepControl(player);
+        }
+    }
+
     public static synchronized void playerHealth(
             final Minecraft189PlayerHealthAccess player) {
         final Minecraft189HostRuntime host =
