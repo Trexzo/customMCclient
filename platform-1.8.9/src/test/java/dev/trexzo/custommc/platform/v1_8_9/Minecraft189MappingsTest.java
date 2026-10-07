@@ -545,9 +545,6 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.MINECRAFT_PLAYER);
         addField(
                 writer,
-                Minecraft189Mappings.MINECRAFT_WORLD);
-        addField(
-                writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
         addField(
                 writer,
@@ -1268,6 +1265,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_PLAYER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_WORLD);
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
