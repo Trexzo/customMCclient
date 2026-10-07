@@ -1371,3 +1371,13 @@ M192 extends **Combat → Jitter** with independent persistent BOOLEAN controls 
 `combat.jitter.yawEnabled` and `combat.jitter.pitchEnabled` both default to `true`, preserving M191 behavior exactly. Disabling one axis leaves that mapped primitive untouched while the other axis continues using the configured amplitude, cadence and activation mode. Disabling both axes makes Jitter a no-op and resets cadence/phase so the next re-enabled axis starts from the deterministic positive phase.
 
 No new Minecraft mapping, transformer injection or child-loader object retention is introduced. Focused coverage proves yaw-only, pitch-only, both-disabled reset behavior and teardown. Transformed-host coverage proves pitch-only operation leaves exact mapped `pk.y` unchanged while writing exact mapped `pk.z`.
+
+## Mapped Spin
+
+M193 adds **Combat → Spin** on the certified M187/M188 rotation snapshot/control bridge. No new Minecraft mapping or transformer injection is introduced.
+
+`combat.spin.yawSpeed` is a persistent DOUBLE setting with default `20.0`, range `1.0..180.0`, and UI step `1.0`. While enabled, each eligible rotation callback adds the configured yaw delta and wraps the result into `[-180, 180)`; pitch is never written.
+
+Rotation ownership is explicit: **Spin > Jitter**. If Spin writes yaw on a tick, Jitter is sent through its reset path instead of becoming a second writer. Disabling Spin immediately releases that ownership and Jitter resumes from its deterministic positive phase on the next eligible tick.
+
+Focused coverage proves enable/disable behavior, configurable yaw speed, wraparound, pitch preservation, lifecycle and setting teardown. Transformed-host coverage proves exact mapped `pk.y` mutation, exact `pk.z` preservation, and Spin-over-Jitter precedence through the normal `Minecraft.runTick()` path.
