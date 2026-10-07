@@ -118,6 +118,30 @@ public final class Minecraft189RuntimeBridge {
                         slowedValue);
     }
 
+    public static synchronized double adjustVelocityHorizontal(
+            final double before,
+            final double after) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        return host == null
+                ? after
+                : host.adjustVelocityHorizontal(
+                        before,
+                        after);
+    }
+
+    public static synchronized double adjustVelocityVertical(
+            final double before,
+            final double after) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        return host == null
+                ? after
+                : host.adjustVelocityVertical(
+                        before,
+                        after);
+    }
+
     public static synchronized void playerJumpControl(
             final Minecraft189PlayerJumpControl player) {
         final Minecraft189HostRuntime host =
