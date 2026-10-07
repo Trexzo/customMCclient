@@ -1523,3 +1523,15 @@ The solver follows the already-certified Minecraft yaw convention used by Direct
 Host runtime invalidates the rotation solution whenever local position or world positions are resampled, and recomputes it only after M207 has produced a current valid target. The transformed-host fixture proves the remote player at (130.0, 65.25, -40.0) from local (123.25, 64.5, -42.75) yields yaw approximately -67.833654 and pitch approximately -5.875010.
 
 M208 is intentionally data-only. It does not own `Entity.rotationYaw` / `rotationPitch`, smooth angles, gate on mouse buttons, enforce FOV/range, test visibility, or attack. Those remain later module milestones after M207 promotion recovers.
+
+## Basic Aim Assist rotation ownership
+
+M209 turns the certified M207/M208 target pipeline into the first functional target-aware combat module: **Combat → Aim Assist** (`combat.aimAssist`). The module has deliberately narrow first-slice behavior: while enabled and physical LMB is held, it owns the player rotation tick whenever a certified M208 target-rotation solution is available, writing the exact desired yaw and pitch through the already-certified `Minecraft189PlayerRotationControl`. No new Minecraft mapping or transformer hook is introduced.
+
+Rotation ownership is explicit: **Spin > Aim Assist > Jitter**. Spin retains highest priority. When Aim Assist is eligible it owns the tick even if the player is already aligned, so Jitter cannot perturb an acquired target. If Aim Assist is disabled, LMB is released or no target solution is available, Jitter retains its existing fallback behavior.
+
+M209 also resolves the hook-order boundary required by a real rotation consumer. Minecraft tick instrumentation samples local position before rotation, but world entity snapshots rebuild later in the tick. The M208 target-rotation solution is therefore treated as a coherent one-tick latch: a non-null local-position resample clears the derived nearest-target state but preserves the prior complete target-rotation solution long enough for the immediately following rotation hook to consume it. World-position resampling later in the tick clears that latch, and world-kind publication rebuilds the complete M207/M208 chain for the next tick. A null local player still clears it immediately. This favors one-tick latency over mixed-tick target data.
+
+Focused coverage proves disabled/no-hold/no-target gates, exact yaw/pitch writes, tick ownership while already aligned and lifecycle teardown. The transformed-host proof enables both Aim Assist and Jitter and proves held Aim Assist writes the exact certified target angles without the configured Jitter perturbation; releasing LMB yields and leaves rotation untouched.
+
+M209 intentionally has no smoothing, range limit, FOV limit, visibility/raycast gate, team/name filter or automatic attack. Those remain separate reviewable milestones.
