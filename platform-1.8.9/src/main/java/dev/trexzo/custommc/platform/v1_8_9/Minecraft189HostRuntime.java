@@ -438,11 +438,25 @@ public final class Minecraft189HostRuntime
         requireOpen();
         if (player == null) {
             playerRotationState.clear();
+            featureCatalog.jitter()
+                    .apply(
+                            null,
+                            null,
+                            false);
             return;
         }
+
         playerRotationState.update(
                 player.customMcRotationYaw(),
                 player.customMcRotationPitch());
+        featureCatalog.jitter()
+                .apply(
+                        player instanceof Minecraft189PlayerRotationControl
+                                ? (Minecraft189PlayerRotationControl) player
+                                : null,
+                        playerRotationState.snapshot(),
+                        inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.LEFT_BUTTON));
     }
 
     void playerDimension(
