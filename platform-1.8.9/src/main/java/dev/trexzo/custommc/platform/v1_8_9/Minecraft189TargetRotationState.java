@@ -5,6 +5,7 @@ public final class Minecraft189TargetRotationState {
     private int entityIndex = -1;
     private float yaw;
     private float pitch;
+    private double distanceSquared;
 
     public synchronized void update(
             final Minecraft189PlayerPositionState.Snapshot local,
@@ -62,10 +63,19 @@ public final class Minecraft189TargetRotationState {
             return;
         }
 
+        final double nextDistanceSquared =
+                target.distanceSquared();
+        if (!finite(nextDistanceSquared)
+                || nextDistanceSquared < 0.0D) {
+            clear();
+            return;
+        }
+
         entityIndex =
                 target.entityIndex();
         yaw = (float) nextYaw;
         pitch = (float) nextPitch;
+        distanceSquared = nextDistanceSquared;
         available = true;
     }
 
@@ -74,6 +84,7 @@ public final class Minecraft189TargetRotationState {
         entityIndex = -1;
         yaw = 0.0F;
         pitch = 0.0F;
+        distanceSquared = 0.0D;
     }
 
     public synchronized Snapshot snapshot() {
@@ -81,7 +92,8 @@ public final class Minecraft189TargetRotationState {
                 available,
                 entityIndex,
                 yaw,
-                pitch);
+                pitch,
+                distanceSquared);
     }
 
     private static double normalizeYaw(
@@ -107,16 +119,19 @@ public final class Minecraft189TargetRotationState {
         private final int entityIndex;
         private final float yaw;
         private final float pitch;
+        private final double distanceSquared;
 
         private Snapshot(
                 final boolean available,
                 final int entityIndex,
                 final float yaw,
-                final float pitch) {
+                final float pitch,
+                final double distanceSquared) {
             this.available = available;
             this.entityIndex = entityIndex;
             this.yaw = yaw;
             this.pitch = pitch;
+            this.distanceSquared = distanceSquared;
         }
 
         public boolean available() {
@@ -133,6 +148,15 @@ public final class Minecraft189TargetRotationState {
 
         public float pitch() {
             return pitch;
+        }
+
+        public double distanceSquared() {
+            return distanceSquared;
+        }
+
+        public double distance() {
+            return Math.sqrt(
+                    distanceSquared);
         }
     }
 }

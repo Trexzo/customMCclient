@@ -14,6 +14,8 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.pitchSpeed";
     public static final String REQUIRE_HOLD_SETTING_ID =
             "combat.aimAssist.requireHold";
+    public static final String MAX_DISTANCE_SETTING_ID =
+            "combat.aimAssist.maxDistance";
     public static final double DEFAULT_YAW_SPEED =
             180.0D;
     public static final double DEFAULT_PITCH_SPEED =
@@ -22,6 +24,12 @@ public final class Minecraft189AimAssistModule
             0.1D;
     public static final double MAXIMUM_SPEED =
             180.0D;
+    public static final double DEFAULT_MAX_DISTANCE =
+            128.0D;
+    public static final double MINIMUM_MAX_DISTANCE =
+            0.5D;
+    public static final double MAXIMUM_MAX_DISTANCE =
+            128.0D;
 
     private final Setting<Double> yawSpeed =
             new Setting<Double>(
@@ -41,6 +49,12 @@ public final class Minecraft189AimAssistModule
                     Boolean.TRUE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+    private final Setting<Double> maxDistance =
+            new Setting<Double>(
+                    MAX_DISTANCE_SETTING_ID,
+                    DEFAULT_MAX_DISTANCE,
+                    Minecraft189AimAssistModule::validMaxDistance,
+                    SettingCodecs.DOUBLE);
 
     private boolean enabled;
 
@@ -59,6 +73,10 @@ public final class Minecraft189AimAssistModule
 
     public Setting<Boolean> requireHoldSetting() {
         return requireHold;
+    }
+
+    public Setting<Double> maxDistanceSetting() {
+        return maxDistance;
     }
 
     @Override
@@ -82,6 +100,9 @@ public final class Minecraft189AimAssistModule
                 || !rotation.available()
                 || target == null
                 || !target.available()
+                || !withinRange(
+                        target,
+                        maxDistance.get().doubleValue())
                 || (requireHold.get().booleanValue()
                         && !leftButtonHeld)) {
             return false;
@@ -168,6 +189,25 @@ public final class Minecraft189AimAssistModule
             wrapped += 360.0F;
         }
         return wrapped;
+    }
+
+    private static boolean withinRange(
+            final Minecraft189TargetRotationState.Snapshot target,
+            final double maximumDistance) {
+        final double maximumDistanceSquared =
+                maximumDistance
+                        * maximumDistance;
+        return target.distanceSquared()
+                <= maximumDistanceSquared;
+    }
+
+    private static boolean validMaxDistance(
+            final Double value) {
+        return value != null
+                && !Double.isNaN(value.doubleValue())
+                && !Double.isInfinite(value.doubleValue())
+                && value.doubleValue() >= MINIMUM_MAX_DISTANCE
+                && value.doubleValue() <= MAXIMUM_MAX_DISTANCE;
     }
 
     private static boolean validSpeed(

@@ -1549,3 +1549,11 @@ The transformed-host proof configures yaw speed 10 and pitch speed 4 from a live
 M211 adds persistent BOOLEAN setting `combat.aimAssist.requireHold`, presented as **Require Hold** and defaulting to `true`. The default preserves M209/M210 behavior: Aim Assist owns rotation only while physical LMB is held. Setting it to `false` allows continuous tracking whenever the module is enabled and the coherent M208 target-rotation latch is available.
 
 Activation mode does not change rotation precedence or smoothing. Spin remains higher priority, Aim Assist still owns eligible ticks over Jitter, and configured yaw/pitch speed limits apply identically in held and continuous modes. Focused and transformed-host coverage prove the default, persistence registration, no-hold activation when disabled, and teardown.
+
+## Aim Assist maximum distance
+
+M212 extends the coherent M208 target-rotation latch with the selected target's primitive squared distance and exposes `distanceSquared()` / `distance()` on the snapshot. Aim Assist adds persistent DOUBLE setting `combat.aimAssist.maxDistance`, presented as **Max Distance**, ranging from 0.5 to 128.0 blocks and defaulting to 128.0 to preserve prior behavior for normal loaded-player ranges.
+
+The range gate compares the latched target distance against the configured maximum before Aim Assist claims rotation ownership. Because distance is captured alongside the same entity index, yaw and pitch during M208 recomputation, M212 never combines a previous-tick angle with a separately refreshed distance. Out-of-range Aim Assist yields normally, so lower-priority Jitter remains eligible.
+
+Focused coverage proves latched distance integrity, setting registration/defaults, out-of-range rejection and in-range activation. The transformed-host proof uses the certified ~7.33-block remote player: max distance 5 suppresses Aim Assist, while max distance 8 allows the configured smoothed step.

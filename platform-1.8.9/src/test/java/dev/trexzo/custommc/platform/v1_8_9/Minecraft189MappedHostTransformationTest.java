@@ -5003,6 +5003,12 @@ final class Minecraft189MappedHostTransformationTest {
                     .requireHoldSetting()
                     .set(
                             Boolean.FALSE);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .aimAssist()
+                    .maxDistanceSetting()
+                    .set(
+                            5.0D);
             playerClass.getField("y")
                     .setFloat(
                             player,
@@ -5011,6 +5017,26 @@ final class Minecraft189MappedHostTransformationTest {
                     .setFloat(
                             player,
                             15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    25.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.0001F);
+            assertEquals(
+                    15.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.0001F);
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .aimAssist()
+                    .maxDistanceSetting()
+                    .set(
+                            8.0D);
             runTick.invoke(minecraft);
             assertEquals(
                     15.0F,

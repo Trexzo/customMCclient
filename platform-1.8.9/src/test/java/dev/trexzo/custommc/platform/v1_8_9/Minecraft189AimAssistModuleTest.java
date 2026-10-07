@@ -59,6 +59,12 @@ final class Minecraft189AimAssistModuleTest {
                     module.requireHoldSetting()
                             .get()
                             .booleanValue());
+            assertEquals(
+                    Minecraft189AimAssistModule.DEFAULT_MAX_DISTANCE,
+                    module.maxDistanceSetting()
+                            .get()
+                            .doubleValue(),
+                    0.000001D);
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.YAW_SPEED_SETTING_ID)
@@ -70,6 +76,10 @@ final class Minecraft189AimAssistModuleTest {
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.REQUIRE_HOLD_SETTING_ID)
+                            != null);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.MAX_DISTANCE_SETTING_ID)
                             != null);
             final Minecraft189PlayerPositionState local =
                     new Minecraft189PlayerPositionState();
@@ -144,6 +154,26 @@ final class Minecraft189AimAssistModuleTest {
                     player.pitch,
                     0.000001F);
 
+            module.maxDistanceSetting()
+                    .set(
+                            5.0D);
+            currentRotation.update(
+                    player.yaw,
+                    player.pitch);
+            assertFalse(
+                    module.apply(
+                            player,
+                            currentRotation.snapshot(),
+                            targetRotation.snapshot(),
+                            true));
+            assertEquals(
+                    30.0F,
+                    player.yaw,
+                    0.000001F);
+
+            module.maxDistanceSetting()
+                    .set(
+                            15.0D);
             currentRotation.update(
                     player.yaw,
                     player.pitch);
@@ -283,6 +313,9 @@ final class Minecraft189AimAssistModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189AimAssistModule.REQUIRE_HOLD_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AimAssistModule.MAX_DISTANCE_SETTING_ID));
     }
 
     private static final class TestPlayer

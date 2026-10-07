@@ -131,6 +131,19 @@ final class Minecraft189TargetRotationStateTest {
                 expectedPitch,
                 snapshot.pitch(),
                 0.0001F);
+        final double expectedDistanceSquared =
+                x * x
+                        + y * y
+                        + z * z;
+        assertEquals(
+                expectedDistanceSquared,
+                snapshot.distanceSquared(),
+                0.000001D);
+        assertEquals(
+                Math.sqrt(
+                        expectedDistanceSquared),
+                snapshot.distance(),
+                0.000001D);
     }
 
     private static void selectSingleRemotePlayer(
