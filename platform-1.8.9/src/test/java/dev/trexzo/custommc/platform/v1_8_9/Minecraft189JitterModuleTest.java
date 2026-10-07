@@ -50,6 +50,14 @@ final class Minecraft189JitterModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189JitterModule.PITCH_SETTING_ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189JitterModule.INTERVAL_SETTING_ID));
+            assertEquals(
+                    Minecraft189JitterModule.DEFAULT_INTERVAL_TICKS,
+                    module.intervalTicksSetting()
+                            .get()
+                            .intValue());
 
             controller.enable(
                     Minecraft189JitterModule.ID);
@@ -158,6 +166,86 @@ final class Minecraft189JitterModuleTest {
                     player.pitch,
                     0.000001F);
 
+            module.intervalTicksSetting()
+                    .set(
+                            3);
+            player.yaw = 40.0F;
+            player.pitch = 10.0F;
+            module.onDisable();
+            module.onEnable();
+
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertEquals(
+                    41.25F,
+                    player.yaw,
+                    0.000001F);
+            assertEquals(
+                    12.0F,
+                    player.pitch,
+                    0.000001F);
+
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertEquals(
+                    40.0F,
+                    player.yaw,
+                    0.000001F);
+            assertEquals(
+                    10.0F,
+                    player.pitch,
+                    0.000001F);
+
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            false));
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertEquals(
+                    41.25F,
+                    player.yaw,
+                    0.000001F);
+
             controller.disable(
                     Minecraft189JitterModule.ID);
             assertFalse(
@@ -175,6 +263,9 @@ final class Minecraft189JitterModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189JitterModule.PITCH_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189JitterModule.INTERVAL_SETTING_ID));
     }
 
     private static final class TestPlayer

@@ -3451,6 +3451,12 @@ final class Minecraft189MappedHostTransformationTest {
                     .pointerButton(
                             Minecraft189ClickRateTracker.LEFT_BUTTON,
                             false);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .intervalTicksSetting()
+                    .set(
+                            3);
             playerClass.getField("y")
                     .setFloat(
                             player,
@@ -3487,6 +3493,34 @@ final class Minecraft189MappedHostTransformationTest {
                     0.000001F);
             assertEquals(
                     90.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
+            runTick.invoke(minecraft);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    41.25F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    90.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    40.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    88.0F,
                     playerClass.getField("z")
                             .getFloat(
                                     player),
