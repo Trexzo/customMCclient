@@ -1394,6 +1394,36 @@ final class Minecraft189MappedHostTransformationTest {
                                     player),
                     0.000001F);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .noFall()
+                    .thresholdSetting()
+                    .set(
+                            3.0D);
+            playerClass.getField("O")
+                    .setFloat(
+                            player,
+                            2.5F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    2.5F,
+                    playerClass.getField("O")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
+            playerClass.getField("O")
+                    .setFloat(
+                            player,
+                            4.0F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.0F,
+                    playerClass.getField("O")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189NoFallModule.ID);
