@@ -77,7 +77,7 @@ final class Minecraft189VelocityFeature
                             new ModuleDescriptor(
                                     Minecraft189VelocityModule.ID,
                                     "Velocity",
-                                    "Scales incoming horizontal and vertical knockback.",
+                                    "Scales incoming horizontal and vertical knockback from 0% cancellation through 200% amplification.",
                                     Minecraft189FeatureCatalog.COMBAT_CATEGORY_ID,
                                     20));
 
@@ -96,8 +96,8 @@ final class Minecraft189VelocityFeature
                                     SettingValueKind.INTEGER,
                                     0,
                                     new SettingNumericSpec(
-                                            0.0D,
-                                            100.0D,
+                                            Minecraft189VelocityModule.MINIMUM_PERCENT,
+                                            Minecraft189VelocityModule.MAXIMUM_PERCENT,
                                             5.0D)));
             verticalPresentation =
                     settingPresentations.register(
@@ -107,8 +107,8 @@ final class Minecraft189VelocityFeature
                                     SettingValueKind.INTEGER,
                                     10,
                                     new SettingNumericSpec(
-                                            0.0D,
-                                            100.0D,
+                                            Minecraft189VelocityModule.MINIMUM_PERCENT,
+                                            Minecraft189VelocityModule.MAXIMUM_PERCENT,
                                             5.0D)));
 
             horizontalBinding =
