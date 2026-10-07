@@ -777,7 +777,10 @@ public final class Minecraft189FeatureCatalog
                     Minecraft189WTapFeature.install(
                             modules,
                             moduleController,
-                            presentations);
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             arrayListFeature =
                     Minecraft189ArrayListFeature.install(
