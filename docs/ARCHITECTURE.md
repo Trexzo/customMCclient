@@ -669,3 +669,11 @@ The new Visuals module `render.server` / **Server** renders `Server: <address>` 
 
 Executable transformed-host coverage now transforms exact synthetic `bde`, assigns `ave.Q` to a server object whose `b` field is `play.example.net:25565`, proves mapped `runTick()` publishes that exact address, and proves clearing `ave.Q` removes Server availability independently of player state. Focused HUD coverage proves normalization, rendering, persistent coordinates, null/blank clearing, validation, disable behavior and complete feature teardown.
 
+## Held-item mapping authority
+
+M118 pins the minimal Minecraft 1.8.9 `ItemStack` surface needed for a held-item HUD. The held slot itself was already certified earlier through `EntityLivingBase.pr.p(I)Lzx;` / `getEquipmentInSlot(int)`, where slot `0` is the held item.
+
+Exact `ItemStack` `zx` members added here are `zx.b I` / Searge `field_77994_a` / `stackSize`; `zx.q()Ljava/lang/String;` / `func_82833_r` / `getDisplayName()`; `zx.h()I` / `func_77952_i` / `getItemDamage()`; and `zx.j()I` / `func_77958_k` / `getMaxDamage()`.
+
+A dedicated `ItemStack` shape gate requires the exact field and all three methods. Regression coverage pins their owners, names, descriptors and missing-member failure behavior. This milestone is authority-only; it does not yet transform `zx` or publish held-item state.
+

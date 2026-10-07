@@ -150,6 +150,13 @@ final class Minecraft189MappingsTest {
                 "field_78845_b",
                 "serverIP");
         assertField(
+                Minecraft189Mappings.ITEM_STACK_SIZE,
+                Minecraft189Mappings.ITEM_STACK,
+                "b",
+                "I",
+                "field_77994_a",
+                "stackSize");
+        assertField(
                 Minecraft189Mappings.ENTITY_POS_X,
                 Minecraft189Mappings.ENTITY,
                 "s",
@@ -362,6 +369,27 @@ final class Minecraft189MappingsTest {
                 "func_178853_c",
                 "getResponseTime");
         assertMethod(
+                Minecraft189Mappings.ITEM_STACK_GET_DISPLAY_NAME,
+                Minecraft189Mappings.ITEM_STACK,
+                "q",
+                "()Ljava/lang/String;",
+                "func_82833_r",
+                "getDisplayName");
+        assertMethod(
+                Minecraft189Mappings.ITEM_STACK_GET_ITEM_DAMAGE,
+                Minecraft189Mappings.ITEM_STACK,
+                "h",
+                "()I",
+                "func_77952_i",
+                "getItemDamage");
+        assertMethod(
+                Minecraft189Mappings.ITEM_STACK_GET_MAX_DAMAGE,
+                Minecraft189Mappings.ITEM_STACK,
+                "j",
+                "()I",
+                "func_77958_k",
+                "getMaxDamage");
+        assertMethod(
                 Minecraft189Mappings.FOOD_STATS_GET_FOOD_LEVEL,
                 Minecraft189Mappings.FOOD_STATS,
                 "a",
@@ -438,6 +466,8 @@ final class Minecraft189MappingsTest {
                 networkPlayerInfoShape());
         Minecraft189ClassShapeVerifier.verifyServerData(
                 serverDataShape());
+        Minecraft189ClassShapeVerifier.verifyItemStack(
+                itemStackShape());
         Minecraft189ClassShapeVerifier.verifyFoodStats(
                 foodStatsShape());
         Minecraft189ClassShapeVerifier.verifyPotionEffect(
@@ -949,6 +979,80 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.NETWORK_PLAYER_INFO_GET_RESPONSE_TIME);
+        return finish(writer);
+    }
+
+    @Test
+    void itemStackShapeGateRejectsMissingStackSizeField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ITEM_STACK
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.ITEM_STACK_GET_DISPLAY_NAME);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ITEM_STACK_GET_ITEM_DAMAGE);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ITEM_STACK_GET_MAX_DAMAGE);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyItemStack(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: zx.b I (stackSize)",
+                failure.getMessage());
+    }
+
+    @Test
+    void itemStackShapeGateRejectsMissingDisplayNameMethod() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ITEM_STACK
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ITEM_STACK_SIZE);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ITEM_STACK_GET_ITEM_DAMAGE);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ITEM_STACK_GET_MAX_DAMAGE);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyItemStack(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: zx.q()Ljava/lang/String; (getDisplayName)",
+                failure.getMessage());
+    }
+
+    private static byte[] itemStackShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ITEM_STACK
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ITEM_STACK_SIZE);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ITEM_STACK_GET_DISPLAY_NAME);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ITEM_STACK_GET_ITEM_DAMAGE);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ITEM_STACK_GET_MAX_DAMAGE);
         return finish(writer);
     }
 

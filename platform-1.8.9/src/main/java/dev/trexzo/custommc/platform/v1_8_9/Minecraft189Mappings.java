@@ -133,6 +133,13 @@ public final class Minecraft189Mappings {
                     "Ljava/lang/String;",
                     "field_78845_b",
                     "serverIP");
+    public static final MappedField ITEM_STACK_SIZE =
+            new MappedField(
+                    ITEM_STACK,
+                    "b",
+                    "I",
+                    "field_77994_a",
+                    "stackSize");
     public static final MappedField ENTITY_POS_X =
             new MappedField(
                     ENTITY,
@@ -345,6 +352,28 @@ public final class Minecraft189Mappings {
                     "()I",
                     "func_178853_c",
                     "getResponseTime");
+    public static final MappedMethod ITEM_STACK_GET_DISPLAY_NAME =
+            new MappedMethod(
+                    ITEM_STACK,
+                    "q",
+                    "()Ljava/lang/String;",
+                    "func_82833_r",
+                    "getDisplayName");
+    public static final MappedMethod ITEM_STACK_GET_ITEM_DAMAGE =
+            new MappedMethod(
+                    ITEM_STACK,
+                    "h",
+                    "()I",
+                    "func_77952_i",
+                    "getItemDamage");
+    public static final MappedMethod ITEM_STACK_GET_MAX_DAMAGE =
+            new MappedMethod(
+                    ITEM_STACK,
+                    "j",
+                    "()I",
+                    "func_77958_k",
+                    "getMaxDamage");
+
     public static final MappedMethod FOOD_STATS_GET_FOOD_LEVEL =
             new MappedMethod(
                     FOOD_STATS,
