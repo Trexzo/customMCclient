@@ -1043,3 +1043,10 @@ On enable, the module captures the player's current no-clip value the first time
 
 Focused coverage verifies disabled behavior, false-baseline enable/restore, true-baseline preservation, null safety, module/category teardown and pending-restore lifecycle. Transformed-host coverage proves exact inherited `bew -> ... -> pk.T` execution and both baseline cases through mapped `runTick()`.
 
+## Air Jump movement control
+
+M160 adds disabled-by-default `movement.airJump` / **Air Jump** without introducing any new Minecraft mapping authority. It reuses certified M138 jump control and M129 movement-state authority, plus the existing host-owned LWJGL input state.
+
+The module requires a fresh Space key press while the local player is airborne. Holding Space does not retrigger jumps every tick, pressing Space while grounded does not arm a delayed midair jump, and leaving the ground while the same key press remains held does not fire. Releasing and pressing Space again while airborne permits another mapped `EntityLivingBase.jump()` invocation.
+
+The mapped `runTick()` path still forwards the live player only through parent-owned interfaces; Air Jump retains no child-loader player object. Focused coverage verifies registration, fresh-press edge behavior, grounded suppression, held-key suppression, disable behavior and teardown. Transformed-host coverage executes the existing exact `bew -> pr.bF()V` jump delegate and proves repeat airborne jumps occur only on distinct Space presses.
