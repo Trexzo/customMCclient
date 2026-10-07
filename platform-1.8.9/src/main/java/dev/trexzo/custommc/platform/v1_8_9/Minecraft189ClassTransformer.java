@@ -948,6 +948,28 @@ public final class Minecraft189ClassTransformer
                                                 player.descriptor());
                                         super.visitTypeInsn(
                                                 Opcodes.CHECKCAST,
+                                                PLAYER_HURT_TIME_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerHurtTime",
+                                                "("
+                                                        + PLAYER_HURT_TIME_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedHurtTime[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
                                                 PLAYER_MOTION_CONTROL_INTERNAL_NAME);
                                         super.visitMethodInsn(
                                                 Opcodes.INVOKESTATIC,
@@ -980,28 +1002,6 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedHealth[0] = true;
-
-                                        super.visitVarInsn(
-                                                Opcodes.ALOAD,
-                                                0);
-                                        super.visitFieldInsn(
-                                                Opcodes.GETFIELD,
-                                                Minecraft189Mappings.MINECRAFT
-                                                        .obfuscatedInternalName(),
-                                                player.obfuscatedName(),
-                                                player.descriptor());
-                                        super.visitTypeInsn(
-                                                Opcodes.CHECKCAST,
-                                                PLAYER_HURT_TIME_ACCESS_INTERNAL_NAME);
-                                        super.visitMethodInsn(
-                                                Opcodes.INVOKESTATIC,
-                                                RUNTIME_BRIDGE_INTERNAL_NAME,
-                                                "playerHurtTime",
-                                                "("
-                                                        + PLAYER_HURT_TIME_ACCESS_DESCRIPTOR
-                                                        + ")V",
-                                                false);
-                                        injectedHurtTime[0] = true;
 
                                         super.visitVarInsn(
                                                 Opcodes.ALOAD,

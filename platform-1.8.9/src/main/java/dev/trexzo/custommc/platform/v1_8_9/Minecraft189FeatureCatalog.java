@@ -96,6 +96,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189LowHopFeature lowHopFeature;
     private final Minecraft189MovementSpeedFeature movementSpeedFeature;
     private final Minecraft189AirSpeedFeature airSpeedFeature;
+    private final Minecraft189DamageBoostFeature damageBoostFeature;
     private final Minecraft189FastPlaceFeature fastPlaceFeature;
     private final Minecraft189FastBreakFeature fastBreakFeature;
     private final Minecraft189SpeedMineFeature speedMineFeature;
@@ -175,6 +176,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189LowHopFeature lowHopFeature,
             final Minecraft189MovementSpeedFeature movementSpeedFeature,
             final Minecraft189AirSpeedFeature airSpeedFeature,
+            final Minecraft189DamageBoostFeature damageBoostFeature,
             final Minecraft189FastPlaceFeature fastPlaceFeature,
             final Minecraft189FastBreakFeature fastBreakFeature,
             final Minecraft189SpeedMineFeature speedMineFeature,
@@ -248,6 +250,7 @@ public final class Minecraft189FeatureCatalog
         this.lowHopFeature = lowHopFeature;
         this.movementSpeedFeature = movementSpeedFeature;
         this.airSpeedFeature = airSpeedFeature;
+        this.damageBoostFeature = damageBoostFeature;
         this.fastPlaceFeature = fastPlaceFeature;
         this.fastBreakFeature = fastBreakFeature;
         this.speedMineFeature = speedMineFeature;
@@ -376,6 +379,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189LowHopFeature lowHopFeature = null;
         Minecraft189MovementSpeedFeature movementSpeedFeature = null;
         Minecraft189AirSpeedFeature airSpeedFeature = null;
+        Minecraft189DamageBoostFeature damageBoostFeature = null;
         Minecraft189FastPlaceFeature fastPlaceFeature = null;
         Minecraft189FastBreakFeature fastBreakFeature = null;
         Minecraft189SpeedMineFeature speedMineFeature = null;
@@ -666,6 +670,15 @@ public final class Minecraft189FeatureCatalog
                             settings,
                             settingPresentations,
                             inputState);
+
+            damageBoostFeature =
+                    Minecraft189DamageBoostFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             fastPlaceFeature =
                     Minecraft189FastPlaceFeature.install(
@@ -1059,6 +1072,7 @@ public final class Minecraft189FeatureCatalog
                     lowHopFeature,
                     movementSpeedFeature,
                     airSpeedFeature,
+                    damageBoostFeature,
                     fastPlaceFeature,
                     fastBreakFeature,
                     speedMineFeature,
@@ -1074,6 +1088,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(speedMineFeature, failure);
             closeQuietly(fastBreakFeature, failure);
             closeQuietly(fastPlaceFeature, failure);
+            closeQuietly(damageBoostFeature, failure);
             closeQuietly(airSpeedFeature, failure);
             closeQuietly(movementSpeedFeature, failure);
             closeQuietly(lowHopFeature, failure);
@@ -1290,6 +1305,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189AirSpeedModule airSpeed() {
         requireOpen();
         return airSpeedFeature.module();
+    }
+
+    public Minecraft189DamageBoostModule damageBoost() {
+        requireOpen();
+        return damageBoostFeature.module();
     }
 
     public Minecraft189FastPlaceModule fastPlace() {
@@ -1588,6 +1608,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             fastPlaceFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            damageBoostFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,

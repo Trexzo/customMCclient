@@ -1275,3 +1275,15 @@ Transformed `EntityLivingBase pr` implements the parent-owned `Minecraft189Playe
 The new Visuals module `render.hurtTime` / **Hurt Time** renders `Hurt Time: <ticks>` only while a live snapshot exists. Persistent X/Y settings use the existing generic setting, presentation, profile, and module-binding architecture.
 
 Focused regression coverage proves live text and position, setting persistence, negative-value rejection, null-player hiding, render-pass lifecycle, and complete feature teardown. Transformed-host coverage sets exact inherited `pr.au`, proves the primitive value reaches parent state through `runTick()`, and proves a null mapped player clears that state.
+
+## Hurt-time Damage Boost
+
+M184 turns the certified M182/M183 local hurt-time signal into **Movement → Damage Boost** without adding a new Minecraft mapping or retaining a child-loader object.
+
+The mapped `runTick()` return pipeline now snapshots hurt time before horizontal motion control, so the parent-owned motion arbitration sees the current tick's `pr.au` value. Damage Boost tracks only primitive hurt-time history. Its first available sample primes state. Normal countdowns and unchanged values do nothing; a later increase such as `4 → 10` is treated as a fresh hurt-time reset and applies one horizontal multiplier to the final current `motionX/motionZ`. This avoids multiplying every hurt tick while still recognizing another hit before the counter reaches zero.
+
+`movement.damageBoost.multiplier` is a persistent DOUBLE setting with default `1.25`, range `1.0..3.0`, and step `0.05`.
+
+Ownership is explicit: Freeze and Flight suppress the write, but the hurt-time reset is still consumed while suspended so disabling either module cannot cause a delayed boost. Outside those exclusive modes, Damage Boost runs after normal horizontal movement ownership and therefore multiplies the final horizontal motion for that one hit reset.
+
+Focused coverage proves first-sample priming, countdown preservation, one-shot reset detection, configurable multiplier, constant-counter non-retrigger, Flight suppression without delayed activation, Freeze suppression without delayed activation, lifecycle, and setting teardown. Transformed-host coverage proves exact `pr.au` is sampled before motion control and that `4 → 10` produces the expected same-tick mapped `pk.v/pk.x` boost exactly once.

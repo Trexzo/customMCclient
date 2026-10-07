@@ -3352,6 +3352,107 @@ final class Minecraft189MappedHostTransformationTest {
                             Minecraft189ClickRateTracker.LEFT_BUTTON,
                             false);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .damageBoost()
+                    .multiplierSetting()
+                    .set(
+                            1.50D);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189DamageBoostModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .damageBoost()
+                            .active());
+
+            playerClass.getField("au")
+                    .setInt(
+                            player,
+                            5);
+            playerClass.getField("v")
+                    .setDouble(
+                            player,
+                            0.40D);
+            playerClass.getField("x")
+                    .setDouble(
+                            player,
+                            -0.20D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.40D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    -0.20D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            playerClass.getField("au")
+                    .setInt(
+                            player,
+                            4);
+            runTick.invoke(minecraft);
+
+            playerClass.getField("v")
+                    .setDouble(
+                            player,
+                            0.40D);
+            playerClass.getField("x")
+                    .setDouble(
+                            player,
+                            -0.20D);
+            playerClass.getField("au")
+                    .setInt(
+                            player,
+                            10);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.60D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    -0.30D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.60D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    -0.30D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189DamageBoostModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .damageBoost()
+                            .active());
+            playerClass.getField("au")
+                    .setInt(
+                            player,
+                            7);
+            runTick.invoke(minecraft);
+
             final Class<?> entityClass =
                     loader.loadClass("pk");
             final Method knockBack =
