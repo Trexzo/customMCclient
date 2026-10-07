@@ -63,6 +63,7 @@ final class Minecraft189MappedHostTransformationTest {
         assertTrue(transformer.handles("wn"));
         assertTrue(transformer.handles("bet"));
         assertTrue(transformer.handles("bdc"));
+        assertTrue(transformer.handles("bde"));
         assertTrue(transformer.handles("xg"));
         assertTrue(transformer.handles("pf"));
 
@@ -244,7 +245,9 @@ final class Minecraft189MappedHostTransformationTest {
                         gameSettingsShape()));
         loader.put(
                 "bde",
-                serverDataShape());
+                transformer.transform(
+                        "bde",
+                        serverDataShape()));
         loader.put(
                 "avn",
                 transformer.transform(
@@ -551,6 +554,20 @@ final class Minecraft189MappedHostTransformationTest {
                             minecraft,
                             player);
 
+            final Class<?> serverDataClass =
+                    loader.loadClass("bde");
+            final Object serverData =
+                    serverDataClass.getDeclaredConstructor()
+                            .newInstance();
+            serverDataClass.getField("b")
+                    .set(
+                            serverData,
+                            "play.example.net:25565");
+            minecraftClass.getField("Q")
+                    .set(
+                            minecraft,
+                            serverData);
+
             final Class<?> settingsClass =
                     loader.loadClass("avh");
             final Object liveSettings =
@@ -843,6 +860,16 @@ final class Minecraft189MappedHostTransformationTest {
                     57,
                     ping.milliseconds());
 
+            final Minecraft189ServerAddressState.Snapshot server =
+                    runtime.requireHostRuntime()
+                            .serverAddressState()
+                            .snapshot();
+            assertTrue(
+                    server.available());
+            assertEquals(
+                    "play.example.net:25565",
+                    server.address());
+
             playerClass.getField("playerInfo")
                     .set(
                             player,
@@ -851,6 +878,17 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .playerPingState()
+                            .snapshot()
+                            .available());
+
+            minecraftClass.getField("Q")
+                    .set(
+                            minecraft,
+                            null);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .serverAddressState()
                             .snapshot()
                             .available());
 
@@ -902,6 +940,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .playerPingState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .serverAddressState()
                             .snapshot()
                             .available());
 

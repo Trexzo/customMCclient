@@ -96,6 +96,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerPingAccess";
     private static final String PLAYER_PING_ACCESS_DESCRIPTOR =
             "L" + PLAYER_PING_ACCESS_INTERNAL_NAME + ";";
+    private static final String SERVER_DATA_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189ServerDataAccess";
+    private static final String SERVER_DATA_ACCESS_DESCRIPTOR =
+            "L" + SERVER_DATA_ACCESS_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -133,6 +138,9 @@ public final class Minecraft189ClassTransformer
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.NETWORK_PLAYER_INFO
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.SERVER_DATA
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.FOOD_STATS
@@ -232,6 +240,13 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyNetworkPlayerInfo(input);
             return input;
+        }
+        if (Minecraft189Mappings.SERVER_DATA
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyServerData(input);
+            return transformServerData(input);
         }
         if (Minecraft189Mappings.FOOD_STATS
                 .obfuscatedBinaryName()
@@ -356,6 +371,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedExperience =
                 new boolean[]{false};
         final boolean[] injectedPing =
+                new boolean[]{false};
+        final boolean[] injectedServerAddress =
                 new boolean[]{false};
         final boolean[] foundDispatchKeypresses =
                 new boolean[]{false};
@@ -617,6 +634,31 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedPing[0] = true;
+
+                                        final Minecraft189Mappings.MappedField serverData =
+                                                Minecraft189Mappings
+                                                        .MINECRAFT_CURRENT_SERVER_DATA;
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                serverData.obfuscatedName(),
+                                                serverData.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                SERVER_DATA_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "serverAddress",
+                                                "("
+                                                        + SERVER_DATA_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedServerAddress[0] = true;
                                     }
                                     super.visitInsn(opcode);
                                 }
@@ -704,7 +746,8 @@ public final class Minecraft189ClassTransformer
                 || !injectedHunger[0]
                 || !injectedPotionEffects[0]
                 || !injectedExperience[0]
-                || !injectedPing[0]) {
+                || !injectedPing[0]
+                || !injectedServerAddress[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
         }
@@ -1379,6 +1422,52 @@ public final class Minecraft189ClassTransformer
         return writer.toByteArray();
     }
 
+    private static byte[] transformServerData(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public void visit(
+                            final int version,
+                            final int access,
+                            final String name,
+                            final String signature,
+                            final String superName,
+                            final String[] interfaces) {
+                        super.visit(
+                                version,
+                                access,
+                                name,
+                                signature,
+                                superName,
+                                withInterface(
+                                        interfaces,
+                                        SERVER_DATA_ACCESS_INTERNAL_NAME));
+                    }
+
+                    @Override
+                    public void visitEnd() {
+                        addStringFieldGetter(
+                                cv,
+                                "customMcServerAddress",
+                                Minecraft189Mappings.SERVER_DATA_SERVER_IP);
+                        super.visitEnd();
+                    }
+                },
+                0);
+
+        return writer.toByteArray();
+    }
+
     private static byte[] transformAbstractClientPlayer(
             final byte[] input) {
         final ClassReader reader =
@@ -1801,6 +1890,34 @@ public final class Minecraft189ClassTransformer
                 false);
         method.visitInsn(
                 Opcodes.FRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addStringFieldGetter(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedField field) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()Ljava/lang/String;",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                field.owner().obfuscatedInternalName(),
+                field.obfuscatedName(),
+                field.descriptor());
+        method.visitInsn(
+                Opcodes.ARETURN);
         method.visitMaxs(
                 0,
                 0);

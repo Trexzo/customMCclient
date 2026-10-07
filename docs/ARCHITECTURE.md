@@ -659,3 +659,13 @@ The existing `Minecraft` shape gate now requires `currentServerData`, and a dedi
 
 This milestone is authority-only. A future consumer may transform `bde` into a parent-owned string accessor so that no concrete `ServerData` object crosses the transforming classloader boundary.
 
+## Live Server HUD
+
+M117 consumes the independently certified M116 server-address authority. Exact `ServerData` `bde` is transformed to implement parent-owned `Minecraft189ServerDataAccess`; its generated accessor reads only exact mapped `bde.b Ljava/lang/String;` / `serverIP`. No concrete `ServerData` instance appears in parent-facing state.
+
+Immediately before every normal return from mapped `Minecraft.runTick()`, exact `ave.Q Lbde;` / `currentServerData` is loaded, cast to the parent-owned access interface, and forwarded through `Minecraft189RuntimeBridge.serverAddress(...)`. A null server-data reference clears availability. The host also clears null or blank address strings and otherwise copies a trimmed string into synchronized parent-owned `Minecraft189ServerAddressState`.
+
+The new Visuals module `render.server` / **Server** renders `Server: <address>` with persistent X/Y settings through the generic profile path.
+
+Executable transformed-host coverage now transforms exact synthetic `bde`, assigns `ave.Q` to a server object whose `b` field is `play.example.net:25565`, proves mapped `runTick()` publishes that exact address, and proves clearing `ave.Q` removes Server availability independently of player state. Focused HUD coverage proves normalization, rendering, persistent coordinates, null/blank clearing, validation, disable behavior and complete feature teardown.
+
