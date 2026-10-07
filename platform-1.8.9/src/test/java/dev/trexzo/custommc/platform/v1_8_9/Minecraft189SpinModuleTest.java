@@ -47,6 +47,13 @@ final class Minecraft189SpinModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189SpinModule.YAW_SPEED_SETTING_ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189SpinModule.REVERSE_SETTING_ID));
+            assertFalse(
+                    module.reverseSetting()
+                            .get()
+                            .booleanValue());
             assertEquals(
                     Minecraft189SpinModule.DEFAULT_YAW_SPEED,
                     module.yawSpeedSetting()
@@ -114,6 +121,26 @@ final class Minecraft189SpinModuleTest {
                     player.pitch,
                     0.000001F);
 
+            module.reverseSetting()
+                    .set(
+                            Boolean.TRUE);
+            player.yaw = -170.0F;
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot()));
+            assertEquals(
+                    145.0F,
+                    player.yaw,
+                    0.000001F);
+            assertEquals(
+                    25.0F,
+                    player.pitch,
+                    0.000001F);
+
             controller.disable(
                     Minecraft189SpinModule.ID);
             assertFalse(
@@ -139,6 +166,9 @@ final class Minecraft189SpinModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189SpinModule.YAW_SPEED_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189SpinModule.REVERSE_SETTING_ID));
     }
 
     private static final class TestPlayer
