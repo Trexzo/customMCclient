@@ -1577,6 +1577,9 @@ final class Minecraft189MappedHostTransformationTest {
                 "pr",
                 null);
         field(writer, "foodStats", "Lxg;");
+        field(writer, "bB", "I");
+        field(writer, "bC", "I");
+        field(writer, "bD", "F");
 
         final MethodVisitor constructor =
                 writer.visitMethod(
@@ -1624,6 +1627,24 @@ final class Minecraft189MappedHostTransformationTest {
                 1,
                 1);
         getFoodStats.visitEnd();
+
+        final MethodVisitor xpBarCap =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "ck",
+                        "()I",
+                        null,
+                        null);
+        xpBarCap.visitCode();
+        xpBarCap.visitIntInsn(
+                Opcodes.BIPUSH,
+                42);
+        xpBarCap.visitInsn(
+                Opcodes.IRETURN);
+        xpBarCap.visitMaxs(
+                1,
+                1);
+        xpBarCap.visitEnd();
 
         writer.visitEnd();
         return writer.toByteArray();

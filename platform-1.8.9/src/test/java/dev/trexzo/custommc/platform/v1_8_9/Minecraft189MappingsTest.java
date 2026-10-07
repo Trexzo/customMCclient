@@ -151,6 +151,27 @@ final class Minecraft189MappingsTest {
                 "F",
                 "field_70177_z",
                 "rotationYaw");
+        assertField(
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL,
+                Minecraft189Mappings.ENTITY_PLAYER,
+                "bB",
+                "I",
+                "field_71068_ca",
+                "experienceLevel");
+        assertField(
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_TOTAL,
+                Minecraft189Mappings.ENTITY_PLAYER,
+                "bC",
+                "I",
+                "field_71067_cb",
+                "experienceTotal");
+        assertField(
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_PROGRESS,
+                Minecraft189Mappings.ENTITY_PLAYER,
+                "bD",
+                "F",
+                "field_71106_cc",
+                "experience");
 
         assertField(
                 Minecraft189Mappings.GAME_SETTINGS_VIEW_BOBBING,
@@ -293,6 +314,13 @@ final class Minecraft189MappingsTest {
                 "()Lxg;",
                 "func_71024_bL",
                 "getFoodStats");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP,
+                Minecraft189Mappings.ENTITY_PLAYER,
+                "ck",
+                "()I",
+                "func_71050_bK",
+                "xpBarCap");
         assertMethod(
                 Minecraft189Mappings.FOOD_STATS_GET_FOOD_LEVEL,
                 Minecraft189Mappings.FOOD_STATS,
@@ -720,15 +748,56 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
-    void entityPlayerShapeGateRejectsMissingFoodStatsMethod() {
+    void entityPlayerShapeGateRejectsMissingExperienceField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY_PLAYER
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_TOTAL);
+
         final IllegalStateException failure =
                 assertThrows(
                         IllegalStateException.class,
                         () -> Minecraft189ClassShapeVerifier
                                 .verifyEntityPlayer(
-                                        emptyClass("wn")));
+                                        finish(writer)));
         assertEquals(
-                "Minecraft 1.8.9 mapping method missing: wn.cl()Lxg; (getFoodStats)",
+                "Minecraft 1.8.9 mapping field missing: wn.bD F (experience)",
+                failure.getMessage());
+    }
+
+    @Test
+    void entityPlayerShapeGateRejectsMissingXpBarCapMethod() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY_PLAYER
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_TOTAL);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_PROGRESS);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntityPlayer(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: wn.ck()I (xpBarCap)",
                 failure.getMessage());
     }
 
@@ -758,9 +827,21 @@ final class Minecraft189MappingsTest {
                 writer(
                         Minecraft189Mappings.ENTITY_PLAYER
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_TOTAL);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_PROGRESS);
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP);
         return finish(writer);
     }
 

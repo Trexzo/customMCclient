@@ -116,9 +116,14 @@ public final class Minecraft189ClassShapeVerifier {
         verify(
                 classBytes,
                 Minecraft189Mappings.ENTITY_PLAYER,
-                new Minecraft189Mappings.MappedField[0],
+                new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL,
+                        Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_TOTAL,
+                        Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_PROGRESS
+                },
                 new Minecraft189Mappings.MappedMethod[]{
-                        Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS
+                        Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS,
+                        Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP
                 });
     }
 
