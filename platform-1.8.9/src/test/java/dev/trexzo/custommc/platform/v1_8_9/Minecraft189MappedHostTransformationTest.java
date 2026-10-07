@@ -763,6 +763,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189AutoSneakModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189FastPlaceModule.ID)
                             != null);
             assertTrue(
@@ -1077,6 +1082,47 @@ final class Minecraft189MappedHostTransformationTest {
                     2,
                     playerClass.getField("jumpCalls")
                             .getInt(
+                                    player));
+
+            playerClass.getField("sneaking")
+                    .setBoolean(
+                            player,
+                            false);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189AutoSneakModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .autoSneak()
+                            .active());
+            runTick.invoke(minecraft);
+            assertTrue(
+                    playerClass.getField("sneaking")
+                            .getBoolean(
+                                    player));
+            runTick.invoke(minecraft);
+            assertTrue(
+                    playerClass.getField("sneaking")
+                            .getBoolean(
+                                    player));
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189AutoSneakModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .autoSneak()
+                            .active());
+            playerClass.getField("sneaking")
+                    .setBoolean(
+                            player,
+                            false);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    playerClass.getField("sneaking")
+                            .getBoolean(
                                     player));
 
             runtime.moduleController()

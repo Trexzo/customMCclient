@@ -75,6 +75,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189CrosshairFeature crosshairFeature;
     private final Minecraft189AutoSprintFeature autoSprintFeature;
     private final Minecraft189AutoJumpFeature autoJumpFeature;
+    private final Minecraft189AutoSneakFeature autoSneakFeature;
     private final Minecraft189FastPlaceFeature fastPlaceFeature;
     private final Minecraft189NoHitDelayFeature noHitDelayFeature;
     private final Minecraft189AutoClickerFeature autoClickerFeature;
@@ -129,6 +130,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189CrosshairFeature crosshairFeature,
             final Minecraft189AutoSprintFeature autoSprintFeature,
             final Minecraft189AutoJumpFeature autoJumpFeature,
+            final Minecraft189AutoSneakFeature autoSneakFeature,
             final Minecraft189FastPlaceFeature fastPlaceFeature,
             final Minecraft189NoHitDelayFeature noHitDelayFeature,
             final Minecraft189AutoClickerFeature autoClickerFeature) {
@@ -177,6 +179,7 @@ public final class Minecraft189FeatureCatalog
         this.crosshairFeature = crosshairFeature;
         this.autoSprintFeature = autoSprintFeature;
         this.autoJumpFeature = autoJumpFeature;
+        this.autoSneakFeature = autoSneakFeature;
         this.fastPlaceFeature = fastPlaceFeature;
         this.noHitDelayFeature = noHitDelayFeature;
         this.autoClickerFeature = autoClickerFeature;
@@ -278,6 +281,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189CrosshairFeature crosshairFeature = null;
         Minecraft189AutoSprintFeature autoSprintFeature = null;
         Minecraft189AutoJumpFeature autoJumpFeature = null;
+        Minecraft189AutoSneakFeature autoSneakFeature = null;
         Minecraft189FastPlaceFeature fastPlaceFeature = null;
         Minecraft189NoHitDelayFeature noHitDelayFeature = null;
         Minecraft189AutoClickerFeature autoClickerFeature = null;
@@ -390,6 +394,12 @@ public final class Minecraft189FeatureCatalog
 
             autoJumpFeature =
                     Minecraft189AutoJumpFeature.install(
+                            modules,
+                            moduleController,
+                            presentations);
+
+            autoSneakFeature =
+                    Minecraft189AutoSneakFeature.install(
                             modules,
                             moduleController,
                             presentations);
@@ -714,6 +724,7 @@ public final class Minecraft189FeatureCatalog
                     crosshairFeature,
                     autoSprintFeature,
                     autoJumpFeature,
+                    autoSneakFeature,
                     fastPlaceFeature,
                     noHitDelayFeature,
                     autoClickerFeature);
@@ -721,6 +732,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(autoClickerFeature, failure);
             closeQuietly(noHitDelayFeature, failure);
             closeQuietly(fastPlaceFeature, failure);
+            closeQuietly(autoSneakFeature, failure);
             closeQuietly(autoJumpFeature, failure);
             closeQuietly(autoSprintFeature, failure);
             closeQuietly(crosshairFeature, failure);
@@ -816,6 +828,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189AutoJumpModule autoJump() {
         requireOpen();
         return autoJumpFeature.module();
+    }
+
+    public Minecraft189AutoSneakModule autoSneak() {
+        requireOpen();
+        return autoSneakFeature.module();
     }
 
     public Minecraft189FastPlaceModule fastPlace() {
@@ -1057,6 +1074,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             fastPlaceFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            autoSneakFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,

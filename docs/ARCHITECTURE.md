@@ -879,3 +879,13 @@ The existing Entity class-shape gate now requires this exact mutator alongside m
 
 This milestone is authority-only. It does not force sneak state or register a movement module.
 
+## Auto Sneak movement control
+
+M141 adds disabled-by-default `movement.autoSneak` / **Auto Sneak** under the existing Movement category.
+
+Transformed base `Entity pk` implements parent-owned `Minecraft189PlayerSneakControl`; generated `customMcSetSneaking(boolean)` delegates only to certified M140 authority `pk.c(Z)V` / `func_70095_a`. Immediately before each normal return from mapped `Minecraft.runTick()`, exact `ave.h Lbew;` is forwarded transiently through the sneak-control boundary after the current movement-state snapshot has been published. The host retains no player object.
+
+While enabled and a current mapped snapshot is available, Auto Sneak calls the exact setter only when the player is not already sneaking. While disabled it does not force either state, so ordinary vanilla/input state remains authoritative rather than being overwritten by a synthetic release.
+
+Focused coverage verifies disabled behavior, one setter call when sneak needs enabling, no duplicate setter while already sneaking, disable behavior, Movement-category lifecycle and teardown. Transformed-host coverage proves the inherited player path reaches exact synthetic `pk.c(Z)V`.
+

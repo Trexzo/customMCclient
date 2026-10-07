@@ -99,6 +99,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerSneakControl(
+            final Minecraft189PlayerSneakControl player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerSneakControl(player);
+        }
+    }
+
     public static synchronized void playerJumpControl(
             final Minecraft189PlayerJumpControl player) {
         final Minecraft189HostRuntime host =
