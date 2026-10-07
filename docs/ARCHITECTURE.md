@@ -1158,3 +1158,13 @@ Movement Speed introduces no new Minecraft mapping. It reuses the certified M129
 `movement.speed.speed` is a persistent DOUBLE setting with default `0.45`, range `0.10..1.00`, and `0.05` UI increments. Horizontal ownership is deterministic: **Freeze/Flight > Long Jump boost > Bunny Hop > Speed > Strafe**. High Jump remains vertical-only and may coexist with Speed.
 
 Focused coverage proves the `render.speed` / `movement.speed` ID separation, unavailable/airborne preservation, yaw-relative and diagonal motion, configured speed, Speed-over-Strafe ownership, Flight precedence, no-input behavior, disable behavior, and setting teardown. Transformed-host coverage proves exact grounded `pk.v/pk.x` writes and airborne preservation through `Minecraft.runTick()`.
+
+## Low Hop movement control
+
+M172 adds **Movement → Low Hop** without introducing a new Minecraft mapping. It composes the certified M138 mapped jump delegate, M129 on-ground snapshot, and M156/M161 primitive `Entity.motionY` bridge.
+
+A fresh Space press while grounded invokes the real mapped jump delegate and arms one same-tick vertical adjustment. Motion control then caps `motionY` to at most the configured `movement.lowHop.verticalSpeed` value (DOUBLE, default `0.25`, range `0.05..0.41`, step `0.01`). Already-lower vertical motion is preserved rather than increased. Holding Space does not retrigger.
+
+Jump ownership is deterministic: **Freeze/Flight > Long Jump > High Jump > Low Hop > Bunny Hop > Auto Jump**. Low Hop suppresses Bunny Hop and Auto Jump while enabled, but it remains vertical-only, so Movement Speed and Strafe can still provide horizontal motion alongside it.
+
+Focused coverage proves fresh-press semantics, default/configured vertical cap, Auto-Jump suppression and release, Movement-Speed coexistence, High-Jump precedence, Flight suspension, disable behavior, and setting teardown. Transformed-host coverage proves the real mapped jump delegate plus exact `pk.w` low-hop cap through `Minecraft.runTick()`.
