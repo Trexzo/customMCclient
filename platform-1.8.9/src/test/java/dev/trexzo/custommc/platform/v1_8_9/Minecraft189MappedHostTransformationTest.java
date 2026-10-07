@@ -997,6 +997,11 @@ final class Minecraft189MappedHostTransformationTest {
                             .find(
                                     Minecraft189JitterModule.ID)
                             != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
+                                    Minecraft189SpinModule.ID)
+                            != null);
             assertEquals(
                     0.35F,
                     settingsClass.getField("aJ")
@@ -3639,6 +3644,51 @@ final class Minecraft189MappedHostTransformationTest {
                     .pointerButton(
                             Minecraft189ClickRateTracker.LEFT_BUTTON,
                             false);
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .spin()
+                    .yawSpeedSetting()
+                    .set(
+                            30.0D);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189JitterModule.ID);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189SpinModule.ID);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            170.0F);
+            playerClass.getField("z")
+                    .setFloat(
+                            player,
+                            33.0F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    -160.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    33.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189SpinModule.ID);
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189JitterModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .spin()
+                            .active());
 
             runtime.requireHostRuntime()
                     .featureCatalog()
