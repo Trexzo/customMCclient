@@ -56,12 +56,20 @@ final class Minecraft189AimAssistModuleTest {
                             .doubleValue(),
                     0.000001D);
             assertTrue(
+                    module.requireHoldSetting()
+                            .get()
+                            .booleanValue());
+            assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.YAW_SPEED_SETTING_ID)
                             != null);
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.PITCH_SPEED_SETTING_ID)
+                            != null);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.REQUIRE_HOLD_SETTING_ID)
                             != null);
             final Minecraft189PlayerPositionState local =
                     new Minecraft189PlayerPositionState();
@@ -221,6 +229,29 @@ final class Minecraft189AimAssistModuleTest {
                     2,
                     player.pitchWrites);
 
+            module.requireHoldSetting()
+                    .set(
+                            Boolean.FALSE);
+            player.yaw = 0.0F;
+            player.pitch = 0.0F;
+            currentRotation.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            currentRotation.snapshot(),
+                            targetRotation.snapshot(),
+                            false));
+            assertEquals(
+                    20.0F,
+                    player.yaw,
+                    0.0001F);
+            assertEquals(
+                    -5.0F,
+                    player.pitch,
+                    0.0001F);
+
             targetRotation.clear();
             currentRotation.update(
                     player.yaw,
@@ -249,6 +280,9 @@ final class Minecraft189AimAssistModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189AimAssistModule.PITCH_SPEED_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AimAssistModule.REQUIRE_HOLD_SETTING_ID));
     }
 
     private static final class TestPlayer

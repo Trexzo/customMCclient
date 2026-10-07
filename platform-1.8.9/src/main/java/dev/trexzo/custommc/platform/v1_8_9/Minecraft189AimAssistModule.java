@@ -12,6 +12,8 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.yawSpeed";
     public static final String PITCH_SPEED_SETTING_ID =
             "combat.aimAssist.pitchSpeed";
+    public static final String REQUIRE_HOLD_SETTING_ID =
+            "combat.aimAssist.requireHold";
     public static final double DEFAULT_YAW_SPEED =
             180.0D;
     public static final double DEFAULT_PITCH_SPEED =
@@ -33,6 +35,12 @@ public final class Minecraft189AimAssistModule
                     DEFAULT_PITCH_SPEED,
                     Minecraft189AimAssistModule::validSpeed,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> requireHold =
+            new Setting<Boolean>(
+                    REQUIRE_HOLD_SETTING_ID,
+                    Boolean.TRUE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
 
     private boolean enabled;
 
@@ -47,6 +55,10 @@ public final class Minecraft189AimAssistModule
 
     public Setting<Double> pitchSpeedSetting() {
         return pitchSpeed;
+    }
+
+    public Setting<Boolean> requireHoldSetting() {
+        return requireHold;
     }
 
     @Override
@@ -70,7 +82,8 @@ public final class Minecraft189AimAssistModule
                 || !rotation.available()
                 || target == null
                 || !target.available()
-                || !leftButtonHeld) {
+                || (requireHold.get().booleanValue()
+                        && !leftButtonHeld)) {
             return false;
         }
 
