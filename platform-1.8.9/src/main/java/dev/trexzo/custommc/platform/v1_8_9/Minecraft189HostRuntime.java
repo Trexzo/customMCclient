@@ -34,6 +34,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189PlayerExperienceState playerExperienceState;
     private final Minecraft189PlayerPingState playerPingState;
     private final Minecraft189ServerAddressState serverAddressState;
+    private final Minecraft189HeldItemState heldItemState;
     private final Minecraft189MovementSpeedTracker movementSpeedTracker;
     private final Minecraft189FeatureCatalog featureCatalog;
     private final Minecraft189Hooks renderHooks;
@@ -57,6 +58,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerExperienceState playerExperienceState,
             final Minecraft189PlayerPingState playerPingState,
             final Minecraft189ServerAddressState serverAddressState,
+            final Minecraft189HeldItemState heldItemState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
             final Minecraft189FeatureCatalog featureCatalog,
             final Minecraft189Hooks renderHooks,
@@ -77,6 +79,7 @@ public final class Minecraft189HostRuntime
         this.playerExperienceState = playerExperienceState;
         this.playerPingState = playerPingState;
         this.serverAddressState = serverAddressState;
+        this.heldItemState = heldItemState;
         this.movementSpeedTracker = movementSpeedTracker;
         this.featureCatalog = featureCatalog;
         this.renderHooks = renderHooks;
@@ -163,6 +166,8 @@ public final class Minecraft189HostRuntime
                 new Minecraft189PlayerPingState();
         final Minecraft189ServerAddressState serverAddressState =
                 new Minecraft189ServerAddressState();
+        final Minecraft189HeldItemState heldItemState =
+                new Minecraft189HeldItemState();
         final Minecraft189MovementSpeedTracker movementSpeedTracker =
                 new Minecraft189MovementSpeedTracker();
         try {
@@ -201,6 +206,7 @@ public final class Minecraft189HostRuntime
                             playerExperienceState,
                             playerPingState,
                             serverAddressState,
+                            heldItemState,
                             movementSpeedTracker,
                             services.require(
                                     RenderPipeline.class),
@@ -223,6 +229,7 @@ public final class Minecraft189HostRuntime
                     playerExperienceState,
                     playerPingState,
                     serverAddressState,
+                    heldItemState,
                     movementSpeedTracker,
                     featureCatalog,
                     new Minecraft189Hooks(platform),
@@ -319,6 +326,11 @@ public final class Minecraft189HostRuntime
     public Minecraft189ServerAddressState serverAddressState() {
         requireOpen();
         return serverAddressState;
+    }
+
+    public Minecraft189HeldItemState heldItemState() {
+        requireOpen();
+        return heldItemState;
     }
 
     public Minecraft189MovementSpeedTracker movementSpeedTracker() {
@@ -456,6 +468,26 @@ public final class Minecraft189HostRuntime
         }
         serverAddressState.update(
                 address);
+    }
+
+    void playerHeldItem(
+            final Minecraft189PlayerHeldItemAccess player) {
+        requireOpen();
+        if (player == null) {
+            heldItemState.clear();
+            return;
+        }
+        final Minecraft189ItemStackAccess held =
+                player.customMcHeldItem();
+        if (held == null) {
+            heldItemState.clear();
+            return;
+        }
+        heldItemState.update(
+                held.customMcDisplayName(),
+                held.customMcStackSize(),
+                held.customMcItemDamage(),
+                held.customMcMaxDamage());
     }
 
     void frameStarted(
@@ -597,6 +629,7 @@ public final class Minecraft189HostRuntime
         playerExperienceState.clear();
         playerPingState.clear();
         serverAddressState.clear();
+        heldItemState.clear();
         movementSpeedTracker.clear();
         try {
             featureCatalog.close();
