@@ -2359,6 +2359,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "maxHealth", "F");
         field(writer, "equipmentSlots", "[Lzx;");
         field(writer, "activePotionEffects", "Ljava/util/Collection;");
+        field(writer, "jumpCalls", "I");
 
         final MethodVisitor constructor =
                 writer.visitMethod(
@@ -2480,6 +2481,40 @@ final class Minecraft189MappedHostTransformationTest {
                 1,
                 1);
         getActivePotionEffects.visitEnd();
+
+        final MethodVisitor jump =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "bF",
+                        "()V",
+                        null,
+                        null);
+        jump.visitCode();
+        jump.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        jump.visitInsn(
+                Opcodes.DUP);
+        jump.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pr",
+                "jumpCalls",
+                "I");
+        jump.visitInsn(
+                Opcodes.ICONST_1);
+        jump.visitInsn(
+                Opcodes.IADD);
+        jump.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                "pr",
+                "jumpCalls",
+                "I");
+        jump.visitInsn(
+                Opcodes.RETURN);
+        jump.visitMaxs(
+                3,
+                1);
+        jump.visitEnd();
 
         writer.visitEnd();
         return writer.toByteArray();

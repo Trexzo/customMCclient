@@ -853,3 +853,11 @@ Immediately before each normal return from transformed `Minecraft.runTick()`, af
 
 Transformed-host coverage instruments exact `ave.aw()V` and proves disabled, physical-hold, release-reset and disable behavior at deterministic 10 CPS. Focused coverage proves exactly 10 generated clicks across 20 held ticks at 10 CPS, persisted Min/Max settings, scheduler reset semantics, and teardown.
 
+## Jump-control mapping authority
+
+M138 pins exact Minecraft 1.8.9 jump-control authority on base `EntityLivingBase pr`: `pr.bF()V` / Searge `func_70664_aZ` / MCP `jump`.
+
+The existing EntityLivingBase class-shape gate now requires this exact method alongside health, equipment and potion-effect authority. Mapping regression rejects a missing jump method explicitly, and the transformed-host synthetic `pr` fixture implements executable `bF()V` behavior through a test-only jump counter so later consumer coverage can prove the exact mapped invocation path.
+
+This milestone is authority-only. It does not trigger jumps, retain a player object, or register a movement module.
+

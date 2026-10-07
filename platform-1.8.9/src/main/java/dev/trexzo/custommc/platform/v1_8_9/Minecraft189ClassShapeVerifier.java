@@ -141,7 +141,8 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH,
                         Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH,
                         Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT,
-                        Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS
+                        Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS,
+                        Minecraft189Mappings.ENTITY_LIVING_BASE_JUMP
                 });
     }
 

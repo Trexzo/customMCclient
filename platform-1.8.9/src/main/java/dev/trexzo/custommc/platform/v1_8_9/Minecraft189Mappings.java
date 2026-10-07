@@ -430,6 +430,13 @@ public final class Minecraft189Mappings {
                     "(I)Lzx;",
                     "func_71124_b",
                     "getEquipmentInSlot");
+    public static final MappedMethod ENTITY_LIVING_BASE_JUMP =
+            new MappedMethod(
+                    ENTITY_LIVING_BASE,
+                    "bF",
+                    "()V",
+                    "func_70664_aZ",
+                    "jump");
     public static final MappedMethod ENTITY_PLAYER_GET_FOOD_STATS =
             new MappedMethod(
                     ENTITY_PLAYER,
