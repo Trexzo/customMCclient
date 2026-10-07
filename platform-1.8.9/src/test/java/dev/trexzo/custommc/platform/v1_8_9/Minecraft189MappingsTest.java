@@ -356,6 +356,13 @@ final class Minecraft189MappingsTest {
                 "field_70145_X",
                 "noClip");
         assertField(
+                Minecraft189Mappings.ENTITY_LIVING_BASE_HURT_TIME,
+                Minecraft189Mappings.ENTITY_LIVING_BASE,
+                "au",
+                "I",
+                "field_70737_aN",
+                "hurtTime");
+        assertField(
                 Minecraft189Mappings.ENTITY_PLAYER_INVENTORY,
                 Minecraft189Mappings.ENTITY_PLAYER,
                 "bi",
@@ -1623,11 +1630,50 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
+    void entityLivingBaseShapeGateRejectsMissingHurtTimeField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY_LIVING_BASE
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_JUMP);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_KNOCK_BACK);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntityLivingBase(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: pr.au I (hurtTime)",
+                failure.getMessage());
+    }
+
+    @Test
     void entityLivingBaseShapeGateRejectsMissingMaxHealthMethod() {
         final ClassWriter writer =
                 writer(
                         Minecraft189Mappings.ENTITY_LIVING_BASE
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_HURT_TIME);
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH);
@@ -1649,6 +1695,9 @@ final class Minecraft189MappingsTest {
                 writer(
                         Minecraft189Mappings.ENTITY_LIVING_BASE
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_HURT_TIME);
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH);
@@ -1673,6 +1722,9 @@ final class Minecraft189MappingsTest {
                 writer(
                         Minecraft189Mappings.ENTITY_LIVING_BASE
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_HURT_TIME);
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH);
@@ -1768,6 +1820,9 @@ final class Minecraft189MappingsTest {
                 writer(
                         Minecraft189Mappings.ENTITY_LIVING_BASE
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_HURT_TIME);
         addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH);
         addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH);
         addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT);
@@ -2004,6 +2059,9 @@ final class Minecraft189MappingsTest {
                 writer(
                         Minecraft189Mappings.ENTITY_LIVING_BASE
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_HURT_TIME);
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH);
