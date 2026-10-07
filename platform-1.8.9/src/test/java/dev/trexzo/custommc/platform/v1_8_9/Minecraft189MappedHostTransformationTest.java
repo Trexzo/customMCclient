@@ -2967,6 +2967,9 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "t", "D");
         field(writer, "u", "D");
         field(writer, "y", "F");
+        field(writer, "v", "D");
+        field(writer, "w", "D");
+        field(writer, "x", "D");
         field(writer, "am", "I");
         field(writer, "C", "Z");
         field(writer, "S", "F");
@@ -3248,6 +3251,87 @@ final class Minecraft189MappedHostTransformationTest {
                 3,
                 1);
         jump.visitEnd();
+
+        final MethodVisitor knockBack =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "a",
+                        "(Lpk;FDD)V",
+                        null,
+                        null);
+        knockBack.visitCode();
+
+        knockBack.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        knockBack.visitInsn(
+                Opcodes.DUP);
+        knockBack.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pk",
+                "v",
+                "D");
+        knockBack.visitVarInsn(
+                Opcodes.DLOAD,
+                3);
+        knockBack.visitInsn(
+                Opcodes.DADD);
+        knockBack.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                "pk",
+                "v",
+                "D");
+
+        knockBack.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        knockBack.visitInsn(
+                Opcodes.DUP);
+        knockBack.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pk",
+                "w",
+                "D");
+        knockBack.visitVarInsn(
+                Opcodes.FLOAD,
+                2);
+        knockBack.visitInsn(
+                Opcodes.F2D);
+        knockBack.visitInsn(
+                Opcodes.DADD);
+        knockBack.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                "pk",
+                "w",
+                "D");
+
+        knockBack.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        knockBack.visitInsn(
+                Opcodes.DUP);
+        knockBack.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pk",
+                "x",
+                "D");
+        knockBack.visitVarInsn(
+                Opcodes.DLOAD,
+                5);
+        knockBack.visitInsn(
+                Opcodes.DADD);
+        knockBack.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                "pk",
+                "x",
+                "D");
+
+        knockBack.visitInsn(
+                Opcodes.RETURN);
+        knockBack.visitMaxs(
+                5,
+                7);
+        knockBack.visitEnd();
 
         writer.visitEnd();
         return writer.toByteArray();
