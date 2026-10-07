@@ -351,6 +351,12 @@ final class Minecraft189FlightModuleTest {
                 modules.find(
                         Minecraft189FlightModule.ID));
         assertNull(
+                settings.find(
+                        Minecraft189FlightModule.HORIZONTAL_SPEED_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189FlightModule.VERTICAL_SPEED_SETTING_ID));
+        assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
     }
