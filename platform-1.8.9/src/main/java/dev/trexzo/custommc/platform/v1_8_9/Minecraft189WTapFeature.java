@@ -89,7 +89,7 @@ final class Minecraft189WTapFeature
                             new ModuleDescriptor(
                                     Minecraft189WTapModule.ID,
                                     "W-Tap",
-                                    "Resets sprint for one tick on a fresh physical left-click press.",
+                                    "Resets sprint for a configurable window on a fresh physical left-click press.",
                                     Minecraft189FeatureCatalog.COMBAT_CATEGORY_ID,
                                     50));
             requireGroundSetting =
