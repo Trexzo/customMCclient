@@ -1491,3 +1491,13 @@ The Minecraft end-of-tick hook forwards only that primitive array through `Minec
 No `World`, `Entity`, `List<Entity>`, iterator, class-loader-owned collection or child-loaded object is retained by parent runtime state. Focused tests prove defensive copying, malformed/non-finite rejection and clear semantics. The transformed-host proof populates exact `adm.f` with two transformed entities and proves both primitive XYZ triples reach the parent snapshot, then proves `theWorld = null` clears it.
 
 M205 intentionally stops at positions. It does not yet classify player/living entities, identify the local player, expose names/health/visibility, select targets, rotate toward targets or render ESP. Those capabilities require additional exact authority and snapshot fields before target-aware modules are allowed.
+
+## Loader-safe world entity kind flags
+
+M206 adds a second primitive snapshot aligned to the M205 loaded-entity order. Transformed `World` implements `Minecraft189WorldEntityKindsAccess` and emits a fresh `int[]` with three certified class-identity flags: `LIVING` for `pr / EntityLivingBase`, `PLAYER` for `wn / EntityPlayer`, and `LOCAL_PLAYER` for `bew / EntityPlayerSP`. These class mappings were already part of the pinned 1.8.9 mapping authority, so M206 introduces no new obfuscated field or method claim.
+
+Classification is performed entirely inside child-loaded World bytecode using JVM `instanceof`; only integer bit flags cross the runtime bridge. `Minecraft189WorldEntityKindState` defensively copies arrays, rejects unknown bits, rejects impossible player-without-living and local-player-without-player/living combinations, and exposes immutable indexed predicates. Null World clears the state.
+
+The transformed-host proof uses the same exact M205 `adm.f` list: the live `bew` entry arrives as living + player + local-player, while a base `pk / Entity` entry arrives with zero kind bits. This gives later target selection a safe way to exclude the local player and restrict candidates to players/living entities without retaining child-loader objects.
+
+M206 still does not select targets, read names/teams, test visibility, read other entities' health, aim, attack or render ESP.
