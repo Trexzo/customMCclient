@@ -61,6 +61,8 @@ final class Minecraft189MappedHostTransformationTest {
         assertTrue(transformer.handles("pk"));
         assertTrue(transformer.handles("pr"));
         assertTrue(transformer.handles("wn"));
+        assertTrue(transformer.handles("bet"));
+        assertTrue(transformer.handles("bdc"));
         assertTrue(transformer.handles("xg"));
         assertTrue(transformer.handles("pf"));
 
@@ -274,6 +276,16 @@ final class Minecraft189MappedHostTransformationTest {
                         "wn",
                         entityPlayerShape()));
         loader.put(
+                "bdc",
+                transformer.transform(
+                        "bdc",
+                        networkPlayerInfoShape()));
+        loader.put(
+                "bet",
+                transformer.transform(
+                        "bet",
+                        abstractClientPlayerShape()));
+        loader.put(
                 "bew",
                 playerShape());
         loader.put(
@@ -423,6 +435,20 @@ final class Minecraft189MappedHostTransformationTest {
                     .setFloat(
                             player,
                             0.5F);
+
+            final Class<?> playerInfoClass =
+                    loader.loadClass("bdc");
+            final Object playerInfo =
+                    playerInfoClass.getDeclaredConstructor()
+                            .newInstance();
+            playerInfoClass.getField("responseTime")
+                    .setInt(
+                            playerInfo,
+                            57);
+            playerClass.getField("playerInfo")
+                    .set(
+                            player,
+                            playerInfo);
 
             final Class<?> itemStackClass =
                     loader.loadClass("zx");
@@ -804,6 +830,27 @@ final class Minecraft189MappedHostTransformationTest {
                     21,
                     experience.progressPoints());
 
+            final Minecraft189PlayerPingState.Snapshot ping =
+                    runtime.requireHostRuntime()
+                            .playerPingState()
+                            .snapshot();
+            assertTrue(
+                    ping.available());
+            assertEquals(
+                    57,
+                    ping.milliseconds());
+
+            playerClass.getField("playerInfo")
+                    .set(
+                            player,
+                            null);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .playerPingState()
+                            .snapshot()
+                            .available());
+
             minecraftClass.getField("h")
                     .set(
                             minecraft,
@@ -847,6 +894,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .playerExperienceState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .playerPingState()
                             .snapshot()
                             .available());
 
@@ -1689,16 +1741,53 @@ final class Minecraft189MappedHostTransformationTest {
         return writer.toByteArray();
     }
 
-    private static byte[] playerShape() {
+    private static byte[] networkPlayerInfoShape() {
+        final ClassWriter writer =
+                classWriter("bdc");
+        field(writer, "responseTime", "I");
+        endDefaultConstructor(
+                writer,
+                "bdc");
+
+        final MethodVisitor getResponseTime =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "c",
+                        "()I",
+                        null,
+                        null);
+        getResponseTime.visitCode();
+        getResponseTime.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getResponseTime.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "bdc",
+                "responseTime",
+                "I");
+        getResponseTime.visitInsn(
+                Opcodes.IRETURN);
+        getResponseTime.visitMaxs(
+                1,
+                1);
+        getResponseTime.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] abstractClientPlayerShape() {
         final ClassWriter writer =
                 new ClassWriter(0);
         writer.visit(
                 Opcodes.V1_8,
                 Opcodes.ACC_PUBLIC,
-                "bew",
+                "bet",
                 null,
                 "wn",
                 null);
+        field(writer, "playerInfo", "Lbdc;");
+
         final MethodVisitor constructor =
                 writer.visitMethod(
                         Opcodes.ACC_PUBLIC,
@@ -1713,6 +1802,67 @@ final class Minecraft189MappedHostTransformationTest {
         constructor.visitMethodInsn(
                 Opcodes.INVOKESPECIAL,
                 "wn",
+                "<init>",
+                "()V",
+                false);
+        constructor.visitInsn(
+                Opcodes.RETURN);
+        constructor.visitMaxs(
+                1,
+                1);
+        constructor.visitEnd();
+
+        final MethodVisitor getPlayerInfo =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "b",
+                        "()Lbdc;",
+                        null,
+                        null);
+        getPlayerInfo.visitCode();
+        getPlayerInfo.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getPlayerInfo.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "bet",
+                "playerInfo",
+                "Lbdc;");
+        getPlayerInfo.visitInsn(
+                Opcodes.ARETURN);
+        getPlayerInfo.visitMaxs(
+                1,
+                1);
+        getPlayerInfo.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] playerShape() {
+        final ClassWriter writer =
+                new ClassWriter(0);
+        writer.visit(
+                Opcodes.V1_8,
+                Opcodes.ACC_PUBLIC,
+                "bew",
+                null,
+                "bet",
+                null);
+        final MethodVisitor constructor =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "<init>",
+                        "()V",
+                        null,
+                        null);
+        constructor.visitCode();
+        constructor.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        constructor.visitMethodInsn(
+                Opcodes.INVOKESPECIAL,
+                "bet",
                 "<init>",
                 "()V",
                 false);
