@@ -1353,3 +1353,13 @@ M190 extends **Combat → Jitter** without introducing any new Minecraft mapping
 Releasing LMB, losing rotation authority, disabling the module, or receiving a null player resets both cadence and phase. The next valid held tick therefore always starts immediately with the positive phase instead of inheriting stale cooldown state.
 
 Focused coverage proves default one-tick parity, a three-tick cadence, deterministic phase alternation, release reset, and setting teardown. Transformed-host coverage proves the same cadence against exact mapped `rotationYaw` and `rotationPitch` writes through `Minecraft.runTick()`.
+
+## Jitter activation mode
+
+M191 extends **Combat → Jitter** on the same certified live yaw/pitch control bridge.
+
+`combat.jitter.requireHold` is a persistent BOOLEAN setting with default `true`. The default preserves existing behavior exactly: Jitter is eligible only while physical LMB is held, and release resets cadence and phase. When explicitly set to `false`, the enabled module runs continuously on eligible rotation ticks without requiring LMB.
+
+Switching Require Hold back to `true` while LMB is released immediately returns to the inactive/reset path, so no stale cadence or phase is carried into the next held activation. The M190 interval setting remains authoritative in either activation mode.
+
+Focused coverage proves default hold-only behavior, no-hold mode, mode return/reset, and setting teardown. Transformed-host coverage proves exact mapped yaw/pitch writes with LMB released only while Require Hold is false.
