@@ -101,6 +101,16 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189ServerDataAccess";
     private static final String SERVER_DATA_ACCESS_DESCRIPTOR =
             "L" + SERVER_DATA_ACCESS_INTERNAL_NAME + ";";
+    private static final String ITEM_STACK_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189ItemStackAccess";
+    private static final String ITEM_STACK_ACCESS_DESCRIPTOR =
+            "L" + ITEM_STACK_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_HELD_ITEM_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerHeldItemAccess";
+    private static final String PLAYER_HELD_ITEM_ACCESS_DESCRIPTOR =
+            "L" + PLAYER_HELD_ITEM_ACCESS_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -141,6 +151,9 @@ public final class Minecraft189ClassTransformer
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.SERVER_DATA
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.ITEM_STACK
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.FOOD_STATS
@@ -247,6 +260,13 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyServerData(input);
             return transformServerData(input);
+        }
+        if (Minecraft189Mappings.ITEM_STACK
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyItemStack(input);
+            return transformItemStack(input);
         }
         if (Minecraft189Mappings.FOOD_STATS
                 .obfuscatedBinaryName()
@@ -373,6 +393,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedPing =
                 new boolean[]{false};
         final boolean[] injectedServerAddress =
+                new boolean[]{false};
+        final boolean[] injectedHeldItem =
                 new boolean[]{false};
         final boolean[] foundDispatchKeypresses =
                 new boolean[]{false};
@@ -659,6 +681,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedServerAddress[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_HELD_ITEM_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerHeldItem",
+                                                "("
+                                                        + PLAYER_HELD_ITEM_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedHeldItem[0] = true;
                                     }
                                     super.visitInsn(opcode);
                                 }
@@ -747,7 +791,8 @@ public final class Minecraft189ClassTransformer
                 || !injectedPotionEffects[0]
                 || !injectedExperience[0]
                 || !injectedPing[0]
-                || !injectedServerAddress[0]) {
+                || !injectedServerAddress[0]
+                || !injectedHeldItem[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
         }
@@ -1319,10 +1364,12 @@ public final class Minecraft189ClassTransformer
                                 withInterface(
                                         withInterface(
                                                 withInterface(
-                                                        interfaces,
-                                                        PLAYER_HEALTH_ACCESS_INTERNAL_NAME),
-                                                PLAYER_ARMOR_ACCESS_INTERNAL_NAME),
-                                        PLAYER_POTION_EFFECTS_ACCESS_INTERNAL_NAME));
+                                                        withInterface(
+                                                                interfaces,
+                                                                PLAYER_HEALTH_ACCESS_INTERNAL_NAME),
+                                                        PLAYER_ARMOR_ACCESS_INTERNAL_NAME),
+                                                PLAYER_POTION_EFFECTS_ACCESS_INTERNAL_NAME),
+                                        PLAYER_HELD_ITEM_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1356,6 +1403,70 @@ public final class Minecraft189ClassTransformer
                         addPotionEffectsGetter(
                                 cv,
                                 "customMcPotionEffects");
+                        addHeldItemGetter(
+                                cv,
+                                "customMcHeldItem");
+                        super.visitEnd();
+                    }
+                },
+                0);
+
+        return writer.toByteArray();
+    }
+
+    private static byte[] transformItemStack(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public void visit(
+                            final int version,
+                            final int access,
+                            final String name,
+                            final String signature,
+                            final String superName,
+                            final String[] interfaces) {
+                        super.visit(
+                                version,
+                                access,
+                                name,
+                                signature,
+                                superName,
+                                withInterface(
+                                        interfaces,
+                                        ITEM_STACK_ACCESS_INTERNAL_NAME));
+                    }
+
+                    @Override
+                    public void visitEnd() {
+                        addStringMethodDelegate(
+                                cv,
+                                "customMcDisplayName",
+                                Minecraft189Mappings
+                                        .ITEM_STACK_GET_DISPLAY_NAME);
+                        addIntFieldGetter(
+                                cv,
+                                "customMcStackSize",
+                                Minecraft189Mappings.ITEM_STACK_SIZE);
+                        addIntMethodDelegate(
+                                cv,
+                                "customMcItemDamage",
+                                Minecraft189Mappings
+                                        .ITEM_STACK_GET_ITEM_DAMAGE);
+                        addIntMethodDelegate(
+                                cv,
+                                "customMcMaxDamage",
+                                Minecraft189Mappings
+                                        .ITEM_STACK_GET_MAX_DAMAGE);
                         super.visitEnd();
                     }
                 },
@@ -1717,6 +1828,42 @@ public final class Minecraft189ClassTransformer
                 false);
         method.visitInsn(
                 Opcodes.FRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addHeldItemGetter(
+            final ClassVisitor visitor,
+            final String methodName) {
+        final Minecraft189Mappings.MappedMethod equipment =
+                Minecraft189Mappings
+                        .ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT;
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()" + ITEM_STACK_ACCESS_DESCRIPTOR,
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitInsn(
+                Opcodes.ICONST_0);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                equipment.owner().obfuscatedInternalName(),
+                equipment.obfuscatedName(),
+                equipment.descriptor(),
+                false);
+        method.visitTypeInsn(
+                Opcodes.CHECKCAST,
+                ITEM_STACK_ACCESS_INTERNAL_NAME);
+        method.visitInsn(
+                Opcodes.ARETURN);
         method.visitMaxs(
                 0,
                 0);

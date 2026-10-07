@@ -56,6 +56,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189ExperienceFeature experienceFeature;
     private final Minecraft189PingFeature pingFeature;
     private final Minecraft189ServerFeature serverFeature;
+    private final Minecraft189HeldItemFeature heldItemFeature;
     private final Minecraft189SpeedFeature speedFeature;
     private final Minecraft189CrosshairFeature crosshairFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
@@ -96,6 +97,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189ExperienceFeature experienceFeature,
             final Minecraft189PingFeature pingFeature,
             final Minecraft189ServerFeature serverFeature,
+            final Minecraft189HeldItemFeature heldItemFeature,
             final Minecraft189SpeedFeature speedFeature,
             final Minecraft189CrosshairFeature crosshairFeature) {
         this.modules = modules;
@@ -130,6 +132,7 @@ public final class Minecraft189FeatureCatalog
         this.experienceFeature = experienceFeature;
         this.pingFeature = pingFeature;
         this.serverFeature = serverFeature;
+        this.heldItemFeature = heldItemFeature;
         this.speedFeature = speedFeature;
         this.crosshairFeature = crosshairFeature;
     }
@@ -154,6 +157,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189PlayerExperienceState playerExperienceState,
             final Minecraft189PlayerPingState playerPingState,
             final Minecraft189ServerAddressState serverAddressState,
+            final Minecraft189HeldItemState heldItemState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
@@ -176,6 +180,7 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(playerExperienceState, "playerExperienceState");
         Objects.requireNonNull(playerPingState, "playerPingState");
         Objects.requireNonNull(serverAddressState, "serverAddressState");
+        Objects.requireNonNull(heldItemState, "heldItemState");
         Objects.requireNonNull(movementSpeedTracker, "movementSpeedTracker");
         Objects.requireNonNull(renderPipeline, "renderPipeline");
         Objects.requireNonNull(hostCallbacks, "hostCallbacks");
@@ -205,6 +210,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189ExperienceFeature experienceFeature = null;
         Minecraft189PingFeature pingFeature = null;
         Minecraft189ServerFeature serverFeature = null;
+        Minecraft189HeldItemFeature heldItemFeature = null;
         Minecraft189SpeedFeature speedFeature = null;
         Minecraft189CrosshairFeature crosshairFeature = null;
 
@@ -445,6 +451,18 @@ public final class Minecraft189FeatureCatalog
                             renderPipeline,
                             hostCallbacks);
 
+            heldItemFeature =
+                    Minecraft189HeldItemFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            heldItemState,
+                            renderPipeline,
+                            hostCallbacks);
+
             speedFeature =
                     Minecraft189SpeedFeature.install(
                             modules,
@@ -501,11 +519,13 @@ public final class Minecraft189FeatureCatalog
                     experienceFeature,
                     pingFeature,
                     serverFeature,
+                    heldItemFeature,
                     speedFeature,
                     crosshairFeature);
         } catch (RuntimeException failure) {
             closeQuietly(crosshairFeature, failure);
             closeQuietly(speedFeature, failure);
+            closeQuietly(heldItemFeature, failure);
             closeQuietly(serverFeature, failure);
             closeQuietly(pingFeature, failure);
             closeQuietly(experienceFeature, failure);
@@ -603,6 +623,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189ServerModule server() {
         requireOpen();
         return serverFeature.module();
+    }
+
+    public Minecraft189HeldItemModule heldItem() {
+        requireOpen();
+        return heldItemFeature.module();
     }
 
     public Minecraft189SpeedModule speed() {
@@ -758,6 +783,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             speedFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            heldItemFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,

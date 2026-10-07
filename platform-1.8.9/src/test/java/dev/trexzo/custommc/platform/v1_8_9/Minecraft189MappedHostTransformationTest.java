@@ -64,6 +64,7 @@ final class Minecraft189MappedHostTransformationTest {
         assertTrue(transformer.handles("bet"));
         assertTrue(transformer.handles("bdc"));
         assertTrue(transformer.handles("bde"));
+        assertTrue(transformer.handles("zx"));
         assertTrue(transformer.handles("xg"));
         assertTrue(transformer.handles("pf"));
 
@@ -260,7 +261,9 @@ final class Minecraft189MappedHostTransformationTest {
                         entityShape()));
         loader.put(
                 "zx",
-                emptyClass("zx"));
+                transformer.transform(
+                        "zx",
+                        itemStackShape()));
         loader.put(
                 "pf",
                 transformer.transform(
@@ -462,6 +465,29 @@ final class Minecraft189MappedHostTransformationTest {
                     java.lang.reflect.Array.newInstance(
                             itemStackClass,
                             5);
+            final Object heldItem =
+                    itemStackClass.getDeclaredConstructor()
+                            .newInstance();
+            itemStackClass.getField("b")
+                    .setInt(
+                            heldItem,
+                            1);
+            itemStackClass.getField("displayName")
+                    .set(
+                            heldItem,
+                            "Diamond Sword");
+            itemStackClass.getField("itemDamage")
+                    .setInt(
+                            heldItem,
+                            27);
+            itemStackClass.getField("maxDamage")
+                    .setInt(
+                            heldItem,
+                            1561);
+            java.lang.reflect.Array.set(
+                    equipmentSlots,
+                    0,
+                    heldItem);
             java.lang.reflect.Array.set(
                     equipmentSlots,
                     1,
@@ -870,6 +896,39 @@ final class Minecraft189MappedHostTransformationTest {
                     "play.example.net:25565",
                     server.address());
 
+            final Minecraft189HeldItemState.Snapshot held =
+                    runtime.requireHostRuntime()
+                            .heldItemState()
+                            .snapshot();
+            assertTrue(
+                    held.available());
+            assertEquals(
+                    "Diamond Sword",
+                    held.displayName());
+            assertEquals(
+                    1,
+                    held.stackSize());
+            assertEquals(
+                    27,
+                    held.itemDamage());
+            assertEquals(
+                    1561,
+                    held.maxDamage());
+            assertEquals(
+                    1534,
+                    held.durabilityRemaining());
+
+            java.lang.reflect.Array.set(
+                    equipmentSlots,
+                    0,
+                    null);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .heldItemState()
+                            .snapshot()
+                            .available());
+
             playerClass.getField("playerInfo")
                     .set(
                             player,
@@ -945,6 +1004,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .serverAddressState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .heldItemState()
                             .snapshot()
                             .available());
 
@@ -1308,6 +1372,102 @@ final class Minecraft189MappedHostTransformationTest {
                         },
                         0);
         return calls[0];
+    }
+
+    private static byte[] itemStackShape() {
+        final ClassWriter writer =
+                classWriter("zx");
+        field(
+                writer,
+                "b",
+                "I");
+        field(
+                writer,
+                "displayName",
+                "Ljava/lang/String;");
+        field(
+                writer,
+                "itemDamage",
+                "I");
+        field(
+                writer,
+                "maxDamage",
+                "I");
+        endDefaultConstructor(
+                writer,
+                "zx");
+
+        final MethodVisitor displayName =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "q",
+                        "()Ljava/lang/String;",
+                        null,
+                        null);
+        displayName.visitCode();
+        displayName.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        displayName.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "zx",
+                "displayName",
+                "Ljava/lang/String;");
+        displayName.visitInsn(
+                Opcodes.ARETURN);
+        displayName.visitMaxs(
+                1,
+                1);
+        displayName.visitEnd();
+
+        final MethodVisitor itemDamage =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "h",
+                        "()I",
+                        null,
+                        null);
+        itemDamage.visitCode();
+        itemDamage.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        itemDamage.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "zx",
+                "itemDamage",
+                "I");
+        itemDamage.visitInsn(
+                Opcodes.IRETURN);
+        itemDamage.visitMaxs(
+                1,
+                1);
+        itemDamage.visitEnd();
+
+        final MethodVisitor maxDamage =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "j",
+                        "()I",
+                        null,
+                        null);
+        maxDamage.visitCode();
+        maxDamage.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        maxDamage.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "zx",
+                "maxDamage",
+                "I");
+        maxDamage.visitInsn(
+                Opcodes.IRETURN);
+        maxDamage.visitMaxs(
+                1,
+                1);
+        maxDamage.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
     }
 
     private static byte[] serverDataShape() {

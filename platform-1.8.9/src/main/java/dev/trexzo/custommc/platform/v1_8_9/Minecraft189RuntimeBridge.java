@@ -135,6 +135,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerHeldItem(
+            final Minecraft189PlayerHeldItemAccess player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerHeldItem(player);
+        }
+    }
+
     public static synchronized void publishTick(
             final long tickIndex) {
         final Minecraft189HostRuntime host =
