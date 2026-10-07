@@ -309,6 +309,13 @@ public final class Minecraft189Mappings {
                     "(Z)V",
                     "func_70031_b",
                     "setSprinting");
+    public static final MappedMethod ENTITY_SET_SNEAKING =
+            new MappedMethod(
+                    ENTITY,
+                    "c",
+                    "(Z)V",
+                    "func_70095_a",
+                    "setSneaking");
 
     public static final MappedMethod WORLD_GET_WORLD_TIME =
             new MappedMethod(

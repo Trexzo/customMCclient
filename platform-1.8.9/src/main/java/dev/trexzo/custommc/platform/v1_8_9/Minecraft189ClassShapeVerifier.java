@@ -127,7 +127,8 @@ public final class Minecraft189ClassShapeVerifier {
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.ENTITY_IS_SNEAKING,
                         Minecraft189Mappings.ENTITY_IS_SPRINTING,
-                        Minecraft189Mappings.ENTITY_SET_SPRINTING
+                        Minecraft189Mappings.ENTITY_SET_SPRINTING,
+                        Minecraft189Mappings.ENTITY_SET_SNEAKING
                 });
     }
 

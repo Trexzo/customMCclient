@@ -871,3 +871,11 @@ Auto Jump uses exact mapped `onGround` state and fires once per grounded contact
 
 Focused coverage verifies disabled behavior, one jump per ground contact, airborne re-arm, disable behavior, category lifecycle and teardown. Transformed-host coverage executes the inherited `bew -> ... -> pr` control interface and proves exact `pr.bF()V` invocation through the synthetic jump counter.
 
+## Sneak-control mapping authority
+
+M140 pins exact Minecraft 1.8.9 sneak-control authority on base `Entity pk`: `pk.c(Z)V` / Searge `func_70095_a` / MCP `setSneaking`.
+
+The existing Entity class-shape gate now requires this exact mutator alongside movement-state and sprint-control authority. Mapping regression rejects a missing setSneaking method explicitly, and the transformed-host synthetic `pk` fixture implements executable `c(Z)V` behavior against its test-only sneaking field so the consumer milestone can prove the exact mapped invocation path.
+
+This milestone is authority-only. It does not force sneak state or register a movement module.
+
