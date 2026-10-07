@@ -9,6 +9,8 @@ public final class Minecraft189FlightModule
         implements Module {
     public static final String ID =
             "movement.flight";
+    public static final double HORIZONTAL_MOTION =
+            0.30D;
     public static final double ASCEND_MOTION_Y =
             0.30D;
     public static final double DESCEND_MOTION_Y =
@@ -43,11 +45,26 @@ public final class Minecraft189FlightModule
     }
 
     synchronized void apply(
-            final Minecraft189PlayerMotionControl player) {
+            final Minecraft189PlayerMotionControl player,
+            final Minecraft189PlayerRotationState.Snapshot rotation) {
+        Objects.requireNonNull(
+                rotation,
+                "rotation");
         if (!enabled || player == null) {
             return;
         }
 
+        applyVertical(
+                player);
+        if (rotation.available()) {
+            applyHorizontal(
+                    player,
+                    rotation.yaw());
+        }
+    }
+
+    private void applyVertical(
+            final Minecraft189PlayerMotionControl player) {
         final boolean ascend =
                 inputState.keyPressed(
                         LegacyKeyboardCodes.SPACE);
@@ -75,6 +92,79 @@ public final class Minecraft189FlightModule
             player.customMcSetMotionY(
                     targetMotionY);
         }
+    }
+
+    private void applyHorizontal(
+            final Minecraft189PlayerMotionControl player,
+            final float yawDegrees) {
+        double forward =
+                (inputState.keyPressed(
+                        LegacyKeyboardCodes.W)
+                        ? 1.0D
+                        : 0.0D)
+                        + (inputState.keyPressed(
+                                LegacyKeyboardCodes.S)
+                                ? -1.0D
+                                : 0.0D);
+        double strafe =
+                (inputState.keyPressed(
+                        LegacyKeyboardCodes.A)
+                        ? 1.0D
+                        : 0.0D)
+                        + (inputState.keyPressed(
+                                LegacyKeyboardCodes.D)
+                                ? -1.0D
+                                : 0.0D);
+
+        final double inputLength =
+                Math.sqrt(
+                        forward * forward
+                                + strafe * strafe);
+        if (inputLength > 1.0D) {
+            forward /= inputLength;
+            strafe /= inputLength;
+        }
+
+        final double yawRadians =
+                Math.toRadians(
+                        yawDegrees);
+        final double sin =
+                Math.sin(
+                        yawRadians);
+        final double cos =
+                Math.cos(
+                        yawRadians);
+
+        final double targetMotionX =
+                cleanZero(
+                        (-sin * forward
+                                + cos * strafe)
+                                * HORIZONTAL_MOTION);
+        final double targetMotionZ =
+                cleanZero(
+                        (cos * forward
+                                + sin * strafe)
+                                * HORIZONTAL_MOTION);
+
+        if (Double.compare(
+                player.customMcMotionX(),
+                targetMotionX) != 0) {
+            player.customMcSetMotionX(
+                    targetMotionX);
+        }
+        if (Double.compare(
+                player.customMcMotionZ(),
+                targetMotionZ) != 0) {
+            player.customMcSetMotionZ(
+                    targetMotionZ);
+        }
+    }
+
+    private static double cleanZero(
+            final double value) {
+        return Math.abs(value) < 0.000000000001D
+                ? 0.0D
+                : value;
     }
 
     synchronized boolean active() {
