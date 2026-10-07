@@ -27,6 +27,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189ClickRateTracker clickRateTracker;
     private final Minecraft189PlayerPositionState playerPositionState;
     private final Minecraft189PlayerRotationState playerRotationState;
+    private final Minecraft189PlayerDimensionState playerDimensionState;
     private final Minecraft189PlayerHealthState playerHealthState;
     private final Minecraft189PlayerArmorState playerArmorState;
     private final Minecraft189PlayerHungerState playerHungerState;
@@ -53,6 +54,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189ClickRateTracker clickRateTracker,
             final Minecraft189PlayerPositionState playerPositionState,
             final Minecraft189PlayerRotationState playerRotationState,
+            final Minecraft189PlayerDimensionState playerDimensionState,
             final Minecraft189PlayerHealthState playerHealthState,
             final Minecraft189PlayerArmorState playerArmorState,
             final Minecraft189PlayerHungerState playerHungerState,
@@ -76,6 +78,7 @@ public final class Minecraft189HostRuntime
         this.clickRateTracker = clickRateTracker;
         this.playerPositionState = playerPositionState;
         this.playerRotationState = playerRotationState;
+        this.playerDimensionState = playerDimensionState;
         this.playerHealthState = playerHealthState;
         this.playerArmorState = playerArmorState;
         this.playerHungerState = playerHungerState;
@@ -158,6 +161,8 @@ public final class Minecraft189HostRuntime
                 new Minecraft189PlayerPositionState();
         final Minecraft189PlayerRotationState playerRotationState =
                 new Minecraft189PlayerRotationState();
+        final Minecraft189PlayerDimensionState playerDimensionState =
+                new Minecraft189PlayerDimensionState();
         final Minecraft189PlayerHealthState playerHealthState =
                 new Minecraft189PlayerHealthState();
         final Minecraft189PlayerArmorState playerArmorState =
@@ -209,6 +214,7 @@ public final class Minecraft189HostRuntime
                             clickRateTracker,
                             playerPositionState,
                             playerRotationState,
+                            playerDimensionState,
                             playerHealthState,
                             playerArmorState,
                             playerHungerState,
@@ -234,6 +240,7 @@ public final class Minecraft189HostRuntime
                     clickRateTracker,
                     playerPositionState,
                     playerRotationState,
+                    playerDimensionState,
                     playerHealthState,
                     playerArmorState,
                     playerHungerState,
@@ -305,6 +312,11 @@ public final class Minecraft189HostRuntime
     public Minecraft189PlayerRotationState playerRotationState() {
         requireOpen();
         return playerRotationState;
+    }
+
+    public Minecraft189PlayerDimensionState playerDimensionState() {
+        requireOpen();
+        return playerDimensionState;
     }
 
     public Minecraft189PlayerHealthState playerHealthState() {
@@ -394,6 +406,17 @@ public final class Minecraft189HostRuntime
         }
         playerRotationState.update(
                 player.customMcRotationYaw());
+    }
+
+    void playerDimension(
+            final Minecraft189PlayerDimensionAccess player) {
+        requireOpen();
+        if (player == null) {
+            playerDimensionState.clear();
+            return;
+        }
+        playerDimensionState.update(
+                player.customMcDimension());
     }
 
     void playerHealth(
@@ -685,6 +708,7 @@ public final class Minecraft189HostRuntime
         clickRateTracker.clear();
         playerPositionState.clear();
         playerRotationState.clear();
+        playerDimensionState.clear();
         playerHealthState.clear();
         playerArmorState.clear();
         playerHungerState.clear();
