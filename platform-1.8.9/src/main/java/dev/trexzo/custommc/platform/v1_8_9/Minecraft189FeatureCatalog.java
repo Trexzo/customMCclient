@@ -87,6 +87,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189GlideFeature glideFeature;
     private final Minecraft189FastFallFeature fastFallFeature;
     private final Minecraft189NoGravityFeature noGravityFeature;
+    private final Minecraft189ReverseStepFeature reverseStepFeature;
     private final Minecraft189FreezeFeature freezeFeature;
     private final Minecraft189LongJumpFeature longJumpFeature;
     private final Minecraft189BunnyHopFeature bunnyHopFeature;
@@ -164,6 +165,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189GlideFeature glideFeature,
             final Minecraft189FastFallFeature fastFallFeature,
             final Minecraft189NoGravityFeature noGravityFeature,
+            final Minecraft189ReverseStepFeature reverseStepFeature,
             final Minecraft189FreezeFeature freezeFeature,
             final Minecraft189LongJumpFeature longJumpFeature,
             final Minecraft189BunnyHopFeature bunnyHopFeature,
@@ -235,6 +237,7 @@ public final class Minecraft189FeatureCatalog
         this.glideFeature = glideFeature;
         this.fastFallFeature = fastFallFeature;
         this.noGravityFeature = noGravityFeature;
+        this.reverseStepFeature = reverseStepFeature;
         this.freezeFeature = freezeFeature;
         this.longJumpFeature = longJumpFeature;
         this.bunnyHopFeature = bunnyHopFeature;
@@ -359,6 +362,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189GlideFeature glideFeature = null;
         Minecraft189FastFallFeature fastFallFeature = null;
         Minecraft189NoGravityFeature noGravityFeature = null;
+        Minecraft189ReverseStepFeature reverseStepFeature = null;
         Minecraft189FreezeFeature freezeFeature = null;
         Minecraft189LongJumpFeature longJumpFeature = null;
         Minecraft189BunnyHopFeature bunnyHopFeature = null;
@@ -575,6 +579,15 @@ public final class Minecraft189FeatureCatalog
                             modules,
                             moduleController,
                             presentations);
+
+            reverseStepFeature =
+                    Minecraft189ReverseStepFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             freezeFeature =
                     Minecraft189FreezeFeature.install(
@@ -1007,6 +1020,7 @@ public final class Minecraft189FeatureCatalog
                     glideFeature,
                     fastFallFeature,
                     noGravityFeature,
+                    reverseStepFeature,
                     freezeFeature,
                     longJumpFeature,
                     bunnyHopFeature,
@@ -1036,6 +1050,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(bunnyHopFeature, failure);
             closeQuietly(longJumpFeature, failure);
             closeQuietly(freezeFeature, failure);
+            closeQuietly(reverseStepFeature, failure);
             closeQuietly(noGravityFeature, failure);
             closeQuietly(fastFallFeature, failure);
             closeQuietly(glideFeature, failure);
@@ -1203,6 +1218,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189NoGravityModule noGravity() {
         requireOpen();
         return noGravityFeature.module();
+    }
+
+    public Minecraft189ReverseStepModule reverseStep() {
+        requireOpen();
+        return reverseStepFeature.module();
     }
 
     public Minecraft189FreezeModule freeze() {
@@ -1587,6 +1607,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             freezeFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            reverseStepFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,

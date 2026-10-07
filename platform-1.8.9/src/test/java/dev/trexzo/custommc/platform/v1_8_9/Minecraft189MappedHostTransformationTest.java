@@ -915,6 +915,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189ReverseStepModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189AutoSneakModule.ID)
                             != null);
             assertTrue(
@@ -2444,6 +2449,74 @@ final class Minecraft189MappedHostTransformationTest {
                     .key(
                             LegacyKeyboardCodes.SPACE,
                             false);
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .reverseStep()
+                    .speedSetting()
+                    .set(
+                            0.75D);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189ReverseStepModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .reverseStep()
+                            .active());
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            true);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            0.0D);
+            runTick.invoke(minecraft);
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            false);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            -0.10D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    -0.75D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            true);
+            runTick.invoke(minecraft);
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            false);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            0.42D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.42D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189ReverseStepModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .reverseStep()
+                            .active());
 
             runtime.moduleController()
                     .enable(

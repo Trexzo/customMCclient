@@ -698,6 +698,13 @@ public final class Minecraft189HostRuntime
                                 || bunnyHopOwnsHorizontal
                                 || movementSpeedOwnsHorizontal
                                 || airSpeedOwnsHorizontal);
+        final boolean reverseStepOwnsVertical =
+                featureCatalog.reverseStep()
+                        .apply(
+                                player,
+                                movement,
+                                flightActive
+                                        || noGravityActive);
         featureCatalog.noGravity()
                 .apply(
                         player,
@@ -708,13 +715,15 @@ public final class Minecraft189HostRuntime
                         player,
                         movement,
                         flightActive
-                                || noGravityActive);
+                                || noGravityActive
+                                || reverseStepOwnsVertical);
         featureCatalog.glide()
                 .apply(
                         player,
                         movement,
                         flightActive
                                 || noGravityActive
+                                || reverseStepOwnsVertical
                                 || fastFallActive);
     }
 
