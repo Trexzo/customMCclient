@@ -441,7 +441,8 @@ public final class Minecraft189HostRuntime
             return;
         }
         playerRotationState.update(
-                player.customMcRotationYaw());
+                player.customMcRotationYaw(),
+                player.customMcRotationPitch());
     }
 
     void playerDimension(

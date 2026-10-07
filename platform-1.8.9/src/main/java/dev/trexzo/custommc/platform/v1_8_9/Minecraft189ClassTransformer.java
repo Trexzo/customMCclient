@@ -2157,6 +2157,10 @@ public final class Minecraft189ClassTransformer
                                 cv,
                                 "customMcRotationYaw",
                                 Minecraft189Mappings.ENTITY_ROTATION_YAW);
+                        addFloatFieldGetter(
+                                cv,
+                                "customMcRotationPitch",
+                                Minecraft189Mappings.ENTITY_ROTATION_PITCH);
                         addIntFieldGetter(
                                 cv,
                                 "customMcDimension",
