@@ -1400,6 +1400,22 @@ public final class Minecraft189ClassTransformer
                                 cv,
                                 "customMcArmorHelmet",
                                 4);
+                        addEquipmentItemGetter(
+                                cv,
+                                "customMcArmorBootsItem",
+                                1);
+                        addEquipmentItemGetter(
+                                cv,
+                                "customMcArmorLeggingsItem",
+                                2);
+                        addEquipmentItemGetter(
+                                cv,
+                                "customMcArmorChestplateItem",
+                                3);
+                        addEquipmentItemGetter(
+                                cv,
+                                "customMcArmorHelmetItem",
+                                4);
                         addPotionEffectsGetter(
                                 cv,
                                 "customMcPotionEffects");
@@ -1837,6 +1853,16 @@ public final class Minecraft189ClassTransformer
     private static void addHeldItemGetter(
             final ClassVisitor visitor,
             final String methodName) {
+        addEquipmentItemGetter(
+                visitor,
+                methodName,
+                0);
+    }
+
+    private static void addEquipmentItemGetter(
+            final ClassVisitor visitor,
+            final String methodName,
+            final int slot) {
         final Minecraft189Mappings.MappedMethod equipment =
                 Minecraft189Mappings
                         .ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT;
@@ -1851,8 +1877,9 @@ public final class Minecraft189ClassTransformer
         method.visitVarInsn(
                 Opcodes.ALOAD,
                 0);
-        method.visitInsn(
-                Opcodes.ICONST_0);
+        method.visitIntInsn(
+                Opcodes.BIPUSH,
+                slot);
         method.visitMethodInsn(
                 Opcodes.INVOKEVIRTUAL,
                 equipment.owner().obfuscatedInternalName(),
