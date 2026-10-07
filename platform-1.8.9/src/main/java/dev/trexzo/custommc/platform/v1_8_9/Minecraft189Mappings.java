@@ -31,6 +31,10 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "bdb",
                     "net/minecraft/client/multiplayer/WorldClient");
+    public static final MappedClass PLAYER_CONTROLLER_MP =
+            new MappedClass(
+                    "bda",
+                    "net/minecraft/client/multiplayer/PlayerControllerMP");
     public static final MappedClass KEY_BINDING =
             new MappedClass(
                     "avb",
@@ -114,6 +118,13 @@ public final class Minecraft189Mappings {
                     "Lbdb;",
                     "field_71441_e",
                     "theWorld");
+    public static final MappedField MINECRAFT_PLAYER_CONTROLLER =
+            new MappedField(
+                    MINECRAFT,
+                    "c",
+                    "Lbda;",
+                    "field_71442_b",
+                    "playerController");
     public static final MappedField MINECRAFT_FONT_RENDERER =
             new MappedField(
                     MINECRAFT,
@@ -163,6 +174,13 @@ public final class Minecraft189Mappings {
                     "I",
                     "field_71429_W",
                     "leftClickCounter");
+    public static final MappedField PLAYER_CONTROLLER_BLOCK_HIT_DELAY =
+            new MappedField(
+                    PLAYER_CONTROLLER_MP,
+                    "g",
+                    "I",
+                    "field_78781_i",
+                    "blockHitDelay");
     public static final MappedField SERVER_DATA_SERVER_IP =
             new MappedField(
                     SERVER_DATA,

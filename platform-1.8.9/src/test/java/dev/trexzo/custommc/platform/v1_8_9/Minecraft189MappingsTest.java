@@ -45,6 +45,10 @@ final class Minecraft189MappingsTest {
                 "bdb",
                 "net/minecraft/client/multiplayer/WorldClient");
         assertClass(
+                Minecraft189Mappings.PLAYER_CONTROLLER_MP,
+                "bda",
+                "net/minecraft/client/multiplayer/PlayerControllerMP");
+        assertClass(
                 Minecraft189Mappings.KEY_BINDING,
                 "avb",
                 "net/minecraft/client/settings/KeyBinding");
@@ -131,6 +135,13 @@ final class Minecraft189MappingsTest {
                 "field_71441_e",
                 "theWorld");
         assertField(
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER,
+                Minecraft189Mappings.MINECRAFT,
+                "c",
+                "Lbda;",
+                "field_71442_b",
+                "playerController");
+        assertField(
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER,
                 Minecraft189Mappings.MINECRAFT,
                 "k",
@@ -179,6 +190,13 @@ final class Minecraft189MappingsTest {
                 "I",
                 "field_71429_W",
                 "leftClickCounter");
+        assertField(
+                Minecraft189Mappings.PLAYER_CONTROLLER_BLOCK_HIT_DELAY,
+                Minecraft189Mappings.PLAYER_CONTROLLER_MP,
+                "g",
+                "I",
+                "field_78781_i",
+                "blockHitDelay");
         assertField(
                 Minecraft189Mappings.ENTITY_PLAYER_SP_MOVEMENT_INPUT,
                 Minecraft189Mappings.ENTITY_PLAYER_SP,
@@ -595,6 +613,8 @@ final class Minecraft189MappingsTest {
                 minecraftShape());
         Minecraft189ClassShapeVerifier.verifyWorld(
                 worldShape());
+        Minecraft189ClassShapeVerifier.verifyPlayerControllerMp(
+                playerControllerShape());
         Minecraft189ClassShapeVerifier.verifyKeyBinding(
                 keyBindingShape());
         Minecraft189ClassShapeVerifier.verifyGameSettings(
@@ -629,6 +649,19 @@ final class Minecraft189MappingsTest {
                 foodStatsShape());
         Minecraft189ClassShapeVerifier.verifyPotionEffect(
                 potionEffectShape());
+    }
+
+    @Test
+    void playerControllerShapeGateRejectsMissingBlockHitDelay() {
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyPlayerControllerMp(
+                                        emptyClass("bda")));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: bda.g I (blockHitDelay)",
+                failure.getMessage());
     }
 
     @Test
@@ -704,6 +737,30 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
+    void minecraftShapeGateRejectsMissingPlayerControllerField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.MINECRAFT
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_WORLD);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyMinecraft(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: ave.c Lbda; (playerController)",
+                failure.getMessage());
+    }
+
+    @Test
     void minecraftShapeGateRejectsMissingCurrentServerDataField() {
         final ClassWriter writer =
                 writer(
@@ -715,6 +772,12 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_WORLD);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER);
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
@@ -751,6 +814,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_WORLD);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER);
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
@@ -790,6 +856,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_WORLD);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER);
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
@@ -876,6 +945,17 @@ final class Minecraft189MappingsTest {
         assertEquals(
                 "Minecraft 1.8.9 mapping method missing: adm.R()Z (isThundering)",
                 failure.getMessage());
+    }
+
+    private static byte[] playerControllerShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.PLAYER_CONTROLLER_MP
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.PLAYER_CONTROLLER_BLOCK_HIT_DELAY);
+        return finish(writer);
     }
 
     private static byte[] worldShape() {
@@ -1953,6 +2033,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_WORLD);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER);
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);

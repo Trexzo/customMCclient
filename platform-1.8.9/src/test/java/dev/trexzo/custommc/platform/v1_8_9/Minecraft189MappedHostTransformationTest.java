@@ -253,6 +253,9 @@ final class Minecraft189MappedHostTransformationTest {
                 "bdb",
                 worldClientShape());
         loader.put(
+                "bda",
+                playerControllerShape());
+        loader.put(
                 "bde",
                 transformer.transform(
                         "bde",
@@ -2411,11 +2414,26 @@ final class Minecraft189MappedHostTransformationTest {
         return writer.toByteArray();
     }
 
+    private static byte[] playerControllerShape() {
+        final ClassWriter writer =
+                classWriter("bda");
+        field(
+                writer,
+                "g",
+                "I");
+        endDefaultConstructor(
+                writer,
+                "bda");
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
     private static byte[] minecraftShape() {
         final ClassWriter writer =
                 classWriter("ave");
         field(writer, "h", "Lbew;");
         field(writer, "f", "Lbdb;");
+        field(writer, "c", "Lbda;");
         field(writer, "k", "Lavn;");
         field(writer, "o", "Lbfk;");
         field(writer, "q", "Lavo;");
