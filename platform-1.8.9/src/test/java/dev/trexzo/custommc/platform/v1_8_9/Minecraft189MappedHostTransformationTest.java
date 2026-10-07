@@ -419,6 +419,10 @@ final class Minecraft189MappedHostTransformationTest {
                     .setInt(
                             minecraft,
                             4);
+            minecraftClass.getField("ag")
+                    .setInt(
+                            minecraft,
+                            7);
 
             final Class<?> playerClass =
                     loader.loadClass("bew");
@@ -756,6 +760,11 @@ final class Minecraft189MappedHostTransformationTest {
                             .find(
                                     Minecraft189FastPlaceModule.ID)
                             != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
+                                    Minecraft189NoHitDelayModule.ID)
+                            != null);
             assertEquals(
                     0.35F,
                     settingsClass.getField("aJ")
@@ -849,6 +858,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(
                     4,
                     minecraftClass.getField("ap")
+                            .getInt(
+                                    minecraft));
+            assertEquals(
+                    7,
+                    minecraftClass.getField("ag")
                             .getInt(
                                     minecraft));
 
@@ -1042,6 +1056,55 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(
                     4,
                     minecraftClass.getField("ap")
+                            .getInt(
+                                    minecraft));
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189NoHitDelayModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .noHitDelay()
+                            .active());
+            minecraftClass.getField("ag")
+                    .setInt(
+                            minecraft,
+                            7);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0,
+                    minecraftClass.getField("ag")
+                            .getInt(
+                                    minecraft));
+
+            minecraftClass.getField("ag")
+                    .setInt(
+                            minecraft,
+                            -1);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    -1,
+                    minecraftClass.getField("ag")
+                            .getInt(
+                                    minecraft));
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189NoHitDelayModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .noHitDelay()
+                            .active());
+            minecraftClass.getField("ag")
+                    .setInt(
+                            minecraft,
+                            7);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    7,
+                    minecraftClass.getField("ag")
                             .getInt(
                                     minecraft));
 

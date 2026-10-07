@@ -652,6 +652,14 @@ public final class Minecraft189HostRuntime
                         currentDelay);
     }
 
+    int leftClickCounter(
+            final int currentCounter) {
+        requireOpen();
+        return featureCatalog.noHitDelay()
+                .apply(
+                        currentCounter);
+    }
+
     public void publishTick(
             final long tickIndex) {
         requireOpen();
