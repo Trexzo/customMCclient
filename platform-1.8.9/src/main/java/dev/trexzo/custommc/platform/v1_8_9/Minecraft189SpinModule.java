@@ -12,6 +12,8 @@ public final class Minecraft189SpinModule
             "combat.spin.yawSpeed";
     public static final String REVERSE_SETTING_ID =
             "combat.spin.reverse";
+    public static final String REQUIRE_HOLD_SETTING_ID =
+            "combat.spin.requireHold";
     public static final double DEFAULT_YAW_SPEED =
             20.0D;
     public static final double MINIMUM_YAW_SPEED =
@@ -31,6 +33,12 @@ public final class Minecraft189SpinModule
                     Boolean.FALSE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> requireHold =
+            new Setting<Boolean>(
+                    REQUIRE_HOLD_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
 
     private boolean enabled;
 
@@ -47,6 +55,10 @@ public final class Minecraft189SpinModule
         return reverse;
     }
 
+    public Setting<Boolean> requireHoldSetting() {
+        return requireHold;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -59,11 +71,14 @@ public final class Minecraft189SpinModule
 
     synchronized boolean apply(
             final Minecraft189PlayerRotationControl player,
-            final Minecraft189PlayerRotationState.Snapshot rotation) {
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final boolean leftButtonHeld) {
         if (!enabled
                 || player == null
                 || rotation == null
-                || !rotation.available()) {
+                || !rotation.available()
+                || (requireHold.get().booleanValue()
+                        && !leftButtonHeld)) {
             return false;
         }
 

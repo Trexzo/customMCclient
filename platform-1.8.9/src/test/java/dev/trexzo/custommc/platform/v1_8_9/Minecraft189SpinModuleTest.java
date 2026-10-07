@@ -50,6 +50,13 @@ final class Minecraft189SpinModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189SpinModule.REVERSE_SETTING_ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189SpinModule.REQUIRE_HOLD_SETTING_ID));
+            assertFalse(
+                    module.requireHoldSetting()
+                            .get()
+                            .booleanValue());
             assertFalse(
                     module.reverseSetting()
                             .get()
@@ -74,7 +81,8 @@ final class Minecraft189SpinModuleTest {
             assertFalse(
                     module.apply(
                             player,
-                            state.snapshot()));
+                            state.snapshot(),
+                            false));
             assertEquals(
                     170.0F,
                     player.yaw,
@@ -91,7 +99,8 @@ final class Minecraft189SpinModuleTest {
             assertTrue(
                     module.apply(
                             player,
-                            state.snapshot()));
+                            state.snapshot(),
+                            false));
             assertEquals(
                     -170.0F,
                     player.yaw,
@@ -111,7 +120,8 @@ final class Minecraft189SpinModuleTest {
             assertTrue(
                     module.apply(
                             player,
-                            state.snapshot()));
+                            state.snapshot(),
+                            false));
             assertEquals(
                     -125.0F,
                     player.yaw,
@@ -131,7 +141,8 @@ final class Minecraft189SpinModuleTest {
             assertTrue(
                     module.apply(
                             player,
-                            state.snapshot()));
+                            state.snapshot(),
+                            false));
             assertEquals(
                     145.0F,
                     player.yaw,
@@ -139,6 +150,35 @@ final class Minecraft189SpinModuleTest {
             assertEquals(
                     25.0F,
                     player.pitch,
+                    0.000001F);
+
+            module.requireHoldSetting()
+                    .set(
+                            Boolean.TRUE);
+            player.yaw = 10.0F;
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            false));
+            assertEquals(
+                    10.0F,
+                    player.yaw,
+                    0.000001F);
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertEquals(
+                    -35.0F,
+                    player.yaw,
                     0.000001F);
 
             controller.disable(
@@ -151,9 +191,10 @@ final class Minecraft189SpinModuleTest {
             assertFalse(
                     module.apply(
                             player,
-                            state.snapshot()));
+                            state.snapshot(),
+                            false));
             assertEquals(
-                    145.0F,
+                    -35.0F,
                     player.yaw,
                     0.000001F);
         } finally {
@@ -169,6 +210,9 @@ final class Minecraft189SpinModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189SpinModule.REVERSE_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189SpinModule.REQUIRE_HOLD_SETTING_ID));
     }
 
     private static final class TestPlayer

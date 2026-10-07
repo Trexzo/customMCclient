@@ -1389,3 +1389,11 @@ M194 extends **Combat → Spin** with persistent BOOLEAN setting `combat.spin.re
 Pitch remains untouched and the existing **Spin > Jitter** ownership rule is unchanged. No new Minecraft mappings or transformer hooks are introduced.
 
 Focused coverage proves the default direction, reverse direction, wraparound, pitch preservation and setting teardown. Transformed-host coverage proves exact reverse-direction writes to mapped `pk.y` while mapped `pk.z` remains unchanged.
+
+## Spin activation mode
+
+M195 extends **Combat → Spin** with persistent BOOLEAN setting `combat.spin.requireHold`, default `false`. The default preserves M194 exactly: enabled Spin owns yaw continuously on eligible rotation ticks. When Require Hold is enabled, Spin only writes while the physical left mouse button is held.
+
+A released Require Hold tick returns `false` from Spin, so the existing rotation ownership chain is preserved: Jitter may run normally if it is independently eligible. When LMB is held and Spin writes, **Spin > Jitter** still applies and Jitter is reset rather than becoming a second writer.
+
+No new Minecraft mapping or transformer injection is introduced. Focused coverage proves default continuous operation, hold-gated suppression/activation and teardown. Transformed-host coverage proves that released-LMB Spin performs no yaw write and yields ownership to the independently eligible pitch-only Jitter, then held LMB restores Spin ownership for an exact mapped reverse-yaw write while preserving the handed-off pitch.
