@@ -126,6 +126,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void worldTime(
+            final Minecraft189WorldTimeAccess world) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.worldTime(world);
+        }
+    }
+
     public static synchronized void serverAddress(
             final Minecraft189ServerDataAccess serverData) {
         final Minecraft189HostRuntime host =
