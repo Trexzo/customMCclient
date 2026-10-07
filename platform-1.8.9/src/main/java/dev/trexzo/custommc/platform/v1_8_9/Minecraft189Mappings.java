@@ -145,6 +145,13 @@ public final class Minecraft189Mappings {
                     "Lbde;",
                     "field_71422_O",
                     "currentServerData");
+    public static final MappedField MINECRAFT_RIGHT_CLICK_DELAY_TIMER =
+            new MappedField(
+                    MINECRAFT,
+                    "ap",
+                    "I",
+                    "field_71467_ac",
+                    "rightClickDelayTimer");
     public static final MappedField SERVER_DATA_SERVER_IP =
             new MappedField(
                     SERVER_DATA,
