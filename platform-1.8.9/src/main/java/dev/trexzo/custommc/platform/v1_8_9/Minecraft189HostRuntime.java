@@ -468,6 +468,18 @@ public final class Minecraft189HostRuntime
                         playerMovementState.snapshot());
     }
 
+    void playerSneakControl(
+            final Minecraft189PlayerSneakControl player) {
+        requireOpen();
+        if (player == null) {
+            return;
+        }
+        featureCatalog.autoSneak()
+                .apply(
+                        player,
+                        playerMovementState.snapshot());
+    }
+
     void playerJumpControl(
             final Minecraft189PlayerJumpControl player) {
         requireOpen();
