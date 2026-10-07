@@ -516,6 +516,14 @@ public final class Minecraft189HostRuntime
                         player);
     }
 
+    void playerWebControl(
+            final Minecraft189PlayerWebControl player) {
+        requireOpen();
+        featureCatalog.noWeb()
+                .apply(
+                        player);
+    }
+
     void playerHealth(
             final Minecraft189PlayerHealthAccess player) {
         requireOpen();
