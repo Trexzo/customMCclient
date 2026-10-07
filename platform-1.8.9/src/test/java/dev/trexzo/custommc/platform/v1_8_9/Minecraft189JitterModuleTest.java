@@ -53,6 +53,13 @@ final class Minecraft189JitterModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189JitterModule.INTERVAL_SETTING_ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189JitterModule.REQUIRE_HOLD_SETTING_ID));
+            assertTrue(
+                    module.requireHoldSetting()
+                            .get()
+                            .booleanValue());
             assertEquals(
                     Minecraft189JitterModule.DEFAULT_INTERVAL_TICKS,
                     module.intervalTicksSetting()
@@ -246,6 +253,49 @@ final class Minecraft189JitterModuleTest {
                     player.yaw,
                     0.000001F);
 
+            module.intervalTicksSetting()
+                    .set(
+                            1);
+            module.requireHoldSetting()
+                    .set(
+                            Boolean.FALSE);
+            player.yaw = 50.0F;
+            player.pitch = 20.0F;
+            module.onDisable();
+            module.onEnable();
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            false));
+            assertEquals(
+                    51.25F,
+                    player.yaw,
+                    0.000001F);
+            assertEquals(
+                    22.0F,
+                    player.pitch,
+                    0.000001F);
+
+            module.requireHoldSetting()
+                    .set(
+                            Boolean.TRUE);
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            false));
+            assertEquals(
+                    51.25F,
+                    player.yaw,
+                    0.000001F);
+
             controller.disable(
                     Minecraft189JitterModule.ID);
             assertFalse(
@@ -266,6 +316,9 @@ final class Minecraft189JitterModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189JitterModule.INTERVAL_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189JitterModule.REQUIRE_HOLD_SETTING_ID));
     }
 
     private static final class TestPlayer
