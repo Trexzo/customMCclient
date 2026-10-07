@@ -695,7 +695,10 @@ public final class Minecraft189FeatureCatalog
                     Minecraft189NoHitDelayFeature.install(
                             modules,
                             moduleController,
-                            presentations);
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             autoClickerFeature =
                     Minecraft189AutoClickerFeature.install(
