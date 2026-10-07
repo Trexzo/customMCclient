@@ -325,6 +325,13 @@ final class Minecraft189MappingsTest {
                 "func_70031_b",
                 "setSprinting");
         assertMethod(
+                Minecraft189Mappings.ENTITY_SET_SNEAKING,
+                Minecraft189Mappings.ENTITY,
+                "c",
+                "(Z)V",
+                "func_70095_a",
+                "setSneaking");
+        assertMethod(
                 Minecraft189Mappings.WORLD_GET_WORLD_TIME,
                 Minecraft189Mappings.WORLD,
                 "L",
@@ -1017,6 +1024,9 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_IS_SPRINTING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_SET_SNEAKING);
 
         final IllegalStateException failure =
                 assertThrows(
@@ -1152,6 +1162,33 @@ final class Minecraft189MappingsTest {
                                         finish(writer)));
         assertEquals(
                 "Minecraft 1.8.9 mapping method missing: pk.d(Z)V (setSprinting)",
+                failure.getMessage());
+    }
+
+    @Test
+    void entityShapeGateRejectsMissingSetSneakingMethod() {
+        final ClassWriter writer = entityShapeWriterWithoutMovement();
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ON_GROUND);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SNEAKING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SPRINTING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_SET_SPRINTING);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntity(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: pk.c(Z)V (setSneaking)",
                 failure.getMessage());
     }
 
@@ -1349,6 +1386,9 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_SET_SPRINTING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_SET_SNEAKING);
         return finish(writer);
     }
 
