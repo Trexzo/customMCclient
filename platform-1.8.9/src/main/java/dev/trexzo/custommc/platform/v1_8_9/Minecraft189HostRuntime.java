@@ -522,6 +522,9 @@ public final class Minecraft189HostRuntime
         final boolean highJumpActive =
                 featureCatalog.highJump()
                         .active();
+        final boolean lowHopActive =
+                featureCatalog.lowHop()
+                        .active();
         final boolean bunnyHopActive =
                 featureCatalog.bunnyHop()
                         .active();
@@ -541,15 +544,24 @@ public final class Minecraft189HostRuntime
                         movement,
                         movementJumpSuspended
                                 || longJumpActive);
-        featureCatalog.bunnyHop()
+        featureCatalog.lowHop()
                 .applyJump(
                         player,
                         movement,
                         movementJumpSuspended
                                 || longJumpActive
                                 || highJumpActive);
+        featureCatalog.bunnyHop()
+                .applyJump(
+                        player,
+                        movement,
+                        movementJumpSuspended
+                                || longJumpActive
+                                || highJumpActive
+                                || lowHopActive);
         if (!longJumpActive
                 && !highJumpActive
+                && !lowHopActive
                 && !bunnyHopActive) {
             featureCatalog.autoJump()
                     .apply(
@@ -623,6 +635,9 @@ public final class Minecraft189HostRuntime
         final boolean highJumpActive =
                 featureCatalog.highJump()
                         .active();
+        final boolean lowHopActive =
+                featureCatalog.lowHop()
+                        .active();
         final boolean longJumpOwnsHorizontal =
                 featureCatalog.longJump()
                         .applyMotion(
@@ -634,6 +649,12 @@ public final class Minecraft189HostRuntime
                         player,
                         flightActive
                                 || longJumpActive);
+        featureCatalog.lowHop()
+                .applyMotion(
+                        player,
+                        flightActive
+                                || longJumpActive
+                                || highJumpActive);
         final boolean bunnyHopOwnsHorizontal =
                 featureCatalog.bunnyHop()
                         .applyMotion(
@@ -641,7 +662,8 @@ public final class Minecraft189HostRuntime
                                 rotation,
                                 flightActive
                                         || longJumpActive
-                                        || highJumpActive);
+                                        || highJumpActive
+                                        || lowHopActive);
         final boolean movementSpeedOwnsHorizontal =
                 featureCatalog.movementSpeed()
                         .apply(
