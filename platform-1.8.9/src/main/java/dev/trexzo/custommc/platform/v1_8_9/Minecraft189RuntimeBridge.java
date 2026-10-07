@@ -205,6 +205,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerHurtTime(
+            final Minecraft189PlayerHurtTimeAccess player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerHurtTime(player);
+        }
+    }
+
     public static synchronized void playerArmor(
             final Minecraft189PlayerArmorAccess player) {
         final Minecraft189HostRuntime host =

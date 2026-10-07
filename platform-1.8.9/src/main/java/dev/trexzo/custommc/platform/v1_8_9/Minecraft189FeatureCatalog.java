@@ -61,6 +61,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189DimensionFeature dimensionFeature;
     private final Minecraft189MovementStatusFeature movementStatusFeature;
     private final Minecraft189HealthFeature healthFeature;
+    private final Minecraft189HurtTimeFeature hurtTimeFeature;
     private final Minecraft189ArmorFeature armorFeature;
     private final Minecraft189HungerFeature hungerFeature;
     private final Minecraft189PotionEffectsFeature potionEffectsFeature;
@@ -139,6 +140,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189DimensionFeature dimensionFeature,
             final Minecraft189MovementStatusFeature movementStatusFeature,
             final Minecraft189HealthFeature healthFeature,
+            final Minecraft189HurtTimeFeature hurtTimeFeature,
             final Minecraft189ArmorFeature armorFeature,
             final Minecraft189HungerFeature hungerFeature,
             final Minecraft189PotionEffectsFeature potionEffectsFeature,
@@ -211,6 +213,7 @@ public final class Minecraft189FeatureCatalog
         this.dimensionFeature = dimensionFeature;
         this.movementStatusFeature = movementStatusFeature;
         this.healthFeature = healthFeature;
+        this.hurtTimeFeature = hurtTimeFeature;
         this.armorFeature = armorFeature;
         this.hungerFeature = hungerFeature;
         this.potionEffectsFeature = potionEffectsFeature;
@@ -270,6 +273,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189PlayerDimensionState playerDimensionState,
             final Minecraft189PlayerMovementState playerMovementState,
             final Minecraft189PlayerHealthState playerHealthState,
+            final Minecraft189PlayerHurtTimeState playerHurtTimeState,
             final Minecraft189PlayerArmorState playerArmorState,
             final Minecraft189PlayerHungerState playerHungerState,
             final Minecraft189PlayerPotionEffectsState playerPotionEffectsState,
@@ -298,6 +302,7 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(playerDimensionState, "playerDimensionState");
         Objects.requireNonNull(playerMovementState, "playerMovementState");
         Objects.requireNonNull(playerHealthState, "playerHealthState");
+        Objects.requireNonNull(playerHurtTimeState, "playerHurtTimeState");
         Objects.requireNonNull(playerArmorState, "playerArmorState");
         Objects.requireNonNull(playerHungerState, "playerHungerState");
         Objects.requireNonNull(playerPotionEffectsState, "playerPotionEffectsState");
@@ -336,6 +341,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189DimensionFeature dimensionFeature = null;
         Minecraft189MovementStatusFeature movementStatusFeature = null;
         Minecraft189HealthFeature healthFeature = null;
+        Minecraft189HurtTimeFeature hurtTimeFeature = null;
         Minecraft189ArmorFeature armorFeature = null;
         Minecraft189HungerFeature hungerFeature = null;
         Minecraft189PotionEffectsFeature potionEffectsFeature = null;
@@ -831,6 +837,18 @@ public final class Minecraft189FeatureCatalog
                             renderPipeline,
                             hostCallbacks);
 
+            hurtTimeFeature =
+                    Minecraft189HurtTimeFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            playerHurtTimeState,
+                            renderPipeline,
+                            hostCallbacks);
+
             armorFeature =
                     Minecraft189ArmorFeature.install(
                             modules,
@@ -1006,6 +1024,7 @@ public final class Minecraft189FeatureCatalog
                     dimensionFeature,
                     movementStatusFeature,
                     healthFeature,
+                    hurtTimeFeature,
                     armorFeature,
                     hungerFeature,
                     potionEffectsFeature,
@@ -1089,6 +1108,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(potionEffectsFeature, failure);
             closeQuietly(hungerFeature, failure);
             closeQuietly(armorFeature, failure);
+            closeQuietly(hurtTimeFeature, failure);
             closeQuietly(healthFeature, failure);
             closeQuietly(movementStatusFeature, failure);
             closeQuietly(dimensionFeature, failure);
@@ -1310,6 +1330,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189HealthModule health() {
         requireOpen();
         return healthFeature.module();
+    }
+
+    public Minecraft189HurtTimeModule hurtTime() {
+        requireOpen();
+        return hurtTimeFeature.module();
     }
 
     public Minecraft189ArmorModule armor() {
@@ -1827,6 +1852,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             armorFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            hurtTimeFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,

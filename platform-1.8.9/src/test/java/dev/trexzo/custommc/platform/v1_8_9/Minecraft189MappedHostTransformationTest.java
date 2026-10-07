@@ -536,6 +536,10 @@ final class Minecraft189MappedHostTransformationTest {
                     .setFloat(
                             player,
                             20.0F);
+            playerClass.getField("au")
+                    .setInt(
+                            player,
+                            7);
             playerClass.getField("bB")
                     .setInt(
                             player,
@@ -3557,6 +3561,16 @@ final class Minecraft189MappedHostTransformationTest {
                     20.0F,
                     health.maxHealth());
 
+            final Minecraft189PlayerHurtTimeState.Snapshot hurtTime =
+                    runtime.requireHostRuntime()
+                            .playerHurtTimeState()
+                            .snapshot();
+            assertTrue(
+                    hurtTime.available());
+            assertEquals(
+                    7,
+                    hurtTime.hurtTime());
+
             final Minecraft189PlayerArmorState.Snapshot armor =
                     runtime.requireHostRuntime()
                             .playerArmorState()
@@ -3844,6 +3858,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .playerHealthState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .playerHurtTimeState()
                             .snapshot()
                             .available());
             assertFalse(
