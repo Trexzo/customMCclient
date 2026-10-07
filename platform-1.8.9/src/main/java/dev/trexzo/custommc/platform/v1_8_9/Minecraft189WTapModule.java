@@ -10,6 +10,14 @@ public final class Minecraft189WTapModule
             "combat.wTap";
     public static final String REQUIRE_GROUND_SETTING_ID =
             "combat.wTap.requireGround";
+    public static final String COOLDOWN_TICKS_SETTING_ID =
+            "combat.wTap.cooldownTicks";
+    public static final int DEFAULT_COOLDOWN_TICKS =
+            0;
+    public static final int MINIMUM_COOLDOWN_TICKS =
+            0;
+    public static final int MAXIMUM_COOLDOWN_TICKS =
+            20;
 
     private final Setting<Boolean> requireGround =
             new Setting<Boolean>(
@@ -17,9 +25,18 @@ public final class Minecraft189WTapModule
                     Boolean.FALSE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+    private final Setting<Integer> cooldownTicks =
+            new Setting<Integer>(
+                    COOLDOWN_TICKS_SETTING_ID,
+                    DEFAULT_COOLDOWN_TICKS,
+                    value -> value != null
+                            && value >= MINIMUM_COOLDOWN_TICKS
+                            && value <= MAXIMUM_COOLDOWN_TICKS,
+                    SettingCodecs.INTEGER);
 
     private boolean enabled;
     private boolean previousLeftButtonHeld;
+    private int cooldownRemaining;
 
     @Override
     public String id() {
@@ -30,16 +47,20 @@ public final class Minecraft189WTapModule
         return requireGround;
     }
 
+    public Setting<Integer> cooldownTicksSetting() {
+        return cooldownTicks;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
-        resetInput();
+        resetState();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
-        resetInput();
+        resetState();
     }
 
     synchronized boolean apply(
@@ -50,8 +71,14 @@ public final class Minecraft189WTapModule
                 || player == null
                 || movement == null
                 || !movement.available()) {
-            resetInput();
+            resetState();
             return false;
+        }
+
+        final boolean cooldownActive =
+                cooldownRemaining > 0;
+        if (cooldownActive) {
+            cooldownRemaining--;
         }
 
         if (!leftButtonHeld) {
@@ -63,14 +90,17 @@ public final class Minecraft189WTapModule
         }
         previousLeftButtonHeld = true;
 
-        if ((requireGround.get().booleanValue()
-                && !movement.onGround())
+        if (cooldownActive
+                || (requireGround.get().booleanValue()
+                        && !movement.onGround())
                 || !movement.sprinting()) {
             return false;
         }
 
         player.customMcSetSprinting(
                 false);
+        cooldownRemaining =
+                cooldownTicks.get().intValue();
         return true;
     }
 
@@ -78,7 +108,8 @@ public final class Minecraft189WTapModule
         return enabled;
     }
 
-    private void resetInput() {
+    private void resetState() {
         previousLeftButtonHeld = false;
+        cooldownRemaining = 0;
     }
 }
