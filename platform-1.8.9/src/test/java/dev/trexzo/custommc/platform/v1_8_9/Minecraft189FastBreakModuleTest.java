@@ -71,6 +71,16 @@ final class Minecraft189FastBreakModuleTest {
                     ModuleState.DISABLED,
                     controller.stateOf(
                             Minecraft189FastBreakModule.ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189FastBreakModule.DELAY_SETTING_ID));
+            assertEquals(
+                    Minecraft189FastBreakModule.DEFAULT_DELAY,
+                    runtime.featureCatalog()
+                            .fastBreak()
+                            .delaySetting()
+                            .get()
+                            .intValue());
 
             final TestController live =
                     new TestController();
@@ -101,11 +111,16 @@ final class Minecraft189FastBreakModuleTest {
                     1,
                     live.setCalls);
 
+            runtime.featureCatalog()
+                    .fastBreak()
+                    .delaySetting()
+                    .set(
+                            2);
             live.delay = 3;
             runtime.playerControllerBreakControl(
                     live);
             assertEquals(
-                    0,
+                    2,
                     live.delay);
             assertEquals(
                     2,
@@ -140,6 +155,9 @@ final class Minecraft189FastBreakModuleTest {
         assertNull(
                 modules.find(
                         Minecraft189FastBreakModule.ID));
+        assertNull(
+                settings.find(
+                        Minecraft189FastBreakModule.DELAY_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.PLAYER_CATEGORY_ID));
