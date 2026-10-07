@@ -514,10 +514,16 @@ public final class Minecraft189HostRuntime
         if (player == null) {
             return;
         }
+        final Minecraft189PlayerMovementState.Snapshot movement =
+                playerMovementState.snapshot();
         featureCatalog.autoJump()
                 .apply(
                         player,
-                        playerMovementState.snapshot());
+                        movement);
+        featureCatalog.airJump()
+                .apply(
+                        player,
+                        movement);
     }
 
     void playerStepControl(

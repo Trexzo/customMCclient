@@ -75,6 +75,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189CrosshairFeature crosshairFeature;
     private final Minecraft189AutoSprintFeature autoSprintFeature;
     private final Minecraft189AutoJumpFeature autoJumpFeature;
+    private final Minecraft189AirJumpFeature airJumpFeature;
     private final Minecraft189AutoSneakFeature autoSneakFeature;
     private final Minecraft189NoSlowFeature noSlowFeature;
     private final Minecraft189StepFeature stepFeature;
@@ -139,6 +140,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189CrosshairFeature crosshairFeature,
             final Minecraft189AutoSprintFeature autoSprintFeature,
             final Minecraft189AutoJumpFeature autoJumpFeature,
+            final Minecraft189AirJumpFeature airJumpFeature,
             final Minecraft189AutoSneakFeature autoSneakFeature,
             final Minecraft189NoSlowFeature noSlowFeature,
             final Minecraft189StepFeature stepFeature,
@@ -197,6 +199,7 @@ public final class Minecraft189FeatureCatalog
         this.crosshairFeature = crosshairFeature;
         this.autoSprintFeature = autoSprintFeature;
         this.autoJumpFeature = autoJumpFeature;
+        this.airJumpFeature = airJumpFeature;
         this.autoSneakFeature = autoSneakFeature;
         this.noSlowFeature = noSlowFeature;
         this.stepFeature = stepFeature;
@@ -308,6 +311,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189CrosshairFeature crosshairFeature = null;
         Minecraft189AutoSprintFeature autoSprintFeature = null;
         Minecraft189AutoJumpFeature autoJumpFeature = null;
+        Minecraft189AirJumpFeature airJumpFeature = null;
         Minecraft189AutoSneakFeature autoSneakFeature = null;
         Minecraft189NoSlowFeature noSlowFeature = null;
         Minecraft189StepFeature stepFeature = null;
@@ -433,6 +437,13 @@ public final class Minecraft189FeatureCatalog
                             modules,
                             moduleController,
                             presentations);
+
+            airJumpFeature =
+                    Minecraft189AirJumpFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            inputState);
 
             autoSneakFeature =
                     Minecraft189AutoSneakFeature.install(
@@ -826,6 +837,7 @@ public final class Minecraft189FeatureCatalog
                     crosshairFeature,
                     autoSprintFeature,
                     autoJumpFeature,
+                    airJumpFeature,
                     autoSneakFeature,
                     noSlowFeature,
                     stepFeature,
@@ -853,6 +865,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(stepFeature, failure);
             closeQuietly(noSlowFeature, failure);
             closeQuietly(autoSneakFeature, failure);
+            closeQuietly(airJumpFeature, failure);
             closeQuietly(autoJumpFeature, failure);
             closeQuietly(autoSprintFeature, failure);
             closeQuietly(crosshairFeature, failure);
@@ -948,6 +961,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189AutoJumpModule autoJump() {
         requireOpen();
         return autoJumpFeature.module();
+    }
+
+    public Minecraft189AirJumpModule airJump() {
+        requireOpen();
+        return airJumpFeature.module();
     }
 
     public Minecraft189AutoSneakModule autoSneak() {
@@ -1319,6 +1337,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             autoSneakFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            airJumpFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,

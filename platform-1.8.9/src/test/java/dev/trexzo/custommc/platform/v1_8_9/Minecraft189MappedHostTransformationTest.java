@@ -4,6 +4,7 @@ import dev.trexzo.custommc.bootstrap.BootstrapContext;
 import dev.trexzo.custommc.core.render.RenderFrame;
 import dev.trexzo.custommc.core.render.RenderPass;
 import dev.trexzo.custommc.core.render.RenderStage;
+import dev.trexzo.custommc.platform.v1_8_9.input.LegacyKeyboardCodes;
 import dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189FontRendererAccess;
 import dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189GuiSettingsAccess;
 import org.junit.jupiter.api.Test;
@@ -829,6 +830,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189AirJumpModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189StepModule.ID)
                             != null);
             assertTrue(
@@ -1201,6 +1207,71 @@ final class Minecraft189MappedHostTransformationTest {
                             .autoJump()
                             .active());
 
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            false);
+            runTick.invoke(minecraft);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189AirJumpModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .airJump()
+                            .active());
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    3,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+            runTick.invoke(minecraft);
+            assertEquals(
+                    3,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            false);
+            runTick.invoke(minecraft);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    4,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189AirJumpModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .airJump()
+                            .active());
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            false);
+            runTick.invoke(minecraft);
+
             runtime.moduleController()
                     .enable(
                             Minecraft189StepModule.ID);
@@ -1379,7 +1450,7 @@ final class Minecraft189MappedHostTransformationTest {
                             true);
             runTick.invoke(minecraft);
             assertEquals(
-                    2,
+                    4,
                     playerClass.getField("jumpCalls")
                             .getInt(
                                     player));
