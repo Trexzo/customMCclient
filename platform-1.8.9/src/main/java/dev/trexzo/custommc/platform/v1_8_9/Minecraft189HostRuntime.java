@@ -32,6 +32,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189PlayerHungerState playerHungerState;
     private final Minecraft189PlayerPotionEffectsState playerPotionEffectsState;
     private final Minecraft189PlayerExperienceState playerExperienceState;
+    private final Minecraft189PlayerPingState playerPingState;
     private final Minecraft189MovementSpeedTracker movementSpeedTracker;
     private final Minecraft189FeatureCatalog featureCatalog;
     private final Minecraft189Hooks renderHooks;
@@ -53,6 +54,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerHungerState playerHungerState,
             final Minecraft189PlayerPotionEffectsState playerPotionEffectsState,
             final Minecraft189PlayerExperienceState playerExperienceState,
+            final Minecraft189PlayerPingState playerPingState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
             final Minecraft189FeatureCatalog featureCatalog,
             final Minecraft189Hooks renderHooks,
@@ -71,6 +73,7 @@ public final class Minecraft189HostRuntime
         this.playerHungerState = playerHungerState;
         this.playerPotionEffectsState = playerPotionEffectsState;
         this.playerExperienceState = playerExperienceState;
+        this.playerPingState = playerPingState;
         this.movementSpeedTracker = movementSpeedTracker;
         this.featureCatalog = featureCatalog;
         this.renderHooks = renderHooks;
@@ -153,6 +156,8 @@ public final class Minecraft189HostRuntime
                 new Minecraft189PlayerPotionEffectsState();
         final Minecraft189PlayerExperienceState playerExperienceState =
                 new Minecraft189PlayerExperienceState();
+        final Minecraft189PlayerPingState playerPingState =
+                new Minecraft189PlayerPingState();
         final Minecraft189MovementSpeedTracker movementSpeedTracker =
                 new Minecraft189MovementSpeedTracker();
         try {
@@ -189,6 +194,7 @@ public final class Minecraft189HostRuntime
                             playerHungerState,
                             playerPotionEffectsState,
                             playerExperienceState,
+                            playerPingState,
                             movementSpeedTracker,
                             services.require(
                                     RenderPipeline.class),
@@ -209,6 +215,7 @@ public final class Minecraft189HostRuntime
                     playerHungerState,
                     playerPotionEffectsState,
                     playerExperienceState,
+                    playerPingState,
                     movementSpeedTracker,
                     featureCatalog,
                     new Minecraft189Hooks(platform),
@@ -295,6 +302,11 @@ public final class Minecraft189HostRuntime
     public Minecraft189PlayerExperienceState playerExperienceState() {
         requireOpen();
         return playerExperienceState;
+    }
+
+    public Minecraft189PlayerPingState playerPingState() {
+        requireOpen();
+        return playerPingState;
     }
 
     public Minecraft189MovementSpeedTracker movementSpeedTracker() {
@@ -397,6 +409,23 @@ public final class Minecraft189HostRuntime
                 player.customMcExperienceTotal(),
                 player.customMcExperienceProgress(),
                 player.customMcExperienceBarCap());
+    }
+
+    void playerPing(
+            final Minecraft189PlayerPingAccess player) {
+        requireOpen();
+        if (player == null) {
+            playerPingState.clear();
+            return;
+        }
+        final int milliseconds =
+                player.customMcPingMilliseconds();
+        if (milliseconds < 0) {
+            playerPingState.clear();
+            return;
+        }
+        playerPingState.update(
+                milliseconds);
     }
 
     void frameStarted(
@@ -536,6 +565,7 @@ public final class Minecraft189HostRuntime
         playerHungerState.clear();
         playerPotionEffectsState.clear();
         playerExperienceState.clear();
+        playerPingState.clear();
         movementSpeedTracker.clear();
         try {
             featureCatalog.close();
