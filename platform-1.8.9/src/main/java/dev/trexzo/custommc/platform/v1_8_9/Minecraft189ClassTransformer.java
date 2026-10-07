@@ -146,6 +146,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerHeldItemAccess";
     private static final String PLAYER_HELD_ITEM_ACCESS_DESCRIPTOR =
             "L" + PLAYER_HELD_ITEM_ACCESS_INTERNAL_NAME + ";";
+    private static final String CLICK_MOUSE_CONTROL_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189ClickMouseControl";
+    private static final String CLICK_MOUSE_CONTROL_DESCRIPTOR =
+            "L" + CLICK_MOUSE_CONTROL_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -467,6 +472,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedLeftClickCounter =
                 new boolean[]{false};
+        final boolean[] injectedAutoClick =
+                new boolean[]{false};
         final boolean[] foundDispatchKeypresses =
                 new boolean[]{false};
         final boolean[] injectedKeyboard =
@@ -478,6 +485,25 @@ public final class Minecraft189ClassTransformer
                 new ClassVisitor(
                         Opcodes.ASM9,
                         writer) {
+                    @Override
+                    public void visit(
+                            final int version,
+                            final int access,
+                            final String name,
+                            final String signature,
+                            final String superName,
+                            final String[] interfaces) {
+                        super.visit(
+                                version,
+                                access,
+                                name,
+                                signature,
+                                superName,
+                                withInterface(
+                                        interfaces,
+                                        CLICK_MOUSE_CONTROL_INTERNAL_NAME));
+                    }
+
                     @Override
                     public MethodVisitor visitMethod(
                             final int access,
@@ -965,6 +991,22 @@ public final class Minecraft189ClassTransformer
                                                 leftClickCounter.obfuscatedName(),
                                                 leftClickCounter.descriptor());
                                         injectedLeftClickCounter[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                CLICK_MOUSE_CONTROL_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "autoClick",
+                                                "("
+                                                        + CLICK_MOUSE_CONTROL_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedAutoClick[0] = true;
                                     }
                                     super.visitInsn(opcode);
                                 }
@@ -1035,6 +1077,16 @@ public final class Minecraft189ClassTransformer
 
                         return delegate;
                     }
+
+                    @Override
+                    public void visitEnd() {
+                        addVoidMethodDelegate(
+                                cv,
+                                "customMcClickMouse",
+                                Minecraft189Mappings
+                                        .MINECRAFT_CLICK_MOUSE);
+                        super.visitEnd();
+                    }
                 },
                 0);
 
@@ -1062,7 +1114,8 @@ public final class Minecraft189ClassTransformer
                 || !injectedServerAddress[0]
                 || !injectedHeldItem[0]
                 || !injectedRightClickDelay[0]
-                || !injectedLeftClickCounter[0]) {
+                || !injectedLeftClickCounter[0]
+                || !injectedAutoClick[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
         }
@@ -2399,6 +2452,35 @@ public final class Minecraft189ClassTransformer
         method.visitVarInsn(
                 Opcodes.ILOAD,
                 1);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                target.owner().obfuscatedInternalName(),
+                target.obfuscatedName(),
+                target.descriptor(),
+                false);
+        method.visitInsn(
+                Opcodes.RETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addVoidMethodDelegate(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedMethod target) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()V",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
         method.visitMethodInsn(
                 Opcodes.INVOKEVIRTUAL,
                 target.owner().obfuscatedInternalName(),

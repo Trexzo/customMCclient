@@ -765,6 +765,11 @@ final class Minecraft189MappedHostTransformationTest {
                             .find(
                                     Minecraft189NoHitDelayModule.ID)
                             != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
+                                    Minecraft189AutoClickerModule.ID)
+                            != null);
             assertEquals(
                     0.35F,
                     settingsClass.getField("aJ")
@@ -863,6 +868,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(
                     7,
                     minecraftClass.getField("ag")
+                            .getInt(
+                                    minecraft));
+            assertEquals(
+                    0,
+                    minecraftClass.getField("clickMouseCalls")
                             .getInt(
                                     minecraft));
 
@@ -1107,6 +1117,89 @@ final class Minecraft189MappedHostTransformationTest {
                     minecraftClass.getField("ag")
                             .getInt(
                                     minecraft));
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .autoClicker()
+                    .minCpsSetting()
+                    .set(10);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .autoClicker()
+                    .maxCpsSetting()
+                    .set(10);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189AutoClickerModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .autoClicker()
+                            .active());
+
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0,
+                    minecraftClass.getField("clickMouseCalls")
+                            .getInt(
+                                    minecraft));
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0,
+                    minecraftClass.getField("clickMouseCalls")
+                            .getInt(
+                                    minecraft));
+            runTick.invoke(minecraft);
+            assertEquals(
+                    1,
+                    minecraftClass.getField("clickMouseCalls")
+                            .getInt(
+                                    minecraft));
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
+            runTick.invoke(minecraft);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    1,
+                    minecraftClass.getField("clickMouseCalls")
+                            .getInt(
+                                    minecraft));
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189AutoClickerModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .autoClicker()
+                            .active());
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            true);
+            runTick.invoke(minecraft);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    1,
+                    minecraftClass.getField("clickMouseCalls")
+                            .getInt(
+                                    minecraft));
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
 
             final Minecraft189PlayerHealthState.Snapshot health =
                     runtime.requireHostRuntime()
@@ -2099,6 +2192,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "Q", "Lbde;");
         field(writer, "ap", "I");
         field(writer, "ag", "I");
+        field(writer, "clickMouseCalls", "I");
         endDefaultConstructor(writer, "ave");
 
         final MethodVisitor getMinecraft =
@@ -2119,7 +2213,41 @@ final class Minecraft189MappedHostTransformationTest {
 
         voidMethod(writer, "am");
         runTickMethod(writer);
-        voidMethod(writer, "aw");
+
+        final MethodVisitor clickMouse =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "aw",
+                        "()V",
+                        null,
+                        null);
+        clickMouse.visitCode();
+        clickMouse.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        clickMouse.visitInsn(
+                Opcodes.DUP);
+        clickMouse.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "ave",
+                "clickMouseCalls",
+                "I");
+        clickMouse.visitInsn(
+                Opcodes.ICONST_1);
+        clickMouse.visitInsn(
+                Opcodes.IADD);
+        clickMouse.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                "ave",
+                "clickMouseCalls",
+                "I");
+        clickMouse.visitInsn(
+                Opcodes.RETURN);
+        clickMouse.visitMaxs(
+                3,
+                1);
+        clickMouse.visitEnd();
+
         voidMethod(writer, "ax");
         voidMethod(writer, "az");
         voidMethod(writer, "Z");

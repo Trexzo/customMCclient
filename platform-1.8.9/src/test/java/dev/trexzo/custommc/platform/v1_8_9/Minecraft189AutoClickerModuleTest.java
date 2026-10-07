@@ -1,0 +1,233 @@
+package dev.trexzo.custommc.platform.v1_8_9;
+
+import dev.trexzo.custommc.core.event.EventBus;
+import dev.trexzo.custommc.core.module.ModuleCategoryRegistry;
+import dev.trexzo.custommc.core.module.ModuleController;
+import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
+import dev.trexzo.custommc.core.module.ModuleRegistry;
+import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
+import dev.trexzo.custommc.core.module.ModuleState;
+import dev.trexzo.custommc.core.render.RenderPipeline;
+import dev.trexzo.custommc.core.service.ServiceRegistry;
+import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
+import dev.trexzo.custommc.core.setting.SettingRegistry;
+import dev.trexzo.custommc.core.ui.UiFontHandle;
+import dev.trexzo.custommc.core.ui.UiViewport;
+import dev.trexzo.custommc.platform.PlatformContext;
+import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+final class Minecraft189AutoClickerModuleTest {
+    @Test
+    void autoClickerUsesPhysicalHoldAndTwentyTickCpsSchedule() {
+        final ModuleRegistry modules =
+                new ModuleRegistry();
+        final ModuleController controller =
+                new ModuleController(modules);
+        final SettingRegistry settings =
+                new SettingRegistry();
+        final ModuleCategoryRegistry categories =
+                new ModuleCategoryRegistry();
+        final ServiceRegistry services =
+                new ServiceRegistry();
+        services.register(
+                RenderPipeline.class,
+                new RenderPipeline());
+
+        final Minecraft189Platform platform =
+                new Minecraft189Platform();
+        platform.attach(
+                new PlatformContext(
+                        new EventBus(),
+                        modules,
+                        controller,
+                        services));
+
+        final Minecraft189HostRuntime runtime =
+                Minecraft189HostRuntime.install(
+                        platform,
+                        new ModulePresentationRegistry(),
+                        categories,
+                        new ModuleSettingRegistry(
+                                modules,
+                                settings),
+                        null,
+                        null,
+                        settings,
+                        new SettingPresentationRegistry(),
+                        new NoOpHost());
+
+        try {
+            final Minecraft189AutoClickerModule autoClicker =
+                    runtime.featureCatalog()
+                            .autoClicker();
+
+            assertEquals(
+                    ModuleState.DISABLED,
+                    controller.stateOf(
+                            Minecraft189AutoClickerModule.ID));
+            assertFalse(
+                    runtime.shouldAutoClick());
+
+            autoClicker.minCpsSetting().set(10);
+            autoClicker.maxCpsSetting().set(10);
+            assertEquals(
+                    "10",
+                    settings.snapshotEncoded()
+                            .get(
+                                    Minecraft189AutoClickerModule.MIN_CPS_SETTING_ID));
+            assertEquals(
+                    "10",
+                    settings.snapshotEncoded()
+                            .get(
+                                    Minecraft189AutoClickerModule.MAX_CPS_SETTING_ID));
+
+            controller.enable(
+                    Minecraft189AutoClickerModule.ID);
+            assertTrue(
+                    autoClicker.active());
+
+            for (int tick = 0; tick < 5; tick++) {
+                assertFalse(
+                        runtime.shouldAutoClick());
+            }
+
+            runtime.inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            true);
+
+            int generated = 0;
+            for (int tick = 0; tick < 20; tick++) {
+                if (runtime.shouldAutoClick()) {
+                    generated++;
+                }
+            }
+            assertEquals(
+                    10,
+                    generated);
+            assertEquals(
+                    10,
+                    runtime.clickRateTracker()
+                            .clicksPerSecond(
+                                    Minecraft189ClickRateTracker.LEFT_BUTTON));
+
+            runtime.inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
+            assertFalse(
+                    runtime.shouldAutoClick());
+
+            runtime.inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            true);
+            assertFalse(
+                    runtime.shouldAutoClick());
+            assertTrue(
+                    runtime.shouldAutoClick());
+
+            controller.disable(
+                    Minecraft189AutoClickerModule.ID);
+            assertFalse(
+                    autoClicker.active());
+            assertFalse(
+                    runtime.shouldAutoClick());
+        } finally {
+            runtime.close();
+        }
+
+        assertNull(
+                modules.find(
+                        Minecraft189AutoClickerModule.ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AutoClickerModule.MIN_CPS_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AutoClickerModule.MAX_CPS_SETTING_ID));
+    }
+
+    private static final class NoOpHost
+            implements LegacyUiHostCallbacks {
+        @Override
+        public int framebufferWidth() {
+            return 1280;
+        }
+
+        @Override
+        public int framebufferHeight() {
+            return 720;
+        }
+
+        @Override
+        public float uiScale() {
+            return 1.0F;
+        }
+
+        @Override
+        public void beginUi(
+                final UiViewport viewport) {
+        }
+
+        @Override
+        public void fillRect(
+                final float x,
+                final float y,
+                final float width,
+                final float height,
+                final int argb) {
+        }
+
+        @Override
+        public void fillRoundedRect(
+                final float x,
+                final float y,
+                final float width,
+                final float height,
+                final float radius,
+                final int argb) {
+        }
+
+        @Override
+        public void strokeRect(
+                final float x,
+                final float y,
+                final float width,
+                final float height,
+                final float thickness,
+                final int argb) {
+        }
+
+        @Override
+        public void pushClip(
+                final float x,
+                final float y,
+                final float width,
+                final float height) {
+        }
+
+        @Override
+        public void popClip() {
+        }
+
+        @Override
+        public void drawText(
+                final UiFontHandle font,
+                final float x,
+                final float y,
+                final String text,
+                final int argb) {
+        }
+
+        @Override
+        public void endUi() {
+        }
+    }
+}
