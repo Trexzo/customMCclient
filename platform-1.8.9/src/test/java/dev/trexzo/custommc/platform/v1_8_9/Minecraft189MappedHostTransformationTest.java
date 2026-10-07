@@ -1968,6 +1968,32 @@ final class Minecraft189MappedHostTransformationTest {
                 1);
         isSprinting.visitEnd();
 
+        final MethodVisitor setSprinting =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "d",
+                        "(Z)V",
+                        null,
+                        null);
+        setSprinting.visitCode();
+        setSprinting.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        setSprinting.visitVarInsn(
+                Opcodes.ILOAD,
+                1);
+        setSprinting.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                "pk",
+                "sprinting",
+                "Z");
+        setSprinting.visitInsn(
+                Opcodes.RETURN);
+        setSprinting.visitMaxs(
+                2,
+                2);
+        setSprinting.visitEnd();
+
         writer.visitEnd();
         return writer.toByteArray();
     }

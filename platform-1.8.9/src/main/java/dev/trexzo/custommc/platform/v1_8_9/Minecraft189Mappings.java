@@ -288,6 +288,13 @@ public final class Minecraft189Mappings {
                     "()Z",
                     "func_70051_ag",
                     "isSprinting");
+    public static final MappedMethod ENTITY_SET_SPRINTING =
+            new MappedMethod(
+                    ENTITY,
+                    "d",
+                    "(Z)V",
+                    "func_70031_b",
+                    "setSprinting");
 
     public static final MappedMethod WORLD_GET_WORLD_TIME =
             new MappedMethod(

@@ -304,6 +304,13 @@ final class Minecraft189MappingsTest {
                 "func_70051_ag",
                 "isSprinting");
         assertMethod(
+                Minecraft189Mappings.ENTITY_SET_SPRINTING,
+                Minecraft189Mappings.ENTITY,
+                "d",
+                "(Z)V",
+                "func_70031_b",
+                "setSprinting");
+        assertMethod(
                 Minecraft189Mappings.WORLD_GET_WORLD_TIME,
                 Minecraft189Mappings.WORLD,
                 "L",
@@ -1023,6 +1030,30 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
+    void entityShapeGateRejectsMissingSetSprintingMethod() {
+        final ClassWriter writer = entityShapeWriterWithoutMovement();
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ON_GROUND);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SNEAKING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SPRINTING);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntity(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: pk.d(Z)V (setSprinting)",
+                failure.getMessage());
+    }
+
+    @Test
     void entityLivingBaseShapeGateRejectsMissingMaxHealthMethod() {
         final ClassWriter writer =
                 writer(
@@ -1183,6 +1214,9 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_IS_SPRINTING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_SET_SPRINTING);
         return finish(writer);
     }
 

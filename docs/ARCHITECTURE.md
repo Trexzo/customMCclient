@@ -789,3 +789,11 @@ The new Visuals module `render.movementStatus` / **Movement Status** owns persis
 
 Executable transformed-host coverage sets exact inherited `pk.C` plus synthetic backing state for exact `pk.av()/pk.aw()`, publishes through transformed `runTick()`, verifies the parent-owned snapshot, and verifies null-player clearing. Focused HUD coverage verifies all posture labels, ground/air rendering, persisted coordinates, disable behavior, and complete feature teardown.
 
+## Sprint-control mapping authority
+
+M131 pins the Minecraft 1.8.9 sprint mutator on exact base `Entity pk`: `pk.d(Z)V` / Searge `func_70031_b` / MCP `setSprinting`.
+
+The existing Entity class-shape gate now requires this mutator alongside certified `isSneaking`, `isSprinting`, `onGround`, position, yaw and dimension authority. A dedicated regression rejects a missing sprint mutator, and the transformed-host synthetic `pk` fixture implements the exact boolean setter against its sprinting backing state.
+
+This milestone is authority-only. It does not force sprinting, alter movement policy, or register a module.
+
