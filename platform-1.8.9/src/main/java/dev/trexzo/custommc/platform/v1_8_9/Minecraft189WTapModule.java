@@ -1,11 +1,22 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
 import dev.trexzo.custommc.core.module.Module;
+import dev.trexzo.custommc.core.setting.Setting;
+import dev.trexzo.custommc.core.setting.SettingCodecs;
 
 public final class Minecraft189WTapModule
         implements Module {
     public static final String ID =
             "combat.wTap";
+    public static final String REQUIRE_GROUND_SETTING_ID =
+            "combat.wTap.requireGround";
+
+    private final Setting<Boolean> requireGround =
+            new Setting<Boolean>(
+                    REQUIRE_GROUND_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
 
     private boolean enabled;
     private boolean previousLeftButtonHeld;
@@ -13,6 +24,10 @@ public final class Minecraft189WTapModule
     @Override
     public String id() {
         return ID;
+    }
+
+    public Setting<Boolean> requireGroundSetting() {
+        return requireGround;
     }
 
     @Override
@@ -48,7 +63,9 @@ public final class Minecraft189WTapModule
         }
         previousLeftButtonHeld = true;
 
-        if (!movement.sprinting()) {
+        if ((requireGround.get().booleanValue()
+                && !movement.onGround())
+                || !movement.sprinting()) {
             return false;
         }
 
