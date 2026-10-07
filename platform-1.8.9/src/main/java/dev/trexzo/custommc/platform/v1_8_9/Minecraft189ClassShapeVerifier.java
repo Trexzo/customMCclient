@@ -119,9 +119,13 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_POS_Y,
                         Minecraft189Mappings.ENTITY_POS_Z,
                         Minecraft189Mappings.ENTITY_ROTATION_YAW,
-                        Minecraft189Mappings.ENTITY_DIMENSION
+                        Minecraft189Mappings.ENTITY_DIMENSION,
+                        Minecraft189Mappings.ENTITY_ON_GROUND
                 },
-                new Minecraft189Mappings.MappedMethod[0]);
+                new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.ENTITY_IS_SNEAKING,
+                        Minecraft189Mappings.ENTITY_IS_SPRINTING
+                });
     }
 
     public static void verifyEntityLivingBase(
