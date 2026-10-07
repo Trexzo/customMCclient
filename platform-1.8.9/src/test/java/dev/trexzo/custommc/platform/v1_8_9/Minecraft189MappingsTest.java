@@ -307,6 +307,13 @@ final class Minecraft189MappingsTest {
                 "field_70122_E",
                 "onGround");
         assertField(
+                Minecraft189Mappings.ENTITY_STEP_HEIGHT,
+                Minecraft189Mappings.ENTITY,
+                "S",
+                "F",
+                "field_70138_W",
+                "stepHeight");
+        assertField(
                 Minecraft189Mappings.ENTITY_PLAYER_INVENTORY,
                 Minecraft189Mappings.ENTITY_PLAYER,
                 "bi",
@@ -1233,6 +1240,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_ON_GROUND);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_STEP_HEIGHT);
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_IS_SNEAKING);
@@ -1311,6 +1321,54 @@ final class Minecraft189MappingsTest {
                                         finish(writer)));
         assertEquals(
                 "Minecraft 1.8.9 mapping field missing: pk.C Z (onGround)",
+                failure.getMessage());
+    }
+
+    @Test
+    void entityShapeGateRejectsMissingStepHeightField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_X);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Y);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Z);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_DIMENSION);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ON_GROUND);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SNEAKING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SPRINTING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_SET_SPRINTING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_SET_SNEAKING);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntity(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: pk.S F (stepHeight)",
                 failure.getMessage());
     }
 
@@ -1651,6 +1709,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_DIMENSION);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_STEP_HEIGHT);
         return writer;
     }
 
