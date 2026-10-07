@@ -72,6 +72,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerDimension(
+            final Minecraft189PlayerDimensionAccess player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerDimension(player);
+        }
+    }
+
     public static synchronized void playerHealth(
             final Minecraft189PlayerHealthAccess player) {
         final Minecraft189HostRuntime host =

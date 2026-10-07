@@ -437,6 +437,10 @@ final class Minecraft189MappedHostTransformationTest {
                     .setFloat(
                             player,
                             91.25F);
+            playerClass.getField("am")
+                    .setInt(
+                            player,
+                            -1);
             playerClass.getField("health")
                     .setFloat(
                             player,
@@ -844,6 +848,16 @@ final class Minecraft189MappedHostTransformationTest {
                     91.25F,
                     rotation.yaw());
 
+            final Minecraft189PlayerDimensionState.Snapshot dimension =
+                    runtime.requireHostRuntime()
+                            .playerDimensionState()
+                            .snapshot();
+            assertTrue(
+                    dimension.available());
+            assertEquals(
+                    -1,
+                    dimension.dimensionId());
+
             final Minecraft189PlayerHealthState.Snapshot health =
                     runtime.requireHostRuntime()
                             .playerHealthState()
@@ -1113,6 +1127,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .playerRotationState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .playerDimensionState()
                             .snapshot()
                             .available());
             assertFalse(
