@@ -2900,13 +2900,19 @@ final class Minecraft189MappedHostTransformationTest {
                             .getInt(
                                     playerController));
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .fastBreak()
+                    .delaySetting()
+                    .set(
+                            2);
             playerControllerClass.getField("g")
                     .setInt(
                             playerController,
                             3);
             runTick.invoke(minecraft);
             assertEquals(
-                    0,
+                    2,
                     playerControllerClass.getField("g")
                             .getInt(
                                     playerController));
