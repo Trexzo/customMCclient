@@ -55,6 +55,10 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "bdc",
                     "net/minecraft/client/network/NetworkPlayerInfo");
+    public static final MappedClass SERVER_DATA =
+            new MappedClass(
+                    "bde",
+                    "net/minecraft/client/multiplayer/ServerData");
     public static final MappedClass ENTITY_PLAYER =
             new MappedClass(
                     "wn",
@@ -115,6 +119,20 @@ public final class Minecraft189Mappings {
                     "Lavh;",
                     "field_71474_y",
                     "gameSettings");
+    public static final MappedField MINECRAFT_CURRENT_SERVER_DATA =
+            new MappedField(
+                    MINECRAFT,
+                    "Q",
+                    "Lbde;",
+                    "field_71422_O",
+                    "currentServerData");
+    public static final MappedField SERVER_DATA_SERVER_IP =
+            new MappedField(
+                    SERVER_DATA,
+                    "b",
+                    "Ljava/lang/String;",
+                    "field_78845_b",
+                    "serverIP");
     public static final MappedField ENTITY_POS_X =
             new MappedField(
                     ENTITY,
