@@ -895,6 +895,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189MovementSpeedModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189AutoSneakModule.ID)
                             != null);
             assertTrue(
@@ -2273,6 +2278,95 @@ final class Minecraft189MappedHostTransformationTest {
                     .inputState()
                     .key(
                             LegacyKeyboardCodes.SPACE,
+                            false);
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .movementSpeed()
+                    .speedSetting()
+                    .set(
+                            0.65D);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189MovementSpeedModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .movementSpeed()
+                            .active());
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            true);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            0.0F);
+            playerClass.getField("v")
+                    .setDouble(
+                            player,
+                            0.12D);
+            playerClass.getField("x")
+                    .setDouble(
+                            player,
+                            0.13D);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.0D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    0.65D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            false);
+            playerClass.getField("v")
+                    .setDouble(
+                            player,
+                            0.12D);
+            playerClass.getField("x")
+                    .setDouble(
+                            player,
+                            0.13D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.12D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    0.13D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189MovementSpeedModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .movementSpeed()
+                            .active());
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
                             false);
 
             playerClass.getField("C")
