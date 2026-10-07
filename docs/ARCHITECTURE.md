@@ -907,3 +907,11 @@ When disabled, the bridge returns the value unchanged, preserving vanilla item-u
 
 Focused coverage verifies disabled/enabled/disabled movement-factor behavior and lifecycle cleanup. Transformed-host coverage executes the synthetic vanilla-style `bew.m()V`: inputs `1.0 / -0.75` become `0.2 / -0.15` when disabled, remain `1.0 / -0.75` when enabled, and return to vanilla slowdown after disable.
 
+## Fast Break mapping authority
+
+M144 pins the exact Minecraft 1.8.9 primitive surface required for block-hit delay control: `PlayerControllerMP bda`, `Minecraft.playerController = ave.c Lbda;` / Searge `field_71442_b`, and `PlayerControllerMP.blockHitDelay = bda.g I` / Searge `field_78781_i`.
+
+The Minecraft class-shape gate now requires the exact controller field, while a dedicated PlayerControllerMP gate requires exact `bda.g I`. Regression coverage pins class, owner, obfuscated name, descriptor, Searge name and MCP name, and independently rejects a missing block-hit delay field.
+
+The transformed-host fixture includes synthetic `bda.g I` and exact `ave.c Lbda;` parity so the consumer milestone can prove a real controller-object path. This milestone is authority-only and does not modify block breaking behavior.
+
