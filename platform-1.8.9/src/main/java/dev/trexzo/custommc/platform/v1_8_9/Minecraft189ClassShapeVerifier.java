@@ -44,7 +44,9 @@ public final class Minecraft189ClassShapeVerifier {
                 Minecraft189Mappings.WORLD,
                 new Minecraft189Mappings.MappedField[0],
                 new Minecraft189Mappings.MappedMethod[]{
-                        Minecraft189Mappings.WORLD_GET_WORLD_TIME
+                        Minecraft189Mappings.WORLD_GET_WORLD_TIME,
+                        Minecraft189Mappings.WORLD_IS_RAINING,
+                        Minecraft189Mappings.WORLD_IS_THUNDERING
                 });
     }
 
