@@ -163,6 +163,7 @@ public final class Minecraft189ClassShapeVerifier {
                 classBytes,
                 Minecraft189Mappings.ENTITY_PLAYER,
                 new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.ENTITY_PLAYER_INVENTORY,
                         Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL,
                         Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_TOTAL,
                         Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_PROGRESS
@@ -171,6 +172,17 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS,
                         Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP
                 });
+    }
+
+    public static void verifyInventoryPlayer(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.INVENTORY_PLAYER,
+                new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.INVENTORY_PLAYER_CURRENT_ITEM
+                },
+                new Minecraft189Mappings.MappedMethod[0]);
     }
 
     public static void verifyItemStack(
