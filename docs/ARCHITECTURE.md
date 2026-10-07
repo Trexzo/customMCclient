@@ -743,3 +743,13 @@ The existing Entity class-shape gate now requires this exact integer alongside p
 
 This milestone is authority-only. It does not publish dimension state, label dimensions, register a HUD, or change runtime behavior.
 
+## Live Dimension HUD
+
+M126 consumes certified M125 authority directly from transformed base `Entity pk`. The transformed class now implements parent-owned `Minecraft189PlayerDimensionAccess` and exposes only exact mapped `pk.am I` through `customMcDimension()`. All live player classes inherit that narrow interface from `Entity`.
+
+Immediately before each normal return from mapped `Minecraft.runTick()`, the current player is forwarded through `Minecraft189RuntimeBridge.playerDimension(...)`. `Minecraft189HostRuntime` immediately copies the primitive dimension ID into synchronized `Minecraft189PlayerDimensionState`; no WorldProvider, World or concrete Entity object is retained. A null player clears availability, and runtime teardown clears the state.
+
+The new Visuals module `render.dimension` / **Dimension** owns persistent X/Y settings. Vanilla IDs are rendered as `Dimension: Nether (-1)`, `Dimension: Overworld (0)` and `Dimension: End (1)`; arbitrary custom IDs remain visible as `Dimension: <id>`.
+
+Executable transformed-host coverage sets inherited exact `pk.am` on the synthetic player, publishes it through the transformed runTick path, verifies the parent-owned snapshot, and verifies null-player clearing. Focused HUD coverage verifies vanilla/custom labels, persisted coordinates, disable behavior and complete feature teardown.
+
