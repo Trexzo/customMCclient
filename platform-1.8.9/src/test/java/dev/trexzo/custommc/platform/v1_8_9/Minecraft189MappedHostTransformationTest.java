@@ -992,6 +992,11 @@ final class Minecraft189MappedHostTransformationTest {
                             .find(
                                     Minecraft189VelocityModule.ID)
                             != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
+                                    Minecraft189JitterModule.ID)
+                            != null);
             assertEquals(
                     0.35F,
                     settingsClass.getField("aJ")
@@ -3375,6 +3380,126 @@ final class Minecraft189MappedHostTransformationTest {
                     minecraftClass.getField("clickMouseCalls")
                             .getInt(
                                     minecraft));
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .yawDegreesSetting()
+                    .set(
+                            1.25D);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .pitchDegreesSetting()
+                    .set(
+                            2.00D);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189JitterModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .jitter()
+                            .active());
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            30.0F);
+            playerClass.getField("z")
+                    .setFloat(
+                            player,
+                            10.0F);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    31.25F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    12.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    30.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    10.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            40.0F);
+            playerClass.getField("z")
+                    .setFloat(
+                            player,
+                            89.5F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    40.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    89.5F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    41.25F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    90.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189JitterModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .jitter()
+                            .active());
             runtime.requireHostRuntime()
                     .inputState()
                     .pointerButton(
