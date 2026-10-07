@@ -71,6 +71,17 @@ final class Minecraft189NoFallModuleTest {
                     ModuleState.DISABLED,
                     controller.stateOf(
                             Minecraft189NoFallModule.ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189NoFallModule.THRESHOLD_SETTING_ID));
+            assertEquals(
+                    Minecraft189NoFallModule.DEFAULT_THRESHOLD,
+                    runtime.featureCatalog()
+                            .noFall()
+                            .thresholdSetting()
+                            .get()
+                            .doubleValue(),
+                    0.000001D);
 
             final TestPlayer player =
                     new TestPlayer();
@@ -104,6 +115,34 @@ final class Minecraft189NoFallModuleTest {
 
             runtime.playerFallDistanceControl(
                     player);
+            assertEquals(
+                    1,
+                    player.setCalls);
+
+            runtime.featureCatalog()
+                    .noFall()
+                    .thresholdSetting()
+                    .set(
+                            3.0D);
+
+            player.distance = 2.5F;
+            runtime.playerFallDistanceControl(
+                    player);
+            assertEquals(
+                    2.5F,
+                    player.distance,
+                    0.000001F);
+            assertEquals(
+                    1,
+                    player.setCalls);
+
+            player.distance = 3.0F;
+            runtime.playerFallDistanceControl(
+                    player);
+            assertEquals(
+                    3.0F,
+                    player.distance,
+                    0.000001F);
             assertEquals(
                     1,
                     player.setCalls);
@@ -146,6 +185,9 @@ final class Minecraft189NoFallModuleTest {
         assertNull(
                 modules.find(
                         Minecraft189NoFallModule.ID));
+        assertNull(
+                settings.find(
+                        Minecraft189NoFallModule.THRESHOLD_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
