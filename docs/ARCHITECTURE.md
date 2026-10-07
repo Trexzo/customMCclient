@@ -1287,3 +1287,11 @@ The mapped `runTick()` return pipeline now snapshots hurt time before horizontal
 Ownership is explicit: Freeze and Flight suppress the write, but the hurt-time reset is still consumed while suspended so disabling either module cannot cause a delayed boost. Outside those exclusive modes, Damage Boost runs after normal horizontal movement ownership and therefore multiplies the final horizontal motion for that one hit reset.
 
 Focused coverage proves first-sample priming, countdown preservation, one-shot reset detection, configurable multiplier, constant-counter non-retrigger, Flight suppression without delayed activation, Freeze suppression without delayed activation, lifecycle, and setting teardown. Transformed-host coverage proves exact `pr.au` is sampled before motion control and that `4 → 10` produces the expected same-tick mapped `pk.v/pk.x` boost exactly once.
+
+## Damage Boost vertical scaling
+
+M185 extends **Movement → Damage Boost** on the certified M182/M183 hurt-time state and the existing primitive motion bridge. No new Minecraft mapping is introduced.
+
+The original `movement.damageBoost.multiplier` setting remains the horizontal multiplier and keeps its existing default of `1.25`. A new persistent DOUBLE setting, `movement.damageBoost.verticalMultiplier`, controls `motionY` with default `1.00`, range `1.00..3.00`, and step `0.05`. The neutral vertical default preserves M184 behavior exactly unless the user explicitly opts into vertical amplification.
+
+Both horizontal and vertical scaling occur only on the same one-shot fresh-hurt-time edge already certified by M184. Freeze/Flight suspension semantics remain unchanged and still consume hit resets to prevent delayed boosts. Focused coverage proves the neutral default and configured vertical scaling; transformed-host coverage proves exact mapped `pk.w` amplification alongside `pk.v/pk.x`.

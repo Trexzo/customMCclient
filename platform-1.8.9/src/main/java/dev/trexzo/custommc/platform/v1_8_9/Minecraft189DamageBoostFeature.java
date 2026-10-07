@@ -20,8 +20,11 @@ final class Minecraft189DamageBoostFeature
     private final ModuleRegistry.Registration moduleRegistration;
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration multiplierSetting;
+    private final SettingRegistry.Registration verticalMultiplierSetting;
     private final SettingPresentationRegistry.Registration multiplierPresentation;
+    private final SettingPresentationRegistry.Registration verticalMultiplierPresentation;
     private final ModuleSettingRegistry.Registration multiplierBinding;
+    private final ModuleSettingRegistry.Registration verticalMultiplierBinding;
     private boolean closed;
 
     private Minecraft189DamageBoostFeature(
@@ -30,15 +33,21 @@ final class Minecraft189DamageBoostFeature
             final ModuleRegistry.Registration moduleRegistration,
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration multiplierSetting,
+            final SettingRegistry.Registration verticalMultiplierSetting,
             final SettingPresentationRegistry.Registration multiplierPresentation,
-            final ModuleSettingRegistry.Registration multiplierBinding) {
+            final SettingPresentationRegistry.Registration verticalMultiplierPresentation,
+            final ModuleSettingRegistry.Registration multiplierBinding,
+            final ModuleSettingRegistry.Registration verticalMultiplierBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.multiplierSetting = multiplierSetting;
+        this.verticalMultiplierSetting = verticalMultiplierSetting;
         this.multiplierPresentation = multiplierPresentation;
+        this.verticalMultiplierPresentation = verticalMultiplierPresentation;
         this.multiplierBinding = multiplierBinding;
+        this.verticalMultiplierBinding = verticalMultiplierBinding;
     }
 
     static Minecraft189DamageBoostFeature install(
@@ -54,8 +63,11 @@ final class Minecraft189DamageBoostFeature
         ModuleRegistry.Registration moduleRegistration = null;
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration multiplierSetting = null;
+        SettingRegistry.Registration verticalMultiplierSetting = null;
         SettingPresentationRegistry.Registration multiplierPresentation = null;
+        SettingPresentationRegistry.Registration verticalMultiplierPresentation = null;
         ModuleSettingRegistry.Registration multiplierBinding = null;
+        ModuleSettingRegistry.Registration verticalMultiplierBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -64,20 +76,34 @@ final class Minecraft189DamageBoostFeature
                             new ModuleDescriptor(
                                     Minecraft189DamageBoostModule.ID,
                                     "Damage Boost",
-                                    "Boosts horizontal motion once when local hurt time resets on a fresh hit.",
+                                    "Boosts horizontal and optional vertical motion once when local hurt time resets on a fresh hit.",
                                     Minecraft189FeatureCatalog
                                             .MOVEMENT_CATEGORY_ID,
                                     210));
             multiplierSetting =
                     settings.register(
                             module.multiplierSetting());
+            verticalMultiplierSetting =
+                    settings.register(
+                            module.verticalMultiplierSetting());
             multiplierPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
                                     Minecraft189DamageBoostModule.MULTIPLIER_SETTING_ID,
-                                    "Multiplier",
+                                    "Horizontal",
                                     SettingValueKind.DOUBLE,
                                     0,
+                                    new SettingNumericSpec(
+                                            Minecraft189DamageBoostModule.MINIMUM_MULTIPLIER,
+                                            Minecraft189DamageBoostModule.MAXIMUM_MULTIPLIER,
+                                            0.05D)));
+            verticalMultiplierPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189DamageBoostModule.VERTICAL_MULTIPLIER_SETTING_ID,
+                                    "Vertical",
+                                    SettingValueKind.DOUBLE,
+                                    10,
                                     new SettingNumericSpec(
                                             Minecraft189DamageBoostModule.MINIMUM_MULTIPLIER,
                                             Minecraft189DamageBoostModule.MAXIMUM_MULTIPLIER,
@@ -88,6 +114,12 @@ final class Minecraft189DamageBoostFeature
                                     Minecraft189DamageBoostModule.ID,
                                     Minecraft189DamageBoostModule.MULTIPLIER_SETTING_ID,
                                     0));
+            verticalMultiplierBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189DamageBoostModule.ID,
+                                    Minecraft189DamageBoostModule.VERTICAL_MULTIPLIER_SETTING_ID,
+                                    10));
 
             return new Minecraft189DamageBoostFeature(
                     controller,
@@ -95,11 +127,17 @@ final class Minecraft189DamageBoostFeature
                     moduleRegistration,
                     presentation,
                     multiplierSetting,
+                    verticalMultiplierSetting,
                     multiplierPresentation,
-                    multiplierBinding);
+                    verticalMultiplierPresentation,
+                    multiplierBinding,
+                    verticalMultiplierBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(verticalMultiplierBinding, failure);
             closeQuietly(multiplierBinding, failure);
+            closeQuietly(verticalMultiplierPresentation, failure);
             closeQuietly(multiplierPresentation, failure);
+            closeQuietly(verticalMultiplierSetting, failure);
             closeQuietly(multiplierSetting, failure);
             closeQuietly(presentation, failure);
             closeQuietly(moduleRegistration, failure);
@@ -134,8 +172,11 @@ final class Minecraft189DamageBoostFeature
             failure = closeFailure;
         }
 
+        failure = close(verticalMultiplierBinding, failure);
         failure = close(multiplierBinding, failure);
+        failure = close(verticalMultiplierPresentation, failure);
         failure = close(multiplierPresentation, failure);
+        failure = close(verticalMultiplierSetting, failure);
         failure = close(multiplierSetting, failure);
         failure = close(presentation, failure);
         failure = close(moduleRegistration, failure);
