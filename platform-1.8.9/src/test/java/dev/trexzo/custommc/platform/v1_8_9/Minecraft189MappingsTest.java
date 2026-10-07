@@ -169,6 +169,13 @@ final class Minecraft189MappingsTest {
                 "field_71467_ac",
                 "rightClickDelayTimer");
         assertField(
+                Minecraft189Mappings.MINECRAFT_LEFT_CLICK_COUNTER,
+                Minecraft189Mappings.MINECRAFT,
+                "ag",
+                "I",
+                "field_71429_W",
+                "leftClickCounter");
+        assertField(
                 Minecraft189Mappings.SERVER_DATA_SERVER_IP,
                 Minecraft189Mappings.SERVER_DATA,
                 "b",
@@ -718,6 +725,48 @@ final class Minecraft189MappingsTest {
                                         finish(writer)));
         assertEquals(
                 "Minecraft 1.8.9 mapping field missing: ave.ap I (rightClickDelayTimer)",
+                failure.getMessage());
+    }
+
+    @Test
+    void minecraftShapeGateRejectsMissingLeftClickCounterField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.MINECRAFT
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_WORLD);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_ENTITY_RENDERER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_INGAME_GUI);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_GAME_SETTINGS);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_CURRENT_SERVER_DATA);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_DELAY_TIMER);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyMinecraft(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: ave.ag I (leftClickCounter)",
                 failure.getMessage());
     }
 
@@ -1694,6 +1743,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_DELAY_TIMER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_LEFT_CLICK_COUNTER);
     }
 
     private static ClassWriter writer(

@@ -152,6 +152,13 @@ public final class Minecraft189Mappings {
                     "I",
                     "field_71467_ac",
                     "rightClickDelayTimer");
+    public static final MappedField MINECRAFT_LEFT_CLICK_COUNTER =
+            new MappedField(
+                    MINECRAFT,
+                    "ag",
+                    "I",
+                    "field_71429_W",
+                    "leftClickCounter");
     public static final MappedField SERVER_DATA_SERVER_IP =
             new MappedField(
                     SERVER_DATA,

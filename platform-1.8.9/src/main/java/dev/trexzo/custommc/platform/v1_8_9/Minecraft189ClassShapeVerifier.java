@@ -25,7 +25,8 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.MINECRAFT_INGAME_GUI,
                         Minecraft189Mappings.MINECRAFT_GAME_SETTINGS,
                         Minecraft189Mappings.MINECRAFT_CURRENT_SERVER_DATA,
-                        Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_DELAY_TIMER
+                        Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_DELAY_TIMER,
+                        Minecraft189Mappings.MINECRAFT_LEFT_CLICK_COUNTER
                 },
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.MINECRAFT_GET_MINECRAFT,
