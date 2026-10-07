@@ -179,6 +179,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189WorldEntityPositionsAccess";
     private static final String WORLD_ENTITY_POSITIONS_ACCESS_DESCRIPTOR =
             "L" + WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME + ";";
+    private static final String WORLD_ENTITY_KINDS_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189WorldEntityKindsAccess";
+    private static final String WORLD_ENTITY_KINDS_ACCESS_DESCRIPTOR =
+            "L" + WORLD_ENTITY_KINDS_ACCESS_INTERNAL_NAME + ";";
     private static final String SERVER_DATA_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189ServerDataAccess";
@@ -584,6 +589,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedWeather =
                 new boolean[]{false};
         final boolean[] injectedWorldEntityPositions =
+                new boolean[]{false};
+        final boolean[] injectedWorldEntityKinds =
                 new boolean[]{false};
         final boolean[] injectedServerAddress =
                 new boolean[]{false};
@@ -1214,6 +1221,28 @@ public final class Minecraft189ClassTransformer
                                                 false);
                                         injectedWorldEntityPositions[0] = true;
 
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                world.obfuscatedName(),
+                                                world.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                WORLD_ENTITY_KINDS_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "worldEntityKinds",
+                                                "("
+                                                        + WORLD_ENTITY_KINDS_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedWorldEntityKinds[0] = true;
+
                                         final Minecraft189Mappings.MappedField serverData =
                                                 Minecraft189Mappings
                                                         .MINECRAFT_CURRENT_SERVER_DATA;
@@ -1517,6 +1546,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedWorldTime[0]
                 || !injectedWeather[0]
                 || !injectedWorldEntityPositions[0]
+                || !injectedWorldEntityKinds[0]
                 || !injectedServerAddress[0]
                 || !injectedHeldItem[0]
                 || !injectedRightClickDelay[0]
@@ -2808,10 +2838,12 @@ public final class Minecraft189ClassTransformer
                                 withInterface(
                                         withInterface(
                                                 withInterface(
-                                                        interfaces,
-                                                        WORLD_TIME_ACCESS_INTERNAL_NAME),
-                                                WORLD_WEATHER_ACCESS_INTERNAL_NAME),
-                                        WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME));
+                                                        withInterface(
+                                                                interfaces,
+                                                                WORLD_TIME_ACCESS_INTERNAL_NAME),
+                                                        WORLD_WEATHER_ACCESS_INTERNAL_NAME),
+                                                WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME),
+                                        WORLD_ENTITY_KINDS_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -2832,6 +2864,8 @@ public final class Minecraft189ClassTransformer
                                 Minecraft189Mappings
                                         .WORLD_IS_THUNDERING);
                         addLoadedEntityPositionsSnapshot(
+                                cv);
+                        addLoadedEntityKindsSnapshot(
                                 cv);
                         super.visitEnd();
                     }
@@ -3571,6 +3605,207 @@ public final class Minecraft189ClassTransformer
                         "java/util/List",
                         Opcodes.INTEGER,
                         "[D",
+                        Opcodes.INTEGER
+                },
+                0,
+                new Object[0]);
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                3);
+        method.visitInsn(
+                Opcodes.ARETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addLoadedEntityKindsSnapshot(
+            final ClassVisitor visitor) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "customMcLoadedEntityKinds",
+                        "()[I",
+                        null,
+                        null);
+        final Label nonNull =
+                new Label();
+        final Label loopCheck =
+                new Label();
+        final Label loopEnd =
+                new Label();
+
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                Minecraft189Mappings.WORLD
+                        .obfuscatedInternalName(),
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST
+                        .obfuscatedName(),
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST
+                        .descriptor());
+        method.visitVarInsn(
+                Opcodes.ASTORE,
+                1);
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                1);
+        method.visitJumpInsn(
+                Opcodes.IFNONNULL,
+                nonNull);
+        method.visitInsn(
+                Opcodes.ICONST_0);
+        method.visitIntInsn(
+                Opcodes.NEWARRAY,
+                Opcodes.T_INT);
+        method.visitInsn(
+                Opcodes.ARETURN);
+
+        method.visitLabel(nonNull);
+        method.visitFrame(
+                Opcodes.F_FULL,
+                2,
+                new Object[]{
+                        Minecraft189Mappings.WORLD
+                                .obfuscatedInternalName(),
+                        "java/util/List"
+                },
+                0,
+                new Object[0]);
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                1);
+        method.visitMethodInsn(
+                Opcodes.INVOKEINTERFACE,
+                "java/util/List",
+                "size",
+                "()I",
+                true);
+        method.visitVarInsn(
+                Opcodes.ISTORE,
+                2);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                2);
+        method.visitIntInsn(
+                Opcodes.NEWARRAY,
+                Opcodes.T_INT);
+        method.visitVarInsn(
+                Opcodes.ASTORE,
+                3);
+        method.visitInsn(
+                Opcodes.ICONST_0);
+        method.visitVarInsn(
+                Opcodes.ISTORE,
+                4);
+
+        method.visitLabel(loopCheck);
+        method.visitFrame(
+                Opcodes.F_FULL,
+                5,
+                new Object[]{
+                        Minecraft189Mappings.WORLD
+                                .obfuscatedInternalName(),
+                        "java/util/List",
+                        Opcodes.INTEGER,
+                        "[I",
+                        Opcodes.INTEGER
+                },
+                0,
+                new Object[0]);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                4);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                2);
+        method.visitJumpInsn(
+                Opcodes.IF_ICMPGE,
+                loopEnd);
+
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                1);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                4);
+        method.visitMethodInsn(
+                Opcodes.INVOKEINTERFACE,
+                "java/util/List",
+                "get",
+                "(I)Ljava/lang/Object;",
+                true);
+        method.visitVarInsn(
+                Opcodes.ASTORE,
+                5);
+
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                3);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                4);
+
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                5);
+        method.visitTypeInsn(
+                Opcodes.INSTANCEOF,
+                Minecraft189Mappings.ENTITY_LIVING_BASE
+                        .obfuscatedInternalName());
+
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                5);
+        method.visitTypeInsn(
+                Opcodes.INSTANCEOF,
+                Minecraft189Mappings.ENTITY_PLAYER
+                        .obfuscatedInternalName());
+        method.visitInsn(
+                Opcodes.ICONST_1);
+        method.visitInsn(
+                Opcodes.ISHL);
+        method.visitInsn(
+                Opcodes.IOR);
+
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                5);
+        method.visitTypeInsn(
+                Opcodes.INSTANCEOF,
+                Minecraft189Mappings.ENTITY_PLAYER_SP
+                        .obfuscatedInternalName());
+        method.visitInsn(
+                Opcodes.ICONST_2);
+        method.visitInsn(
+                Opcodes.ISHL);
+        method.visitInsn(
+                Opcodes.IOR);
+
+        method.visitInsn(
+                Opcodes.IASTORE);
+
+        method.visitIincInsn(
+                4,
+                1);
+        method.visitJumpInsn(
+                Opcodes.GOTO,
+                loopCheck);
+
+        method.visitLabel(loopEnd);
+        method.visitFrame(
+                Opcodes.F_FULL,
+                5,
+                new Object[]{
+                        Minecraft189Mappings.WORLD
+                                .obfuscatedInternalName(),
+                        "java/util/List",
+                        Opcodes.INTEGER,
+                        "[I",
                         Opcodes.INTEGER
                 },
                 0,

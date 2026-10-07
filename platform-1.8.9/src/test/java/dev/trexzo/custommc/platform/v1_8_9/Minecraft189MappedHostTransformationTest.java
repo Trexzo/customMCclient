@@ -4820,6 +4820,28 @@ final class Minecraft189MappedHostTransformationTest {
                     -40.0D,
                     entities.z(1));
 
+            final Minecraft189WorldEntityKindState.Snapshot entityKinds =
+                    runtime.requireHostRuntime()
+                            .worldEntityKindState()
+                            .snapshot();
+            assertTrue(
+                    entityKinds.available());
+            assertEquals(
+                    2,
+                    entityKinds.entityCount());
+            assertTrue(
+                    entityKinds.living(0));
+            assertTrue(
+                    entityKinds.player(0));
+            assertTrue(
+                    entityKinds.localPlayer(0));
+            assertFalse(
+                    entityKinds.living(1));
+            assertFalse(
+                    entityKinds.player(1));
+            assertFalse(
+                    entityKinds.localPlayer(1));
+
             final Minecraft189ServerAddressState.Snapshot server =
                     runtime.requireHostRuntime()
                             .serverAddressState()
@@ -4903,6 +4925,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .worldEntityPositionState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .worldEntityKindState()
                             .snapshot()
                             .available());
 
