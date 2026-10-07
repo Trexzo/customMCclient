@@ -468,6 +468,18 @@ public final class Minecraft189HostRuntime
                         playerMovementState.snapshot());
     }
 
+    void playerJumpControl(
+            final Minecraft189PlayerJumpControl player) {
+        requireOpen();
+        if (player == null) {
+            return;
+        }
+        featureCatalog.autoJump()
+                .apply(
+                        player,
+                        playerMovementState.snapshot());
+    }
+
     void playerHealth(
             final Minecraft189PlayerHealthAccess player) {
         requireOpen();
