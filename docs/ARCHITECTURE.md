@@ -1501,3 +1501,15 @@ Classification is performed entirely inside child-loaded World bytecode using JV
 The transformed-host proof uses the same exact M205 `adm.f` list: the live `bew` entry arrives as living + player + local-player, while a base `pk / Entity` entry arrives with zero kind bits. This gives later target selection a safe way to exclude the local player and restrict candidates to players/living entities without retaining child-loader objects.
 
 M206 still does not select targets, read names/teams, test visibility, read other entities' health, aim, attack or render ESP.
+
+## Nearest remote-player target snapshot
+
+M207 is the first parent-owned target-selection primitive built entirely on the certified M205/M206 snapshots. `Minecraft189NearestPlayerTargetState` consumes the current local-player position, aligned world entity XYZ positions and aligned entity kind flags. It selects the nearest entity whose kind is PLAYER but not LOCAL_PLAYER, using full three-dimensional squared distance and deterministic lowest-index tie breaking.
+
+Selection is fail-closed. If the local position or either world snapshot is unavailable, or if position/kind entity counts disagree, the target snapshot becomes unavailable. A fully valid world with no eligible remote player is represented as `available=true, found=false`, preventing callers from confusing “no target” with stale/misaligned source data.
+
+Host runtime clears the derived target whenever the local-player position or world positions are resampled. Because the transformed tick publishes world positions before world kinds, the later kind update recomputes M207 only after both current-tick world snapshots are present. This prevents mixed-tick target observations without exposing any Minecraft object.
+
+The transformed-host proof upgrades the second M205 fixture from base `pk / Entity` to real `wn / EntityPlayer` and proves that the local `bew` entry is excluded while entity index 1 is selected at its exact primitive coordinates and distance.
+
+M207 still performs no rotation, attack, visibility/raycast test, name/team filtering, health filtering or ESP rendering. It is a deterministic target data primitive for later modules.
