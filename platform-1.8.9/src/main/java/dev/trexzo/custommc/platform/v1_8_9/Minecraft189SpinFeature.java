@@ -22,12 +22,15 @@ final class Minecraft189SpinFeature
     private final SettingRegistry.Registration yawSpeedSetting;
     private final SettingRegistry.Registration reverseSetting;
     private final SettingRegistry.Registration requireHoldSetting;
+    private final SettingRegistry.Registration intervalSetting;
     private final SettingPresentationRegistry.Registration yawSpeedPresentation;
     private final SettingPresentationRegistry.Registration reversePresentation;
     private final SettingPresentationRegistry.Registration requireHoldPresentation;
+    private final SettingPresentationRegistry.Registration intervalPresentation;
     private final ModuleSettingRegistry.Registration yawSpeedBinding;
     private final ModuleSettingRegistry.Registration reverseBinding;
     private final ModuleSettingRegistry.Registration requireHoldBinding;
+    private final ModuleSettingRegistry.Registration intervalBinding;
     private boolean closed;
 
     private Minecraft189SpinFeature(
@@ -38,12 +41,15 @@ final class Minecraft189SpinFeature
             final SettingRegistry.Registration yawSpeedSetting,
             final SettingRegistry.Registration reverseSetting,
             final SettingRegistry.Registration requireHoldSetting,
+            final SettingRegistry.Registration intervalSetting,
             final SettingPresentationRegistry.Registration yawSpeedPresentation,
             final SettingPresentationRegistry.Registration reversePresentation,
             final SettingPresentationRegistry.Registration requireHoldPresentation,
+            final SettingPresentationRegistry.Registration intervalPresentation,
             final ModuleSettingRegistry.Registration yawSpeedBinding,
             final ModuleSettingRegistry.Registration reverseBinding,
-            final ModuleSettingRegistry.Registration requireHoldBinding) {
+            final ModuleSettingRegistry.Registration requireHoldBinding,
+            final ModuleSettingRegistry.Registration intervalBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -51,12 +57,15 @@ final class Minecraft189SpinFeature
         this.yawSpeedSetting = yawSpeedSetting;
         this.reverseSetting = reverseSetting;
         this.requireHoldSetting = requireHoldSetting;
+        this.intervalSetting = intervalSetting;
         this.yawSpeedPresentation = yawSpeedPresentation;
         this.reversePresentation = reversePresentation;
         this.requireHoldPresentation = requireHoldPresentation;
+        this.intervalPresentation = intervalPresentation;
         this.yawSpeedBinding = yawSpeedBinding;
         this.reverseBinding = reverseBinding;
         this.requireHoldBinding = requireHoldBinding;
+        this.intervalBinding = intervalBinding;
     }
 
     static Minecraft189SpinFeature install(
@@ -74,12 +83,15 @@ final class Minecraft189SpinFeature
         SettingRegistry.Registration yawSpeedSetting = null;
         SettingRegistry.Registration reverseSetting = null;
         SettingRegistry.Registration requireHoldSetting = null;
+        SettingRegistry.Registration intervalSetting = null;
         SettingPresentationRegistry.Registration yawSpeedPresentation = null;
         SettingPresentationRegistry.Registration reversePresentation = null;
         SettingPresentationRegistry.Registration requireHoldPresentation = null;
+        SettingPresentationRegistry.Registration intervalPresentation = null;
         ModuleSettingRegistry.Registration yawSpeedBinding = null;
         ModuleSettingRegistry.Registration reverseBinding = null;
         ModuleSettingRegistry.Registration requireHoldBinding = null;
+        ModuleSettingRegistry.Registration intervalBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -100,6 +112,9 @@ final class Minecraft189SpinFeature
             requireHoldSetting =
                     settings.register(
                             module.requireHoldSetting());
+            intervalSetting =
+                    settings.register(
+                            module.intervalTicksSetting());
             yawSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -125,6 +140,17 @@ final class Minecraft189SpinFeature
                                     "Require Hold",
                                     SettingValueKind.BOOLEAN,
                                     20));
+            intervalPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189SpinModule.INTERVAL_SETTING_ID,
+                                    "Interval",
+                                    SettingValueKind.INTEGER,
+                                    30,
+                                    new SettingNumericSpec(
+                                            Minecraft189SpinModule.MINIMUM_INTERVAL_TICKS,
+                                            Minecraft189SpinModule.MAXIMUM_INTERVAL_TICKS,
+                                            1.0D)));
             yawSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -143,6 +169,12 @@ final class Minecraft189SpinFeature
                                     Minecraft189SpinModule.ID,
                                     Minecraft189SpinModule.REQUIRE_HOLD_SETTING_ID,
                                     20));
+            intervalBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189SpinModule.ID,
+                                    Minecraft189SpinModule.INTERVAL_SETTING_ID,
+                                    30));
 
             return new Minecraft189SpinFeature(
                     controller,
@@ -152,19 +184,25 @@ final class Minecraft189SpinFeature
                     yawSpeedSetting,
                     reverseSetting,
                     requireHoldSetting,
+                    intervalSetting,
                     yawSpeedPresentation,
                     reversePresentation,
                     requireHoldPresentation,
+                    intervalPresentation,
                     yawSpeedBinding,
                     reverseBinding,
-                    requireHoldBinding);
+                    requireHoldBinding,
+                    intervalBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(intervalBinding, failure);
             closeQuietly(requireHoldBinding, failure);
             closeQuietly(reverseBinding, failure);
             closeQuietly(yawSpeedBinding, failure);
+            closeQuietly(intervalPresentation, failure);
             closeQuietly(requireHoldPresentation, failure);
             closeQuietly(reversePresentation, failure);
             closeQuietly(yawSpeedPresentation, failure);
+            closeQuietly(intervalSetting, failure);
             closeQuietly(requireHoldSetting, failure);
             closeQuietly(reverseSetting, failure);
             closeQuietly(yawSpeedSetting, failure);
@@ -201,12 +239,15 @@ final class Minecraft189SpinFeature
             failure = closeFailure;
         }
 
+        failure = close(intervalBinding, failure);
         failure = close(requireHoldBinding, failure);
         failure = close(reverseBinding, failure);
         failure = close(yawSpeedBinding, failure);
+        failure = close(intervalPresentation, failure);
         failure = close(requireHoldPresentation, failure);
         failure = close(reversePresentation, failure);
         failure = close(yawSpeedPresentation, failure);
+        failure = close(intervalSetting, failure);
         failure = close(requireHoldSetting, failure);
         failure = close(reverseSetting, failure);
         failure = close(yawSpeedSetting, failure);
