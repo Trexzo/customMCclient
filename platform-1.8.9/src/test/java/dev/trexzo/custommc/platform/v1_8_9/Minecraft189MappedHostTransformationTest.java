@@ -1475,6 +1475,81 @@ final class Minecraft189MappedHostTransformationTest {
                     .pointerButton(
                             Minecraft189ClickRateTracker.LEFT_BUTTON,
                             false);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .wTap()
+                    .resetTicksSetting()
+                    .set(
+                            1);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .wTap()
+                    .requireForwardSetting()
+                    .set(
+                            Boolean.TRUE);
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189WTapModule.ID);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189WTapModule.ID);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            true);
+            playerClass.getField("sprinting")
+                    .setBoolean(
+                            player,
+                            true);
+            runTick.invoke(minecraft);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            true);
+            runTick.invoke(minecraft);
+            assertTrue(
+                    playerClass.getField("sprinting")
+                            .getBoolean(
+                                    player));
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
+            runTick.invoke(minecraft);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            true);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    playerClass.getField("sprinting")
+                            .getBoolean(
+                                    player));
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
             runtime.moduleController()
                     .disable(
                             Minecraft189WTapModule.ID);

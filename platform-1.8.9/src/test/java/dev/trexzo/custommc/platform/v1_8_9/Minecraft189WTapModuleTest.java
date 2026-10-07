@@ -53,6 +53,9 @@ final class Minecraft189WTapModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189WTapModule.RESET_TICKS_SETTING_ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189WTapModule.REQUIRE_FORWARD_SETTING_ID));
             assertEquals(
                     Minecraft189WTapModule.DEFAULT_COOLDOWN_TICKS,
                     module.cooldownTicksSetting()
@@ -63,6 +66,10 @@ final class Minecraft189WTapModuleTest {
                     module.resetTicksSetting()
                             .get()
                             .intValue());
+            assertFalse(
+                    module.requireForwardSetting()
+                            .get()
+                            .booleanValue());
             assertFalse(
                     module.requireGroundSetting()
                             .get()
@@ -81,7 +88,8 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertTrue(
                     player.sprinting);
 
@@ -98,7 +106,8 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertFalse(
                     player.sprinting);
 
@@ -111,7 +120,8 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertTrue(
                     player.sprinting);
 
@@ -119,6 +129,7 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
+                            false,
                             false));
             state.update(
                     true,
@@ -128,7 +139,8 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertFalse(
                     player.sprinting);
 
@@ -137,6 +149,7 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
+                            false,
                             false));
             module.requireGroundSetting()
                     .set(
@@ -149,7 +162,8 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertTrue(
                     player.sprinting);
 
@@ -161,7 +175,8 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertTrue(
                     player.sprinting);
 
@@ -169,6 +184,7 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
+                            false,
                             false));
             state.update(
                     true,
@@ -178,7 +194,8 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertFalse(
                     player.sprinting);
 
@@ -201,7 +218,8 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertFalse(
                     player.sprinting);
 
@@ -210,6 +228,7 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
+                            false,
                             false));
             state.update(
                     true,
@@ -219,7 +238,8 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertTrue(
                     player.sprinting);
 
@@ -227,6 +247,7 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
+                            false,
                             false));
             state.update(
                     true,
@@ -236,7 +257,8 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertFalse(
                     player.sprinting);
 
@@ -259,7 +281,8 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertFalse(
                     player.sprinting);
 
@@ -272,7 +295,8 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertFalse(
                     player.sprinting);
 
@@ -285,7 +309,8 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertFalse(
                     player.sprinting);
 
@@ -298,8 +323,52 @@ final class Minecraft189WTapModuleTest {
                     module.apply(
                             player,
                             state.snapshot(),
-                            true));
+                            true,
+                            false));
             assertTrue(
+                    player.sprinting);
+
+            module.resetTicksSetting()
+                    .set(
+                            1);
+            module.requireForwardSetting()
+                    .set(
+                            Boolean.TRUE);
+            controller.disable(
+                    Minecraft189WTapModule.ID);
+            controller.enable(
+                    Minecraft189WTapModule.ID);
+            player.sprinting = true;
+            state.update(
+                    true,
+                    false,
+                    true);
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true,
+                            false));
+            assertTrue(
+                    player.sprinting);
+
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            false,
+                            false));
+            state.update(
+                    true,
+                    false,
+                    true);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true,
+                            true));
+            assertFalse(
                     player.sprinting);
 
             controller.disable(
@@ -322,6 +391,9 @@ final class Minecraft189WTapModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189WTapModule.RESET_TICKS_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189WTapModule.REQUIRE_FORWARD_SETTING_ID));
     }
 
     private static final class TestPlayer

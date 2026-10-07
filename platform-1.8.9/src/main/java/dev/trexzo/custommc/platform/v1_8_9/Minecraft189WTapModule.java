@@ -14,6 +14,8 @@ public final class Minecraft189WTapModule
             "combat.wTap.cooldownTicks";
     public static final String RESET_TICKS_SETTING_ID =
             "combat.wTap.resetTicks";
+    public static final String REQUIRE_FORWARD_SETTING_ID =
+            "combat.wTap.requireForward";
     public static final int DEFAULT_COOLDOWN_TICKS =
             0;
     public static final int MINIMUM_COOLDOWN_TICKS =
@@ -49,6 +51,12 @@ public final class Minecraft189WTapModule
                             && value >= MINIMUM_RESET_TICKS
                             && value <= MAXIMUM_RESET_TICKS,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> requireForward =
+            new Setting<Boolean>(
+                    REQUIRE_FORWARD_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
 
     private boolean enabled;
     private boolean previousLeftButtonHeld;
@@ -72,6 +80,10 @@ public final class Minecraft189WTapModule
         return resetTicks;
     }
 
+    public Setting<Boolean> requireForwardSetting() {
+        return requireForward;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -87,7 +99,8 @@ public final class Minecraft189WTapModule
     synchronized boolean apply(
             final Minecraft189PlayerSprintControl player,
             final Minecraft189PlayerMovementState.Snapshot movement,
-            final boolean leftButtonHeld) {
+            final boolean leftButtonHeld,
+            final boolean forwardHeld) {
         if (!enabled
                 || player == null
                 || movement == null
@@ -123,6 +136,8 @@ public final class Minecraft189WTapModule
         if (cooldownActive
                 || (requireGround.get().booleanValue()
                         && !movement.onGround())
+                || (requireForward.get().booleanValue()
+                        && !forwardHeld)
                 || !movement.sprinting()) {
             return false;
         }

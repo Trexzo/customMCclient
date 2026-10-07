@@ -1443,3 +1443,13 @@ A successful fresh-press trigger owns sprint control for exactly the configured 
 The existing cooldown continues counting from the trigger and may overlap the reset window. Input edges seen during an active reset window are consumed through the same held-state tracking, so no delayed reset appears when ownership expires. Disable, re-enable or unavailable movement authority clears both reset-duration and cooldown state.
 
 No new Minecraft mapping or transformer hook is introduced. Focused and transformed-host coverage prove a three-tick reset followed by immediate Auto Sprint restoration on tick four, plus default setting registration and teardown.
+
+## W-Tap forward-key requirement
+
+M201 extends **Combat → W-Tap** with persistent BOOLEAN setting `combat.wTap.requireForward`, presented as **Require Forward** and defaulting to `false`. The default preserves M200 exactly.
+
+When enabled, a fresh physical LMB press can start a sprint reset only while the certified legacy W key is physically held. A press without W is consumed by the existing edge state and does not become a delayed reset if W is pressed later during the same LMB hold; release is required to rearm a fresh press.
+
+Require Forward gates only creation of a new reset window. Once a reset has legitimately started, its configured Reset Ticks ownership is allowed to finish even if W is released, preserving deterministic reset duration. Cooldown, Ground Only and Auto Sprint precedence remain unchanged.
+
+The host reads W exclusively from the existing parent-owned `Minecraft189InputState` using certified `LegacyKeyboardCodes.W = 17`; no new Minecraft mapping or transformer hook is introduced. Focused and transformed-host coverage prove no-W suppression, release rearm, W-held activation, setting registration and teardown.
