@@ -1295,3 +1295,19 @@ M185 extends **Movement → Damage Boost** on the certified M182/M183 hurt-time 
 The original `movement.damageBoost.multiplier` setting remains the horizontal multiplier and keeps its existing default of `1.25`. A new persistent DOUBLE setting, `movement.damageBoost.verticalMultiplier`, controls `motionY` with default `1.00`, range `1.00..3.00`, and step `0.05`. The neutral vertical default preserves M184 behavior exactly unless the user explicitly opts into vertical amplification.
 
 Both horizontal and vertical scaling occur only on the same one-shot fresh-hurt-time edge already certified by M184. Freeze/Flight suspension semantics remain unchanged and still consume hit resets to prevent delayed boosts. Focused coverage proves the neutral default and configured vertical scaling; transformed-host coverage proves exact mapped `pk.w` amplification alongside `pk.v/pk.x`.
+
+## rotationPitch mapping authority
+
+M186 pins Minecraft 1.8.9 `Entity.rotationPitch` before any feature is allowed to consume it.
+
+The frozen mapping source already recorded by `Minecraft189Mappings` resolves the field as:
+
+- owner: `pk` / `net/minecraft/entity/Entity`
+- obfuscated field: `z`
+- descriptor: `F`
+- SRG: `field_70125_A`
+- MCP: `rotationPitch`
+
+The authority is now represented as `Minecraft189Mappings.ENTITY_ROTATION_PITCH`, included in the Entity class-shape gate, covered by an exact mapping assertion, and guarded by a dedicated missing-field failure regression. The transformed-host Entity fixture also contains exact `pk.z : F`, so future pitch consumers cannot silently rely on a synthetic host that omits the real mapped field.
+
+No runtime feature writes or reads pitch in M186; this milestone establishes mapping authority only.
