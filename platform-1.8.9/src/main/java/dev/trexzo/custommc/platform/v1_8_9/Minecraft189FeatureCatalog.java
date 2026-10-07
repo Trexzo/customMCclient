@@ -90,6 +90,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189LongJumpFeature longJumpFeature;
     private final Minecraft189BunnyHopFeature bunnyHopFeature;
     private final Minecraft189HighJumpFeature highJumpFeature;
+    private final Minecraft189LowHopFeature lowHopFeature;
     private final Minecraft189MovementSpeedFeature movementSpeedFeature;
     private final Minecraft189FastPlaceFeature fastPlaceFeature;
     private final Minecraft189FastBreakFeature fastBreakFeature;
@@ -164,6 +165,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189LongJumpFeature longJumpFeature,
             final Minecraft189BunnyHopFeature bunnyHopFeature,
             final Minecraft189HighJumpFeature highJumpFeature,
+            final Minecraft189LowHopFeature lowHopFeature,
             final Minecraft189MovementSpeedFeature movementSpeedFeature,
             final Minecraft189FastPlaceFeature fastPlaceFeature,
             final Minecraft189FastBreakFeature fastBreakFeature,
@@ -232,6 +234,7 @@ public final class Minecraft189FeatureCatalog
         this.longJumpFeature = longJumpFeature;
         this.bunnyHopFeature = bunnyHopFeature;
         this.highJumpFeature = highJumpFeature;
+        this.lowHopFeature = lowHopFeature;
         this.movementSpeedFeature = movementSpeedFeature;
         this.fastPlaceFeature = fastPlaceFeature;
         this.fastBreakFeature = fastBreakFeature;
@@ -353,6 +356,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189LongJumpFeature longJumpFeature = null;
         Minecraft189BunnyHopFeature bunnyHopFeature = null;
         Minecraft189HighJumpFeature highJumpFeature = null;
+        Minecraft189LowHopFeature lowHopFeature = null;
         Minecraft189MovementSpeedFeature movementSpeedFeature = null;
         Minecraft189FastPlaceFeature fastPlaceFeature = null;
         Minecraft189FastBreakFeature fastBreakFeature = null;
@@ -586,6 +590,16 @@ public final class Minecraft189FeatureCatalog
 
             highJumpFeature =
                     Minecraft189HighJumpFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            inputState);
+
+            lowHopFeature =
+                    Minecraft189LowHopFeature.install(
                             modules,
                             moduleController,
                             presentations,
@@ -972,6 +986,7 @@ public final class Minecraft189FeatureCatalog
                     longJumpFeature,
                     bunnyHopFeature,
                     highJumpFeature,
+                    lowHopFeature,
                     movementSpeedFeature,
                     fastPlaceFeature,
                     fastBreakFeature,
@@ -989,6 +1004,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(fastBreakFeature, failure);
             closeQuietly(fastPlaceFeature, failure);
             closeQuietly(movementSpeedFeature, failure);
+            closeQuietly(lowHopFeature, failure);
             closeQuietly(highJumpFeature, failure);
             closeQuietly(bunnyHopFeature, failure);
             closeQuietly(longJumpFeature, failure);
@@ -1174,6 +1190,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189HighJumpModule highJump() {
         requireOpen();
         return highJumpFeature.module();
+    }
+
+    public Minecraft189LowHopModule lowHop() {
+        requireOpen();
+        return lowHopFeature.module();
     }
 
     public Minecraft189MovementSpeedModule movementSpeed() {
@@ -1480,6 +1501,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             movementSpeedFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            lowHopFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,
