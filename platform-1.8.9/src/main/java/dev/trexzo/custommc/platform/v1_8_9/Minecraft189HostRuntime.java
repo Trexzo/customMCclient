@@ -28,6 +28,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189PlayerPositionState playerPositionState;
     private final Minecraft189PlayerRotationState playerRotationState;
     private final Minecraft189PlayerDimensionState playerDimensionState;
+    private final Minecraft189PlayerMovementState playerMovementState;
     private final Minecraft189PlayerHealthState playerHealthState;
     private final Minecraft189PlayerArmorState playerArmorState;
     private final Minecraft189PlayerHungerState playerHungerState;
@@ -56,6 +57,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerPositionState playerPositionState,
             final Minecraft189PlayerRotationState playerRotationState,
             final Minecraft189PlayerDimensionState playerDimensionState,
+            final Minecraft189PlayerMovementState playerMovementState,
             final Minecraft189PlayerHealthState playerHealthState,
             final Minecraft189PlayerArmorState playerArmorState,
             final Minecraft189PlayerHungerState playerHungerState,
@@ -81,6 +83,7 @@ public final class Minecraft189HostRuntime
         this.playerPositionState = playerPositionState;
         this.playerRotationState = playerRotationState;
         this.playerDimensionState = playerDimensionState;
+        this.playerMovementState = playerMovementState;
         this.playerHealthState = playerHealthState;
         this.playerArmorState = playerArmorState;
         this.playerHungerState = playerHungerState;
@@ -166,6 +169,8 @@ public final class Minecraft189HostRuntime
                 new Minecraft189PlayerRotationState();
         final Minecraft189PlayerDimensionState playerDimensionState =
                 new Minecraft189PlayerDimensionState();
+        final Minecraft189PlayerMovementState playerMovementState =
+                new Minecraft189PlayerMovementState();
         final Minecraft189PlayerHealthState playerHealthState =
                 new Minecraft189PlayerHealthState();
         final Minecraft189PlayerArmorState playerArmorState =
@@ -220,6 +225,7 @@ public final class Minecraft189HostRuntime
                             playerPositionState,
                             playerRotationState,
                             playerDimensionState,
+                            playerMovementState,
                             playerHealthState,
                             playerArmorState,
                             playerHungerState,
@@ -247,6 +253,7 @@ public final class Minecraft189HostRuntime
                     playerPositionState,
                     playerRotationState,
                     playerDimensionState,
+                    playerMovementState,
                     playerHealthState,
                     playerArmorState,
                     playerHungerState,
@@ -324,6 +331,11 @@ public final class Minecraft189HostRuntime
     public Minecraft189PlayerDimensionState playerDimensionState() {
         requireOpen();
         return playerDimensionState;
+    }
+
+    public Minecraft189PlayerMovementState playerMovementState() {
+        requireOpen();
+        return playerMovementState;
     }
 
     public Minecraft189PlayerHealthState playerHealthState() {
@@ -429,6 +441,19 @@ public final class Minecraft189HostRuntime
         }
         playerDimensionState.update(
                 player.customMcDimension());
+    }
+
+    void playerMovementState(
+            final Minecraft189PlayerMovementStateAccess player) {
+        requireOpen();
+        if (player == null) {
+            playerMovementState.clear();
+            return;
+        }
+        playerMovementState.update(
+                player.customMcOnGround(),
+                player.customMcSneaking(),
+                player.customMcSprinting());
     }
 
     void playerHealth(
@@ -733,6 +758,7 @@ public final class Minecraft189HostRuntime
         playerPositionState.clear();
         playerRotationState.clear();
         playerDimensionState.clear();
+        playerMovementState.clear();
         playerHealthState.clear();
         playerArmorState.clear();
         playerHungerState.clear();
