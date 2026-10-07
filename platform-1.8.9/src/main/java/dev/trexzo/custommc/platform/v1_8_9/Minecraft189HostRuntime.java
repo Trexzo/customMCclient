@@ -30,6 +30,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189PlayerDimensionState playerDimensionState;
     private final Minecraft189PlayerMovementState playerMovementState;
     private final Minecraft189PlayerHealthState playerHealthState;
+    private final Minecraft189PlayerHurtTimeState playerHurtTimeState;
     private final Minecraft189PlayerArmorState playerArmorState;
     private final Minecraft189PlayerHungerState playerHungerState;
     private final Minecraft189PlayerPotionEffectsState playerPotionEffectsState;
@@ -59,6 +60,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerDimensionState playerDimensionState,
             final Minecraft189PlayerMovementState playerMovementState,
             final Minecraft189PlayerHealthState playerHealthState,
+            final Minecraft189PlayerHurtTimeState playerHurtTimeState,
             final Minecraft189PlayerArmorState playerArmorState,
             final Minecraft189PlayerHungerState playerHungerState,
             final Minecraft189PlayerPotionEffectsState playerPotionEffectsState,
@@ -85,6 +87,7 @@ public final class Minecraft189HostRuntime
         this.playerDimensionState = playerDimensionState;
         this.playerMovementState = playerMovementState;
         this.playerHealthState = playerHealthState;
+        this.playerHurtTimeState = playerHurtTimeState;
         this.playerArmorState = playerArmorState;
         this.playerHungerState = playerHungerState;
         this.playerPotionEffectsState = playerPotionEffectsState;
@@ -173,6 +176,8 @@ public final class Minecraft189HostRuntime
                 new Minecraft189PlayerMovementState();
         final Minecraft189PlayerHealthState playerHealthState =
                 new Minecraft189PlayerHealthState();
+        final Minecraft189PlayerHurtTimeState playerHurtTimeState =
+                new Minecraft189PlayerHurtTimeState();
         final Minecraft189PlayerArmorState playerArmorState =
                 new Minecraft189PlayerArmorState();
         final Minecraft189PlayerHungerState playerHungerState =
@@ -227,6 +232,7 @@ public final class Minecraft189HostRuntime
                             playerDimensionState,
                             playerMovementState,
                             playerHealthState,
+                            playerHurtTimeState,
                             playerArmorState,
                             playerHungerState,
                             playerPotionEffectsState,
@@ -255,6 +261,7 @@ public final class Minecraft189HostRuntime
                     playerDimensionState,
                     playerMovementState,
                     playerHealthState,
+                    playerHurtTimeState,
                     playerArmorState,
                     playerHungerState,
                     playerPotionEffectsState,
@@ -341,6 +348,11 @@ public final class Minecraft189HostRuntime
     public Minecraft189PlayerHealthState playerHealthState() {
         requireOpen();
         return playerHealthState;
+    }
+
+    public Minecraft189PlayerHurtTimeState playerHurtTimeState() {
+        requireOpen();
+        return playerHurtTimeState;
     }
 
     public Minecraft189PlayerArmorState playerArmorState() {
@@ -739,6 +751,17 @@ public final class Minecraft189HostRuntime
                 player.customMcMaxHealth());
     }
 
+    void playerHurtTime(
+            final Minecraft189PlayerHurtTimeAccess player) {
+        requireOpen();
+        if (player == null) {
+            playerHurtTimeState.clear();
+            return;
+        }
+        playerHurtTimeState.update(
+                player.customMcHurtTime());
+    }
+
     void playerArmor(
             final Minecraft189PlayerArmorAccess player) {
         requireOpen();
@@ -1085,6 +1108,7 @@ public final class Minecraft189HostRuntime
         playerDimensionState.clear();
         playerMovementState.clear();
         playerHealthState.clear();
+        playerHurtTimeState.clear();
         playerArmorState.clear();
         playerHungerState.clear();
         playerPotionEffectsState.clear();
