@@ -218,6 +218,9 @@ public final class Minecraft189ClassTransformer
                 || Minecraft189Mappings.MINECRAFT
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
+                || Minecraft189Mappings.MOVING_OBJECT_POSITION
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
                 || Minecraft189Mappings.PLAYER_CONTROLLER_MP
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
@@ -299,6 +302,13 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyMinecraft(input);
             return transformMinecraft(input);
+        }
+        if (Minecraft189Mappings.MOVING_OBJECT_POSITION
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyMovingObjectPosition(input);
+            return input;
         }
         if (Minecraft189Mappings.PLAYER_CONTROLLER_MP
                 .obfuscatedBinaryName()
