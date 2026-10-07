@@ -2236,6 +2236,8 @@ public final class Minecraft189ClassTransformer
                 new int[]{0};
         final boolean[] foundOnLivingUpdate =
                 new boolean[]{false};
+        final boolean[] declaredKnockBack =
+                new boolean[]{false};
 
         reader.accept(
                 new ClassVisitor(
@@ -2255,6 +2257,15 @@ public final class Minecraft189ClassTransformer
                                         descriptor,
                                         signature,
                                         exceptions);
+                        final Minecraft189Mappings.MappedMethod knockBack =
+                                Minecraft189Mappings
+                                        .ENTITY_LIVING_BASE_KNOCK_BACK;
+                        if (knockBack.obfuscatedName().equals(name)
+                                && knockBack.descriptor().equals(
+                                descriptor)) {
+                            declaredKnockBack[0] = true;
+                        }
+
                         final Minecraft189Mappings.MappedMethod onLivingUpdate =
                                 Minecraft189Mappings
                                         .ENTITY_PLAYER_SP_ON_LIVING_UPDATE;
@@ -2317,6 +2328,17 @@ public final class Minecraft189ClassTransformer
                             }
                         };
                     }
+
+                    @Override
+                    public void visitEnd() {
+                        if (declaredKnockBack[0]) {
+                            throw new IllegalStateException(
+                                    "mapped EntityPlayerSP unexpectedly declares knockBack");
+                        }
+                        addVelocityKnockBackOverride(
+                                cv);
+                        super.visitEnd();
+                    }
                 },
                 0);
 
@@ -2331,6 +2353,130 @@ public final class Minecraft189ClassTransformer
                             + forwardStores[0]);
         }
         return writer.toByteArray();
+    }
+
+    private static void addVelocityKnockBackOverride(
+            final ClassVisitor visitor) {
+        final Minecraft189Mappings.MappedMethod knockBack =
+                Minecraft189Mappings.ENTITY_LIVING_BASE_KNOCK_BACK;
+        final Minecraft189Mappings.MappedField motionX =
+                Minecraft189Mappings.ENTITY_MOTION_X;
+        final Minecraft189Mappings.MappedField motionY =
+                Minecraft189Mappings.ENTITY_MOTION_Y;
+        final Minecraft189Mappings.MappedField motionZ =
+                Minecraft189Mappings.ENTITY_MOTION_Z;
+
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        knockBack.obfuscatedName(),
+                        knockBack.descriptor(),
+                        null,
+                        null);
+        method.visitCode();
+
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                motionX.owner().obfuscatedInternalName(),
+                motionX.obfuscatedName(),
+                motionX.descriptor());
+        method.visitVarInsn(Opcodes.DSTORE, 7);
+
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                motionY.owner().obfuscatedInternalName(),
+                motionY.obfuscatedName(),
+                motionY.descriptor());
+        method.visitVarInsn(Opcodes.DSTORE, 9);
+
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                motionZ.owner().obfuscatedInternalName(),
+                motionZ.obfuscatedName(),
+                motionZ.descriptor());
+        method.visitVarInsn(Opcodes.DSTORE, 11);
+
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitVarInsn(Opcodes.ALOAD, 1);
+        method.visitVarInsn(Opcodes.FLOAD, 2);
+        method.visitVarInsn(Opcodes.DLOAD, 3);
+        method.visitVarInsn(Opcodes.DLOAD, 5);
+        method.visitMethodInsn(
+                Opcodes.INVOKESPECIAL,
+                knockBack.owner().obfuscatedInternalName(),
+                knockBack.obfuscatedName(),
+                knockBack.descriptor(),
+                false);
+
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitVarInsn(Opcodes.DLOAD, 7);
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                motionX.owner().obfuscatedInternalName(),
+                motionX.obfuscatedName(),
+                motionX.descriptor());
+        method.visitMethodInsn(
+                Opcodes.INVOKESTATIC,
+                RUNTIME_BRIDGE_INTERNAL_NAME,
+                "adjustVelocityHorizontal",
+                "(DD)D",
+                false);
+        method.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                motionX.owner().obfuscatedInternalName(),
+                motionX.obfuscatedName(),
+                motionX.descriptor());
+
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitVarInsn(Opcodes.DLOAD, 9);
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                motionY.owner().obfuscatedInternalName(),
+                motionY.obfuscatedName(),
+                motionY.descriptor());
+        method.visitMethodInsn(
+                Opcodes.INVOKESTATIC,
+                RUNTIME_BRIDGE_INTERNAL_NAME,
+                "adjustVelocityVertical",
+                "(DD)D",
+                false);
+        method.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                motionY.owner().obfuscatedInternalName(),
+                motionY.obfuscatedName(),
+                motionY.descriptor());
+
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitVarInsn(Opcodes.DLOAD, 11);
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                motionZ.owner().obfuscatedInternalName(),
+                motionZ.obfuscatedName(),
+                motionZ.descriptor());
+        method.visitMethodInsn(
+                Opcodes.INVOKESTATIC,
+                RUNTIME_BRIDGE_INTERNAL_NAME,
+                "adjustVelocityHorizontal",
+                "(DD)D",
+                false);
+        method.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                motionZ.owner().obfuscatedInternalName(),
+                motionZ.obfuscatedName(),
+                motionZ.descriptor());
+
+        method.visitInsn(
+                Opcodes.RETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
     }
 
     private static byte[] transformItemStack(

@@ -1017,3 +1017,11 @@ The transformed-host synthetic `pr.a(Lpk;FDD)V` is executable: it applies determ
 
 This milestone is authority-only. It does not alter player velocity or register a combat module.
 
+## Velocity combat control
+
+M157 adds disabled-by-default `combat.velocity` / **Velocity** with persisted `Horizontal %` and `Vertical %` settings from 0–100. Both settings default to 0 while the module is enabled; disabling the module restores vanilla 100% knockback behavior without rewriting any stored player state.
+
+Rather than patching global `EntityLivingBase pr`, transformed local-player class `bew` receives a generated override of certified `pr.a(Lpk;FDD)V` / `func_70653_a`. The override snapshots inherited `pk.v/w/x`, invokes the exact superclass knockback implementation, then passes only the before/after primitive motion values through the runtime bridge. Horizontal scaling applies independently to X/Z and vertical scaling to Y using `before + (after - before) * percent`.
+
+This preserves pre-existing motion, limits the behavior to the local player, and retains no child-loader entity object in host state. Focused coverage verifies disabled 100%, enabled 0%, partial percentage scaling and setting bounds. Transformed-host coverage executes the generated `bew` override against the executable M156 knockback fixture and proves 100/0/partial delta behavior.
+

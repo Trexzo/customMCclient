@@ -488,6 +488,26 @@ public final class Minecraft189HostRuntime
                         slowedValue);
     }
 
+    double adjustVelocityHorizontal(
+            final double before,
+            final double after) {
+        requireOpen();
+        return featureCatalog.velocity()
+                .adjustHorizontal(
+                        before,
+                        after);
+    }
+
+    double adjustVelocityVertical(
+            final double before,
+            final double after) {
+        requireOpen();
+        return featureCatalog.velocity()
+                .adjustVertical(
+                        before,
+                        after);
+    }
+
     void playerJumpControl(
             final Minecraft189PlayerJumpControl player) {
         requireOpen();
