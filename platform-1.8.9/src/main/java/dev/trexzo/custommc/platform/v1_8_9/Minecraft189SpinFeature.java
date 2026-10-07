@@ -21,10 +21,13 @@ final class Minecraft189SpinFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration yawSpeedSetting;
     private final SettingRegistry.Registration reverseSetting;
+    private final SettingRegistry.Registration requireHoldSetting;
     private final SettingPresentationRegistry.Registration yawSpeedPresentation;
     private final SettingPresentationRegistry.Registration reversePresentation;
+    private final SettingPresentationRegistry.Registration requireHoldPresentation;
     private final ModuleSettingRegistry.Registration yawSpeedBinding;
     private final ModuleSettingRegistry.Registration reverseBinding;
+    private final ModuleSettingRegistry.Registration requireHoldBinding;
     private boolean closed;
 
     private Minecraft189SpinFeature(
@@ -34,20 +37,26 @@ final class Minecraft189SpinFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration yawSpeedSetting,
             final SettingRegistry.Registration reverseSetting,
+            final SettingRegistry.Registration requireHoldSetting,
             final SettingPresentationRegistry.Registration yawSpeedPresentation,
             final SettingPresentationRegistry.Registration reversePresentation,
+            final SettingPresentationRegistry.Registration requireHoldPresentation,
             final ModuleSettingRegistry.Registration yawSpeedBinding,
-            final ModuleSettingRegistry.Registration reverseBinding) {
+            final ModuleSettingRegistry.Registration reverseBinding,
+            final ModuleSettingRegistry.Registration requireHoldBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.yawSpeedSetting = yawSpeedSetting;
         this.reverseSetting = reverseSetting;
+        this.requireHoldSetting = requireHoldSetting;
         this.yawSpeedPresentation = yawSpeedPresentation;
         this.reversePresentation = reversePresentation;
+        this.requireHoldPresentation = requireHoldPresentation;
         this.yawSpeedBinding = yawSpeedBinding;
         this.reverseBinding = reverseBinding;
+        this.requireHoldBinding = requireHoldBinding;
     }
 
     static Minecraft189SpinFeature install(
@@ -64,10 +73,13 @@ final class Minecraft189SpinFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration yawSpeedSetting = null;
         SettingRegistry.Registration reverseSetting = null;
+        SettingRegistry.Registration requireHoldSetting = null;
         SettingPresentationRegistry.Registration yawSpeedPresentation = null;
         SettingPresentationRegistry.Registration reversePresentation = null;
+        SettingPresentationRegistry.Registration requireHoldPresentation = null;
         ModuleSettingRegistry.Registration yawSpeedBinding = null;
         ModuleSettingRegistry.Registration reverseBinding = null;
+        ModuleSettingRegistry.Registration requireHoldBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -85,6 +97,9 @@ final class Minecraft189SpinFeature
             reverseSetting =
                     settings.register(
                             module.reverseSetting());
+            requireHoldSetting =
+                    settings.register(
+                            module.requireHoldSetting());
             yawSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -103,6 +118,13 @@ final class Minecraft189SpinFeature
                                     "Reverse",
                                     SettingValueKind.BOOLEAN,
                                     10));
+            requireHoldPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189SpinModule.REQUIRE_HOLD_SETTING_ID,
+                                    "Require Hold",
+                                    SettingValueKind.BOOLEAN,
+                                    20));
             yawSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -115,6 +137,12 @@ final class Minecraft189SpinFeature
                                     Minecraft189SpinModule.ID,
                                     Minecraft189SpinModule.REVERSE_SETTING_ID,
                                     10));
+            requireHoldBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189SpinModule.ID,
+                                    Minecraft189SpinModule.REQUIRE_HOLD_SETTING_ID,
+                                    20));
 
             return new Minecraft189SpinFeature(
                     controller,
@@ -123,15 +151,21 @@ final class Minecraft189SpinFeature
                     presentation,
                     yawSpeedSetting,
                     reverseSetting,
+                    requireHoldSetting,
                     yawSpeedPresentation,
                     reversePresentation,
+                    requireHoldPresentation,
                     yawSpeedBinding,
-                    reverseBinding);
+                    reverseBinding,
+                    requireHoldBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(requireHoldBinding, failure);
             closeQuietly(reverseBinding, failure);
             closeQuietly(yawSpeedBinding, failure);
+            closeQuietly(requireHoldPresentation, failure);
             closeQuietly(reversePresentation, failure);
             closeQuietly(yawSpeedPresentation, failure);
+            closeQuietly(requireHoldSetting, failure);
             closeQuietly(reverseSetting, failure);
             closeQuietly(yawSpeedSetting, failure);
             closeQuietly(presentation, failure);
@@ -167,10 +201,13 @@ final class Minecraft189SpinFeature
             failure = closeFailure;
         }
 
+        failure = close(requireHoldBinding, failure);
         failure = close(reverseBinding, failure);
         failure = close(yawSpeedBinding, failure);
+        failure = close(requireHoldPresentation, failure);
         failure = close(reversePresentation, failure);
         failure = close(yawSpeedPresentation, failure);
+        failure = close(requireHoldSetting, failure);
         failure = close(reverseSetting, failure);
         failure = close(yawSpeedSetting, failure);
         failure = close(presentation, failure);
