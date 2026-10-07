@@ -825,3 +825,11 @@ While Fast Place is disabled, the delay is returned unchanged. While enabled, th
 
 Transformed-host coverage proves exact `ave.ap` behavior for disabled `4`, default enabled `4 -> 0`, configured `4 -> 2`, lower-delay preservation at `1`, and disable behavior. Focused coverage verifies Player-category lifecycle, setting persistence, and complete teardown.
 
+## Left-click counter mapping authority
+
+M135 pins the Minecraft 1.8.9 left-click cooldown counter on exact `Minecraft ave`: `ave.ag I` / Searge `field_71429_W` / MCP `leftClickCounter`.
+
+The Minecraft class-shape gate now requires this integer counter alongside certified right-click delay and the existing host-hook fields. A dedicated regression rejects a missing left-click counter, and the transformed-host synthetic `ave` fixture carries exact `ag I` parity.
+
+This milestone is authority-only. It does not alter attack cooldown behavior or register a combat module.
+
