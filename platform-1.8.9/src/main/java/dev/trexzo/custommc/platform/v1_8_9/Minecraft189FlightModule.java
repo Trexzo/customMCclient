@@ -19,6 +19,12 @@ public final class Minecraft189FlightModule
             0.30D;
     public static final double DEFAULT_VERTICAL_SPEED =
             0.30D;
+    public static final double HORIZONTAL_MOTION =
+            DEFAULT_HORIZONTAL_SPEED;
+    public static final double ASCEND_MOTION_Y =
+            DEFAULT_VERTICAL_SPEED;
+    public static final double DESCEND_MOTION_Y =
+            -DEFAULT_VERTICAL_SPEED;
     public static final double MINIMUM_SPEED =
             0.05D;
     public static final double MAXIMUM_SPEED =
