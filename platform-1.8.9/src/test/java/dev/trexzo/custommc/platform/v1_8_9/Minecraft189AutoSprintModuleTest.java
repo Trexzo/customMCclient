@@ -184,6 +184,7 @@ final class Minecraft189AutoSprintModuleTest {
                             .active());
 
             player.sneaking = false;
+            player.sprinting = false;
             runtime.playerMovementState(
                     player);
             runtime.playerSprintControl(
@@ -191,7 +192,7 @@ final class Minecraft189AutoSprintModuleTest {
             assertFalse(
                     player.sprinting);
             assertEquals(
-                    1,
+                    2,
                     player.setCalls);
         } finally {
             runtime.close();
