@@ -441,7 +441,8 @@ public final class Minecraft189HostRuntime
             featureCatalog.spin()
                     .apply(
                             null,
-                            null);
+                            null,
+                            false);
             featureCatalog.jitter()
                     .apply(
                             null,
@@ -462,7 +463,9 @@ public final class Minecraft189HostRuntime
         if (featureCatalog.spin()
                 .apply(
                         control,
-                        rotation)) {
+                        rotation,
+                        inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.LEFT_BUTTON))) {
             featureCatalog.jitter()
                     .apply(
                             null,
