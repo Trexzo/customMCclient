@@ -21,10 +21,13 @@ final class Minecraft189AutoClickerFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration minSetting;
     private final SettingRegistry.Registration maxSetting;
+    private final SettingRegistry.Registration requireHoldSetting;
     private final SettingPresentationRegistry.Registration minPresentation;
     private final SettingPresentationRegistry.Registration maxPresentation;
+    private final SettingPresentationRegistry.Registration requireHoldPresentation;
     private final ModuleSettingRegistry.Registration minBinding;
     private final ModuleSettingRegistry.Registration maxBinding;
+    private final ModuleSettingRegistry.Registration requireHoldBinding;
     private boolean closed;
 
     private Minecraft189AutoClickerFeature(
@@ -34,20 +37,26 @@ final class Minecraft189AutoClickerFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration minSetting,
             final SettingRegistry.Registration maxSetting,
+            final SettingRegistry.Registration requireHoldSetting,
             final SettingPresentationRegistry.Registration minPresentation,
             final SettingPresentationRegistry.Registration maxPresentation,
+            final SettingPresentationRegistry.Registration requireHoldPresentation,
             final ModuleSettingRegistry.Registration minBinding,
-            final ModuleSettingRegistry.Registration maxBinding) {
+            final ModuleSettingRegistry.Registration maxBinding,
+            final ModuleSettingRegistry.Registration requireHoldBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.minSetting = minSetting;
         this.maxSetting = maxSetting;
+        this.requireHoldSetting = requireHoldSetting;
         this.minPresentation = minPresentation;
         this.maxPresentation = maxPresentation;
+        this.requireHoldPresentation = requireHoldPresentation;
         this.minBinding = minBinding;
         this.maxBinding = maxBinding;
+        this.requireHoldBinding = requireHoldBinding;
     }
 
     static Minecraft189AutoClickerFeature install(
@@ -64,10 +73,13 @@ final class Minecraft189AutoClickerFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration minSetting = null;
         SettingRegistry.Registration maxSetting = null;
+        SettingRegistry.Registration requireHoldSetting = null;
         SettingPresentationRegistry.Registration minPresentation = null;
         SettingPresentationRegistry.Registration maxPresentation = null;
+        SettingPresentationRegistry.Registration requireHoldPresentation = null;
         ModuleSettingRegistry.Registration minBinding = null;
         ModuleSettingRegistry.Registration maxBinding = null;
+        ModuleSettingRegistry.Registration requireHoldBinding = null;
 
         try {
             moduleRegistration =
@@ -78,7 +90,7 @@ final class Minecraft189AutoClickerFeature
                             new ModuleDescriptor(
                                     Minecraft189AutoClickerModule.ID,
                                     "Auto Clicker",
-                                    "Clicks while the physical left mouse button is held.",
+                                    "Clicks at configurable CPS, optionally requiring the physical left mouse button.",
                                     Minecraft189FeatureCatalog
                                             .COMBAT_CATEGORY_ID,
                                     10));
@@ -88,6 +100,9 @@ final class Minecraft189AutoClickerFeature
             maxSetting =
                     settings.register(
                             module.maxCpsSetting());
+            requireHoldSetting =
+                    settings.register(
+                            module.requireHoldSetting());
             minPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -110,6 +125,13 @@ final class Minecraft189AutoClickerFeature
                                             1.0D,
                                             20.0D,
                                             1.0D)));
+            requireHoldPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189AutoClickerModule.REQUIRE_HOLD_SETTING_ID,
+                                    "Require Hold",
+                                    SettingValueKind.BOOLEAN,
+                                    20));
             minBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -122,6 +144,12 @@ final class Minecraft189AutoClickerFeature
                                     Minecraft189AutoClickerModule.ID,
                                     Minecraft189AutoClickerModule.MAX_CPS_SETTING_ID,
                                     10));
+            requireHoldBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189AutoClickerModule.ID,
+                                    Minecraft189AutoClickerModule.REQUIRE_HOLD_SETTING_ID,
+                                    20));
 
             return new Minecraft189AutoClickerFeature(
                     controller,
@@ -130,11 +158,17 @@ final class Minecraft189AutoClickerFeature
                     presentation,
                     minSetting,
                     maxSetting,
+                    requireHoldSetting,
                     minPresentation,
                     maxPresentation,
+                    requireHoldPresentation,
                     minBinding,
-                    maxBinding);
+                    maxBinding,
+                    requireHoldBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(
+                    requireHoldBinding,
+                    failure);
             closeQuietly(
                     maxBinding,
                     failure);
@@ -142,10 +176,16 @@ final class Minecraft189AutoClickerFeature
                     minBinding,
                     failure);
             closeQuietly(
+                    requireHoldPresentation,
+                    failure);
+            closeQuietly(
                     maxPresentation,
                     failure);
             closeQuietly(
                     minPresentation,
+                    failure);
+            closeQuietly(
+                    requireHoldSetting,
                     failure);
             closeQuietly(
                     maxSetting,
@@ -191,16 +231,25 @@ final class Minecraft189AutoClickerFeature
         }
 
         failure = close(
+                requireHoldBinding,
+                failure);
+        failure = close(
                 maxBinding,
                 failure);
         failure = close(
                 minBinding,
                 failure);
         failure = close(
+                requireHoldPresentation,
+                failure);
+        failure = close(
                 maxPresentation,
                 failure);
         failure = close(
                 minPresentation,
+                failure);
+        failure = close(
+                requireHoldSetting,
                 failure);
         failure = close(
                 maxSetting,
