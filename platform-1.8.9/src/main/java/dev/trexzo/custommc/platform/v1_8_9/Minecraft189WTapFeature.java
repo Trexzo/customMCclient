@@ -21,10 +21,13 @@ final class Minecraft189WTapFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration requireGroundSetting;
     private final SettingRegistry.Registration cooldownSetting;
+    private final SettingRegistry.Registration resetTicksSetting;
     private final SettingPresentationRegistry.Registration requireGroundPresentation;
     private final SettingPresentationRegistry.Registration cooldownPresentation;
+    private final SettingPresentationRegistry.Registration resetTicksPresentation;
     private final ModuleSettingRegistry.Registration requireGroundBinding;
     private final ModuleSettingRegistry.Registration cooldownBinding;
+    private final ModuleSettingRegistry.Registration resetTicksBinding;
     private boolean closed;
 
     private Minecraft189WTapFeature(
@@ -34,20 +37,26 @@ final class Minecraft189WTapFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration requireGroundSetting,
             final SettingRegistry.Registration cooldownSetting,
+            final SettingRegistry.Registration resetTicksSetting,
             final SettingPresentationRegistry.Registration requireGroundPresentation,
             final SettingPresentationRegistry.Registration cooldownPresentation,
+            final SettingPresentationRegistry.Registration resetTicksPresentation,
             final ModuleSettingRegistry.Registration requireGroundBinding,
-            final ModuleSettingRegistry.Registration cooldownBinding) {
+            final ModuleSettingRegistry.Registration cooldownBinding,
+            final ModuleSettingRegistry.Registration resetTicksBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.requireGroundSetting = requireGroundSetting;
         this.cooldownSetting = cooldownSetting;
+        this.resetTicksSetting = resetTicksSetting;
         this.requireGroundPresentation = requireGroundPresentation;
         this.cooldownPresentation = cooldownPresentation;
+        this.resetTicksPresentation = resetTicksPresentation;
         this.requireGroundBinding = requireGroundBinding;
         this.cooldownBinding = cooldownBinding;
+        this.resetTicksBinding = resetTicksBinding;
     }
 
     static Minecraft189WTapFeature install(
@@ -64,10 +73,13 @@ final class Minecraft189WTapFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration requireGroundSetting = null;
         SettingRegistry.Registration cooldownSetting = null;
+        SettingRegistry.Registration resetTicksSetting = null;
         SettingPresentationRegistry.Registration requireGroundPresentation = null;
         SettingPresentationRegistry.Registration cooldownPresentation = null;
+        SettingPresentationRegistry.Registration resetTicksPresentation = null;
         ModuleSettingRegistry.Registration requireGroundBinding = null;
         ModuleSettingRegistry.Registration cooldownBinding = null;
+        ModuleSettingRegistry.Registration resetTicksBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -77,7 +89,7 @@ final class Minecraft189WTapFeature
                             new ModuleDescriptor(
                                     Minecraft189WTapModule.ID,
                                     "W-Tap",
-                                    "Resets sprint for one tick on a fresh physical left-click press.",
+                                    "Resets sprint for a configurable window on a fresh physical left-click press.",
                                     Minecraft189FeatureCatalog.COMBAT_CATEGORY_ID,
                                     50));
             requireGroundSetting =
@@ -86,6 +98,9 @@ final class Minecraft189WTapFeature
             cooldownSetting =
                     settings.register(
                             module.cooldownTicksSetting());
+            resetTicksSetting =
+                    settings.register(
+                            module.resetTicksSetting());
             requireGroundPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -104,6 +119,17 @@ final class Minecraft189WTapFeature
                                             Minecraft189WTapModule.MINIMUM_COOLDOWN_TICKS,
                                             Minecraft189WTapModule.MAXIMUM_COOLDOWN_TICKS,
                                             1.0D)));
+            resetTicksPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189WTapModule.RESET_TICKS_SETTING_ID,
+                                    "Reset Ticks",
+                                    SettingValueKind.INTEGER,
+                                    20,
+                                    new SettingNumericSpec(
+                                            Minecraft189WTapModule.MINIMUM_RESET_TICKS,
+                                            Minecraft189WTapModule.MAXIMUM_RESET_TICKS,
+                                            1.0D)));
             requireGroundBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -116,6 +142,12 @@ final class Minecraft189WTapFeature
                                     Minecraft189WTapModule.ID,
                                     Minecraft189WTapModule.COOLDOWN_TICKS_SETTING_ID,
                                     10));
+            resetTicksBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189WTapModule.ID,
+                                    Minecraft189WTapModule.RESET_TICKS_SETTING_ID,
+                                    20));
 
             return new Minecraft189WTapFeature(
                     controller,
@@ -124,15 +156,21 @@ final class Minecraft189WTapFeature
                     presentation,
                     requireGroundSetting,
                     cooldownSetting,
+                    resetTicksSetting,
                     requireGroundPresentation,
                     cooldownPresentation,
+                    resetTicksPresentation,
                     requireGroundBinding,
-                    cooldownBinding);
+                    cooldownBinding,
+                    resetTicksBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(resetTicksBinding, failure);
             closeQuietly(cooldownBinding, failure);
             closeQuietly(requireGroundBinding, failure);
+            closeQuietly(resetTicksPresentation, failure);
             closeQuietly(cooldownPresentation, failure);
             closeQuietly(requireGroundPresentation, failure);
+            closeQuietly(resetTicksSetting, failure);
             closeQuietly(cooldownSetting, failure);
             closeQuietly(requireGroundSetting, failure);
             if (presentation != null) {
@@ -172,10 +210,13 @@ final class Minecraft189WTapFeature
             failure = closeFailure;
         }
 
+        failure = close(resetTicksBinding, failure);
         failure = close(cooldownBinding, failure);
         failure = close(requireGroundBinding, failure);
+        failure = close(resetTicksPresentation, failure);
         failure = close(cooldownPresentation, failure);
         failure = close(requireGroundPresentation, failure);
+        failure = close(resetTicksSetting, failure);
         failure = close(cooldownSetting, failure);
         failure = close(requireGroundSetting, failure);
 

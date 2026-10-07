@@ -50,9 +50,17 @@ final class Minecraft189WTapModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189WTapModule.COOLDOWN_TICKS_SETTING_ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189WTapModule.RESET_TICKS_SETTING_ID));
             assertEquals(
                     Minecraft189WTapModule.DEFAULT_COOLDOWN_TICKS,
                     module.cooldownTicksSetting()
+                            .get()
+                            .intValue());
+            assertEquals(
+                    Minecraft189WTapModule.DEFAULT_RESET_TICKS,
+                    module.resetTicksSetting()
                             .get()
                             .intValue());
             assertFalse(
@@ -232,6 +240,68 @@ final class Minecraft189WTapModuleTest {
             assertFalse(
                     player.sprinting);
 
+            module.cooldownTicksSetting()
+                    .set(
+                            0);
+            module.resetTicksSetting()
+                    .set(
+                            3);
+            controller.disable(
+                    Minecraft189WTapModule.ID);
+            controller.enable(
+                    Minecraft189WTapModule.ID);
+            player.sprinting = true;
+            state.update(
+                    true,
+                    false,
+                    true);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertFalse(
+                    player.sprinting);
+
+            player.sprinting = true;
+            state.update(
+                    true,
+                    false,
+                    true);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertFalse(
+                    player.sprinting);
+
+            player.sprinting = true;
+            state.update(
+                    true,
+                    false,
+                    true);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertFalse(
+                    player.sprinting);
+
+            player.sprinting = true;
+            state.update(
+                    true,
+                    false,
+                    true);
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertTrue(
+                    player.sprinting);
+
             controller.disable(
                     Minecraft189WTapModule.ID);
             assertFalse(
@@ -249,6 +319,9 @@ final class Minecraft189WTapModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189WTapModule.COOLDOWN_TICKS_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189WTapModule.RESET_TICKS_SETTING_ID));
     }
 
     private static final class TestPlayer

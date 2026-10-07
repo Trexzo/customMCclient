@@ -1433,3 +1433,13 @@ After a successful sprint reset, the module suppresses new W-Tap resets for the 
 Auto Sprint ownership remains unchanged. W-Tap still outranks Auto Sprint only on ticks where it actually writes sprint `false`; cooldown-suppressed presses yield normally, allowing Auto Sprint to keep or restore sprint. No new Minecraft mapping or transformer hook is introduced.
 
 Focused and transformed-host coverage prove default parity, a two-tick cooldown, consumed suppressed presses, rearm after release, Auto Sprint cooperation and setting teardown.
+
+## Configurable W-Tap reset duration
+
+M200 extends **Combat → W-Tap** with persistent INTEGER setting `combat.wTap.resetTicks`, presented as **Reset Ticks**, default `1`, range `1..5`, and step `1`. The default preserves M199's exact one-tick sprint reset.
+
+A successful fresh-press trigger owns sprint control for exactly the configured number of valid sprint-control ticks. The trigger tick is tick one; each remaining reset tick explicitly keeps sprint false and continues to outrank Auto Sprint. After the reset window expires, a still-held LMB does not retrigger because the existing edge state remains held, and Auto Sprint can immediately restore sprint.
+
+The existing cooldown continues counting from the trigger and may overlap the reset window. Input edges seen during an active reset window are consumed through the same held-state tracking, so no delayed reset appears when ownership expires. Disable, re-enable or unavailable movement authority clears both reset-duration and cooldown state.
+
+No new Minecraft mapping or transformer hook is introduced. Focused and transformed-host coverage prove a three-tick reset followed by immediate Auto Sprint restoration on tick four, plus default setting registration and teardown.
