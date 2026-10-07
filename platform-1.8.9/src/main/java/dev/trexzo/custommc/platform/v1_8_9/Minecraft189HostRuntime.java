@@ -42,6 +42,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189WorldWeatherState worldWeatherState;
     private final Minecraft189WorldEntityPositionState worldEntityPositionState;
     private final Minecraft189WorldEntityKindState worldEntityKindState;
+    private final Minecraft189NearestPlayerTargetState nearestPlayerTargetState;
     private final Minecraft189ServerAddressState serverAddressState;
     private final Minecraft189HeldItemState heldItemState;
     private final Minecraft189MovementSpeedTracker movementSpeedTracker;
@@ -74,6 +75,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189WorldWeatherState worldWeatherState,
             final Minecraft189WorldEntityPositionState worldEntityPositionState,
             final Minecraft189WorldEntityKindState worldEntityKindState,
+            final Minecraft189NearestPlayerTargetState nearestPlayerTargetState,
             final Minecraft189ServerAddressState serverAddressState,
             final Minecraft189HeldItemState heldItemState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
@@ -103,6 +105,7 @@ public final class Minecraft189HostRuntime
         this.worldWeatherState = worldWeatherState;
         this.worldEntityPositionState = worldEntityPositionState;
         this.worldEntityKindState = worldEntityKindState;
+        this.nearestPlayerTargetState = nearestPlayerTargetState;
         this.serverAddressState = serverAddressState;
         this.heldItemState = heldItemState;
         this.movementSpeedTracker = movementSpeedTracker;
@@ -205,6 +208,8 @@ public final class Minecraft189HostRuntime
                 new Minecraft189WorldEntityPositionState();
         final Minecraft189WorldEntityKindState worldEntityKindState =
                 new Minecraft189WorldEntityKindState();
+        final Minecraft189NearestPlayerTargetState nearestPlayerTargetState =
+                new Minecraft189NearestPlayerTargetState();
         final Minecraft189ServerAddressState serverAddressState =
                 new Minecraft189ServerAddressState();
         final Minecraft189HeldItemState heldItemState =
@@ -283,6 +288,7 @@ public final class Minecraft189HostRuntime
                     worldWeatherState,
                     worldEntityPositionState,
                     worldEntityKindState,
+                    nearestPlayerTargetState,
                     serverAddressState,
                     heldItemState,
                     movementSpeedTracker,
@@ -418,6 +424,11 @@ public final class Minecraft189HostRuntime
         return worldEntityKindState;
     }
 
+    public Minecraft189NearestPlayerTargetState nearestPlayerTargetState() {
+        requireOpen();
+        return nearestPlayerTargetState;
+    }
+
     public Minecraft189ServerAddressState serverAddressState() {
         requireOpen();
         return serverAddressState;
@@ -436,6 +447,7 @@ public final class Minecraft189HostRuntime
     void playerPosition(
             final Minecraft189PlayerPositionAccess player) {
         requireOpen();
+        nearestPlayerTargetState.clear();
         if (player == null) {
             playerPositionState.clear();
             movementSpeedTracker.clear();
@@ -978,6 +990,7 @@ public final class Minecraft189HostRuntime
     void worldEntityPositions(
             final Minecraft189WorldEntityPositionsAccess world) {
         requireOpen();
+        nearestPlayerTargetState.clear();
         if (world == null) {
             worldEntityPositionState.clear();
             return;
@@ -1007,6 +1020,10 @@ public final class Minecraft189HostRuntime
         }
         worldEntityKindState.update(
                 kinds);
+        nearestPlayerTargetState.update(
+                playerPositionState.snapshot(),
+                worldEntityPositionState.snapshot(),
+                worldEntityKindState.snapshot());
     }
 
     void serverAddress(
@@ -1247,6 +1264,7 @@ public final class Minecraft189HostRuntime
         worldWeatherState.clear();
         worldEntityPositionState.clear();
         worldEntityKindState.clear();
+        nearestPlayerTargetState.clear();
         serverAddressState.clear();
         heldItemState.clear();
         movementSpeedTracker.clear();

@@ -778,20 +778,20 @@ final class Minecraft189MappedHostTransformationTest {
                             world,
                             false);
 
-            final Class<?> baseEntityClass =
-                    loader.loadClass("pk");
+            final Class<?> remotePlayerClass =
+                    loader.loadClass("wn");
             final Object nearbyEntity =
-                    baseEntityClass.getDeclaredConstructor()
+                    remotePlayerClass.getDeclaredConstructor()
                             .newInstance();
-            baseEntityClass.getField("s")
+            remotePlayerClass.getField("s")
                     .setDouble(
                             nearbyEntity,
                             130.0D);
-            baseEntityClass.getField("t")
+            remotePlayerClass.getField("t")
                     .setDouble(
                             nearbyEntity,
                             65.25D);
-            baseEntityClass.getField("u")
+            remotePlayerClass.getField("u")
                     .setDouble(
                             nearbyEntity,
                             -40.0D);
@@ -4835,12 +4835,36 @@ final class Minecraft189MappedHostTransformationTest {
                     entityKinds.player(0));
             assertTrue(
                     entityKinds.localPlayer(0));
-            assertFalse(
+            assertTrue(
                     entityKinds.living(1));
-            assertFalse(
+            assertTrue(
                     entityKinds.player(1));
             assertFalse(
                     entityKinds.localPlayer(1));
+
+            final Minecraft189NearestPlayerTargetState.Snapshot nearestPlayer =
+                    runtime.requireHostRuntime()
+                            .nearestPlayerTargetState()
+                            .snapshot();
+            assertTrue(
+                    nearestPlayer.available());
+            assertTrue(
+                    nearestPlayer.found());
+            assertEquals(
+                    1,
+                    nearestPlayer.entityIndex());
+            assertEquals(
+                    130.0D,
+                    nearestPlayer.x());
+            assertEquals(
+                    65.25D,
+                    nearestPlayer.y());
+            assertEquals(
+                    -40.0D,
+                    nearestPlayer.z());
+            assertEquals(
+                    53.6875D,
+                    nearestPlayer.distanceSquared());
 
             final Minecraft189ServerAddressState.Snapshot server =
                     runtime.requireHostRuntime()
@@ -4930,6 +4954,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .worldEntityKindState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .nearestPlayerTargetState()
                             .snapshot()
                             .available());
 
