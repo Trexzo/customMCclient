@@ -967,3 +967,11 @@ The existing Entity class-shape gate now requires this exact float field alongsi
 
 This milestone is authority-only. It does not modify step height or register a Step module.
 
+## Configurable Step movement control
+
+M151 consumes certified M150 `Entity.stepHeight = pk.S F / field_70138_W` through parent-owned `Minecraft189PlayerStepControl`. Transformed base `Entity pk` exposes only primitive getter/setter delegates; exact `ave.h Lbew;` is forwarded transiently from mapped `Minecraft.runTick()`, and the host retains no child-loader player object.
+
+`movement.step` / **Step** is disabled by default. While disabled it restores vanilla player step height `0.6F`. While enabled it applies the persisted `movement.step.heightPercent` setting, default `100` (= `1.0F` block) with a supported range of `60..250` percent in 5-percent UI increments.
+
+Focused coverage verifies registration, persistence, configured height changes, disable restoration, null safety and teardown. Transformed-host coverage proves the inherited `bew -> ... -> pk` boundary reads and writes exact synthetic `pk.S`, including disabled restoration to `0.6F`, enabled `1.75F`, and restoration after disable.
+
