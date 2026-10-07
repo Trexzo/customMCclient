@@ -293,6 +293,27 @@ final class Minecraft189MappingsTest {
                 "field_70177_z",
                 "rotationYaw");
         assertField(
+                Minecraft189Mappings.ENTITY_MOTION_X,
+                Minecraft189Mappings.ENTITY,
+                "v",
+                "D",
+                "field_70159_w",
+                "motionX");
+        assertField(
+                Minecraft189Mappings.ENTITY_MOTION_Y,
+                Minecraft189Mappings.ENTITY,
+                "w",
+                "D",
+                "field_70181_x",
+                "motionY");
+        assertField(
+                Minecraft189Mappings.ENTITY_MOTION_Z,
+                Minecraft189Mappings.ENTITY,
+                "x",
+                "D",
+                "field_70179_y",
+                "motionZ");
+        assertField(
                 Minecraft189Mappings.ENTITY_DIMENSION,
                 Minecraft189Mappings.ENTITY,
                 "am",
@@ -399,6 +420,13 @@ final class Minecraft189MappingsTest {
                 "field_151455_aw",
                 "forceUnicodeFont");
 
+        assertMethod(
+                Minecraft189Mappings.ENTITY_LIVING_BASE_KNOCK_BACK,
+                Minecraft189Mappings.ENTITY_LIVING_BASE,
+                "a",
+                "(Lpk;FDD)V",
+                "func_70653_a",
+                "knockBack");
         assertMethod(
                 Minecraft189Mappings.ENTITY_PLAYER_SP_ON_LIVING_UPDATE,
                 Minecraft189Mappings.ENTITY_PLAYER_SP,
@@ -1663,6 +1691,60 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
+    void entityShapeGateRejectsMissingMotionXField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY
+                                .obfuscatedInternalName());
+        addField(writer, Minecraft189Mappings.ENTITY_POS_X);
+        addField(writer, Minecraft189Mappings.ENTITY_POS_Y);
+        addField(writer, Minecraft189Mappings.ENTITY_POS_Z);
+        addField(writer, Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(writer, Minecraft189Mappings.ENTITY_DIMENSION);
+        addField(writer, Minecraft189Mappings.ENTITY_ON_GROUND);
+        addField(writer, Minecraft189Mappings.ENTITY_STEP_HEIGHT);
+        addField(writer, Minecraft189Mappings.ENTITY_FALL_DISTANCE);
+        addField(writer, Minecraft189Mappings.ENTITY_IS_IN_WEB);
+        addMethod(writer, Minecraft189Mappings.ENTITY_IS_SNEAKING);
+        addMethod(writer, Minecraft189Mappings.ENTITY_IS_SPRINTING);
+        addMethod(writer, Minecraft189Mappings.ENTITY_SET_SPRINTING);
+        addMethod(writer, Minecraft189Mappings.ENTITY_SET_SNEAKING);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntity(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: pk.v D (motionX)",
+                failure.getMessage());
+    }
+
+    @Test
+    void entityLivingBaseShapeGateRejectsMissingKnockBackMethod() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY_LIVING_BASE
+                                .obfuscatedInternalName());
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH);
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH);
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT);
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS);
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_JUMP);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntityLivingBase(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: pr.a(Lpk;FDD)V (knockBack)",
+                failure.getMessage());
+    }
+
+    @Test
     void timerShapeGateRejectsMissingTimerSpeedField() {
         final IllegalStateException failure =
                 assertThrows(
@@ -1805,6 +1887,15 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_IS_IN_WEB);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_MOTION_X);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_MOTION_Y);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_MOTION_Z);
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_IS_SNEAKING);
@@ -1849,6 +1940,15 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_IS_IN_WEB);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_MOTION_X);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_MOTION_Y);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_MOTION_Z);
         return writer;
     }
 
@@ -1872,6 +1972,9 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_JUMP);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_KNOCK_BACK);
         return finish(writer);
     }
 
