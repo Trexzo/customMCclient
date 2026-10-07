@@ -85,6 +85,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerPotionEffectsAccess";
     private static final String PLAYER_POTION_EFFECTS_ACCESS_DESCRIPTOR =
             "L" + PLAYER_POTION_EFFECTS_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_EXPERIENCE_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerExperienceAccess";
+    private static final String PLAYER_EXPERIENCE_ACCESS_DESCRIPTOR =
+            "L" + PLAYER_EXPERIENCE_ACCESS_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -322,6 +327,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedPotionEffects =
                 new boolean[]{false};
+        final boolean[] injectedExperience =
+                new boolean[]{false};
         final boolean[] foundDispatchKeypresses =
                 new boolean[]{false};
         final boolean[] injectedKeyboard =
@@ -538,6 +545,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedPotionEffects[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_EXPERIENCE_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerExperience",
+                                                "("
+                                                        + PLAYER_EXPERIENCE_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedExperience[0] = true;
                                     }
                                     super.visitInsn(opcode);
                                 }
@@ -623,7 +652,8 @@ public final class Minecraft189ClassTransformer
                 || !injectedHealth[0]
                 || !injectedArmor[0]
                 || !injectedHunger[0]
-                || !injectedPotionEffects[0]) {
+                || !injectedPotionEffects[0]
+                || !injectedExperience[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
         }
@@ -1326,8 +1356,10 @@ public final class Minecraft189ClassTransformer
                                 signature,
                                 superName,
                                 withInterface(
-                                        interfaces,
-                                        PLAYER_HUNGER_ACCESS_INTERNAL_NAME));
+                                        withInterface(
+                                                interfaces,
+                                                PLAYER_HUNGER_ACCESS_INTERNAL_NAME),
+                                        PLAYER_EXPERIENCE_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1338,6 +1370,26 @@ public final class Minecraft189ClassTransformer
                         addSaturationLevelGetter(
                                 cv,
                                 "customMcSaturationLevel");
+                        addIntFieldGetter(
+                                cv,
+                                "customMcExperienceLevel",
+                                Minecraft189Mappings
+                                        .ENTITY_PLAYER_EXPERIENCE_LEVEL);
+                        addIntFieldGetter(
+                                cv,
+                                "customMcExperienceTotal",
+                                Minecraft189Mappings
+                                        .ENTITY_PLAYER_EXPERIENCE_TOTAL);
+                        addFloatFieldGetter(
+                                cv,
+                                "customMcExperienceProgress",
+                                Minecraft189Mappings
+                                        .ENTITY_PLAYER_EXPERIENCE_PROGRESS);
+                        addIntMethodDelegate(
+                                cv,
+                                "customMcExperienceBarCap",
+                                Minecraft189Mappings
+                                        .ENTITY_PLAYER_XP_BAR_CAP);
                         super.visitEnd();
                     }
                 },
@@ -1589,6 +1641,34 @@ public final class Minecraft189ClassTransformer
                 false);
         method.visitInsn(
                 Opcodes.FRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addIntFieldGetter(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedField field) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()I",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                field.owner().obfuscatedInternalName(),
+                field.obfuscatedName(),
+                field.descriptor());
+        method.visitInsn(
+                Opcodes.IRETURN);
         method.visitMaxs(
                 0,
                 0);
