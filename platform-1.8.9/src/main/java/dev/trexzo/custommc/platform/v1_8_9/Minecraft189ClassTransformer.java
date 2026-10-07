@@ -106,6 +106,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerNoClipControl";
     private static final String PLAYER_NO_CLIP_CONTROL_DESCRIPTOR =
             "L" + PLAYER_NO_CLIP_CONTROL_INTERNAL_NAME + ";";
+    private static final String PLAYER_MOTION_CONTROL_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerMotionControl";
+    private static final String PLAYER_MOTION_CONTROL_DESCRIPTOR =
+            "L" + PLAYER_MOTION_CONTROL_INTERNAL_NAME + ";";
     private static final String PLAYER_HEALTH_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189PlayerHealthAccess";
@@ -543,6 +548,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedNoClipControl =
                 new boolean[]{false};
+        final boolean[] injectedMotionControl =
+                new boolean[]{false};
         final boolean[] injectedHealth =
                 new boolean[]{false};
         final boolean[] injectedArmor =
@@ -922,6 +929,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedNoClipControl[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_MOTION_CONTROL_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerMotionControl",
+                                                "("
+                                                        + PLAYER_MOTION_CONTROL_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedMotionControl[0] = true;
 
                                         super.visitVarInsn(
                                                 Opcodes.ALOAD,
@@ -1415,6 +1444,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedFallDistanceControl[0]
                 || !injectedWebControl[0]
                 || !injectedNoClipControl[0]
+                || !injectedMotionControl[0]
                 || !injectedHealth[0]
                 || !injectedArmor[0]
                 || !injectedHunger[0]
@@ -2057,6 +2087,7 @@ public final class Minecraft189ClassTransformer
                                 withInterface(
                                         withInterface(
                                                 withInterface(
+                                                withInterface(
                                                         withInterface(
                                                                 withInterface(
                                                                         withInterface(
@@ -2074,7 +2105,8 @@ public final class Minecraft189ClassTransformer
                                                                 PLAYER_STEP_CONTROL_INTERNAL_NAME),
                                                         PLAYER_FALL_DISTANCE_CONTROL_INTERNAL_NAME),
                                                 PLAYER_WEB_CONTROL_INTERNAL_NAME),
-                                        PLAYER_NO_CLIP_CONTROL_INTERNAL_NAME));
+                                        PLAYER_NO_CLIP_CONTROL_INTERNAL_NAME),
+                                PLAYER_MOTION_CONTROL_INTERNAL_NAME));
                     }
 
                     @Override
@@ -2151,6 +2183,14 @@ public final class Minecraft189ClassTransformer
                                 cv,
                                 "customMcSetNoClip",
                                 Minecraft189Mappings.ENTITY_NO_CLIP);
+                        addDoubleFieldGetter(
+                                cv,
+                                "customMcMotionY",
+                                Minecraft189Mappings.ENTITY_MOTION_Y);
+                        addDoubleFieldSetter(
+                                cv,
+                                "customMcSetMotionY",
+                                Minecraft189Mappings.ENTITY_MOTION_Y);
                         super.visitEnd();
                     }
                 },
@@ -3471,6 +3511,37 @@ public final class Minecraft189ClassTransformer
                 field.descriptor());
         method.visitInsn(
                 Opcodes.DRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addDoubleFieldSetter(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedField field) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "(D)V",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitVarInsn(
+                Opcodes.DLOAD,
+                1);
+        method.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                field.owner().obfuscatedInternalName(),
+                field.obfuscatedName(),
+                field.descriptor());
+        method.visitInsn(
+                Opcodes.RETURN);
         method.visitMaxs(
                 0,
                 0);

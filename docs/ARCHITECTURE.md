@@ -1050,3 +1050,13 @@ M160 adds disabled-by-default `movement.airJump` / **Air Jump** without introduc
 The module requires a fresh Space key press while the local player is airborne. Holding Space does not retrigger jumps every tick, pressing Space while grounded does not arm a delayed midair jump, and leaving the ground while the same key press remains held does not fire. Releasing and pressing Space again while airborne permits another mapped `EntityLivingBase.jump()` invocation.
 
 The mapped `runTick()` path still forwards the live player only through parent-owned interfaces; Air Jump retains no child-loader player object. Focused coverage verifies registration, fresh-press edge behavior, grounded suppression, held-key suppression, disable behavior and teardown. Transformed-host coverage executes the existing exact `bew -> pr.bF()V` jump delegate and proves repeat airborne jumps occur only on distinct Space presses.
+
+## Flight movement control
+
+M161 adds disabled-by-default `movement.flight` / **Flight** without introducing new mapping authority. It reuses certified M156 `Entity.motionY = pk.w D / field_70181_x` and the existing host-owned LWJGL input state.
+
+Transformed base `Entity pk` now implements parent-owned `Minecraft189PlayerMotionControl` with primitive `motionY` getter/setter delegates. Mapped `Minecraft.runTick()` forwards the live player transiently through that interface; the parent runtime retains no child-loader entity object.
+
+While enabled, Space sets vertical motion to `+0.30`, either Shift key sets it to `-0.30`, and neither or both inputs set it to `0.0` for hover. While disabled the module performs no motion write, so vanilla physics resumes without a synthetic restore value.
+
+Focused coverage verifies disabled preservation, hover, ascend, both-key neutralization, left/right Shift descent, redundant-write avoidance, null safety and teardown. Transformed-host coverage proves exact inherited `bew -> ... -> pk.w` writes through mapped `runTick()` and post-disable preservation.
