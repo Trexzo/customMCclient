@@ -865,6 +865,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189GlideModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189AutoSneakModule.ID)
                             != null);
             assertTrue(
@@ -1818,6 +1823,87 @@ final class Minecraft189MappedHostTransformationTest {
                     .key(
                             LegacyKeyboardCodes.W,
                             false);
+
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            false);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            -0.40D);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .glide()
+                    .fallSpeedSetting()
+                    .set(
+                            0.15D);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189GlideModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .glide()
+                            .active());
+            runTick.invoke(minecraft);
+            assertEquals(
+                    -0.15D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189FlightModule.ID);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    Minecraft189FlightModule.HOVER_MOTION_Y,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189FlightModule.ID);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            -0.40D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    -0.15D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            true);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            -0.40D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    -0.40D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189GlideModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .glide()
+                            .active());
 
             playerClass.getField("C")
                     .setBoolean(
