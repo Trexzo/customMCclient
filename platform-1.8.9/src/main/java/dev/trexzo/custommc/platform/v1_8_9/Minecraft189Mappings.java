@@ -99,6 +99,10 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "beu",
                     "net/minecraft/util/MovementInput");
+    public static final MappedClass TIMER =
+            new MappedClass(
+                    "avl",
+                    "net/minecraft/util/Timer");
     public static final MappedClass POTION_EFFECT =
             new MappedClass(
                     "pf",
@@ -174,6 +178,20 @@ public final class Minecraft189Mappings {
                     "I",
                     "field_71429_W",
                     "leftClickCounter");
+    public static final MappedField MINECRAFT_TIMER =
+            new MappedField(
+                    MINECRAFT,
+                    "Y",
+                    "Lavl;",
+                    "field_71428_T",
+                    "timer");
+    public static final MappedField TIMER_SPEED =
+            new MappedField(
+                    TIMER,
+                    "d",
+                    "F",
+                    "field_74278_d",
+                    "timerSpeed");
     public static final MappedField PLAYER_CONTROLLER_BLOCK_HIT_DELAY =
             new MappedField(
                     PLAYER_CONTROLLER_MP,
