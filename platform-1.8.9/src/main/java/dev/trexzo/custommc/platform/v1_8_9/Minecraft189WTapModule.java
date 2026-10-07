@@ -12,12 +12,20 @@ public final class Minecraft189WTapModule
             "combat.wTap.requireGround";
     public static final String COOLDOWN_TICKS_SETTING_ID =
             "combat.wTap.cooldownTicks";
+    public static final String RESET_TICKS_SETTING_ID =
+            "combat.wTap.resetTicks";
     public static final int DEFAULT_COOLDOWN_TICKS =
             0;
     public static final int MINIMUM_COOLDOWN_TICKS =
             0;
     public static final int MAXIMUM_COOLDOWN_TICKS =
             20;
+    public static final int DEFAULT_RESET_TICKS =
+            1;
+    public static final int MINIMUM_RESET_TICKS =
+            1;
+    public static final int MAXIMUM_RESET_TICKS =
+            5;
 
     private final Setting<Boolean> requireGround =
             new Setting<Boolean>(
@@ -33,10 +41,19 @@ public final class Minecraft189WTapModule
                             && value >= MINIMUM_COOLDOWN_TICKS
                             && value <= MAXIMUM_COOLDOWN_TICKS,
                     SettingCodecs.INTEGER);
+    private final Setting<Integer> resetTicks =
+            new Setting<Integer>(
+                    RESET_TICKS_SETTING_ID,
+                    DEFAULT_RESET_TICKS,
+                    value -> value != null
+                            && value >= MINIMUM_RESET_TICKS
+                            && value <= MAXIMUM_RESET_TICKS,
+                    SettingCodecs.INTEGER);
 
     private boolean enabled;
     private boolean previousLeftButtonHeld;
     private int cooldownRemaining;
+    private int resetTicksRemaining;
 
     @Override
     public String id() {
@@ -49,6 +66,10 @@ public final class Minecraft189WTapModule
 
     public Setting<Integer> cooldownTicksSetting() {
         return cooldownTicks;
+    }
+
+    public Setting<Integer> resetTicksSetting() {
+        return resetTicks;
     }
 
     @Override
@@ -81,6 +102,15 @@ public final class Minecraft189WTapModule
             cooldownRemaining--;
         }
 
+        if (resetTicksRemaining > 0) {
+            resetTicksRemaining--;
+            previousLeftButtonHeld =
+                    leftButtonHeld;
+            player.customMcSetSprinting(
+                    false);
+            return true;
+        }
+
         if (!leftButtonHeld) {
             previousLeftButtonHeld = false;
             return false;
@@ -101,6 +131,8 @@ public final class Minecraft189WTapModule
                 false);
         cooldownRemaining =
                 cooldownTicks.get().intValue();
+        resetTicksRemaining =
+                resetTicks.get().intValue() - 1;
         return true;
     }
 
@@ -111,5 +143,6 @@ public final class Minecraft189WTapModule
     private void resetState() {
         previousLeftButtonHeld = false;
         cooldownRemaining = 0;
+        resetTicksRemaining = 0;
     }
 }
