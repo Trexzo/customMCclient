@@ -37,6 +37,14 @@ final class Minecraft189MappingsTest {
                 "ave",
                 "net/minecraft/client/Minecraft");
         assertClass(
+                Minecraft189Mappings.WORLD,
+                "adm",
+                "net/minecraft/world/World");
+        assertClass(
+                Minecraft189Mappings.WORLD_CLIENT,
+                "bdb",
+                "net/minecraft/client/multiplayer/WorldClient");
+        assertClass(
                 Minecraft189Mappings.KEY_BINDING,
                 "avb",
                 "net/minecraft/client/settings/KeyBinding");
@@ -107,6 +115,13 @@ final class Minecraft189MappingsTest {
                 "Lbew;",
                 "field_71439_g",
                 "thePlayer");
+        assertField(
+                Minecraft189Mappings.MINECRAFT_WORLD,
+                Minecraft189Mappings.MINECRAFT,
+                "f",
+                "Lbdb;",
+                "field_71441_e",
+                "theWorld");
         assertField(
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER,
                 Minecraft189Mappings.MINECRAFT,
@@ -242,6 +257,13 @@ final class Minecraft189MappingsTest {
                 "field_151455_aw",
                 "forceUnicodeFont");
 
+        assertMethod(
+                Minecraft189Mappings.WORLD_GET_WORLD_TIME,
+                Minecraft189Mappings.WORLD,
+                "L",
+                "()J",
+                "func_72820_D",
+                "getWorldTime");
         assertMethod(
                 Minecraft189Mappings.MINECRAFT_GET_MINECRAFT,
                 Minecraft189Mappings.MINECRAFT,
@@ -444,6 +466,8 @@ final class Minecraft189MappingsTest {
     void mappedClassShapeGatesAcceptExactOwnersAndMembers() {
         Minecraft189ClassShapeVerifier.verifyMinecraft(
                 minecraftShape());
+        Minecraft189ClassShapeVerifier.verifyWorld(
+                worldShape());
         Minecraft189ClassShapeVerifier.verifyKeyBinding(
                 keyBindingShape());
         Minecraft189ClassShapeVerifier.verifyGameSettings(
@@ -511,6 +535,42 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
+    void minecraftShapeGateRejectsMissingWorldField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.MINECRAFT
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_ENTITY_RENDERER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_INGAME_GUI);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_GAME_SETTINGS);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_CURRENT_SERVER_DATA);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyMinecraft(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: ave.f Lbdb; (theWorld)",
+                failure.getMessage());
+    }
+
+    @Test
     void minecraftShapeGateRejectsMissingCurrentServerDataField() {
         final ClassWriter writer =
                 writer(
@@ -519,6 +579,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_PLAYER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_WORLD);
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
@@ -541,6 +604,30 @@ final class Minecraft189MappingsTest {
         assertEquals(
                 "Minecraft 1.8.9 mapping field missing: ave.Q Lbde; (currentServerData)",
                 failure.getMessage());
+    }
+
+    @Test
+    void worldShapeGateRejectsMissingWorldTimeMethod() {
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyWorld(
+                                        emptyClass("adm")));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: adm.L()J (getWorldTime)",
+                failure.getMessage());
+    }
+
+    private static byte[] worldShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.WORLD
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.WORLD_GET_WORLD_TIME);
+        return finish(writer);
     }
 
     @Test
@@ -1178,6 +1265,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_PLAYER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_WORLD);
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
