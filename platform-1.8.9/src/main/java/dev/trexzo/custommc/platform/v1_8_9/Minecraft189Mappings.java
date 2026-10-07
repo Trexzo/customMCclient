@@ -311,6 +311,13 @@ public final class Minecraft189Mappings {
                     "Z",
                     "field_70134_J",
                     "isInWeb");
+    public static final MappedField ENTITY_NO_CLIP =
+            new MappedField(
+                    ENTITY,
+                    "T",
+                    "Z",
+                    "field_70145_X",
+                    "noClip");
     public static final MappedField ENTITY_PLAYER_SP_MOVEMENT_INPUT =
             new MappedField(
                     ENTITY_PLAYER_SP,

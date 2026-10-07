@@ -1025,3 +1025,11 @@ Rather than patching global `EntityLivingBase pr`, transformed local-player clas
 
 This preserves pre-existing motion, limits the behavior to the local player, and retains no child-loader entity object in host state. Focused coverage verifies disabled 100%, enabled 0%, partial percentage scaling and setting bounds. Transformed-host coverage executes the generated `bew` override against the executable M156 knockback fixture and proves 100/0/partial delta behavior.
 
+## No Clip mapping authority
+
+M158 pins exact Minecraft 1.8.9 `Entity.noClip = pk.T Z` / Searge `field_70145_X`.
+
+The Entity class-shape gate requires the field after the already-certified motion primitives so older targeted drift regressions retain their original failure targets. Mapping tests pin exact owner/name/descriptor/Searge/MCP authority and reject a missing noClip field explicitly. The transformed-host synthetic `pk` fixture now contains the exact boolean field for consumer execution.
+
+This milestone is authority-only. It does not alter collision behavior or register a movement module.
+
