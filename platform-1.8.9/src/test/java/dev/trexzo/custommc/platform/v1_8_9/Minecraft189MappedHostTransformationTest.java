@@ -3678,6 +3678,31 @@ final class Minecraft189MappedHostTransformationTest {
                             .getFloat(
                                     player),
                     0.000001F);
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .spin()
+                    .reverseSetting()
+                    .set(
+                            Boolean.TRUE);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            -170.0F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    160.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    33.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189SpinModule.ID);
