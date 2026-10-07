@@ -2185,12 +2185,28 @@ public final class Minecraft189ClassTransformer
                                 Minecraft189Mappings.ENTITY_NO_CLIP);
                         addDoubleFieldGetter(
                                 cv,
+                                "customMcMotionX",
+                                Minecraft189Mappings.ENTITY_MOTION_X);
+                        addDoubleFieldSetter(
+                                cv,
+                                "customMcSetMotionX",
+                                Minecraft189Mappings.ENTITY_MOTION_X);
+                        addDoubleFieldGetter(
+                                cv,
                                 "customMcMotionY",
                                 Minecraft189Mappings.ENTITY_MOTION_Y);
                         addDoubleFieldSetter(
                                 cv,
                                 "customMcSetMotionY",
                                 Minecraft189Mappings.ENTITY_MOTION_Y);
+                        addDoubleFieldGetter(
+                                cv,
+                                "customMcMotionZ",
+                                Minecraft189Mappings.ENTITY_MOTION_Z);
+                        addDoubleFieldSetter(
+                                cv,
+                                "customMcSetMotionZ",
+                                Minecraft189Mappings.ENTITY_MOTION_Z);
                         super.visitEnd();
                     }
                 },
