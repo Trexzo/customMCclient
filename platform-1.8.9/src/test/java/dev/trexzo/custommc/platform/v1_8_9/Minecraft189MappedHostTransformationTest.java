@@ -3533,16 +3533,17 @@ final class Minecraft189MappedHostTransformationTest {
                     .set(
                             1);
             runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
+            runTick.invoke(minecraft);
+            runtime.requireHostRuntime()
                     .featureCatalog()
                     .jitter()
                     .requireHoldSetting()
                     .set(
                             Boolean.FALSE);
-            runtime.requireHostRuntime()
-                    .inputState()
-                    .pointerButton(
-                            Minecraft189ClickRateTracker.LEFT_BUTTON,
-                            false);
             playerClass.getField("y")
                     .setFloat(
                             player,
