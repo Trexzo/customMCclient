@@ -777,6 +777,31 @@ final class Minecraft189MappedHostTransformationTest {
                     .setBoolean(
                             world,
                             false);
+
+            final Class<?> baseEntityClass =
+                    loader.loadClass("pk");
+            final Object nearbyEntity =
+                    baseEntityClass.getDeclaredConstructor()
+                            .newInstance();
+            baseEntityClass.getField("s")
+                    .setDouble(
+                            nearbyEntity,
+                            130.0D);
+            baseEntityClass.getField("t")
+                    .setDouble(
+                            nearbyEntity,
+                            65.25D);
+            baseEntityClass.getField("u")
+                    .setDouble(
+                            nearbyEntity,
+                            -40.0D);
+            worldClass.getField("f")
+                    .set(
+                            world,
+                            java.util.Arrays.asList(
+                                    player,
+                                    nearbyEntity));
+
             minecraftClass.getField("f")
                     .set(
                             minecraft,
@@ -4767,6 +4792,34 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     weather.thundering());
 
+            final Minecraft189WorldEntityPositionState.Snapshot entities =
+                    runtime.requireHostRuntime()
+                            .worldEntityPositionState()
+                            .snapshot();
+            assertTrue(
+                    entities.available());
+            assertEquals(
+                    2,
+                    entities.entityCount());
+            assertEquals(
+                    123.25D,
+                    entities.x(0));
+            assertEquals(
+                    64.5D,
+                    entities.y(0));
+            assertEquals(
+                    -42.75D,
+                    entities.z(0));
+            assertEquals(
+                    130.0D,
+                    entities.x(1));
+            assertEquals(
+                    65.25D,
+                    entities.y(1));
+            assertEquals(
+                    -40.0D,
+                    entities.z(1));
+
             final Minecraft189ServerAddressState.Snapshot server =
                     runtime.requireHostRuntime()
                             .serverAddressState()
@@ -4845,6 +4898,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .worldWeatherState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .worldEntityPositionState()
                             .snapshot()
                             .available());
 
