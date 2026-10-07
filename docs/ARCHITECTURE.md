@@ -699,3 +699,11 @@ The existing `render.armor` / **Armor** module keeps its established module ID a
 
 Executable transformed-host coverage now places distinct synthetic `zx` instances in exact armor slots `1`, `3` and `4`, proves their mapped durability reaches immutable parent-owned snapshots, preserves the missing leggings slot, and keeps null-player teardown semantics unchanged. Focused Armor HUD coverage proves rich formatting while retaining the original presence-only compatibility path.
 
+## World-time mapping authority
+
+M121 pins the minimal Minecraft 1.8.9 world-time surface without publishing live world state yet. Exact base `World` is obfuscated class `adm`, exact client world is `WorldClient` `bdb`, and exact `Minecraft.theWorld` is `ave.f Lbdb;` / Searge `field_71441_e`.
+
+The exact base-world time reader is `adm.L()J` / Searge `func_72820_D` / `getWorldTime()`. The existing Minecraft shape gate now requires the world field, and a dedicated World shape gate requires that exact method. Mapping regressions pin both world classes, the field owner/name/descriptor and the world-time method owner/name/descriptor.
+
+The transformed-host Minecraft fixture now carries the exact `bdb` field dependency so the stricter authority remains executable. This milestone is authority-only: it does not yet transform `adm`, forward a world object, publish a time snapshot, or register a HUD.
+
