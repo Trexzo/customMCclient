@@ -4,6 +4,7 @@ import dev.trexzo.custommc.bootstrap.BootstrapClassTransformer;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
@@ -90,6 +91,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerExperienceAccess";
     private static final String PLAYER_EXPERIENCE_ACCESS_DESCRIPTOR =
             "L" + PLAYER_EXPERIENCE_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_PING_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerPingAccess";
+    private static final String PLAYER_PING_ACCESS_DESCRIPTOR =
+            "L" + PLAYER_PING_ACCESS_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -121,6 +127,12 @@ public final class Minecraft189ClassTransformer
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.ENTITY_PLAYER
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.ABSTRACT_CLIENT_PLAYER
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.NETWORK_PLAYER_INFO
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.FOOD_STATS
@@ -206,6 +218,20 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyEntityPlayer(input);
             return transformEntityPlayer(input);
+        }
+        if (Minecraft189Mappings.ABSTRACT_CLIENT_PLAYER
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyAbstractClientPlayer(input);
+            return transformAbstractClientPlayer(input);
+        }
+        if (Minecraft189Mappings.NETWORK_PLAYER_INFO
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyNetworkPlayerInfo(input);
+            return input;
         }
         if (Minecraft189Mappings.FOOD_STATS
                 .obfuscatedBinaryName()
@@ -328,6 +354,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedPotionEffects =
                 new boolean[]{false};
         final boolean[] injectedExperience =
+                new boolean[]{false};
+        final boolean[] injectedPing =
                 new boolean[]{false};
         final boolean[] foundDispatchKeypresses =
                 new boolean[]{false};
@@ -567,6 +595,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedExperience[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_PING_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerPing",
+                                                "("
+                                                        + PLAYER_PING_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedPing[0] = true;
                                     }
                                     super.visitInsn(opcode);
                                 }
@@ -653,7 +703,8 @@ public final class Minecraft189ClassTransformer
                 || !injectedArmor[0]
                 || !injectedHunger[0]
                 || !injectedPotionEffects[0]
-                || !injectedExperience[0]) {
+                || !injectedExperience[0]
+                || !injectedPing[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
         }
@@ -1328,6 +1379,51 @@ public final class Minecraft189ClassTransformer
         return writer.toByteArray();
     }
 
+    private static byte[] transformAbstractClientPlayer(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public void visit(
+                            final int version,
+                            final int access,
+                            final String name,
+                            final String signature,
+                            final String superName,
+                            final String[] interfaces) {
+                        super.visit(
+                                version,
+                                access,
+                                name,
+                                signature,
+                                superName,
+                                withInterface(
+                                        interfaces,
+                                        PLAYER_PING_ACCESS_INTERNAL_NAME));
+                    }
+
+                    @Override
+                    public void visitEnd() {
+                        addPingGetter(
+                                cv,
+                                "customMcPingMilliseconds");
+                        super.visitEnd();
+                    }
+                },
+                0);
+
+        return writer.toByteArray();
+    }
+
     private static byte[] transformEntityPlayer(
             final byte[] input) {
         final ClassReader reader =
@@ -1396,6 +1492,61 @@ public final class Minecraft189ClassTransformer
                 0);
 
         return writer.toByteArray();
+    }
+
+    private static void addPingGetter(
+            final ClassVisitor visitor,
+            final String methodName) {
+        final Minecraft189Mappings.MappedMethod playerInfo =
+                Minecraft189Mappings
+                        .ABSTRACT_CLIENT_PLAYER_GET_PLAYER_INFO;
+        final Minecraft189Mappings.MappedMethod responseTime =
+                Minecraft189Mappings
+                        .NETWORK_PLAYER_INFO_GET_RESPONSE_TIME;
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()I",
+                        null,
+                        null);
+        final Label present =
+                new Label();
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                playerInfo.owner().obfuscatedInternalName(),
+                playerInfo.obfuscatedName(),
+                playerInfo.descriptor(),
+                false);
+        method.visitInsn(
+                Opcodes.DUP);
+        method.visitJumpInsn(
+                Opcodes.IFNONNULL,
+                present);
+        method.visitInsn(
+                Opcodes.POP);
+        method.visitInsn(
+                Opcodes.ICONST_M1);
+        method.visitInsn(
+                Opcodes.IRETURN);
+        method.visitLabel(
+                present);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                responseTime.owner().obfuscatedInternalName(),
+                responseTime.obfuscatedName(),
+                responseTime.descriptor(),
+                false);
+        method.visitInsn(
+                Opcodes.IRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
     }
 
     private static void addFoodLevelGetter(
