@@ -21,6 +21,8 @@ import java.util.Objects;
 
 public final class Minecraft189FeatureCatalog
         implements AutoCloseable {
+    public static final String MOVEMENT_CATEGORY_ID =
+            "movement";
     public static final String VISUALS_CATEGORY_ID =
             "visuals";
 
@@ -34,6 +36,7 @@ public final class Minecraft189FeatureCatalog
     private final ModuleRegistry.Registration watermarkRegistration;
     private final ModulePresentationRegistry.Registration watermarkPresentation;
     private final ModuleCategoryRegistry.Registration visualsCategory;
+    private final ModuleCategoryRegistry.Registration movementCategory;
     private final SettingRegistry.Registration textSetting;
     private final SettingRegistry.Registration xSetting;
     private final SettingRegistry.Registration ySetting;
@@ -64,6 +67,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189HeldItemFeature heldItemFeature;
     private final Minecraft189SpeedFeature speedFeature;
     private final Minecraft189CrosshairFeature crosshairFeature;
+    private final Minecraft189AutoSprintFeature autoSprintFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
     private Minecraft189FovFeature fovFeature;
     private Minecraft189NoBobbingFeature noBobbingFeature;
@@ -80,6 +84,7 @@ public final class Minecraft189FeatureCatalog
             final ModuleRegistry.Registration watermarkRegistration,
             final ModulePresentationRegistry.Registration watermarkPresentation,
             final ModuleCategoryRegistry.Registration visualsCategory,
+            final ModuleCategoryRegistry.Registration movementCategory,
             final SettingRegistry.Registration textSetting,
             final SettingRegistry.Registration xSetting,
             final SettingRegistry.Registration ySetting,
@@ -109,7 +114,8 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189ServerFeature serverFeature,
             final Minecraft189HeldItemFeature heldItemFeature,
             final Minecraft189SpeedFeature speedFeature,
-            final Minecraft189CrosshairFeature crosshairFeature) {
+            final Minecraft189CrosshairFeature crosshairFeature,
+            final Minecraft189AutoSprintFeature autoSprintFeature) {
         this.modules = modules;
         this.moduleController = moduleController;
         this.modulePresentations = modulePresentations;
@@ -120,6 +126,7 @@ public final class Minecraft189FeatureCatalog
         this.watermarkRegistration = watermarkRegistration;
         this.watermarkPresentation = watermarkPresentation;
         this.visualsCategory = visualsCategory;
+        this.movementCategory = movementCategory;
         this.textSetting = textSetting;
         this.xSetting = xSetting;
         this.ySetting = ySetting;
@@ -150,6 +157,7 @@ public final class Minecraft189FeatureCatalog
         this.heldItemFeature = heldItemFeature;
         this.speedFeature = speedFeature;
         this.crosshairFeature = crosshairFeature;
+        this.autoSprintFeature = autoSprintFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -211,6 +219,7 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(hostCallbacks, "hostCallbacks");
 
         ModuleCategoryRegistry.Registration category = null;
+        ModuleCategoryRegistry.Registration movementCategory = null;
         ModuleRegistry.Registration module = null;
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration textSetting = null;
@@ -243,12 +252,19 @@ public final class Minecraft189FeatureCatalog
         Minecraft189HeldItemFeature heldItemFeature = null;
         Minecraft189SpeedFeature speedFeature = null;
         Minecraft189CrosshairFeature crosshairFeature = null;
+        Minecraft189AutoSprintFeature autoSprintFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
                         renderPipeline,
                         hostCallbacks);
         try {
+            movementCategory =
+                    categories.register(
+                            new ModuleCategoryDescriptor(
+                                    MOVEMENT_CATEGORY_ID,
+                                    "Movement",
+                                    20));
             category =
                     categories.register(
                             new ModuleCategoryDescriptor(
@@ -325,6 +341,12 @@ public final class Minecraft189FeatureCatalog
                                     Minecraft189WatermarkModule.ID,
                                     Minecraft189WatermarkModule.Y_SETTING_ID,
                                     20));
+
+            autoSprintFeature =
+                    Minecraft189AutoSprintFeature.install(
+                            modules,
+                            moduleController,
+                            presentations);
 
             arrayListFeature =
                     Minecraft189ArrayListFeature.install(
@@ -587,6 +609,7 @@ public final class Minecraft189FeatureCatalog
                     module,
                     presentation,
                     category,
+                    movementCategory,
                     textSetting,
                     xSetting,
                     ySetting,
@@ -616,8 +639,10 @@ public final class Minecraft189FeatureCatalog
                     serverFeature,
                     heldItemFeature,
                     speedFeature,
-                    crosshairFeature);
+                    crosshairFeature,
+                    autoSprintFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(autoSprintFeature, failure);
             closeQuietly(crosshairFeature, failure);
             closeQuietly(speedFeature, failure);
             closeQuietly(heldItemFeature, failure);
@@ -651,6 +676,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(presentation, failure);
             closeQuietly(module, failure);
             closeQuietly(category, failure);
+            closeQuietly(movementCategory, failure);
             throw failure;
         }
     }
@@ -698,6 +724,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189MovementStatusModule movementStatus() {
         requireOpen();
         return movementStatusFeature.module();
+    }
+
+    public Minecraft189AutoSprintModule autoSprint() {
+        requireOpen();
+        return autoSprintFeature.module();
     }
 
     public Minecraft189HealthModule health() {
@@ -907,6 +938,14 @@ public final class Minecraft189FeatureCatalog
         }
 
         try {
+            autoSprintFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
             speedFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
@@ -1091,6 +1130,7 @@ public final class Minecraft189FeatureCatalog
         failure = close(watermarkPresentation, failure);
         failure = close(watermarkRegistration, failure);
         failure = close(visualsCategory, failure);
+        failure = close(movementCategory, failure);
 
         if (failure != null) {
             throw failure;

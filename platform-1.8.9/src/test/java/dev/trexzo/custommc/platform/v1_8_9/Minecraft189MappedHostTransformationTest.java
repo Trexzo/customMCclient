@@ -742,6 +742,11 @@ final class Minecraft189MappedHostTransformationTest {
                             .find(
                                     Minecraft189NoBobbingModule.ID)
                             != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
+                                    Minecraft189AutoSprintModule.ID)
+                            != null);
             assertEquals(
                     0.35F,
                     settingsClass.getField("aJ")
@@ -890,6 +895,75 @@ final class Minecraft189MappedHostTransformationTest {
                     movement.sneaking());
             assertFalse(
                     movement.sprinting());
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189AutoSprintModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .autoSprint()
+                            .active());
+
+            playerClass.getField("sneaking")
+                    .setBoolean(
+                            player,
+                            false);
+            playerClass.getField("sprinting")
+                    .setBoolean(
+                            player,
+                            false);
+            runTick.invoke(minecraft);
+            assertTrue(
+                    playerClass.getField("sprinting")
+                            .getBoolean(
+                                    player));
+
+            playerClass.getField("sneaking")
+                    .setBoolean(
+                            player,
+                            true);
+            playerClass.getField("sprinting")
+                    .setBoolean(
+                            player,
+                            false);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    playerClass.getField("sprinting")
+                            .getBoolean(
+                                    player));
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189AutoSprintModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .autoSprint()
+                            .active());
+
+            playerClass.getField("sneaking")
+                    .setBoolean(
+                            player,
+                            false);
+            playerClass.getField("sprinting")
+                    .setBoolean(
+                            player,
+                            false);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    playerClass.getField("sprinting")
+                            .getBoolean(
+                                    player));
+
+            playerClass.getField("sneaking")
+                    .setBoolean(
+                            player,
+                            true);
+            playerClass.getField("sprinting")
+                    .setBoolean(
+                            player,
+                            false);
 
             final Minecraft189PlayerHealthState.Snapshot health =
                     runtime.requireHostRuntime()

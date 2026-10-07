@@ -456,6 +456,18 @@ public final class Minecraft189HostRuntime
                 player.customMcSprinting());
     }
 
+    void playerSprintControl(
+            final Minecraft189PlayerSprintControl player) {
+        requireOpen();
+        if (player == null) {
+            return;
+        }
+        featureCatalog.autoSprint()
+                .apply(
+                        player,
+                        playerMovementState.snapshot());
+    }
+
     void playerHealth(
             final Minecraft189PlayerHealthAccess player) {
         requireOpen();
