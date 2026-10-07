@@ -20,6 +20,7 @@ public final class Minecraft189ClassShapeVerifier {
                 new Minecraft189Mappings.MappedField[]{
                         Minecraft189Mappings.MINECRAFT_PLAYER,
                         Minecraft189Mappings.MINECRAFT_WORLD,
+                        Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER,
                         Minecraft189Mappings.MINECRAFT_FONT_RENDERER,
                         Minecraft189Mappings.MINECRAFT_ENTITY_RENDERER,
                         Minecraft189Mappings.MINECRAFT_INGAME_GUI,
@@ -37,6 +38,17 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.MINECRAFT_MIDDLE_CLICK_MOUSE,
                         Minecraft189Mappings.MINECRAFT_DISPATCH_KEYPRESSES
                 });
+    }
+
+    public static void verifyPlayerControllerMp(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.PLAYER_CONTROLLER_MP,
+                new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.PLAYER_CONTROLLER_BLOCK_HIT_DELAY
+                },
+                new Minecraft189Mappings.MappedMethod[0]);
     }
 
     public static void verifyWorld(
