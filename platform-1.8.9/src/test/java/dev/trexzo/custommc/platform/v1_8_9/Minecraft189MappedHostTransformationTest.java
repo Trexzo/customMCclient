@@ -500,6 +500,10 @@ final class Minecraft189MappedHostTransformationTest {
                     .setFloat(
                             player,
                             91.25F);
+            playerClass.getField("z")
+                    .setFloat(
+                            player,
+                            -17.5F);
             playerClass.getField("am")
                     .setInt(
                             player,
@@ -1127,6 +1131,9 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(
                     91.25F,
                     rotation.yaw());
+            assertEquals(
+                    -17.5F,
+                    rotation.pitch());
 
             final Minecraft189PlayerDimensionState.Snapshot dimension =
                     runtime.requireHostRuntime()
