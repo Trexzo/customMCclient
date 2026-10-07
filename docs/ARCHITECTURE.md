@@ -933,3 +933,13 @@ The dedicated PlayerControllerMP class-shape gate now requires all three exact p
 
 This milestone is authority-only. It does not modify mining progress or register a Speed Mine module.
 
+## Speed Mine player control
+
+M147 adds disabled-by-default `player.speedMine` / **Speed Mine** under the Player category, consuming only M146-certified `PlayerControllerMP.curBlockDamageMP = bda.e F` and `PlayerControllerMP.isHittingBlock = bda.h Z` authority.
+
+Transformed `PlayerControllerMP bda` implements parent-owned `Minecraft189BlockMiningControl` alongside the existing Fast Break control. The generated boundary exposes only the active-mining boolean, current primitive block-damage progress, and an exact progress setter. Mapped `Minecraft.runTick()` forwards exact `ave.c Lbda;` transiently to the host; no child-loader controller object is retained.
+
+Speed Mine owns persisted integer setting `player.speedMine.progressPercent` from 0 through 100, default 70. While enabled and the controller reports an active block hit, current non-negative progress below the configured threshold is raised to that threshold. Progress already at or above the threshold, inactive mining, null controller state, and all disabled-module ticks are left untouched. No packet spoofing or guessed hardness calculation is introduced.
+
+Focused coverage verifies disabled/enabled guards, active-mining gating, high-progress preservation, persisted 90% override, null tolerance and teardown. Transformed-host coverage proves exact `ave.c -> bda.h/e` execution at the 70% default and 90% override.
+
