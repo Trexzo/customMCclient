@@ -2866,6 +2866,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "am", "I");
         field(writer, "C", "Z");
         field(writer, "S", "F");
+        field(writer, "O", "F");
         field(writer, "sneaking", "Z");
         field(writer, "sprinting", "Z");
         endDefaultConstructor(writer, "pk");
