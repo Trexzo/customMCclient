@@ -525,7 +525,10 @@ public final class Minecraft189FeatureCatalog
                     Minecraft189NoFallFeature.install(
                             modules,
                             moduleController,
-                            presentations);
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             noWebFeature =
                     Minecraft189NoWebFeature.install(
