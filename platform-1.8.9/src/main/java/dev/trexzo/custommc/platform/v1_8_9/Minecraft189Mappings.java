@@ -23,6 +23,10 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "ave",
                     "net/minecraft/client/Minecraft");
+    public static final MappedClass MOVING_OBJECT_POSITION =
+            new MappedClass(
+                    "auh",
+                    "net/minecraft/util/MovingObjectPosition");
     public static final MappedClass WORLD =
             new MappedClass(
                     "adm",
@@ -122,6 +126,13 @@ public final class Minecraft189Mappings {
                     "Lbdb;",
                     "field_71441_e",
                     "theWorld");
+    public static final MappedField MINECRAFT_OBJECT_MOUSE_OVER =
+            new MappedField(
+                    MINECRAFT,
+                    "s",
+                    "Lauh;",
+                    "field_71476_x",
+                    "objectMouseOver");
     public static final MappedField MINECRAFT_PLAYER_CONTROLLER =
             new MappedField(
                     MINECRAFT,
@@ -227,6 +238,14 @@ public final class Minecraft189Mappings {
                     "I",
                     "field_77994_a",
                     "stackSize");
+    public static final MappedField MOVING_OBJECT_POSITION_ENTITY_HIT =
+            new MappedField(
+                    MOVING_OBJECT_POSITION,
+                    "d",
+                    "Lpk;",
+                    "field_72308_g",
+                    "entityHit");
+
     public static final MappedField ENTITY_POS_X =
             new MappedField(
                     ENTITY,
