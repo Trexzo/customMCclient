@@ -692,6 +692,14 @@ public final class Minecraft189HostRuntime
                         controller);
     }
 
+    void playerControllerMiningControl(
+            final Minecraft189BlockMiningControl controller) {
+        requireOpen();
+        featureCatalog.speedMine()
+                .apply(
+                        controller);
+    }
+
     int leftClickCounter(
             final int currentCounter) {
         requireOpen();
