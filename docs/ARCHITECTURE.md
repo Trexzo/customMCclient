@@ -833,3 +833,13 @@ The Minecraft class-shape gate now requires this integer counter alongside certi
 
 This milestone is authority-only. It does not alter attack cooldown behavior or register a combat module.
 
+## No Hit Delay combat control
+
+M136 introduces the dedicated **Combat** category and disabled-by-default `combat.noHitDelay` / **No Hit Delay** module.
+
+No Minecraft object crosses the host boundary. Immediately before each normal return from mapped `Minecraft.runTick()`, transformed `ave` reads certified M135 `ave.ag I`, passes that primitive to `Minecraft189RuntimeBridge.leftClickCounter(int)`, and writes the returned primitive directly back to exact `ave.ag`.
+
+While disabled, the counter passes through unchanged. While enabled, the module converts only positive counter values to zero; zero and negative values are preserved. Disabling stops intervention without inventing or restoring a counter value.
+
+Transformed-host coverage proves exact `ave.ag` behavior for disabled `7`, enabled `7 -> 0`, preservation of `-1`, and disable pass-through. Focused coverage verifies Combat-category lifecycle and complete module teardown.
+
