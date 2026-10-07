@@ -797,3 +797,13 @@ The existing Entity class-shape gate now requires this mutator alongside certifi
 
 This milestone is authority-only. It does not force sprinting, alter movement policy, or register a module.
 
+## Auto Sprint movement control
+
+M132 introduces the first action-oriented cheat module and a dedicated **Movement** category. `movement.autoSprint` is registered as **Auto Sprint** and is disabled by default like other modules.
+
+Transformed base `Entity pk` implements parent-owned `Minecraft189PlayerSprintControl`. Its only operation, `customMcSetSprinting(boolean)`, delegates directly to certified M131 authority `pk.d(Z)V` / `func_70031_b` / `setSprinting`.
+
+Mapped `Minecraft.runTick()` first publishes the current movement snapshot from exact `ave.h Lbew;`, then forwards the same player only transiently through `Minecraft189RuntimeBridge.playerSprintControl(...)`. Host policy reads the just-published primitive movement snapshot and calls `setSprinting(true)` only while Auto Sprint is enabled, movement state is available, the player is not sneaking, and the mapped sprint state is not already true. The player/control object is never retained.
+
+Disabling Auto Sprint stops intervention; it deliberately does not call `setSprinting(false)`, so vanilla/manual sprint state is not clobbered. Focused tests cover disabled behavior, successful sprint forcing, no redundant setter call when already sprinting, sneak suppression, disable behavior, Movement-category lifecycle, and exact transformed `pk.d(Z)V` execution.
+
