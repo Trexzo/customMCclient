@@ -889,3 +889,11 @@ While enabled and a current mapped snapshot is available, Auto Sneak calls the e
 
 Focused coverage verifies disabled behavior, one setter call when sneak needs enabling, no duplicate setter while already sneaking, disable behavior, Movement-category lifecycle and teardown. Transformed-host coverage proves the inherited player path reaches exact synthetic `pk.c(Z)V`.
 
+## No Slow mapping authority
+
+M142 pins the exact Minecraft 1.8.9 surface required for item-use movement slowdown: `MovementInput beu`, exact `EntityPlayerSP.movementInput = bew.b Lbeu;` / Searge `field_71158_b`, `MovementInput.moveStrafe = beu.a F` / `field_78902_a`, `MovementInput.moveForward = beu.b F` / `field_78900_b`, and `EntityPlayerSP.onLivingUpdate = bew.m()V` / `func_70636_d`.
+
+Separate class-shape gates cover `bew` and `beu`, with regressions for each required member. The transformed-host fixture now includes a concrete synthetic `beu` and executable `bew.m()V` that performs the vanilla-style `moveStrafe *= 0.2F` and `moveForward *= 0.2F` stores.
+
+This milestone is authority-only. It does not alter slowdown values or register a movement module.
+
