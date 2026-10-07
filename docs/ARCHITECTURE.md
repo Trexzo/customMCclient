@@ -649,3 +649,13 @@ The new Visuals module `render.ping` / **Ping** renders `Ping: <milliseconds> ms
 
 Executable transformed-host coverage now models the real synthetic hierarchy `pk -> pr -> wn -> bet -> bew`, transforms exact synthetic `bet` and shape-verifies exact synthetic `bdc`, proves a response time of `57` reaches host state, proves missing `NetworkPlayerInfo` clears availability while the player still exists, and preserves null-player clearing. Focused HUD coverage proves rendering, persisted coordinates, sentinel handling, state validation, disable behavior and complete teardown.
 
+## Server-address mapping authority
+
+M116 pins the minimal Minecraft 1.8.9 field surface needed to expose the current multiplayer server address. Exact class `bde` is `net/minecraft/client/multiplayer/ServerData`.
+
+The exact Minecraft field is `ave.Q Lbde;` / Searge `field_71422_O` / `currentServerData`. The exact address field is `bde.b Ljava/lang/String;` / `field_78845_b` / `serverIP`.
+
+The existing `Minecraft` shape gate now requires `currentServerData`, and a dedicated `ServerData` gate requires `serverIP`. Regression coverage pins both descriptors and missing-field failures. The transformed-host synthetic `ave` fixture was updated for the stricter gate without adding runtime server-address behavior.
+
+This milestone is authority-only. A future consumer may transform `bde` into a parent-owned string accessor so that no concrete `ServerData` object crosses the transforming classloader boundary.
+
