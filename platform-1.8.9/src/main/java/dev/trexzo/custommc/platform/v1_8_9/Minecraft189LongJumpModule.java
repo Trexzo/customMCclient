@@ -98,7 +98,7 @@ public final class Minecraft189LongJumpModule
         }
     }
 
-    synchronized void applyMotion(
+    synchronized boolean applyMotion(
             final Minecraft189PlayerMotionControl player,
             final Minecraft189PlayerRotationState.Snapshot rotation,
             final boolean suspended) {
@@ -106,7 +106,7 @@ public final class Minecraft189LongJumpModule
                 rotation,
                 "rotation");
         if (!boostPending) {
-            return;
+            return false;
         }
 
         boostPending = false;
@@ -114,7 +114,7 @@ public final class Minecraft189LongJumpModule
                 || suspended
                 || player == null
                 || !rotation.available()) {
-            return;
+            return false;
         }
 
         double forward =
@@ -141,7 +141,7 @@ public final class Minecraft189LongJumpModule
                         forward * forward
                                 + strafe * strafe);
         if (inputLength <= 0.0D) {
-            return;
+            return false;
         }
         if (inputLength > 1.0D) {
             forward /= inputLength;
@@ -183,6 +183,7 @@ public final class Minecraft189LongJumpModule
             player.customMcSetMotionZ(
                     targetMotionZ);
         }
+        return true;
     }
 
     synchronized boolean active() {
