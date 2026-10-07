@@ -636,7 +636,9 @@ public final class Minecraft189HostRuntime
             featureCatalog.autoJump()
                     .apply(
                             player,
-                            movement);
+                            movement,
+                            inputState.keyPressed(
+                                    LegacyKeyboardCodes.W));
         }
         featureCatalog.airJump()
                 .apply(

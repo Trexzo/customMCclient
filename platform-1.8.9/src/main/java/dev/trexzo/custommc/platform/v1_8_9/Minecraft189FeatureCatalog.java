@@ -513,7 +513,10 @@ public final class Minecraft189FeatureCatalog
                     Minecraft189AutoJumpFeature.install(
                             modules,
                             moduleController,
-                            presentations);
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             airJumpFeature =
                     Minecraft189AirJumpFeature.install(

@@ -1463,3 +1463,13 @@ When enabled, Auto Sprint may write sprint `true` only while the certified legac
 The host supplies W from the same parent-owned `Minecraft189InputState` and certified `LegacyKeyboardCodes.W = 17` authority already used by M201. W-Tap precedence is unchanged: any W-Tap tick that owns sprint returns before Auto Sprint; otherwise Auto Sprint evaluates its own Require Forward gate normally.
 
 No new Minecraft mapping or transformer hook is introduced. Focused and transformed-host coverage prove default parity, W-released suppression, W-held activation, setting registration, teardown, and coexistence with the existing W-Tap ownership chain.
+
+## Auto Jump forward-key requirement
+
+M203 extends **Movement → Auto Jump** with persistent BOOLEAN setting `movement.autoJump.requireForward`, presented as **Require Forward** and defaulting to `false`. The default preserves all pre-M203 Auto Jump behavior.
+
+Airborne state continues to rearm Auto Jump regardless of the forward key. When Require Forward is enabled, an armed grounded contact does not jump while W is released and remains armed; pressing W while still grounded then consumes that armed jump exactly once. Continued grounded ticks do not repeat the jump until a later airborne state rearms the module.
+
+The host supplies W from the existing parent-owned `Minecraft189InputState` and certified `LegacyKeyboardCodes.W = 17`. Existing Long Jump, High Jump, Low Hop and Bunny Hop ownership remains unchanged because Auto Jump is still reached only when those higher-priority movement-jump modules are inactive.
+
+No new Minecraft mapping or transformer hook is introduced. Focused and transformed-host coverage prove default parity, airborne rearm, W-released suppression, grounded W-held activation, one-shot arming, setting registration and teardown.

@@ -1679,6 +1679,60 @@ final class Minecraft189MappedHostTransformationTest {
                             .getInt(
                                     player));
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .autoJump()
+                    .requireForwardSetting()
+                    .set(
+                            Boolean.TRUE);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            false);
+            runTick.invoke(minecraft);
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    2,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    3,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+            runTick.invoke(minecraft);
+            assertEquals(
+                    3,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+            playerClass.getField("jumpCalls")
+                    .setInt(
+                            player,
+                            2);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AutoJumpModule.ID);
