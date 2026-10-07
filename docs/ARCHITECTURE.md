@@ -1098,3 +1098,13 @@ While Glide is enabled, the mapped movement snapshot is available, the player is
 `movement.glide.fallSpeed` is a persistent DOUBLE setting with default `0.08`, range `0.01..0.50`, and `0.01` UI increments. Flight has explicit precedence: Glide suspends while Flight is active so the two modules never compete for `motionY`.
 
 The mapped `runTick()` ordering is part of the authority boundary: live movement-state capture occurs before motion control, so Glide consumes the same-tick on-ground state rather than a guessed or reflected value. Focused coverage proves unavailable-state preservation, grounded preservation, excessive-descent capping, upward/gentle-descent preservation, configured speed, Flight precedence, disable behavior, and setting teardown. Transformed-host coverage proves exact `pk.w` behavior through `Minecraft.runTick()`.
+
+## Fast Fall movement control
+
+M166 adds **Movement → Fast Fall** without introducing any new Minecraft mapping. It reuses the same certified M129 airborne-state snapshot and M156/M161 primitive `Entity.motionY` bridge as Glide.
+
+While Fast Fall is enabled, the mapped movement snapshot is available, the player is airborne, and vertical motion is already negative but gentler than the configured target, Fast Fall lowers `motionY` to that target. Upward motion, grounded state, unavailable state, null players, disabled state, and descent already faster than the configured target are left untouched.
+
+`movement.fastFall.fallSpeed` is a persistent DOUBLE setting with default `0.30`, range `0.05..1.00`, and `0.05` UI increments. Motion ownership is explicit: **Flight > Fast Fall > Glide**. Flight suspends Fast Fall, and an enabled Fast Fall suspends Glide, so no pair competes for `motionY`.
+
+Focused coverage proves gentle-descent acceleration, rising preservation, already-fast descent preservation, configured speed, Flight precedence, Fast-Fall-over-Glide precedence, grounded preservation, disable behavior, and setting teardown. Transformed-host coverage proves the same ownership chain against exact mapped `pk.w` state through `Minecraft.runTick()`.
