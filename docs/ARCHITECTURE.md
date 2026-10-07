@@ -1070,3 +1070,11 @@ The parent-owned motion bridge now exposes primitive X/Y/Z getters and setters. 
 Minecraft's 1.8.9 yaw convention is preserved: yaw `0°` forward writes positive Z, yaw `90°` forward writes negative X. With no horizontal input Flight writes X/Z to zero for a stationary hover. If rotation authority is temporarily unavailable, horizontal motion is left untouched while M161 vertical control continues to operate.
 
 Focused coverage verifies forward flight, normalized diagonal flight, yaw-relative turning, horizontal hover and post-disable preservation. Transformed-host coverage proves exact `pk.v` / `pk.x` writes from live mapped yaw through `Minecraft.runTick()`.
+
+## Configurable Flight speeds
+
+M163 keeps the certified M161/M162 Flight behavior but moves its fixed `0.30` horizontal and vertical motion magnitudes behind persistent module settings. `movement.flight.horizontalSpeed` and `movement.flight.verticalSpeed` are DOUBLE settings with default `0.30`, supported range `0.05..1.00`, and `0.05` UI increments.
+
+The setting registrations use the normal `SettingRegistry`, `SettingPresentationRegistry`, and `ModuleSettingRegistry` lifecycle so configuration persists with the rest of the client and is removed cleanly during feature teardown.
+
+Horizontal normalization, mapped-yaw direction, hover semantics, Space ascent, Shift descent, missing-rotation preservation and disabled no-write behavior are unchanged. Focused coverage proves default registration, configured `0.60` horizontal / `0.45` vertical execution and teardown. Transformed-host coverage proves those configured values reach exact mapped `pk.v/w/x` state through `Minecraft.runTick()`.

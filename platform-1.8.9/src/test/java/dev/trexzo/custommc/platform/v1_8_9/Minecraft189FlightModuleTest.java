@@ -72,6 +72,28 @@ final class Minecraft189FlightModuleTest {
                     ModuleState.DISABLED,
                     controller.stateOf(
                             Minecraft189FlightModule.ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189FlightModule.HORIZONTAL_SPEED_SETTING_ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189FlightModule.VERTICAL_SPEED_SETTING_ID));
+            assertEquals(
+                    Minecraft189FlightModule.DEFAULT_HORIZONTAL_SPEED,
+                    runtime.featureCatalog()
+                            .flight()
+                            .horizontalSpeedSetting()
+                            .get()
+                            .doubleValue(),
+                    0.000000001D);
+            assertEquals(
+                    Minecraft189FlightModule.DEFAULT_VERTICAL_SPEED,
+                    runtime.featureCatalog()
+                            .flight()
+                            .verticalSpeedSetting()
+                            .get()
+                            .doubleValue(),
+                    0.000000001D);
 
             final TestPlayer player =
                     new TestPlayer();
@@ -241,6 +263,51 @@ final class Minecraft189FlightModuleTest {
                     player.motionZ,
                     0.000000001D);
 
+            runtime.featureCatalog()
+                    .flight()
+                    .horizontalSpeedSetting()
+                    .set(
+                            0.60D);
+            runtime.featureCatalog()
+                    .flight()
+                    .verticalSpeedSetting()
+                    .set(
+                            0.45D);
+            runtime.playerRotationState()
+                    .update(
+                            0.0F);
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            true);
+            runtime.playerMotionControl(
+                    player);
+            assertEquals(
+                    0.0D,
+                    player.motionX,
+                    0.000000001D);
+            assertEquals(
+                    0.45D,
+                    player.motionY,
+                    0.000000001D);
+            assertEquals(
+                    0.60D,
+                    player.motionZ,
+                    0.000000001D);
+
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            false);
+
             controller.disable(
                     Minecraft189FlightModule.ID);
             assertFalse(
@@ -283,6 +350,12 @@ final class Minecraft189FlightModuleTest {
         assertNull(
                 modules.find(
                         Minecraft189FlightModule.ID));
+        assertNull(
+                settings.find(
+                        Minecraft189FlightModule.HORIZONTAL_SPEED_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189FlightModule.VERTICAL_SPEED_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
