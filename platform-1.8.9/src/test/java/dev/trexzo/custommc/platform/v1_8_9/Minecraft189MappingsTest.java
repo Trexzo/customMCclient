@@ -737,6 +737,30 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
+    void minecraftShapeGateRejectsMissingPlayerControllerField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.MINECRAFT
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_WORLD);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyMinecraft(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: ave.c Lbda; (playerController)",
+                failure.getMessage());
+    }
+
+    @Test
     void minecraftShapeGateRejectsMissingCurrentServerDataField() {
         final ClassWriter writer =
                 writer(
@@ -748,6 +772,12 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_WORLD);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER);
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
@@ -784,6 +814,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_WORLD);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER);
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
@@ -823,6 +856,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_WORLD);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER);
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
