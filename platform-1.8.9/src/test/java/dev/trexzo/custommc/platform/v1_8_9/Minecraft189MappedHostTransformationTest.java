@@ -243,6 +243,9 @@ final class Minecraft189MappedHostTransformationTest {
                         "avh",
                         gameSettingsShape()));
         loader.put(
+                "bde",
+                serverDataShape());
+        loader.put(
                 "avn",
                 transformer.transform(
                         "avn",
@@ -1264,6 +1267,20 @@ final class Minecraft189MappedHostTransformationTest {
         return calls[0];
     }
 
+    private static byte[] serverDataShape() {
+        final ClassWriter writer =
+                classWriter("bde");
+        field(
+                writer,
+                "b",
+                "Ljava/lang/String;");
+        endDefaultConstructor(
+                writer,
+                "bde");
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
     private static byte[] gameSettingsShape() {
         final ClassWriter writer =
                 classWriter("avh");
@@ -1310,6 +1327,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "o", "Lbfk;");
         field(writer, "q", "Lavo;");
         field(writer, "t", "Lavh;");
+        field(writer, "Q", "Lbde;");
         endDefaultConstructor(writer, "ave");
 
         final MethodVisitor getMinecraft =

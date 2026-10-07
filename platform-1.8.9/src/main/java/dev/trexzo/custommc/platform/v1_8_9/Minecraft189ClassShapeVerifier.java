@@ -22,7 +22,8 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.MINECRAFT_FONT_RENDERER,
                         Minecraft189Mappings.MINECRAFT_ENTITY_RENDERER,
                         Minecraft189Mappings.MINECRAFT_INGAME_GUI,
-                        Minecraft189Mappings.MINECRAFT_GAME_SETTINGS
+                        Minecraft189Mappings.MINECRAFT_GAME_SETTINGS,
+                        Minecraft189Mappings.MINECRAFT_CURRENT_SERVER_DATA
                 },
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.MINECRAFT_GET_MINECRAFT,
@@ -33,6 +34,17 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.MINECRAFT_MIDDLE_CLICK_MOUSE,
                         Minecraft189Mappings.MINECRAFT_DISPATCH_KEYPRESSES
                 });
+    }
+
+    public static void verifyServerData(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.SERVER_DATA,
+                new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.SERVER_DATA_SERVER_IP
+                },
+                new Minecraft189Mappings.MappedMethod[0]);
     }
 
     public static void verifyKeyBinding(
