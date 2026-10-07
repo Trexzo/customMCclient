@@ -467,6 +467,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedLeftClickCounter =
                 new boolean[]{false};
+        final boolean[] injectedAutoClick =
+                new boolean[]{false};
         final boolean[] foundDispatchKeypresses =
                 new boolean[]{false};
         final boolean[] injectedKeyboard =
@@ -965,6 +967,34 @@ public final class Minecraft189ClassTransformer
                                                 leftClickCounter.obfuscatedName(),
                                                 leftClickCounter.descriptor());
                                         injectedLeftClickCounter[0] = true;
+
+                                        final Label skipAutoClick =
+                                                new Label();
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "shouldAutoClick",
+                                                "()Z",
+                                                false);
+                                        super.visitJumpInsn(
+                                                Opcodes.IFEQ,
+                                                skipAutoClick);
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        final Minecraft189Mappings.MappedMethod clickMouse =
+                                                Minecraft189Mappings
+                                                        .MINECRAFT_CLICK_MOUSE;
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKEVIRTUAL,
+                                                clickMouse.owner()
+                                                        .obfuscatedInternalName(),
+                                                clickMouse.obfuscatedName(),
+                                                clickMouse.descriptor(),
+                                                false);
+                                        super.visitLabel(
+                                                skipAutoClick);
+                                        injectedAutoClick[0] = true;
                                     }
                                     super.visitInsn(opcode);
                                 }
@@ -1062,7 +1092,8 @@ public final class Minecraft189ClassTransformer
                 || !injectedServerAddress[0]
                 || !injectedHeldItem[0]
                 || !injectedRightClickDelay[0]
-                || !injectedLeftClickCounter[0]) {
+                || !injectedLeftClickCounter[0]
+                || !injectedAutoClick[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
         }
