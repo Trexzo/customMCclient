@@ -629,6 +629,9 @@ public final class Minecraft189HostRuntime
         final boolean fastFallActive =
                 featureCatalog.fastFall()
                         .active();
+        final boolean noGravityActive =
+                featureCatalog.noGravity()
+                        .active();
         final boolean longJumpActive =
                 featureCatalog.longJump()
                         .active();
@@ -685,16 +688,23 @@ public final class Minecraft189HostRuntime
                                 || longJumpOwnsHorizontal
                                 || bunnyHopOwnsHorizontal
                                 || movementSpeedOwnsHorizontal);
-        featureCatalog.fastFall()
+        featureCatalog.noGravity()
                 .apply(
                         player,
                         movement,
                         flightActive);
+        featureCatalog.fastFall()
+                .apply(
+                        player,
+                        movement,
+                        flightActive
+                                || noGravityActive);
         featureCatalog.glide()
                 .apply(
                         player,
                         movement,
                         flightActive
+                                || noGravityActive
                                 || fastFallActive);
     }
 

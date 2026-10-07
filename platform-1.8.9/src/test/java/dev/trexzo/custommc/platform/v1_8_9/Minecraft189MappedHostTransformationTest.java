@@ -905,6 +905,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189NoGravityModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189AutoSneakModule.ID)
                             != null);
             assertTrue(
@@ -2434,6 +2439,86 @@ final class Minecraft189MappedHostTransformationTest {
                     .key(
                             LegacyKeyboardCodes.SPACE,
                             false);
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189NoGravityModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .noGravity()
+                            .active());
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            false);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            -0.27D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.0D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            0.22D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.22D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .fastFall()
+                    .fallSpeedSetting()
+                    .set(
+                            Minecraft189FastFallModule.DEFAULT_FALL_SPEED);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189FastFallModule.ID);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            -0.10D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.0D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189NoGravityModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .noGravity()
+                            .active());
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            -0.05D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    -Minecraft189FastFallModule.DEFAULT_FALL_SPEED,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189FastFallModule.ID);
 
             playerClass.getField("C")
                     .setBoolean(

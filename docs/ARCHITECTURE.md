@@ -1168,3 +1168,13 @@ A fresh Space press while grounded invokes the real mapped jump delegate and arm
 Jump ownership is deterministic: **Freeze/Flight > Long Jump > High Jump > Low Hop > Bunny Hop > Auto Jump**. Low Hop suppresses Bunny Hop and Auto Jump while enabled, but it remains vertical-only, so Movement Speed and Strafe can still provide horizontal motion alongside it.
 
 Focused coverage proves fresh-press semantics, default/configured vertical cap, Auto-Jump suppression and release, Movement-Speed coexistence, High-Jump precedence, Flight suspension, disable behavior, and setting teardown. Transformed-host coverage proves the real mapped jump delegate plus exact `pk.w` low-hop cap through `Minecraft.runTick()`.
+
+## No Gravity movement control
+
+M173 adds **Movement → No Gravity** without introducing a new Minecraft mapping. It reuses the certified M129 on-ground snapshot and M156/M161 primitive `Entity.motionY` bridge.
+
+While enabled and airborne, No Gravity cancels only negative vertical motion by writing `motionY = 0`. Upward motion, grounded state, unavailable movement state, null players, and disabled state are left untouched. This makes it distinct from Flight: it does not synthesize ascent or horizontal movement and only removes descent.
+
+Vertical ownership is deterministic: **Freeze > Flight > No Gravity > Fast Fall > Glide**. High Jump, Low Hop, and Long Jump still own their same-tick jump adjustments before the player becomes airborne on the next movement snapshot.
+
+Focused coverage proves unavailable/grounded/upward preservation, exact downward cancellation, No-Gravity-over-Fast-Fall/Glide ownership, Flight precedence, disable release, null safety, and teardown. Transformed-host coverage proves exact negative-to-zero `pk.w` behavior, upward preservation, and Fast Fall resumption through `Minecraft.runTick()`.

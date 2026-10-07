@@ -86,6 +86,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189StrafeFeature strafeFeature;
     private final Minecraft189GlideFeature glideFeature;
     private final Minecraft189FastFallFeature fastFallFeature;
+    private final Minecraft189NoGravityFeature noGravityFeature;
     private final Minecraft189FreezeFeature freezeFeature;
     private final Minecraft189LongJumpFeature longJumpFeature;
     private final Minecraft189BunnyHopFeature bunnyHopFeature;
@@ -161,6 +162,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189StrafeFeature strafeFeature,
             final Minecraft189GlideFeature glideFeature,
             final Minecraft189FastFallFeature fastFallFeature,
+            final Minecraft189NoGravityFeature noGravityFeature,
             final Minecraft189FreezeFeature freezeFeature,
             final Minecraft189LongJumpFeature longJumpFeature,
             final Minecraft189BunnyHopFeature bunnyHopFeature,
@@ -230,6 +232,7 @@ public final class Minecraft189FeatureCatalog
         this.strafeFeature = strafeFeature;
         this.glideFeature = glideFeature;
         this.fastFallFeature = fastFallFeature;
+        this.noGravityFeature = noGravityFeature;
         this.freezeFeature = freezeFeature;
         this.longJumpFeature = longJumpFeature;
         this.bunnyHopFeature = bunnyHopFeature;
@@ -352,6 +355,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189StrafeFeature strafeFeature = null;
         Minecraft189GlideFeature glideFeature = null;
         Minecraft189FastFallFeature fastFallFeature = null;
+        Minecraft189NoGravityFeature noGravityFeature = null;
         Minecraft189FreezeFeature freezeFeature = null;
         Minecraft189LongJumpFeature longJumpFeature = null;
         Minecraft189BunnyHopFeature bunnyHopFeature = null;
@@ -561,6 +565,12 @@ public final class Minecraft189FeatureCatalog
                             moduleSettings,
                             settings,
                             settingPresentations);
+
+            noGravityFeature =
+                    Minecraft189NoGravityFeature.install(
+                            modules,
+                            moduleController,
+                            presentations);
 
             freezeFeature =
                     Minecraft189FreezeFeature.install(
@@ -982,6 +992,7 @@ public final class Minecraft189FeatureCatalog
                     strafeFeature,
                     glideFeature,
                     fastFallFeature,
+                    noGravityFeature,
                     freezeFeature,
                     longJumpFeature,
                     bunnyHopFeature,
@@ -1009,6 +1020,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(bunnyHopFeature, failure);
             closeQuietly(longJumpFeature, failure);
             closeQuietly(freezeFeature, failure);
+            closeQuietly(noGravityFeature, failure);
             closeQuietly(fastFallFeature, failure);
             closeQuietly(glideFeature, failure);
             closeQuietly(strafeFeature, failure);
@@ -1170,6 +1182,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189FastFallModule fastFall() {
         requireOpen();
         return fastFallFeature.module();
+    }
+
+    public Minecraft189NoGravityModule noGravity() {
+        requireOpen();
+        return noGravityFeature.module();
     }
 
     public Minecraft189FreezeModule freeze() {
@@ -1541,6 +1558,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             freezeFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            noGravityFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,
