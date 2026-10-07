@@ -999,3 +999,11 @@ The existing Entity class-shape gate now requires this exact boolean alongside p
 
 This milestone is authority-only. It does not clear web state or register a No Web module.
 
+## No Web movement control
+
+M155 consumes certified M154 `Entity.isInWeb = pk.H Z / field_70134_J` through parent-owned `Minecraft189PlayerWebControl`. Transformed base `Entity pk` exposes only primitive boolean getter/setter delegates; exact `ave.h Lbew;` is forwarded transiently from mapped `Minecraft.runTick()`, and the host retains no child-loader player object.
+
+`movement.noWeb` / **No Web** is disabled by default. While enabled it clears `isInWeb` only when the live mapped flag is true. While disabled it performs no synthetic write, so vanilla web state remains authoritative immediately after disable.
+
+Focused coverage verifies disabled preservation, enabled clearing, no redundant write while already clear, repeated clearing, disable behavior, null safety and teardown. Transformed-host coverage proves the inherited `bew -> ... -> pk` path reads and writes exact synthetic `pk.H`, including disabled preservation, enabled clearing and post-disable preservation.
+

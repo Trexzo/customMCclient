@@ -515,6 +515,10 @@ final class Minecraft189MappedHostTransformationTest {
                     .setFloat(
                             player,
                             9.25F);
+            playerClass.getField("H")
+                    .setBoolean(
+                            player,
+                            true);
             playerClass.getField("sneaking")
                     .setBoolean(
                             player,
@@ -835,6 +839,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189NoWebModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189AutoSneakModule.ID)
                             != null);
             assertTrue(
@@ -994,6 +1003,10 @@ final class Minecraft189MappedHostTransformationTest {
                             .getFloat(
                                     player),
                     0.000001F);
+            assertTrue(
+                    playerClass.getField("H")
+                            .getBoolean(
+                                    player));
 
             final Minecraft189PlayerPositionState.Snapshot position =
                     runtime.requireHostRuntime()
@@ -1254,6 +1267,42 @@ final class Minecraft189MappedHostTransformationTest {
                             .getFloat(
                                     player),
                     0.000001F);
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189NoWebModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .noWeb()
+                            .active());
+            playerClass.getField("H")
+                    .setBoolean(
+                            player,
+                            true);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    playerClass.getField("H")
+                            .getBoolean(
+                                    player));
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189NoWebModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .noWeb()
+                            .active());
+            playerClass.getField("H")
+                    .setBoolean(
+                            player,
+                            true);
+            runTick.invoke(minecraft);
+            assertTrue(
+                    playerClass.getField("H")
+                            .getBoolean(
+                                    player));
             playerClass.getField("C")
                     .setBoolean(
                             player,
