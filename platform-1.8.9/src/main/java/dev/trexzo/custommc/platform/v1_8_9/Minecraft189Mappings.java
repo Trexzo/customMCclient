@@ -318,6 +318,13 @@ public final class Minecraft189Mappings {
                     "Z",
                     "field_70145_X",
                     "noClip");
+    public static final MappedField ENTITY_LIVING_BASE_HURT_TIME =
+            new MappedField(
+                    ENTITY_LIVING_BASE,
+                    "au",
+                    "I",
+                    "field_70737_aN",
+                    "hurtTime");
     public static final MappedField ENTITY_PLAYER_SP_MOVEMENT_INPUT =
             new MappedField(
                     ENTITY_PLAYER_SP,
