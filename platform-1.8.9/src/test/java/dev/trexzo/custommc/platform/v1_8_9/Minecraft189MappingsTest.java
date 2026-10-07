@@ -321,6 +321,13 @@ final class Minecraft189MappingsTest {
                 "field_70143_R",
                 "fallDistance");
         assertField(
+                Minecraft189Mappings.ENTITY_IS_IN_WEB,
+                Minecraft189Mappings.ENTITY,
+                "H",
+                "Z",
+                "field_70134_J",
+                "isInWeb");
+        assertField(
                 Minecraft189Mappings.ENTITY_PLAYER_INVENTORY,
                 Minecraft189Mappings.ENTITY_PLAYER,
                 "bi",
@@ -1434,6 +1441,60 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
+    void entityShapeGateRejectsMissingIsInWebField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_X);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Y);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Z);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_DIMENSION);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ON_GROUND);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_STEP_HEIGHT);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_FALL_DISTANCE);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SNEAKING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SPRINTING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_SET_SPRINTING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_SET_SNEAKING);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntity(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: pk.H Z (isInWeb)",
+                failure.getMessage());
+    }
+
+    @Test
     void entityShapeGateRejectsMissingSneakingMethod() {
         final ClassWriter writer = entityShapeWriterWithoutMovement();
         addField(
@@ -1741,6 +1802,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_FALL_DISTANCE);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_IN_WEB);
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_IS_SNEAKING);
@@ -1782,6 +1846,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_FALL_DISTANCE);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_IN_WEB);
         return writer;
     }
 
