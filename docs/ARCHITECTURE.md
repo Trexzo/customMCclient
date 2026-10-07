@@ -1078,3 +1078,13 @@ M163 keeps the certified M161/M162 Flight behavior but moves its fixed `0.30` ho
 The setting registrations use the normal `SettingRegistry`, `SettingPresentationRegistry`, and `ModuleSettingRegistry` lifecycle so configuration persists with the rest of the client and is removed cleanly during feature teardown.
 
 Horizontal normalization, mapped-yaw direction, hover semantics, Space ascent, Shift descent, missing-rotation preservation and disabled no-write behavior are unchanged. Focused coverage proves default registration, configured `0.60` horizontal / `0.45` vertical execution and teardown. Transformed-host coverage proves those configured values reach exact mapped `pk.v/w/x` state through `Minecraft.runTick()`.
+
+## Strafe movement control
+
+M164 adds **Movement → Strafe** without introducing a new Minecraft mapping. It reuses the certified M103 yaw snapshot and M156/M162 primitive `Entity.motionX/motionZ` bridge.
+
+While Strafe is enabled, a live mapped yaw snapshot exists, and at least one W/A/S/D key is held, the module writes configurable yaw-relative horizontal motion. Diagonal input is normalized so combined directions do not exceed the configured magnitude. With no movement input, unavailable rotation, a null player, or the module disabled, Strafe performs no motion write and leaves vanilla state untouched.
+
+`movement.strafe.speed` is a persistent DOUBLE setting with default `0.30`, range `0.05..1.00`, and `0.05` UI increments. Flight has explicit precedence: when Flight is enabled, Strafe suspends its writes instead of competing for `motionX/Z`.
+
+Focused coverage proves unavailable-yaw preservation, yaw-relative forward/diagonal motion, configured speed, no-input preservation, Flight precedence, disable behavior, and setting teardown. Transformed-host coverage proves exact live `pk.v/pk.x` writes through `Minecraft.runTick()` and the same Flight-over-Strafe precedence.
