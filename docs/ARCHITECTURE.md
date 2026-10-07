@@ -1513,3 +1513,13 @@ Host runtime clears the derived target whenever the local-player position or wor
 The transformed-host proof upgrades the second M205 fixture from base `pk / Entity` to real `wn / EntityPlayer` and proves that the local `bew` entry is excluded while entity index 1 is selected at its exact primitive coordinates and distance.
 
 M207 still performs no rotation, attack, visibility/raycast test, name/team filtering, health filtering or ESP rendering. It is a deterministic target data primitive for later modules.
+
+## Target rotation solution snapshot
+
+M208 is a non-authoritative dev-stack milestone on the hosted-green M207 head while GitHub's merge/ref write path is unavailable. It adds a pure parent-owned `Minecraft189TargetRotationState` derived from the local-player position and M207 nearest-player target snapshot; it does not write player rotation.
+
+The solver follows the already-certified Minecraft yaw convention used by Direction: yaw 0 points south (+Z), +90 points west (-X), -90 points east (+X), and yaw is normalized to [-180, 180). Pitch follows Minecraft's sign convention: negative looks upward and positive looks downward. The solution uses `atan2` and horizontal `hypot`; a vertical-only target with zero horizontal separation fails closed because yaw is undefined.
+
+Host runtime invalidates the rotation solution whenever local position or world positions are resampled, and recomputes it only after M207 has produced a current valid target. The transformed-host fixture proves the remote player at (130.0, 65.25, -40.0) from local (123.25, 64.5, -42.75) yields yaw approximately -67.833654 and pitch approximately -5.875010.
+
+M208 is intentionally data-only. It does not own `Entity.rotationYaw` / `rotationPitch`, smooth angles, gate on mouse buttons, enforce FOV/range, test visibility, or attack. Those remain later module milestones after M207 promotion recovers.

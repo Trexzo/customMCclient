@@ -4866,6 +4866,24 @@ final class Minecraft189MappedHostTransformationTest {
                     53.6875D,
                     nearestPlayer.distanceSquared());
 
+            final Minecraft189TargetRotationState.Snapshot targetRotation =
+                    runtime.requireHostRuntime()
+                            .targetRotationState()
+                            .snapshot();
+            assertTrue(
+                    targetRotation.available());
+            assertEquals(
+                    1,
+                    targetRotation.entityIndex());
+            assertEquals(
+                    -67.833654F,
+                    targetRotation.yaw(),
+                    0.0001F);
+            assertEquals(
+                    -5.875010F,
+                    targetRotation.pitch(),
+                    0.0001F);
+
             final Minecraft189ServerAddressState.Snapshot server =
                     runtime.requireHostRuntime()
                             .serverAddressState()
@@ -4959,6 +4977,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .nearestPlayerTargetState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .targetRotationState()
                             .snapshot()
                             .available());
 
