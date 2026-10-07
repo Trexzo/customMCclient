@@ -1188,3 +1188,13 @@ While Air Speed is enabled, the mapped movement snapshot is available and airbor
 `movement.airSpeed.speed` is a persistent DOUBLE setting with default `0.35`, range `0.10..1.00`, and `0.05` UI increments. Ground Speed and Air Speed are state-disjoint: Ground Speed owns only grounded ticks, Air Speed owns only airborne ticks. Horizontal ownership is deterministic: **Freeze/Flight > Long Jump boost > Bunny Hop > Ground/Air Speed > Strafe**.
 
 Focused coverage proves unavailable/grounded preservation, exact airborne yaw-relative and diagonal motion, configured speed, Ground-Speed/Air-Speed state separation, Air-Speed-over-Strafe ownership, Flight precedence, no-input preservation, disable behavior, and setting teardown. Transformed-host coverage proves exact airborne `pk.v/pk.x` writes through `Minecraft.runTick()`.
+
+## Reverse Step movement control
+
+M175 adds **Movement → Reverse Step** without introducing a new Minecraft mapping. It reuses the certified M129 on-ground movement snapshot and the M156/M161 primitive `Entity.motionY` bridge.
+
+The module tracks mapped ground-state transitions. The first available snapshot only primes state. A later **ground → air** transition is eligible for one downward snap, but only when current `motionY <= 0`; upward motion is preserved so normal jumps and the existing High Jump, Low Hop, Long Jump and Bunny Hop paths are not crushed. Staying airborne does not retrigger. Descent already faster than the configured target is also preserved.
+
+`movement.reverseStep.speed` is a persistent DOUBLE setting with default `0.50`, range `0.05..1.50`, and `0.05` UI increments. Vertical ownership is deterministic: **Freeze/Flight/No Gravity > Reverse Step > Fast Fall/Glide**. Reverse Step still consumes movement-state transitions while suspended, preventing a delayed snap when the higher-priority module disables.
+
+Focused coverage proves first-snapshot priming, one-shot edge transitions, no airborne retrigger, upward-jump preservation, already-fast descent preservation, configured speed, No-Gravity precedence without delayed activation, disable behavior, and setting teardown. Transformed-host coverage proves exact mapped `pk.w` snapping and upward-motion preservation through `Minecraft.runTick()`.
