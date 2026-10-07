@@ -983,3 +983,11 @@ The existing Entity class-shape gate now requires this exact float field alongsi
 
 This milestone is authority-only. It does not reset fall distance or register a No Fall module.
 
+## No Fall movement control
+
+M153 consumes certified M152 `Entity.fallDistance = pk.O F / field_70143_R` through parent-owned `Minecraft189PlayerFallDistanceControl`. Transformed base `Entity pk` exposes only primitive getter/setter delegates; exact `ave.h Lbew;` is forwarded transiently from mapped `Minecraft.runTick()`, and the host retains no child-loader player object.
+
+`movement.noFall` / **No Fall** is disabled by default. While enabled it clears non-zero local fall distance to `0.0F` on each forwarded tick. While disabled it performs no write at all: it does not restore, invent or cache a prior fall-distance value, so vanilla state remains authoritative immediately after disable.
+
+Focused coverage verifies disabled preservation, enabled zeroing, no redundant write while already zero, subsequent zeroing, disable behavior, null safety and teardown. Transformed-host coverage proves the inherited `bew -> ... -> pk` control path reads and writes exact synthetic `pk.O`, including disabled preservation, enabled clearing, and no post-disable rewrite.
+
