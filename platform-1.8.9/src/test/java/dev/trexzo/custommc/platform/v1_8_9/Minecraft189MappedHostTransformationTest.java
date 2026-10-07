@@ -3358,6 +3358,12 @@ final class Minecraft189MappedHostTransformationTest {
                     .multiplierSetting()
                     .set(
                             1.50D);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .damageBoost()
+                    .verticalMultiplierSetting()
+                    .set(
+                            2.00D);
             runtime.moduleController()
                     .enable(
                             Minecraft189DamageBoostModule.ID);
@@ -3403,6 +3409,10 @@ final class Minecraft189MappedHostTransformationTest {
                     .setDouble(
                             player,
                             0.40D);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            0.25D);
             playerClass.getField("x")
                     .setDouble(
                             player,
@@ -3415,6 +3425,12 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(
                     0.60D,
                     playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    0.50D,
+                    playerClass.getField("w")
                             .getDouble(
                                     player),
                     0.000001D);
