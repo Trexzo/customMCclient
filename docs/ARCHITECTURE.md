@@ -1060,3 +1060,13 @@ Transformed base `Entity pk` now implements parent-owned `Minecraft189PlayerMoti
 While enabled, Space sets vertical motion to `+0.30`, either Shift key sets it to `-0.30`, and neither or both inputs set it to `0.0` for hover. While disabled the module performs no motion write, so vanilla physics resumes without a synthetic restore value.
 
 Focused coverage verifies disabled preservation, hover, ascend, both-key neutralization, left/right Shift descent, redundant-write avoidance, null safety and teardown. Transformed-host coverage proves exact inherited `bew -> ... -> pk.w` writes through mapped `runTick()` and post-disable preservation.
+
+## Directional Flight movement control
+
+M162 extends M161 **Flight** with yaw-relative horizontal movement using only already-certified M103 rotation authority and M156 `Entity.motionX/motionZ` authority. No new obfuscated member is introduced.
+
+The parent-owned motion bridge now exposes primitive X/Y/Z getters and setters. While Flight is enabled and a mapped yaw snapshot is available, W/S provide forward/backward input and A/D provide left/right strafing. Diagonal input is normalized so W+A does not move faster than a single direction.
+
+Minecraft's 1.8.9 yaw convention is preserved: yaw `0°` forward writes positive Z, yaw `90°` forward writes negative X. With no horizontal input Flight writes X/Z to zero for a stationary hover. If rotation authority is temporarily unavailable, horizontal motion is left untouched while M161 vertical control continues to operate.
+
+Focused coverage verifies forward flight, normalized diagonal flight, yaw-relative turning, horizontal hover and post-disable preservation. Transformed-host coverage proves exact `pk.v` / `pk.x` writes from live mapped yaw through `Minecraft.runTick()`.

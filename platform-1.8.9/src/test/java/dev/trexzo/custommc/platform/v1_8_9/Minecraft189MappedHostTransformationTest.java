@@ -1523,6 +1523,94 @@ final class Minecraft189MappedHostTransformationTest {
                     .key(
                             LegacyKeyboardCodes.LEFT_SHIFT,
                             false);
+
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            0.0F);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.0D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    Minecraft189FlightModule.HORIZONTAL_MOTION,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.A,
+                            true);
+            runTick.invoke(minecraft);
+            final double flightDiagonal =
+                    Minecraft189FlightModule.HORIZONTAL_MOTION
+                            / Math.sqrt(2.0D);
+            assertEquals(
+                    flightDiagonal,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    flightDiagonal,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.A,
+                            false);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            90.0F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    -Minecraft189FlightModule.HORIZONTAL_MOTION,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    0.0D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.0D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    0.0D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189FlightModule.ID);
@@ -1531,19 +1619,44 @@ final class Minecraft189MappedHostTransformationTest {
                             .featureCatalog()
                             .flight()
                             .active());
+            playerClass.getField("v")
+                    .setDouble(
+                            player,
+                            0.11D);
             playerClass.getField("w")
                     .setDouble(
                             player,
                             0.42D);
+            playerClass.getField("x")
+                    .setDouble(
+                            player,
+                            -0.17D);
             runtime.requireHostRuntime()
                     .inputState()
                     .key(
                             LegacyKeyboardCodes.SPACE,
                             true);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
             runTick.invoke(minecraft);
+            assertEquals(
+                    0.11D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
             assertEquals(
                     0.42D,
                     playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    -0.17D,
+                    playerClass.getField("x")
                             .getDouble(
                                     player),
                     0.000001D);
@@ -1551,6 +1664,11 @@ final class Minecraft189MappedHostTransformationTest {
                     .inputState()
                     .key(
                             LegacyKeyboardCodes.SPACE,
+                            false);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
                             false);
 
             playerClass.getField("C")

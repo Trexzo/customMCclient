@@ -172,6 +172,75 @@ final class Minecraft189FlightModuleTest {
                     player.motionY,
                     0.000000001D);
 
+            runtime.playerRotationState()
+                    .update(
+                            0.0F);
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runtime.playerMotionControl(
+                    player);
+            assertEquals(
+                    0.0D,
+                    player.motionX,
+                    0.000000001D);
+            assertEquals(
+                    Minecraft189FlightModule.HORIZONTAL_MOTION,
+                    player.motionZ,
+                    0.000000001D);
+
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.A,
+                            true);
+            runtime.playerMotionControl(
+                    player);
+            final double diagonal =
+                    Minecraft189FlightModule.HORIZONTAL_MOTION
+                            / Math.sqrt(2.0D);
+            assertEquals(
+                    diagonal,
+                    player.motionX,
+                    0.000000001D);
+            assertEquals(
+                    diagonal,
+                    player.motionZ,
+                    0.000000001D);
+
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.A,
+                            false);
+            runtime.playerRotationState()
+                    .update(
+                            90.0F);
+            runtime.playerMotionControl(
+                    player);
+            assertEquals(
+                    -Minecraft189FlightModule.HORIZONTAL_MOTION,
+                    player.motionX,
+                    0.000000001D);
+            assertEquals(
+                    0.0D,
+                    player.motionZ,
+                    0.000000001D);
+
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+            runtime.playerMotionControl(
+                    player);
+            assertEquals(
+                    0.0D,
+                    player.motionX,
+                    0.000000001D);
+            assertEquals(
+                    0.0D,
+                    player.motionZ,
+                    0.000000001D);
+
             controller.disable(
                     Minecraft189FlightModule.ID);
             assertFalse(
@@ -179,16 +248,30 @@ final class Minecraft189FlightModuleTest {
                             .flight()
                             .active());
 
+            player.motionX = 0.11D;
             player.motionY = 0.42D;
+            player.motionZ = -0.17D;
             runtime.inputState()
                     .key(
                             LegacyKeyboardCodes.SPACE,
                             true);
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
             runtime.playerMotionControl(
                     player);
             assertEquals(
+                    0.11D,
+                    player.motionX,
+                    0.000000001D);
+            assertEquals(
                     0.42D,
                     player.motionY,
+                    0.000000001D);
+            assertEquals(
+                    -0.17D,
+                    player.motionZ,
                     0.000000001D);
 
             runtime.playerMotionControl(
@@ -207,8 +290,22 @@ final class Minecraft189FlightModuleTest {
 
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
+        private double motionX;
         private double motionY;
+        private double motionZ;
         private int setCalls;
+
+        @Override
+        public double customMcMotionX() {
+            return motionX;
+        }
+
+        @Override
+        public void customMcSetMotionX(
+                final double motionX) {
+            setCalls++;
+            this.motionX = motionX;
+        }
 
         @Override
         public double customMcMotionY() {
@@ -220,6 +317,18 @@ final class Minecraft189FlightModuleTest {
                 final double motionY) {
             setCalls++;
             this.motionY = motionY;
+        }
+
+        @Override
+        public double customMcMotionZ() {
+            return motionZ;
+        }
+
+        @Override
+        public void customMcSetMotionZ(
+                final double motionZ) {
+            setCalls++;
+            this.motionZ = motionZ;
         }
     }
 
