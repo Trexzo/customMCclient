@@ -4928,6 +4928,18 @@ final class Minecraft189MappedHostTransformationTest {
             runtime.moduleController()
                     .enable(
                             Minecraft189JitterModule.ID);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .aimAssist()
+                    .yawSpeedSetting()
+                    .set(
+                            10.0D);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .aimAssist()
+                    .pitchSpeedSetting()
+                    .set(
+                            4.0D);
             runtime.moduleController()
                     .enable(
                             Minecraft189AimAssistModule.ID);
@@ -4946,13 +4958,13 @@ final class Minecraft189MappedHostTransformationTest {
                             15.0F);
             runTick.invoke(minecraft);
             assertEquals(
-                    -67.833654F,
+                    15.0F,
                     playerClass.getField("y")
                             .getFloat(
                                     player),
                     0.0001F);
             assertEquals(
-                    -5.875010F,
+                    11.0F,
                     playerClass.getField("z")
                             .getFloat(
                                     player),

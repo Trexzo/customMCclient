@@ -1535,3 +1535,11 @@ M209 also resolves the hook-order boundary required by a real rotation consumer.
 Focused coverage proves disabled/no-hold/no-target gates, exact yaw/pitch writes, tick ownership while already aligned and lifecycle teardown. The transformed-host proof enables both Aim Assist and Jitter and proves held Aim Assist writes the exact certified target angles without the configured Jitter perturbation; releasing LMB yields and leaves rotation untouched.
 
 M209 intentionally has no smoothing, range limit, FOV limit, visibility/raycast gate, team/name filter or automatic attack. Those remain separate reviewable milestones.
+
+## Aim Assist smoothing controls
+
+M210 adds persistent **Yaw Speed** (`combat.aimAssist.yawSpeed`) and **Pitch Speed** (`combat.aimAssist.pitchSpeed`) controls to Aim Assist. Both are DOUBLE settings from 0.1 to 180.0 degrees per tick and default to 180.0, preserving M209's exact-target behavior unless the user opts into smoothing.
+
+Yaw uses the shortest wrapped delta in Minecraft's [-180, 180) convention, then limits that delta to the configured yaw speed. Pitch uses an independent linear delta limited by the configured pitch speed. Aim Assist still owns an eligible held-LMB tick even when a limited step is zero/already aligned, so Jitter cannot perturb the tracked target.
+
+The transformed-host proof configures yaw speed 10 and pitch speed 4 from a live starting rotation of (25, 15) toward the certified M208 solution and proves the tick lands at (15, 11), while configured Jitter remains suppressed. No mapping, target-selection or transformer changes are introduced.

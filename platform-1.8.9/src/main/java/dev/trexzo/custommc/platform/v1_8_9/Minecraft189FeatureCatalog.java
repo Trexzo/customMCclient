@@ -778,7 +778,10 @@ public final class Minecraft189FeatureCatalog
                     Minecraft189AimAssistFeature.install(
                             modules,
                             moduleController,
-                            presentations);
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             spinFeature =
                     Minecraft189SpinFeature.install(
