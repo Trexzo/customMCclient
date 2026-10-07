@@ -9,6 +9,7 @@ public final class LegacyKeyboardCodes {
     public static final int A = 30;
     public static final int S = 31;
     public static final int D = 32;
+    public static final int LEFT_SHIFT = 42;
     public static final int RIGHT_SHIFT = 54;
     public static final int SPACE = 57;
     public static final int HOME = 199;
