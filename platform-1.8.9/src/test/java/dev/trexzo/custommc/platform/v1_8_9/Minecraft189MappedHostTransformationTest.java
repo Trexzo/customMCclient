@@ -3755,6 +3755,81 @@ final class Minecraft189MappedHostTransformationTest {
                             Minecraft189ClickRateTracker.LEFT_BUTTON,
                             false);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .spin()
+                    .requireHoldSetting()
+                    .set(
+                            Boolean.FALSE);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .spin()
+                    .reverseSetting()
+                    .set(
+                            Boolean.FALSE);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .spin()
+                    .intervalTicksSetting()
+                    .set(
+                            3);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    30.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    35.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    30.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    37.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    30.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    35.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    60.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    35.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189SpinModule.ID);
