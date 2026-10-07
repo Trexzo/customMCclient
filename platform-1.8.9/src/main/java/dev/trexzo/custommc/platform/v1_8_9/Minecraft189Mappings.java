@@ -269,6 +269,13 @@ public final class Minecraft189Mappings {
                     "Z",
                     "field_70122_E",
                     "onGround");
+    public static final MappedField ENTITY_STEP_HEIGHT =
+            new MappedField(
+                    ENTITY,
+                    "S",
+                    "F",
+                    "field_70138_W",
+                    "stepHeight");
     public static final MappedField ENTITY_PLAYER_SP_MOVEMENT_INPUT =
             new MappedField(
                     ENTITY_PLAYER_SP,
