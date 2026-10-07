@@ -106,7 +106,8 @@ public final class Minecraft189ClassShapeVerifier {
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH,
                         Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH,
-                        Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT
+                        Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT,
+                        Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS
                 });
     }
 
@@ -130,6 +131,20 @@ public final class Minecraft189ClassShapeVerifier {
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.FOOD_STATS_GET_FOOD_LEVEL,
                         Minecraft189Mappings.FOOD_STATS_GET_SATURATION_LEVEL
+                });
+    }
+
+    public static void verifyPotionEffect(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.POTION_EFFECT,
+                new Minecraft189Mappings.MappedField[0],
+                new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.POTION_EFFECT_GET_POTION_ID,
+                        Minecraft189Mappings.POTION_EFFECT_GET_DURATION,
+                        Minecraft189Mappings.POTION_EFFECT_GET_AMPLIFIER,
+                        Minecraft189Mappings.POTION_EFFECT_GET_EFFECT_NAME
                 });
     }
 
