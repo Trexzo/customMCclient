@@ -660,6 +660,20 @@ public final class Minecraft189HostRuntime
                         currentCounter);
     }
 
+    boolean shouldAutoClick() {
+        requireOpen();
+        final boolean click =
+                featureCatalog.autoClicker()
+                        .shouldClick(
+                                inputState.pointerPressed(
+                                        Minecraft189ClickRateTracker.LEFT_BUTTON));
+        if (click) {
+            clickRateTracker.recordPress(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON);
+        }
+        return click;
+    }
+
     public void publishTick(
             final long tickIndex) {
         requireOpen();
