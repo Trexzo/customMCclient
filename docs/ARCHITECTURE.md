@@ -593,3 +593,13 @@ The new Visuals module `render.hunger` / **Hunger** renders `Hunger: 17/20 | Sat
 
 Executable regression coverage now models the real inheritance chain `pk -> pr -> wn -> bew`, shape-verifies a synthetic `xg`, publishes live `17 / 6.5` through transformed `runTick()`, and proves null-player clearing. Separate HUD coverage proves rendered text/position, persistence, invalid-value rejection and complete feature teardown.
 
+## Potion-effect mapping authority
+
+M110 pins the minimal Minecraft 1.8.9 surface needed for collection-backed status effects without yet publishing a collection into the parent runtime. `PotionEffect` is exact obfuscated class `pf`. `EntityLivingBase.getActivePotionEffects()` is `pr.bl()Ljava/util/Collection;` / Searge `func_70651_bq`.
+
+The exact `PotionEffect` primitive/string readers are `pf.a()I` / `getPotionID()`, `pf.b()I` / `getDuration()`, `pf.c()I` / `getAmplifier()`, and `pf.g()Ljava/lang/String;` / `getEffectName()`.
+
+The existing `EntityLivingBase` gate now requires the active-effect collection method, and a dedicated `PotionEffect` shape gate requires all four readers. Existing transformed-host fixtures were updated to satisfy the stricter authority without introducing runtime potion behavior.
+
+This milestone is authority-only. A future consumer must reduce the child-side collection into a narrow parent-owned snapshot rather than exposing raw potion collections.
+

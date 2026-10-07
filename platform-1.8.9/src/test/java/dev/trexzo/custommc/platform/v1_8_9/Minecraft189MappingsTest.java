@@ -80,6 +80,10 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.FOOD_STATS,
                 "xg",
                 "net/minecraft/util/FoodStats");
+        assertClass(
+                Minecraft189Mappings.POTION_EFFECT,
+                "pf",
+                "net/minecraft/potion/PotionEffect");
     }
 
     @Test
@@ -303,6 +307,41 @@ final class Minecraft189MappingsTest {
                 "()F",
                 "func_75115_e",
                 "getSaturationLevel");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS,
+                Minecraft189Mappings.ENTITY_LIVING_BASE,
+                "bl",
+                "()Ljava/util/Collection;",
+                "func_70651_bq",
+                "getActivePotionEffects");
+        assertMethod(
+                Minecraft189Mappings.POTION_EFFECT_GET_POTION_ID,
+                Minecraft189Mappings.POTION_EFFECT,
+                "a",
+                "()I",
+                "func_76456_a",
+                "getPotionID");
+        assertMethod(
+                Minecraft189Mappings.POTION_EFFECT_GET_DURATION,
+                Minecraft189Mappings.POTION_EFFECT,
+                "b",
+                "()I",
+                "func_76459_b",
+                "getDuration");
+        assertMethod(
+                Minecraft189Mappings.POTION_EFFECT_GET_AMPLIFIER,
+                Minecraft189Mappings.POTION_EFFECT,
+                "c",
+                "()I",
+                "func_76458_c",
+                "getAmplifier");
+        assertMethod(
+                Minecraft189Mappings.POTION_EFFECT_GET_EFFECT_NAME,
+                Minecraft189Mappings.POTION_EFFECT,
+                "g",
+                "()Ljava/lang/String;",
+                "func_76453_d",
+                "getEffectName");
     }
 
     @Test
@@ -327,6 +366,8 @@ final class Minecraft189MappingsTest {
                 entityPlayerShape());
         Minecraft189ClassShapeVerifier.verifyFoodStats(
                 foodStatsShape());
+        Minecraft189ClassShapeVerifier.verifyPotionEffect(
+                potionEffectShape());
     }
 
     @Test
@@ -672,6 +713,9 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS);
         return finish(writer);
     }
 
@@ -731,6 +775,53 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.FOOD_STATS_GET_SATURATION_LEVEL);
+        return finish(writer);
+    }
+
+    @Test
+    void potionEffectShapeGateRejectsMissingEffectNameMethod() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.POTION_EFFECT
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.POTION_EFFECT_GET_POTION_ID);
+        addMethod(
+                writer,
+                Minecraft189Mappings.POTION_EFFECT_GET_DURATION);
+        addMethod(
+                writer,
+                Minecraft189Mappings.POTION_EFFECT_GET_AMPLIFIER);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyPotionEffect(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: pf.g()Ljava/lang/String; (getEffectName)",
+                failure.getMessage());
+    }
+
+    private static byte[] potionEffectShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.POTION_EFFECT
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.POTION_EFFECT_GET_POTION_ID);
+        addMethod(
+                writer,
+                Minecraft189Mappings.POTION_EFFECT_GET_DURATION);
+        addMethod(
+                writer,
+                Minecraft189Mappings.POTION_EFFECT_GET_AMPLIFIER);
+        addMethod(
+                writer,
+                Minecraft189Mappings.POTION_EFFECT_GET_EFFECT_NAME);
         return finish(writer);
     }
 
