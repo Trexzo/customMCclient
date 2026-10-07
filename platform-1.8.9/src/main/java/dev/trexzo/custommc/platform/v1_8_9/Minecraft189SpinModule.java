@@ -10,6 +10,8 @@ public final class Minecraft189SpinModule
             "combat.spin";
     public static final String YAW_SPEED_SETTING_ID =
             "combat.spin.yawSpeed";
+    public static final String REVERSE_SETTING_ID =
+            "combat.spin.reverse";
     public static final double DEFAULT_YAW_SPEED =
             20.0D;
     public static final double MINIMUM_YAW_SPEED =
@@ -23,6 +25,12 @@ public final class Minecraft189SpinModule
                     DEFAULT_YAW_SPEED,
                     Minecraft189SpinModule::validYawSpeed,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> reverse =
+            new Setting<Boolean>(
+                    REVERSE_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
 
     private boolean enabled;
 
@@ -33,6 +41,10 @@ public final class Minecraft189SpinModule
 
     public Setting<Double> yawSpeedSetting() {
         return yawSpeed;
+    }
+
+    public Setting<Boolean> reverseSetting() {
+        return reverse;
     }
 
     @Override
@@ -57,10 +69,15 @@ public final class Minecraft189SpinModule
 
         final float currentYaw =
                 rotation.yaw();
+        final double direction =
+                reverse.get().booleanValue()
+                        ? -1.0D
+                        : 1.0D;
         final float targetYaw =
                 wrapYaw(
                         (float) (currentYaw
-                                + yawSpeed.get().doubleValue()));
+                                + direction
+                                * yawSpeed.get().doubleValue()));
         if (Float.compare(
                 currentYaw,
                 targetYaw) == 0) {
