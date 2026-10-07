@@ -508,6 +508,14 @@ public final class Minecraft189HostRuntime
                         player);
     }
 
+    void playerFallDistanceControl(
+            final Minecraft189PlayerFallDistanceControl player) {
+        requireOpen();
+        featureCatalog.noFall()
+                .apply(
+                        player);
+    }
+
     void playerHealth(
             final Minecraft189PlayerHealthAccess player) {
         requireOpen();
