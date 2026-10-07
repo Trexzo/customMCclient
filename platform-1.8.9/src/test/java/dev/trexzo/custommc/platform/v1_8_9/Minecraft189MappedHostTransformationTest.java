@@ -4780,6 +4780,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "t", "D");
         field(writer, "u", "D");
         field(writer, "y", "F");
+        field(writer, "z", "F");
         field(writer, "v", "D");
         field(writer, "w", "D");
         field(writer, "x", "D");
