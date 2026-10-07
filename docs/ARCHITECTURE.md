@@ -815,3 +815,13 @@ The existing Minecraft class-shape gate now requires this integer field alongsid
 
 This milestone is authority-only. It does not alter click delay or register Fast Place.
 
+## Fast Place player control
+
+M134 introduces a dedicated **Player** category and the disabled-by-default `player.fastPlace` / **Fast Place** module. Its persisted integer `Delay` setting accepts 0 through 4 ticks and defaults to 0.
+
+No child-loader object crosses the host boundary. Immediately before each normal return from mapped `Minecraft.runTick()`, transformed `ave` reads certified M133 `ave.ap I`, passes that primitive to `Minecraft189RuntimeBridge.rightClickDelay(int)`, and writes the returned primitive directly back to exact `ave.ap`.
+
+While Fast Place is disabled, the delay is returned unchanged. While enabled, the module only lowers a delay that is greater than the configured value; it never increases an already-lower value. Disabling therefore stops intervention without restoring or inventing a timer value.
+
+Transformed-host coverage proves exact `ave.ap` behavior for disabled `4`, default enabled `4 -> 0`, configured `4 -> 2`, lower-delay preservation at `1`, and disable behavior. Focused coverage verifies Player-category lifecycle, setting persistence, and complete teardown.
+
