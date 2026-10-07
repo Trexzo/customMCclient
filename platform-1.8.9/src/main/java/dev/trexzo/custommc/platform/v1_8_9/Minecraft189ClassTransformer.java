@@ -191,6 +191,9 @@ public final class Minecraft189ClassTransformer
                 || Minecraft189Mappings.ENTITY_LIVING_BASE
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
+                || Minecraft189Mappings.ENTITY_PLAYER_SP
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
                 || Minecraft189Mappings.ENTITY_PLAYER
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
@@ -213,6 +216,9 @@ public final class Minecraft189ClassTransformer
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.FOOD_STATS
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.MOVEMENT_INPUT
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.POTION_EFFECT
@@ -289,6 +295,13 @@ public final class Minecraft189ClassTransformer
                     .verifyEntityLivingBase(input);
             return transformEntityLivingBase(input);
         }
+        if (Minecraft189Mappings.ENTITY_PLAYER_SP
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyEntityPlayerSp(input);
+            return transformEntityPlayerSp(input);
+        }
         if (Minecraft189Mappings.ENTITY_PLAYER
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)) {
@@ -343,6 +356,13 @@ public final class Minecraft189ClassTransformer
                 .equals(binaryClassName)) {
             Minecraft189ClassShapeVerifier
                     .verifyFoodStats(input);
+            return input;
+        }
+        if (Minecraft189Mappings.MOVEMENT_INPUT
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyMovementInput(input);
             return input;
         }
         if (Minecraft189Mappings.POTION_EFFECT
@@ -1849,6 +1869,117 @@ public final class Minecraft189ClassTransformer
                 },
                 0);
 
+        return writer.toByteArray();
+    }
+
+    private static byte[] transformEntityPlayerSp(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+        final int[] strafeStores =
+                new int[]{0};
+        final int[] forwardStores =
+                new int[]{0};
+        final boolean[] foundOnLivingUpdate =
+                new boolean[]{false};
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public MethodVisitor visitMethod(
+                            final int access,
+                            final String name,
+                            final String descriptor,
+                            final String signature,
+                            final String[] exceptions) {
+                        final MethodVisitor delegate =
+                                super.visitMethod(
+                                        access,
+                                        name,
+                                        descriptor,
+                                        signature,
+                                        exceptions);
+                        final Minecraft189Mappings.MappedMethod onLivingUpdate =
+                                Minecraft189Mappings
+                                        .ENTITY_PLAYER_SP_ON_LIVING_UPDATE;
+                        if (!onLivingUpdate.obfuscatedName().equals(name)
+                                || !onLivingUpdate.descriptor().equals(
+                                descriptor)) {
+                            return delegate;
+                        }
+                        if (foundOnLivingUpdate[0]) {
+                            throw new IllegalStateException(
+                                    "duplicate mapped EntityPlayerSP onLivingUpdate method");
+                        }
+                        foundOnLivingUpdate[0] = true;
+
+                        return new MethodVisitor(
+                                Opcodes.ASM9,
+                                delegate) {
+                            @Override
+                            public void visitFieldInsn(
+                                    final int opcode,
+                                    final String owner,
+                                    final String fieldName,
+                                    final String fieldDescriptor) {
+                                if (opcode == Opcodes.PUTFIELD
+                                        && Minecraft189Mappings.MOVEMENT_INPUT
+                                        .obfuscatedInternalName()
+                                        .equals(owner)
+                                        && "F".equals(fieldDescriptor)) {
+                                    final Minecraft189Mappings.MappedField strafe =
+                                            Minecraft189Mappings
+                                                    .MOVEMENT_INPUT_MOVE_STRAFE;
+                                    final Minecraft189Mappings.MappedField forward =
+                                            Minecraft189Mappings
+                                                    .MOVEMENT_INPUT_MOVE_FORWARD;
+                                    if (strafe.obfuscatedName().equals(
+                                            fieldName)) {
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "adjustNoSlowMovement",
+                                                "(F)F",
+                                                false);
+                                        strafeStores[0]++;
+                                    } else if (forward.obfuscatedName().equals(
+                                            fieldName)) {
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "adjustNoSlowMovement",
+                                                "(F)F",
+                                                false);
+                                        forwardStores[0]++;
+                                    }
+                                }
+                                super.visitFieldInsn(
+                                        opcode,
+                                        owner,
+                                        fieldName,
+                                        fieldDescriptor);
+                            }
+                        };
+                    }
+                },
+                0);
+
+        if (!foundOnLivingUpdate[0]
+                || strafeStores[0] != 1
+                || forwardStores[0] != 1) {
+            throw new IllegalStateException(
+                    "mapped EntityPlayerSP onLivingUpdate slowdown stores "
+                            + "must be exactly one strafe and one forward, found "
+                            + strafeStores[0]
+                            + "/"
+                            + forwardStores[0]);
+        }
         return writer.toByteArray();
     }
 

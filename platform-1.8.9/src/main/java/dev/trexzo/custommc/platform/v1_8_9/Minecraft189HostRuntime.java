@@ -480,6 +480,14 @@ public final class Minecraft189HostRuntime
                         playerMovementState.snapshot());
     }
 
+    float adjustNoSlowMovement(
+            final float slowedValue) {
+        requireOpen();
+        return featureCatalog.noSlow()
+                .adjustSlowedMovement(
+                        slowedValue);
+    }
+
     void playerJumpControl(
             final Minecraft189PlayerJumpControl player) {
         requireOpen();

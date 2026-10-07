@@ -309,10 +309,14 @@ final class Minecraft189MappedHostTransformationTest {
                         abstractClientPlayerShape()));
         loader.put(
                 "beu",
-                movementInputShape());
+                transformer.transform(
+                        "beu",
+                        movementInputShape()));
         loader.put(
                 "bew",
-                playerShape());
+                transformer.transform(
+                        "bew",
+                        playerShape()));
         loader.put(
                 "bfk",
                 transformer.transform(
@@ -771,6 +775,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189NoSlowModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189FastPlaceModule.ID)
                             != null);
             assertTrue(
@@ -1127,6 +1136,103 @@ final class Minecraft189MappedHostTransformationTest {
                     playerClass.getField("sneaking")
                             .getBoolean(
                                     player));
+
+            final Class<?> movementInputClass =
+                    loader.loadClass("beu");
+            final Object movementInput =
+                    movementInputClass
+                            .getDeclaredConstructor()
+                            .newInstance();
+            playerClass.getField("b")
+                    .set(
+                            player,
+                            movementInput);
+            final Method onLivingUpdate =
+                    playerClass.getMethod("m");
+
+            movementInputClass.getField("a")
+                    .setFloat(
+                            movementInput,
+                            1.0F);
+            movementInputClass.getField("b")
+                    .setFloat(
+                            movementInput,
+                            -0.75F);
+            onLivingUpdate.invoke(player);
+            assertEquals(
+                    0.2F,
+                    movementInputClass.getField("a")
+                            .getFloat(
+                                    movementInput),
+                    0.000001F);
+            assertEquals(
+                    -0.15F,
+                    movementInputClass.getField("b")
+                            .getFloat(
+                                    movementInput),
+                    0.000001F);
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189NoSlowModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .noSlow()
+                            .active());
+
+            movementInputClass.getField("a")
+                    .setFloat(
+                            movementInput,
+                            1.0F);
+            movementInputClass.getField("b")
+                    .setFloat(
+                            movementInput,
+                            -0.75F);
+            onLivingUpdate.invoke(player);
+            assertEquals(
+                    1.0F,
+                    movementInputClass.getField("a")
+                            .getFloat(
+                                    movementInput),
+                    0.000001F);
+            assertEquals(
+                    -0.75F,
+                    movementInputClass.getField("b")
+                            .getFloat(
+                                    movementInput),
+                    0.000001F);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189NoSlowModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .noSlow()
+                            .active());
+
+            movementInputClass.getField("a")
+                    .setFloat(
+                            movementInput,
+                            1.0F);
+            movementInputClass.getField("b")
+                    .setFloat(
+                            movementInput,
+                            -0.75F);
+            onLivingUpdate.invoke(player);
+            assertEquals(
+                    0.2F,
+                    movementInputClass.getField("a")
+                            .getFloat(
+                                    movementInput),
+                    0.000001F);
+            assertEquals(
+                    -0.15F,
+                    movementInputClass.getField("b")
+                            .getFloat(
+                                    movementInput),
+                    0.000001F);
 
             runtime.moduleController()
                     .enable(

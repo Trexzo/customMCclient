@@ -897,3 +897,13 @@ Separate class-shape gates cover `bew` and `beu`, with regressions for each requ
 
 This milestone is authority-only. It does not alter slowdown values or register a movement module.
 
+## No Slow movement control
+
+M143 adds disabled-by-default `movement.noSlow` / **No Slow** under the Movement category, consuming only the M142-certified `EntityPlayerSP.onLivingUpdate` and `MovementInput` authority.
+
+The transformer now handles exact `EntityPlayerSP bew` and `MovementInput beu`. Inside exact `bew.m()V`, it requires exactly one `PUTFIELD beu.a F` and one `PUTFIELD beu.b F` target. Immediately before each certified store, the already-computed float is passed through the runtime bridge. No branch, local-variable rewrite, or child-loader object crosses the boundary.
+
+When disabled, the bridge returns the value unchanged, preserving vanilla item-use slowdown. When enabled, `Minecraft189NoSlowModule` multiplies the already-slowed value by `5.0F`, exactly reversing vanilla's `0.2F` factor while leaving vanilla's own item-use/riding condition and surrounding `onLivingUpdate` flow intact.
+
+Focused coverage verifies disabled/enabled/disabled movement-factor behavior and lifecycle cleanup. Transformed-host coverage executes the synthetic vanilla-style `bew.m()V`: inputs `1.0 / -0.75` become `0.2 / -0.15` when disabled, remain `1.0 / -0.75` when enabled, and return to vanilla slowdown after disable.
+
