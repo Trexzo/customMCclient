@@ -86,6 +86,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189StrafeFeature strafeFeature;
     private final Minecraft189GlideFeature glideFeature;
     private final Minecraft189FastFallFeature fastFallFeature;
+    private final Minecraft189FreezeFeature freezeFeature;
     private final Minecraft189FastPlaceFeature fastPlaceFeature;
     private final Minecraft189FastBreakFeature fastBreakFeature;
     private final Minecraft189SpeedMineFeature speedMineFeature;
@@ -155,6 +156,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189StrafeFeature strafeFeature,
             final Minecraft189GlideFeature glideFeature,
             final Minecraft189FastFallFeature fastFallFeature,
+            final Minecraft189FreezeFeature freezeFeature,
             final Minecraft189FastPlaceFeature fastPlaceFeature,
             final Minecraft189FastBreakFeature fastBreakFeature,
             final Minecraft189SpeedMineFeature speedMineFeature,
@@ -218,6 +220,7 @@ public final class Minecraft189FeatureCatalog
         this.strafeFeature = strafeFeature;
         this.glideFeature = glideFeature;
         this.fastFallFeature = fastFallFeature;
+        this.freezeFeature = freezeFeature;
         this.fastPlaceFeature = fastPlaceFeature;
         this.fastBreakFeature = fastBreakFeature;
         this.speedMineFeature = speedMineFeature;
@@ -334,6 +337,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189StrafeFeature strafeFeature = null;
         Minecraft189GlideFeature glideFeature = null;
         Minecraft189FastFallFeature fastFallFeature = null;
+        Minecraft189FreezeFeature freezeFeature = null;
         Minecraft189FastPlaceFeature fastPlaceFeature = null;
         Minecraft189FastBreakFeature fastBreakFeature = null;
         Minecraft189SpeedMineFeature speedMineFeature = null;
@@ -537,6 +541,12 @@ public final class Minecraft189FeatureCatalog
                             moduleSettings,
                             settings,
                             settingPresentations);
+
+            freezeFeature =
+                    Minecraft189FreezeFeature.install(
+                            modules,
+                            moduleController,
+                            presentations);
 
             fastPlaceFeature =
                     Minecraft189FastPlaceFeature.install(
@@ -902,6 +912,7 @@ public final class Minecraft189FeatureCatalog
                     strafeFeature,
                     glideFeature,
                     fastFallFeature,
+                    freezeFeature,
                     fastPlaceFeature,
                     fastBreakFeature,
                     speedMineFeature,
@@ -917,6 +928,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(speedMineFeature, failure);
             closeQuietly(fastBreakFeature, failure);
             closeQuietly(fastPlaceFeature, failure);
+            closeQuietly(freezeFeature, failure);
             closeQuietly(fastFallFeature, failure);
             closeQuietly(glideFeature, failure);
             closeQuietly(strafeFeature, failure);
@@ -1078,6 +1090,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189FastFallModule fastFall() {
         requireOpen();
         return fastFallFeature.module();
+    }
+
+    public Minecraft189FreezeModule freeze() {
+        requireOpen();
+        return freezeFeature.module();
     }
 
     public Minecraft189FastPlaceModule fastPlace() {
@@ -1371,6 +1388,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             fastPlaceFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            freezeFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,

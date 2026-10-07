@@ -1108,3 +1108,13 @@ While Fast Fall is enabled, the mapped movement snapshot is available, the playe
 `movement.fastFall.fallSpeed` is a persistent DOUBLE setting with default `0.30`, range `0.05..1.00`, and `0.05` UI increments. Motion ownership is explicit: **Flight > Fast Fall > Glide**. Flight suspends Fast Fall, and an enabled Fast Fall suspends Glide, so no pair competes for `motionY`.
 
 Focused coverage proves gentle-descent acceleration, rising preservation, already-fast descent preservation, configured speed, Flight precedence, Fast-Fall-over-Glide precedence, grounded preservation, disable behavior, and setting teardown. Transformed-host coverage proves the same ownership chain against exact mapped `pk.w` state through `Minecraft.runTick()`.
+
+## Freeze movement control
+
+M167 adds **Movement → Freeze** using only the already-certified primitive `Entity.motionX/motionY/motionZ` bridge. No new Minecraft mapping is introduced.
+
+While Freeze is enabled it writes each non-zero mapped motion component to zero and then terminates the shared motion-control pass. Redundant zero writes are avoided. Null players and the disabled state perform no writes.
+
+Freeze has explicit top-priority ownership over the existing movement writers: **Freeze > Flight > Fast Fall > Glide**, while Strafe is also suspended whenever Freeze owns the pass. This prevents competing writes and keeps motion arbitration deterministic.
+
+Focused coverage proves exact X/Y/Z zeroing, redundant-write avoidance, top-priority ownership over Flight/Strafe/Fast Fall/Glide, disable behavior, null safety, and teardown. Transformed-host coverage proves exact mapped `pk.v/pk.w/pk.x` zeroing through `Minecraft.runTick()` and confirms Flight resumes immediately after Freeze is disabled.
