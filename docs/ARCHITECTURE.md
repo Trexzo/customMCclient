@@ -1323,3 +1323,13 @@ No child-loader Entity instance is retained by parent runtime code. Only primiti
 Focused state coverage proves initial unavailable state, atomic yaw/pitch updates, rejection of non-finite values without corrupting the prior snapshot, and clear semantics. Transformed-host coverage proves exact mapped `pk.y` / `pk.z` values reach the parent-owned snapshot during the normal `Minecraft.runTick()` path.
 
 M187 is read-only authority plumbing; feature-level rotation mutation remains a later milestone.
+
+## Rotation control bridge
+
+M188 adds a loader-safe write boundary for the rotation primitives certified by M103/M186/M187.
+
+`Minecraft189PlayerRotationControl` is a parent-owned interface extending the read-only rotation access contract with `customMcSetRotationYaw(float)` and `customMcSetRotationPitch(float)`. The transformed 1.8.9 Entity implements that interface and the generated setters write directly to exact mapped fields `pk.y : F` and `pk.z : F`.
+
+The parent runtime does not retain the child Entity instance, and M188 does not add any automatic rotation behavior. It establishes only a narrow primitive control surface for later modules. Transformed-host coverage casts the real transformed player to the parent interface, writes yaw/pitch through the generated methods, asserts the exact mapped fields changed, then restores the original values before the normal runTick snapshot proof continues.
+
+No new Minecraft mapping is introduced in M188.
