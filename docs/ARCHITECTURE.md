@@ -1128,3 +1128,13 @@ The mapped `runTick()` ordering is the authority boundary: movement state is cap
 Ownership is explicit. Freeze and Flight suspend Long Jump. While Long Jump is enabled it suppresses Auto Jump so the two ground-jump writers cannot compete. On the single boost tick Long Jump owns horizontal motion over Strafe; after that tick Strafe resumes normally. Air Jump remains an independent airborne fresh-press feature.
 
 Focused coverage proves the movement-input requirement, fresh-press semantics, default/configured yaw-relative boost, Long-Jump-over-Strafe ownership, Freeze/Flight suspension, Auto-Jump suppression, disable behavior, and setting teardown. Transformed-host coverage proves the real mapped jump call plus exact `pk.v/pk.x` boost through `Minecraft.runTick()`.
+
+## Bunny Hop movement control
+
+M169 adds **Movement → Bunny Hop** without introducing a new Minecraft mapping. It composes the certified M138 jump delegate, M103 yaw snapshot, M129 on-ground snapshot, and M156/M162 primitive `Entity.motionX/motionZ` bridge.
+
+While Bunny Hop is enabled and at least one W/A/S/D key is held, a grounded mapped movement snapshot triggers one jump. The module stays disarmed while the snapshot remains grounded and re-arms only after an airborne snapshot, preventing repeated jump calls against a stale ground state. Its horizontal writer applies yaw-relative, diagonal-normalized motion using persistent `movement.bunnyHop.speed` (DOUBLE, default `0.38`, range `0.10..1.00`, step `0.05`).
+
+Ownership is deterministic: **Freeze/Flight > Long Jump > Bunny Hop > Auto Jump/Strafe**. Long Jump suspends Bunny Hop entirely while active. Bunny Hop suppresses Auto Jump and owns horizontal motion over Strafe whenever movement input is present. Air Jump remains an independent airborne fresh-press feature.
+
+Focused coverage proves movement-input gating, grounded jump arming, airborne re-arm, configured yaw-relative speed, Bunny-Hop-over-Strafe ownership, Auto-Jump suppression, Long-Jump/Flight suspension, disable behavior, and setting teardown. Transformed-host coverage proves repeated mapped jump cycles plus exact `pk.v/pk.x` horizontal motion through `Minecraft.runTick()`.
