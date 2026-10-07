@@ -561,6 +561,16 @@ public final class Minecraft189HostRuntime
     void playerMotionControl(
             final Minecraft189PlayerMotionControl player) {
         requireOpen();
+        final boolean freezeActive =
+                featureCatalog.freeze()
+                        .active();
+        featureCatalog.freeze()
+                .apply(
+                        player);
+        if (freezeActive) {
+            return;
+        }
+
         final Minecraft189PlayerRotationState.Snapshot rotation =
                 playerRotationState.snapshot();
         final Minecraft189PlayerMovementState.Snapshot movement =
