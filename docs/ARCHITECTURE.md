@@ -1242,3 +1242,11 @@ M180 extends **Movement → No Slow** without introducing a new Minecraft mappin
 Intermediate values scale the already-slowed movement deterministically: for example 60% turns a vanilla 0.20 input into 0.60, and -0.15 into -0.45. Disabled behavior remains a pass-through.
 
 The setting uses the normal registry, presentation, module-binding, and teardown lifecycle. Focused coverage proves the unchanged 100% default, 60% partial restoration, disabled pass-through, and teardown. Transformed-host coverage proves the same values through the exact mapped item-use `onLivingUpdate` movement-input path.
+
+## Configurable No Fall threshold
+
+M181 extends **Movement → No Fall** without introducing a new Minecraft mapping. The existing certified `Entity.fallDistance` primitive bridge remains authoritative.
+
+`movement.noFall.threshold` is a persistent DOUBLE setting with default `0.0`, range `0.0..10.0`, and step `0.5`. The default preserves the previous behavior exactly: any meaningful non-zero fall distance is cleared. With a higher threshold, values at or below that threshold are preserved and only larger absolute fall-distance values are reset to zero.
+
+The setting uses the normal registry, presentation, module-binding, and teardown lifecycle. Focused coverage proves the unchanged zero-threshold default, a configured `3.0` threshold, preservation at and below the threshold, clearing above it, disabled behavior, null safety, and teardown. Transformed-host coverage proves the same behavior against exact mapped `pk.O` through `Minecraft.runTick()`.
