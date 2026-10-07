@@ -136,6 +136,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerFallDistanceControl(
+            final Minecraft189PlayerFallDistanceControl player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerFallDistanceControl(player);
+        }
+    }
+
     public static synchronized void playerHealth(
             final Minecraft189PlayerHealthAccess player) {
         final Minecraft189HostRuntime host =
