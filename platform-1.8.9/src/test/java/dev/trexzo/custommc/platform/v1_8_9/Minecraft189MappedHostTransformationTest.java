@@ -1276,6 +1276,27 @@ final class Minecraft189MappedHostTransformationTest {
                 2);
         getEquipmentInSlot.visitEnd();
 
+        final MethodVisitor getActivePotionEffects =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "bl",
+                        "()Ljava/util/Collection;",
+                        null,
+                        null);
+        getActivePotionEffects.visitCode();
+        getActivePotionEffects.visitMethodInsn(
+                Opcodes.INVOKESTATIC,
+                "java/util/Collections",
+                "emptyList",
+                "()Ljava/util/List;",
+                false);
+        getActivePotionEffects.visitInsn(
+                Opcodes.ARETURN);
+        getActivePotionEffects.visitMaxs(
+                1,
+                1);
+        getActivePotionEffects.visitEnd();
+
         writer.visitEnd();
         return writer.toByteArray();
     }
