@@ -135,6 +135,27 @@ public final class Minecraft189Mappings {
                     "F",
                     "field_70177_z",
                     "rotationYaw");
+    public static final MappedField ENTITY_PLAYER_EXPERIENCE_LEVEL =
+            new MappedField(
+                    ENTITY_PLAYER,
+                    "bB",
+                    "I",
+                    "field_71068_ca",
+                    "experienceLevel");
+    public static final MappedField ENTITY_PLAYER_EXPERIENCE_TOTAL =
+            new MappedField(
+                    ENTITY_PLAYER,
+                    "bC",
+                    "I",
+                    "field_71067_cb",
+                    "experienceTotal");
+    public static final MappedField ENTITY_PLAYER_EXPERIENCE_PROGRESS =
+            new MappedField(
+                    ENTITY_PLAYER,
+                    "bD",
+                    "F",
+                    "field_71106_cc",
+                    "experience");
 
     public static final MappedField GAME_SETTINGS_VIEW_BOBBING =
             new MappedField(
@@ -277,6 +298,13 @@ public final class Minecraft189Mappings {
                     "()Lxg;",
                     "func_71024_bL",
                     "getFoodStats");
+    public static final MappedMethod ENTITY_PLAYER_XP_BAR_CAP =
+            new MappedMethod(
+                    ENTITY_PLAYER,
+                    "ck",
+                    "()I",
+                    "func_71050_bK",
+                    "xpBarCap");
     public static final MappedMethod FOOD_STATS_GET_FOOD_LEVEL =
             new MappedMethod(
                     FOOD_STATS,
