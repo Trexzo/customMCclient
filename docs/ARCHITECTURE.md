@@ -1148,3 +1148,13 @@ A fresh Space press while the mapped movement snapshot is grounded invokes the r
 Jump ownership is deterministic: **Freeze/Flight > Long Jump > High Jump > Bunny Hop > Auto Jump**. High Jump suppresses Bunny Hop and Auto Jump while enabled, but does not own horizontal motion, so Strafe may still operate alongside it. Air Jump remains an independent airborne fresh-press feature.
 
 Focused coverage proves fresh-press semantics, default/configured vertical boost, Auto-Jump suppression and release, Strafe coexistence, Long-Jump precedence, Flight suspension, disable behavior, and setting teardown. Transformed-host coverage proves the real mapped jump delegate plus exact `pk.w` vertical boost through `Minecraft.runTick()`.
+
+## Movement Speed control
+
+M171 adds the classic **Movement → Speed** cheat as `movement.speed` while preserving the existing **Visuals → Speed** HUD at `render.speed`. The distinct IDs and Java types allow both modules to coexist without registry collision.
+
+Movement Speed introduces no new Minecraft mapping. It reuses the certified M129 on-ground snapshot, M103 yaw snapshot, and M156/M162 primitive `Entity.motionX/motionZ` bridge. While enabled, grounded, supplied with a live yaw snapshot, and receiving W/A/S/D input, it writes configurable yaw-relative horizontal motion. Diagonal input is normalized. Airborne, unavailable-state, no-input, null-player, disabled, and suspended states perform no write.
+
+`movement.speed.speed` is a persistent DOUBLE setting with default `0.45`, range `0.10..1.00`, and `0.05` UI increments. Horizontal ownership is deterministic: **Freeze/Flight > Long Jump boost > Bunny Hop > Speed > Strafe**. High Jump remains vertical-only and may coexist with Speed.
+
+Focused coverage proves the `render.speed` / `movement.speed` ID separation, unavailable/airborne preservation, yaw-relative and diagonal motion, configured speed, Speed-over-Strafe ownership, Flight precedence, no-input behavior, disable behavior, and setting teardown. Transformed-host coverage proves exact grounded `pk.v/pk.x` writes and airborne preservation through `Minecraft.runTick()`.
