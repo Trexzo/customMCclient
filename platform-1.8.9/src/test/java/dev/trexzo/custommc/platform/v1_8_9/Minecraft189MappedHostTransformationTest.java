@@ -1887,7 +1887,57 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "u", "D");
         field(writer, "y", "F");
         field(writer, "am", "I");
+        field(writer, "C", "Z");
+        field(writer, "sneaking", "Z");
+        field(writer, "sprinting", "Z");
         endDefaultConstructor(writer, "pk");
+
+        final MethodVisitor isSneaking =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "av",
+                        "()Z",
+                        null,
+                        null);
+        isSneaking.visitCode();
+        isSneaking.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        isSneaking.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pk",
+                "sneaking",
+                "Z");
+        isSneaking.visitInsn(
+                Opcodes.IRETURN);
+        isSneaking.visitMaxs(
+                1,
+                1);
+        isSneaking.visitEnd();
+
+        final MethodVisitor isSprinting =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "aw",
+                        "()Z",
+                        null,
+                        null);
+        isSprinting.visitCode();
+        isSprinting.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        isSprinting.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pk",
+                "sprinting",
+                "Z");
+        isSprinting.visitInsn(
+                Opcodes.IRETURN);
+        isSprinting.visitMaxs(
+                1,
+                1);
+        isSprinting.visitEnd();
+
         writer.visitEnd();
         return writer.toByteArray();
     }

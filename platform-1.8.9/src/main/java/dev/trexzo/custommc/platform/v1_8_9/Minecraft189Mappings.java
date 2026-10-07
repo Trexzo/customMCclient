@@ -194,6 +194,13 @@ public final class Minecraft189Mappings {
                     "I",
                     "field_71093_bK",
                     "dimension");
+    public static final MappedField ENTITY_ON_GROUND =
+            new MappedField(
+                    ENTITY,
+                    "C",
+                    "Z",
+                    "field_70122_E",
+                    "onGround");
     public static final MappedField ENTITY_PLAYER_INVENTORY =
             new MappedField(
                     ENTITY_PLAYER,
@@ -266,6 +273,21 @@ public final class Minecraft189Mappings {
                     "Z",
                     "field_151455_aw",
                     "forceUnicodeFont");
+
+    public static final MappedMethod ENTITY_IS_SNEAKING =
+            new MappedMethod(
+                    ENTITY,
+                    "av",
+                    "()Z",
+                    "func_70093_af",
+                    "isSneaking");
+    public static final MappedMethod ENTITY_IS_SPRINTING =
+            new MappedMethod(
+                    ENTITY,
+                    "aw",
+                    "()Z",
+                    "func_70051_ag",
+                    "isSprinting");
 
     public static final MappedMethod WORLD_GET_WORLD_TIME =
             new MappedMethod(

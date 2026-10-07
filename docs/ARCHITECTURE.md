@@ -771,3 +771,11 @@ The new Visuals module `render.weather` / **Weather** owns persistent X/Y settin
 
 Executable transformed-host coverage sets exact synthetic `adm` rain/thunder values behind inherited `bdb`, publishes them through transformed `runTick()`, verifies the parent-owned weather snapshot, and verifies null-world clearing independently. Focused HUD coverage verifies Clear/Rain/Thunder rendering, thunder precedence, persisted coordinates, disable behavior, and complete feature teardown.
 
+## Movement-state mapping authority
+
+M129 pins the minimal Minecraft 1.8.9 movement-status members on exact base `Entity pk`: `pk.av()Z` / Searge `func_70093_af` / MCP `isSneaking`, `pk.aw()Z` / Searge `func_70051_ag` / MCP `isSprinting`, and exact boolean field `pk.C Z` / Searge `field_70122_E` / MCP `onGround`.
+
+The existing Entity class-shape gate now requires these three movement signals alongside position, yaw and dimension. Mapping regressions separately reject missing on-ground, sneaking and sprinting authority, and the transformed-host synthetic `pk` fixture exposes the exact field/method shapes so stricter verification remains executable.
+
+This milestone is authority-only. It does not publish movement status, retain a player object, or register a HUD.
+

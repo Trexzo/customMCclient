@@ -211,6 +211,13 @@ final class Minecraft189MappingsTest {
                 "field_71093_bK",
                 "dimension");
         assertField(
+                Minecraft189Mappings.ENTITY_ON_GROUND,
+                Minecraft189Mappings.ENTITY,
+                "C",
+                "Z",
+                "field_70122_E",
+                "onGround");
+        assertField(
                 Minecraft189Mappings.ENTITY_PLAYER_INVENTORY,
                 Minecraft189Mappings.ENTITY_PLAYER,
                 "bi",
@@ -282,6 +289,20 @@ final class Minecraft189MappingsTest {
                 "field_151455_aw",
                 "forceUnicodeFont");
 
+        assertMethod(
+                Minecraft189Mappings.ENTITY_IS_SNEAKING,
+                Minecraft189Mappings.ENTITY,
+                "av",
+                "()Z",
+                "func_70093_af",
+                "isSneaking");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_IS_SPRINTING,
+                Minecraft189Mappings.ENTITY,
+                "aw",
+                "()Z",
+                "func_70051_ag",
+                "isSprinting");
         assertMethod(
                 Minecraft189Mappings.WORLD_GET_WORLD_TIME,
                 Minecraft189Mappings.WORLD,
@@ -878,6 +899,15 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_DIMENSION);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ON_GROUND);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SNEAKING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SPRINTING);
 
         final IllegalStateException failure =
                 assertThrows(
@@ -908,6 +938,15 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ON_GROUND);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SNEAKING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SPRINTING);
 
         final IllegalStateException failure =
                 assertThrows(
@@ -917,6 +956,69 @@ final class Minecraft189MappingsTest {
                                         finish(writer)));
         assertEquals(
                 "Minecraft 1.8.9 mapping field missing: pk.am I (dimension)",
+                failure.getMessage());
+    }
+
+    @Test
+    void entityShapeGateRejectsMissingOnGroundField() {
+        final ClassWriter writer = entityShapeWriterWithoutMovement();
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SNEAKING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SPRINTING);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntity(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: pk.C Z (onGround)",
+                failure.getMessage());
+    }
+
+    @Test
+    void entityShapeGateRejectsMissingSneakingMethod() {
+        final ClassWriter writer = entityShapeWriterWithoutMovement();
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ON_GROUND);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SPRINTING);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntity(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: pk.av()Z (isSneaking)",
+                failure.getMessage());
+    }
+
+    @Test
+    void entityShapeGateRejectsMissingSprintingMethod() {
+        final ClassWriter writer = entityShapeWriterWithoutMovement();
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ON_GROUND);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SNEAKING);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntity(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: pk.aw()Z (isSprinting)",
                 failure.getMessage());
     }
 
@@ -1072,7 +1174,39 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_DIMENSION);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ON_GROUND);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SNEAKING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SPRINTING);
         return finish(writer);
+    }
+
+    private static ClassWriter entityShapeWriterWithoutMovement() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_X);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Y);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Z);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_DIMENSION);
+        return writer;
     }
 
     private static byte[] entityLivingBaseShape() {
