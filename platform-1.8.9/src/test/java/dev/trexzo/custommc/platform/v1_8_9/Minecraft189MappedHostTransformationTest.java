@@ -1640,6 +1640,14 @@ final class Minecraft189MappedHostTransformationTest {
                 writer,
                 "worldTime",
                 "J");
+        field(
+                writer,
+                "raining",
+                "Z");
+        field(
+                writer,
+                "thundering",
+                "Z");
         endDefaultConstructor(
                 writer,
                 "adm");
@@ -1666,6 +1674,52 @@ final class Minecraft189MappedHostTransformationTest {
                 2,
                 1);
         getWorldTime.visitEnd();
+
+        final MethodVisitor isRaining =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "S",
+                        "()Z",
+                        null,
+                        null);
+        isRaining.visitCode();
+        isRaining.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        isRaining.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "adm",
+                "raining",
+                "Z");
+        isRaining.visitInsn(
+                Opcodes.IRETURN);
+        isRaining.visitMaxs(
+                1,
+                1);
+        isRaining.visitEnd();
+
+        final MethodVisitor isThundering =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "R",
+                        "()Z",
+                        null,
+                        null);
+        isThundering.visitCode();
+        isThundering.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        isThundering.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "adm",
+                "thundering",
+                "Z");
+        isThundering.visitInsn(
+                Opcodes.IRETURN);
+        isThundering.visitMaxs(
+                1,
+                1);
+        isThundering.visitEnd();
 
         writer.visitEnd();
         return writer.toByteArray();
