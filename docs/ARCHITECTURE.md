@@ -1224,3 +1224,11 @@ M178 extends **Player → Fast Break** without introducing a new Minecraft mappi
 `player.fastBreak.delay` is now a persistent INTEGER setting with default `0`, range `0..5`, and step `1`. The default therefore preserves the previous Fast Break behavior exactly: every enabled control pass writes zero delay. Nonzero configured values let the same module retain a small local hit delay instead of forcing full removal.
 
 The setting is registered through the normal setting, presentation, and module-binding lifecycle and is removed on feature teardown. Focused coverage proves the default zero behavior, a live configured delay of two ticks, disabled preservation, null safety, and setting teardown. Transformed-host coverage proves the configured value reaches the exact mapped player-controller delay field through `Minecraft.runTick()`.
+
+## Configurable No Hit Delay
+
+M179 extends **Combat → No Hit Delay** without introducing a new Minecraft mapping. The existing certified Minecraft left-click counter remains authoritative.
+
+`combat.noHitDelay.delay` is now a persistent INTEGER setting with default `0`, range `0..10`, and step `1`. The default preserves the previous No Hit Delay behavior exactly: positive counters are clamped to zero. A nonzero configured value clamps only counters above that threshold, while equal, lower, zero, and negative counters are preserved.
+
+The setting uses the normal registry, presentation, module-binding, and teardown lifecycle. Focused coverage proves the unchanged zero-delay default, a configured three-tick cap, preservation below the cap, disabled behavior, and teardown. Transformed-host coverage proves the same behavior against the exact mapped Minecraft left-click counter through `runTick()`.
