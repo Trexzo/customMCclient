@@ -14,6 +14,7 @@ import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.ui.UiFontHandle;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.platform.PlatformContext;
+import dev.trexzo.custommc.platform.v1_8_9.input.LegacyKeyboardCodes;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import org.junit.jupiter.api.Test;
 
@@ -71,6 +72,15 @@ final class Minecraft189AutoJumpModuleTest {
                     ModuleState.DISABLED,
                     controller.stateOf(
                             Minecraft189AutoJumpModule.ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189AutoJumpModule.REQUIRE_FORWARD_SETTING_ID));
+            assertFalse(
+                    runtime.featureCatalog()
+                            .autoJump()
+                            .requireForwardSetting()
+                            .get()
+                            .booleanValue());
 
             final TestPlayer player =
                     new TestPlayer();
@@ -124,6 +134,52 @@ final class Minecraft189AutoJumpModuleTest {
                     2,
                     player.jumpCalls);
 
+            runtime.featureCatalog()
+                    .autoJump()
+                    .requireForwardSetting()
+                    .set(
+                            Boolean.TRUE);
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+            player.onGround = false;
+            runtime.playerMovementState(
+                    player);
+            runtime.playerJumpControl(
+                    player);
+            player.onGround = true;
+            runtime.playerMovementState(
+                    player);
+            runtime.playerJumpControl(
+                    player);
+            assertEquals(
+                    2,
+                    player.jumpCalls);
+
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runtime.playerMovementState(
+                    player);
+            runtime.playerJumpControl(
+                    player);
+            assertEquals(
+                    3,
+                    player.jumpCalls);
+            runtime.playerMovementState(
+                    player);
+            runtime.playerJumpControl(
+                    player);
+            assertEquals(
+                    3,
+                    player.jumpCalls);
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+
             controller.disable(
                     Minecraft189AutoJumpModule.ID);
             assertFalse(
@@ -142,7 +198,7 @@ final class Minecraft189AutoJumpModuleTest {
             runtime.playerJumpControl(
                     player);
             assertEquals(
-                    2,
+                    3,
                     player.jumpCalls);
         } finally {
             runtime.close();
@@ -151,6 +207,9 @@ final class Minecraft189AutoJumpModuleTest {
         assertNull(
                 modules.find(
                         Minecraft189AutoJumpModule.ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AutoJumpModule.REQUIRE_FORWARD_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
