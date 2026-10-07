@@ -61,6 +61,14 @@ final class Minecraft189MappingsTest {
                 "bew",
                 "net/minecraft/client/entity/EntityPlayerSP");
         assertClass(
+                Minecraft189Mappings.ABSTRACT_CLIENT_PLAYER,
+                "bet",
+                "net/minecraft/client/entity/AbstractClientPlayer");
+        assertClass(
+                Minecraft189Mappings.NETWORK_PLAYER_INFO,
+                "bdc",
+                "net/minecraft/client/network/NetworkPlayerInfo");
+        assertClass(
                 Minecraft189Mappings.ENTITY_PLAYER,
                 "wn",
                 "net/minecraft/entity/player/EntityPlayer");
@@ -322,6 +330,20 @@ final class Minecraft189MappingsTest {
                 "func_71050_bK",
                 "xpBarCap");
         assertMethod(
+                Minecraft189Mappings.ABSTRACT_CLIENT_PLAYER_GET_PLAYER_INFO,
+                Minecraft189Mappings.ABSTRACT_CLIENT_PLAYER,
+                "b",
+                "()Lbdc;",
+                "func_175155_b",
+                "getPlayerInfo");
+        assertMethod(
+                Minecraft189Mappings.NETWORK_PLAYER_INFO_GET_RESPONSE_TIME,
+                Minecraft189Mappings.NETWORK_PLAYER_INFO,
+                "c",
+                "()I",
+                "func_178853_c",
+                "getResponseTime");
+        assertMethod(
                 Minecraft189Mappings.FOOD_STATS_GET_FOOD_LEVEL,
                 Minecraft189Mappings.FOOD_STATS,
                 "a",
@@ -392,6 +414,10 @@ final class Minecraft189MappingsTest {
                 entityLivingBaseShape());
         Minecraft189ClassShapeVerifier.verifyEntityPlayer(
                 entityPlayerShape());
+        Minecraft189ClassShapeVerifier.verifyAbstractClientPlayer(
+                abstractClientPlayerShape());
+        Minecraft189ClassShapeVerifier.verifyNetworkPlayerInfo(
+                networkPlayerInfoShape());
         Minecraft189ClassShapeVerifier.verifyFoodStats(
                 foodStatsShape());
         Minecraft189ClassShapeVerifier.verifyPotionEffect(
@@ -799,6 +825,54 @@ final class Minecraft189MappingsTest {
         assertEquals(
                 "Minecraft 1.8.9 mapping method missing: wn.ck()I (xpBarCap)",
                 failure.getMessage());
+    }
+
+    @Test
+    void abstractClientPlayerShapeGateRejectsMissingPlayerInfoMethod() {
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyAbstractClientPlayer(
+                                        emptyClass("bet")));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: bet.b()Lbdc; (getPlayerInfo)",
+                failure.getMessage());
+    }
+
+    @Test
+    void networkPlayerInfoShapeGateRejectsMissingResponseTimeMethod() {
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyNetworkPlayerInfo(
+                                        emptyClass("bdc")));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: bdc.c()I (getResponseTime)",
+                failure.getMessage());
+    }
+
+    private static byte[] abstractClientPlayerShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ABSTRACT_CLIENT_PLAYER
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.ABSTRACT_CLIENT_PLAYER_GET_PLAYER_INFO);
+        return finish(writer);
+    }
+
+    private static byte[] networkPlayerInfoShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.NETWORK_PLAYER_INFO
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.NETWORK_PLAYER_INFO_GET_RESPONSE_TIME);
+        return finish(writer);
     }
 
     @Test
