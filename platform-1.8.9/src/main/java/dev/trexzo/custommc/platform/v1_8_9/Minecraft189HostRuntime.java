@@ -516,10 +516,25 @@ public final class Minecraft189HostRuntime
         }
         final Minecraft189PlayerMovementState.Snapshot movement =
                 playerMovementState.snapshot();
-        featureCatalog.autoJump()
-                .apply(
+        final boolean longJumpActive =
+                featureCatalog.longJump()
+                        .active();
+        final boolean longJumpSuspended =
+                featureCatalog.freeze()
+                        .active()
+                        || featureCatalog.flight()
+                                .active();
+        featureCatalog.longJump()
+                .applyJump(
                         player,
-                        movement);
+                        movement,
+                        longJumpSuspended);
+        if (!longJumpActive) {
+            featureCatalog.autoJump()
+                    .apply(
+                            player,
+                            movement);
+        }
         featureCatalog.airJump()
                 .apply(
                         player,
@@ -581,6 +596,12 @@ public final class Minecraft189HostRuntime
         final boolean fastFallActive =
                 featureCatalog.fastFall()
                         .active();
+        final boolean longJumpOwnsHorizontal =
+                featureCatalog.longJump()
+                        .applyMotion(
+                                player,
+                                rotation,
+                                flightActive);
         featureCatalog.flight()
                 .apply(
                         player,
@@ -589,7 +610,8 @@ public final class Minecraft189HostRuntime
                 .apply(
                         player,
                         rotation,
-                        flightActive);
+                        flightActive
+                                || longJumpOwnsHorizontal);
         featureCatalog.fastFall()
                 .apply(
                         player,
