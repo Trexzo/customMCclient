@@ -668,7 +668,10 @@ public final class Minecraft189FeatureCatalog
                     Minecraft189FastBreakFeature.install(
                             modules,
                             moduleController,
-                            presentations);
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             speedMineFeature =
                     Minecraft189SpeedMineFeature.install(
