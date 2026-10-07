@@ -1409,6 +1409,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_STEP_HEIGHT);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_FALL_DISTANCE);
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_IS_SNEAKING);
