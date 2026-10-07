@@ -925,3 +925,11 @@ While Fast Break is enabled, the host sets the current controller's block-hit de
 
 Focused coverage verifies disabled/enabled/disabled behavior, null-controller tolerance, Player-category lifecycle and teardown. Transformed-host coverage proves exact `ave.c -> bda.g` execution against the mapped synthetic controller.
 
+## Speed Mine mapping authority
+
+M146 extends the certified Minecraft 1.8.9 PlayerControllerMP surface for mining-progress control: `PlayerControllerMP.curBlockDamageMP = bda.e F` / Searge `field_78770_f` and `PlayerControllerMP.isHittingBlock = bda.h Z` / Searge `field_78778_j`. Existing Fast Break authority `bda.g I` remains required.
+
+The dedicated PlayerControllerMP class-shape gate now requires all three exact primitive fields. Regression coverage independently rejects drift in `blockHitDelay`, `curBlockDamageMP`, and `isHittingBlock`, while transformed-host fixture parity now carries concrete `g/e/h` fields.
+
+This milestone is authority-only. It does not modify mining progress or register a Speed Mine module.
+
