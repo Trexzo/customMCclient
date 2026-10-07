@@ -62,6 +62,7 @@ final class Minecraft189MappedHostTransformationTest {
         assertTrue(transformer.handles("pr"));
         assertTrue(transformer.handles("wn"));
         assertTrue(transformer.handles("xg"));
+        assertTrue(transformer.handles("pf"));
 
         assertFalse(
                 transformer.handles(
@@ -252,6 +253,11 @@ final class Minecraft189MappedHostTransformationTest {
         loader.put(
                 "zx",
                 emptyClass("zx"));
+        loader.put(
+                "pf",
+                transformer.transform(
+                        "pf",
+                        potionEffectShape()));
         loader.put(
                 "pr",
                 transformer.transform(
@@ -449,6 +455,55 @@ final class Minecraft189MappedHostTransformationTest {
                     .set(
                             player,
                             foodStats);
+
+            final Class<?> potionEffectClass =
+                    loader.loadClass("pf");
+            final Object speedEffect =
+                    potionEffectClass.getDeclaredConstructor()
+                            .newInstance();
+            potionEffectClass.getField("potionId")
+                    .setInt(
+                            speedEffect,
+                            1);
+            potionEffectClass.getField("duration")
+                    .setInt(
+                            speedEffect,
+                            1800);
+            potionEffectClass.getField("amplifier")
+                    .setInt(
+                            speedEffect,
+                            1);
+            potionEffectClass.getField("effectName")
+                    .set(
+                            speedEffect,
+                            "potion.moveSpeed");
+
+            final Object regenerationEffect =
+                    potionEffectClass.getDeclaredConstructor()
+                            .newInstance();
+            potionEffectClass.getField("potionId")
+                    .setInt(
+                            regenerationEffect,
+                            10);
+            potionEffectClass.getField("duration")
+                    .setInt(
+                            regenerationEffect,
+                            400);
+            potionEffectClass.getField("amplifier")
+                    .setInt(
+                            regenerationEffect,
+                            0);
+            potionEffectClass.getField("effectName")
+                    .set(
+                            regenerationEffect,
+                            "potion.regeneration");
+
+            playerClass.getField("activePotionEffects")
+                    .set(
+                            player,
+                            java.util.Arrays.asList(
+                                    speedEffect,
+                                    regenerationEffect));
 
             minecraftClass.getField("h")
                     .set(
@@ -679,6 +734,42 @@ final class Minecraft189MappedHostTransformationTest {
                     6.5F,
                     hunger.saturationLevel());
 
+            final Minecraft189PlayerPotionEffectsState.StateSnapshot potionEffects =
+                    runtime.requireHostRuntime()
+                            .playerPotionEffectsState()
+                            .snapshot();
+            assertTrue(
+                    potionEffects.available());
+            assertEquals(
+                    2,
+                    potionEffects.effects()
+                            .size());
+            assertEquals(
+                    "potion.moveSpeed",
+                    potionEffects.effects()
+                            .get(0)
+                            .effectName());
+            assertEquals(
+                    1,
+                    potionEffects.effects()
+                            .get(0)
+                            .potionId());
+            assertEquals(
+                    1800,
+                    potionEffects.effects()
+                            .get(0)
+                            .durationTicks());
+            assertEquals(
+                    1,
+                    potionEffects.effects()
+                            .get(0)
+                            .amplifier());
+            assertEquals(
+                    "potion.regeneration",
+                    potionEffects.effects()
+                            .get(1)
+                            .effectName());
+
             minecraftClass.getField("h")
                     .set(
                             minecraft,
@@ -712,6 +803,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .playerHungerState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .playerPotionEffectsState()
                             .snapshot()
                             .available());
 
@@ -1177,6 +1273,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "health", "F");
         field(writer, "maxHealth", "F");
         field(writer, "equipmentSlots", "[Lzx;");
+        field(writer, "activePotionEffects", "Ljava/util/Collection;");
 
         final MethodVisitor constructor =
                 writer.visitMethod(
@@ -1284,18 +1381,127 @@ final class Minecraft189MappedHostTransformationTest {
                         null,
                         null);
         getActivePotionEffects.visitCode();
-        getActivePotionEffects.visitMethodInsn(
-                Opcodes.INVOKESTATIC,
-                "java/util/Collections",
-                "emptyList",
-                "()Ljava/util/List;",
-                false);
+        getActivePotionEffects.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getActivePotionEffects.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pr",
+                "activePotionEffects",
+                "Ljava/util/Collection;");
         getActivePotionEffects.visitInsn(
                 Opcodes.ARETURN);
         getActivePotionEffects.visitMaxs(
                 1,
                 1);
         getActivePotionEffects.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] potionEffectShape() {
+        final ClassWriter writer =
+                classWriter("pf");
+        field(writer, "potionId", "I");
+        field(writer, "duration", "I");
+        field(writer, "amplifier", "I");
+        field(writer, "effectName", "Ljava/lang/String;");
+        endDefaultConstructor(
+                writer,
+                "pf");
+
+        final MethodVisitor getPotionId =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "a",
+                        "()I",
+                        null,
+                        null);
+        getPotionId.visitCode();
+        getPotionId.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getPotionId.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pf",
+                "potionId",
+                "I");
+        getPotionId.visitInsn(
+                Opcodes.IRETURN);
+        getPotionId.visitMaxs(
+                1,
+                1);
+        getPotionId.visitEnd();
+
+        final MethodVisitor getDuration =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "b",
+                        "()I",
+                        null,
+                        null);
+        getDuration.visitCode();
+        getDuration.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getDuration.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pf",
+                "duration",
+                "I");
+        getDuration.visitInsn(
+                Opcodes.IRETURN);
+        getDuration.visitMaxs(
+                1,
+                1);
+        getDuration.visitEnd();
+
+        final MethodVisitor getAmplifier =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "c",
+                        "()I",
+                        null,
+                        null);
+        getAmplifier.visitCode();
+        getAmplifier.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getAmplifier.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pf",
+                "amplifier",
+                "I");
+        getAmplifier.visitInsn(
+                Opcodes.IRETURN);
+        getAmplifier.visitMaxs(
+                1,
+                1);
+        getAmplifier.visitEnd();
+
+        final MethodVisitor getEffectName =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "g",
+                        "()Ljava/lang/String;",
+                        null,
+                        null);
+        getEffectName.visitCode();
+        getEffectName.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getEffectName.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "pf",
+                "effectName",
+                "Ljava/lang/String;");
+        getEffectName.visitInsn(
+                Opcodes.ARETURN);
+        getEffectName.visitMaxs(
+                1,
+                1);
+        getEffectName.visitEnd();
 
         writer.visitEnd();
         return writer.toByteArray();
