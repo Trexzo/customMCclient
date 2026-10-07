@@ -1674,6 +1674,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_ON_GROUND);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_STEP_HEIGHT);
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_IS_SNEAKING);
