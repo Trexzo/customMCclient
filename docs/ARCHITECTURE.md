@@ -991,3 +991,11 @@ M153 consumes certified M152 `Entity.fallDistance = pk.O F / field_70143_R` thro
 
 Focused coverage verifies disabled preservation, enabled zeroing, no redundant write while already zero, subsequent zeroing, disable behavior, null safety and teardown. Transformed-host coverage proves the inherited `bew -> ... -> pk` control path reads and writes exact synthetic `pk.O`, including disabled preservation, enabled clearing, and no post-disable rewrite.
 
+## Web-state mapping authority
+
+M154 pins exact Minecraft 1.8.9 Entity web-state authority: `Entity.isInWeb = pk.H Z` / Searge `field_70134_J`.
+
+The existing Entity class-shape gate now requires this exact boolean alongside position, movement-state, step-height and fall-distance authority. Mapping regression rejects a missing web-state field explicitly, and transformed-host fixture parity now carries concrete synthetic `pk.H Z` state for the consumer milestone.
+
+This milestone is authority-only. It does not clear web state or register a No Web module.
+
