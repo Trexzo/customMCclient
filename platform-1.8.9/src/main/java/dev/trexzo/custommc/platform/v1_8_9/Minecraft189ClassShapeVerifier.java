@@ -150,7 +150,8 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_DIMENSION,
                         Minecraft189Mappings.ENTITY_ON_GROUND,
                         Minecraft189Mappings.ENTITY_STEP_HEIGHT,
-                        Minecraft189Mappings.ENTITY_FALL_DISTANCE
+                        Minecraft189Mappings.ENTITY_FALL_DISTANCE,
+                        Minecraft189Mappings.ENTITY_IS_IN_WEB
                 },
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.ENTITY_IS_SNEAKING,
