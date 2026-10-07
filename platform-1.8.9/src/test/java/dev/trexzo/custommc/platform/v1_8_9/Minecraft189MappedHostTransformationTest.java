@@ -1310,6 +1310,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "o", "Lbfk;");
         field(writer, "q", "Lavo;");
         field(writer, "t", "Lavh;");
+        field(writer, "Q", "Lbde;");
         endDefaultConstructor(writer, "ave");
 
         final MethodVisitor getMinecraft =
