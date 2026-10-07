@@ -47,6 +47,14 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "bew",
                     "net/minecraft/client/entity/EntityPlayerSP");
+    public static final MappedClass ABSTRACT_CLIENT_PLAYER =
+            new MappedClass(
+                    "bet",
+                    "net/minecraft/client/entity/AbstractClientPlayer");
+    public static final MappedClass NETWORK_PLAYER_INFO =
+            new MappedClass(
+                    "bdc",
+                    "net/minecraft/client/network/NetworkPlayerInfo");
     public static final MappedClass ENTITY_PLAYER =
             new MappedClass(
                     "wn",
@@ -305,6 +313,20 @@ public final class Minecraft189Mappings {
                     "()I",
                     "func_71050_bK",
                     "xpBarCap");
+    public static final MappedMethod ABSTRACT_CLIENT_PLAYER_GET_PLAYER_INFO =
+            new MappedMethod(
+                    ABSTRACT_CLIENT_PLAYER,
+                    "b",
+                    "()Lbdc;",
+                    "func_175155_b",
+                    "getPlayerInfo");
+    public static final MappedMethod NETWORK_PLAYER_INFO_GET_RESPONSE_TIME =
+            new MappedMethod(
+                    NETWORK_PLAYER_INFO,
+                    "c",
+                    "()I",
+                    "func_178853_c",
+                    "getResponseTime");
     public static final MappedMethod FOOD_STATS_GET_FOOD_LEVEL =
             new MappedMethod(
                     FOOD_STATS,
