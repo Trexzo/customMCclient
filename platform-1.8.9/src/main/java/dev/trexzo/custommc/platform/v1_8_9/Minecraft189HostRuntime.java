@@ -563,6 +563,8 @@ public final class Minecraft189HostRuntime
         requireOpen();
         final Minecraft189PlayerRotationState.Snapshot rotation =
                 playerRotationState.snapshot();
+        final Minecraft189PlayerMovementState.Snapshot movement =
+                playerMovementState.snapshot();
         final boolean flightActive =
                 featureCatalog.flight()
                         .active();
@@ -574,6 +576,11 @@ public final class Minecraft189HostRuntime
                 .apply(
                         player,
                         rotation,
+                        flightActive);
+        featureCatalog.glide()
+                .apply(
+                        player,
+                        movement,
                         flightActive);
     }
 

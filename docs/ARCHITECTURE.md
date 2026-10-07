@@ -1088,3 +1088,13 @@ While Strafe is enabled, a live mapped yaw snapshot exists, and at least one W/A
 `movement.strafe.speed` is a persistent DOUBLE setting with default `0.30`, range `0.05..1.00`, and `0.05` UI increments. Flight has explicit precedence: when Flight is enabled, Strafe suspends its writes instead of competing for `motionX/Z`.
 
 Focused coverage proves unavailable-yaw preservation, yaw-relative forward/diagonal motion, configured speed, no-input preservation, Flight precedence, disable behavior, and setting teardown. Transformed-host coverage proves exact live `pk.v/pk.x` writes through `Minecraft.runTick()` and the same Flight-over-Strafe precedence.
+
+## Glide movement control
+
+M165 adds **Movement → Glide** without introducing any new Minecraft mapping. The module reuses the certified M129 on-ground movement snapshot and M156/M161 primitive `Entity.motionY` bridge.
+
+While Glide is enabled, the mapped movement snapshot is available, the player is airborne, and current vertical motion is more negative than the configured cap, Glide raises `motionY` to that cap. It never alters upward motion or a gentler descent, and grounded/unavailable/null/disabled states perform no write.
+
+`movement.glide.fallSpeed` is a persistent DOUBLE setting with default `0.08`, range `0.01..0.50`, and `0.01` UI increments. Flight has explicit precedence: Glide suspends while Flight is active so the two modules never compete for `motionY`.
+
+The mapped `runTick()` ordering is part of the authority boundary: live movement-state capture occurs before motion control, so Glide consumes the same-tick on-ground state rather than a guessed or reflected value. Focused coverage proves unavailable-state preservation, grounded preservation, excessive-descent capping, upward/gentle-descent preservation, configured speed, Flight precedence, disable behavior, and setting teardown. Transformed-host coverage proves exact `pk.w` behavior through `Minecraft.runTick()`.
