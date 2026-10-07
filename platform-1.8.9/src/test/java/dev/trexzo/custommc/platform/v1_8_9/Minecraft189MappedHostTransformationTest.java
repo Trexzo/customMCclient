@@ -900,6 +900,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189AirSpeedModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189LowHopModule.ID)
                             != null);
             assertTrue(
@@ -2519,6 +2524,68 @@ final class Minecraft189MappedHostTransformationTest {
             runtime.moduleController()
                     .disable(
                             Minecraft189FastFallModule.ID);
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .airSpeed()
+                    .speedSetting()
+                    .set(
+                            0.55D);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189AirSpeedModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .airSpeed()
+                            .active());
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            false);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            0.0F);
+            playerClass.getField("v")
+                    .setDouble(
+                            player,
+                            0.12D);
+            playerClass.getField("x")
+                    .setDouble(
+                            player,
+                            0.13D);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.0D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    0.55D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189AirSpeedModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .airSpeed()
+                            .active());
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
 
             playerClass.getField("C")
                     .setBoolean(
