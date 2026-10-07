@@ -154,7 +154,8 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_IS_IN_WEB,
                         Minecraft189Mappings.ENTITY_MOTION_X,
                         Minecraft189Mappings.ENTITY_MOTION_Y,
-                        Minecraft189Mappings.ENTITY_MOTION_Z
+                        Minecraft189Mappings.ENTITY_MOTION_Z,
+                        Minecraft189Mappings.ENTITY_NO_CLIP
                 },
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.ENTITY_IS_SNEAKING,
