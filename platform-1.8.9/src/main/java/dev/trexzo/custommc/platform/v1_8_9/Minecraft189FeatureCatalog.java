@@ -106,6 +106,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189VelocityFeature velocityFeature;
     private final Minecraft189JitterFeature jitterFeature;
     private final Minecraft189SpinFeature spinFeature;
+    private final Minecraft189WTapFeature wTapFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
     private Minecraft189FovFeature fovFeature;
     private Minecraft189NoBobbingFeature noBobbingFeature;
@@ -187,7 +188,8 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189AutoClickerFeature autoClickerFeature,
             final Minecraft189VelocityFeature velocityFeature,
             final Minecraft189JitterFeature jitterFeature,
-            final Minecraft189SpinFeature spinFeature) {
+            final Minecraft189SpinFeature spinFeature,
+            final Minecraft189WTapFeature wTapFeature) {
         this.modules = modules;
         this.moduleController = moduleController;
         this.modulePresentations = modulePresentations;
@@ -264,6 +266,7 @@ public final class Minecraft189FeatureCatalog
         this.velocityFeature = velocityFeature;
         this.jitterFeature = jitterFeature;
         this.spinFeature = spinFeature;
+        this.wTapFeature = wTapFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -395,6 +398,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189VelocityFeature velocityFeature = null;
         Minecraft189JitterFeature jitterFeature = null;
         Minecraft189SpinFeature spinFeature = null;
+        Minecraft189WTapFeature wTapFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -769,6 +773,12 @@ public final class Minecraft189FeatureCatalog
                             settings,
                             settingPresentations);
 
+            wTapFeature =
+                    Minecraft189WTapFeature.install(
+                            modules,
+                            moduleController,
+                            presentations);
+
             arrayListFeature =
                     Minecraft189ArrayListFeature.install(
                             modules,
@@ -1107,8 +1117,10 @@ public final class Minecraft189FeatureCatalog
                     autoClickerFeature,
                     velocityFeature,
                     jitterFeature,
-                    spinFeature);
+                    spinFeature,
+                    wTapFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(wTapFeature, failure);
             closeQuietly(spinFeature, failure);
             closeQuietly(jitterFeature, failure);
             closeQuietly(velocityFeature, failure);
@@ -1387,6 +1399,11 @@ public final class Minecraft189FeatureCatalog
         return spinFeature.module();
     }
 
+    public Minecraft189WTapModule wTap() {
+        requireOpen();
+        return wTapFeature.module();
+    }
+
     public Minecraft189HealthModule health() {
         requireOpen();
         return healthFeature.module();
@@ -1596,6 +1613,14 @@ public final class Minecraft189FeatureCatalog
                         failure,
                         closeFailure);
             }
+        }
+
+        try {
+            wTapFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
         }
 
         try {
