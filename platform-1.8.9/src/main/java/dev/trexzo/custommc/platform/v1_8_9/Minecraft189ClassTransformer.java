@@ -71,6 +71,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerMovementStateAccess";
     private static final String PLAYER_MOVEMENT_STATE_ACCESS_DESCRIPTOR =
             "L" + PLAYER_MOVEMENT_STATE_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_SPRINT_CONTROL_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerSprintControl";
+    private static final String PLAYER_SPRINT_CONTROL_DESCRIPTOR =
+            "L" + PLAYER_SPRINT_CONTROL_INTERNAL_NAME + ";";
     private static final String PLAYER_HEALTH_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189PlayerHealthAccess";
@@ -434,6 +439,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedMovementState =
                 new boolean[]{false};
+        final boolean[] injectedSprintControl =
+                new boolean[]{false};
         final boolean[] injectedHealth =
                 new boolean[]{false};
         final boolean[] injectedArmor =
@@ -628,6 +635,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedMovementState[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_SPRINT_CONTROL_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerSprintControl",
+                                                "("
+                                                        + PLAYER_SPRINT_CONTROL_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedSprintControl[0] = true;
 
                                         super.visitVarInsn(
                                                 Opcodes.ALOAD,
@@ -960,6 +989,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedRotation[0]
                 || !injectedDimension[0]
                 || !injectedMovementState[0]
+                || !injectedSprintControl[0]
                 || !injectedHealth[0]
                 || !injectedArmor[0]
                 || !injectedHunger[0]
@@ -1483,11 +1513,13 @@ public final class Minecraft189ClassTransformer
                                         withInterface(
                                                 withInterface(
                                                         withInterface(
-                                                                interfaces,
-                                                                PLAYER_POSITION_ACCESS_INTERNAL_NAME),
-                                                        PLAYER_ROTATION_ACCESS_INTERNAL_NAME),
-                                                PLAYER_DIMENSION_ACCESS_INTERNAL_NAME),
-                                        PLAYER_MOVEMENT_STATE_ACCESS_INTERNAL_NAME));
+                                                                withInterface(
+                                                                        interfaces,
+                                                                        PLAYER_POSITION_ACCESS_INTERNAL_NAME),
+                                                                PLAYER_ROTATION_ACCESS_INTERNAL_NAME),
+                                                        PLAYER_DIMENSION_ACCESS_INTERNAL_NAME),
+                                                PLAYER_MOVEMENT_STATE_ACCESS_INTERNAL_NAME),
+                                        PLAYER_SPRINT_CONTROL_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1524,6 +1556,10 @@ public final class Minecraft189ClassTransformer
                                 cv,
                                 "customMcSprinting",
                                 Minecraft189Mappings.ENTITY_IS_SPRINTING);
+                        addBooleanMethodSetterDelegate(
+                                cv,
+                                "customMcSetSprinting",
+                                Minecraft189Mappings.ENTITY_SET_SPRINTING);
                         super.visitEnd();
                     }
                 },
@@ -2277,6 +2313,38 @@ public final class Minecraft189ClassTransformer
                 "[L" + POTION_EFFECT_ACCESS_INTERNAL_NAME + ";");
         method.visitInsn(
                 Opcodes.ARETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addBooleanMethodSetterDelegate(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedMethod target) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "(Z)V",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                1);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                target.owner().obfuscatedInternalName(),
+                target.obfuscatedName(),
+                target.descriptor(),
+                false);
+        method.visitInsn(
+                Opcodes.RETURN);
         method.visitMaxs(
                 0,
                 0);
