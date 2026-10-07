@@ -283,6 +283,13 @@ public final class Minecraft189Mappings {
                     "F",
                     "field_70143_R",
                     "fallDistance");
+    public static final MappedField ENTITY_IS_IN_WEB =
+            new MappedField(
+                    ENTITY,
+                    "H",
+                    "Z",
+                    "field_70134_J",
+                    "isInWeb");
     public static final MappedField ENTITY_PLAYER_SP_MOVEMENT_INPUT =
             new MappedField(
                     ENTITY_PLAYER_SP,
