@@ -147,14 +147,14 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_POS_Y,
                         Minecraft189Mappings.ENTITY_POS_Z,
                         Minecraft189Mappings.ENTITY_ROTATION_YAW,
-                        Minecraft189Mappings.ENTITY_MOTION_X,
-                        Minecraft189Mappings.ENTITY_MOTION_Y,
-                        Minecraft189Mappings.ENTITY_MOTION_Z,
                         Minecraft189Mappings.ENTITY_DIMENSION,
                         Minecraft189Mappings.ENTITY_ON_GROUND,
                         Minecraft189Mappings.ENTITY_STEP_HEIGHT,
                         Minecraft189Mappings.ENTITY_FALL_DISTANCE,
-                        Minecraft189Mappings.ENTITY_IS_IN_WEB
+                        Minecraft189Mappings.ENTITY_IS_IN_WEB,
+                        Minecraft189Mappings.ENTITY_MOTION_X,
+                        Minecraft189Mappings.ENTITY_MOTION_Y,
+                        Minecraft189Mappings.ENTITY_MOTION_Z
                 },
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.ENTITY_IS_SNEAKING,
