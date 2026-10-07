@@ -218,6 +218,13 @@ public final class Minecraft189RuntimeBridge {
                         currentCounter);
     }
 
+    public static synchronized boolean shouldAutoClick() {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        return host != null
+                && host.shouldAutoClick();
+    }
+
     public static synchronized void publishTick(
             final long tickIndex) {
         final Minecraft189HostRuntime host =
