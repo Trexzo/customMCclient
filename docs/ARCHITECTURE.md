@@ -1007,3 +1007,13 @@ M155 consumes certified M154 `Entity.isInWeb = pk.H Z / field_70134_J` through p
 
 Focused coverage verifies disabled preservation, enabled clearing, no redundant write while already clear, repeated clearing, disable behavior, null safety and teardown. Transformed-host coverage proves the inherited `bew -> ... -> pk` path reads and writes exact synthetic `pk.H`, including disabled preservation, enabled clearing and post-disable preservation.
 
+## Velocity mapping authority
+
+M156 pins the exact Minecraft 1.8.9 knockback surface required for configurable velocity control: `Entity.motionX = pk.v D / field_70159_w`, `motionY = pk.w D / field_70181_x`, `motionZ = pk.x D / field_70179_y`, and `EntityLivingBase.knockBack = pr.a(Lpk;FDD)V / func_70653_a`.
+
+The Entity class-shape gate now requires all three exact motion primitives after the previously certified movement fields, preserving targeted drift-regression ordering. The EntityLivingBase gate requires the exact knockBack method. Mapping tests pin exact owner/name/descriptor/Searge/MCP authority and reject missing motion or knockback members explicitly.
+
+The transformed-host synthetic `pr.a(Lpk;FDD)V` is executable: it applies deterministic deltas to inherited `pk.v/w/x`, giving the consumer milestone an exact before/after motion target for delta-based knockback scaling.
+
+This milestone is authority-only. It does not alter player velocity or register a combat module.
+

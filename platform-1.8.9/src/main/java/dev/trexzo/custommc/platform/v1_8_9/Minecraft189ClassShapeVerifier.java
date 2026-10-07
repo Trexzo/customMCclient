@@ -151,7 +151,10 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_ON_GROUND,
                         Minecraft189Mappings.ENTITY_STEP_HEIGHT,
                         Minecraft189Mappings.ENTITY_FALL_DISTANCE,
-                        Minecraft189Mappings.ENTITY_IS_IN_WEB
+                        Minecraft189Mappings.ENTITY_IS_IN_WEB,
+                        Minecraft189Mappings.ENTITY_MOTION_X,
+                        Minecraft189Mappings.ENTITY_MOTION_Y,
+                        Minecraft189Mappings.ENTITY_MOTION_Z
                 },
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.ENTITY_IS_SNEAKING,
@@ -172,7 +175,8 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH,
                         Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT,
                         Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS,
-                        Minecraft189Mappings.ENTITY_LIVING_BASE_JUMP
+                        Minecraft189Mappings.ENTITY_LIVING_BASE_JUMP,
+                        Minecraft189Mappings.ENTITY_LIVING_BASE_KNOCK_BACK
                 });
     }
 
