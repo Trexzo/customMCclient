@@ -1178,3 +1178,13 @@ While enabled and airborne, No Gravity cancels only negative vertical motion by 
 Vertical ownership is deterministic: **Freeze > Flight > No Gravity > Fast Fall > Glide**. High Jump, Low Hop, and Long Jump still own their same-tick jump adjustments before the player becomes airborne on the next movement snapshot.
 
 Focused coverage proves unavailable/grounded/upward preservation, exact downward cancellation, No-Gravity-over-Fast-Fall/Glide ownership, Flight precedence, disable release, null safety, and teardown. Transformed-host coverage proves exact negative-to-zero `pk.w` behavior, upward preservation, and Fast Fall resumption through `Minecraft.runTick()`.
+
+## Air Speed movement control
+
+M174 adds **Movement → Air Speed** without introducing a new Minecraft mapping. It is the airborne counterpart to M171 `movement.speed`: both reuse the certified M129 on-ground snapshot, M103 yaw snapshot, and M156/M162 primitive `Entity.motionX/motionZ` bridge.
+
+While Air Speed is enabled, the mapped movement snapshot is available and airborne, a live yaw snapshot exists, and W/A/S/D input is held, it writes configurable yaw-relative horizontal motion. Diagonal input is normalized. Grounded, unavailable-state, no-input, null-player, disabled, and suspended states perform no write.
+
+`movement.airSpeed.speed` is a persistent DOUBLE setting with default `0.35`, range `0.10..1.00`, and `0.05` UI increments. Ground Speed and Air Speed are state-disjoint: Ground Speed owns only grounded ticks, Air Speed owns only airborne ticks. Horizontal ownership is deterministic: **Freeze/Flight > Long Jump boost > Bunny Hop > Ground/Air Speed > Strafe**.
+
+Focused coverage proves unavailable/grounded preservation, exact airborne yaw-relative and diagonal motion, configured speed, Ground-Speed/Air-Speed state separation, Air-Speed-over-Strafe ownership, Flight precedence, no-input preservation, disable behavior, and setting teardown. Transformed-host coverage proves exact airborne `pk.v/pk.x` writes through `Minecraft.runTick()`.
