@@ -1453,3 +1453,13 @@ When enabled, a fresh physical LMB press can start a sprint reset only while the
 Require Forward gates only creation of a new reset window. Once a reset has legitimately started, its configured Reset Ticks ownership is allowed to finish even if W is released, preserving deterministic reset duration. Cooldown, Ground Only and Auto Sprint precedence remain unchanged.
 
 The host reads W exclusively from the existing parent-owned `Minecraft189InputState` using certified `LegacyKeyboardCodes.W = 17`; no new Minecraft mapping or transformer hook is introduced. Focused and transformed-host coverage prove no-W suppression, release rearm, W-held activation, setting registration and teardown.
+
+## Auto Sprint forward-key requirement
+
+M202 extends **Movement → Auto Sprint** with persistent BOOLEAN setting `movement.autoSprint.requireForward`, presented as **Require Forward** and defaulting to `false`. The default preserves all pre-M202 Auto Sprint behavior.
+
+When enabled, Auto Sprint may write sprint `true` only while the certified legacy W key is physically held. Existing eligibility remains intact: unavailable movement state, sneaking, already-sprinting players, disabled Auto Sprint, or a false Require Forward gate produce no synthetic sprint write.
+
+The host supplies W from the same parent-owned `Minecraft189InputState` and certified `LegacyKeyboardCodes.W = 17` authority already used by M201. W-Tap precedence is unchanged: any W-Tap tick that owns sprint returns before Auto Sprint; otherwise Auto Sprint evaluates its own Require Forward gate normally.
+
+No new Minecraft mapping or transformer hook is introduced. Focused and transformed-host coverage prove default parity, W-released suppression, W-held activation, setting registration, teardown, and coexistence with the existing W-Tap ownership chain.

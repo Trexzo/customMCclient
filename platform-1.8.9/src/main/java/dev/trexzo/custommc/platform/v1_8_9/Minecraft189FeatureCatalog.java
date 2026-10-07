@@ -504,7 +504,10 @@ public final class Minecraft189FeatureCatalog
                     Minecraft189AutoSprintFeature.install(
                             modules,
                             moduleController,
-                            presentations);
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             autoJumpFeature =
                     Minecraft189AutoJumpFeature.install(

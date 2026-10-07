@@ -533,7 +533,9 @@ public final class Minecraft189HostRuntime
         featureCatalog.autoSprint()
                 .apply(
                         player,
-                        movement);
+                        movement,
+                        inputState.keyPressed(
+                                LegacyKeyboardCodes.W));
     }
 
     void playerSneakControl(

@@ -1,6 +1,8 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
 import dev.trexzo.custommc.core.module.Module;
+import dev.trexzo.custommc.core.setting.Setting;
+import dev.trexzo.custommc.core.setting.SettingCodecs;
 
 import java.util.Objects;
 
@@ -8,12 +10,25 @@ public final class Minecraft189AutoSprintModule
         implements Module {
     public static final String ID =
             "movement.autoSprint";
+    public static final String REQUIRE_FORWARD_SETTING_ID =
+            "movement.autoSprint.requireForward";
+
+    private final Setting<Boolean> requireForward =
+            new Setting<Boolean>(
+                    REQUIRE_FORWARD_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
 
     private boolean enabled;
 
     @Override
     public String id() {
         return ID;
+    }
+
+    public Setting<Boolean> requireForwardSetting() {
+        return requireForward;
     }
 
     @Override
@@ -28,13 +43,16 @@ public final class Minecraft189AutoSprintModule
 
     synchronized void apply(
             final Minecraft189PlayerSprintControl player,
-            final Minecraft189PlayerMovementState.Snapshot movement) {
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean forwardHeld) {
         Objects.requireNonNull(
                 movement,
                 "movement");
         if (!enabled
                 || player == null
                 || !movement.available()
+                || (requireForward.get().booleanValue()
+                        && !forwardHeld)
                 || movement.sneaking()
                 || movement.sprinting()) {
             return;

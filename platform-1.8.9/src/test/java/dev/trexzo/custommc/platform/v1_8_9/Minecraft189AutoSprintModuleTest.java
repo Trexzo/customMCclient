@@ -14,6 +14,7 @@ import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.ui.UiFontHandle;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.platform.PlatformContext;
+import dev.trexzo.custommc.platform.v1_8_9.input.LegacyKeyboardCodes;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import org.junit.jupiter.api.Test;
 
@@ -76,6 +77,15 @@ final class Minecraft189AutoSprintModuleTest {
                     ModuleState.DISABLED,
                     controller.stateOf(
                             Minecraft189AutoSprintModule.ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189AutoSprintModule.REQUIRE_FORWARD_SETTING_ID));
+            assertFalse(
+                    runtime.featureCatalog()
+                            .autoSprint()
+                            .requireForwardSetting()
+                            .get()
+                            .booleanValue());
 
             final TestPlayer player =
                     new TestPlayer();
@@ -127,6 +137,45 @@ final class Minecraft189AutoSprintModuleTest {
                     1,
                     player.setCalls);
 
+            player.sprinting = false;
+            player.sneaking = false;
+            runtime.featureCatalog()
+                    .autoSprint()
+                    .requireForwardSetting()
+                    .set(
+                            Boolean.TRUE);
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+            runtime.playerMovementState(
+                    player);
+            runtime.playerSprintControl(
+                    player);
+            assertFalse(
+                    player.sprinting);
+            assertEquals(
+                    1,
+                    player.setCalls);
+
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runtime.playerMovementState(
+                    player);
+            runtime.playerSprintControl(
+                    player);
+            assertTrue(
+                    player.sprinting);
+            assertEquals(
+                    2,
+                    player.setCalls);
+            runtime.inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+
             controller.disable(
                     Minecraft189AutoSprintModule.ID);
             assertFalse(
@@ -151,6 +200,9 @@ final class Minecraft189AutoSprintModuleTest {
         assertNull(
                 modules.find(
                         Minecraft189AutoSprintModule.ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AutoSprintModule.REQUIRE_FORWARD_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
