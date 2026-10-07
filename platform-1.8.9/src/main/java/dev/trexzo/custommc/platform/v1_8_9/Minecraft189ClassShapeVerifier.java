@@ -27,7 +27,8 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.MINECRAFT_GAME_SETTINGS,
                         Minecraft189Mappings.MINECRAFT_CURRENT_SERVER_DATA,
                         Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_DELAY_TIMER,
-                        Minecraft189Mappings.MINECRAFT_LEFT_CLICK_COUNTER
+                        Minecraft189Mappings.MINECRAFT_LEFT_CLICK_COUNTER,
+                        Minecraft189Mappings.MINECRAFT_TIMER
                 },
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.MINECRAFT_GET_MINECRAFT,
@@ -49,6 +50,17 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.PLAYER_CONTROLLER_BLOCK_HIT_DELAY,
                         Minecraft189Mappings.PLAYER_CONTROLLER_CUR_BLOCK_DAMAGE,
                         Minecraft189Mappings.PLAYER_CONTROLLER_IS_HITTING_BLOCK
+                },
+                new Minecraft189Mappings.MappedMethod[0]);
+    }
+
+    public static void verifyTimer(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.TIMER,
+                new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.TIMER_SPEED
                 },
                 new Minecraft189Mappings.MappedMethod[0]);
     }

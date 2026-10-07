@@ -943,3 +943,11 @@ Speed Mine owns persisted integer setting `player.speedMine.progressPercent` fro
 
 Focused coverage verifies disabled/enabled guards, active-mining gating, high-progress preservation, persisted 90% override, null tolerance and teardown. Transformed-host coverage proves exact `ave.c -> bda.h/e` execution at the 70% default and 90% override.
 
+## Timer Speed mapping authority
+
+M148 pins exact Minecraft 1.8.9 timer-rate authority: `Timer = avl`, `Minecraft.timer = ave.Y Lavl;` / Searge `field_71428_T`, and `Timer.timerSpeed = avl.d F` / Searge `field_74278_d`.
+
+The Minecraft class-shape gate now requires the exact timer field and a dedicated Timer gate requires the exact float speed field. Mapping regressions pin class, owner, descriptor, Searge and MCP names, while transformed-host fixture parity includes a concrete synthetic `avl.d F` and exact `ave.Y Lavl;` field.
+
+This milestone is authority-only. It does not change tick rate or register a Timer module.
+
