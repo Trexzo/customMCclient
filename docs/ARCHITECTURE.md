@@ -906,4 +906,3 @@ The transformer now handles exact `EntityPlayerSP bew` and `MovementInput beu`. 
 When disabled, the bridge returns the value unchanged, preserving vanilla item-use slowdown. When enabled, `Minecraft189NoSlowModule` multiplies the already-slowed value by `5.0F`, exactly reversing vanilla's `0.2F` factor while leaving vanilla's own item-use/riding condition and surrounding `onLivingUpdate` flow intact.
 
 Focused coverage verifies disabled/enabled/disabled movement-factor behavior and lifecycle cleanup. Transformed-host coverage executes the synthetic vanilla-style `bew.m()V`: inputs `1.0 / -0.75` become `0.2 / -0.15` when disabled, remain `1.0 / -0.75` when enabled, and return to vanilla slowdown after disable.
-
