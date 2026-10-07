@@ -8,6 +8,7 @@ import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -46,6 +47,14 @@ final class Minecraft189WTapModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189WTapModule.REQUIRE_GROUND_SETTING_ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189WTapModule.COOLDOWN_TICKS_SETTING_ID));
+            assertEquals(
+                    Minecraft189WTapModule.DEFAULT_COOLDOWN_TICKS,
+                    module.cooldownTicksSetting()
+                            .get()
+                            .intValue());
             assertFalse(
                     module.requireGroundSetting()
                             .get()
@@ -165,6 +174,64 @@ final class Minecraft189WTapModuleTest {
             assertFalse(
                     player.sprinting);
 
+            module.requireGroundSetting()
+                    .set(
+                            Boolean.FALSE);
+            module.cooldownTicksSetting()
+                    .set(
+                            2);
+            controller.disable(
+                    Minecraft189WTapModule.ID);
+            controller.enable(
+                    Minecraft189WTapModule.ID);
+            player.sprinting = true;
+            state.update(
+                    true,
+                    false,
+                    true);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertFalse(
+                    player.sprinting);
+
+            player.sprinting = true;
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            false));
+            state.update(
+                    true,
+                    false,
+                    true);
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertTrue(
+                    player.sprinting);
+
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            false));
+            state.update(
+                    true,
+                    false,
+                    true);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertFalse(
+                    player.sprinting);
+
             controller.disable(
                     Minecraft189WTapModule.ID);
             assertFalse(
@@ -179,6 +246,9 @@ final class Minecraft189WTapModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189WTapModule.REQUIRE_GROUND_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189WTapModule.COOLDOWN_TICKS_SETTING_ID));
     }
 
     private static final class TestPlayer

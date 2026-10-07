@@ -8,6 +8,7 @@ import dev.trexzo.custommc.core.module.ModuleSettingBinding;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
 import dev.trexzo.custommc.core.module.ModuleState;
 import dev.trexzo.custommc.core.setting.SettingDescriptor;
+import dev.trexzo.custommc.core.setting.SettingNumericSpec;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.setting.SettingValueKind;
@@ -19,8 +20,11 @@ final class Minecraft189WTapFeature
     private final ModuleRegistry.Registration moduleRegistration;
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration requireGroundSetting;
+    private final SettingRegistry.Registration cooldownSetting;
     private final SettingPresentationRegistry.Registration requireGroundPresentation;
+    private final SettingPresentationRegistry.Registration cooldownPresentation;
     private final ModuleSettingRegistry.Registration requireGroundBinding;
+    private final ModuleSettingRegistry.Registration cooldownBinding;
     private boolean closed;
 
     private Minecraft189WTapFeature(
@@ -29,15 +33,21 @@ final class Minecraft189WTapFeature
             final ModuleRegistry.Registration moduleRegistration,
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration requireGroundSetting,
+            final SettingRegistry.Registration cooldownSetting,
             final SettingPresentationRegistry.Registration requireGroundPresentation,
-            final ModuleSettingRegistry.Registration requireGroundBinding) {
+            final SettingPresentationRegistry.Registration cooldownPresentation,
+            final ModuleSettingRegistry.Registration requireGroundBinding,
+            final ModuleSettingRegistry.Registration cooldownBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.requireGroundSetting = requireGroundSetting;
+        this.cooldownSetting = cooldownSetting;
         this.requireGroundPresentation = requireGroundPresentation;
+        this.cooldownPresentation = cooldownPresentation;
         this.requireGroundBinding = requireGroundBinding;
+        this.cooldownBinding = cooldownBinding;
     }
 
     static Minecraft189WTapFeature install(
@@ -53,8 +63,11 @@ final class Minecraft189WTapFeature
         ModuleRegistry.Registration moduleRegistration = null;
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration requireGroundSetting = null;
+        SettingRegistry.Registration cooldownSetting = null;
         SettingPresentationRegistry.Registration requireGroundPresentation = null;
+        SettingPresentationRegistry.Registration cooldownPresentation = null;
         ModuleSettingRegistry.Registration requireGroundBinding = null;
+        ModuleSettingRegistry.Registration cooldownBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -70,6 +83,9 @@ final class Minecraft189WTapFeature
             requireGroundSetting =
                     settings.register(
                             module.requireGroundSetting());
+            cooldownSetting =
+                    settings.register(
+                            module.cooldownTicksSetting());
             requireGroundPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -77,12 +93,29 @@ final class Minecraft189WTapFeature
                                     "Ground Only",
                                     SettingValueKind.BOOLEAN,
                                     0));
+            cooldownPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189WTapModule.COOLDOWN_TICKS_SETTING_ID,
+                                    "Cooldown",
+                                    SettingValueKind.INTEGER,
+                                    10,
+                                    new SettingNumericSpec(
+                                            Minecraft189WTapModule.MINIMUM_COOLDOWN_TICKS,
+                                            Minecraft189WTapModule.MAXIMUM_COOLDOWN_TICKS,
+                                            1.0D)));
             requireGroundBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
                                     Minecraft189WTapModule.ID,
                                     Minecraft189WTapModule.REQUIRE_GROUND_SETTING_ID,
                                     0));
+            cooldownBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189WTapModule.ID,
+                                    Minecraft189WTapModule.COOLDOWN_TICKS_SETTING_ID,
+                                    10));
 
             return new Minecraft189WTapFeature(
                     controller,
@@ -90,11 +123,17 @@ final class Minecraft189WTapFeature
                     moduleRegistration,
                     presentation,
                     requireGroundSetting,
+                    cooldownSetting,
                     requireGroundPresentation,
-                    requireGroundBinding);
+                    cooldownPresentation,
+                    requireGroundBinding,
+                    cooldownBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(cooldownBinding, failure);
             closeQuietly(requireGroundBinding, failure);
+            closeQuietly(cooldownPresentation, failure);
             closeQuietly(requireGroundPresentation, failure);
+            closeQuietly(cooldownSetting, failure);
             closeQuietly(requireGroundSetting, failure);
             if (presentation != null) {
                 presentation.close();
@@ -133,8 +172,11 @@ final class Minecraft189WTapFeature
             failure = closeFailure;
         }
 
+        failure = close(cooldownBinding, failure);
         failure = close(requireGroundBinding, failure);
+        failure = close(cooldownPresentation, failure);
         failure = close(requireGroundPresentation, failure);
+        failure = close(cooldownSetting, failure);
         failure = close(requireGroundSetting, failure);
 
         try {
