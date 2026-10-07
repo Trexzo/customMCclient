@@ -14,6 +14,8 @@ public final class Minecraft189AutoClickerModule
             "combat.autoClicker.minCps";
     public static final String MAX_CPS_SETTING_ID =
             "combat.autoClicker.maxCps";
+    public static final String REQUIRE_HOLD_SETTING_ID =
+            "combat.autoClicker.requireHold";
 
     private static final int TICKS_PER_SECOND = 20;
 
@@ -31,6 +33,12 @@ public final class Minecraft189AutoClickerModule
                     value -> value >= 1
                             && value <= TICKS_PER_SECOND,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> requireHold =
+            new Setting<Boolean>(
+                    REQUIRE_HOLD_SETTING_ID,
+                    Boolean.TRUE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
 
     private boolean enabled;
     private int phaseCredit;
@@ -49,6 +57,10 @@ public final class Minecraft189AutoClickerModule
         return maxCps;
     }
 
+    public Setting<Boolean> requireHoldSetting() {
+        return requireHold;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -64,7 +76,8 @@ public final class Minecraft189AutoClickerModule
     synchronized boolean shouldClick(
             final boolean leftButtonHeld) {
         if (!enabled
-                || !leftButtonHeld) {
+                || (requireHold.get().booleanValue()
+                        && !leftButtonHeld)) {
             resetSchedule();
             return false;
         }
