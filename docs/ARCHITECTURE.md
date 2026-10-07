@@ -807,3 +807,11 @@ Mapped `Minecraft.runTick()` first publishes the current movement snapshot from 
 
 Disabling Auto Sprint stops intervention; it deliberately does not call `setSprinting(false)`, so vanilla/manual sprint state is not clobbered. Focused tests cover disabled behavior, successful sprint forcing, no redundant setter call when already sprinting, sneak suppression, disable behavior, Movement-category lifecycle, and exact transformed `pk.d(Z)V` execution.
 
+## Right-click delay mapping authority
+
+M133 pins the Minecraft 1.8.9 right-click cooldown field on exact `Minecraft ave`: `ave.ap I` / Searge `field_71467_ac` / MCP `rightClickDelayTimer`.
+
+The existing Minecraft class-shape gate now requires this integer field alongside the previously certified player/world/render/settings/server fields. A dedicated regression rejects a missing right-click delay field, and the transformed-host synthetic `ave` fixture carries exact `ap I` parity.
+
+This milestone is authority-only. It does not alter click delay or register Fast Place.
+
