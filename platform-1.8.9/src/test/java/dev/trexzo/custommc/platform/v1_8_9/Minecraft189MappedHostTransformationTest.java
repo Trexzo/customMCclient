@@ -890,6 +890,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189HighJumpModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189AutoSneakModule.ID)
                             != null);
             assertTrue(
@@ -2209,6 +2214,67 @@ final class Minecraft189MappedHostTransformationTest {
                             LegacyKeyboardCodes.W,
                             false);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .highJump()
+                    .verticalSpeedSetting()
+                    .set(
+                            0.95D);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189HighJumpModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .highJump()
+                            .active());
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            true);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            false);
+            runTick.invoke(minecraft);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    8,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+            assertEquals(
+                    0.95D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    8,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189HighJumpModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .highJump()
+                            .active());
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            false);
+
             playerClass.getField("C")
                     .setBoolean(
                             player,
@@ -2220,7 +2286,7 @@ final class Minecraft189MappedHostTransformationTest {
                             true);
             runTick.invoke(minecraft);
             assertEquals(
-                    7,
+                    8,
                     playerClass.getField("jumpCalls")
                             .getInt(
                                     player));

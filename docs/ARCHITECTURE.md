@@ -1138,3 +1138,13 @@ While Bunny Hop is enabled and at least one W/A/S/D key is held, a grounded mapp
 Ownership is deterministic: **Freeze/Flight > Long Jump > Bunny Hop > Auto Jump/Strafe**. Long Jump suspends Bunny Hop entirely while active. Bunny Hop suppresses Auto Jump and owns horizontal motion over Strafe whenever movement input is present. Air Jump remains an independent airborne fresh-press feature.
 
 Focused coverage proves movement-input gating, grounded jump arming, airborne re-arm, configured yaw-relative speed, Bunny-Hop-over-Strafe ownership, Auto-Jump suppression, Long-Jump/Flight suspension, disable behavior, and setting teardown. Transformed-host coverage proves repeated mapped jump cycles plus exact `pk.v/pk.x` horizontal motion through `Minecraft.runTick()`.
+
+## High Jump movement control
+
+M170 adds **Movement → High Jump** without introducing a new Minecraft mapping. It composes the certified M138 mapped jump delegate, M129 on-ground snapshot, and M156/M161 primitive `Entity.motionY` bridge.
+
+A fresh Space press while the mapped movement snapshot is grounded invokes the real jump delegate and arms one same-tick vertical boost. Motion control then raises `motionY` to at least the configured `movement.highJump.verticalSpeed` value (DOUBLE, default `0.70`, range `0.42..1.50`, step `0.05`). Already-higher vertical motion is preserved rather than reduced. Holding Space does not retrigger.
+
+Jump ownership is deterministic: **Freeze/Flight > Long Jump > High Jump > Bunny Hop > Auto Jump**. High Jump suppresses Bunny Hop and Auto Jump while enabled, but does not own horizontal motion, so Strafe may still operate alongside it. Air Jump remains an independent airborne fresh-press feature.
+
+Focused coverage proves fresh-press semantics, default/configured vertical boost, Auto-Jump suppression and release, Strafe coexistence, Long-Jump precedence, Flight suspension, disable behavior, and setting teardown. Transformed-host coverage proves the real mapped jump delegate plus exact `pk.w` vertical boost through `Minecraft.runTick()`.
