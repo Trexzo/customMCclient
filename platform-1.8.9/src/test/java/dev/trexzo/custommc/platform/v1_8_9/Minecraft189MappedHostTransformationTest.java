@@ -3128,6 +3128,33 @@ final class Minecraft189MappedHostTransformationTest {
                             .getInt(
                                     minecraft));
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .noHitDelay()
+                    .delaySetting()
+                    .set(
+                            3);
+            minecraftClass.getField("ag")
+                    .setInt(
+                            minecraft,
+                            7);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    3,
+                    minecraftClass.getField("ag")
+                            .getInt(
+                                    minecraft));
+            minecraftClass.getField("ag")
+                    .setInt(
+                            minecraft,
+                            2);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    2,
+                    minecraftClass.getField("ag")
+                            .getInt(
+                                    minecraft));
+
             runtime.moduleController()
                     .disable(
                             Minecraft189NoHitDelayModule.ID);

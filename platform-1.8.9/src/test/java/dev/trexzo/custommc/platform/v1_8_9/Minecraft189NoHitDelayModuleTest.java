@@ -76,6 +76,16 @@ final class Minecraft189NoHitDelayModuleTest {
                     ModuleState.DISABLED,
                     controller.stateOf(
                             Minecraft189NoHitDelayModule.ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189NoHitDelayModule.DELAY_SETTING_ID));
+            assertEquals(
+                    Minecraft189NoHitDelayModule.DEFAULT_DELAY,
+                    runtime.featureCatalog()
+                            .noHitDelay()
+                            .delaySetting()
+                            .get()
+                            .intValue());
             assertEquals(
                     7,
                     runtime.leftClickCounter(
@@ -100,6 +110,24 @@ final class Minecraft189NoHitDelayModuleTest {
                     runtime.leftClickCounter(
                             -1));
 
+            runtime.featureCatalog()
+                    .noHitDelay()
+                    .delaySetting()
+                    .set(
+                            3);
+            assertEquals(
+                    3,
+                    runtime.leftClickCounter(
+                            7));
+            assertEquals(
+                    3,
+                    runtime.leftClickCounter(
+                            3));
+            assertEquals(
+                    2,
+                    runtime.leftClickCounter(
+                            2));
+
             controller.disable(
                     Minecraft189NoHitDelayModule.ID);
             assertFalse(
@@ -117,6 +145,9 @@ final class Minecraft189NoHitDelayModuleTest {
         assertNull(
                 modules.find(
                         Minecraft189NoHitDelayModule.ID));
+        assertNull(
+                settings.find(
+                        Minecraft189NoHitDelayModule.DELAY_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.COMBAT_CATEGORY_ID));
