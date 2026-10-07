@@ -652,6 +652,14 @@ final class Minecraft189MappedHostTransformationTest {
                     .setLong(
                             world,
                             6000L);
+            worldClass.getField("raining")
+                    .setBoolean(
+                            world,
+                            true);
+            worldClass.getField("thundering")
+                    .setBoolean(
+                            world,
+                            false);
             minecraftClass.getField("f")
                     .set(
                             minecraft,
@@ -1022,6 +1030,17 @@ final class Minecraft189MappedHostTransformationTest {
                     0,
                     worldTime.minute());
 
+            final Minecraft189WorldWeatherState.Snapshot weather =
+                    runtime.requireHostRuntime()
+                            .worldWeatherState()
+                            .snapshot();
+            assertTrue(
+                    weather.available());
+            assertTrue(
+                    weather.raining());
+            assertFalse(
+                    weather.thundering());
+
             final Minecraft189ServerAddressState.Snapshot server =
                     runtime.requireHostRuntime()
                             .serverAddressState()
@@ -1095,6 +1114,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .worldTimeState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .worldWeatherState()
                             .snapshot()
                             .available());
 

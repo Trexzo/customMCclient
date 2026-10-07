@@ -761,3 +761,13 @@ The existing World class-shape gate now requires world time, rain and thunder au
 
 This milestone is authority-only. It does not publish live weather state, retain any additional world object, or register a HUD.
 
+## Live Weather HUD
+
+M128 consumes certified M127 weather authority through the existing transformed World boundary. Exact base `adm` now implements parent-owned `Minecraft189WorldWeatherAccess` alongside the World Time access contract; `customMcRaining()` delegates only to exact `adm.S()Z`, and `customMcThundering()` delegates only to exact `adm.R()Z`.
+
+Immediately before each normal return from mapped `Minecraft.runTick()`, exact `ave.f Lbdb;` is forwarded through `Minecraft189RuntimeBridge.worldWeather(...)`. `Minecraft189HostRuntime` immediately copies two booleans into synchronized `Minecraft189WorldWeatherState`; no concrete World or WorldClient instance is retained. A null world clears availability, and runtime teardown clears the state.
+
+The new Visuals module `render.weather` / **Weather** owns persistent X/Y settings. It renders `Weather: Clear`, `Weather: Rain`, or `Weather: Thunder`, with thunder taking display precedence when the mapped thunder flag is true.
+
+Executable transformed-host coverage sets exact synthetic `adm` rain/thunder values behind inherited `bdb`, publishes them through transformed `runTick()`, verifies the parent-owned weather snapshot, and verifies null-world clearing independently. Focused HUD coverage verifies Clear/Rain/Thunder rendering, thunder precedence, persisted coordinates, disable behavior, and complete feature teardown.
+

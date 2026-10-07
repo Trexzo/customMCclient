@@ -116,6 +116,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189WorldTimeAccess";
     private static final String WORLD_TIME_ACCESS_DESCRIPTOR =
             "L" + WORLD_TIME_ACCESS_INTERNAL_NAME + ";";
+    private static final String WORLD_WEATHER_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189WorldWeatherAccess";
+    private static final String WORLD_WEATHER_ACCESS_DESCRIPTOR =
+            "L" + WORLD_WEATHER_ACCESS_INTERNAL_NAME + ";";
     private static final String SERVER_DATA_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189ServerDataAccess";
@@ -437,6 +442,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedHotbarSlot =
                 new boolean[]{false};
         final boolean[] injectedWorldTime =
+                new boolean[]{false};
+        final boolean[] injectedWeather =
                 new boolean[]{false};
         final boolean[] injectedServerAddress =
                 new boolean[]{false};
@@ -772,6 +779,28 @@ public final class Minecraft189ClassTransformer
                                                 false);
                                         injectedWorldTime[0] = true;
 
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                world.obfuscatedName(),
+                                                world.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                WORLD_WEATHER_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "worldWeather",
+                                                "("
+                                                        + WORLD_WEATHER_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedWeather[0] = true;
+
                                         final Minecraft189Mappings.MappedField serverData =
                                                 Minecraft189Mappings
                                                         .MINECRAFT_CURRENT_SERVER_DATA;
@@ -909,6 +938,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedPing[0]
                 || !injectedHotbarSlot[0]
                 || !injectedWorldTime[0]
+                || !injectedWeather[0]
                 || !injectedServerAddress[0]
                 || !injectedHeldItem[0]) {
             throw new IllegalStateException(
@@ -1701,8 +1731,10 @@ public final class Minecraft189ClassTransformer
                                 signature,
                                 superName,
                                 withInterface(
-                                        interfaces,
-                                        WORLD_TIME_ACCESS_INTERNAL_NAME));
+                                        withInterface(
+                                                interfaces,
+                                                WORLD_TIME_ACCESS_INTERNAL_NAME),
+                                        WORLD_WEATHER_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1712,6 +1744,16 @@ public final class Minecraft189ClassTransformer
                                 "customMcWorldTime",
                                 Minecraft189Mappings
                                         .WORLD_GET_WORLD_TIME);
+                        addBooleanMethodDelegate(
+                                cv,
+                                "customMcRaining",
+                                Minecraft189Mappings
+                                        .WORLD_IS_RAINING);
+                        addBooleanMethodDelegate(
+                                cv,
+                                "customMcThundering",
+                                Minecraft189Mappings
+                                        .WORLD_IS_THUNDERING);
                         super.visitEnd();
                     }
                 },
@@ -2191,6 +2233,35 @@ public final class Minecraft189ClassTransformer
                 "[L" + POTION_EFFECT_ACCESS_INTERNAL_NAME + ";");
         method.visitInsn(
                 Opcodes.ARETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addBooleanMethodDelegate(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedMethod target) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()Z",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                target.owner().obfuscatedInternalName(),
+                target.obfuscatedName(),
+                target.descriptor(),
+                false);
+        method.visitInsn(
+                Opcodes.IRETURN);
         method.visitMaxs(
                 0,
                 0);
