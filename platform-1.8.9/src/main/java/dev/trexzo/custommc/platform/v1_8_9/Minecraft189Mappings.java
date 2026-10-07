@@ -67,6 +67,10 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "xg",
                     "net/minecraft/util/FoodStats");
+    public static final MappedClass POTION_EFFECT =
+            new MappedClass(
+                    "pf",
+                    "net/minecraft/potion/PotionEffect");
 
     public static final MappedField MINECRAFT_PLAYER =
             new MappedField(
@@ -287,6 +291,41 @@ public final class Minecraft189Mappings {
                     "()F",
                     "func_75115_e",
                     "getSaturationLevel");
+    public static final MappedMethod ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS =
+            new MappedMethod(
+                    ENTITY_LIVING_BASE,
+                    "bl",
+                    "()Ljava/util/Collection;",
+                    "func_70651_bq",
+                    "getActivePotionEffects");
+    public static final MappedMethod POTION_EFFECT_GET_POTION_ID =
+            new MappedMethod(
+                    POTION_EFFECT,
+                    "a",
+                    "()I",
+                    "func_76456_a",
+                    "getPotionID");
+    public static final MappedMethod POTION_EFFECT_GET_DURATION =
+            new MappedMethod(
+                    POTION_EFFECT,
+                    "b",
+                    "()I",
+                    "func_76459_b",
+                    "getDuration");
+    public static final MappedMethod POTION_EFFECT_GET_AMPLIFIER =
+            new MappedMethod(
+                    POTION_EFFECT,
+                    "c",
+                    "()I",
+                    "func_76458_c",
+                    "getAmplifier");
+    public static final MappedMethod POTION_EFFECT_GET_EFFECT_NAME =
+            new MappedMethod(
+                    POTION_EFFECT,
+                    "g",
+                    "()Ljava/lang/String;",
+                    "func_76453_d",
+                    "getEffectName");
 
     private Minecraft189Mappings() {
     }
