@@ -21,10 +21,13 @@ final class Minecraft189JitterFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration yawSetting;
     private final SettingRegistry.Registration pitchSetting;
+    private final SettingRegistry.Registration intervalSetting;
     private final SettingPresentationRegistry.Registration yawPresentation;
     private final SettingPresentationRegistry.Registration pitchPresentation;
+    private final SettingPresentationRegistry.Registration intervalPresentation;
     private final ModuleSettingRegistry.Registration yawBinding;
     private final ModuleSettingRegistry.Registration pitchBinding;
+    private final ModuleSettingRegistry.Registration intervalBinding;
     private boolean closed;
 
     private Minecraft189JitterFeature(
@@ -34,20 +37,26 @@ final class Minecraft189JitterFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration yawSetting,
             final SettingRegistry.Registration pitchSetting,
+            final SettingRegistry.Registration intervalSetting,
             final SettingPresentationRegistry.Registration yawPresentation,
             final SettingPresentationRegistry.Registration pitchPresentation,
+            final SettingPresentationRegistry.Registration intervalPresentation,
             final ModuleSettingRegistry.Registration yawBinding,
-            final ModuleSettingRegistry.Registration pitchBinding) {
+            final ModuleSettingRegistry.Registration pitchBinding,
+            final ModuleSettingRegistry.Registration intervalBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.yawSetting = yawSetting;
         this.pitchSetting = pitchSetting;
+        this.intervalSetting = intervalSetting;
         this.yawPresentation = yawPresentation;
         this.pitchPresentation = pitchPresentation;
+        this.intervalPresentation = intervalPresentation;
         this.yawBinding = yawBinding;
         this.pitchBinding = pitchBinding;
+        this.intervalBinding = intervalBinding;
     }
 
     static Minecraft189JitterFeature install(
@@ -64,10 +73,13 @@ final class Minecraft189JitterFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration yawSetting = null;
         SettingRegistry.Registration pitchSetting = null;
+        SettingRegistry.Registration intervalSetting = null;
         SettingPresentationRegistry.Registration yawPresentation = null;
         SettingPresentationRegistry.Registration pitchPresentation = null;
+        SettingPresentationRegistry.Registration intervalPresentation = null;
         ModuleSettingRegistry.Registration yawBinding = null;
         ModuleSettingRegistry.Registration pitchBinding = null;
+        ModuleSettingRegistry.Registration intervalBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -86,6 +98,9 @@ final class Minecraft189JitterFeature
             pitchSetting =
                     settings.register(
                             module.pitchDegreesSetting());
+            intervalSetting =
+                    settings.register(
+                            module.intervalTicksSetting());
             yawPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -108,6 +123,17 @@ final class Minecraft189JitterFeature
                                             Minecraft189JitterModule.MINIMUM_DEGREES,
                                             Minecraft189JitterModule.MAXIMUM_DEGREES,
                                             0.10D)));
+            intervalPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189JitterModule.INTERVAL_SETTING_ID,
+                                    "Interval",
+                                    SettingValueKind.INTEGER,
+                                    20,
+                                    new SettingNumericSpec(
+                                            Minecraft189JitterModule.MINIMUM_INTERVAL_TICKS,
+                                            Minecraft189JitterModule.MAXIMUM_INTERVAL_TICKS,
+                                            1.0D)));
             yawBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -120,6 +146,12 @@ final class Minecraft189JitterFeature
                                     Minecraft189JitterModule.ID,
                                     Minecraft189JitterModule.PITCH_SETTING_ID,
                                     10));
+            intervalBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189JitterModule.ID,
+                                    Minecraft189JitterModule.INTERVAL_SETTING_ID,
+                                    20));
 
             return new Minecraft189JitterFeature(
                     controller,
@@ -128,15 +160,21 @@ final class Minecraft189JitterFeature
                     presentation,
                     yawSetting,
                     pitchSetting,
+                    intervalSetting,
                     yawPresentation,
                     pitchPresentation,
+                    intervalPresentation,
                     yawBinding,
-                    pitchBinding);
+                    pitchBinding,
+                    intervalBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(intervalBinding, failure);
             closeQuietly(pitchBinding, failure);
             closeQuietly(yawBinding, failure);
+            closeQuietly(intervalPresentation, failure);
             closeQuietly(pitchPresentation, failure);
             closeQuietly(yawPresentation, failure);
+            closeQuietly(intervalSetting, failure);
             closeQuietly(pitchSetting, failure);
             closeQuietly(yawSetting, failure);
             closeQuietly(presentation, failure);
@@ -172,10 +210,13 @@ final class Minecraft189JitterFeature
             failure = closeFailure;
         }
 
+        failure = close(intervalBinding, failure);
         failure = close(pitchBinding, failure);
         failure = close(yawBinding, failure);
+        failure = close(intervalPresentation, failure);
         failure = close(pitchPresentation, failure);
         failure = close(yawPresentation, failure);
+        failure = close(intervalSetting, failure);
         failure = close(pitchSetting, failure);
         failure = close(yawSetting, failure);
         failure = close(presentation, failure);
