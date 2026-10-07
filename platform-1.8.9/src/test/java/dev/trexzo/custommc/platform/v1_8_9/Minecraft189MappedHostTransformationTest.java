@@ -3397,6 +3397,53 @@ final class Minecraft189MappedHostTransformationTest {
                                     player),
                     0.000001D);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .velocity()
+                    .horizontalPercentSetting()
+                    .set(150);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .velocity()
+                    .verticalPercentSetting()
+                    .set(200);
+            playerClass.getField("v")
+                    .setDouble(
+                            player,
+                            2.0D);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            3.0D);
+            playerClass.getField("x")
+                    .setDouble(
+                            player,
+                            4.0D);
+            knockBack.invoke(
+                    player,
+                    player,
+                    Float.valueOf(0.4F),
+                    Double.valueOf(1.0D),
+                    Double.valueOf(-2.0D));
+            assertEquals(
+                    3.5D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    3.8D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    1.0D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189VelocityModule.ID);
