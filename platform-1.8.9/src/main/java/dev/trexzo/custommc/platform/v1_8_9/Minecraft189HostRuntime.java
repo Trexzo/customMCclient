@@ -509,12 +509,27 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerSprintControl player) {
         requireOpen();
         if (player == null) {
+            featureCatalog.wTap()
+                    .apply(
+                            null,
+                            null,
+                            false);
+            return;
+        }
+        final Minecraft189PlayerMovementState.Snapshot movement =
+                playerMovementState.snapshot();
+        if (featureCatalog.wTap()
+                .apply(
+                        player,
+                        movement,
+                        inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.LEFT_BUTTON))) {
             return;
         }
         featureCatalog.autoSprint()
                 .apply(
                         player,
-                        playerMovementState.snapshot());
+                        movement);
     }
 
     void playerSneakControl(

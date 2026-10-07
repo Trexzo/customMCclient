@@ -1405,3 +1405,13 @@ M196 extends **Combat → Spin** with persistent INTEGER setting `combat.spin.in
 Larger values write immediately, then skip `intervalTicks - 1` eligible ticks before the next Spin write. Ineligible state, disabling the module, missing rotation authority, or an unsatisfied Require Hold condition resets the cadence so the next eligible activation writes immediately.
 
 Rotation ownership remains explicit per tick. A Spin write keeps **Spin > Jitter** and resets Jitter. A cadence skip returns `false`, deliberately yielding that tick to independently eligible Jitter. Focused coverage proves default parity, a three-tick cadence, reset semantics and setting teardown. Transformed-host coverage proves exact mapped yaw writes on Spin ticks and pitch-only Jitter ownership on the two skipped ticks.
+
+## W-Tap sprint reset
+
+M197 adds **Combat → W-Tap** using only the already-certified physical LMB input, player movement snapshot and mapped sprint control bridge.
+
+The module is edge-triggered. On a fresh physical left-button press, if the captured movement snapshot says the player is sprinting, W-Tap writes sprint `false` exactly once. Holding LMB does not retrigger. Releasing LMB rearms the next press. Disabled, unavailable-player and unavailable-movement paths clear the edge state.
+
+Sprint ownership is explicit: **W-Tap > Auto Sprint** on the reset tick. The host skips Auto Sprint only when W-Tap actually writes. On the next held tick W-Tap yields ownership, so Auto Sprint can restore sprint from the newly captured non-sprinting snapshot. This produces a deterministic one-tick sprint reset without adding any Minecraft mapping or transformer injection.
+
+Focused coverage proves fresh-press triggering, held-button suppression, release rearming, non-sprinting no-op and lifecycle teardown. Transformed-host coverage proves exact mapped sprint reset on the fresh LMB tick followed by Auto Sprint restoration on the next held tick.

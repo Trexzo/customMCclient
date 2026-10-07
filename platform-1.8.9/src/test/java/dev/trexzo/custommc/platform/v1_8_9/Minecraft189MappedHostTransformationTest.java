@@ -1002,6 +1002,11 @@ final class Minecraft189MappedHostTransformationTest {
                             .find(
                                     Minecraft189SpinModule.ID)
                             != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
+                                    Minecraft189WTapModule.ID)
+                            != null);
             assertEquals(
                     0.35F,
                     settingsClass.getField("aJ")
@@ -1226,6 +1231,64 @@ final class Minecraft189MappedHostTransformationTest {
                     playerClass.getField("sprinting")
                             .getBoolean(
                                     player));
+
+            playerClass.getField("sneaking")
+                    .setBoolean(
+                            player,
+                            false);
+            playerClass.getField("sprinting")
+                    .setBoolean(
+                            player,
+                            true);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189WTapModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .wTap()
+                            .active());
+            runTick.invoke(minecraft);
+            assertTrue(
+                    playerClass.getField("sprinting")
+                            .getBoolean(
+                                    player));
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            true);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    playerClass.getField("sprinting")
+                            .getBoolean(
+                                    player));
+
+            runTick.invoke(minecraft);
+            assertTrue(
+                    playerClass.getField("sprinting")
+                            .getBoolean(
+                                    player));
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189WTapModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .wTap()
+                            .active());
 
             runtime.moduleController()
                     .disable(
