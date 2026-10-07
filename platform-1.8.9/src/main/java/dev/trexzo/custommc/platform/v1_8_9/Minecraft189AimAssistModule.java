@@ -1,17 +1,52 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
 import dev.trexzo.custommc.core.module.Module;
+import dev.trexzo.custommc.core.setting.Setting;
+import dev.trexzo.custommc.core.setting.SettingCodecs;
 
 public final class Minecraft189AimAssistModule
         implements Module {
     public static final String ID =
             "combat.aimAssist";
+    public static final String YAW_SPEED_SETTING_ID =
+            "combat.aimAssist.yawSpeed";
+    public static final String PITCH_SPEED_SETTING_ID =
+            "combat.aimAssist.pitchSpeed";
+    public static final double DEFAULT_YAW_SPEED =
+            180.0D;
+    public static final double DEFAULT_PITCH_SPEED =
+            180.0D;
+    public static final double MINIMUM_SPEED =
+            0.1D;
+    public static final double MAXIMUM_SPEED =
+            180.0D;
+
+    private final Setting<Double> yawSpeed =
+            new Setting<Double>(
+                    YAW_SPEED_SETTING_ID,
+                    DEFAULT_YAW_SPEED,
+                    Minecraft189AimAssistModule::validSpeed,
+                    SettingCodecs.DOUBLE);
+    private final Setting<Double> pitchSpeed =
+            new Setting<Double>(
+                    PITCH_SPEED_SETTING_ID,
+                    DEFAULT_PITCH_SPEED,
+                    Minecraft189AimAssistModule::validSpeed,
+                    SettingCodecs.DOUBLE);
 
     private boolean enabled;
 
     @Override
     public String id() {
         return ID;
+    }
+
+    public Setting<Double> yawSpeedSetting() {
+        return yawSpeed;
+    }
+
+    public Setting<Double> pitchSpeedSetting() {
+        return pitchSpeed;
     }
 
     @Override
@@ -40,9 +75,15 @@ public final class Minecraft189AimAssistModule
         }
 
         final float targetYaw =
-                target.yaw();
+                stepYaw(
+                        rotation.yaw(),
+                        target.yaw(),
+                        yawSpeed.get().doubleValue());
         final float targetPitch =
-                target.pitch();
+                stepLinear(
+                        rotation.pitch(),
+                        target.pitch(),
+                        pitchSpeed.get().doubleValue());
 
         if (Float.compare(
                 rotation.yaw(),
@@ -62,5 +103,66 @@ public final class Minecraft189AimAssistModule
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    private static float stepYaw(
+            final float current,
+            final float target,
+            final double maximumStep) {
+        final float delta =
+                wrapYaw(
+                        target - current);
+        final float limited =
+                limitStep(
+                        delta,
+                        maximumStep);
+        return wrapYaw(
+                current + limited);
+    }
+
+    private static float stepLinear(
+            final float current,
+            final float target,
+            final double maximumStep) {
+        return current
+                + limitStep(
+                        target - current,
+                        maximumStep);
+    }
+
+    private static float limitStep(
+            final float delta,
+            final double maximumStep) {
+        final float max =
+                (float) maximumStep;
+        if (delta > max) {
+            return max;
+        }
+        if (delta < -max) {
+            return -max;
+        }
+        return delta;
+    }
+
+    private static float wrapYaw(
+            final float yaw) {
+        float wrapped =
+                yaw % 360.0F;
+        if (wrapped >= 180.0F) {
+            wrapped -= 360.0F;
+        }
+        if (wrapped < -180.0F) {
+            wrapped += 360.0F;
+        }
+        return wrapped;
+    }
+
+    private static boolean validSpeed(
+            final Double value) {
+        return value != null
+                && !Double.isNaN(value.doubleValue())
+                && !Double.isInfinite(value.doubleValue())
+                && value.doubleValue() >= MINIMUM_SPEED
+                && value.doubleValue() <= MAXIMUM_SPEED;
     }
 }

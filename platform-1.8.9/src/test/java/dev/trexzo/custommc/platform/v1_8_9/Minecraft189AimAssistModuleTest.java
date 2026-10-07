@@ -3,6 +3,9 @@ package dev.trexzo.custommc.platform.v1_8_9;
 import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
+import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
+import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
+import dev.trexzo.custommc.core.setting.SettingRegistry;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,15 +23,46 @@ final class Minecraft189AimAssistModuleTest {
                         modules);
         final ModulePresentationRegistry presentations =
                 new ModulePresentationRegistry();
+        final SettingRegistry settings =
+                new SettingRegistry();
+        final SettingPresentationRegistry settingPresentations =
+                new SettingPresentationRegistry();
+        final ModuleSettingRegistry moduleSettings =
+                new ModuleSettingRegistry(
+                        modules,
+                        settings);
 
         final Minecraft189AimAssistFeature feature =
                 Minecraft189AimAssistFeature.install(
                         modules,
                         controller,
-                        presentations);
+                        presentations,
+                        moduleSettings,
+                        settings,
+                        settingPresentations);
         try {
             final Minecraft189AimAssistModule module =
                     feature.module();
+            assertEquals(
+                    Minecraft189AimAssistModule.DEFAULT_YAW_SPEED,
+                    module.yawSpeedSetting()
+                            .get()
+                            .doubleValue(),
+                    0.000001D);
+            assertEquals(
+                    Minecraft189AimAssistModule.DEFAULT_PITCH_SPEED,
+                    module.pitchSpeedSetting()
+                            .get()
+                            .doubleValue(),
+                    0.000001D);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.YAW_SPEED_SETTING_ID)
+                            != null);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.PITCH_SPEED_SETTING_ID)
+                            != null);
             final Minecraft189PlayerPositionState local =
                     new Minecraft189PlayerPositionState();
             final Minecraft189WorldEntityPositionState positions =
@@ -126,6 +160,45 @@ final class Minecraft189AimAssistModuleTest {
                     1,
                     player.pitchWrites);
 
+            positions.update(
+                    new double[]{
+                            -10.0D,
+                            10.0D,
+                            0.0D
+                    });
+            target.update(
+                    local.snapshot(),
+                    positions.snapshot(),
+                    kinds.snapshot());
+            targetRotation.update(
+                    local.snapshot(),
+                    target.snapshot());
+            module.yawSpeedSetting()
+                    .set(
+                            20.0D);
+            module.pitchSpeedSetting()
+                    .set(
+                            5.0D);
+            player.yaw = 0.0F;
+            player.pitch = 0.0F;
+            currentRotation.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            currentRotation.snapshot(),
+                            targetRotation.snapshot(),
+                            true));
+            assertEquals(
+                    20.0F,
+                    player.yaw,
+                    0.0001F);
+            assertEquals(
+                    -5.0F,
+                    player.pitch,
+                    0.0001F);
+
             currentRotation.update(
                     player.yaw,
                     player.pitch);
@@ -164,6 +237,12 @@ final class Minecraft189AimAssistModuleTest {
         assertNull(
                 modules.find(
                         Minecraft189AimAssistModule.ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AimAssistModule.YAW_SPEED_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AimAssistModule.PITCH_SPEED_SETTING_ID));
     }
 
     private static final class TestPlayer
