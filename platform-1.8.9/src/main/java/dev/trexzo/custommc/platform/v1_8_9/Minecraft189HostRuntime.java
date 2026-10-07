@@ -568,6 +568,9 @@ public final class Minecraft189HostRuntime
         final boolean flightActive =
                 featureCatalog.flight()
                         .active();
+        final boolean fastFallActive =
+                featureCatalog.fastFall()
+                        .active();
         featureCatalog.flight()
                 .apply(
                         player,
@@ -577,11 +580,17 @@ public final class Minecraft189HostRuntime
                         player,
                         rotation,
                         flightActive);
-        featureCatalog.glide()
+        featureCatalog.fastFall()
                 .apply(
                         player,
                         movement,
                         flightActive);
+        featureCatalog.glide()
+                .apply(
+                        player,
+                        movement,
+                        flightActive
+                                || fastFallActive);
     }
 
     void playerHealth(
