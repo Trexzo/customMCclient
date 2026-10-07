@@ -1647,34 +1647,6 @@ public final class Minecraft189ClassTransformer
         method.visitEnd();
     }
 
-    private static void addIntFieldGetter(
-            final ClassVisitor visitor,
-            final String methodName,
-            final Minecraft189Mappings.MappedField field) {
-        final MethodVisitor method =
-                visitor.visitMethod(
-                        Opcodes.ACC_PUBLIC,
-                        methodName,
-                        "()I",
-                        null,
-                        null);
-        method.visitCode();
-        method.visitVarInsn(
-                Opcodes.ALOAD,
-                0);
-        method.visitFieldInsn(
-                Opcodes.GETFIELD,
-                field.owner().obfuscatedInternalName(),
-                field.obfuscatedName(),
-                field.descriptor());
-        method.visitInsn(
-                Opcodes.IRETURN);
-        method.visitMaxs(
-                0,
-                0);
-        method.visitEnd();
-    }
-
     private static void addDoubleFieldGetter(
             final ClassVisitor visitor,
             final String methodName,
