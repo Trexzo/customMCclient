@@ -161,6 +161,21 @@ public final class Minecraft189ClassShapeVerifier {
                 });
     }
 
+    public static void verifyItemStack(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.ITEM_STACK,
+                new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.ITEM_STACK_SIZE
+                },
+                new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.ITEM_STACK_GET_DISPLAY_NAME,
+                        Minecraft189Mappings.ITEM_STACK_GET_ITEM_DAMAGE,
+                        Minecraft189Mappings.ITEM_STACK_GET_MAX_DAMAGE
+                });
+    }
+
     public static void verifyFoodStats(
             final byte[] classBytes) {
         verify(
