@@ -613,3 +613,11 @@ The new Visuals module `render.potionEffects` / **Potion Effects** renders one l
 
 Executable transformed-host coverage now loads synthetic mapped `pf` instances into `pr`'s active-effect collection and proves mapped `runTick()` publishes exact IDs, durations, amplifiers and names before null-player clearing. Focused HUD coverage proves deterministic sorting, multi-line placement, persisted coordinates, invalid-snapshot rejection and complete feature teardown.
 
+## Experience mapping authority
+
+M112 pins the minimal Minecraft 1.8.9 player-experience surface on exact base `EntityPlayer` `wn`. The exact public fields are `wn.bB I` / Searge `field_71068_ca` / `experienceLevel`, `wn.bC I` / `field_71067_cb` / `experienceTotal`, and `wn.bD F` / `field_71106_cc` / `experience`. The exact experience-bar capacity method is `wn.ck()I` / `func_71050_bK` / `xpBarCap()`.
+
+The existing `EntityPlayer` shape gate now requires all three experience fields in addition to the already-certified food-state surface and requires `xpBarCap()`. Regression coverage pins all four members, accepts the exact synthetic shape, and rejects missing experience progress or bar-cap authority.
+
+The transformed-host synthetic `wn` fixture was updated to satisfy the stricter gate without adding runtime XP publication. This milestone is authority-only; no experience state or HUD is exposed yet.
+
