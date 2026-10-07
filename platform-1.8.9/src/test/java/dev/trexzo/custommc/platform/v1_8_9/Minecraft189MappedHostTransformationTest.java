@@ -504,6 +504,28 @@ final class Minecraft189MappedHostTransformationTest {
                     .setFloat(
                             player,
                             -17.5F);
+
+            final Minecraft189PlayerRotationControl rotationControl =
+                    (Minecraft189PlayerRotationControl) player;
+            rotationControl.customMcSetRotationYaw(
+                    33.5F);
+            rotationControl.customMcSetRotationPitch(
+                    -22.75F);
+            assertEquals(
+                    33.5F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player));
+            assertEquals(
+                    -22.75F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player));
+            rotationControl.customMcSetRotationYaw(
+                    91.25F);
+            rotationControl.customMcSetRotationPitch(
+                    -17.5F);
+
             playerClass.getField("am")
                     .setInt(
                             player,
