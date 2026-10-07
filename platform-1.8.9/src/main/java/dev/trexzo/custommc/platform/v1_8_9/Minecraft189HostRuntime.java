@@ -563,7 +563,8 @@ public final class Minecraft189HostRuntime
         requireOpen();
         featureCatalog.flight()
                 .apply(
-                        player);
+                        player,
+                        playerRotationState.snapshot());
     }
 
     void playerHealth(
