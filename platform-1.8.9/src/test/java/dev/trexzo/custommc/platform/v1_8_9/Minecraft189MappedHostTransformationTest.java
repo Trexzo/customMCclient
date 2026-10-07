@@ -3586,6 +3586,46 @@ final class Minecraft189MappedHostTransformationTest {
                                     player),
                     0.000001F);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .requireHoldSetting()
+                    .set(
+                            Boolean.FALSE);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .yawEnabledSetting()
+                    .set(
+                            Boolean.FALSE);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .pitchEnabledSetting()
+                    .set(
+                            Boolean.TRUE);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            70.0F);
+            playerClass.getField("z")
+                    .setFloat(
+                            player,
+                            30.0F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    70.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    32.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189JitterModule.ID);

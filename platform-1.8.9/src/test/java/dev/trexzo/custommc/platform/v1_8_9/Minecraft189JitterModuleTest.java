@@ -52,12 +52,26 @@ final class Minecraft189JitterModuleTest {
                             Minecraft189JitterModule.PITCH_SETTING_ID));
             assertNotNull(
                     settings.find(
+                            Minecraft189JitterModule.YAW_ENABLED_SETTING_ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189JitterModule.PITCH_ENABLED_SETTING_ID));
+            assertNotNull(
+                    settings.find(
                             Minecraft189JitterModule.INTERVAL_SETTING_ID));
             assertNotNull(
                     settings.find(
                             Minecraft189JitterModule.REQUIRE_HOLD_SETTING_ID));
             assertTrue(
                     module.requireHoldSetting()
+                            .get()
+                            .booleanValue());
+            assertTrue(
+                    module.yawEnabledSetting()
+                            .get()
+                            .booleanValue());
+            assertTrue(
+                    module.pitchEnabledSetting()
                             .get()
                             .booleanValue());
             assertEquals(
@@ -296,6 +310,96 @@ final class Minecraft189JitterModuleTest {
                     player.yaw,
                     0.000001F);
 
+            module.yawEnabledSetting()
+                    .set(
+                            Boolean.FALSE);
+            module.pitchEnabledSetting()
+                    .set(
+                            Boolean.TRUE);
+            player.yaw = 70.0F;
+            player.pitch = 10.0F;
+            module.onDisable();
+            module.onEnable();
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertEquals(
+                    70.0F,
+                    player.yaw,
+                    0.000001F);
+            assertEquals(
+                    12.0F,
+                    player.pitch,
+                    0.000001F);
+
+            module.yawEnabledSetting()
+                    .set(
+                            Boolean.TRUE);
+            module.pitchEnabledSetting()
+                    .set(
+                            Boolean.FALSE);
+            player.yaw = 80.0F;
+            player.pitch = 15.0F;
+            module.onDisable();
+            module.onEnable();
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertEquals(
+                    81.25F,
+                    player.yaw,
+                    0.000001F);
+            assertEquals(
+                    15.0F,
+                    player.pitch,
+                    0.000001F);
+
+            module.yawEnabledSetting()
+                    .set(
+                            Boolean.FALSE);
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertEquals(
+                    81.25F,
+                    player.yaw,
+                    0.000001F);
+            assertEquals(
+                    15.0F,
+                    player.pitch,
+                    0.000001F);
+
+            module.yawEnabledSetting()
+                    .set(
+                            Boolean.TRUE);
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertEquals(
+                    82.5F,
+                    player.yaw,
+                    0.000001F);
+
             controller.disable(
                     Minecraft189JitterModule.ID);
             assertFalse(
@@ -313,6 +417,12 @@ final class Minecraft189JitterModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189JitterModule.PITCH_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189JitterModule.YAW_ENABLED_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189JitterModule.PITCH_ENABLED_SETTING_ID));
         assertNull(
                 settings.find(
                         Minecraft189JitterModule.INTERVAL_SETTING_ID));

@@ -12,6 +12,10 @@ public final class Minecraft189JitterModule
             "combat.jitter.yawDegrees";
     public static final String PITCH_SETTING_ID =
             "combat.jitter.pitchDegrees";
+    public static final String YAW_ENABLED_SETTING_ID =
+            "combat.jitter.yawEnabled";
+    public static final String PITCH_ENABLED_SETTING_ID =
+            "combat.jitter.pitchEnabled";
     public static final String INTERVAL_SETTING_ID =
             "combat.jitter.intervalTicks";
     public static final String REQUIRE_HOLD_SETTING_ID =
@@ -41,6 +45,18 @@ public final class Minecraft189JitterModule
                     DEFAULT_DEGREES,
                     Minecraft189JitterModule::validDegrees,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> yawEnabled =
+            new Setting<Boolean>(
+                    YAW_ENABLED_SETTING_ID,
+                    Boolean.TRUE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> pitchEnabled =
+            new Setting<Boolean>(
+                    PITCH_ENABLED_SETTING_ID,
+                    Boolean.TRUE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private final Setting<Integer> intervalTicks =
             new Setting<Integer>(
                     INTERVAL_SETTING_ID,
@@ -73,6 +89,14 @@ public final class Minecraft189JitterModule
         return pitchDegrees;
     }
 
+    public Setting<Boolean> yawEnabledSetting() {
+        return yawEnabled;
+    }
+
+    public Setting<Boolean> pitchEnabledSetting() {
+        return pitchEnabled;
+    }
+
     public Setting<Integer> intervalTicksSetting() {
         return intervalTicks;
     }
@@ -97,10 +121,16 @@ public final class Minecraft189JitterModule
             final Minecraft189PlayerRotationControl player,
             final Minecraft189PlayerRotationState.Snapshot rotation,
             final boolean leftButtonHeld) {
+        final boolean yawAxisEnabled =
+                yawEnabled.get().booleanValue();
+        final boolean pitchAxisEnabled =
+                pitchEnabled.get().booleanValue();
         if (!enabled
                 || player == null
                 || rotation == null
                 || !rotation.available()
+                || (!yawAxisEnabled
+                        && !pitchAxisEnabled)
                 || (requireHold.get().booleanValue()
                         && !leftButtonHeld)) {
             resetCadence();
@@ -128,14 +158,18 @@ public final class Minecraft189JitterModule
         final float currentPitch =
                 rotation.pitch();
         final float targetYaw =
-                (float) (currentYaw
-                        + direction
-                        * yawDegrees.get().doubleValue());
-        final float targetPitch =
-                clampPitch(
-                        (float) (currentPitch
+                yawAxisEnabled
+                        ? (float) (currentYaw
                                 + direction
-                                * pitchDegrees.get().doubleValue()));
+                                * yawDegrees.get().doubleValue())
+                        : currentYaw;
+        final float targetPitch =
+                pitchAxisEnabled
+                        ? clampPitch(
+                                (float) (currentPitch
+                                        + direction
+                                        * pitchDegrees.get().doubleValue()))
+                        : currentPitch;
 
         boolean changed = false;
         if (Float.compare(
