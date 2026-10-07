@@ -1208,3 +1208,11 @@ The existing physical-hold behavior remains the default through persistent BOOLE
 Changing back to Require Hold while LMB is released resets scheduling on the next tick, preventing latent phase credit from producing a delayed click. Module disable still resets all schedule state. Generated clicks continue to feed the same click-rate tracker as held-mode clicks.
 
 Focused coverage preserves the original hold-only schedule and proves toggle mode at deterministic 10 CPS, encoded setting persistence, reset-on-mode-return behavior, and teardown. Transformed-host coverage proves the real mapped `clickMouse()` delegate fires with LMB released only while Require Hold is false.
+
+## Velocity amplification range
+
+M177 extends **Combat → Velocity** without introducing any new Minecraft mapping or knockback hook. The existing certified `EntityLivingBase.knockBack` delta interception remains authoritative.
+
+Horizontal and Vertical percentage settings now accept **0..200%** instead of only 0..100%. The module still scales only the incoming knockback delta relative to the pre-hit motion baseline: 0% cancels the delta, 100% preserves vanilla knockback, and values above 100% amplify the same delta without replacing pre-existing motion.
+
+Defaults remain 0%, so existing AntiKB behavior is unchanged. Both settings retain 5% UI increments. Focused coverage proves 150% horizontal and 200% vertical amplification plus range rejection above 200%. Transformed-host coverage proves exact amplified mapped `pk.v/pk.w/pk.x` results through the real mapped knockback delegate.

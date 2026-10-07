@@ -13,18 +13,22 @@ public final class Minecraft189VelocityModule
     public static final String VERTICAL_SETTING_ID =
             "combat.velocity.verticalPercent";
     public static final int DEFAULT_PERCENT = 0;
+    public static final int MINIMUM_PERCENT = 0;
+    public static final int MAXIMUM_PERCENT = 200;
 
     private final Setting<Integer> horizontalPercent =
             new Setting<Integer>(
                     HORIZONTAL_SETTING_ID,
                     DEFAULT_PERCENT,
-                    value -> value >= 0 && value <= 100,
+                    value -> value >= MINIMUM_PERCENT
+                            && value <= MAXIMUM_PERCENT,
                     SettingCodecs.INTEGER);
     private final Setting<Integer> verticalPercent =
             new Setting<Integer>(
                     VERTICAL_SETTING_ID,
                     DEFAULT_PERCENT,
-                    value -> value >= 0 && value <= 100,
+                    value -> value >= MINIMUM_PERCENT
+                            && value <= MAXIMUM_PERCENT,
                     SettingCodecs.INTEGER);
 
     private boolean enabled;

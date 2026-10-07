@@ -61,6 +61,23 @@ final class Minecraft189VelocityModuleTest {
                         6.0D),
                 0.000001D);
 
+        module.horizontalPercentSetting()
+                .set(150);
+        module.verticalPercentSetting()
+                .set(200);
+        assertEquals(
+                6.5D,
+                module.adjustHorizontal(
+                        2.0D,
+                        5.0D),
+                0.000001D);
+        assertEquals(
+                8.0D,
+                module.adjustVertical(
+                        4.0D,
+                        6.0D),
+                0.000001D);
+
         assertThrows(
                 IllegalArgumentException.class,
                 () -> module.horizontalPercentSetting()
@@ -68,7 +85,7 @@ final class Minecraft189VelocityModuleTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> module.verticalPercentSetting()
-                        .set(101));
+                        .set(201));
 
         module.onDisable();
         assertFalse(
