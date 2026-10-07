@@ -861,3 +861,13 @@ The existing EntityLivingBase class-shape gate now requires this exact method al
 
 This milestone is authority-only. It does not trigger jumps, retain a player object, or register a movement module.
 
+## Auto Jump movement control
+
+M139 adds disabled-by-default `movement.autoJump` / **Auto Jump** under the existing Movement category.
+
+Transformed base `EntityLivingBase pr` implements parent-owned `Minecraft189PlayerJumpControl`; generated `customMcJump()` delegates only to certified M138 authority `pr.bF()V` / `func_70664_aZ`. Immediately before each normal return from mapped `Minecraft.runTick()`, exact `ave.h Lbew;` is forwarded transiently through the jump-control boundary after the current movement-state snapshot has been published. The host does not retain the player object.
+
+Auto Jump uses exact mapped `onGround` state and fires once per grounded contact. After a jump, it remains disarmed while the snapshot is still grounded and re-arms only after observing an airborne snapshot, preventing duplicate jump calls across adjacent grounded ticks. Disabling the module resets its arm state.
+
+Focused coverage verifies disabled behavior, one jump per ground contact, airborne re-arm, disable behavior, category lifecycle and teardown. Transformed-host coverage executes the inherited `bew -> ... -> pr` control interface and proves exact `pr.bF()V` invocation through the synthetic jump counter.
+
