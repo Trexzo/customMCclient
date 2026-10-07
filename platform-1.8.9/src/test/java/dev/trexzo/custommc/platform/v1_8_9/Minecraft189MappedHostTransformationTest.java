@@ -3703,6 +3703,52 @@ final class Minecraft189MappedHostTransformationTest {
                                     player),
                     0.000001F);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .spin()
+                    .requireHoldSetting()
+                    .set(
+                            Boolean.TRUE);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            -100.0F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    -100.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    -130.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    33.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189SpinModule.ID);
