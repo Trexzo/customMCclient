@@ -19,6 +19,7 @@ public final class Minecraft189ClassShapeVerifier {
                 Minecraft189Mappings.MINECRAFT,
                 new Minecraft189Mappings.MappedField[]{
                         Minecraft189Mappings.MINECRAFT_PLAYER,
+                        Minecraft189Mappings.MINECRAFT_WORLD,
                         Minecraft189Mappings.MINECRAFT_FONT_RENDERER,
                         Minecraft189Mappings.MINECRAFT_ENTITY_RENDERER,
                         Minecraft189Mappings.MINECRAFT_INGAME_GUI,
@@ -33,6 +34,17 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_MOUSE,
                         Minecraft189Mappings.MINECRAFT_MIDDLE_CLICK_MOUSE,
                         Minecraft189Mappings.MINECRAFT_DISPATCH_KEYPRESSES
+                });
+    }
+
+    public static void verifyWorld(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.WORLD,
+                new Minecraft189Mappings.MappedField[0],
+                new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.WORLD_GET_WORLD_TIME
                 });
     }
 
