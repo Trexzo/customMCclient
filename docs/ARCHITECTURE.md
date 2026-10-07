@@ -1343,3 +1343,13 @@ The module exposes persistent DOUBLE settings `combat.jitter.yawDegrees` and `co
 Each eligible rotation callback first captures the raw mapped yaw/pitch snapshot, then applies a deterministic alternating phase. The first held tick adds the configured offsets and the next held tick subtracts them from the newly sampled rotation, returning to baseline when the user has not moved the mouse. Releasing LMB, disabling the module, or losing a usable rotation control resets the next phase to positive. Pitch writes are clamped to Minecraft's `[-90, 90]` viewing range.
 
 Focused coverage proves alternating phases, release reset, custom amplitudes, pitch clamping, lifecycle and setting teardown. Transformed-host coverage proves exact `pk.y/pk.z` writes through the M188 control bridge while the parent-owned snapshot remains the pre-jitter rotation for that tick.
+
+## Configurable Jitter interval
+
+M190 extends **Combat → Jitter** without introducing any new Minecraft mapping or rotation hook. The certified live yaw/pitch read-write bridge remains authoritative.
+
+`combat.jitter.intervalTicks` is a persistent INTEGER setting with default `1`, range `1..10`, and step `1`. The default therefore preserves M189 exactly: while physical LMB is held, every eligible rotation tick alternates the configured positive and negative yaw/pitch offset. Larger values apply one offset immediately, skip `intervalTicks - 1` eligible ticks, then apply the opposite phase.
+
+Releasing LMB, losing rotation authority, disabling the module, or receiving a null player resets both cadence and phase. The next valid held tick therefore always starts immediately with the positive phase instead of inheriting stale cooldown state.
+
+Focused coverage proves default one-tick parity, a three-tick cadence, deterministic phase alternation, release reset, and setting teardown. Transformed-host coverage proves the same cadence against exact mapped `rotationYaw` and `rotationPitch` writes through `Minecraft.runTick()`.
