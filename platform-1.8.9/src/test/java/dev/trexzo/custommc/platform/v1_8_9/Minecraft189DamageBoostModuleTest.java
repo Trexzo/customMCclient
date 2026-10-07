@@ -74,10 +74,22 @@ final class Minecraft189DamageBoostModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189DamageBoostModule.MULTIPLIER_SETTING_ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189DamageBoostModule.VERTICAL_MULTIPLIER_SETTING_ID));
+            assertEquals(
+                    Minecraft189DamageBoostModule.DEFAULT_VERTICAL_MULTIPLIER,
+                    runtime.featureCatalog()
+                            .damageBoost()
+                            .verticalMultiplierSetting()
+                            .get()
+                            .doubleValue(),
+                    0.000000001D);
 
             final TestPlayer player =
                     new TestPlayer();
             player.motionX = 0.40D;
+            player.motionY = 0.30D;
             player.motionZ = -0.20D;
 
             controller.enable(
@@ -121,6 +133,10 @@ final class Minecraft189DamageBoostModuleTest {
                     player.motionX,
                     0.000000001D);
             assertEquals(
+                    0.30D,
+                    player.motionY,
+                    0.000000001D);
+            assertEquals(
                     -0.25D,
                     player.motionZ,
                     0.000000001D);
@@ -141,6 +157,11 @@ final class Minecraft189DamageBoostModuleTest {
                     .multiplierSetting()
                     .set(
                             1.50D);
+            runtime.featureCatalog()
+                    .damageBoost()
+                    .verticalMultiplierSetting()
+                    .set(
+                            2.00D);
             runtime.playerHurtTimeState()
                     .update(
                             8);
@@ -154,6 +175,10 @@ final class Minecraft189DamageBoostModuleTest {
             assertEquals(
                     0.75D,
                     player.motionX,
+                    0.000000001D);
+            assertEquals(
+                    0.60D,
+                    player.motionY,
                     0.000000001D);
             assertEquals(
                     -0.375D,
@@ -247,6 +272,9 @@ final class Minecraft189DamageBoostModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189DamageBoostModule.MULTIPLIER_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189DamageBoostModule.VERTICAL_MULTIPLIER_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
