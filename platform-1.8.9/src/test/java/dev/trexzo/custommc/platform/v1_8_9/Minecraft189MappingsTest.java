@@ -290,6 +290,20 @@ final class Minecraft189MappingsTest {
                 "func_72820_D",
                 "getWorldTime");
         assertMethod(
+                Minecraft189Mappings.WORLD_IS_RAINING,
+                Minecraft189Mappings.WORLD,
+                "S",
+                "()Z",
+                "func_72896_J",
+                "isRaining");
+        assertMethod(
+                Minecraft189Mappings.WORLD_IS_THUNDERING,
+                Minecraft189Mappings.WORLD,
+                "R",
+                "()Z",
+                "func_72911_I",
+                "isThundering");
+        assertMethod(
                 Minecraft189Mappings.MINECRAFT_GET_MINECRAFT,
                 Minecraft189Mappings.MINECRAFT,
                 "A",
@@ -646,6 +660,51 @@ final class Minecraft189MappingsTest {
                 failure.getMessage());
     }
 
+    @Test
+    void worldShapeGateRejectsMissingRainingMethod() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.WORLD
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.WORLD_GET_WORLD_TIME);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyWorld(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: adm.S()Z (isRaining)",
+                failure.getMessage());
+    }
+
+    @Test
+    void worldShapeGateRejectsMissingThunderingMethod() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.WORLD
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.WORLD_GET_WORLD_TIME);
+        addMethod(
+                writer,
+                Minecraft189Mappings.WORLD_IS_RAINING);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyWorld(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: adm.R()Z (isThundering)",
+                failure.getMessage());
+    }
+
     private static byte[] worldShape() {
         final ClassWriter writer =
                 writer(
@@ -654,6 +713,12 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.WORLD_GET_WORLD_TIME);
+        addMethod(
+                writer,
+                Minecraft189Mappings.WORLD_IS_RAINING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.WORLD_IS_THUNDERING);
         return finish(writer);
     }
 
