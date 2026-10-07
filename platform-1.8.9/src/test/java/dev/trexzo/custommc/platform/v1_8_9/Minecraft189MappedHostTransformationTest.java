@@ -411,6 +411,18 @@ final class Minecraft189MappedHostTransformationTest {
                     .setFloat(
                             player,
                             20.0F);
+            playerClass.getField("bB")
+                    .setInt(
+                            player,
+                            27);
+            playerClass.getField("bC")
+                    .setInt(
+                            player,
+                            12345);
+            playerClass.getField("bD")
+                    .setFloat(
+                            player,
+                            0.5F);
 
             final Class<?> itemStackClass =
                     loader.loadClass("zx");
@@ -770,6 +782,28 @@ final class Minecraft189MappedHostTransformationTest {
                             .get(1)
                             .effectName());
 
+            final Minecraft189PlayerExperienceState.Snapshot experience =
+                    runtime.requireHostRuntime()
+                            .playerExperienceState()
+                            .snapshot();
+            assertTrue(
+                    experience.available());
+            assertEquals(
+                    27,
+                    experience.level());
+            assertEquals(
+                    12345,
+                    experience.total());
+            assertEquals(
+                    0.5F,
+                    experience.progress());
+            assertEquals(
+                    42,
+                    experience.barCap());
+            assertEquals(
+                    21,
+                    experience.progressPoints());
+
             minecraftClass.getField("h")
                     .set(
                             minecraft,
@@ -808,6 +842,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .playerPotionEffectsState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .playerExperienceState()
                             .snapshot()
                             .available());
 

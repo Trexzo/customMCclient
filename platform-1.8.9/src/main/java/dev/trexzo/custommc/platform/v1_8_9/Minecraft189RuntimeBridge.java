@@ -108,6 +108,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerExperience(
+            final Minecraft189PlayerExperienceAccess player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerExperience(player);
+        }
+    }
+
     public static synchronized void publishTick(
             final long tickIndex) {
         final Minecraft189HostRuntime host =

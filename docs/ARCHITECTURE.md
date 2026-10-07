@@ -621,3 +621,13 @@ The existing `EntityPlayer` shape gate now requires all three experience fields 
 
 The transformed-host synthetic `wn` fixture was updated to satisfy the stricter gate without adding runtime XP publication. This milestone is authority-only; no experience state or HUD is exposed yet.
 
+## Live Experience HUD
+
+M113 consumes the independently certified M112 experience authority. Transformed base `EntityPlayer` `wn` now implements the parent-owned `Minecraft189PlayerExperienceAccess` contract. Generated getters read exact mapped `experienceLevel`, `experienceTotal`, `experience` progress and call exact `xpBarCap()`; only primitive values cross the transforming classloader boundary.
+
+Immediately before each normal return from mapped `Minecraft.runTick()`, the player is forwarded through `Minecraft189RuntimeBridge.playerExperience(...)`. `Minecraft189HostRuntime` owns a synchronized `Minecraft189PlayerExperienceState`, validates non-negative level/total, finite progress in `0..1`, and a positive bar cap, and clears availability on null player and teardown.
+
+The new Visuals module `render.experience` / **Experience** renders level, current-bar progress and total XP, for example `XP: Lv 27 | 21/42 | Total 12345`. Persistent X/Y settings use the existing generic settings/profile path.
+
+Executable transformed-host coverage now supplies exact synthetic `wn.bB=27`, `wn.bC=12345`, `wn.bD=0.5` and `wn.ck()=42`, proving mapped `runTick()` publishes all four values and that null-player clearing removes the snapshot. Focused HUD coverage proves rendering, persisted coordinates, validation, disable behavior and complete feature teardown.
+
