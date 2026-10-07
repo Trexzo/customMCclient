@@ -1423,3 +1423,13 @@ M198 extends **Combat → W-Tap** with persistent BOOLEAN setting `combat.wTap.r
 When enabled, a fresh physical LMB press is consumed normally but only writes sprint `false` when the captured movement snapshot reports `onGround=true`. An airborne press therefore does not suddenly fire on landing while the same button remains held; release is still required to rearm the next edge.
 
 No new Minecraft mapping or transformer hook is introduced. Focused coverage proves default parity, airborne suppression, held-button non-retrigger after landing, release rearm, grounded reset and teardown. Transformed-host coverage proves the same behavior against exact mapped `Entity.onGround` and sprint state while Auto Sprint remains enabled.
+
+## Configurable W-Tap cooldown
+
+M199 extends **Combat → W-Tap** with persistent INTEGER setting `combat.wTap.cooldownTicks`, presented as **Cooldown**, default `0`, range `0..20`, and step `1`. The default preserves M198 exactly.
+
+After a successful sprint reset, the module suppresses new W-Tap resets for the configured number of subsequent valid sprint-control ticks. Physical press edges that occur during cooldown are consumed rather than deferred: holding the same click after cooldown expires never causes a delayed reset, and release is required to rearm another edge. Disable, re-enable, missing player authority or unavailable movement state clears cooldown and edge state.
+
+Auto Sprint ownership remains unchanged. W-Tap still outranks Auto Sprint only on ticks where it actually writes sprint `false`; cooldown-suppressed presses yield normally, allowing Auto Sprint to keep or restore sprint. No new Minecraft mapping or transformer hook is introduced.
+
+Focused and transformed-host coverage prove default parity, a two-tick cooldown, consumed suppressed presses, rearm after release, Auto Sprint cooperation and setting teardown.
