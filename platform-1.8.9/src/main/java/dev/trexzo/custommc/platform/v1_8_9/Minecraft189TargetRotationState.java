@@ -1,0 +1,138 @@
+package dev.trexzo.custommc.platform.v1_8_9;
+
+public final class Minecraft189TargetRotationState {
+    private boolean available;
+    private int entityIndex = -1;
+    private float yaw;
+    private float pitch;
+
+    public synchronized void update(
+            final Minecraft189PlayerPositionState.Snapshot local,
+            final Minecraft189NearestPlayerTargetState.Snapshot target) {
+        if (local == null
+                || target == null
+                || !local.available()
+                || !target.available()
+                || !target.found()) {
+            clear();
+            return;
+        }
+
+        final double dx =
+                target.x() - local.x();
+        final double dy =
+                target.y() - local.y();
+        final double dz =
+                target.z() - local.z();
+
+        if (!finite(dx)
+                || !finite(dy)
+                || !finite(dz)) {
+            clear();
+            return;
+        }
+
+        final double horizontal =
+                Math.hypot(
+                        dx,
+                        dz);
+        if (!finite(horizontal)
+                || horizontal == 0.0D) {
+            clear();
+            return;
+        }
+
+        double nextYaw =
+                Math.toDegrees(
+                        Math.atan2(
+                                dz,
+                                dx))
+                        - 90.0D;
+        nextYaw = normalizeYaw(nextYaw);
+
+        final double nextPitch =
+                -Math.toDegrees(
+                        Math.atan2(
+                                dy,
+                                horizontal));
+
+        if (!finite(nextYaw)
+                || !finite(nextPitch)) {
+            clear();
+            return;
+        }
+
+        entityIndex =
+                target.entityIndex();
+        yaw = (float) nextYaw;
+        pitch = (float) nextPitch;
+        available = true;
+    }
+
+    public synchronized void clear() {
+        available = false;
+        entityIndex = -1;
+        yaw = 0.0F;
+        pitch = 0.0F;
+    }
+
+    public synchronized Snapshot snapshot() {
+        return new Snapshot(
+                available,
+                entityIndex,
+                yaw,
+                pitch);
+    }
+
+    private static double normalizeYaw(
+            final double yaw) {
+        double normalized =
+                yaw % 360.0D;
+        if (normalized < -180.0D) {
+            normalized += 360.0D;
+        } else if (normalized >= 180.0D) {
+            normalized -= 360.0D;
+        }
+        return normalized;
+    }
+
+    private static boolean finite(
+            final double value) {
+        return !Double.isNaN(value)
+                && !Double.isInfinite(value);
+    }
+
+    public static final class Snapshot {
+        private final boolean available;
+        private final int entityIndex;
+        private final float yaw;
+        private final float pitch;
+
+        private Snapshot(
+                final boolean available,
+                final int entityIndex,
+                final float yaw,
+                final float pitch) {
+            this.available = available;
+            this.entityIndex = entityIndex;
+            this.yaw = yaw;
+            this.pitch = pitch;
+        }
+
+        public boolean available() {
+            return available;
+        }
+
+        public int entityIndex() {
+            return entityIndex;
+        }
+
+        public float yaw() {
+            return yaw;
+        }
+
+        public float pitch() {
+            return pitch;
+        }
+    }
+}
