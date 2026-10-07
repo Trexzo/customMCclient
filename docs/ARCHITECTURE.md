@@ -677,3 +677,15 @@ Exact `ItemStack` `zx` members added here are `zx.b I` / Searge `field_77994_a` 
 
 A dedicated `ItemStack` shape gate requires the exact field and all three methods. Regression coverage pins their owners, names, descriptors and missing-member failure behavior. This milestone is authority-only; it does not yet transform `zx` or publish held-item state.
 
+## Live Held Item HUD
+
+M119 consumes the independently certified M118 `ItemStack` authority together with the earlier certified slot convention for `EntityLivingBase.getEquipmentInSlot(int)`, where slot `0` is the held item.
+
+Transformed `ItemStack` `zx` implements parent-owned `Minecraft189ItemStackAccess`, exposing only display name, stack size, item damage and maximum damage. Transformed `EntityLivingBase` `pr` implements parent-owned `Minecraft189PlayerHeldItemAccess`; its generated getter calls exact `pr.p(0)Lzx;` and casts the result to the parent-owned item interface. A null slot remains null, and no concrete `zx` type appears in the parent-facing signature.
+
+Mapped `Minecraft.runTick()` forwards the local player through this access boundary. `Minecraft189HostRuntime` immediately copies held-item values into synchronized `Minecraft189HeldItemState` and clears the state for a null player or empty hand. State validation requires a non-blank display name, positive stack size, non-negative item damage and non-negative maximum damage. Item damage is not constrained by max damage because non-damageable subtype items may use metadata while reporting max damage `0`.
+
+The new Visuals module `render.heldItem` / **Held Item** uses persistent X/Y settings. Damageable items render remaining durability, for example `Held: Diamond Sword | Dur: 1534/1561`; non-damageable stacks render count when greater than one, for example `Held: Ender Pearl x16`.
+
+Executable transformed-host coverage now transforms exact synthetic `zx`, places a sword in exact slot `0`, proves all four mapped values reach host state, and proves clearing only slot `0` removes Held Item availability while the player remains live. Focused HUD coverage proves durability/count formatting, normalization, persisted coordinates, empty-hand clearing, validation, disable behavior and complete feature teardown.
+
