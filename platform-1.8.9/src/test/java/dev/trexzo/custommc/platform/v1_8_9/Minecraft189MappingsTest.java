@@ -85,6 +85,10 @@ final class Minecraft189MappingsTest {
                 "wn",
                 "net/minecraft/entity/player/EntityPlayer");
         assertClass(
+                Minecraft189Mappings.INVENTORY_PLAYER,
+                "wm",
+                "net/minecraft/entity/player/InventoryPlayer");
+        assertClass(
                 Minecraft189Mappings.ENTITY,
                 "pk",
                 "net/minecraft/entity/Entity");
@@ -199,6 +203,20 @@ final class Minecraft189MappingsTest {
                 "F",
                 "field_70177_z",
                 "rotationYaw");
+        assertField(
+                Minecraft189Mappings.ENTITY_PLAYER_INVENTORY,
+                Minecraft189Mappings.ENTITY_PLAYER,
+                "bi",
+                "Lwm;",
+                "field_71071_by",
+                "inventory");
+        assertField(
+                Minecraft189Mappings.INVENTORY_PLAYER_CURRENT_ITEM,
+                Minecraft189Mappings.INVENTORY_PLAYER,
+                "c",
+                "I",
+                "field_70461_c",
+                "currentItem");
         assertField(
                 Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL,
                 Minecraft189Mappings.ENTITY_PLAYER,
@@ -484,6 +502,8 @@ final class Minecraft189MappingsTest {
                 entityLivingBaseShape());
         Minecraft189ClassShapeVerifier.verifyEntityPlayer(
                 entityPlayerShape());
+        Minecraft189ClassShapeVerifier.verifyInventoryPlayer(
+                inventoryPlayerShape());
         Minecraft189ClassShapeVerifier.verifyAbstractClientPlayer(
                 abstractClientPlayerShape());
         Minecraft189ClassShapeVerifier.verifyNetworkPlayerInfo(
@@ -968,6 +988,55 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
+    void entityPlayerShapeGateRejectsMissingInventoryField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY_PLAYER
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_INVENTORY);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_TOTAL);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_PROGRESS);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntityPlayer(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: wn.bi Lwm; (inventory)",
+                failure.getMessage());
+    }
+
+    @Test
+    void inventoryPlayerShapeGateRejectsMissingCurrentItemField() {
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyInventoryPlayer(
+                                        emptyClass("wm")));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: wm.c I (currentItem)",
+                failure.getMessage());
+    }
+
+    @Test
     void entityPlayerShapeGateRejectsMissingExperienceField() {
         final ClassWriter writer =
                 writer(
@@ -997,6 +1066,9 @@ final class Minecraft189MappingsTest {
                 writer(
                         Minecraft189Mappings.ENTITY_PLAYER
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_INVENTORY);
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL);
@@ -1171,6 +1243,9 @@ final class Minecraft189MappingsTest {
                                 .obfuscatedInternalName());
         addField(
                 writer,
+                Minecraft189Mappings.ENTITY_PLAYER_INVENTORY);
+        addField(
+                writer,
                 Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL);
         addField(
                 writer,
@@ -1184,6 +1259,17 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP);
+        return finish(writer);
+    }
+
+    private static byte[] inventoryPlayerShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.INVENTORY_PLAYER
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.INVENTORY_PLAYER_CURRENT_ITEM);
         return finish(writer);
     }
 
