@@ -255,6 +255,13 @@ public final class Minecraft189Mappings {
                     "F",
                     "field_70177_z",
                     "rotationYaw");
+    public static final MappedField ENTITY_ROTATION_PITCH =
+            new MappedField(
+                    ENTITY,
+                    "z",
+                    "F",
+                    "field_70125_A",
+                    "rotationPitch");
     public static final MappedField ENTITY_MOTION_X =
             new MappedField(
                     ENTITY,
