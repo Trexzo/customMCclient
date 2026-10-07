@@ -245,6 +245,11 @@ final class Minecraft189MappedHostTransformationTest {
                         "avh",
                         gameSettingsShape()));
         loader.put(
+                "adm",
+                transformer.transform(
+                        "adm",
+                        worldShape()));
+        loader.put(
                 "bdb",
                 worldClientShape());
         loader.put(
@@ -615,6 +620,20 @@ final class Minecraft189MappedHostTransformationTest {
                             minecraft,
                             player);
 
+            final Class<?> worldClass =
+                    loader.loadClass("bdb");
+            final Object world =
+                    worldClass.getDeclaredConstructor()
+                            .newInstance();
+            worldClass.getField("worldTime")
+                    .setLong(
+                            world,
+                            6000L);
+            minecraftClass.getField("f")
+                    .set(
+                            minecraft,
+                            world);
+
             final Class<?> serverDataClass =
                     loader.loadClass("bde");
             final Object serverData =
@@ -938,6 +957,25 @@ final class Minecraft189MappedHostTransformationTest {
                     57,
                     ping.milliseconds());
 
+            final Minecraft189WorldTimeState.Snapshot worldTime =
+                    runtime.requireHostRuntime()
+                            .worldTimeState()
+                            .snapshot();
+            assertTrue(
+                    worldTime.available());
+            assertEquals(
+                    6000L,
+                    worldTime.worldTime());
+            assertEquals(
+                    6000L,
+                    worldTime.timeOfDayTicks());
+            assertEquals(
+                    12,
+                    worldTime.hour());
+            assertEquals(
+                    0,
+                    worldTime.minute());
+
             final Minecraft189ServerAddressState.Snapshot server =
                     runtime.requireHostRuntime()
                             .serverAddressState()
@@ -989,6 +1027,17 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .playerPingState()
+                            .snapshot()
+                            .available());
+
+            minecraftClass.getField("f")
+                    .set(
+                            minecraft,
+                            null);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .worldTimeState()
                             .snapshot()
                             .available());
 
@@ -1522,12 +1571,79 @@ final class Minecraft189MappedHostTransformationTest {
         return writer.toByteArray();
     }
 
-    private static byte[] worldClientShape() {
+    private static byte[] worldShape() {
         final ClassWriter writer =
-                classWriter("bdb");
+                classWriter("adm");
+        field(
+                writer,
+                "worldTime",
+                "J");
         endDefaultConstructor(
                 writer,
-                "bdb");
+                "adm");
+
+        final MethodVisitor getWorldTime =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "L",
+                        "()J",
+                        null,
+                        null);
+        getWorldTime.visitCode();
+        getWorldTime.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        getWorldTime.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "adm",
+                "worldTime",
+                "J");
+        getWorldTime.visitInsn(
+                Opcodes.LRETURN);
+        getWorldTime.visitMaxs(
+                2,
+                1);
+        getWorldTime.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] worldClientShape() {
+        final ClassWriter writer =
+                new ClassWriter(0);
+        writer.visit(
+                Opcodes.V1_8,
+                Opcodes.ACC_PUBLIC,
+                "bdb",
+                null,
+                "adm",
+                null);
+
+        final MethodVisitor constructor =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "<init>",
+                        "()V",
+                        null,
+                        null);
+        constructor.visitCode();
+        constructor.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        constructor.visitMethodInsn(
+                Opcodes.INVOKESPECIAL,
+                "adm",
+                "<init>",
+                "()V",
+                false);
+        constructor.visitInsn(
+                Opcodes.RETURN);
+        constructor.visitMaxs(
+                1,
+                1);
+        constructor.visitEnd();
+
         writer.visitEnd();
         return writer.toByteArray();
     }
