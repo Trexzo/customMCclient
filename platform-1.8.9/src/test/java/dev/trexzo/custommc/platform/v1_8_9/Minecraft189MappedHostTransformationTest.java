@@ -441,6 +441,18 @@ final class Minecraft189MappedHostTransformationTest {
                     .setInt(
                             player,
                             -1);
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            false);
+            playerClass.getField("sneaking")
+                    .setBoolean(
+                            player,
+                            true);
+            playerClass.getField("sprinting")
+                    .setBoolean(
+                            player,
+                            false);
             playerClass.getField("health")
                     .setFloat(
                             player,
@@ -866,6 +878,19 @@ final class Minecraft189MappedHostTransformationTest {
                     -1,
                     dimension.dimensionId());
 
+            final Minecraft189PlayerMovementState.Snapshot movement =
+                    runtime.requireHostRuntime()
+                            .playerMovementState()
+                            .snapshot();
+            assertTrue(
+                    movement.available());
+            assertFalse(
+                    movement.onGround());
+            assertTrue(
+                    movement.sneaking());
+            assertFalse(
+                    movement.sprinting());
+
             final Minecraft189PlayerHealthState.Snapshot health =
                     runtime.requireHostRuntime()
                             .playerHealthState()
@@ -1156,6 +1181,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .playerDimensionState()
+                            .snapshot()
+                            .available());
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .playerMovementState()
                             .snapshot()
                             .available());
             assertFalse(

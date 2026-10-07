@@ -779,3 +779,13 @@ The existing Entity class-shape gate now requires these three movement signals a
 
 This milestone is authority-only. It does not publish movement status, retain a player object, or register a HUD.
 
+## Live Movement Status HUD
+
+M130 consumes certified M129 movement-state authority directly from transformed base `Entity pk`. The transformed class now implements parent-owned `Minecraft189PlayerMovementStateAccess` alongside the existing position, rotation and dimension contracts. `customMcOnGround()` reads exact `pk.C Z`, `customMcSneaking()` delegates to exact `pk.av()Z`, and `customMcSprinting()` delegates to exact `pk.aw()Z`.
+
+Immediately before each normal return from mapped `Minecraft.runTick()`, exact `ave.h Lbew;` is forwarded through `Minecraft189RuntimeBridge.playerMovementState(...)`. `Minecraft189HostRuntime` immediately copies only three booleans into synchronized `Minecraft189PlayerMovementState`; no concrete Entity/player object is retained. A null player clears availability, and runtime teardown clears the state.
+
+The new Visuals module `render.movementStatus` / **Movement Status** owns persistent X/Y settings. It renders the exact mapped posture without inferring motion speed: `Normal`, `Sneak`, `Sprint`, or `Sprint+Sneak`, followed by `Ground` or `Air`.
+
+Executable transformed-host coverage sets exact inherited `pk.C` plus synthetic backing state for exact `pk.av()/pk.aw()`, publishes through transformed `runTick()`, verifies the parent-owned snapshot, and verifies null-player clearing. Focused HUD coverage verifies all posture labels, ground/air rendering, persisted coordinates, disable behavior, and complete feature teardown.
+
