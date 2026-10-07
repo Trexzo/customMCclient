@@ -187,6 +187,13 @@ public final class Minecraft189Mappings {
                     "F",
                     "field_70177_z",
                     "rotationYaw");
+    public static final MappedField ENTITY_DIMENSION =
+            new MappedField(
+                    ENTITY,
+                    "am",
+                    "I",
+                    "field_71093_bK",
+                    "dimension");
     public static final MappedField ENTITY_PLAYER_INVENTORY =
             new MappedField(
                     ENTITY_PLAYER,

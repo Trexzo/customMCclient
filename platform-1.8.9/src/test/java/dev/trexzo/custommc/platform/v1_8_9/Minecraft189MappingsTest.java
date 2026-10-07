@@ -204,6 +204,13 @@ final class Minecraft189MappingsTest {
                 "field_70177_z",
                 "rotationYaw");
         assertField(
+                Minecraft189Mappings.ENTITY_DIMENSION,
+                Minecraft189Mappings.ENTITY,
+                "am",
+                "I",
+                "field_71093_bK",
+                "dimension");
+        assertField(
                 Minecraft189Mappings.ENTITY_PLAYER_INVENTORY,
                 Minecraft189Mappings.ENTITY_PLAYER,
                 "bi",
@@ -803,6 +810,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_POS_Z);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_DIMENSION);
 
         final IllegalStateException failure =
                 assertThrows(
@@ -812,6 +822,36 @@ final class Minecraft189MappingsTest {
                                         finish(writer)));
         assertEquals(
                 "Minecraft 1.8.9 mapping field missing: pk.y F (rotationYaw)",
+                failure.getMessage());
+    }
+
+    @Test
+    void entityShapeGateRejectsMissingDimensionField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_X);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Y);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Z);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ROTATION_YAW);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntity(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: pk.am I (dimension)",
                 failure.getMessage());
     }
 
@@ -964,6 +1004,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_DIMENSION);
         return finish(writer);
     }
 

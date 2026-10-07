@@ -735,3 +735,11 @@ The new Visuals module `render.hotbarSlot` / **Hotbar Slot** has persistent X/Y 
 
 Executable transformed-host coverage transforms exact `wm`, places it behind exact `wn.bi`, publishes synthetic slot `4` through transformed `runTick()`, proves the parent-owned state snapshot, and proves null-inventory clearing independently of ping, world time, server and held-item state. Focused HUD coverage proves rendering, persisted coordinates, invalid-slot clearing, disable behavior, state validation and complete feature teardown.
 
+## Dimension mapping authority
+
+M125 pins the minimal Minecraft 1.8.9 player-dimension source on base `Entity`: exact obfuscated field `pk.am I`, Searge `field_71093_bK`, MCP `dimension`. Because every live player inherits from `Entity`, no `WorldProvider` object boundary is required for the consumer milestone.
+
+The existing Entity class-shape gate now requires this exact integer alongside position and yaw. Mapping regressions pin owner, obfuscated name, descriptor, Searge name and MCP name, and transformed-host fixtures carry exact `pk.am I` so stricter verification remains executable.
+
+This milestone is authority-only. It does not publish dimension state, label dimensions, register a HUD, or change runtime behavior.
+

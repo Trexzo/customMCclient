@@ -1789,6 +1789,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "t", "D");
         field(writer, "u", "D");
         field(writer, "y", "F");
+        field(writer, "am", "I");
         endDefaultConstructor(writer, "pk");
         writer.visitEnd();
         return writer.toByteArray();
