@@ -753,3 +753,11 @@ The new Visuals module `render.dimension` / **Dimension** owns persistent X/Y se
 
 Executable transformed-host coverage sets inherited exact `pk.am` on the synthetic player, publishes it through the transformed runTick path, verifies the parent-owned snapshot, and verifies null-player clearing. Focused HUD coverage verifies vanilla/custom labels, persisted coordinates, disable behavior and complete feature teardown.
 
+## Weather mapping authority
+
+M127 pins the minimal Minecraft 1.8.9 weather-state methods on exact base `World adm`: `adm.S()Z` / Searge `func_72896_J` / MCP `isRaining`, and `adm.R()Z` / Searge `func_72911_I` / MCP `isThundering`.
+
+The existing World class-shape gate now requires world time, rain and thunder authority together. Mapping regressions separately reject missing rain and missing thunder methods, and the transformed-host synthetic `adm` fixture exposes both exact boolean methods so stricter verification remains executable.
+
+This milestone is authority-only. It does not publish live weather state, retain any additional world object, or register a HUD.
+
