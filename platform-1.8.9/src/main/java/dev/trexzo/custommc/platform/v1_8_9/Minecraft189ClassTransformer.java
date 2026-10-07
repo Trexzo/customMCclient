@@ -76,6 +76,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerSprintControl";
     private static final String PLAYER_SPRINT_CONTROL_DESCRIPTOR =
             "L" + PLAYER_SPRINT_CONTROL_INTERNAL_NAME + ";";
+    private static final String PLAYER_JUMP_CONTROL_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerJumpControl";
+    private static final String PLAYER_JUMP_CONTROL_DESCRIPTOR =
+            "L" + PLAYER_JUMP_CONTROL_INTERNAL_NAME + ";";
     private static final String PLAYER_HEALTH_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189PlayerHealthAccess";
@@ -446,6 +451,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedSprintControl =
                 new boolean[]{false};
+        final boolean[] injectedJumpControl =
+                new boolean[]{false};
         final boolean[] injectedHealth =
                 new boolean[]{false};
         final boolean[] injectedArmor =
@@ -687,6 +694,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedSprintControl[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_JUMP_CONTROL_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerJumpControl",
+                                                "("
+                                                        + PLAYER_JUMP_CONTROL_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedJumpControl[0] = true;
 
                                         super.visitVarInsn(
                                                 Opcodes.ALOAD,
@@ -1102,6 +1131,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedDimension[0]
                 || !injectedMovementState[0]
                 || !injectedSprintControl[0]
+                || !injectedJumpControl[0]
                 || !injectedHealth[0]
                 || !injectedArmor[0]
                 || !injectedHunger[0]
@@ -1714,11 +1744,13 @@ public final class Minecraft189ClassTransformer
                                         withInterface(
                                                 withInterface(
                                                         withInterface(
-                                                                interfaces,
-                                                                PLAYER_HEALTH_ACCESS_INTERNAL_NAME),
-                                                        PLAYER_ARMOR_ACCESS_INTERNAL_NAME),
-                                                PLAYER_POTION_EFFECTS_ACCESS_INTERNAL_NAME),
-                                        PLAYER_HELD_ITEM_ACCESS_INTERNAL_NAME));
+                                                                withInterface(
+                                                                        interfaces,
+                                                                        PLAYER_HEALTH_ACCESS_INTERNAL_NAME),
+                                                                PLAYER_ARMOR_ACCESS_INTERNAL_NAME),
+                                                        PLAYER_POTION_EFFECTS_ACCESS_INTERNAL_NAME),
+                                                PLAYER_HELD_ITEM_ACCESS_INTERNAL_NAME),
+                                        PLAYER_JUMP_CONTROL_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1771,6 +1803,11 @@ public final class Minecraft189ClassTransformer
                         addHeldItemGetter(
                                 cv,
                                 "customMcHeldItem");
+                        addVoidMethodDelegate(
+                                cv,
+                                "customMcJump",
+                                Minecraft189Mappings
+                                        .ENTITY_LIVING_BASE_JUMP);
                         super.visitEnd();
                     }
                 },
