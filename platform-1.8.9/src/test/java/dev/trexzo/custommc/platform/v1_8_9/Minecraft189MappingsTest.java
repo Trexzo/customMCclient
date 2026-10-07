@@ -1829,6 +1829,7 @@ final class Minecraft189MappingsTest {
         addField(writer, Minecraft189Mappings.ENTITY_POS_Y);
         addField(writer, Minecraft189Mappings.ENTITY_POS_Z);
         addField(writer, Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(writer, Minecraft189Mappings.ENTITY_ROTATION_PITCH);
         addField(writer, Minecraft189Mappings.ENTITY_DIMENSION);
         addField(writer, Minecraft189Mappings.ENTITY_ON_GROUND);
         addField(writer, Minecraft189Mappings.ENTITY_STEP_HEIGHT);
@@ -1860,6 +1861,7 @@ final class Minecraft189MappingsTest {
         addField(writer, Minecraft189Mappings.ENTITY_POS_Y);
         addField(writer, Minecraft189Mappings.ENTITY_POS_Z);
         addField(writer, Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(writer, Minecraft189Mappings.ENTITY_ROTATION_PITCH);
         addField(writer, Minecraft189Mappings.ENTITY_DIMENSION);
         addField(writer, Minecraft189Mappings.ENTITY_ON_GROUND);
         addField(writer, Minecraft189Mappings.ENTITY_STEP_HEIGHT);
