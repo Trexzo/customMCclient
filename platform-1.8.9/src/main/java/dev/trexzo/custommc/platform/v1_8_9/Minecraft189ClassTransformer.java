@@ -366,25 +366,6 @@ public final class Minecraft189ClassTransformer
                         Opcodes.ASM9,
                         writer) {
                     @Override
-                    public void visit(
-                            final int version,
-                            final int access,
-                            final String name,
-                            final String signature,
-                            final String superName,
-                            final String[] interfaces) {
-                        super.visit(
-                                version,
-                                access,
-                                name,
-                                signature,
-                                superName,
-                                withInterface(
-                                        interfaces,
-                                        CLICK_MOUSE_CONTROL_INTERNAL_NAME));
-                    }
-
-                    @Override
                     public MethodVisitor visitMethod(
                             final int access,
                             final String name,
@@ -504,6 +485,25 @@ public final class Minecraft189ClassTransformer
                 new ClassVisitor(
                         Opcodes.ASM9,
                         writer) {
+                    @Override
+                    public void visit(
+                            final int version,
+                            final int access,
+                            final String name,
+                            final String signature,
+                            final String superName,
+                            final String[] interfaces) {
+                        super.visit(
+                                version,
+                                access,
+                                name,
+                                signature,
+                                superName,
+                                withInterface(
+                                        interfaces,
+                                        CLICK_MOUSE_CONTROL_INTERNAL_NAME));
+                    }
+
                     @Override
                     public MethodVisitor visitMethod(
                             final int access,
