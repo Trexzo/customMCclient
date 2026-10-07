@@ -2783,6 +2783,34 @@ final class Minecraft189MappedHostTransformationTest {
                                     movementInput),
                     0.000001F);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .noSlow()
+                    .speedPercentSetting()
+                    .set(
+                            60);
+            movementInputClass.getField("a")
+                    .setFloat(
+                            movementInput,
+                            1.0F);
+            movementInputClass.getField("b")
+                    .setFloat(
+                            movementInput,
+                            -0.75F);
+            onLivingUpdate.invoke(player);
+            assertEquals(
+                    0.6F,
+                    movementInputClass.getField("a")
+                            .getFloat(
+                                    movementInput),
+                    0.000001F);
+            assertEquals(
+                    -0.45F,
+                    movementInputClass.getField("b")
+                            .getFloat(
+                                    movementInput),
+                    0.000001F);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189NoSlowModule.ID);
