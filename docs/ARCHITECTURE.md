@@ -1481,3 +1481,13 @@ M204 pins the exact Minecraft 1.8.9 `World.loadedEntityList` field required by f
 `Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST` records that authority and the strict World class-shape verifier now rejects runtime World classes missing the exact field before transformation proceeds. Mapping and transformed-host fixtures include the same field shape.
 
 M204 intentionally does **not** expose the raw `List<Entity>` to parent-owned runtime code. Entity instances belong to the Minecraft child loader, so retaining or casting that list across the loader boundary would violate the existing isolation model. A later milestone must build a child-side traversal plus parent-owned primitive snapshot boundary before Aim Assist, ESP, Reach or other target-aware modules may consume world entities.
+
+## Loader-safe world entity position snapshots
+
+M205 converts the M204 `World.loadedEntityList` authority into a loader-safe read boundary without exposing Minecraft objects. Transformed `World` now implements `Minecraft189WorldEntityPositionsAccess` and traverses `adm.f` inside the child-loaded game class. Every loaded entity inherits the already-certified transformed `Entity` position interface, so the World bridge extracts only finite primitive `x/y/z` values into a freshly allocated flattened `double[]`.
+
+The Minecraft end-of-tick hook forwards only that primitive array through `Minecraft189RuntimeBridge.worldEntityPositions(...)`. `Minecraft189WorldEntityPositionState` immediately validates x/y/z triple shape and finite values, copies the array, and exposes immutable snapshot-style indexed coordinates. Source arrays and exported packed arrays are defensively copied. A null world clears availability; a present world with zero loaded entities is represented as an available snapshot with entity count zero.
+
+No `World`, `Entity`, `List<Entity>`, iterator, class-loader-owned collection or child-loaded object is retained by parent runtime state. Focused tests prove defensive copying, malformed/non-finite rejection and clear semantics. The transformed-host proof populates exact `adm.f` with two transformed entities and proves both primitive XYZ triples reach the parent snapshot, then proves `theWorld = null` clears it.
+
+M205 intentionally stops at positions. It does not yet classify player/living entities, identify the local player, expose names/health/visibility, select targets, rotate toward targets or render ESP. Those capabilities require additional exact authority and snapshot fields before target-aware modules are allowed.

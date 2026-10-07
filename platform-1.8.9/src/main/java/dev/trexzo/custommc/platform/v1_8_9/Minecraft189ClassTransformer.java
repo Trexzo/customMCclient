@@ -174,6 +174,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189WorldWeatherAccess";
     private static final String WORLD_WEATHER_ACCESS_DESCRIPTOR =
             "L" + WORLD_WEATHER_ACCESS_INTERNAL_NAME + ";";
+    private static final String WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189WorldEntityPositionsAccess";
+    private static final String WORLD_ENTITY_POSITIONS_ACCESS_DESCRIPTOR =
+            "L" + WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME + ";";
     private static final String SERVER_DATA_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189ServerDataAccess";
@@ -577,6 +582,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedWorldTime =
                 new boolean[]{false};
         final boolean[] injectedWeather =
+                new boolean[]{false};
+        final boolean[] injectedWorldEntityPositions =
                 new boolean[]{false};
         final boolean[] injectedServerAddress =
                 new boolean[]{false};
@@ -1185,6 +1192,28 @@ public final class Minecraft189ClassTransformer
                                                 false);
                                         injectedWeather[0] = true;
 
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                world.obfuscatedName(),
+                                                world.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "worldEntityPositions",
+                                                "("
+                                                        + WORLD_ENTITY_POSITIONS_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedWorldEntityPositions[0] = true;
+
                                         final Minecraft189Mappings.MappedField serverData =
                                                 Minecraft189Mappings
                                                         .MINECRAFT_CURRENT_SERVER_DATA;
@@ -1487,6 +1516,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedHotbarSlot[0]
                 || !injectedWorldTime[0]
                 || !injectedWeather[0]
+                || !injectedWorldEntityPositions[0]
                 || !injectedServerAddress[0]
                 || !injectedHeldItem[0]
                 || !injectedRightClickDelay[0]
@@ -2777,9 +2807,11 @@ public final class Minecraft189ClassTransformer
                                 superName,
                                 withInterface(
                                         withInterface(
-                                                interfaces,
-                                                WORLD_TIME_ACCESS_INTERNAL_NAME),
-                                        WORLD_WEATHER_ACCESS_INTERNAL_NAME));
+                                                withInterface(
+                                                        interfaces,
+                                                        WORLD_TIME_ACCESS_INTERNAL_NAME),
+                                                WORLD_WEATHER_ACCESS_INTERNAL_NAME),
+                                        WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -2799,6 +2831,8 @@ public final class Minecraft189ClassTransformer
                                 "customMcThundering",
                                 Minecraft189Mappings
                                         .WORLD_IS_THUNDERING);
+                        addLoadedEntityPositionsSnapshot(
+                                cv);
                         super.visitEnd();
                     }
                 },
@@ -3310,6 +3344,242 @@ public final class Minecraft189ClassTransformer
                 false);
         method.visitInsn(
                 Opcodes.RETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addLoadedEntityPositionsSnapshot(
+            final ClassVisitor visitor) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "customMcLoadedEntityPositions",
+                        "()[D",
+                        null,
+                        null);
+        final Label nonNull =
+                new Label();
+        final Label loopCheck =
+                new Label();
+        final Label loopEnd =
+                new Label();
+
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                Minecraft189Mappings.WORLD
+                        .obfuscatedInternalName(),
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST
+                        .obfuscatedName(),
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST
+                        .descriptor());
+        method.visitVarInsn(
+                Opcodes.ASTORE,
+                1);
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                1);
+        method.visitJumpInsn(
+                Opcodes.IFNONNULL,
+                nonNull);
+        method.visitInsn(
+                Opcodes.ICONST_0);
+        method.visitIntInsn(
+                Opcodes.NEWARRAY,
+                Opcodes.T_DOUBLE);
+        method.visitInsn(
+                Opcodes.ARETURN);
+
+        method.visitLabel(nonNull);
+        method.visitFrame(
+                Opcodes.F_FULL,
+                2,
+                new Object[]{
+                        Minecraft189Mappings.WORLD
+                                .obfuscatedInternalName(),
+                        "java/util/List"
+                },
+                0,
+                new Object[0]);
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                1);
+        method.visitMethodInsn(
+                Opcodes.INVOKEINTERFACE,
+                "java/util/List",
+                "size",
+                "()I",
+                true);
+        method.visitVarInsn(
+                Opcodes.ISTORE,
+                2);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                2);
+        method.visitInsn(
+                Opcodes.ICONST_3);
+        method.visitInsn(
+                Opcodes.IMUL);
+        method.visitIntInsn(
+                Opcodes.NEWARRAY,
+                Opcodes.T_DOUBLE);
+        method.visitVarInsn(
+                Opcodes.ASTORE,
+                3);
+        method.visitInsn(
+                Opcodes.ICONST_0);
+        method.visitVarInsn(
+                Opcodes.ISTORE,
+                4);
+
+        method.visitLabel(loopCheck);
+        method.visitFrame(
+                Opcodes.F_FULL,
+                5,
+                new Object[]{
+                        Minecraft189Mappings.WORLD
+                                .obfuscatedInternalName(),
+                        "java/util/List",
+                        Opcodes.INTEGER,
+                        "[D",
+                        Opcodes.INTEGER
+                },
+                0,
+                new Object[0]);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                4);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                2);
+        method.visitJumpInsn(
+                Opcodes.IF_ICMPGE,
+                loopEnd);
+
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                1);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                4);
+        method.visitMethodInsn(
+                Opcodes.INVOKEINTERFACE,
+                "java/util/List",
+                "get",
+                "(I)Ljava/lang/Object;",
+                true);
+        method.visitTypeInsn(
+                Opcodes.CHECKCAST,
+                PLAYER_POSITION_ACCESS_INTERNAL_NAME);
+        method.visitVarInsn(
+                Opcodes.ASTORE,
+                5);
+
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                3);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                4);
+        method.visitInsn(
+                Opcodes.ICONST_3);
+        method.visitInsn(
+                Opcodes.IMUL);
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                5);
+        method.visitMethodInsn(
+                Opcodes.INVOKEINTERFACE,
+                PLAYER_POSITION_ACCESS_INTERNAL_NAME,
+                "customMcPositionX",
+                "()D",
+                true);
+        method.visitInsn(
+                Opcodes.DASTORE);
+
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                3);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                4);
+        method.visitInsn(
+                Opcodes.ICONST_3);
+        method.visitInsn(
+                Opcodes.IMUL);
+        method.visitInsn(
+                Opcodes.ICONST_1);
+        method.visitInsn(
+                Opcodes.IADD);
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                5);
+        method.visitMethodInsn(
+                Opcodes.INVOKEINTERFACE,
+                PLAYER_POSITION_ACCESS_INTERNAL_NAME,
+                "customMcPositionY",
+                "()D",
+                true);
+        method.visitInsn(
+                Opcodes.DASTORE);
+
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                3);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
+                4);
+        method.visitInsn(
+                Opcodes.ICONST_3);
+        method.visitInsn(
+                Opcodes.IMUL);
+        method.visitInsn(
+                Opcodes.ICONST_2);
+        method.visitInsn(
+                Opcodes.IADD);
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                5);
+        method.visitMethodInsn(
+                Opcodes.INVOKEINTERFACE,
+                PLAYER_POSITION_ACCESS_INTERNAL_NAME,
+                "customMcPositionZ",
+                "()D",
+                true);
+        method.visitInsn(
+                Opcodes.DASTORE);
+
+        method.visitIincInsn(
+                4,
+                1);
+        method.visitJumpInsn(
+                Opcodes.GOTO,
+                loopCheck);
+
+        method.visitLabel(loopEnd);
+        method.visitFrame(
+                Opcodes.F_FULL,
+                5,
+                new Object[]{
+                        Minecraft189Mappings.WORLD
+                                .obfuscatedInternalName(),
+                        "java/util/List",
+                        Opcodes.INTEGER,
+                        "[D",
+                        Opcodes.INTEGER
+                },
+                0,
+                new Object[0]);
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                3);
+        method.visitInsn(
+                Opcodes.ARETURN);
         method.visitMaxs(
                 0,
                 0);
