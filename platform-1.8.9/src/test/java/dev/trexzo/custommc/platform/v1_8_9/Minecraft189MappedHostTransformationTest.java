@@ -1559,6 +1559,47 @@ final class Minecraft189MappedHostTransformationTest {
                             .wTap()
                             .active());
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .autoSprint()
+                    .requireForwardSetting()
+                    .set(
+                            Boolean.TRUE);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+            playerClass.getField("sneaking")
+                    .setBoolean(
+                            player,
+                            false);
+            playerClass.getField("sprinting")
+                    .setBoolean(
+                            player,
+                            false);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    playerClass.getField("sprinting")
+                            .getBoolean(
+                                    player));
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runTick.invoke(minecraft);
+            assertTrue(
+                    playerClass.getField("sprinting")
+                            .getBoolean(
+                                    player));
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AutoSprintModule.ID);

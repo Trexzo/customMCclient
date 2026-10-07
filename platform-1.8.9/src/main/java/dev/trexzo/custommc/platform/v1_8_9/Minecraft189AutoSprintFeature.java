@@ -4,7 +4,13 @@ import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModuleDescriptor;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
+import dev.trexzo.custommc.core.module.ModuleSettingBinding;
+import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
 import dev.trexzo.custommc.core.module.ModuleState;
+import dev.trexzo.custommc.core.setting.SettingDescriptor;
+import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
+import dev.trexzo.custommc.core.setting.SettingRegistry;
+import dev.trexzo.custommc.core.setting.SettingValueKind;
 
 final class Minecraft189AutoSprintFeature
         implements AutoCloseable {
@@ -12,28 +18,43 @@ final class Minecraft189AutoSprintFeature
     private final Minecraft189AutoSprintModule module;
     private final ModuleRegistry.Registration moduleRegistration;
     private final ModulePresentationRegistry.Registration presentation;
+    private final SettingRegistry.Registration requireForwardSetting;
+    private final SettingPresentationRegistry.Registration requireForwardPresentation;
+    private final ModuleSettingRegistry.Registration requireForwardBinding;
     private boolean closed;
 
     private Minecraft189AutoSprintFeature(
             final ModuleController controller,
             final Minecraft189AutoSprintModule module,
             final ModuleRegistry.Registration moduleRegistration,
-            final ModulePresentationRegistry.Registration presentation) {
+            final ModulePresentationRegistry.Registration presentation,
+            final SettingRegistry.Registration requireForwardSetting,
+            final SettingPresentationRegistry.Registration requireForwardPresentation,
+            final ModuleSettingRegistry.Registration requireForwardBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
+        this.requireForwardSetting = requireForwardSetting;
+        this.requireForwardPresentation = requireForwardPresentation;
+        this.requireForwardBinding = requireForwardBinding;
     }
 
     static Minecraft189AutoSprintFeature install(
             final ModuleRegistry modules,
             final ModuleController controller,
-            final ModulePresentationRegistry presentations) {
+            final ModulePresentationRegistry presentations,
+            final ModuleSettingRegistry moduleSettings,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations) {
         final Minecraft189AutoSprintModule module =
                 new Minecraft189AutoSprintModule();
 
         ModuleRegistry.Registration moduleRegistration = null;
         ModulePresentationRegistry.Registration presentation = null;
+        SettingRegistry.Registration requireForwardSetting = null;
+        SettingPresentationRegistry.Registration requireForwardPresentation = null;
+        ModuleSettingRegistry.Registration requireForwardBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -47,13 +68,35 @@ final class Minecraft189AutoSprintFeature
                                     Minecraft189FeatureCatalog
                                             .MOVEMENT_CATEGORY_ID,
                                     0));
+            requireForwardSetting =
+                    settings.register(
+                            module.requireForwardSetting());
+            requireForwardPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189AutoSprintModule.REQUIRE_FORWARD_SETTING_ID,
+                                    "Require Forward",
+                                    SettingValueKind.BOOLEAN,
+                                    0));
+            requireForwardBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189AutoSprintModule.ID,
+                                    Minecraft189AutoSprintModule.REQUIRE_FORWARD_SETTING_ID,
+                                    0));
 
             return new Minecraft189AutoSprintFeature(
                     controller,
                     module,
                     moduleRegistration,
-                    presentation);
+                    presentation,
+                    requireForwardSetting,
+                    requireForwardPresentation,
+                    requireForwardBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(requireForwardBinding, failure);
+            closeQuietly(requireForwardPresentation, failure);
+            closeQuietly(requireForwardSetting, failure);
             if (presentation != null) {
                 presentation.close();
             }
@@ -91,6 +134,10 @@ final class Minecraft189AutoSprintFeature
             failure = closeFailure;
         }
 
+        failure = close(requireForwardBinding, failure);
+        failure = close(requireForwardPresentation, failure);
+        failure = close(requireForwardSetting, failure);
+
         try {
             presentation.close();
         } catch (RuntimeException closeFailure) {
@@ -108,6 +155,39 @@ final class Minecraft189AutoSprintFeature
 
         if (failure != null) {
             throw failure;
+        }
+    }
+
+    private static RuntimeException close(
+            final AutoCloseable closeable,
+            final RuntimeException primary) {
+        if (closeable == null) {
+            return primary;
+        }
+        try {
+            closeable.close();
+            return primary;
+        } catch (RuntimeException failure) {
+            return append(primary, failure);
+        } catch (Exception failure) {
+            return append(
+                    primary,
+                    new IllegalStateException(
+                            "auto-sprint feature close failed",
+                            failure));
+        }
+    }
+
+    private static void closeQuietly(
+            final AutoCloseable closeable,
+            final RuntimeException primary) {
+        if (closeable == null) {
+            return;
+        }
+        try {
+            closeable.close();
+        } catch (Exception cleanupFailure) {
+            primary.addSuppressed(cleanupFailure);
         }
     }
 
