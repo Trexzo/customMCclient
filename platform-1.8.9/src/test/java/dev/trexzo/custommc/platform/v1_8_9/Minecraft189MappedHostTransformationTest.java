@@ -2498,6 +2498,14 @@ final class Minecraft189MappedHostTransformationTest {
                 writer,
                 "g",
                 "I");
+        field(
+                writer,
+                "e",
+                "F");
+        field(
+                writer,
+                "h",
+                "Z");
         endDefaultConstructor(
                 writer,
                 "bda");

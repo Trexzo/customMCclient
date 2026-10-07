@@ -46,7 +46,9 @@ public final class Minecraft189ClassShapeVerifier {
                 classBytes,
                 Minecraft189Mappings.PLAYER_CONTROLLER_MP,
                 new Minecraft189Mappings.MappedField[]{
-                        Minecraft189Mappings.PLAYER_CONTROLLER_BLOCK_HIT_DELAY
+                        Minecraft189Mappings.PLAYER_CONTROLLER_BLOCK_HIT_DELAY,
+                        Minecraft189Mappings.PLAYER_CONTROLLER_CUR_BLOCK_DAMAGE,
+                        Minecraft189Mappings.PLAYER_CONTROLLER_IS_HITTING_BLOCK
                 },
                 new Minecraft189Mappings.MappedMethod[0]);
     }
