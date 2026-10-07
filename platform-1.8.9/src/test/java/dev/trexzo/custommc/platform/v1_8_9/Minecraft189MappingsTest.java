@@ -2035,6 +2035,9 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.MINECRAFT_WORLD);
         addField(
                 writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER);
+        addField(
+                writer,
                 Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
         addField(
                 writer,
