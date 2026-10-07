@@ -438,6 +438,10 @@ public final class Minecraft189HostRuntime
         requireOpen();
         if (player == null) {
             playerRotationState.clear();
+            featureCatalog.spin()
+                    .apply(
+                            null,
+                            null);
             featureCatalog.jitter()
                     .apply(
                             null,
@@ -449,12 +453,27 @@ public final class Minecraft189HostRuntime
         playerRotationState.update(
                 player.customMcRotationYaw(),
                 player.customMcRotationPitch());
+        final Minecraft189PlayerRotationControl control =
+                player instanceof Minecraft189PlayerRotationControl
+                        ? (Minecraft189PlayerRotationControl) player
+                        : null;
+        final Minecraft189PlayerRotationState.Snapshot rotation =
+                playerRotationState.snapshot();
+        if (featureCatalog.spin()
+                .apply(
+                        control,
+                        rotation)) {
+            featureCatalog.jitter()
+                    .apply(
+                            null,
+                            null,
+                            false);
+            return;
+        }
         featureCatalog.jitter()
                 .apply(
-                        player instanceof Minecraft189PlayerRotationControl
-                                ? (Minecraft189PlayerRotationControl) player
-                                : null,
-                        playerRotationState.snapshot(),
+                        control,
+                        rotation,
                         inputState.pointerPressed(
                                 Minecraft189ClickRateTracker.LEFT_BUTTON));
     }
