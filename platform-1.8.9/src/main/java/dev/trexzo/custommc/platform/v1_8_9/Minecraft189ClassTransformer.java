@@ -1535,6 +1535,15 @@ public final class Minecraft189ClassTransformer
                 Opcodes.IRETURN);
         method.visitLabel(
                 present);
+        method.visitFrame(
+                Opcodes.F_SAME1,
+                0,
+                null,
+                1,
+                new Object[]{
+                        Minecraft189Mappings.NETWORK_PLAYER_INFO
+                                .obfuscatedInternalName()
+                });
         method.visitMethodInsn(
                 Opcodes.INVOKEVIRTUAL,
                 responseTime.owner().obfuscatedInternalName(),
