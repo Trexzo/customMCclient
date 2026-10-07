@@ -61,6 +61,9 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerRotationAccess";
     private static final String PLAYER_ROTATION_ACCESS_DESCRIPTOR =
             "L" + PLAYER_ROTATION_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_ROTATION_CONTROL_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerRotationControl";
     private static final String PLAYER_DIMENSION_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189PlayerDimensionAccess";
@@ -2136,7 +2139,8 @@ public final class Minecraft189ClassTransformer
                                                         PLAYER_FALL_DISTANCE_CONTROL_INTERNAL_NAME),
                                                 PLAYER_WEB_CONTROL_INTERNAL_NAME),
                                         PLAYER_NO_CLIP_CONTROL_INTERNAL_NAME),
-                                PLAYER_MOTION_CONTROL_INTERNAL_NAME));
+                                PLAYER_MOTION_CONTROL_INTERNAL_NAME),
+                                PLAYER_ROTATION_CONTROL_INTERNAL_NAME));
                     }
 
                     @Override
@@ -2160,6 +2164,14 @@ public final class Minecraft189ClassTransformer
                         addFloatFieldGetter(
                                 cv,
                                 "customMcRotationPitch",
+                                Minecraft189Mappings.ENTITY_ROTATION_PITCH);
+                        addFloatFieldSetter(
+                                cv,
+                                "customMcSetRotationYaw",
+                                Minecraft189Mappings.ENTITY_ROTATION_YAW);
+                        addFloatFieldSetter(
+                                cv,
+                                "customMcSetRotationPitch",
                                 Minecraft189Mappings.ENTITY_ROTATION_PITCH);
                         addIntFieldGetter(
                                 cv,
