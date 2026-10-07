@@ -870,6 +870,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189FastFallModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189AutoSneakModule.ID)
                             != null);
             assertTrue(
@@ -1854,6 +1859,32 @@ final class Minecraft189MappedHostTransformationTest {
                                     player),
                     0.000001D);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .fastFall()
+                    .fallSpeedSetting()
+                    .set(
+                            0.45D);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189FastFallModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .fastFall()
+                            .active());
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            -0.10D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    -0.45D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
             runtime.moduleController()
                     .enable(
                             Minecraft189FlightModule.ID);
@@ -1868,6 +1899,26 @@ final class Minecraft189MappedHostTransformationTest {
             runtime.moduleController()
                     .disable(
                             Minecraft189FlightModule.ID);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            -0.10D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    -0.45D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189FastFallModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .fastFall()
+                            .active());
             playerClass.getField("w")
                     .setDouble(
                             player,
