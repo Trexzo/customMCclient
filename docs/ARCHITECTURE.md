@@ -915,3 +915,13 @@ The Minecraft class-shape gate now requires the exact controller field, while a 
 
 The transformed-host fixture includes synthetic `bda.g I` and exact `ave.c Lbda;` parity so the consumer milestone can prove a real controller-object path. This milestone is authority-only and does not modify block breaking behavior.
 
+## Fast Break player control
+
+M145 adds disabled-by-default `player.fastBreak` / **Fast Break** under the Player category, consuming only M144-certified `Minecraft.playerController = ave.c Lbda;` and `PlayerControllerMP.blockHitDelay = bda.g I` authority.
+
+Transformed `PlayerControllerMP bda` implements parent-owned `Minecraft189BlockHitDelayControl`; generated `customMcSetBlockHitDelay(int)` writes only exact `bda.g I`. Immediately before each normal return from mapped `Minecraft.runTick()`, exact `ave.c Lbda;` is forwarded transiently through the control interface. The host retains no child-loader controller object and the injected path adds no conditional branch.
+
+While Fast Break is enabled, the host sets the current controller's block-hit delay to zero. While disabled, the module performs no write at all, leaving vanilla controller state authoritative.
+
+Focused coverage verifies disabled/enabled/disabled behavior, null-controller tolerance, Player-category lifecycle and teardown. Transformed-host coverage proves exact `ave.c -> bda.g` execution against the mapped synthetic controller.
+
