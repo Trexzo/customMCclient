@@ -885,6 +885,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189BunnyHopModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189AutoSneakModule.ID)
                             != null);
             assertTrue(
@@ -2124,6 +2129,57 @@ final class Minecraft189MappedHostTransformationTest {
                             LegacyKeyboardCodes.W,
                             false);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .bunnyHop()
+                    .speedSetting()
+                    .set(
+                            0.55D);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189BunnyHopModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .bunnyHop()
+                            .active());
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            true);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            0.0F);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    6,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+            assertEquals(
+                    0.0D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    0.55D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    6,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
             playerClass.getField("C")
                     .setBoolean(
                             player,
@@ -2135,7 +2191,36 @@ final class Minecraft189MappedHostTransformationTest {
                             true);
             runTick.invoke(minecraft);
             assertEquals(
-                    5,
+                    7,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189BunnyHopModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .bunnyHop()
+                            .active());
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            false);
+            runTick.invoke(minecraft);
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    7,
                     playerClass.getField("jumpCalls")
                             .getInt(
                                     player));
