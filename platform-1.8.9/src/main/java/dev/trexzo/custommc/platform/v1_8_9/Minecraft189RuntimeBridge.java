@@ -218,11 +218,15 @@ public final class Minecraft189RuntimeBridge {
                         currentCounter);
     }
 
-    public static synchronized boolean shouldAutoClick() {
+    public static synchronized void autoClick(
+            final Minecraft189ClickMouseControl minecraft) {
         final Minecraft189HostRuntime host =
                 activeHost();
-        return host != null
-                && host.shouldAutoClick();
+        if (host != null
+                && minecraft != null
+                && host.shouldAutoClick()) {
+            minecraft.customMcClickMouse();
+        }
     }
 
     public static synchronized void publishTick(
