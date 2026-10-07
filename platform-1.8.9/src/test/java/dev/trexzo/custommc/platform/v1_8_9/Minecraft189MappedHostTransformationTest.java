@@ -3526,6 +3526,65 @@ final class Minecraft189MappedHostTransformationTest {
                                     player),
                     0.000001F);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .intervalTicksSetting()
+                    .set(
+                            1);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .requireHoldSetting()
+                    .set(
+                            Boolean.FALSE);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            60.0F);
+            playerClass.getField("z")
+                    .setFloat(
+                            player,
+                            20.0F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    61.25F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    22.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .requireHoldSetting()
+                    .set(
+                            Boolean.TRUE);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    61.25F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    22.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189JitterModule.ID);
