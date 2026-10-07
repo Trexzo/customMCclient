@@ -415,6 +415,10 @@ final class Minecraft189MappedHostTransformationTest {
             final Object minecraft =
                     minecraftClass.getDeclaredConstructor()
                             .newInstance();
+            minecraftClass.getField("ap")
+                    .setInt(
+                            minecraft,
+                            4);
 
             final Class<?> playerClass =
                     loader.loadClass("bew");
@@ -747,6 +751,11 @@ final class Minecraft189MappedHostTransformationTest {
                             .find(
                                     Minecraft189AutoSprintModule.ID)
                             != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
+                                    Minecraft189FastPlaceModule.ID)
+                            != null);
             assertEquals(
                     0.35F,
                     settingsClass.getField("aJ")
@@ -837,6 +846,11 @@ final class Minecraft189MappedHostTransformationTest {
                             0L,
                             1L),
                     ticks);
+            assertEquals(
+                    4,
+                    minecraftClass.getField("ap")
+                            .getInt(
+                                    minecraft));
 
             final Minecraft189PlayerPositionState.Snapshot position =
                     runtime.requireHostRuntime()
@@ -964,6 +978,72 @@ final class Minecraft189MappedHostTransformationTest {
                     .setBoolean(
                             player,
                             false);
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189FastPlaceModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .fastPlace()
+                            .active());
+
+            minecraftClass.getField("ap")
+                    .setInt(
+                            minecraft,
+                            4);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0,
+                    minecraftClass.getField("ap")
+                            .getInt(
+                                    minecraft));
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .fastPlace()
+                    .delayTicksSetting()
+                    .set(2);
+            minecraftClass.getField("ap")
+                    .setInt(
+                            minecraft,
+                            4);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    2,
+                    minecraftClass.getField("ap")
+                            .getInt(
+                                    minecraft));
+
+            minecraftClass.getField("ap")
+                    .setInt(
+                            minecraft,
+                            1);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    1,
+                    minecraftClass.getField("ap")
+                            .getInt(
+                                    minecraft));
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189FastPlaceModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .fastPlace()
+                            .active());
+            minecraftClass.getField("ap")
+                    .setInt(
+                            minecraft,
+                            4);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    4,
+                    minecraftClass.getField("ap")
+                            .getInt(
+                                    minecraft));
 
             final Minecraft189PlayerHealthState.Snapshot health =
                     runtime.requireHostRuntime()
