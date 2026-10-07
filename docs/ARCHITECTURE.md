@@ -1265,3 +1265,13 @@ Therefore `EntityLivingBase.hurtTime` is pinned as exact obfuscated `pr.au : I` 
 The `EntityLivingBase` structural gate now requires that exact integer field before any transformed consumer can rely on it. Mapping regression pins owner/name/descriptor/Searge/MCP identity, a dedicated drift regression rejects a shape missing `pr.au I`, existing method-drift regressions retain their original failure targets, and transformed-host fixtures now carry the exact field.
 
 This milestone is authority-only: it does not expose hurt time across the classloader boundary, retain a player object, or alter combat behavior. A later consumer can build a narrow primitive hurt-time snapshot only after this exact authority head is certified.
+
+## Live Hurt Time HUD
+
+M183 consumes the independently certified M182 `EntityLivingBase.hurtTime = pr.au I / field_70737_aN` authority without exposing a Minecraft implementation object to the parent runtime.
+
+Transformed `EntityLivingBase pr` implements the parent-owned `Minecraft189PlayerHurtTimeAccess` contract, whose only member is `customMcHurtTime()I`. The generated getter reads exact mapped `pr.au`. Immediately before each normal return from mapped `Minecraft.runTick()`, the current player reference is transiently cast to that parent-owned interface and forwarded through `Minecraft189RuntimeBridge.playerHurtTime(...)`. The host copies only the integer into synchronized `Minecraft189PlayerHurtTimeState`; a null player clears availability, and the child-loader player object is never retained.
+
+The new Visuals module `render.hurtTime` / **Hurt Time** renders `Hurt Time: <ticks>` only while a live snapshot exists. Persistent X/Y settings use the existing generic setting, presentation, profile, and module-binding architecture.
+
+Focused regression coverage proves live text and position, setting persistence, negative-value rejection, null-player hiding, render-pass lifecycle, and complete feature teardown. Transformed-host coverage sets exact inherited `pr.au`, proves the primitive value reaches parent state through `runTick()`, and proves a null mapped player clears that state.
