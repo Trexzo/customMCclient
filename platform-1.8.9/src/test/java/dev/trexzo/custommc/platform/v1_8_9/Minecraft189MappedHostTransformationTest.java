@@ -3198,6 +3198,39 @@ final class Minecraft189MappedHostTransformationTest {
                             .getInt(
                                     minecraft));
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .autoClicker()
+                    .requireHoldSetting()
+                    .set(
+                            Boolean.FALSE);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    1,
+                    minecraftClass.getField("clickMouseCalls")
+                            .getInt(
+                                    minecraft));
+            runTick.invoke(minecraft);
+            assertEquals(
+                    2,
+                    minecraftClass.getField("clickMouseCalls")
+                            .getInt(
+                                    minecraft));
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .autoClicker()
+                    .requireHoldSetting()
+                    .set(
+                            Boolean.TRUE);
+            runTick.invoke(minecraft);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    2,
+                    minecraftClass.getField("clickMouseCalls")
+                            .getInt(
+                                    minecraft));
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AutoClickerModule.ID);
@@ -3214,7 +3247,7 @@ final class Minecraft189MappedHostTransformationTest {
             runTick.invoke(minecraft);
             runTick.invoke(minecraft);
             assertEquals(
-                    1,
+                    2,
                     minecraftClass.getField("clickMouseCalls")
                             .getInt(
                                     minecraft));

@@ -76,6 +76,10 @@ final class Minecraft189AutoClickerModuleTest {
 
             autoClicker.minCpsSetting().set(10);
             autoClicker.maxCpsSetting().set(10);
+            assertTrue(
+                    autoClicker.requireHoldSetting()
+                            .get()
+                            .booleanValue());
             assertEquals(
                     "10",
                     settings.snapshotEncoded()
@@ -86,6 +90,11 @@ final class Minecraft189AutoClickerModuleTest {
                     settings.snapshotEncoded()
                             .get(
                                     Minecraft189AutoClickerModule.MAX_CPS_SETTING_ID));
+            assertEquals(
+                    "true",
+                    settings.snapshotEncoded()
+                            .get(
+                                    Minecraft189AutoClickerModule.REQUIRE_HOLD_SETTING_ID));
 
             controller.enable(
                     Minecraft189AutoClickerModule.ID);
@@ -124,6 +133,25 @@ final class Minecraft189AutoClickerModuleTest {
             assertFalse(
                     runtime.shouldAutoClick());
 
+            autoClicker.requireHoldSetting()
+                    .set(
+                            Boolean.FALSE);
+            int toggleGenerated = 0;
+            for (int tick = 0; tick < 20; tick++) {
+                if (runtime.shouldAutoClick()) {
+                    toggleGenerated++;
+                }
+            }
+            assertEquals(
+                    10,
+                    toggleGenerated);
+
+            autoClicker.requireHoldSetting()
+                    .set(
+                            Boolean.TRUE);
+            assertFalse(
+                    runtime.shouldAutoClick());
+
             runtime.inputState()
                     .pointerButton(
                             Minecraft189ClickRateTracker.LEFT_BUTTON,
@@ -152,6 +180,9 @@ final class Minecraft189AutoClickerModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189AutoClickerModule.MAX_CPS_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AutoClickerModule.REQUIRE_HOLD_SETTING_ID));
     }
 
     private static final class NoOpHost

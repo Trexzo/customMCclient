@@ -1198,3 +1198,13 @@ The module tracks mapped ground-state transitions. The first available snapshot 
 `movement.reverseStep.speed` is a persistent DOUBLE setting with default `0.50`, range `0.05..1.50`, and `0.05` UI increments. Vertical ownership is deterministic: **Freeze/Flight/No Gravity > Reverse Step > Fast Fall/Glide**. Reverse Step still consumes movement-state transitions while suspended, preventing a delayed snap when the higher-priority module disables.
 
 Focused coverage proves first-snapshot priming, one-shot edge transitions, no airborne retrigger, upward-jump preservation, already-fast descent preservation, configured speed, No-Gravity precedence without delayed activation, disable behavior, and setting teardown. Transformed-host coverage proves exact mapped `pk.w` snapping and upward-motion preservation through `Minecraft.runTick()`.
+
+## Auto Clicker activation mode
+
+M176 extends **Combat → Auto Clicker** on the existing certified `Minecraft.clickMouse()` bridge. No new Minecraft mapping is introduced.
+
+The existing physical-hold behavior remains the default through persistent BOOLEAN setting `combat.autoClicker.requireHold = true`. When true, releasing LMB immediately resets the 20-tick CPS scheduler exactly as before. When explicitly set false, the enabled module continues the same configured Min/Max CPS schedule without requiring the physical left button.
+
+Changing back to Require Hold while LMB is released resets scheduling on the next tick, preventing latent phase credit from producing a delayed click. Module disable still resets all schedule state. Generated clicks continue to feed the same click-rate tracker as held-mode clicks.
+
+Focused coverage preserves the original hold-only schedule and proves toggle mode at deterministic 10 CPS, encoded setting persistence, reset-on-mode-return behavior, and teardown. Transformed-host coverage proves the real mapped `clickMouse()` delegate fires with LMB released only while Require Hold is false.
