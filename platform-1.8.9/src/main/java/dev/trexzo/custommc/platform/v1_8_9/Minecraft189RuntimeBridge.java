@@ -178,6 +178,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerNoClipControl(
+            final Minecraft189PlayerNoClipControl player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerNoClipControl(player);
+        }
+    }
+
     public static synchronized void playerHealth(
             final Minecraft189PlayerHealthAccess player) {
         final Minecraft189HostRuntime host =
