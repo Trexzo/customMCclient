@@ -558,6 +558,14 @@ public final class Minecraft189HostRuntime
                         player);
     }
 
+    void playerMotionControl(
+            final Minecraft189PlayerMotionControl player) {
+        requireOpen();
+        featureCatalog.flight()
+                .apply(
+                        player);
+    }
+
     void playerHealth(
             final Minecraft189PlayerHealthAccess player) {
         requireOpen();
