@@ -289,7 +289,9 @@ final class Minecraft189MappedHostTransformationTest {
                         foodStatsShape()));
         loader.put(
                 "wm",
-                inventoryPlayerShape());
+                transformer.transform(
+                        "wm",
+                        inventoryPlayerShape()));
         loader.put(
                 "wn",
                 transformer.transform(
@@ -455,6 +457,20 @@ final class Minecraft189MappedHostTransformationTest {
                     .setFloat(
                             player,
                             0.5F);
+
+            final Class<?> inventoryClass =
+                    loader.loadClass("wm");
+            final Object inventory =
+                    inventoryClass.getDeclaredConstructor()
+                            .newInstance();
+            inventoryClass.getField("c")
+                    .setInt(
+                            inventory,
+                            4);
+            playerClass.getField("bi")
+                    .set(
+                            player,
+                            inventory);
 
             final Class<?> playerInfoClass =
                     loader.loadClass("bdc");
@@ -960,6 +976,19 @@ final class Minecraft189MappedHostTransformationTest {
                     57,
                     ping.milliseconds());
 
+            final Minecraft189HotbarSlotState.Snapshot hotbarSlot =
+                    runtime.requireHostRuntime()
+                            .hotbarSlotState()
+                            .snapshot();
+            assertTrue(
+                    hotbarSlot.available());
+            assertEquals(
+                    4,
+                    hotbarSlot.zeroBasedSlot());
+            assertEquals(
+                    5,
+                    hotbarSlot.displaySlot());
+
             final Minecraft189WorldTimeState.Snapshot worldTime =
                     runtime.requireHostRuntime()
                             .worldTimeState()
@@ -1019,6 +1048,17 @@ final class Minecraft189MappedHostTransformationTest {
             assertFalse(
                     runtime.requireHostRuntime()
                             .heldItemState()
+                            .snapshot()
+                            .available());
+
+            playerClass.getField("bi")
+                    .set(
+                            player,
+                            null);
+            runTick.invoke(minecraft);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .hotbarSlotState()
                             .snapshot()
                             .available());
 

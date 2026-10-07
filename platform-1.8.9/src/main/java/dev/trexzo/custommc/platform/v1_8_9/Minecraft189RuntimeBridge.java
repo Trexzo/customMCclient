@@ -126,6 +126,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerHotbarSlot(
+            final Minecraft189PlayerInventoryAccess player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerHotbarSlot(player);
+        }
+    }
+
     public static synchronized void worldTime(
             final Minecraft189WorldTimeAccess world) {
         final Minecraft189HostRuntime host =
