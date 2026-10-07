@@ -12,6 +12,7 @@ import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.ui.UiThemeProvider;
 import dev.trexzo.custommc.core.ui.UiThemes;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiModel;
+import dev.trexzo.custommc.platform.v1_8_9.input.LegacyKeyboardCodes;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 
 import java.util.Objects;
@@ -513,6 +514,7 @@ public final class Minecraft189HostRuntime
                     .apply(
                             null,
                             null,
+                            false,
                             false);
             return;
         }
@@ -523,7 +525,9 @@ public final class Minecraft189HostRuntime
                         player,
                         movement,
                         inputState.pointerPressed(
-                                Minecraft189ClickRateTracker.LEFT_BUTTON))) {
+                                Minecraft189ClickRateTracker.LEFT_BUTTON),
+                        inputState.keyPressed(
+                                LegacyKeyboardCodes.W))) {
             return;
         }
         featureCatalog.autoSprint()
