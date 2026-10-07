@@ -10,8 +10,12 @@ public final class Minecraft189DamageBoostModule
             "movement.damageBoost";
     public static final String MULTIPLIER_SETTING_ID =
             "movement.damageBoost.multiplier";
+    public static final String VERTICAL_MULTIPLIER_SETTING_ID =
+            "movement.damageBoost.verticalMultiplier";
     public static final double DEFAULT_MULTIPLIER =
             1.25D;
+    public static final double DEFAULT_VERTICAL_MULTIPLIER =
+            1.0D;
     public static final double MINIMUM_MULTIPLIER =
             1.0D;
     public static final double MAXIMUM_MULTIPLIER =
@@ -21,6 +25,12 @@ public final class Minecraft189DamageBoostModule
             new Setting<Double>(
                     MULTIPLIER_SETTING_ID,
                     DEFAULT_MULTIPLIER,
+                    Minecraft189DamageBoostModule::validMultiplier,
+                    SettingCodecs.DOUBLE);
+    private final Setting<Double> verticalMultiplier =
+            new Setting<Double>(
+                    VERTICAL_MULTIPLIER_SETTING_ID,
+                    DEFAULT_VERTICAL_MULTIPLIER,
                     Minecraft189DamageBoostModule::validMultiplier,
                     SettingCodecs.DOUBLE);
 
@@ -35,6 +45,10 @@ public final class Minecraft189DamageBoostModule
 
     public Setting<Double> multiplierSetting() {
         return multiplier;
+    }
+
+    public Setting<Double> verticalMultiplierSetting() {
+        return verticalMultiplier;
     }
 
     @Override
@@ -76,13 +90,20 @@ public final class Minecraft189DamageBoostModule
 
         final double configuredMultiplier =
                 multiplier.get().doubleValue();
+        final double configuredVerticalMultiplier =
+                verticalMultiplier.get().doubleValue();
         final double currentX =
                 player.customMcMotionX();
+        final double currentY =
+                player.customMcMotionY();
         final double currentZ =
                 player.customMcMotionZ();
         final double targetX =
                 cleanZero(
                         currentX * configuredMultiplier);
+        final double targetY =
+                cleanZero(
+                        currentY * configuredVerticalMultiplier);
         final double targetZ =
                 cleanZero(
                         currentZ * configuredMultiplier);
@@ -93,6 +114,13 @@ public final class Minecraft189DamageBoostModule
                 targetX) != 0) {
             player.customMcSetMotionX(
                     targetX);
+            changed = true;
+        }
+        if (Double.compare(
+                currentY,
+                targetY) != 0) {
+            player.customMcSetMotionY(
+                    targetY);
             changed = true;
         }
         if (Double.compare(
