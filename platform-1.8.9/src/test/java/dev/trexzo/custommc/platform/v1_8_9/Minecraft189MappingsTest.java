@@ -995,9 +995,6 @@ final class Minecraft189MappingsTest {
                                 .obfuscatedInternalName());
         addField(
                 writer,
-                Minecraft189Mappings.ENTITY_PLAYER_INVENTORY);
-        addField(
-                writer,
                 Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL);
         addField(
                 writer,
@@ -1042,6 +1039,9 @@ final class Minecraft189MappingsTest {
                 writer(
                         Minecraft189Mappings.ENTITY_PLAYER
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_INVENTORY);
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL);
