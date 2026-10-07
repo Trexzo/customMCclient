@@ -1118,3 +1118,13 @@ While Freeze is enabled it writes each non-zero mapped motion component to zero 
 Freeze has explicit top-priority ownership over the existing movement writers: **Freeze > Flight > Fast Fall > Glide**, while Strafe is also suspended whenever Freeze owns the pass. This prevents competing writes and keeps motion arbitration deterministic.
 
 Focused coverage proves exact X/Y/Z zeroing, redundant-write avoidance, top-priority ownership over Flight/Strafe/Fast Fall/Glide, disable behavior, null safety, and teardown. Transformed-host coverage proves exact mapped `pk.v/pk.w/pk.x` zeroing through `Minecraft.runTick()` and confirms Flight resumes immediately after Freeze is disabled.
+
+## Long Jump movement control
+
+M168 adds **Movement → Long Jump** without introducing a new Minecraft mapping. It composes the certified M138 jump delegate, M103 yaw snapshot, M129 on-ground snapshot, and M156/M162 primitive `Entity.motionX/motionZ` bridge.
+
+The mapped `runTick()` ordering is the authority boundary: movement state is captured first, jump control runs next, and motion control runs later in the same tick. A fresh Space press while grounded and while at least one W/A/S/D key is held invokes the mapped jump delegate and arms exactly one same-tick horizontal boost. Holding Space does not retrigger. The boost is yaw-relative, diagonal-normalized, and uses the persistent `movement.longJump.speed` DOUBLE setting (default `0.65`, range `0.10..1.50`, step `0.05`).
+
+Ownership is explicit. Freeze and Flight suspend Long Jump. While Long Jump is enabled it suppresses Auto Jump so the two ground-jump writers cannot compete. On the single boost tick Long Jump owns horizontal motion over Strafe; after that tick Strafe resumes normally. Air Jump remains an independent airborne fresh-press feature.
+
+Focused coverage proves the movement-input requirement, fresh-press semantics, default/configured yaw-relative boost, Long-Jump-over-Strafe ownership, Freeze/Flight suspension, Auto-Jump suppression, disable behavior, and setting teardown. Transformed-host coverage proves the real mapped jump call plus exact `pk.v/pk.x` boost through `Minecraft.runTick()`.

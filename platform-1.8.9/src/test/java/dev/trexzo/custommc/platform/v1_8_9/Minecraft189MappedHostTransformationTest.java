@@ -880,6 +880,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189LongJumpModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189AutoSneakModule.ID)
                             != null);
             assertTrue(
@@ -2038,6 +2043,87 @@ final class Minecraft189MappedHostTransformationTest {
                             LegacyKeyboardCodes.W,
                             false);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .longJump()
+                    .speedSetting()
+                    .set(
+                            0.85D);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189LongJumpModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .longJump()
+                            .active());
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            true);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            0.0F);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            false);
+            runTick.invoke(minecraft);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    5,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+            assertEquals(
+                    0.0D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    0.85D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    5,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189LongJumpModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .longJump()
+                            .active());
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            false);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+
             playerClass.getField("C")
                     .setBoolean(
                             player,
@@ -2049,7 +2135,7 @@ final class Minecraft189MappedHostTransformationTest {
                             true);
             runTick.invoke(minecraft);
             assertEquals(
-                    4,
+                    5,
                     playerClass.getField("jumpCalls")
                             .getInt(
                                     player));
