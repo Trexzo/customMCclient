@@ -160,6 +160,22 @@ final class Minecraft189AimAssistModuleTest {
                     1,
                     player.pitchWrites);
 
+            currentRotation.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            currentRotation.snapshot(),
+                            targetRotation.snapshot(),
+                            true));
+            assertEquals(
+                    1,
+                    player.yawWrites);
+            assertEquals(
+                    1,
+                    player.pitchWrites);
+
             positions.update(
                     new double[]{
                             -10.0D,
@@ -198,21 +214,11 @@ final class Minecraft189AimAssistModuleTest {
                     -5.0F,
                     player.pitch,
                     0.0001F);
-
-            currentRotation.update(
-                    player.yaw,
-                    player.pitch);
-            assertTrue(
-                    module.apply(
-                            player,
-                            currentRotation.snapshot(),
-                            targetRotation.snapshot(),
-                            true));
             assertEquals(
-                    1,
+                    2,
                     player.yawWrites);
             assertEquals(
-                    1,
+                    2,
                     player.pitchWrites);
 
             targetRotation.clear();
