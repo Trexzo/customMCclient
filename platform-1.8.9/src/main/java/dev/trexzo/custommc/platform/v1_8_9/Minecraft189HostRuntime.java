@@ -33,6 +33,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189PlayerPotionEffectsState playerPotionEffectsState;
     private final Minecraft189PlayerExperienceState playerExperienceState;
     private final Minecraft189PlayerPingState playerPingState;
+    private final Minecraft189HotbarSlotState hotbarSlotState;
     private final Minecraft189WorldTimeState worldTimeState;
     private final Minecraft189ServerAddressState serverAddressState;
     private final Minecraft189HeldItemState heldItemState;
@@ -58,6 +59,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerPotionEffectsState playerPotionEffectsState,
             final Minecraft189PlayerExperienceState playerExperienceState,
             final Minecraft189PlayerPingState playerPingState,
+            final Minecraft189HotbarSlotState hotbarSlotState,
             final Minecraft189WorldTimeState worldTimeState,
             final Minecraft189ServerAddressState serverAddressState,
             final Minecraft189HeldItemState heldItemState,
@@ -80,6 +82,7 @@ public final class Minecraft189HostRuntime
         this.playerPotionEffectsState = playerPotionEffectsState;
         this.playerExperienceState = playerExperienceState;
         this.playerPingState = playerPingState;
+        this.hotbarSlotState = hotbarSlotState;
         this.worldTimeState = worldTimeState;
         this.serverAddressState = serverAddressState;
         this.heldItemState = heldItemState;
@@ -167,6 +170,8 @@ public final class Minecraft189HostRuntime
                 new Minecraft189PlayerExperienceState();
         final Minecraft189PlayerPingState playerPingState =
                 new Minecraft189PlayerPingState();
+        final Minecraft189HotbarSlotState hotbarSlotState =
+                new Minecraft189HotbarSlotState();
         final Minecraft189WorldTimeState worldTimeState =
                 new Minecraft189WorldTimeState();
         final Minecraft189ServerAddressState serverAddressState =
@@ -210,6 +215,7 @@ public final class Minecraft189HostRuntime
                             playerPotionEffectsState,
                             playerExperienceState,
                             playerPingState,
+                            hotbarSlotState,
                             worldTimeState,
                             serverAddressState,
                             heldItemState,
@@ -234,6 +240,7 @@ public final class Minecraft189HostRuntime
                     playerPotionEffectsState,
                     playerExperienceState,
                     playerPingState,
+                    hotbarSlotState,
                     worldTimeState,
                     serverAddressState,
                     heldItemState,
@@ -328,6 +335,11 @@ public final class Minecraft189HostRuntime
     public Minecraft189PlayerPingState playerPingState() {
         requireOpen();
         return playerPingState;
+    }
+
+    public Minecraft189HotbarSlotState hotbarSlotState() {
+        requireOpen();
+        return hotbarSlotState;
     }
 
     public Minecraft189WorldTimeState worldTimeState() {
@@ -466,6 +478,30 @@ public final class Minecraft189HostRuntime
         }
         playerPingState.update(
                 milliseconds);
+    }
+
+    void playerHotbarSlot(
+            final Minecraft189PlayerInventoryAccess player) {
+        requireOpen();
+        if (player == null) {
+            hotbarSlotState.clear();
+            return;
+        }
+        final Minecraft189InventoryHotbarAccess inventory =
+                player.customMcInventory();
+        if (inventory == null) {
+            hotbarSlotState.clear();
+            return;
+        }
+        final int slot =
+                inventory.customMcSelectedHotbarSlot();
+        if (slot < 0
+                || slot >= Minecraft189HotbarSlotState.SLOT_COUNT) {
+            hotbarSlotState.clear();
+            return;
+        }
+        hotbarSlotState.update(
+                slot);
     }
 
     void worldTime(
@@ -655,6 +691,7 @@ public final class Minecraft189HostRuntime
         playerPotionEffectsState.clear();
         playerExperienceState.clear();
         playerPingState.clear();
+        hotbarSlotState.clear();
         worldTimeState.clear();
         serverAddressState.clear();
         heldItemState.clear();
