@@ -3396,6 +3396,16 @@ public final class Minecraft189ClassTransformer
                 Opcodes.ARETURN);
 
         method.visitLabel(nonNull);
+        method.visitFrame(
+                Opcodes.F_FULL,
+                2,
+                new Object[]{
+                        Minecraft189Mappings.WORLD
+                                .obfuscatedInternalName(),
+                        "java/util/List"
+                },
+                0,
+                new Object[0]);
         method.visitVarInsn(
                 Opcodes.ALOAD,
                 1);
@@ -3428,6 +3438,19 @@ public final class Minecraft189ClassTransformer
                 4);
 
         method.visitLabel(loopCheck);
+        method.visitFrame(
+                Opcodes.F_FULL,
+                5,
+                new Object[]{
+                        Minecraft189Mappings.WORLD
+                                .obfuscatedInternalName(),
+                        "java/util/List",
+                        Opcodes.INTEGER,
+                        "[D",
+                        Opcodes.INTEGER
+                },
+                0,
+                new Object[0]);
         method.visitVarInsn(
                 Opcodes.ILOAD,
                 4);
@@ -3539,6 +3562,19 @@ public final class Minecraft189ClassTransformer
                 loopCheck);
 
         method.visitLabel(loopEnd);
+        method.visitFrame(
+                Opcodes.F_FULL,
+                5,
+                new Object[]{
+                        Minecraft189Mappings.WORLD
+                                .obfuscatedInternalName(),
+                        "java/util/List",
+                        Opcodes.INTEGER,
+                        "[D",
+                        Opcodes.INTEGER
+                },
+                0,
+                new Object[0]);
         method.visitVarInsn(
                 Opcodes.ALOAD,
                 3);
