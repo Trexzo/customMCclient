@@ -91,6 +91,10 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "xg",
                     "net/minecraft/util/FoodStats");
+    public static final MappedClass MOVEMENT_INPUT =
+            new MappedClass(
+                    "beu",
+                    "net/minecraft/util/MovementInput");
     public static final MappedClass POTION_EFFECT =
             new MappedClass(
                     "pf",
@@ -215,6 +219,27 @@ public final class Minecraft189Mappings {
                     "Z",
                     "field_70122_E",
                     "onGround");
+    public static final MappedField ENTITY_PLAYER_SP_MOVEMENT_INPUT =
+            new MappedField(
+                    ENTITY_PLAYER_SP,
+                    "b",
+                    "Lbeu;",
+                    "field_71158_b",
+                    "movementInput");
+    public static final MappedField MOVEMENT_INPUT_MOVE_STRAFE =
+            new MappedField(
+                    MOVEMENT_INPUT,
+                    "a",
+                    "F",
+                    "field_78902_a",
+                    "moveStrafe");
+    public static final MappedField MOVEMENT_INPUT_MOVE_FORWARD =
+            new MappedField(
+                    MOVEMENT_INPUT,
+                    "b",
+                    "F",
+                    "field_78900_b",
+                    "moveForward");
     public static final MappedField ENTITY_PLAYER_INVENTORY =
             new MappedField(
                     ENTITY_PLAYER,
@@ -287,6 +312,14 @@ public final class Minecraft189Mappings {
                     "Z",
                     "field_151455_aw",
                     "forceUnicodeFont");
+
+    public static final MappedMethod ENTITY_PLAYER_SP_ON_LIVING_UPDATE =
+            new MappedMethod(
+                    ENTITY_PLAYER_SP,
+                    "m",
+                    "()V",
+                    "func_70636_d",
+                    "onLivingUpdate");
 
     public static final MappedMethod ENTITY_IS_SNEAKING =
             new MappedMethod(

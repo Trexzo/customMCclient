@@ -308,6 +308,9 @@ final class Minecraft189MappedHostTransformationTest {
                         "bet",
                         abstractClientPlayerShape()));
         loader.put(
+                "beu",
+                movementInputShape());
+        loader.put(
                 "bew",
                 playerShape());
         loader.put(
@@ -3041,6 +3044,10 @@ final class Minecraft189MappedHostTransformationTest {
                 null,
                 "bet",
                 null);
+        field(
+                writer,
+                "b",
+                "Lbeu;");
         final MethodVisitor constructor =
                 writer.visitMethod(
                         Opcodes.ACC_PUBLIC,
@@ -3064,6 +3071,91 @@ final class Minecraft189MappedHostTransformationTest {
                 1,
                 1);
         constructor.visitEnd();
+
+        final MethodVisitor onLivingUpdate =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "m",
+                        "()V",
+                        null,
+                        null);
+        onLivingUpdate.visitCode();
+
+        onLivingUpdate.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        onLivingUpdate.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "bew",
+                "b",
+                "Lbeu;");
+        onLivingUpdate.visitInsn(
+                Opcodes.DUP);
+        onLivingUpdate.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "beu",
+                "a",
+                "F");
+        onLivingUpdate.visitLdcInsn(
+                Float.valueOf(0.2F));
+        onLivingUpdate.visitInsn(
+                Opcodes.FMUL);
+        onLivingUpdate.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                "beu",
+                "a",
+                "F");
+
+        onLivingUpdate.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        onLivingUpdate.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "bew",
+                "b",
+                "Lbeu;");
+        onLivingUpdate.visitInsn(
+                Opcodes.DUP);
+        onLivingUpdate.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "beu",
+                "b",
+                "F");
+        onLivingUpdate.visitLdcInsn(
+                Float.valueOf(0.2F));
+        onLivingUpdate.visitInsn(
+                Opcodes.FMUL);
+        onLivingUpdate.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                "beu",
+                "b",
+                "F");
+
+        onLivingUpdate.visitInsn(
+                Opcodes.RETURN);
+        onLivingUpdate.visitMaxs(
+                3,
+                1);
+        onLivingUpdate.visitEnd();
+
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] movementInputShape() {
+        final ClassWriter writer =
+                classWriter("beu");
+        field(
+                writer,
+                "a",
+                "F");
+        field(
+                writer,
+                "b",
+                "F");
+        endDefaultConstructor(
+                writer,
+                "beu");
         writer.visitEnd();
         return writer.toByteArray();
     }
