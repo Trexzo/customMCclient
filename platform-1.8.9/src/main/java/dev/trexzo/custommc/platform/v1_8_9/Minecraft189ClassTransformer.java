@@ -161,6 +161,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189ClickMouseControl";
     private static final String CLICK_MOUSE_CONTROL_DESCRIPTOR =
             "L" + CLICK_MOUSE_CONTROL_INTERNAL_NAME + ";";
+    private static final String BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189BlockHitDelayControl";
+    private static final String BLOCK_HIT_DELAY_CONTROL_DESCRIPTOR =
+            "L" + BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -168,6 +173,9 @@ public final class Minecraft189ClassTransformer
         return TARGET_MAIN_CLASS.equals(
                 binaryClassName)
                 || Minecraft189Mappings.MINECRAFT
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.PLAYER_CONTROLLER_MP
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.KEY_BINDING
@@ -245,6 +253,13 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyMinecraft(input);
             return transformMinecraft(input);
+        }
+        if (Minecraft189Mappings.PLAYER_CONTROLLER_MP
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyPlayerControllerMp(input);
+            return transformPlayerControllerMp(input);
         }
         if (Minecraft189Mappings.KEY_BINDING
                 .obfuscatedBinaryName()
@@ -503,6 +518,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedHeldItem =
                 new boolean[]{false};
         final boolean[] injectedRightClickDelay =
+                new boolean[]{false};
+        final boolean[] injectedFastBreakControl =
                 new boolean[]{false};
         final boolean[] injectedLeftClickCounter =
                 new boolean[]{false};
@@ -1042,6 +1059,31 @@ public final class Minecraft189ClassTransformer
                                                 rightClickDelay.descriptor());
                                         injectedRightClickDelay[0] = true;
 
+                                        final Minecraft189Mappings.MappedField playerController =
+                                                Minecraft189Mappings
+                                                        .MINECRAFT_PLAYER_CONTROLLER;
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                playerController.obfuscatedName(),
+                                                playerController.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerControllerBreakControl",
+                                                "("
+                                                        + BLOCK_HIT_DELAY_CONTROL_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedFastBreakControl[0] = true;
+
                                         final Minecraft189Mappings.MappedField leftClickCounter =
                                                 Minecraft189Mappings
                                                         .MINECRAFT_LEFT_CLICK_COUNTER;
@@ -1194,6 +1236,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedServerAddress[0]
                 || !injectedHeldItem[0]
                 || !injectedRightClickDelay[0]
+                || !injectedFastBreakControl[0]
                 || !injectedLeftClickCounter[0]
                 || !injectedAutoClick[0]) {
             throw new IllegalStateException(
@@ -1674,6 +1717,53 @@ public final class Minecraft189ClassTransformer
             throw new IllegalStateException(
                     "mapped EntityRenderer updateCameraAndRender method was not patchable");
         }
+        return writer.toByteArray();
+    }
+
+    private static byte[] transformPlayerControllerMp(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public void visit(
+                            final int version,
+                            final int access,
+                            final String name,
+                            final String signature,
+                            final String superName,
+                            final String[] interfaces) {
+                        super.visit(
+                                version,
+                                access,
+                                name,
+                                signature,
+                                superName,
+                                withInterface(
+                                        interfaces,
+                                        BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME));
+                    }
+
+                    @Override
+                    public void visitEnd() {
+                        addIntFieldSetter(
+                                cv,
+                                "customMcSetBlockHitDelay",
+                                Minecraft189Mappings
+                                        .PLAYER_CONTROLLER_BLOCK_HIT_DELAY);
+                        super.visitEnd();
+                    }
+                },
+                0);
+
         return writer.toByteArray();
     }
 
@@ -2986,6 +3076,37 @@ public final class Minecraft189ClassTransformer
                 0);
         method.visitVarInsn(
                 Opcodes.FLOAD,
+                1);
+        method.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                field.owner().obfuscatedInternalName(),
+                field.obfuscatedName(),
+                field.descriptor());
+        method.visitInsn(
+                Opcodes.RETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addIntFieldSetter(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedField field) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "(I)V",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitVarInsn(
+                Opcodes.ILOAD,
                 1);
         method.visitFieldInsn(
                 Opcodes.PUTFIELD,

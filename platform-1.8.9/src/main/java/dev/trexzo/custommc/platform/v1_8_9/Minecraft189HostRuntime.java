@@ -684,6 +684,14 @@ public final class Minecraft189HostRuntime
                         currentDelay);
     }
 
+    void playerControllerBreakControl(
+            final Minecraft189BlockHitDelayControl controller) {
+        requireOpen();
+        featureCatalog.fastBreak()
+                .apply(
+                        controller);
+    }
+
     int leftClickCounter(
             final int currentCounter) {
         requireOpen();

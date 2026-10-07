@@ -254,7 +254,9 @@ final class Minecraft189MappedHostTransformationTest {
                 worldClientShape());
         loader.put(
                 "bda",
-                playerControllerShape());
+                transformer.transform(
+                        "bda",
+                        playerControllerShape()));
         loader.put(
                 "bde",
                 transformer.transform(
@@ -433,6 +435,21 @@ final class Minecraft189MappedHostTransformationTest {
                     .setInt(
                             minecraft,
                             7);
+
+            final Class<?> playerControllerClass =
+                    loader.loadClass("bda");
+            final Object playerController =
+                    playerControllerClass
+                            .getDeclaredConstructor()
+                            .newInstance();
+            playerControllerClass.getField("g")
+                    .setInt(
+                            playerController,
+                            4);
+            minecraftClass.getField("c")
+                    .set(
+                            minecraft,
+                            playerController);
 
             final Class<?> playerClass =
                     loader.loadClass("bew");
@@ -788,6 +805,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189FastBreakModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189NoHitDelayModule.ID)
                             != null);
             assertTrue(
@@ -895,6 +917,11 @@ final class Minecraft189MappedHostTransformationTest {
                     minecraftClass.getField("ag")
                             .getInt(
                                     minecraft));
+            assertEquals(
+                    4,
+                    playerControllerClass.getField("g")
+                            .getInt(
+                                    playerController));
             assertEquals(
                     0,
                     minecraftClass.getField("clickMouseCalls")
@@ -1302,6 +1329,56 @@ final class Minecraft189MappedHostTransformationTest {
                     minecraftClass.getField("ap")
                             .getInt(
                                     minecraft));
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189FastBreakModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .fastBreak()
+                            .active());
+
+            playerControllerClass.getField("g")
+                    .setInt(
+                            playerController,
+                            4);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0,
+                    playerControllerClass.getField("g")
+                            .getInt(
+                                    playerController));
+
+            playerControllerClass.getField("g")
+                    .setInt(
+                            playerController,
+                            3);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0,
+                    playerControllerClass.getField("g")
+                            .getInt(
+                                    playerController));
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189FastBreakModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .fastBreak()
+                            .active());
+            playerControllerClass.getField("g")
+                    .setInt(
+                            playerController,
+                            4);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    4,
+                    playerControllerClass.getField("g")
+                            .getInt(
+                                    playerController));
 
             runtime.moduleController()
                     .enable(

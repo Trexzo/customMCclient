@@ -236,6 +236,16 @@ public final class Minecraft189RuntimeBridge {
                         currentDelay);
     }
 
+    public static synchronized void playerControllerBreakControl(
+            final Minecraft189BlockHitDelayControl controller) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerControllerBreakControl(
+                    controller);
+        }
+    }
+
     public static synchronized int leftClickCounter(
             final int currentCounter) {
         final Minecraft189HostRuntime host =
