@@ -113,6 +113,10 @@ final class Minecraft189MappingsTest {
                 "beu",
                 "net/minecraft/util/MovementInput");
         assertClass(
+                Minecraft189Mappings.TIMER,
+                "avl",
+                "net/minecraft/util/Timer");
+        assertClass(
                 Minecraft189Mappings.POTION_EFFECT,
                 "pf",
                 "net/minecraft/potion/PotionEffect");
@@ -190,6 +194,20 @@ final class Minecraft189MappingsTest {
                 "I",
                 "field_71429_W",
                 "leftClickCounter");
+        assertField(
+                Minecraft189Mappings.MINECRAFT_TIMER,
+                Minecraft189Mappings.MINECRAFT,
+                "Y",
+                "Lavl;",
+                "field_71428_T",
+                "timer");
+        assertField(
+                Minecraft189Mappings.TIMER_SPEED,
+                Minecraft189Mappings.TIMER,
+                "d",
+                "F",
+                "field_74278_d",
+                "timerSpeed");
         assertField(
                 Minecraft189Mappings.PLAYER_CONTROLLER_BLOCK_HIT_DELAY,
                 Minecraft189Mappings.PLAYER_CONTROLLER_MP,
@@ -625,6 +643,8 @@ final class Minecraft189MappingsTest {
     void mappedClassShapeGatesAcceptExactOwnersAndMembers() {
         Minecraft189ClassShapeVerifier.verifyMinecraft(
                 minecraftShape());
+        Minecraft189ClassShapeVerifier.verifyTimer(
+                timerShape());
         Minecraft189ClassShapeVerifier.verifyWorld(
                 worldShape());
         Minecraft189ClassShapeVerifier.verifyPlayerControllerMp(
@@ -1462,6 +1482,30 @@ final class Minecraft189MappingsTest {
                 failure.getMessage());
     }
 
+    @Test
+    void timerShapeGateRejectsMissingTimerSpeedField() {
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyTimer(
+                                        emptyClass("avl")));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: avl.d F (timerSpeed)",
+                failure.getMessage());
+    }
+
+    private static byte[] timerShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.TIMER
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.TIMER_SPEED);
+        return finish(writer);
+    }
+
     private static byte[] minecraftShape() {
         final ClassWriter writer =
                 writer(
@@ -2136,6 +2180,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_LEFT_CLICK_COUNTER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_TIMER);
     }
 
     private static ClassWriter writer(
