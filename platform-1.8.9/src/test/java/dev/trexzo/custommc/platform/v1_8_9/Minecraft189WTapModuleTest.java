@@ -3,9 +3,13 @@ package dev.trexzo.custommc.platform.v1_8_9;
 import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
+import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
+import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
+import dev.trexzo.custommc.core.setting.SettingRegistry;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -19,15 +23,34 @@ final class Minecraft189WTapModuleTest {
                         modules);
         final ModulePresentationRegistry presentations =
                 new ModulePresentationRegistry();
+        final SettingRegistry settings =
+                new SettingRegistry();
+        final SettingPresentationRegistry settingPresentations =
+                new SettingPresentationRegistry();
+        final ModuleSettingRegistry moduleSettings =
+                new ModuleSettingRegistry(
+                        modules,
+                        settings);
 
         final Minecraft189WTapFeature feature =
                 Minecraft189WTapFeature.install(
                         modules,
                         controller,
-                        presentations);
+                        presentations,
+                        moduleSettings,
+                        settings,
+                        settingPresentations);
         try {
             final Minecraft189WTapModule module =
                     feature.module();
+            assertNotNull(
+                    settings.find(
+                            Minecraft189WTapModule.REQUIRE_GROUND_SETTING_ID));
+            assertFalse(
+                    module.requireGroundSetting()
+                            .get()
+                            .booleanValue());
+
             final Minecraft189PlayerMovementState state =
                     new Minecraft189PlayerMovementState();
             final TestPlayer player =
@@ -92,7 +115,39 @@ final class Minecraft189WTapModuleTest {
             assertFalse(
                     player.sprinting);
 
-            player.sprinting = false;
+            player.sprinting = true;
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            false));
+            module.requireGroundSetting()
+                    .set(
+                            Boolean.TRUE);
+            state.update(
+                    false,
+                    false,
+                    true);
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertTrue(
+                    player.sprinting);
+
+            state.update(
+                    true,
+                    false,
+                    true);
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            true));
+            assertTrue(
+                    player.sprinting);
+
             assertFalse(
                     module.apply(
                             player,
@@ -101,8 +156,8 @@ final class Minecraft189WTapModuleTest {
             state.update(
                     true,
                     false,
-                    false);
-            assertFalse(
+                    true);
+            assertTrue(
                     module.apply(
                             player,
                             state.snapshot(),
@@ -121,6 +176,9 @@ final class Minecraft189WTapModuleTest {
         assertNull(
                 modules.find(
                         Minecraft189WTapModule.ID));
+        assertNull(
+                settings.find(
+                        Minecraft189WTapModule.REQUIRE_GROUND_SETTING_ID));
     }
 
     private static final class TestPlayer
