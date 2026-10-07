@@ -3725,6 +3725,12 @@ final class Minecraft189MappedHostTransformationTest {
                             .getFloat(
                                     player),
                     0.000001F);
+            assertEquals(
+                    35.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.000001F);
             runtime.requireHostRuntime()
                     .inputState()
                     .pointerButton(
@@ -3738,7 +3744,7 @@ final class Minecraft189MappedHostTransformationTest {
                                     player),
                     0.000001F);
             assertEquals(
-                    33.0F,
+                    35.0F,
                     playerClass.getField("z")
                             .getFloat(
                                     player),
