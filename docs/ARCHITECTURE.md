@@ -843,3 +843,13 @@ While disabled, the counter passes through unchanged. While enabled, the module 
 
 Transformed-host coverage proves exact `ave.ag` behavior for disabled `7`, enabled `7 -> 0`, preservation of `-1`, and disable pass-through. Focused coverage verifies Combat-category lifecycle and complete module teardown.
 
+## Auto Clicker combat scheduling
+
+M137 adds disabled-by-default `combat.autoClicker` / **Auto Clicker** under the existing Combat category. Persisted integer settings `Min CPS` and `Max CPS` accept 1 through 20, defaulting to 8 and 12. If configured in reverse order, runtime scheduling safely normalizes the lower and upper bound.
+
+The module uses the existing host-owned physical input state and only schedules clicks while legacy left mouse button 0 is held. Its phase accumulator is tied to the mapped 20 Hz game tick, so at most one synthetic click is emitted per tick and the configured maximum is explicitly 20 CPS. Releasing the physical button or disabling the module resets scheduler credit.
+
+Immediately before each normal return from transformed `Minecraft.runTick()`, after primitive Fast Place and No Hit Delay policies have run, the bridge asks `shouldAutoClick()`. When due, transformed `ave` invokes already-certified exact `Minecraft.clickMouse = ave.aw()V / func_147116_af`. No child-loader object crosses into retained host state. Generated clicks are recorded in the existing click-rate tracker so the CPS HUD reflects synthetic clicks.
+
+Transformed-host coverage instruments exact `ave.aw()V` and proves disabled, physical-hold, release-reset and disable behavior at deterministic 10 CPS. Focused coverage proves exactly 10 generated clicks across 20 held ticks at 10 CPS, persisted Min/Max settings, scheduler reset semantics, and teardown.
+
