@@ -116,6 +116,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerHealthAccess";
     private static final String PLAYER_HEALTH_ACCESS_DESCRIPTOR =
             "L" + PLAYER_HEALTH_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_HURT_TIME_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerHurtTimeAccess";
+    private static final String PLAYER_HURT_TIME_ACCESS_DESCRIPTOR =
+            "L" + PLAYER_HURT_TIME_ACCESS_INTERNAL_NAME + ";";
     private static final String PLAYER_ARMOR_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189PlayerArmorAccess";
@@ -552,6 +557,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedHealth =
                 new boolean[]{false};
+        final boolean[] injectedHurtTime =
+                new boolean[]{false};
         final boolean[] injectedArmor =
                 new boolean[]{false};
         final boolean[] injectedHunger =
@@ -973,6 +980,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedHealth[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_HURT_TIME_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerHurtTime",
+                                                "("
+                                                        + PLAYER_HURT_TIME_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedHurtTime[0] = true;
 
                                         super.visitVarInsn(
                                                 Opcodes.ALOAD,
@@ -1446,6 +1475,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedNoClipControl[0]
                 || !injectedMotionControl[0]
                 || !injectedHealth[0]
+                || !injectedHurtTime[0]
                 || !injectedArmor[0]
                 || !injectedHunger[0]
                 || !injectedPotionEffects[0]
@@ -2247,8 +2277,10 @@ public final class Minecraft189ClassTransformer
                                                 withInterface(
                                                         withInterface(
                                                                 withInterface(
-                                                                        interfaces,
-                                                                        PLAYER_HEALTH_ACCESS_INTERNAL_NAME),
+                                                                        withInterface(
+                                                                                interfaces,
+                                                                                PLAYER_HEALTH_ACCESS_INTERNAL_NAME),
+                                                                        PLAYER_HURT_TIME_ACCESS_INTERNAL_NAME),
                                                                 PLAYER_ARMOR_ACCESS_INTERNAL_NAME),
                                                         PLAYER_POTION_EFFECTS_ACCESS_INTERNAL_NAME),
                                                 PLAYER_HELD_ITEM_ACCESS_INTERNAL_NAME),
@@ -2267,6 +2299,11 @@ public final class Minecraft189ClassTransformer
                                 "customMcMaxHealth",
                                 Minecraft189Mappings
                                         .ENTITY_LIVING_BASE_GET_MAX_HEALTH);
+                        addIntFieldGetter(
+                                cv,
+                                "customMcHurtTime",
+                                Minecraft189Mappings
+                                        .ENTITY_LIVING_BASE_HURT_TIME);
                         addEquipmentPresentGetter(
                                 cv,
                                 "customMcArmorBoots",
