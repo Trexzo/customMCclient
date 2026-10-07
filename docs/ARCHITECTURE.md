@@ -1397,3 +1397,11 @@ M195 extends **Combat → Spin** with persistent BOOLEAN setting `combat.spin.re
 A released Require Hold tick returns `false` from Spin, so the existing rotation ownership chain is preserved: Jitter may run normally if it is independently eligible. When LMB is held and Spin writes, **Spin > Jitter** still applies and Jitter is reset rather than becoming a second writer.
 
 No new Minecraft mapping or transformer injection is introduced. Focused coverage proves default continuous operation, hold-gated suppression/activation and teardown. Transformed-host coverage proves that released-LMB Spin performs no yaw write and yields ownership to the independently eligible pitch-only Jitter, then held LMB restores Spin ownership for an exact mapped reverse-yaw write while preserving the handed-off pitch.
+
+## Configurable Spin interval
+
+M196 extends **Combat → Spin** with persistent INTEGER setting `combat.spin.intervalTicks`, default `1`, range `1..10`, and UI step `1`. The default preserves M195 exactly: every eligible Spin tick writes the configured yaw delta.
+
+Larger values write immediately, then skip `intervalTicks - 1` eligible ticks before the next Spin write. Ineligible state, disabling the module, missing rotation authority, or an unsatisfied Require Hold condition resets the cadence so the next eligible activation writes immediately.
+
+Rotation ownership remains explicit per tick. A Spin write keeps **Spin > Jitter** and resets Jitter. A cadence skip returns `false`, deliberately yielding that tick to independently eligible Jitter. Focused coverage proves default parity, a three-tick cadence, reset semantics and setting teardown. Transformed-host coverage proves exact mapped yaw writes on Spin ticks and pitch-only Jitter ownership on the two skipped ticks.
