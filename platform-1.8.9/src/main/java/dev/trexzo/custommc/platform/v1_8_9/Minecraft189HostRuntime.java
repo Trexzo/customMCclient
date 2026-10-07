@@ -519,6 +519,9 @@ public final class Minecraft189HostRuntime
         final boolean longJumpActive =
                 featureCatalog.longJump()
                         .active();
+        final boolean highJumpActive =
+                featureCatalog.highJump()
+                        .active();
         final boolean bunnyHopActive =
                 featureCatalog.bunnyHop()
                         .active();
@@ -532,13 +535,21 @@ public final class Minecraft189HostRuntime
                         player,
                         movement,
                         movementJumpSuspended);
-        featureCatalog.bunnyHop()
+        featureCatalog.highJump()
                 .applyJump(
                         player,
                         movement,
                         movementJumpSuspended
                                 || longJumpActive);
+        featureCatalog.bunnyHop()
+                .applyJump(
+                        player,
+                        movement,
+                        movementJumpSuspended
+                                || longJumpActive
+                                || highJumpActive);
         if (!longJumpActive
+                && !highJumpActive
                 && !bunnyHopActive) {
             featureCatalog.autoJump()
                     .apply(
@@ -609,19 +620,28 @@ public final class Minecraft189HostRuntime
         final boolean longJumpActive =
                 featureCatalog.longJump()
                         .active();
+        final boolean highJumpActive =
+                featureCatalog.highJump()
+                        .active();
         final boolean longJumpOwnsHorizontal =
                 featureCatalog.longJump()
                         .applyMotion(
                                 player,
                                 rotation,
                                 flightActive);
+        featureCatalog.highJump()
+                .applyMotion(
+                        player,
+                        flightActive
+                                || longJumpActive);
         final boolean bunnyHopOwnsHorizontal =
                 featureCatalog.bunnyHop()
                         .applyMotion(
                                 player,
                                 rotation,
                                 flightActive
-                                        || longJumpActive);
+                                        || longJumpActive
+                                        || highJumpActive);
         featureCatalog.flight()
                 .apply(
                         player,
