@@ -96,6 +96,16 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerPingAccess";
     private static final String PLAYER_PING_ACCESS_DESCRIPTOR =
             "L" + PLAYER_PING_ACCESS_INTERNAL_NAME + ";";
+    private static final String INVENTORY_HOTBAR_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189InventoryHotbarAccess";
+    private static final String INVENTORY_HOTBAR_ACCESS_DESCRIPTOR =
+            "L" + INVENTORY_HOTBAR_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_INVENTORY_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerInventoryAccess";
+    private static final String PLAYER_INVENTORY_ACCESS_DESCRIPTOR =
+            "L" + PLAYER_INVENTORY_ACCESS_INTERNAL_NAME + ";";
     private static final String WORLD_TIME_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189WorldTimeAccess";
@@ -147,6 +157,9 @@ public final class Minecraft189ClassTransformer
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.ENTITY_PLAYER
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.INVENTORY_PLAYER
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.ABSTRACT_CLIENT_PLAYER
@@ -247,6 +260,13 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyEntityPlayer(input);
             return transformEntityPlayer(input);
+        }
+        if (Minecraft189Mappings.INVENTORY_PLAYER
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyInventoryPlayer(input);
+            return transformInventoryPlayer(input);
         }
         if (Minecraft189Mappings.ABSTRACT_CLIENT_PLAYER
                 .obfuscatedBinaryName()
@@ -406,6 +426,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedExperience =
                 new boolean[]{false};
         final boolean[] injectedPing =
+                new boolean[]{false};
+        final boolean[] injectedHotbarSlot =
                 new boolean[]{false};
         final boolean[] injectedWorldTime =
                 new boolean[]{false};
@@ -674,6 +696,28 @@ public final class Minecraft189ClassTransformer
                                                 false);
                                         injectedPing[0] = true;
 
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_INVENTORY_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerHotbarSlot",
+                                                "("
+                                                        + PLAYER_INVENTORY_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedHotbarSlot[0] = true;
+
                                         final Minecraft189Mappings.MappedField world =
                                                 Minecraft189Mappings
                                                         .MINECRAFT_WORLD;
@@ -833,6 +877,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedPotionEffects[0]
                 || !injectedExperience[0]
                 || !injectedPing[0]
+                || !injectedHotbarSlot[0]
                 || !injectedWorldTime[0]
                 || !injectedServerAddress[0]
                 || !injectedHeldItem[0]) {
@@ -1759,9 +1804,11 @@ public final class Minecraft189ClassTransformer
                                 superName,
                                 withInterface(
                                         withInterface(
-                                                interfaces,
-                                                PLAYER_HUNGER_ACCESS_INTERNAL_NAME),
-                                        PLAYER_EXPERIENCE_ACCESS_INTERNAL_NAME));
+                                                withInterface(
+                                                        interfaces,
+                                                        PLAYER_HUNGER_ACCESS_INTERNAL_NAME),
+                                                PLAYER_EXPERIENCE_ACCESS_INTERNAL_NAME),
+                                        PLAYER_INVENTORY_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1792,12 +1839,94 @@ public final class Minecraft189ClassTransformer
                                 "customMcExperienceBarCap",
                                 Minecraft189Mappings
                                         .ENTITY_PLAYER_XP_BAR_CAP);
+                        addPlayerInventoryGetter(
+                                cv,
+                                "customMcInventory");
                         super.visitEnd();
                     }
                 },
                 0);
 
         return writer.toByteArray();
+    }
+
+    private static byte[] transformInventoryPlayer(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public void visit(
+                            final int version,
+                            final int access,
+                            final String name,
+                            final String signature,
+                            final String superName,
+                            final String[] interfaces) {
+                        super.visit(
+                                version,
+                                access,
+                                name,
+                                signature,
+                                superName,
+                                withInterface(
+                                        interfaces,
+                                        INVENTORY_HOTBAR_ACCESS_INTERNAL_NAME));
+                    }
+
+                    @Override
+                    public void visitEnd() {
+                        addIntFieldGetter(
+                                cv,
+                                "customMcSelectedHotbarSlot",
+                                Minecraft189Mappings
+                                        .INVENTORY_PLAYER_CURRENT_ITEM);
+                        super.visitEnd();
+                    }
+                },
+                0);
+
+        return writer.toByteArray();
+    }
+
+    private static void addPlayerInventoryGetter(
+            final ClassVisitor visitor,
+            final String methodName) {
+        final Minecraft189Mappings.MappedField inventory =
+                Minecraft189Mappings.ENTITY_PLAYER_INVENTORY;
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()" + INVENTORY_HOTBAR_ACCESS_DESCRIPTOR,
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitFieldInsn(
+                Opcodes.GETFIELD,
+                inventory.owner().obfuscatedInternalName(),
+                inventory.obfuscatedName(),
+                inventory.descriptor());
+        method.visitTypeInsn(
+                Opcodes.CHECKCAST,
+                INVENTORY_HOTBAR_ACCESS_INTERNAL_NAME);
+        method.visitInsn(
+                Opcodes.ARETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
     }
 
     private static void addPingGetter(
