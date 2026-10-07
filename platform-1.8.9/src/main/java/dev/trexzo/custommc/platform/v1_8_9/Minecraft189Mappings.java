@@ -255,6 +255,27 @@ public final class Minecraft189Mappings {
                     "F",
                     "field_70177_z",
                     "rotationYaw");
+    public static final MappedField ENTITY_MOTION_X =
+            new MappedField(
+                    ENTITY,
+                    "v",
+                    "D",
+                    "field_70159_w",
+                    "motionX");
+    public static final MappedField ENTITY_MOTION_Y =
+            new MappedField(
+                    ENTITY,
+                    "w",
+                    "D",
+                    "field_70181_x",
+                    "motionY");
+    public static final MappedField ENTITY_MOTION_Z =
+            new MappedField(
+                    ENTITY,
+                    "x",
+                    "D",
+                    "field_70179_y",
+                    "motionZ");
     public static final MappedField ENTITY_DIMENSION =
             new MappedField(
                     ENTITY,
@@ -383,6 +404,14 @@ public final class Minecraft189Mappings {
                     "Z",
                     "field_151455_aw",
                     "forceUnicodeFont");
+
+    public static final MappedMethod ENTITY_LIVING_BASE_KNOCK_BACK =
+            new MappedMethod(
+                    ENTITY_LIVING_BASE,
+                    "a",
+                    "(Lpk;FDD)V",
+                    "func_70653_a",
+                    "knockBack");
 
     public static final MappedMethod ENTITY_PLAYER_SP_ON_LIVING_UPDATE =
             new MappedMethod(
