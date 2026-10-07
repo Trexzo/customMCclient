@@ -78,6 +78,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189AutoSneakFeature autoSneakFeature;
     private final Minecraft189NoSlowFeature noSlowFeature;
     private final Minecraft189FastPlaceFeature fastPlaceFeature;
+    private final Minecraft189FastBreakFeature fastBreakFeature;
     private final Minecraft189NoHitDelayFeature noHitDelayFeature;
     private final Minecraft189AutoClickerFeature autoClickerFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
@@ -134,6 +135,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189AutoSneakFeature autoSneakFeature,
             final Minecraft189NoSlowFeature noSlowFeature,
             final Minecraft189FastPlaceFeature fastPlaceFeature,
+            final Minecraft189FastBreakFeature fastBreakFeature,
             final Minecraft189NoHitDelayFeature noHitDelayFeature,
             final Minecraft189AutoClickerFeature autoClickerFeature) {
         this.modules = modules;
@@ -184,6 +186,7 @@ public final class Minecraft189FeatureCatalog
         this.autoSneakFeature = autoSneakFeature;
         this.noSlowFeature = noSlowFeature;
         this.fastPlaceFeature = fastPlaceFeature;
+        this.fastBreakFeature = fastBreakFeature;
         this.noHitDelayFeature = noHitDelayFeature;
         this.autoClickerFeature = autoClickerFeature;
     }
@@ -287,6 +290,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189AutoSneakFeature autoSneakFeature = null;
         Minecraft189NoSlowFeature noSlowFeature = null;
         Minecraft189FastPlaceFeature fastPlaceFeature = null;
+        Minecraft189FastBreakFeature fastBreakFeature = null;
         Minecraft189NoHitDelayFeature noHitDelayFeature = null;
         Minecraft189AutoClickerFeature autoClickerFeature = null;
 
@@ -422,6 +426,12 @@ public final class Minecraft189FeatureCatalog
                             moduleSettings,
                             settings,
                             settingPresentations);
+
+            fastBreakFeature =
+                    Minecraft189FastBreakFeature.install(
+                            modules,
+                            moduleController,
+                            presentations);
 
             noHitDelayFeature =
                     Minecraft189NoHitDelayFeature.install(
@@ -737,11 +747,13 @@ public final class Minecraft189FeatureCatalog
                     autoSneakFeature,
                     noSlowFeature,
                     fastPlaceFeature,
+                    fastBreakFeature,
                     noHitDelayFeature,
                     autoClickerFeature);
         } catch (RuntimeException failure) {
             closeQuietly(autoClickerFeature, failure);
             closeQuietly(noHitDelayFeature, failure);
+            closeQuietly(fastBreakFeature, failure);
             closeQuietly(fastPlaceFeature, failure);
             closeQuietly(noSlowFeature, failure);
             closeQuietly(autoSneakFeature, failure);
@@ -855,6 +867,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189FastPlaceModule fastPlace() {
         requireOpen();
         return fastPlaceFeature.module();
+    }
+
+    public Minecraft189FastBreakModule fastBreak() {
+        requireOpen();
+        return fastBreakFeature.module();
     }
 
     public Minecraft189NoHitDelayModule noHitDelay() {
@@ -1083,6 +1100,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             noHitDelayFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            fastBreakFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,
