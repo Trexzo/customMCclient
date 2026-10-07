@@ -14,6 +14,8 @@ public final class Minecraft189JitterModule
             "combat.jitter.pitchDegrees";
     public static final String INTERVAL_SETTING_ID =
             "combat.jitter.intervalTicks";
+    public static final String REQUIRE_HOLD_SETTING_ID =
+            "combat.jitter.requireHold";
     public static final double DEFAULT_DEGREES =
             0.50D;
     public static final double MINIMUM_DEGREES =
@@ -47,6 +49,12 @@ public final class Minecraft189JitterModule
                             && value >= MINIMUM_INTERVAL_TICKS
                             && value <= MAXIMUM_INTERVAL_TICKS,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> requireHold =
+            new Setting<Boolean>(
+                    REQUIRE_HOLD_SETTING_ID,
+                    Boolean.TRUE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
 
     private boolean enabled;
     private boolean positivePhase = true;
@@ -69,6 +77,10 @@ public final class Minecraft189JitterModule
         return intervalTicks;
     }
 
+    public Setting<Boolean> requireHoldSetting() {
+        return requireHold;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -89,7 +101,8 @@ public final class Minecraft189JitterModule
                 || player == null
                 || rotation == null
                 || !rotation.available()
-                || !leftButtonHeld) {
+                || (requireHold.get().booleanValue()
+                        && !leftButtonHeld)) {
             resetCadence();
             return false;
         }
