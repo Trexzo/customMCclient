@@ -444,6 +444,13 @@ final class Minecraft189MappingsTest {
                 "func_71124_b",
                 "getEquipmentInSlot");
         assertMethod(
+                Minecraft189Mappings.ENTITY_LIVING_BASE_JUMP,
+                Minecraft189Mappings.ENTITY_LIVING_BASE,
+                "bF",
+                "()V",
+                "func_70664_aZ",
+                "jump");
+        assertMethod(
                 Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS,
                 Minecraft189Mappings.ENTITY_PLAYER,
                 "cl",
@@ -1193,6 +1200,36 @@ final class Minecraft189MappingsTest {
                 failure.getMessage());
     }
 
+    @Test
+    void entityLivingBaseShapeGateRejectsMissingJumpMethod() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY_LIVING_BASE
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntityLivingBase(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: pr.bF()V (jump)",
+                failure.getMessage());
+    }
+
     private static byte[] minecraftShape() {
         final ClassWriter writer =
                 writer(
@@ -1355,6 +1392,9 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_JUMP);
         return finish(writer);
     }
 
