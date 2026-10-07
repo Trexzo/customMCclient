@@ -1363,3 +1363,11 @@ M191 extends **Combat → Jitter** on the same certified live yaw/pitch control 
 Switching Require Hold back to `true` while LMB is released immediately returns to the inactive/reset path, so no stale cadence or phase is carried into the next held activation. The M190 interval setting remains authoritative in either activation mode.
 
 Focused coverage proves default hold-only behavior, no-hold mode, mode return/reset, and setting teardown. Transformed-host coverage proves exact mapped yaw/pitch writes with LMB released only while Require Hold is false.
+
+## Jitter axis controls
+
+M192 extends **Combat → Jitter** with independent persistent BOOLEAN controls for the two already-certified rotation axes.
+
+`combat.jitter.yawEnabled` and `combat.jitter.pitchEnabled` both default to `true`, preserving M191 behavior exactly. Disabling one axis leaves that mapped primitive untouched while the other axis continues using the configured amplitude, cadence and activation mode. Disabling both axes makes Jitter a no-op and resets cadence/phase so the next re-enabled axis starts from the deterministic positive phase.
+
+No new Minecraft mapping, transformer injection or child-loader object retention is introduced. Focused coverage proves yaw-only, pitch-only, both-disabled reset behavior and teardown. Transformed-host coverage proves pitch-only operation leaves exact mapped `pk.y` unchanged while writing exact mapped `pk.z`.
