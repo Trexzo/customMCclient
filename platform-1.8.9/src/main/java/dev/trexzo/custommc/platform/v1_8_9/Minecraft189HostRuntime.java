@@ -33,6 +33,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189PlayerPotionEffectsState playerPotionEffectsState;
     private final Minecraft189PlayerExperienceState playerExperienceState;
     private final Minecraft189PlayerPingState playerPingState;
+    private final Minecraft189WorldTimeState worldTimeState;
     private final Minecraft189ServerAddressState serverAddressState;
     private final Minecraft189HeldItemState heldItemState;
     private final Minecraft189MovementSpeedTracker movementSpeedTracker;
@@ -57,6 +58,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerPotionEffectsState playerPotionEffectsState,
             final Minecraft189PlayerExperienceState playerExperienceState,
             final Minecraft189PlayerPingState playerPingState,
+            final Minecraft189WorldTimeState worldTimeState,
             final Minecraft189ServerAddressState serverAddressState,
             final Minecraft189HeldItemState heldItemState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
@@ -78,6 +80,7 @@ public final class Minecraft189HostRuntime
         this.playerPotionEffectsState = playerPotionEffectsState;
         this.playerExperienceState = playerExperienceState;
         this.playerPingState = playerPingState;
+        this.worldTimeState = worldTimeState;
         this.serverAddressState = serverAddressState;
         this.heldItemState = heldItemState;
         this.movementSpeedTracker = movementSpeedTracker;
@@ -164,6 +167,8 @@ public final class Minecraft189HostRuntime
                 new Minecraft189PlayerExperienceState();
         final Minecraft189PlayerPingState playerPingState =
                 new Minecraft189PlayerPingState();
+        final Minecraft189WorldTimeState worldTimeState =
+                new Minecraft189WorldTimeState();
         final Minecraft189ServerAddressState serverAddressState =
                 new Minecraft189ServerAddressState();
         final Minecraft189HeldItemState heldItemState =
@@ -205,6 +210,7 @@ public final class Minecraft189HostRuntime
                             playerPotionEffectsState,
                             playerExperienceState,
                             playerPingState,
+                            worldTimeState,
                             serverAddressState,
                             heldItemState,
                             movementSpeedTracker,
@@ -228,6 +234,7 @@ public final class Minecraft189HostRuntime
                     playerPotionEffectsState,
                     playerExperienceState,
                     playerPingState,
+                    worldTimeState,
                     serverAddressState,
                     heldItemState,
                     movementSpeedTracker,
@@ -321,6 +328,11 @@ public final class Minecraft189HostRuntime
     public Minecraft189PlayerPingState playerPingState() {
         requireOpen();
         return playerPingState;
+    }
+
+    public Minecraft189WorldTimeState worldTimeState() {
+        requireOpen();
+        return worldTimeState;
     }
 
     public Minecraft189ServerAddressState serverAddressState() {
@@ -454,6 +466,17 @@ public final class Minecraft189HostRuntime
         }
         playerPingState.update(
                 milliseconds);
+    }
+
+    void worldTime(
+            final Minecraft189WorldTimeAccess world) {
+        requireOpen();
+        if (world == null) {
+            worldTimeState.clear();
+            return;
+        }
+        worldTimeState.update(
+                world.customMcWorldTime());
     }
 
     void serverAddress(
@@ -632,6 +655,7 @@ public final class Minecraft189HostRuntime
         playerPotionEffectsState.clear();
         playerExperienceState.clear();
         playerPingState.clear();
+        worldTimeState.clear();
         serverAddressState.clear();
         heldItemState.clear();
         movementSpeedTracker.clear();

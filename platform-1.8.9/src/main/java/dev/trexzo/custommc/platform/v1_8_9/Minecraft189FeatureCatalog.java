@@ -55,6 +55,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189PotionEffectsFeature potionEffectsFeature;
     private final Minecraft189ExperienceFeature experienceFeature;
     private final Minecraft189PingFeature pingFeature;
+    private final Minecraft189WorldTimeFeature worldTimeFeature;
     private final Minecraft189ServerFeature serverFeature;
     private final Minecraft189HeldItemFeature heldItemFeature;
     private final Minecraft189SpeedFeature speedFeature;
@@ -96,6 +97,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189PotionEffectsFeature potionEffectsFeature,
             final Minecraft189ExperienceFeature experienceFeature,
             final Minecraft189PingFeature pingFeature,
+            final Minecraft189WorldTimeFeature worldTimeFeature,
             final Minecraft189ServerFeature serverFeature,
             final Minecraft189HeldItemFeature heldItemFeature,
             final Minecraft189SpeedFeature speedFeature,
@@ -131,6 +133,7 @@ public final class Minecraft189FeatureCatalog
         this.potionEffectsFeature = potionEffectsFeature;
         this.experienceFeature = experienceFeature;
         this.pingFeature = pingFeature;
+        this.worldTimeFeature = worldTimeFeature;
         this.serverFeature = serverFeature;
         this.heldItemFeature = heldItemFeature;
         this.speedFeature = speedFeature;
@@ -156,6 +159,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189PlayerPotionEffectsState playerPotionEffectsState,
             final Minecraft189PlayerExperienceState playerExperienceState,
             final Minecraft189PlayerPingState playerPingState,
+            final Minecraft189WorldTimeState worldTimeState,
             final Minecraft189ServerAddressState serverAddressState,
             final Minecraft189HeldItemState heldItemState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
@@ -179,6 +183,7 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(playerPotionEffectsState, "playerPotionEffectsState");
         Objects.requireNonNull(playerExperienceState, "playerExperienceState");
         Objects.requireNonNull(playerPingState, "playerPingState");
+        Objects.requireNonNull(worldTimeState, "worldTimeState");
         Objects.requireNonNull(serverAddressState, "serverAddressState");
         Objects.requireNonNull(heldItemState, "heldItemState");
         Objects.requireNonNull(movementSpeedTracker, "movementSpeedTracker");
@@ -209,6 +214,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189PotionEffectsFeature potionEffectsFeature = null;
         Minecraft189ExperienceFeature experienceFeature = null;
         Minecraft189PingFeature pingFeature = null;
+        Minecraft189WorldTimeFeature worldTimeFeature = null;
         Minecraft189ServerFeature serverFeature = null;
         Minecraft189HeldItemFeature heldItemFeature = null;
         Minecraft189SpeedFeature speedFeature = null;
@@ -439,6 +445,18 @@ public final class Minecraft189FeatureCatalog
                             renderPipeline,
                             hostCallbacks);
 
+            worldTimeFeature =
+                    Minecraft189WorldTimeFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            worldTimeState,
+                            renderPipeline,
+                            hostCallbacks);
+
             serverFeature =
                     Minecraft189ServerFeature.install(
                             modules,
@@ -518,6 +536,7 @@ public final class Minecraft189FeatureCatalog
                     potionEffectsFeature,
                     experienceFeature,
                     pingFeature,
+                    worldTimeFeature,
                     serverFeature,
                     heldItemFeature,
                     speedFeature,
@@ -527,6 +546,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(speedFeature, failure);
             closeQuietly(heldItemFeature, failure);
             closeQuietly(serverFeature, failure);
+            closeQuietly(worldTimeFeature, failure);
             closeQuietly(pingFeature, failure);
             closeQuietly(experienceFeature, failure);
             closeQuietly(potionEffectsFeature, failure);
@@ -618,6 +638,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189PingModule ping() {
         requireOpen();
         return pingFeature.module();
+    }
+
+    public Minecraft189WorldTimeModule worldTime() {
+        requireOpen();
+        return worldTimeFeature.module();
     }
 
     public Minecraft189ServerModule server() {
@@ -799,6 +824,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             serverFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            worldTimeFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,

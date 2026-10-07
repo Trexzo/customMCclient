@@ -707,3 +707,13 @@ The exact base-world time reader is `adm.L()J` / Searge `func_72820_D` / `getWor
 
 The transformed-host Minecraft fixture now carries the exact `bdb` field dependency so the stricter authority remains executable. This milestone is authority-only: it does not yet transform `adm`, forward a world object, publish a time snapshot, or register a HUD.
 
+## Live World Time HUD
+
+M122 consumes the independently certified M121 world-time authority. Exact base `World` `adm` is transformed to implement the parent-owned `Minecraft189WorldTimeAccess` contract; its generated accessor delegates only to exact mapped `adm.L()J` / `getWorldTime()`. Exact `WorldClient` `bdb` inherits that interface, so no concrete child-loader world object appears in retained host state.
+
+Immediately before every normal return from mapped `Minecraft.runTick()`, exact `ave.f Lbdb;` / `theWorld` is loaded and forwarded through `Minecraft189RuntimeBridge.worldTime(...)`. `Minecraft189HostRuntime` immediately copies the primitive long into synchronized parent-owned `Minecraft189WorldTimeState`; a null world clears availability, and host teardown clears the state.
+
+The new Visuals module `render.worldTime` / **World Time** uses persistent X/Y settings and renders Minecraft's day clock with the vanilla offset, for example raw world time `6000` as `Time: 12:00` and `18000` as `Time: 00:00`. Time-of-day normalization uses floor-modulo `24000`, so negative and overflow world times remain deterministic without discarding the raw long.
+
+Executable transformed-host coverage models exact `adm -> bdb` inheritance, publishes synthetic world time `6000` through transformed `runTick()`, proves the host snapshot and clock conversion, and proves null-world clearing independently of player, ping, server and held-item state. Focused HUD coverage proves rendering, persisted coordinates, negative/overflow normalization, disable behavior and complete feature teardown.
+
