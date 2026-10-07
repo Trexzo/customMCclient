@@ -1033,3 +1033,13 @@ The Entity class-shape gate requires the field after the already-certified motio
 
 This milestone is authority-only. It does not alter collision behavior or register a movement module.
 
+## No Clip movement control
+
+M159 adds disabled-by-default `movement.noClip` / **No Clip** under Movement using certified M158 authority `Entity.noClip = pk.T Z / field_70145_X`.
+
+Transformed base `Entity pk` implements parent-owned `Minecraft189PlayerNoClipControl` with generated getter/setter delegates for exact `pk.T`. Each mapped `Minecraft.runTick()` forwards the live player transiently through that interface; the host retains no child-loader player object.
+
+On enable, the module captures the player's current no-clip value the first time it receives a live player and then forces `true`. On disable, restoration is deferred until the next live-player control pass and restores exactly the captured baseline, including preserving a pre-existing `true` state rather than forcing `false`.
+
+Focused coverage verifies disabled behavior, false-baseline enable/restore, true-baseline preservation, null safety, module/category teardown and pending-restore lifecycle. Transformed-host coverage proves exact inherited `bew -> ... -> pk.T` execution and both baseline cases through mapped `runTick()`.
+

@@ -544,6 +544,14 @@ public final class Minecraft189HostRuntime
                         player);
     }
 
+    void playerNoClipControl(
+            final Minecraft189PlayerNoClipControl player) {
+        requireOpen();
+        featureCatalog.noClip()
+                .apply(
+                        player);
+    }
+
     void playerHealth(
             final Minecraft189PlayerHealthAccess player) {
         requireOpen();
