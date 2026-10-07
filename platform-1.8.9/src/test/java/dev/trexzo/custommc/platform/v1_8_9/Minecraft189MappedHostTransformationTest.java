@@ -860,6 +860,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189StrafeModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189AutoSneakModule.ID)
                             != null);
             assertTrue(
@@ -1721,6 +1726,93 @@ final class Minecraft189MappedHostTransformationTest {
                     .key(
                             LegacyKeyboardCodes.SPACE,
                             false);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+
+            playerClass.getField("v")
+                    .setDouble(
+                            player,
+                            0.12D);
+            playerClass.getField("x")
+                    .setDouble(
+                            player,
+                            0.13D);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            0.0F);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .strafe()
+                    .speedSetting()
+                    .set(
+                            0.55D);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189StrafeModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .strafe()
+                            .active());
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.0D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    0.55D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189FlightModule.ID);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.0D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    0.60D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189FlightModule.ID);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.55D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189StrafeModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .strafe()
+                            .active());
             runtime.requireHostRuntime()
                     .inputState()
                     .key(

@@ -561,10 +561,20 @@ public final class Minecraft189HostRuntime
     void playerMotionControl(
             final Minecraft189PlayerMotionControl player) {
         requireOpen();
+        final Minecraft189PlayerRotationState.Snapshot rotation =
+                playerRotationState.snapshot();
+        final boolean flightActive =
+                featureCatalog.flight()
+                        .active();
         featureCatalog.flight()
                 .apply(
                         player,
-                        playerRotationState.snapshot());
+                        rotation);
+        featureCatalog.strafe()
+                .apply(
+                        player,
+                        rotation,
+                        flightActive);
     }
 
     void playerHealth(
