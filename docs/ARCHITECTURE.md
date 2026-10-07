@@ -1250,3 +1250,18 @@ M181 extends **Movement → No Fall** without introducing a new Minecraft mappin
 `movement.noFall.threshold` is a persistent DOUBLE setting with default `0.0`, range `0.0..10.0`, and step `0.5`. The default preserves the previous behavior exactly: any meaningful non-zero fall distance is cleared. With a higher threshold, values at or below that threshold are preserved and only larger absolute fall-distance values are reset to zero.
 
 The setting uses the normal registry, presentation, module-binding, and teardown lifecycle. Focused coverage proves the unchanged zero-threshold default, a configured `3.0` threshold, preservation at and below the threshold, clearing above it, disabled behavior, null safety, and teardown. Transformed-host coverage proves the same behavior against exact mapped `pk.O` through `Minecraft.runTick()`.
+
+## Hurt-time mapping authority
+
+M182 extends the pinned Minecraft 1.8.9 mapping authority with exact local combat-state metadata before any runtime consumer is added.
+
+The already-pinned `BigBroadBean/mappings-extracted` commit `2265da88e93c20411ec70f0b892f4fbc84ebc3c9` proves the exact field through both retained authority blobs:
+
+- `fields.csv` blob `a8c5928cb64455dcc2712078dbfe018ae97cafb9`: `pr,au,field_70737_aN,hurtTime`.
+- `joined.srg` blob `0b1e3f1d0156abcbd70e2b09b720379fc0c1eae6`: `FD: pr/au net/minecraft/entity/EntityLivingBase/field_70737_aN`.
+
+Therefore `EntityLivingBase.hurtTime` is pinned as exact obfuscated `pr.au : I` / Searge `field_70737_aN` / MCP `hurtTime`.
+
+The `EntityLivingBase` structural gate now requires that exact integer field before any transformed consumer can rely on it. Mapping regression pins owner/name/descriptor/Searge/MCP identity, a dedicated drift regression rejects a shape missing `pr.au I`, existing method-drift regressions retain their original failure targets, and transformed-host fixtures now carry the exact field.
+
+This milestone is authority-only: it does not expose hurt time across the classloader boundary, retain a player object, or alter combat behavior. A later consumer can build a narrow primitive hurt-time snapshot only after this exact authority head is certified.

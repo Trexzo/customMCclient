@@ -4769,6 +4769,7 @@ final class Minecraft189MappedHostTransformationTest {
                 null,
                 "pk",
                 null);
+        field(writer, "au", "I");
         field(writer, "health", "F");
         field(writer, "maxHealth", "F");
         field(writer, "equipmentSlots", "[Lzx;");
