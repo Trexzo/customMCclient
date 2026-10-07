@@ -245,6 +245,9 @@ final class Minecraft189MappedHostTransformationTest {
                         "avh",
                         gameSettingsShape()));
         loader.put(
+                "avl",
+                timerShape());
+        loader.put(
                 "adm",
                 transformer.transform(
                         "adm",
@@ -2431,6 +2434,20 @@ final class Minecraft189MappedHostTransformationTest {
         return writer.toByteArray();
     }
 
+    private static byte[] timerShape() {
+        final ClassWriter writer =
+                classWriter("avl");
+        field(
+                writer,
+                "d",
+                "F");
+        endDefaultConstructor(
+                writer,
+                "avl");
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
     private static byte[] worldShape() {
         final ClassWriter writer =
                 classWriter("adm");
@@ -2649,6 +2666,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "Q", "Lbde;");
         field(writer, "ap", "I");
         field(writer, "ag", "I");
+        field(writer, "Y", "Lavl;");
         field(writer, "clickMouseCalls", "I");
         endDefaultConstructor(writer, "ave");
 
