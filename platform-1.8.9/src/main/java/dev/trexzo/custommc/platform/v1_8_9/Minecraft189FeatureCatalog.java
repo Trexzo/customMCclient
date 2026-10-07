@@ -77,6 +77,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189AutoJumpFeature autoJumpFeature;
     private final Minecraft189AutoSneakFeature autoSneakFeature;
     private final Minecraft189NoSlowFeature noSlowFeature;
+    private final Minecraft189StepFeature stepFeature;
     private final Minecraft189FastPlaceFeature fastPlaceFeature;
     private final Minecraft189FastBreakFeature fastBreakFeature;
     private final Minecraft189SpeedMineFeature speedMineFeature;
@@ -136,6 +137,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189AutoJumpFeature autoJumpFeature,
             final Minecraft189AutoSneakFeature autoSneakFeature,
             final Minecraft189NoSlowFeature noSlowFeature,
+            final Minecraft189StepFeature stepFeature,
             final Minecraft189FastPlaceFeature fastPlaceFeature,
             final Minecraft189FastBreakFeature fastBreakFeature,
             final Minecraft189SpeedMineFeature speedMineFeature,
@@ -189,6 +191,7 @@ public final class Minecraft189FeatureCatalog
         this.autoJumpFeature = autoJumpFeature;
         this.autoSneakFeature = autoSneakFeature;
         this.noSlowFeature = noSlowFeature;
+        this.stepFeature = stepFeature;
         this.fastPlaceFeature = fastPlaceFeature;
         this.fastBreakFeature = fastBreakFeature;
         this.speedMineFeature = speedMineFeature;
@@ -295,6 +298,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189AutoJumpFeature autoJumpFeature = null;
         Minecraft189AutoSneakFeature autoSneakFeature = null;
         Minecraft189NoSlowFeature noSlowFeature = null;
+        Minecraft189StepFeature stepFeature = null;
         Minecraft189FastPlaceFeature fastPlaceFeature = null;
         Minecraft189FastBreakFeature fastBreakFeature = null;
         Minecraft189SpeedMineFeature speedMineFeature = null;
@@ -425,6 +429,15 @@ public final class Minecraft189FeatureCatalog
                             modules,
                             moduleController,
                             presentations);
+
+            stepFeature =
+                    Minecraft189StepFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             fastPlaceFeature =
                     Minecraft189FastPlaceFeature.install(
@@ -772,6 +785,7 @@ public final class Minecraft189FeatureCatalog
                     autoJumpFeature,
                     autoSneakFeature,
                     noSlowFeature,
+                    stepFeature,
                     fastPlaceFeature,
                     fastBreakFeature,
                     speedMineFeature,
@@ -785,6 +799,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(speedMineFeature, failure);
             closeQuietly(fastBreakFeature, failure);
             closeQuietly(fastPlaceFeature, failure);
+            closeQuietly(stepFeature, failure);
             closeQuietly(noSlowFeature, failure);
             closeQuietly(autoSneakFeature, failure);
             closeQuietly(autoJumpFeature, failure);
@@ -892,6 +907,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189NoSlowModule noSlow() {
         requireOpen();
         return noSlowFeature.module();
+    }
+
+    public Minecraft189StepModule step() {
+        requireOpen();
+        return stepFeature.module();
     }
 
     public Minecraft189FastPlaceModule fastPlace() {
@@ -1172,6 +1192,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             fastPlaceFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            stepFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,
