@@ -208,6 +208,16 @@ public final class Minecraft189RuntimeBridge {
                         currentDelay);
     }
 
+    public static synchronized int leftClickCounter(
+            final int currentCounter) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        return host == null
+                ? currentCounter
+                : host.leftClickCounter(
+                        currentCounter);
+    }
+
     public static synchronized void publishTick(
             final long tickIndex) {
         final Minecraft189HostRuntime host =
