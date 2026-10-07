@@ -36,6 +36,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189PlayerPingState playerPingState;
     private final Minecraft189HotbarSlotState hotbarSlotState;
     private final Minecraft189WorldTimeState worldTimeState;
+    private final Minecraft189WorldWeatherState worldWeatherState;
     private final Minecraft189ServerAddressState serverAddressState;
     private final Minecraft189HeldItemState heldItemState;
     private final Minecraft189MovementSpeedTracker movementSpeedTracker;
@@ -63,6 +64,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerPingState playerPingState,
             final Minecraft189HotbarSlotState hotbarSlotState,
             final Minecraft189WorldTimeState worldTimeState,
+            final Minecraft189WorldWeatherState worldWeatherState,
             final Minecraft189ServerAddressState serverAddressState,
             final Minecraft189HeldItemState heldItemState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
@@ -87,6 +89,7 @@ public final class Minecraft189HostRuntime
         this.playerPingState = playerPingState;
         this.hotbarSlotState = hotbarSlotState;
         this.worldTimeState = worldTimeState;
+        this.worldWeatherState = worldWeatherState;
         this.serverAddressState = serverAddressState;
         this.heldItemState = heldItemState;
         this.movementSpeedTracker = movementSpeedTracker;
@@ -179,6 +182,8 @@ public final class Minecraft189HostRuntime
                 new Minecraft189HotbarSlotState();
         final Minecraft189WorldTimeState worldTimeState =
                 new Minecraft189WorldTimeState();
+        final Minecraft189WorldWeatherState worldWeatherState =
+                new Minecraft189WorldWeatherState();
         final Minecraft189ServerAddressState serverAddressState =
                 new Minecraft189ServerAddressState();
         final Minecraft189HeldItemState heldItemState =
@@ -223,6 +228,7 @@ public final class Minecraft189HostRuntime
                             playerPingState,
                             hotbarSlotState,
                             worldTimeState,
+                            worldWeatherState,
                             serverAddressState,
                             heldItemState,
                             movementSpeedTracker,
@@ -249,6 +255,7 @@ public final class Minecraft189HostRuntime
                     playerPingState,
                     hotbarSlotState,
                     worldTimeState,
+                    worldWeatherState,
                     serverAddressState,
                     heldItemState,
                     movementSpeedTracker,
@@ -357,6 +364,11 @@ public final class Minecraft189HostRuntime
     public Minecraft189WorldTimeState worldTimeState() {
         requireOpen();
         return worldTimeState;
+    }
+
+    public Minecraft189WorldWeatherState worldWeatherState() {
+        requireOpen();
+        return worldWeatherState;
     }
 
     public Minecraft189ServerAddressState serverAddressState() {
@@ -538,6 +550,18 @@ public final class Minecraft189HostRuntime
                 world.customMcWorldTime());
     }
 
+    void worldWeather(
+            final Minecraft189WorldWeatherAccess world) {
+        requireOpen();
+        if (world == null) {
+            worldWeatherState.clear();
+            return;
+        }
+        worldWeatherState.update(
+                world.customMcRaining(),
+                world.customMcThundering());
+    }
+
     void serverAddress(
             final Minecraft189ServerDataAccess serverData) {
         requireOpen();
@@ -717,6 +741,7 @@ public final class Minecraft189HostRuntime
         playerPingState.clear();
         hotbarSlotState.clear();
         worldTimeState.clear();
+        worldWeatherState.clear();
         serverAddressState.clear();
         heldItemState.clear();
         movementSpeedTracker.clear();
