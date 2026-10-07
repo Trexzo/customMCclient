@@ -959,3 +959,11 @@ Transformed `Timer avl` implements parent-owned `Minecraft189TimerSpeedControl`;
 
 While enabled, the module applies the configured multiplier as `percent / 100.0F`. While disabled, the live Timer is restored to vanilla `1.0F`. Focused coverage verifies persistence, multiple configured multipliers, reset behavior and teardown; transformed-host coverage proves exact `ave.Y -> avl.d` execution.
 
+## Step-height mapping authority
+
+M150 pins exact Minecraft 1.8.9 Entity step-height authority: `Entity.stepHeight = pk.S F` / Searge `field_70138_W`.
+
+The existing Entity class-shape gate now requires this exact float field alongside position, rotation, dimension and movement-state authority. Mapping regression rejects a missing step-height field explicitly, and transformed-host fixture parity now carries concrete synthetic `pk.S F` state for the consumer milestone.
+
+This milestone is authority-only. It does not modify step height or register a Step module.
+
