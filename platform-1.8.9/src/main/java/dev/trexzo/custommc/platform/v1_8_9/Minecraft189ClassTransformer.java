@@ -2120,7 +2120,6 @@ public final class Minecraft189ClassTransformer
                                 withInterface(
                                         withInterface(
                                                 withInterface(
-                                                withInterface(
                                                         withInterface(
                                                                 withInterface(
                                                                         withInterface(
@@ -2128,19 +2127,21 @@ public final class Minecraft189ClassTransformer
                                                                                         withInterface(
                                                                                                 withInterface(
                                                                                                         withInterface(
-                                                                                                                interfaces,
-                                                                                                                PLAYER_POSITION_ACCESS_INTERNAL_NAME),
-                                                                                                        PLAYER_ROTATION_ACCESS_INTERNAL_NAME),
-                                                                                                PLAYER_DIMENSION_ACCESS_INTERNAL_NAME),
-                                                                                        PLAYER_MOVEMENT_STATE_ACCESS_INTERNAL_NAME),
-                                                                                PLAYER_SPRINT_CONTROL_INTERNAL_NAME),
-                                                                        PLAYER_SNEAK_CONTROL_INTERNAL_NAME),
-                                                                PLAYER_STEP_CONTROL_INTERNAL_NAME),
-                                                        PLAYER_FALL_DISTANCE_CONTROL_INTERNAL_NAME),
-                                                PLAYER_WEB_CONTROL_INTERNAL_NAME),
-                                        PLAYER_NO_CLIP_CONTROL_INTERNAL_NAME),
-                                PLAYER_MOTION_CONTROL_INTERNAL_NAME),
-                                PLAYER_ROTATION_CONTROL_INTERNAL_NAME));
+                                                                                                                withInterface(
+                                                                                                                        withInterface(
+                                                                                                                                interfaces,
+                                                                                                                                PLAYER_POSITION_ACCESS_INTERNAL_NAME),
+                                                                                                                        PLAYER_ROTATION_ACCESS_INTERNAL_NAME),
+                                                                                                                PLAYER_DIMENSION_ACCESS_INTERNAL_NAME),
+                                                                                                        PLAYER_MOVEMENT_STATE_ACCESS_INTERNAL_NAME),
+                                                                                                PLAYER_SPRINT_CONTROL_INTERNAL_NAME),
+                                                                                        PLAYER_SNEAK_CONTROL_INTERNAL_NAME),
+                                                                                PLAYER_STEP_CONTROL_INTERNAL_NAME),
+                                                                        PLAYER_FALL_DISTANCE_CONTROL_INTERNAL_NAME),
+                                                                PLAYER_WEB_CONTROL_INTERNAL_NAME),
+                                                        PLAYER_NO_CLIP_CONTROL_INTERNAL_NAME),
+                                                PLAYER_MOTION_CONTROL_INTERNAL_NAME),
+                                        PLAYER_ROTATION_CONTROL_INTERNAL_NAME));
                     }
 
                     @Override
