@@ -117,6 +117,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerPing(
+            final Minecraft189PlayerPingAccess player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerPing(player);
+        }
+    }
+
     public static synchronized void publishTick(
             final long tickIndex) {
         final Minecraft189HostRuntime host =

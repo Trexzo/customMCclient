@@ -639,3 +639,13 @@ The exact lookup method is `bet.b()Lbdc;` / Searge `func_175155_b` / `getPlayerI
 
 Dedicated shape gates require both methods, and regression coverage pins the class names, method names/descriptors and missing-method failure behavior. This milestone is authority-only. A future consumer may reduce the child-side `NetworkPlayerInfo` object to a primitive ping value before crossing the parent runtime boundary.
 
+## Live Ping HUD
+
+M115 consumes the independently certified M114 ping authority through the actual client-player inheritance path. Transformed `AbstractClientPlayer` `bet` implements parent-owned `Minecraft189PlayerPingAccess`; its generated accessor calls exact `bet.b()Lbdc;` / `getPlayerInfo()`, returns an internal `-1` unavailable sentinel when the player-info object is absent, otherwise immediately calls exact `bdc.c()I` / `getResponseTime()`. No `NetworkPlayerInfo` object crosses the parent runtime boundary.
+
+Mapped `Minecraft.runTick()` forwards the local `bew` player through this inherited interface. `Minecraft189HostRuntime` clears ping availability for null players or the internal unavailable sentinel and otherwise copies a non-negative millisecond value into synchronized parent-owned `Minecraft189PlayerPingState`.
+
+The new Visuals module `render.ping` / **Ping** renders `Ping: <milliseconds> ms`, with persistent X/Y settings through the existing generic settings/profile path.
+
+Executable transformed-host coverage now models the real synthetic hierarchy `pk -> pr -> wn -> bet -> bew`, transforms exact synthetic `bet` and shape-verifies exact synthetic `bdc`, proves a response time of `57` reaches host state, proves missing `NetworkPlayerInfo` clears availability while the player still exists, and preserves null-player clearing. Focused HUD coverage proves rendering, persisted coordinates, sentinel handling, state validation, disable behavior and complete teardown.
+

@@ -54,6 +54,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189HungerFeature hungerFeature;
     private final Minecraft189PotionEffectsFeature potionEffectsFeature;
     private final Minecraft189ExperienceFeature experienceFeature;
+    private final Minecraft189PingFeature pingFeature;
     private final Minecraft189SpeedFeature speedFeature;
     private final Minecraft189CrosshairFeature crosshairFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
@@ -92,6 +93,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189HungerFeature hungerFeature,
             final Minecraft189PotionEffectsFeature potionEffectsFeature,
             final Minecraft189ExperienceFeature experienceFeature,
+            final Minecraft189PingFeature pingFeature,
             final Minecraft189SpeedFeature speedFeature,
             final Minecraft189CrosshairFeature crosshairFeature) {
         this.modules = modules;
@@ -124,6 +126,7 @@ public final class Minecraft189FeatureCatalog
         this.hungerFeature = hungerFeature;
         this.potionEffectsFeature = potionEffectsFeature;
         this.experienceFeature = experienceFeature;
+        this.pingFeature = pingFeature;
         this.speedFeature = speedFeature;
         this.crosshairFeature = crosshairFeature;
     }
@@ -146,6 +149,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189PlayerHungerState playerHungerState,
             final Minecraft189PlayerPotionEffectsState playerPotionEffectsState,
             final Minecraft189PlayerExperienceState playerExperienceState,
+            final Minecraft189PlayerPingState playerPingState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
@@ -166,6 +170,7 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(playerHungerState, "playerHungerState");
         Objects.requireNonNull(playerPotionEffectsState, "playerPotionEffectsState");
         Objects.requireNonNull(playerExperienceState, "playerExperienceState");
+        Objects.requireNonNull(playerPingState, "playerPingState");
         Objects.requireNonNull(movementSpeedTracker, "movementSpeedTracker");
         Objects.requireNonNull(renderPipeline, "renderPipeline");
         Objects.requireNonNull(hostCallbacks, "hostCallbacks");
@@ -193,6 +198,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189HungerFeature hungerFeature = null;
         Minecraft189PotionEffectsFeature potionEffectsFeature = null;
         Minecraft189ExperienceFeature experienceFeature = null;
+        Minecraft189PingFeature pingFeature = null;
         Minecraft189SpeedFeature speedFeature = null;
         Minecraft189CrosshairFeature crosshairFeature = null;
 
@@ -409,6 +415,18 @@ public final class Minecraft189FeatureCatalog
                             renderPipeline,
                             hostCallbacks);
 
+            pingFeature =
+                    Minecraft189PingFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            playerPingState,
+                            renderPipeline,
+                            hostCallbacks);
+
             speedFeature =
                     Minecraft189SpeedFeature.install(
                             modules,
@@ -463,11 +481,13 @@ public final class Minecraft189FeatureCatalog
                     hungerFeature,
                     potionEffectsFeature,
                     experienceFeature,
+                    pingFeature,
                     speedFeature,
                     crosshairFeature);
         } catch (RuntimeException failure) {
             closeQuietly(crosshairFeature, failure);
             closeQuietly(speedFeature, failure);
+            closeQuietly(pingFeature, failure);
             closeQuietly(experienceFeature, failure);
             closeQuietly(potionEffectsFeature, failure);
             closeQuietly(hungerFeature, failure);
@@ -553,6 +573,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189ExperienceModule experience() {
         requireOpen();
         return experienceFeature.module();
+    }
+
+    public Minecraft189PingModule ping() {
+        requireOpen();
+        return pingFeature.module();
     }
 
     public Minecraft189SpeedModule speed() {
@@ -708,6 +733,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             speedFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            pingFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,
