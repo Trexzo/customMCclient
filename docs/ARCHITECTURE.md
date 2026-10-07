@@ -1216,3 +1216,11 @@ M177 extends **Combat → Velocity** without introducing any new Minecraft mappi
 Horizontal and Vertical percentage settings now accept **0..200%** instead of only 0..100%. The module still scales only the incoming knockback delta relative to the pre-hit motion baseline: 0% cancels the delta, 100% preserves vanilla knockback, and values above 100% amplify the same delta without replacing pre-existing motion.
 
 Defaults remain 0%, so existing AntiKB behavior is unchanged. Both settings retain 5% UI increments. Focused coverage proves 150% horizontal and 200% vertical amplification plus range rejection above 200%. Transformed-host coverage proves exact amplified mapped `pk.v/pk.w/pk.x` results through the real mapped knockback delegate.
+
+## Configurable Fast Break delay
+
+M178 extends **Player → Fast Break** without introducing a new Minecraft mapping. The existing certified player-controller block-hit-delay setter remains authoritative.
+
+`player.fastBreak.delay` is now a persistent INTEGER setting with default `0`, range `0..5`, and step `1`. The default therefore preserves the previous Fast Break behavior exactly: every enabled control pass writes zero delay. Nonzero configured values let the same module retain a small local hit delay instead of forcing full removal.
+
+The setting is registered through the normal setting, presentation, and module-binding lifecycle and is removed on feature teardown. Focused coverage proves the default zero behavior, a live configured delay of two ticks, disabled preservation, null safety, and setting teardown. Transformed-host coverage proves the configured value reaches the exact mapped player-controller delay field through `Minecraft.runTick()`.
