@@ -99,6 +99,15 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerPotionEffects(
+            final Minecraft189PlayerPotionEffectsAccess player) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerPotionEffects(player);
+        }
+    }
+
     public static synchronized void publishTick(
             final long tickIndex) {
         final Minecraft189HostRuntime host =

@@ -75,6 +75,16 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerHungerAccess";
     private static final String PLAYER_HUNGER_ACCESS_DESCRIPTOR =
             "L" + PLAYER_HUNGER_ACCESS_INTERNAL_NAME + ";";
+    private static final String POTION_EFFECT_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PotionEffectAccess";
+    private static final String POTION_EFFECT_ACCESS_DESCRIPTOR =
+            "L" + POTION_EFFECT_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_POTION_EFFECTS_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerPotionEffectsAccess";
+    private static final String PLAYER_POTION_EFFECTS_ACCESS_DESCRIPTOR =
+            "L" + PLAYER_POTION_EFFECTS_ACCESS_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -109,6 +119,9 @@ public final class Minecraft189ClassTransformer
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.FOOD_STATS
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.POTION_EFFECT
                 .obfuscatedBinaryName()
                 .equals(binaryClassName);
     }
@@ -195,6 +208,13 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyFoodStats(input);
             return input;
+        }
+        if (Minecraft189Mappings.POTION_EFFECT
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyPotionEffect(input);
+            return transformPotionEffect(input);
         }
 
         throw new IllegalArgumentException(
@@ -299,6 +319,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedArmor =
                 new boolean[]{false};
         final boolean[] injectedHunger =
+                new boolean[]{false};
+        final boolean[] injectedPotionEffects =
                 new boolean[]{false};
         final boolean[] foundDispatchKeypresses =
                 new boolean[]{false};
@@ -494,6 +516,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedHunger[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_POTION_EFFECTS_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerPotionEffects",
+                                                "("
+                                                        + PLAYER_POTION_EFFECTS_ACCESS_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedPotionEffects[0] = true;
                                     }
                                     super.visitInsn(opcode);
                                 }
@@ -578,7 +622,8 @@ public final class Minecraft189ClassTransformer
                 || !injectedRotation[0]
                 || !injectedHealth[0]
                 || !injectedArmor[0]
-                || !injectedHunger[0]) {
+                || !injectedHunger[0]
+                || !injectedPotionEffects[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
         }
@@ -1149,9 +1194,11 @@ public final class Minecraft189ClassTransformer
                                 superName,
                                 withInterface(
                                         withInterface(
-                                                interfaces,
-                                                PLAYER_HEALTH_ACCESS_INTERNAL_NAME),
-                                        PLAYER_ARMOR_ACCESS_INTERNAL_NAME));
+                                                withInterface(
+                                                        interfaces,
+                                                        PLAYER_HEALTH_ACCESS_INTERNAL_NAME),
+                                                PLAYER_ARMOR_ACCESS_INTERNAL_NAME),
+                                        PLAYER_POTION_EFFECTS_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1182,6 +1229,67 @@ public final class Minecraft189ClassTransformer
                                 cv,
                                 "customMcArmorHelmet",
                                 4);
+                        addPotionEffectsGetter(
+                                cv,
+                                "customMcPotionEffects");
+                        super.visitEnd();
+                    }
+                },
+                0);
+
+        return writer.toByteArray();
+    }
+
+    private static byte[] transformPotionEffect(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public void visit(
+                            final int version,
+                            final int access,
+                            final String name,
+                            final String signature,
+                            final String superName,
+                            final String[] interfaces) {
+                        super.visit(
+                                version,
+                                access,
+                                name,
+                                signature,
+                                superName,
+                                withInterface(
+                                        interfaces,
+                                        POTION_EFFECT_ACCESS_INTERNAL_NAME));
+                    }
+
+                    @Override
+                    public void visitEnd() {
+                        addIntMethodDelegate(
+                                cv,
+                                "customMcPotionId",
+                                Minecraft189Mappings.POTION_EFFECT_GET_POTION_ID);
+                        addIntMethodDelegate(
+                                cv,
+                                "customMcDurationTicks",
+                                Minecraft189Mappings.POTION_EFFECT_GET_DURATION);
+                        addIntMethodDelegate(
+                                cv,
+                                "customMcAmplifier",
+                                Minecraft189Mappings.POTION_EFFECT_GET_AMPLIFIER);
+                        addStringMethodDelegate(
+                                cv,
+                                "customMcEffectName",
+                                Minecraft189Mappings.POTION_EFFECT_GET_EFFECT_NAME);
                         super.visitEnd();
                     }
                 },
@@ -1308,6 +1416,109 @@ public final class Minecraft189ClassTransformer
                 false);
         method.visitInsn(
                 Opcodes.FRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addPotionEffectsGetter(
+            final ClassVisitor visitor,
+            final String methodName) {
+        final Minecraft189Mappings.MappedMethod activeEffects =
+                Minecraft189Mappings
+                        .ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS;
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()[L" + POTION_EFFECT_ACCESS_INTERNAL_NAME + ";",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                activeEffects.owner().obfuscatedInternalName(),
+                activeEffects.obfuscatedName(),
+                activeEffects.descriptor(),
+                false);
+        method.visitInsn(
+                Opcodes.ICONST_0);
+        method.visitTypeInsn(
+                Opcodes.ANEWARRAY,
+                POTION_EFFECT_ACCESS_INTERNAL_NAME);
+        method.visitMethodInsn(
+                Opcodes.INVOKEINTERFACE,
+                "java/util/Collection",
+                "toArray",
+                "([Ljava/lang/Object;)[Ljava/lang/Object;",
+                true);
+        method.visitTypeInsn(
+                Opcodes.CHECKCAST,
+                "[L" + POTION_EFFECT_ACCESS_INTERNAL_NAME + ";");
+        method.visitInsn(
+                Opcodes.ARETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addIntMethodDelegate(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedMethod target) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()I",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                target.owner().obfuscatedInternalName(),
+                target.obfuscatedName(),
+                target.descriptor(),
+                false);
+        method.visitInsn(
+                Opcodes.IRETURN);
+        method.visitMaxs(
+                0,
+                0);
+        method.visitEnd();
+    }
+
+    private static void addStringMethodDelegate(
+            final ClassVisitor visitor,
+            final String methodName,
+            final Minecraft189Mappings.MappedMethod target) {
+        final MethodVisitor method =
+                visitor.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        methodName,
+                        "()Ljava/lang/String;",
+                        null,
+                        null);
+        method.visitCode();
+        method.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        method.visitMethodInsn(
+                Opcodes.INVOKEVIRTUAL,
+                target.owner().obfuscatedInternalName(),
+                target.obfuscatedName(),
+                target.descriptor(),
+                false);
+        method.visitInsn(
+                Opcodes.ARETURN);
         method.visitMaxs(
                 0,
                 0);

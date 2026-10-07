@@ -30,6 +30,7 @@ public final class Minecraft189HostRuntime
     private final Minecraft189PlayerHealthState playerHealthState;
     private final Minecraft189PlayerArmorState playerArmorState;
     private final Minecraft189PlayerHungerState playerHungerState;
+    private final Minecraft189PlayerPotionEffectsState playerPotionEffectsState;
     private final Minecraft189MovementSpeedTracker movementSpeedTracker;
     private final Minecraft189FeatureCatalog featureCatalog;
     private final Minecraft189Hooks renderHooks;
@@ -49,6 +50,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerHealthState playerHealthState,
             final Minecraft189PlayerArmorState playerArmorState,
             final Minecraft189PlayerHungerState playerHungerState,
+            final Minecraft189PlayerPotionEffectsState playerPotionEffectsState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
             final Minecraft189FeatureCatalog featureCatalog,
             final Minecraft189Hooks renderHooks,
@@ -65,6 +67,7 @@ public final class Minecraft189HostRuntime
         this.playerHealthState = playerHealthState;
         this.playerArmorState = playerArmorState;
         this.playerHungerState = playerHungerState;
+        this.playerPotionEffectsState = playerPotionEffectsState;
         this.movementSpeedTracker = movementSpeedTracker;
         this.featureCatalog = featureCatalog;
         this.renderHooks = renderHooks;
@@ -143,6 +146,8 @@ public final class Minecraft189HostRuntime
                 new Minecraft189PlayerArmorState();
         final Minecraft189PlayerHungerState playerHungerState =
                 new Minecraft189PlayerHungerState();
+        final Minecraft189PlayerPotionEffectsState playerPotionEffectsState =
+                new Minecraft189PlayerPotionEffectsState();
         final Minecraft189MovementSpeedTracker movementSpeedTracker =
                 new Minecraft189MovementSpeedTracker();
         try {
@@ -177,6 +182,7 @@ public final class Minecraft189HostRuntime
                             playerHealthState,
                             playerArmorState,
                             playerHungerState,
+                            playerPotionEffectsState,
                             movementSpeedTracker,
                             services.require(
                                     RenderPipeline.class),
@@ -195,6 +201,7 @@ public final class Minecraft189HostRuntime
                     playerHealthState,
                     playerArmorState,
                     playerHungerState,
+                    playerPotionEffectsState,
                     movementSpeedTracker,
                     featureCatalog,
                     new Minecraft189Hooks(platform),
@@ -273,6 +280,11 @@ public final class Minecraft189HostRuntime
         return playerHungerState;
     }
 
+    public Minecraft189PlayerPotionEffectsState playerPotionEffectsState() {
+        requireOpen();
+        return playerPotionEffectsState;
+    }
+
     public Minecraft189MovementSpeedTracker movementSpeedTracker() {
         requireOpen();
         return movementSpeedTracker;
@@ -348,6 +360,17 @@ public final class Minecraft189HostRuntime
         playerHungerState.update(
                 player.customMcFoodLevel(),
                 player.customMcSaturationLevel());
+    }
+
+    void playerPotionEffects(
+            final Minecraft189PlayerPotionEffectsAccess player) {
+        requireOpen();
+        if (player == null) {
+            playerPotionEffectsState.clear();
+            return;
+        }
+        playerPotionEffectsState.update(
+                player.customMcPotionEffects());
     }
 
     void frameStarted(
@@ -485,6 +508,7 @@ public final class Minecraft189HostRuntime
         playerHealthState.clear();
         playerArmorState.clear();
         playerHungerState.clear();
+        playerPotionEffectsState.clear();
         movementSpeedTracker.clear();
         try {
             featureCatalog.close();
