@@ -951,3 +951,11 @@ The Minecraft class-shape gate now requires the exact timer field and a dedicate
 
 This milestone is authority-only. It does not change tick rate or register a Timer module.
 
+## Configurable Timer Speed
+
+M149 adds disabled-by-default `player.timer` / **Timer** under the Player category with persistent integer `Speed %` setting `player.timer.speedPercent`, default 100 and range 10–300.
+
+Transformed `Timer avl` implements parent-owned `Minecraft189TimerSpeedControl`; generated primitive accessors read/write only certified M148 `avl.d F` / `field_74278_d`. Immediately before each normal return from mapped `Minecraft.runTick()`, exact `ave.Y Lavl;` is forwarded transiently to the host. No Timer object is retained.
+
+While enabled, the module applies the configured multiplier as `percent / 100.0F`. While disabled, the live Timer is restored to vanilla `1.0F`. Focused coverage verifies persistence, multiple configured multipliers, reset behavior and teardown; transformed-host coverage proves exact `ave.Y -> avl.d` execution.
+
