@@ -511,6 +511,10 @@ final class Minecraft189MappedHostTransformationTest {
                     .setFloat(
                             player,
                             1.25F);
+            playerClass.getField("O")
+                    .setFloat(
+                            player,
+                            9.25F);
             playerClass.getField("sneaking")
                     .setBoolean(
                             player,
@@ -826,6 +830,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189NoFallModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189AutoSneakModule.ID)
                             != null);
             assertTrue(
@@ -976,6 +985,12 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(
                     Minecraft189StepModule.VANILLA_STEP_HEIGHT,
                     playerClass.getField("S")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+            assertEquals(
+                    9.25F,
+                    playerClass.getField("O")
                             .getFloat(
                                     player),
                     0.000001F);
@@ -1196,6 +1211,46 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(
                     Minecraft189StepModule.VANILLA_STEP_HEIGHT,
                     playerClass.getField("S")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189NoFallModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .noFall()
+                            .active());
+            playerClass.getField("O")
+                    .setFloat(
+                            player,
+                            6.5F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.0F,
+                    playerClass.getField("O")
+                            .getFloat(
+                                    player),
+                    0.000001F);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189NoFallModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .noFall()
+                            .active());
+            playerClass.getField("O")
+                    .setFloat(
+                            player,
+                            4.25F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    4.25F,
+                    playerClass.getField("O")
                             .getFloat(
                                     player),
                     0.000001F);
