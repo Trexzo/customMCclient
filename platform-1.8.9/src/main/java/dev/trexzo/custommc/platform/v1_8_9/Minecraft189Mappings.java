@@ -181,6 +181,20 @@ public final class Minecraft189Mappings {
                     "I",
                     "field_78781_i",
                     "blockHitDelay");
+    public static final MappedField PLAYER_CONTROLLER_CUR_BLOCK_DAMAGE =
+            new MappedField(
+                    PLAYER_CONTROLLER_MP,
+                    "e",
+                    "F",
+                    "field_78770_f",
+                    "curBlockDamageMP");
+    public static final MappedField PLAYER_CONTROLLER_IS_HITTING_BLOCK =
+            new MappedField(
+                    PLAYER_CONTROLLER_MP,
+                    "h",
+                    "Z",
+                    "field_78778_j",
+                    "isHittingBlock");
     public static final MappedField SERVER_DATA_SERVER_IP =
             new MappedField(
                     SERVER_DATA,
