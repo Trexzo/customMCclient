@@ -2417,6 +2417,32 @@ final class Minecraft189MappedHostTransformationTest {
                 2);
         setSprinting.visitEnd();
 
+        final MethodVisitor setSneaking =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "c",
+                        "(Z)V",
+                        null,
+                        null);
+        setSneaking.visitCode();
+        setSneaking.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        setSneaking.visitVarInsn(
+                Opcodes.ILOAD,
+                1);
+        setSneaking.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                "pk",
+                "sneaking",
+                "Z");
+        setSneaking.visitInsn(
+                Opcodes.RETURN);
+        setSneaking.visitMaxs(
+                2,
+                2);
+        setSneaking.visitEnd();
+
         writer.visitEnd();
         return writer.toByteArray();
     }
