@@ -717,3 +717,11 @@ The new Visuals module `render.worldTime` / **World Time** uses persistent X/Y s
 
 Executable transformed-host coverage models exact `adm -> bdb` inheritance, publishes synthetic world time `6000` through transformed `runTick()`, proves the host snapshot and clock conversion, and proves null-world clearing independently of player, ping, server and held-item state. Focused HUD coverage proves rendering, persisted coordinates, negative/overflow normalization, disable behavior and complete feature teardown.
 
+## Selected hotbar-slot mapping authority
+
+M123 pins the minimal Minecraft 1.8.9 selected-hotbar-slot path without publishing live slot state yet. Exact `InventoryPlayer` is obfuscated class `wm`. Exact `EntityPlayer.inventory` is `wn.bi Lwm;` / Searge `field_71071_by`, and exact `InventoryPlayer.currentItem` is `wm.c I` / Searge `field_70461_c`.
+
+The EntityPlayer class-shape gate now requires the inventory field, and a dedicated InventoryPlayer class-shape gate requires the selected-slot integer. Mapping regressions pin the exact class, owner, field name, descriptor and Searge/MCP names. The transformed-host EntityPlayer fixture now carries the exact `Lwm;` dependency and a matching synthetic `wm.c I` class so stricter verification remains executable.
+
+This milestone is authority-only. It does not transform `wm`, publish a selected slot, change Held Item rendering, or register a new HUD.
+

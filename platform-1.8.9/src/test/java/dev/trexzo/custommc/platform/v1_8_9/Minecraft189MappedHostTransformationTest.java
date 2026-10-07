@@ -288,6 +288,9 @@ final class Minecraft189MappedHostTransformationTest {
                         "xg",
                         foodStatsShape()));
         loader.put(
+                "wm",
+                inventoryPlayerShape());
+        loader.put(
                 "wn",
                 transformer.transform(
                         "wn",
@@ -2068,6 +2071,7 @@ final class Minecraft189MappedHostTransformationTest {
                 "pr",
                 null);
         field(writer, "foodStats", "Lxg;");
+        field(writer, "bi", "Lwm;");
         field(writer, "bB", "I");
         field(writer, "bC", "I");
         field(writer, "bD", "F");
@@ -2137,6 +2141,20 @@ final class Minecraft189MappedHostTransformationTest {
                 1);
         xpBarCap.visitEnd();
 
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] inventoryPlayerShape() {
+        final ClassWriter writer =
+                classWriter("wm");
+        field(
+                writer,
+                "c",
+                "I");
+        endDefaultConstructor(
+                writer,
+                "wm");
         writer.visitEnd();
         return writer.toByteArray();
     }

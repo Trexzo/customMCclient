@@ -71,6 +71,10 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "wn",
                     "net/minecraft/entity/player/EntityPlayer");
+    public static final MappedClass INVENTORY_PLAYER =
+            new MappedClass(
+                    "wm",
+                    "net/minecraft/entity/player/InventoryPlayer");
     public static final MappedClass ENTITY =
             new MappedClass(
                     "pk",
@@ -183,6 +187,21 @@ public final class Minecraft189Mappings {
                     "F",
                     "field_70177_z",
                     "rotationYaw");
+    public static final MappedField ENTITY_PLAYER_INVENTORY =
+            new MappedField(
+                    ENTITY_PLAYER,
+                    "bi",
+                    "Lwm;",
+                    "field_71071_by",
+                    "inventory");
+    public static final MappedField INVENTORY_PLAYER_CURRENT_ITEM =
+            new MappedField(
+                    INVENTORY_PLAYER,
+                    "c",
+                    "I",
+                    "field_70461_c",
+                    "currentItem");
+
     public static final MappedField ENTITY_PLAYER_EXPERIENCE_LEVEL =
             new MappedField(
                     ENTITY_PLAYER,
