@@ -621,6 +621,8 @@ public final class Minecraft189HostRuntime
     void playerMotionControl(
             final Minecraft189PlayerMotionControl player) {
         requireOpen();
+        final Minecraft189PlayerHurtTimeState.Snapshot hurtTime =
+                playerHurtTimeState.snapshot();
         final boolean freezeActive =
                 featureCatalog.freeze()
                         .active();
@@ -628,6 +630,11 @@ public final class Minecraft189HostRuntime
                 .apply(
                         player);
         if (freezeActive) {
+            featureCatalog.damageBoost()
+                    .apply(
+                            player,
+                            hurtTime,
+                            true);
             return;
         }
 
@@ -737,6 +744,11 @@ public final class Minecraft189HostRuntime
                                 || noGravityActive
                                 || reverseStepOwnsVertical
                                 || fastFallActive);
+        featureCatalog.damageBoost()
+                .apply(
+                        player,
+                        hurtTime,
+                        flightActive);
     }
 
     void playerHealth(
