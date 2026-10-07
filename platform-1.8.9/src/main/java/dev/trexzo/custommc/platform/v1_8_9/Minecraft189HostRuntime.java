@@ -644,6 +644,14 @@ public final class Minecraft189HostRuntime
         frameRateTracker.frameStarted();
     }
 
+    int rightClickDelay(
+            final int currentDelay) {
+        requireOpen();
+        return featureCatalog.fastPlace()
+                .apply(
+                        currentDelay);
+    }
+
     public void publishTick(
             final long tickIndex) {
         requireOpen();

@@ -463,6 +463,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedHeldItem =
                 new boolean[]{false};
+        final boolean[] injectedRightClickDelay =
+                new boolean[]{false};
         final boolean[] foundDispatchKeypresses =
                 new boolean[]{false};
         final boolean[] injectedKeyboard =
@@ -905,6 +907,34 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedHeldItem[0] = true;
+
+                                        final Minecraft189Mappings.MappedField rightClickDelay =
+                                                Minecraft189Mappings
+                                                        .MINECRAFT_RIGHT_CLICK_DELAY_TIMER;
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitInsn(
+                                                Opcodes.DUP);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                rightClickDelay.obfuscatedName(),
+                                                rightClickDelay.descriptor());
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "rightClickDelay",
+                                                "(I)I",
+                                                false);
+                                        super.visitFieldInsn(
+                                                Opcodes.PUTFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                rightClickDelay.obfuscatedName(),
+                                                rightClickDelay.descriptor());
+                                        injectedRightClickDelay[0] = true;
                                     }
                                     super.visitInsn(opcode);
                                 }
@@ -1000,7 +1030,8 @@ public final class Minecraft189ClassTransformer
                 || !injectedWorldTime[0]
                 || !injectedWeather[0]
                 || !injectedServerAddress[0]
-                || !injectedHeldItem[0]) {
+                || !injectedHeldItem[0]
+                || !injectedRightClickDelay[0]) {
             throw new IllegalStateException(
                     "mapped Minecraft runTick method was not patchable");
         }
