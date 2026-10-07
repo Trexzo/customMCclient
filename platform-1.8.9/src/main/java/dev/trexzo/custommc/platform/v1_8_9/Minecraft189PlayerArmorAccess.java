@@ -8,4 +8,20 @@ public interface Minecraft189PlayerArmorAccess {
     boolean customMcArmorChestplate();
 
     boolean customMcArmorHelmet();
+
+    default Minecraft189ItemStackAccess customMcArmorBootsItem() {
+        return null;
+    }
+
+    default Minecraft189ItemStackAccess customMcArmorLeggingsItem() {
+        return null;
+    }
+
+    default Minecraft189ItemStackAccess customMcArmorChestplateItem() {
+        return null;
+    }
+
+    default Minecraft189ItemStackAccess customMcArmorHelmetItem() {
+        return null;
+    }
 }

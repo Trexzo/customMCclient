@@ -488,21 +488,53 @@ final class Minecraft189MappedHostTransformationTest {
                     equipmentSlots,
                     0,
                     heldItem);
+            final Object bootsItem =
+                    itemStackClass.getDeclaredConstructor()
+                            .newInstance();
+            itemStackClass.getField("itemDamage")
+                    .setInt(
+                            bootsItem,
+                            15);
+            itemStackClass.getField("maxDamage")
+                    .setInt(
+                            bootsItem,
+                            195);
             java.lang.reflect.Array.set(
                     equipmentSlots,
                     1,
+                    bootsItem);
+
+            final Object chestplateItem =
                     itemStackClass.getDeclaredConstructor()
-                            .newInstance());
+                            .newInstance();
+            itemStackClass.getField("itemDamage")
+                    .setInt(
+                            chestplateItem,
+                            28);
+            itemStackClass.getField("maxDamage")
+                    .setInt(
+                            chestplateItem,
+                            528);
             java.lang.reflect.Array.set(
                     equipmentSlots,
                     3,
+                    chestplateItem);
+
+            final Object helmetItem =
                     itemStackClass.getDeclaredConstructor()
-                            .newInstance());
+                            .newInstance();
+            itemStackClass.getField("itemDamage")
+                    .setInt(
+                            helmetItem,
+                            10);
+            itemStackClass.getField("maxDamage")
+                    .setInt(
+                            helmetItem,
+                            363);
             java.lang.reflect.Array.set(
                     equipmentSlots,
                     4,
-                    itemStackClass.getDeclaredConstructor()
-                            .newInstance());
+                    helmetItem);
             playerClass.getField("equipmentSlots")
                     .set(
                             player,
@@ -804,6 +836,23 @@ final class Minecraft189MappedHostTransformationTest {
                     armor.leggings());
             assertTrue(
                     armor.boots());
+            assertTrue(
+                    armor.hasDurabilityDetails());
+            assertEquals(
+                    353,
+                    armor.helmetDurability()
+                            .durabilityRemaining());
+            assertEquals(
+                    500,
+                    armor.chestplateDurability()
+                            .durabilityRemaining());
+            assertFalse(
+                    armor.leggingsDurability()
+                            .available());
+            assertEquals(
+                    180,
+                    armor.bootsDurability()
+                            .durabilityRemaining());
 
             final Minecraft189PlayerHungerState.Snapshot hunger =
                     runtime.requireHostRuntime()

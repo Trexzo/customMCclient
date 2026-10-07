@@ -689,3 +689,13 @@ The new Visuals module `render.heldItem` / **Held Item** uses persistent X/Y set
 
 Executable transformed-host coverage now transforms exact synthetic `zx`, places a sword in exact slot `0`, proves all four mapped values reach host state, and proves clearing only slot `0` removes Held Item availability while the player remains live. Focused HUD coverage proves durability/count formatting, normalization, persisted coordinates, empty-hand clearing, validation, disable behavior and complete feature teardown.
 
+## Live Armor durability detail
+
+M120 enriches the existing M107 **Armor** HUD by consuming only mappings already certified by M106 and M118. No new Minecraft member is guessed or introduced: exact armor slots remain `pr.p(I)Lzx;` / `getEquipmentInSlot(int)` with slots `1..4`, and exact `ItemStack` durability readers remain `zx.h()I` / `getItemDamage()` plus `zx.j()I` / `getMaxDamage()`.
+
+The transformed `EntityLivingBase` armor boundary now also exposes parent-owned `Minecraft189ItemStackAccess` views for boots, leggings, chestplate and helmet. Concrete child-loader `zx` objects still never appear in host-facing signatures or retained host state. `Minecraft189HostRuntime` copies only item-damage and max-damage primitives into the existing synchronized armor snapshot each tick, while the original occupancy mask remains authoritative for equipped-slot identity.
+
+The existing `render.armor` / **Armor** module keeps its established module ID and persistent X/Y settings. When durability detail is available it renders exact per-slot remaining/max values, for example `Armor: 3/4 [H 353/363 | C 500/528 | L - | B 180/195]`. Older or synthetic callers that provide only the original occupancy booleans retain the compact presence-only fallback.
+
+Executable transformed-host coverage now places distinct synthetic `zx` instances in exact armor slots `1`, `3` and `4`, proves their mapped durability reaches immutable parent-owned snapshots, preserves the missing leggings slot, and keeps null-player teardown semantics unchanged. Focused Armor HUD coverage proves rich formatting while retaining the original presence-only compatibility path.
+

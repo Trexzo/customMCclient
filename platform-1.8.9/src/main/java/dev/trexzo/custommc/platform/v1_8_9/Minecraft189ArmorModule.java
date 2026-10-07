@@ -107,24 +107,49 @@ public final class Minecraft189ArmorModule
         Objects.requireNonNull(
                 armor,
                 "armor");
+        if (!armor.hasDurabilityDetails()) {
+            return "Armor: "
+                    + armor.equippedCount()
+                    + "/4 ["
+                    + slot(
+                            armor.helmet(),
+                            "H")
+                    + " "
+                    + slot(
+                            armor.chestplate(),
+                            "C")
+                    + " "
+                    + slot(
+                            armor.leggings(),
+                            "L")
+                    + " "
+                    + slot(
+                            armor.boots(),
+                            "B")
+                    + "]";
+        }
         return "Armor: "
                 + armor.equippedCount()
                 + "/4 ["
-                + slot(
+                + slotWithDurability(
                         armor.helmet(),
-                        "H")
-                + " "
-                + slot(
+                        "H",
+                        armor.helmetDurability())
+                + " | "
+                + slotWithDurability(
                         armor.chestplate(),
-                        "C")
-                + " "
-                + slot(
+                        "C",
+                        armor.chestplateDurability())
+                + " | "
+                + slotWithDurability(
                         armor.leggings(),
-                        "L")
-                + " "
-                + slot(
+                        "L",
+                        armor.leggingsDurability())
+                + " | "
+                + slotWithDurability(
                         armor.boots(),
-                        "B")
+                        "B",
+                        armor.bootsDurability())
                 + "]";
     }
 
@@ -134,6 +159,26 @@ public final class Minecraft189ArmorModule
         return equipped
                 ? label
                 : "-";
+    }
+
+    private static String slotWithDurability(
+            final boolean equipped,
+            final String label,
+            final Minecraft189PlayerArmorState.SlotDurability durability) {
+        if (!equipped) {
+            return label + " -";
+        }
+        if (!durability.available()) {
+            return label + " ?";
+        }
+        if (!durability.damageable()) {
+            return label + " n/a";
+        }
+        return label
+                + " "
+                + durability.durabilityRemaining()
+                + "/"
+                + durability.maxDamage();
     }
 
     private final class ArmorRenderPass

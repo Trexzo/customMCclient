@@ -395,7 +395,11 @@ public final class Minecraft189HostRuntime
                 player.customMcArmorBoots(),
                 player.customMcArmorLeggings(),
                 player.customMcArmorChestplate(),
-                player.customMcArmorHelmet());
+                player.customMcArmorHelmet(),
+                player.customMcArmorBootsItem(),
+                player.customMcArmorLeggingsItem(),
+                player.customMcArmorChestplateItem(),
+                player.customMcArmorHelmetItem());
     }
 
     void playerHunger(

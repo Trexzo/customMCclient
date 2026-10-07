@@ -95,6 +95,32 @@ final class Minecraft189ArmorModuleTest {
                         public boolean customMcArmorHelmet() {
                             return true;
                         }
+
+                        @Override
+                        public Minecraft189ItemStackAccess customMcArmorBootsItem() {
+                            return armorItem(
+                                    15,
+                                    195);
+                        }
+
+                        @Override
+                        public Minecraft189ItemStackAccess customMcArmorLeggingsItem() {
+                            return null;
+                        }
+
+                        @Override
+                        public Minecraft189ItemStackAccess customMcArmorChestplateItem() {
+                            return armorItem(
+                                    28,
+                                    528);
+                        }
+
+                        @Override
+                        public Minecraft189ItemStackAccess customMcArmorHelmetItem() {
+                            return armorItem(
+                                    10,
+                                    363);
+                        }
                     });
 
             controller.enable(
@@ -107,7 +133,7 @@ final class Minecraft189ArmorModuleTest {
                     0.0F);
 
             assertEquals(
-                    "Armor: 3/4 [H C - B]",
+                    "Armor: 3/4 [H 353/363 | C 500/528 | L - | B 180/195]",
                     host.lastText);
             assertEquals(
                     40.0F,
@@ -135,6 +161,23 @@ final class Minecraft189ArmorModuleTest {
             assertEquals(
                     3,
                     snapshot.equippedCount());
+            assertTrue(
+                    snapshot.hasDurabilityDetails());
+            assertEquals(
+                    353,
+                    snapshot.helmetDurability()
+                            .durabilityRemaining());
+            assertEquals(
+                    500,
+                    snapshot.chestplateDurability()
+                            .durabilityRemaining());
+            assertFalse(
+                    snapshot.leggingsDurability()
+                            .available());
+            assertEquals(
+                    180,
+                    snapshot.bootsDurability()
+                            .durabilityRemaining());
 
             host.lastText = null;
             runtime.playerArmor(null);
@@ -192,11 +235,39 @@ final class Minecraft189ArmorModuleTest {
         assertEquals(
                 2,
                 snapshot.equippedCount());
+        assertFalse(
+                snapshot.hasDurabilityDetails());
 
         state.clear();
         assertFalse(
                 state.snapshot()
                         .available());
+    }
+
+    private static Minecraft189ItemStackAccess armorItem(
+            final int itemDamage,
+            final int maxDamage) {
+        return new Minecraft189ItemStackAccess() {
+            @Override
+            public String customMcDisplayName() {
+                return "Armor";
+            }
+
+            @Override
+            public int customMcStackSize() {
+                return 1;
+            }
+
+            @Override
+            public int customMcItemDamage() {
+                return itemDamage;
+            }
+
+            @Override
+            public int customMcMaxDamage() {
+                return maxDamage;
+            }
+        };
     }
 
     private static final class RecordingHost
