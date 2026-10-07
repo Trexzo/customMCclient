@@ -1611,6 +1611,62 @@ final class Minecraft189MappedHostTransformationTest {
                                     player),
                     0.000001D);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .flight()
+                    .horizontalSpeedSetting()
+                    .set(
+                            0.60D);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .flight()
+                    .verticalSpeedSetting()
+                    .set(
+                            0.45D);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            0.0F);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            true);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.0D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    0.45D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    0.60D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.W,
+                            false);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .key(
+                            LegacyKeyboardCodes.SPACE,
+                            false);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189FlightModule.ID);
