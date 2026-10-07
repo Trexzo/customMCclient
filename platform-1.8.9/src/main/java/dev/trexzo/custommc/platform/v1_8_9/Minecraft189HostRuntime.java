@@ -500,6 +500,14 @@ public final class Minecraft189HostRuntime
                         playerMovementState.snapshot());
     }
 
+    void playerStepControl(
+            final Minecraft189PlayerStepControl player) {
+        requireOpen();
+        featureCatalog.step()
+                .apply(
+                        player);
+    }
+
     void playerHealth(
             final Minecraft189PlayerHealthAccess player) {
         requireOpen();
