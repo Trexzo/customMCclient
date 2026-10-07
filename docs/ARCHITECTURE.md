@@ -725,3 +725,13 @@ The EntityPlayer class-shape gate now requires the inventory field, and a dedica
 
 This milestone is authority-only. It does not transform `wm`, publish a selected slot, change Held Item rendering, or register a new HUD.
 
+## Live Hotbar Slot HUD
+
+M124 consumes the independently certified M123 selected-slot authority. Exact `InventoryPlayer wm` is transformed to implement the parent-owned `Minecraft189InventoryHotbarAccess` contract and exposes only exact mapped `wm.c I` / `currentItem`. Exact `EntityPlayer wn` exposes its `wn.bi Lwm;` inventory only through parent-owned `Minecraft189PlayerInventoryAccess`; the host immediately copies the selected-slot integer and does not retain the child-loader inventory object.
+
+Immediately before every normal return from mapped `Minecraft.runTick()`, the mapped player is forwarded through `Minecraft189RuntimeBridge.playerHotbarSlot(...)`. A null player, null inventory, or slot outside `0..8` clears availability. `Minecraft189HostRuntime` owns and clears synchronized `Minecraft189HotbarSlotState` during teardown.
+
+The new Visuals module `render.hotbarSlot` / **Hotbar Slot** has persistent X/Y settings and renders the user-facing 1-based slot, for example raw `currentItem = 4` as `Slot: 5/9`.
+
+Executable transformed-host coverage transforms exact `wm`, places it behind exact `wn.bi`, publishes synthetic slot `4` through transformed `runTick()`, proves the parent-owned state snapshot, and proves null-inventory clearing independently of ping, world time, server and held-item state. Focused HUD coverage proves rendering, persisted coordinates, invalid-slot clearing, disable behavior, state validation and complete feature teardown.
+
