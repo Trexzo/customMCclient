@@ -246,6 +246,16 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void playerControllerMiningControl(
+            final Minecraft189BlockMiningControl controller) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.playerControllerMiningControl(
+                    controller);
+        }
+    }
+
     public static synchronized int leftClickCounter(
             final int currentCounter) {
         final Minecraft189HostRuntime host =
