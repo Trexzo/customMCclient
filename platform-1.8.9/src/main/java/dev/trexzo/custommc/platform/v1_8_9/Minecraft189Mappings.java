@@ -23,6 +23,14 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "ave",
                     "net/minecraft/client/Minecraft");
+    public static final MappedClass WORLD =
+            new MappedClass(
+                    "adm",
+                    "net/minecraft/world/World");
+    public static final MappedClass WORLD_CLIENT =
+            new MappedClass(
+                    "bdb",
+                    "net/minecraft/client/multiplayer/WorldClient");
     public static final MappedClass KEY_BINDING =
             new MappedClass(
                     "avb",
@@ -91,6 +99,13 @@ public final class Minecraft189Mappings {
                     "Lbew;",
                     "field_71439_g",
                     "thePlayer");
+    public static final MappedField MINECRAFT_WORLD =
+            new MappedField(
+                    MINECRAFT,
+                    "f",
+                    "Lbdb;",
+                    "field_71441_e",
+                    "theWorld");
     public static final MappedField MINECRAFT_FONT_RENDERER =
             new MappedField(
                     MINECRAFT,
@@ -225,6 +240,14 @@ public final class Minecraft189Mappings {
                     "Z",
                     "field_151455_aw",
                     "forceUnicodeFont");
+
+    public static final MappedMethod WORLD_GET_WORLD_TIME =
+            new MappedMethod(
+                    WORLD,
+                    "L",
+                    "()J",
+                    "func_72820_D",
+                    "getWorldTime");
 
     public static final MappedMethod MINECRAFT_GET_MINECRAFT =
             new MappedMethod(
