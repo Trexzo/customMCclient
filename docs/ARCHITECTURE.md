@@ -603,3 +603,13 @@ The existing `EntityLivingBase` gate now requires the active-effect collection m
 
 This milestone is authority-only. A future consumer must reduce the child-side collection into a narrow parent-owned snapshot rather than exposing raw potion collections.
 
+## Live Potion Effects HUD
+
+M111 consumes the independently certified M110 active-effect authority while preserving the transforming classloader boundary. Transformed `PotionEffect` (`pf`) implements the parent-owned `Minecraft189PotionEffectAccess` interface, whose surface contains only potion ID, duration ticks, amplifier and effect-name string. Transformed `EntityLivingBase` (`pr`) implements `Minecraft189PlayerPotionEffectsAccess`; its generated getter calls exact mapped `pr.bl()Ljava/util/Collection;` and immediately converts that raw collection with `Collection.toArray(T[])` into an array typed only to the parent-owned effect interface.
+
+The concrete `pf` type and raw active-effect collection never appear in parent-facing method signatures. `Minecraft189HostRuntime` immediately copies every interface view into validated immutable parent-owned snapshots, sorted by effect name and potion ID. Null player and host teardown clear availability.
+
+The new Visuals module `render.potionEffects` / **Potion Effects** renders one line per active effect, including exact mapped effect-name key, amplifier level and duration, for example `potion.moveSpeed Lv 2 1:30`. Persistent X/Y settings use the existing generic settings/profile path and lines advance by 12 UI units.
+
+Executable transformed-host coverage now loads synthetic mapped `pf` instances into `pr`'s active-effect collection and proves mapped `runTick()` publishes exact IDs, durations, amplifiers and names before null-player clearing. Focused HUD coverage proves deterministic sorting, multi-line placement, persisted coordinates, invalid-snapshot rejection and complete feature teardown.
+
