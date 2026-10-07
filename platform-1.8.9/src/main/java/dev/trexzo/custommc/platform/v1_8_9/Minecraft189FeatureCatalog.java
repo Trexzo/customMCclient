@@ -86,6 +86,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189TimerSpeedFeature timerSpeedFeature;
     private final Minecraft189NoHitDelayFeature noHitDelayFeature;
     private final Minecraft189AutoClickerFeature autoClickerFeature;
+    private final Minecraft189VelocityFeature velocityFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
     private Minecraft189FovFeature fovFeature;
     private Minecraft189NoBobbingFeature noBobbingFeature;
@@ -147,7 +148,8 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189SpeedMineFeature speedMineFeature,
             final Minecraft189TimerSpeedFeature timerSpeedFeature,
             final Minecraft189NoHitDelayFeature noHitDelayFeature,
-            final Minecraft189AutoClickerFeature autoClickerFeature) {
+            final Minecraft189AutoClickerFeature autoClickerFeature,
+            final Minecraft189VelocityFeature velocityFeature) {
         this.modules = modules;
         this.moduleController = moduleController;
         this.modulePresentations = modulePresentations;
@@ -204,6 +206,7 @@ public final class Minecraft189FeatureCatalog
         this.timerSpeedFeature = timerSpeedFeature;
         this.noHitDelayFeature = noHitDelayFeature;
         this.autoClickerFeature = autoClickerFeature;
+        this.velocityFeature = velocityFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -313,6 +316,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189TimerSpeedFeature timerSpeedFeature = null;
         Minecraft189NoHitDelayFeature noHitDelayFeature = null;
         Minecraft189AutoClickerFeature autoClickerFeature = null;
+        Minecraft189VelocityFeature velocityFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -500,6 +504,15 @@ public final class Minecraft189FeatureCatalog
 
             autoClickerFeature =
                     Minecraft189AutoClickerFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
+
+            velocityFeature =
+                    Minecraft189VelocityFeature.install(
                             modules,
                             moduleController,
                             presentations,
@@ -813,8 +826,10 @@ public final class Minecraft189FeatureCatalog
                     speedMineFeature,
                     timerSpeedFeature,
                     noHitDelayFeature,
-                    autoClickerFeature);
+                    autoClickerFeature,
+                    velocityFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(velocityFeature, failure);
             closeQuietly(autoClickerFeature, failure);
             closeQuietly(noHitDelayFeature, failure);
             closeQuietly(timerSpeedFeature, failure);
@@ -966,6 +981,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189TimerSpeedModule timerSpeed() {
         requireOpen();
         return timerSpeedFeature.module();
+    }
+
+    public Minecraft189VelocityModule velocity() {
+        requireOpen();
+        return velocityFeature.module();
     }
 
     public Minecraft189NoHitDelayModule noHitDelay() {
@@ -1182,6 +1202,14 @@ public final class Minecraft189FeatureCatalog
                         failure,
                         closeFailure);
             }
+        }
+
+        try {
+            velocityFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
         }
 
         try {
