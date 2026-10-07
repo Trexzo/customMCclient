@@ -111,6 +111,28 @@ public final class Minecraft189ClassShapeVerifier {
                 });
     }
 
+    public static void verifyAbstractClientPlayer(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.ABSTRACT_CLIENT_PLAYER,
+                new Minecraft189Mappings.MappedField[0],
+                new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.ABSTRACT_CLIENT_PLAYER_GET_PLAYER_INFO
+                });
+    }
+
+    public static void verifyNetworkPlayerInfo(
+            final byte[] classBytes) {
+        verify(
+                classBytes,
+                Minecraft189Mappings.NETWORK_PLAYER_INFO,
+                new Minecraft189Mappings.MappedField[0],
+                new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.NETWORK_PLAYER_INFO_GET_RESPONSE_TIME
+                });
+    }
+
     public static void verifyEntityPlayer(
             final byte[] classBytes) {
         verify(

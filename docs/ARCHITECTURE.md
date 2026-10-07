@@ -631,3 +631,11 @@ The new Visuals module `render.experience` / **Experience** renders level, curre
 
 Executable transformed-host coverage now supplies exact synthetic `wn.bB=27`, `wn.bC=12345`, `wn.bD=0.5` and `wn.ck()=42`, proving mapped `runTick()` publishes all four values and that null-player clearing removes the snapshot. Focused HUD coverage proves rendering, persisted coordinates, validation, disable behavior and complete feature teardown.
 
+## Ping mapping authority
+
+M114 pins the minimal Minecraft 1.8.9 surface needed to resolve the local client's tab-list latency without introducing UUID/session lookup plumbing. Exact class `bet` is `net/minecraft/client/entity/AbstractClientPlayer`; exact class `bdc` is `net/minecraft/client/network/NetworkPlayerInfo`.
+
+The exact lookup method is `bet.b()Lbdc;` / Searge `func_175155_b` / `getPlayerInfo()`. The exact latency reader is `bdc.c()I` / `func_178853_c` / `getResponseTime()`.
+
+Dedicated shape gates require both methods, and regression coverage pins the class names, method names/descriptors and missing-method failure behavior. This milestone is authority-only. A future consumer may reduce the child-side `NetworkPlayerInfo` object to a primitive ping value before crossing the parent runtime boundary.
+
