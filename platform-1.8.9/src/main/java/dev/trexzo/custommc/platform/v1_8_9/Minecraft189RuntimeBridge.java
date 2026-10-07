@@ -108,6 +108,16 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized float adjustNoSlowMovement(
+            final float slowedValue) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        return host == null
+                ? slowedValue
+                : host.adjustNoSlowMovement(
+                        slowedValue);
+    }
+
     public static synchronized void playerJumpControl(
             final Minecraft189PlayerJumpControl player) {
         final Minecraft189HostRuntime host =
