@@ -1381,3 +1381,11 @@ M193 adds **Combat → Spin** on the certified M187/M188 rotation snapshot/contr
 Rotation ownership is explicit: **Spin > Jitter**. If Spin writes yaw on a tick, Jitter is sent through its reset path instead of becoming a second writer. Disabling Spin immediately releases that ownership and Jitter resumes from its deterministic positive phase on the next eligible tick.
 
 Focused coverage proves enable/disable behavior, configurable yaw speed, wraparound, pitch preservation, lifecycle and setting teardown. Transformed-host coverage proves exact mapped `pk.y` mutation, exact `pk.z` preservation, and Spin-over-Jitter precedence through the normal `Minecraft.runTick()` path.
+
+## Spin direction control
+
+M194 extends **Combat → Spin** with persistent BOOLEAN setting `combat.spin.reverse`, default `false`. The default preserves M193 exactly: each eligible tick adds the configured positive yaw speed. When Reverse is enabled, the same certified yaw authority applies the configured speed in the negative direction before normal `[-180, 180)` wrapping.
+
+Pitch remains untouched and the existing **Spin > Jitter** ownership rule is unchanged. No new Minecraft mappings or transformer hooks are introduced.
+
+Focused coverage proves the default direction, reverse direction, wraparound, pitch preservation and setting teardown. Transformed-host coverage proves exact reverse-direction writes to mapped `pk.y` while mapped `pk.z` remains unchanged.
