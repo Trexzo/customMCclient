@@ -700,6 +700,14 @@ public final class Minecraft189HostRuntime
                         controller);
     }
 
+    void timerSpeedControl(
+            final Minecraft189TimerSpeedControl timer) {
+        requireOpen();
+        featureCatalog.timerSpeed()
+                .apply(
+                        timer);
+    }
+
     int leftClickCounter(
             final int currentCounter) {
         requireOpen();

@@ -246,7 +246,9 @@ final class Minecraft189MappedHostTransformationTest {
                         gameSettingsShape()));
         loader.put(
                 "avl",
-                timerShape());
+                transformer.transform(
+                        "avl",
+                        timerShape()));
         loader.put(
                 "adm",
                 transformer.transform(
@@ -438,6 +440,20 @@ final class Minecraft189MappedHostTransformationTest {
                     .setInt(
                             minecraft,
                             7);
+
+            final Class<?> timerClass =
+                    loader.loadClass("avl");
+            final Object timer =
+                    timerClass.getDeclaredConstructor()
+                            .newInstance();
+            timerClass.getField("d")
+                    .setFloat(
+                            timer,
+                            1.0F);
+            minecraftClass.getField("Y")
+                    .set(
+                            minecraft,
+                            timer);
 
             final Class<?> playerControllerClass =
                     loader.loadClass("bda");
@@ -822,6 +838,11 @@ final class Minecraft189MappedHostTransformationTest {
                     runtime.modules()
                             .find(
                                     Minecraft189SpeedMineModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
+                                    Minecraft189TimerSpeedModule.ID)
                             != null);
             assertTrue(
                     runtime.modules()
@@ -1504,6 +1525,58 @@ final class Minecraft189MappedHostTransformationTest {
                     playerControllerClass.getField("e")
                             .getFloat(
                                     playerController),
+                    0.000001F);
+
+            timerClass.getField("d")
+                    .setFloat(
+                            timer,
+                            1.25F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    1.0F,
+                    timerClass.getField("d")
+                            .getFloat(
+                                    timer),
+                    0.000001F);
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189TimerSpeedModule.ID);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .timerSpeed()
+                    .speedPercentSetting()
+                    .set(150);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    1.5F,
+                    timerClass.getField("d")
+                            .getFloat(
+                                    timer),
+                    0.000001F);
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .timerSpeed()
+                    .speedPercentSetting()
+                    .set(50);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.5F,
+                    timerClass.getField("d")
+                            .getFloat(
+                                    timer),
+                    0.000001F);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189TimerSpeedModule.ID);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    1.0F,
+                    timerClass.getField("d")
+                            .getFloat(
+                                    timer),
                     0.000001F);
 
             runtime.moduleController()

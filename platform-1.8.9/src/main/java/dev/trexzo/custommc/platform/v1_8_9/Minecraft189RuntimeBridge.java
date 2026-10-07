@@ -256,6 +256,16 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void timerSpeedControl(
+            final Minecraft189TimerSpeedControl timer) {
+        final Minecraft189HostRuntime host =
+                activeHost();
+        if (host != null) {
+            host.timerSpeedControl(
+                    timer);
+        }
+    }
+
     public static synchronized int leftClickCounter(
             final int currentCounter) {
         final Minecraft189HostRuntime host =

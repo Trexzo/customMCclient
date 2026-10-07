@@ -171,6 +171,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189BlockMiningControl";
     private static final String BLOCK_MINING_CONTROL_DESCRIPTOR =
             "L" + BLOCK_MINING_CONTROL_INTERNAL_NAME + ";";
+    private static final String TIMER_SPEED_CONTROL_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189TimerSpeedControl";
+    private static final String TIMER_SPEED_CONTROL_DESCRIPTOR =
+            "L" + TIMER_SPEED_CONTROL_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -232,6 +237,9 @@ public final class Minecraft189ClassTransformer
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.MOVEMENT_INPUT
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.TIMER
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.POTION_EFFECT
@@ -385,6 +393,13 @@ public final class Minecraft189ClassTransformer
                     .verifyMovementInput(input);
             return input;
         }
+        if (Minecraft189Mappings.TIMER
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier
+                    .verifyTimer(input);
+            return transformTimer(input);
+        }
         if (Minecraft189Mappings.POTION_EFFECT
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)) {
@@ -527,6 +542,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedFastBreakControl =
                 new boolean[]{false};
         final boolean[] injectedSpeedMineControl =
+                new boolean[]{false};
+        final boolean[] injectedTimerSpeedControl =
                 new boolean[]{false};
         final boolean[] injectedLeftClickCounter =
                 new boolean[]{false};
@@ -1113,6 +1130,31 @@ public final class Minecraft189ClassTransformer
                                                 false);
                                         injectedSpeedMineControl[0] = true;
 
+                                        final Minecraft189Mappings.MappedField timer =
+                                                Minecraft189Mappings
+                                                        .MINECRAFT_TIMER;
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                timer.obfuscatedName(),
+                                                timer.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                TIMER_SPEED_CONTROL_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "timerSpeedControl",
+                                                "("
+                                                        + TIMER_SPEED_CONTROL_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedTimerSpeedControl[0] = true;
+
                                         final Minecraft189Mappings.MappedField leftClickCounter =
                                                 Minecraft189Mappings
                                                         .MINECRAFT_LEFT_CLICK_COUNTER;
@@ -1267,6 +1309,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedRightClickDelay[0]
                 || !injectedFastBreakControl[0]
                 || !injectedSpeedMineControl[0]
+                || !injectedTimerSpeedControl[0]
                 || !injectedLeftClickCounter[0]
                 || !injectedAutoClick[0]) {
             throw new IllegalStateException(
@@ -1747,6 +1790,56 @@ public final class Minecraft189ClassTransformer
             throw new IllegalStateException(
                     "mapped EntityRenderer updateCameraAndRender method was not patchable");
         }
+        return writer.toByteArray();
+    }
+
+    private static byte[] transformTimer(
+            final byte[] input) {
+        final ClassReader reader =
+                new ClassReader(input);
+        final ClassWriter writer =
+                new ClassWriter(
+                        reader,
+                        ClassWriter.COMPUTE_MAXS);
+
+        reader.accept(
+                new ClassVisitor(
+                        Opcodes.ASM9,
+                        writer) {
+                    @Override
+                    public void visit(
+                            final int version,
+                            final int access,
+                            final String name,
+                            final String signature,
+                            final String superName,
+                            final String[] interfaces) {
+                        super.visit(
+                                version,
+                                access,
+                                name,
+                                signature,
+                                superName,
+                                withInterface(
+                                        interfaces,
+                                        TIMER_SPEED_CONTROL_INTERNAL_NAME));
+                    }
+
+                    @Override
+                    public void visitEnd() {
+                        addFloatFieldGetter(
+                                cv,
+                                "customMcTimerSpeed",
+                                Minecraft189Mappings.TIMER_SPEED);
+                        addFloatFieldSetter(
+                                cv,
+                                "customMcSetTimerSpeed",
+                                Minecraft189Mappings.TIMER_SPEED);
+                        super.visitEnd();
+                    }
+                },
+                0);
+
         return writer.toByteArray();
     }
 
