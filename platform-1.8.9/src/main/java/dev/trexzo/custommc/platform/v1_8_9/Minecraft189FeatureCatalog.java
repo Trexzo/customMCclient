@@ -58,6 +58,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189PingFeature pingFeature;
     private final Minecraft189HotbarSlotFeature hotbarSlotFeature;
     private final Minecraft189WorldTimeFeature worldTimeFeature;
+    private final Minecraft189WeatherFeature weatherFeature;
     private final Minecraft189ServerFeature serverFeature;
     private final Minecraft189HeldItemFeature heldItemFeature;
     private final Minecraft189SpeedFeature speedFeature;
@@ -102,6 +103,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189PingFeature pingFeature,
             final Minecraft189HotbarSlotFeature hotbarSlotFeature,
             final Minecraft189WorldTimeFeature worldTimeFeature,
+            final Minecraft189WeatherFeature weatherFeature,
             final Minecraft189ServerFeature serverFeature,
             final Minecraft189HeldItemFeature heldItemFeature,
             final Minecraft189SpeedFeature speedFeature,
@@ -140,6 +142,7 @@ public final class Minecraft189FeatureCatalog
         this.pingFeature = pingFeature;
         this.hotbarSlotFeature = hotbarSlotFeature;
         this.worldTimeFeature = worldTimeFeature;
+        this.weatherFeature = weatherFeature;
         this.serverFeature = serverFeature;
         this.heldItemFeature = heldItemFeature;
         this.speedFeature = speedFeature;
@@ -168,6 +171,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189PlayerPingState playerPingState,
             final Minecraft189HotbarSlotState hotbarSlotState,
             final Minecraft189WorldTimeState worldTimeState,
+            final Minecraft189WorldWeatherState worldWeatherState,
             final Minecraft189ServerAddressState serverAddressState,
             final Minecraft189HeldItemState heldItemState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
@@ -194,6 +198,7 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(playerPingState, "playerPingState");
         Objects.requireNonNull(hotbarSlotState, "hotbarSlotState");
         Objects.requireNonNull(worldTimeState, "worldTimeState");
+        Objects.requireNonNull(worldWeatherState, "worldWeatherState");
         Objects.requireNonNull(serverAddressState, "serverAddressState");
         Objects.requireNonNull(heldItemState, "heldItemState");
         Objects.requireNonNull(movementSpeedTracker, "movementSpeedTracker");
@@ -227,6 +232,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189PingFeature pingFeature = null;
         Minecraft189HotbarSlotFeature hotbarSlotFeature = null;
         Minecraft189WorldTimeFeature worldTimeFeature = null;
+        Minecraft189WeatherFeature weatherFeature = null;
         Minecraft189ServerFeature serverFeature = null;
         Minecraft189HeldItemFeature heldItemFeature = null;
         Minecraft189SpeedFeature speedFeature = null;
@@ -493,6 +499,18 @@ public final class Minecraft189FeatureCatalog
                             renderPipeline,
                             hostCallbacks);
 
+            weatherFeature =
+                    Minecraft189WeatherFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            worldWeatherState,
+                            renderPipeline,
+                            hostCallbacks);
+
             serverFeature =
                     Minecraft189ServerFeature.install(
                             modules,
@@ -575,6 +593,7 @@ public final class Minecraft189FeatureCatalog
                     pingFeature,
                     hotbarSlotFeature,
                     worldTimeFeature,
+                    weatherFeature,
                     serverFeature,
                     heldItemFeature,
                     speedFeature,
@@ -584,6 +603,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(speedFeature, failure);
             closeQuietly(heldItemFeature, failure);
             closeQuietly(serverFeature, failure);
+            closeQuietly(weatherFeature, failure);
             closeQuietly(worldTimeFeature, failure);
             closeQuietly(hotbarSlotFeature, failure);
             closeQuietly(pingFeature, failure);
@@ -693,6 +713,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189WorldTimeModule worldTime() {
         requireOpen();
         return worldTimeFeature.module();
+    }
+
+    public Minecraft189WeatherModule weather() {
+        requireOpen();
+        return weatherFeature.module();
     }
 
     public Minecraft189ServerModule server() {
@@ -874,6 +899,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             serverFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            weatherFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,
