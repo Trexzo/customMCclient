@@ -88,6 +88,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189FastFallFeature fastFallFeature;
     private final Minecraft189FreezeFeature freezeFeature;
     private final Minecraft189LongJumpFeature longJumpFeature;
+    private final Minecraft189BunnyHopFeature bunnyHopFeature;
     private final Minecraft189FastPlaceFeature fastPlaceFeature;
     private final Minecraft189FastBreakFeature fastBreakFeature;
     private final Minecraft189SpeedMineFeature speedMineFeature;
@@ -159,6 +160,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189FastFallFeature fastFallFeature,
             final Minecraft189FreezeFeature freezeFeature,
             final Minecraft189LongJumpFeature longJumpFeature,
+            final Minecraft189BunnyHopFeature bunnyHopFeature,
             final Minecraft189FastPlaceFeature fastPlaceFeature,
             final Minecraft189FastBreakFeature fastBreakFeature,
             final Minecraft189SpeedMineFeature speedMineFeature,
@@ -224,6 +226,7 @@ public final class Minecraft189FeatureCatalog
         this.fastFallFeature = fastFallFeature;
         this.freezeFeature = freezeFeature;
         this.longJumpFeature = longJumpFeature;
+        this.bunnyHopFeature = bunnyHopFeature;
         this.fastPlaceFeature = fastPlaceFeature;
         this.fastBreakFeature = fastBreakFeature;
         this.speedMineFeature = speedMineFeature;
@@ -342,6 +345,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189FastFallFeature fastFallFeature = null;
         Minecraft189FreezeFeature freezeFeature = null;
         Minecraft189LongJumpFeature longJumpFeature = null;
+        Minecraft189BunnyHopFeature bunnyHopFeature = null;
         Minecraft189FastPlaceFeature fastPlaceFeature = null;
         Minecraft189FastBreakFeature fastBreakFeature = null;
         Minecraft189SpeedMineFeature speedMineFeature = null;
@@ -554,6 +558,16 @@ public final class Minecraft189FeatureCatalog
 
             longJumpFeature =
                     Minecraft189LongJumpFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            inputState);
+
+            bunnyHopFeature =
+                    Minecraft189BunnyHopFeature.install(
                             modules,
                             moduleController,
                             presentations,
@@ -928,6 +942,7 @@ public final class Minecraft189FeatureCatalog
                     fastFallFeature,
                     freezeFeature,
                     longJumpFeature,
+                    bunnyHopFeature,
                     fastPlaceFeature,
                     fastBreakFeature,
                     speedMineFeature,
@@ -943,6 +958,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(speedMineFeature, failure);
             closeQuietly(fastBreakFeature, failure);
             closeQuietly(fastPlaceFeature, failure);
+            closeQuietly(bunnyHopFeature, failure);
             closeQuietly(longJumpFeature, failure);
             closeQuietly(freezeFeature, failure);
             closeQuietly(fastFallFeature, failure);
@@ -1116,6 +1132,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189LongJumpModule longJump() {
         requireOpen();
         return longJumpFeature.module();
+    }
+
+    public Minecraft189BunnyHopModule bunnyHop() {
+        requireOpen();
+        return bunnyHopFeature.module();
     }
 
     public Minecraft189FastPlaceModule fastPlace() {
@@ -1409,6 +1430,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             fastPlaceFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            bunnyHopFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,
