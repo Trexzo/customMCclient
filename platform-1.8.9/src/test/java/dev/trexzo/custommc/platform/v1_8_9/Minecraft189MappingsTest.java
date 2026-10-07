@@ -198,6 +198,20 @@ final class Minecraft189MappingsTest {
                 "field_78781_i",
                 "blockHitDelay");
         assertField(
+                Minecraft189Mappings.PLAYER_CONTROLLER_CUR_BLOCK_DAMAGE,
+                Minecraft189Mappings.PLAYER_CONTROLLER_MP,
+                "e",
+                "F",
+                "field_78770_f",
+                "curBlockDamageMP");
+        assertField(
+                Minecraft189Mappings.PLAYER_CONTROLLER_IS_HITTING_BLOCK,
+                Minecraft189Mappings.PLAYER_CONTROLLER_MP,
+                "h",
+                "Z",
+                "field_78778_j",
+                "isHittingBlock");
+        assertField(
                 Minecraft189Mappings.ENTITY_PLAYER_SP_MOVEMENT_INPUT,
                 Minecraft189Mappings.ENTITY_PLAYER_SP,
                 "b",
@@ -653,14 +667,73 @@ final class Minecraft189MappingsTest {
 
     @Test
     void playerControllerShapeGateRejectsMissingBlockHitDelay() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.PLAYER_CONTROLLER_MP
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.PLAYER_CONTROLLER_CUR_BLOCK_DAMAGE);
+        addField(
+                writer,
+                Minecraft189Mappings.PLAYER_CONTROLLER_IS_HITTING_BLOCK);
+
         final IllegalStateException failure =
                 assertThrows(
                         IllegalStateException.class,
                         () -> Minecraft189ClassShapeVerifier
                                 .verifyPlayerControllerMp(
-                                        emptyClass("bda")));
+                                        finish(writer)));
         assertEquals(
                 "Minecraft 1.8.9 mapping field missing: bda.g I (blockHitDelay)",
+                failure.getMessage());
+    }
+
+    @Test
+    void playerControllerShapeGateRejectsMissingCurBlockDamage() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.PLAYER_CONTROLLER_MP
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.PLAYER_CONTROLLER_BLOCK_HIT_DELAY);
+        addField(
+                writer,
+                Minecraft189Mappings.PLAYER_CONTROLLER_IS_HITTING_BLOCK);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyPlayerControllerMp(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: bda.e F (curBlockDamageMP)",
+                failure.getMessage());
+    }
+
+    @Test
+    void playerControllerShapeGateRejectsMissingIsHittingBlock() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.PLAYER_CONTROLLER_MP
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.PLAYER_CONTROLLER_BLOCK_HIT_DELAY);
+        addField(
+                writer,
+                Minecraft189Mappings.PLAYER_CONTROLLER_CUR_BLOCK_DAMAGE);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyPlayerControllerMp(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: bda.h Z (isHittingBlock)",
                 failure.getMessage());
     }
 
@@ -955,6 +1028,12 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.PLAYER_CONTROLLER_BLOCK_HIT_DELAY);
+        addField(
+                writer,
+                Minecraft189Mappings.PLAYER_CONTROLLER_CUR_BLOCK_DAMAGE);
+        addField(
+                writer,
+                Minecraft189Mappings.PLAYER_CONTROLLER_IS_HITTING_BLOCK);
         return finish(writer);
     }
 
