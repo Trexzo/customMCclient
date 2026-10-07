@@ -642,6 +642,15 @@ public final class Minecraft189HostRuntime
                                 flightActive
                                         || longJumpActive
                                         || highJumpActive);
+        final boolean movementSpeedOwnsHorizontal =
+                featureCatalog.movementSpeed()
+                        .apply(
+                                player,
+                                movement,
+                                rotation,
+                                flightActive
+                                        || longJumpOwnsHorizontal
+                                        || bunnyHopOwnsHorizontal);
         featureCatalog.flight()
                 .apply(
                         player,
@@ -652,7 +661,8 @@ public final class Minecraft189HostRuntime
                         rotation,
                         flightActive
                                 || longJumpOwnsHorizontal
-                                || bunnyHopOwnsHorizontal);
+                                || bunnyHopOwnsHorizontal
+                                || movementSpeedOwnsHorizontal);
         featureCatalog.fastFall()
                 .apply(
                         player,
