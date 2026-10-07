@@ -53,6 +53,14 @@ final class Minecraft189SpinModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189SpinModule.REQUIRE_HOLD_SETTING_ID));
+            assertNotNull(
+                    settings.find(
+                            Minecraft189SpinModule.INTERVAL_SETTING_ID));
+            assertEquals(
+                    Minecraft189SpinModule.DEFAULT_INTERVAL_TICKS,
+                    module.intervalTicksSetting()
+                            .get()
+                            .intValue());
             assertFalse(
                     module.requireHoldSetting()
                             .get()
@@ -181,6 +189,70 @@ final class Minecraft189SpinModuleTest {
                     player.yaw,
                     0.000001F);
 
+            module.requireHoldSetting()
+                    .set(
+                            Boolean.FALSE);
+            module.reverseSetting()
+                    .set(
+                            Boolean.FALSE);
+            module.yawSpeedSetting()
+                    .set(
+                            30.0D);
+            module.intervalTicksSetting()
+                    .set(
+                            3);
+            module.onDisable();
+            module.onEnable();
+            player.yaw = 0.0F;
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            false));
+            assertEquals(
+                    30.0F,
+                    player.yaw,
+                    0.000001F);
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            false));
+            assertEquals(
+                    30.0F,
+                    player.yaw,
+                    0.000001F);
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertFalse(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            false));
+            assertEquals(
+                    30.0F,
+                    player.yaw,
+                    0.000001F);
+            state.update(
+                    player.yaw,
+                    player.pitch);
+            assertTrue(
+                    module.apply(
+                            player,
+                            state.snapshot(),
+                            false));
+            assertEquals(
+                    60.0F,
+                    player.yaw,
+                    0.000001F);
+
             controller.disable(
                     Minecraft189SpinModule.ID);
             assertFalse(
@@ -194,7 +266,7 @@ final class Minecraft189SpinModuleTest {
                             state.snapshot(),
                             false));
             assertEquals(
-                    -35.0F,
+                    60.0F,
                     player.yaw,
                     0.000001F);
         } finally {
@@ -213,6 +285,9 @@ final class Minecraft189SpinModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189SpinModule.REQUIRE_HOLD_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189SpinModule.INTERVAL_SETTING_ID));
     }
 
     private static final class TestPlayer
