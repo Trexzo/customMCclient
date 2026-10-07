@@ -274,6 +274,20 @@ public final class Minecraft189Mappings {
                     "()J",
                     "func_72820_D",
                     "getWorldTime");
+    public static final MappedMethod WORLD_IS_RAINING =
+            new MappedMethod(
+                    WORLD,
+                    "S",
+                    "()Z",
+                    "func_72896_J",
+                    "isRaining");
+    public static final MappedMethod WORLD_IS_THUNDERING =
+            new MappedMethod(
+                    WORLD,
+                    "R",
+                    "()Z",
+                    "func_72911_I",
+                    "isThundering");
 
     public static final MappedMethod MINECRAFT_GET_MINECRAFT =
             new MappedMethod(
