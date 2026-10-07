@@ -758,6 +758,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189AutoJumpModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189FastPlaceModule.ID)
                             != null);
             assertTrue(
@@ -1002,6 +1007,77 @@ final class Minecraft189MappedHostTransformationTest {
                     .setBoolean(
                             player,
                             false);
+
+            assertEquals(
+                    0,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189AutoJumpModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .autoJump()
+                            .active());
+
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    1,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+            runTick.invoke(minecraft);
+            assertEquals(
+                    1,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            false);
+            runTick.invoke(minecraft);
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    2,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189AutoJumpModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .autoJump()
+                            .active());
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            false);
+            runTick.invoke(minecraft);
+            playerClass.getField("C")
+                    .setBoolean(
+                            player,
+                            true);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    2,
+                    playerClass.getField("jumpCalls")
+                            .getInt(
+                                    player));
 
             runtime.moduleController()
                     .enable(
