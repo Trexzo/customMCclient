@@ -76,6 +76,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerSprintControl";
     private static final String PLAYER_SPRINT_CONTROL_DESCRIPTOR =
             "L" + PLAYER_SPRINT_CONTROL_INTERNAL_NAME + ";";
+    private static final String PLAYER_SNEAK_CONTROL_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerSneakControl";
+    private static final String PLAYER_SNEAK_CONTROL_DESCRIPTOR =
+            "L" + PLAYER_SNEAK_CONTROL_INTERNAL_NAME + ";";
     private static final String PLAYER_JUMP_CONTROL_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189PlayerJumpControl";
@@ -451,6 +456,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedSprintControl =
                 new boolean[]{false};
+        final boolean[] injectedSneakControl =
+                new boolean[]{false};
         final boolean[] injectedJumpControl =
                 new boolean[]{false};
         final boolean[] injectedHealth =
@@ -694,6 +701,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedSprintControl[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_SNEAK_CONTROL_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerSneakControl",
+                                                "("
+                                                        + PLAYER_SNEAK_CONTROL_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedSneakControl[0] = true;
 
                                         super.visitVarInsn(
                                                 Opcodes.ALOAD,
@@ -1131,6 +1160,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedDimension[0]
                 || !injectedMovementState[0]
                 || !injectedSprintControl[0]
+                || !injectedSneakControl[0]
                 || !injectedJumpControl[0]
                 || !injectedHealth[0]
                 || !injectedArmor[0]
@@ -1659,12 +1689,14 @@ public final class Minecraft189ClassTransformer
                                                 withInterface(
                                                         withInterface(
                                                                 withInterface(
-                                                                        interfaces,
-                                                                        PLAYER_POSITION_ACCESS_INTERNAL_NAME),
-                                                                PLAYER_ROTATION_ACCESS_INTERNAL_NAME),
-                                                        PLAYER_DIMENSION_ACCESS_INTERNAL_NAME),
-                                                PLAYER_MOVEMENT_STATE_ACCESS_INTERNAL_NAME),
-                                        PLAYER_SPRINT_CONTROL_INTERNAL_NAME));
+                                                                        withInterface(
+                                                                                interfaces,
+                                                                                PLAYER_POSITION_ACCESS_INTERNAL_NAME),
+                                                                        PLAYER_ROTATION_ACCESS_INTERNAL_NAME),
+                                                                PLAYER_DIMENSION_ACCESS_INTERNAL_NAME),
+                                                        PLAYER_MOVEMENT_STATE_ACCESS_INTERNAL_NAME),
+                                                PLAYER_SPRINT_CONTROL_INTERNAL_NAME),
+                                        PLAYER_SNEAK_CONTROL_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1705,6 +1737,10 @@ public final class Minecraft189ClassTransformer
                                 cv,
                                 "customMcSetSprinting",
                                 Minecraft189Mappings.ENTITY_SET_SPRINTING);
+                        addBooleanMethodSetterDelegate(
+                                cv,
+                                "customMcSetSneaking",
+                                Minecraft189Mappings.ENTITY_SET_SNEAKING);
                         super.visitEnd();
                     }
                 },
