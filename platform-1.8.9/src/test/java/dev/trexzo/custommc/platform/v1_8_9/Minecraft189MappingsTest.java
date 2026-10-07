@@ -293,6 +293,13 @@ final class Minecraft189MappingsTest {
                 "field_70177_z",
                 "rotationYaw");
         assertField(
+                Minecraft189Mappings.ENTITY_ROTATION_PITCH,
+                Minecraft189Mappings.ENTITY,
+                "z",
+                "F",
+                "field_70125_A",
+                "rotationPitch");
+        assertField(
                 Minecraft189Mappings.ENTITY_MOTION_X,
                 Minecraft189Mappings.ENTITY,
                 "v",
@@ -1324,6 +1331,57 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
+    void entityShapeGateRejectsMissingRotationPitchField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_X);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Y);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_POS_Z);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_DIMENSION);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ON_GROUND);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_STEP_HEIGHT);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_FALL_DISTANCE);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SNEAKING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_IS_SPRINTING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_SET_SNEAKING);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntity(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: pk.z F (rotationPitch)",
+                failure.getMessage());
+    }
+
+    @Test
     void entityShapeGateRejectsMissingDimensionField() {
         final ClassWriter writer =
                 writer(
@@ -1341,6 +1399,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ROTATION_PITCH);
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_ON_GROUND);
@@ -1403,6 +1464,9 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.ENTITY_ROTATION_YAW);
         addField(
                 writer,
+                Minecraft189Mappings.ENTITY_ROTATION_PITCH);
+        addField(
+                writer,
                 Minecraft189Mappings.ENTITY_DIMENSION);
         addField(
                 writer,
@@ -1449,6 +1513,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ROTATION_PITCH);
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_DIMENSION);
@@ -1500,6 +1567,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ROTATION_PITCH);
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_DIMENSION);
@@ -1759,6 +1829,7 @@ final class Minecraft189MappingsTest {
         addField(writer, Minecraft189Mappings.ENTITY_POS_Y);
         addField(writer, Minecraft189Mappings.ENTITY_POS_Z);
         addField(writer, Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(writer, Minecraft189Mappings.ENTITY_ROTATION_PITCH);
         addField(writer, Minecraft189Mappings.ENTITY_DIMENSION);
         addField(writer, Minecraft189Mappings.ENTITY_ON_GROUND);
         addField(writer, Minecraft189Mappings.ENTITY_STEP_HEIGHT);
@@ -1790,6 +1861,7 @@ final class Minecraft189MappingsTest {
         addField(writer, Minecraft189Mappings.ENTITY_POS_Y);
         addField(writer, Minecraft189Mappings.ENTITY_POS_Z);
         addField(writer, Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(writer, Minecraft189Mappings.ENTITY_ROTATION_PITCH);
         addField(writer, Minecraft189Mappings.ENTITY_DIMENSION);
         addField(writer, Minecraft189Mappings.ENTITY_ON_GROUND);
         addField(writer, Minecraft189Mappings.ENTITY_STEP_HEIGHT);
@@ -1970,6 +2042,9 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.ENTITY_ROTATION_YAW);
         addField(
                 writer,
+                Minecraft189Mappings.ENTITY_ROTATION_PITCH);
+        addField(
+                writer,
                 Minecraft189Mappings.ENTITY_DIMENSION);
         addField(
                 writer,
@@ -2027,6 +2102,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_ROTATION_YAW);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_ROTATION_PITCH);
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_DIMENSION);
