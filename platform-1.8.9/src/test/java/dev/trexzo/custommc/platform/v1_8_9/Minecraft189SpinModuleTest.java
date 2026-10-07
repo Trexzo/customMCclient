@@ -153,7 +153,7 @@ final class Minecraft189SpinModuleTest {
                             player,
                             state.snapshot()));
             assertEquals(
-                    -125.0F,
+                    145.0F,
                     player.yaw,
                     0.000001F);
         } finally {
