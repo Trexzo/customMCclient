@@ -844,6 +844,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189NoClipModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189AutoSneakModule.ID)
                             != null);
             assertTrue(
@@ -1308,6 +1313,61 @@ final class Minecraft189MappedHostTransformationTest {
                     playerClass.getField("H")
                             .getBoolean(
                                     player));
+
+            playerClass.getField("T")
+                    .setBoolean(
+                            player,
+                            false);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189NoClipModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .noClip()
+                            .active());
+            runTick.invoke(minecraft);
+            assertTrue(
+                    playerClass.getField("T")
+                            .getBoolean(
+                                    player));
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189NoClipModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .noClip()
+                            .restorePending());
+            runTick.invoke(minecraft);
+            assertFalse(
+                    playerClass.getField("T")
+                            .getBoolean(
+                                    player));
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .noClip()
+                            .restorePending());
+
+            playerClass.getField("T")
+                    .setBoolean(
+                            player,
+                            true);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189NoClipModule.ID);
+            runTick.invoke(minecraft);
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189NoClipModule.ID);
+            runTick.invoke(minecraft);
+            assertTrue(
+                    playerClass.getField("T")
+                            .getBoolean(
+                                    player));
+
             playerClass.getField("C")
                     .setBoolean(
                             player,
