@@ -1429,6 +1429,12 @@ final class Minecraft189MappedHostTransformationTest {
                     .resetTicksSetting()
                     .set(
                             3);
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189WTapModule.ID);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189WTapModule.ID);
             playerClass.getField("C")
                     .setBoolean(
                             player,
