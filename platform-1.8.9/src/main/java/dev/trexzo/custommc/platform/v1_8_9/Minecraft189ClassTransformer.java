@@ -91,6 +91,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerStepControl";
     private static final String PLAYER_STEP_CONTROL_DESCRIPTOR =
             "L" + PLAYER_STEP_CONTROL_INTERNAL_NAME + ";";
+    private static final String PLAYER_FALL_DISTANCE_CONTROL_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerFallDistanceControl";
+    private static final String PLAYER_FALL_DISTANCE_CONTROL_DESCRIPTOR =
+            "L" + PLAYER_FALL_DISTANCE_CONTROL_INTERNAL_NAME + ";";
     private static final String PLAYER_HEALTH_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189PlayerHealthAccess";
@@ -522,6 +527,8 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedStepControl =
                 new boolean[]{false};
+        final boolean[] injectedFallDistanceControl =
+                new boolean[]{false};
         final boolean[] injectedHealth =
                 new boolean[]{false};
         final boolean[] injectedArmor =
@@ -835,6 +842,28 @@ public final class Minecraft189ClassTransformer
                                                         + ")V",
                                                 false);
                                         injectedStepControl[0] = true;
+
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                player.obfuscatedName(),
+                                                player.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                PLAYER_FALL_DISTANCE_CONTROL_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerFallDistanceControl",
+                                                "("
+                                                        + PLAYER_FALL_DISTANCE_CONTROL_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedFallDistanceControl[0] = true;
 
                                         super.visitVarInsn(
                                                 Opcodes.ALOAD,
@@ -1325,6 +1354,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedSneakControl[0]
                 || !injectedJumpControl[0]
                 || !injectedStepControl[0]
+                || !injectedFallDistanceControl[0]
                 || !injectedHealth[0]
                 || !injectedArmor[0]
                 || !injectedHunger[0]
@@ -1971,14 +2001,16 @@ public final class Minecraft189ClassTransformer
                                                                 withInterface(
                                                                         withInterface(
                                                                                 withInterface(
-                                                                                        interfaces,
-                                                                                        PLAYER_POSITION_ACCESS_INTERNAL_NAME),
-                                                                                PLAYER_ROTATION_ACCESS_INTERNAL_NAME),
-                                                                        PLAYER_DIMENSION_ACCESS_INTERNAL_NAME),
-                                                                PLAYER_MOVEMENT_STATE_ACCESS_INTERNAL_NAME),
-                                                        PLAYER_SPRINT_CONTROL_INTERNAL_NAME),
-                                                PLAYER_SNEAK_CONTROL_INTERNAL_NAME),
-                                        PLAYER_STEP_CONTROL_INTERNAL_NAME));
+                                                                                        withInterface(
+                                                                                                interfaces,
+                                                                                                PLAYER_POSITION_ACCESS_INTERNAL_NAME),
+                                                                                        PLAYER_ROTATION_ACCESS_INTERNAL_NAME),
+                                                                                PLAYER_DIMENSION_ACCESS_INTERNAL_NAME),
+                                                                        PLAYER_MOVEMENT_STATE_ACCESS_INTERNAL_NAME),
+                                                                PLAYER_SPRINT_CONTROL_INTERNAL_NAME),
+                                                        PLAYER_SNEAK_CONTROL_INTERNAL_NAME),
+                                                PLAYER_STEP_CONTROL_INTERNAL_NAME),
+                                        PLAYER_FALL_DISTANCE_CONTROL_INTERNAL_NAME));
                     }
 
                     @Override
@@ -2031,6 +2063,14 @@ public final class Minecraft189ClassTransformer
                                 cv,
                                 "customMcSetStepHeight",
                                 Minecraft189Mappings.ENTITY_STEP_HEIGHT);
+                        addFloatFieldGetter(
+                                cv,
+                                "customMcFallDistance",
+                                Minecraft189Mappings.ENTITY_FALL_DISTANCE);
+                        addFloatFieldSetter(
+                                cv,
+                                "customMcSetFallDistance",
+                                Minecraft189Mappings.ENTITY_FALL_DISTANCE);
                         super.visitEnd();
                     }
                 },
