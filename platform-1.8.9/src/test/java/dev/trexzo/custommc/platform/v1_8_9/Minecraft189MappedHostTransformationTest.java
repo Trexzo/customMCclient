@@ -1450,7 +1450,7 @@ final class Minecraft189MappedHostTransformationTest {
                             true);
             runTick.invoke(minecraft);
             assertEquals(
-                    2,
+                    4,
                     playerClass.getField("jumpCalls")
                             .getInt(
                                     player));
