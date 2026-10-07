@@ -14,12 +14,20 @@ public final class Minecraft189SpinModule
             "combat.spin.reverse";
     public static final String REQUIRE_HOLD_SETTING_ID =
             "combat.spin.requireHold";
+    public static final String INTERVAL_SETTING_ID =
+            "combat.spin.intervalTicks";
     public static final double DEFAULT_YAW_SPEED =
             20.0D;
     public static final double MINIMUM_YAW_SPEED =
             1.0D;
     public static final double MAXIMUM_YAW_SPEED =
             180.0D;
+    public static final int DEFAULT_INTERVAL_TICKS =
+            1;
+    public static final int MINIMUM_INTERVAL_TICKS =
+            1;
+    public static final int MAXIMUM_INTERVAL_TICKS =
+            10;
 
     private final Setting<Double> yawSpeed =
             new Setting<Double>(
@@ -39,8 +47,17 @@ public final class Minecraft189SpinModule
                     Boolean.FALSE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+    private final Setting<Integer> intervalTicks =
+            new Setting<Integer>(
+                    INTERVAL_SETTING_ID,
+                    DEFAULT_INTERVAL_TICKS,
+                    value -> value != null
+                            && value >= MINIMUM_INTERVAL_TICKS
+                            && value <= MAXIMUM_INTERVAL_TICKS,
+                    SettingCodecs.INTEGER);
 
     private boolean enabled;
+    private int ticksUntilNext;
 
     @Override
     public String id() {
@@ -59,14 +76,20 @@ public final class Minecraft189SpinModule
         return requireHold;
     }
 
+    public Setting<Integer> intervalTicksSetting() {
+        return intervalTicks;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        resetCadence();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        resetCadence();
     }
 
     synchronized boolean apply(
@@ -79,8 +102,17 @@ public final class Minecraft189SpinModule
                 || !rotation.available()
                 || (requireHold.get().booleanValue()
                         && !leftButtonHeld)) {
+            resetCadence();
             return false;
         }
+
+        if (ticksUntilNext > 0) {
+            ticksUntilNext--;
+            return false;
+        }
+
+        ticksUntilNext =
+                intervalTicks.get().intValue() - 1;
 
         final float currentYaw =
                 rotation.yaw();
@@ -106,6 +138,10 @@ public final class Minecraft189SpinModule
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    private void resetCadence() {
+        ticksUntilNext = 0;
     }
 
     private static float wrapYaw(
