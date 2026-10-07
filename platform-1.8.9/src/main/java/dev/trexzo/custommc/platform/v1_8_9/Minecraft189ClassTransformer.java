@@ -166,6 +166,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189BlockHitDelayControl";
     private static final String BLOCK_HIT_DELAY_CONTROL_DESCRIPTOR =
             "L" + BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME + ";";
+    private static final String BLOCK_MINING_CONTROL_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189BlockMiningControl";
+    private static final String BLOCK_MINING_CONTROL_DESCRIPTOR =
+            "L" + BLOCK_MINING_CONTROL_INTERNAL_NAME + ";";
 
     @Override
     public boolean handles(
@@ -520,6 +525,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedRightClickDelay =
                 new boolean[]{false};
         final boolean[] injectedFastBreakControl =
+                new boolean[]{false};
+        final boolean[] injectedSpeedMineControl =
                 new boolean[]{false};
         final boolean[] injectedLeftClickCounter =
                 new boolean[]{false};
@@ -1084,6 +1091,28 @@ public final class Minecraft189ClassTransformer
                                                 false);
                                         injectedFastBreakControl[0] = true;
 
+                                        super.visitVarInsn(
+                                                Opcodes.ALOAD,
+                                                0);
+                                        super.visitFieldInsn(
+                                                Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                playerController.obfuscatedName(),
+                                                playerController.descriptor());
+                                        super.visitTypeInsn(
+                                                Opcodes.CHECKCAST,
+                                                BLOCK_MINING_CONTROL_INTERNAL_NAME);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "playerControllerMiningControl",
+                                                "("
+                                                        + BLOCK_MINING_CONTROL_DESCRIPTOR
+                                                        + ")V",
+                                                false);
+                                        injectedSpeedMineControl[0] = true;
+
                                         final Minecraft189Mappings.MappedField leftClickCounter =
                                                 Minecraft189Mappings
                                                         .MINECRAFT_LEFT_CLICK_COUNTER;
@@ -1237,6 +1266,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedHeldItem[0]
                 || !injectedRightClickDelay[0]
                 || !injectedFastBreakControl[0]
+                || !injectedSpeedMineControl[0]
                 || !injectedLeftClickCounter[0]
                 || !injectedAutoClick[0]) {
             throw new IllegalStateException(
@@ -1748,8 +1778,10 @@ public final class Minecraft189ClassTransformer
                                 signature,
                                 superName,
                                 withInterface(
-                                        interfaces,
-                                        BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME));
+                                        withInterface(
+                                                interfaces,
+                                                BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME),
+                                        BLOCK_MINING_CONTROL_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1759,6 +1791,21 @@ public final class Minecraft189ClassTransformer
                                 "customMcSetBlockHitDelay",
                                 Minecraft189Mappings
                                         .PLAYER_CONTROLLER_BLOCK_HIT_DELAY);
+                        addBooleanFieldGetter(
+                                cv,
+                                "customMcIsHittingBlock",
+                                Minecraft189Mappings
+                                        .PLAYER_CONTROLLER_IS_HITTING_BLOCK);
+                        addFloatFieldGetter(
+                                cv,
+                                "customMcBlockDamageProgress",
+                                Minecraft189Mappings
+                                        .PLAYER_CONTROLLER_CUR_BLOCK_DAMAGE);
+                        addFloatFieldSetter(
+                                cv,
+                                "customMcSetBlockDamageProgress",
+                                Minecraft189Mappings
+                                        .PLAYER_CONTROLLER_CUR_BLOCK_DAMAGE);
                         super.visitEnd();
                     }
                 },

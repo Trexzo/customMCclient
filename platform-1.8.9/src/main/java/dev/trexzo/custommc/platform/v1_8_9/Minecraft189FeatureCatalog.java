@@ -79,6 +79,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189NoSlowFeature noSlowFeature;
     private final Minecraft189FastPlaceFeature fastPlaceFeature;
     private final Minecraft189FastBreakFeature fastBreakFeature;
+    private final Minecraft189SpeedMineFeature speedMineFeature;
     private final Minecraft189NoHitDelayFeature noHitDelayFeature;
     private final Minecraft189AutoClickerFeature autoClickerFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
@@ -136,6 +137,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189NoSlowFeature noSlowFeature,
             final Minecraft189FastPlaceFeature fastPlaceFeature,
             final Minecraft189FastBreakFeature fastBreakFeature,
+            final Minecraft189SpeedMineFeature speedMineFeature,
             final Minecraft189NoHitDelayFeature noHitDelayFeature,
             final Minecraft189AutoClickerFeature autoClickerFeature) {
         this.modules = modules;
@@ -187,6 +189,7 @@ public final class Minecraft189FeatureCatalog
         this.noSlowFeature = noSlowFeature;
         this.fastPlaceFeature = fastPlaceFeature;
         this.fastBreakFeature = fastBreakFeature;
+        this.speedMineFeature = speedMineFeature;
         this.noHitDelayFeature = noHitDelayFeature;
         this.autoClickerFeature = autoClickerFeature;
     }
@@ -291,6 +294,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189NoSlowFeature noSlowFeature = null;
         Minecraft189FastPlaceFeature fastPlaceFeature = null;
         Minecraft189FastBreakFeature fastBreakFeature = null;
+        Minecraft189SpeedMineFeature speedMineFeature = null;
         Minecraft189NoHitDelayFeature noHitDelayFeature = null;
         Minecraft189AutoClickerFeature autoClickerFeature = null;
 
@@ -432,6 +436,15 @@ public final class Minecraft189FeatureCatalog
                             modules,
                             moduleController,
                             presentations);
+
+            speedMineFeature =
+                    Minecraft189SpeedMineFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             noHitDelayFeature =
                     Minecraft189NoHitDelayFeature.install(
@@ -748,11 +761,13 @@ public final class Minecraft189FeatureCatalog
                     noSlowFeature,
                     fastPlaceFeature,
                     fastBreakFeature,
+                    speedMineFeature,
                     noHitDelayFeature,
                     autoClickerFeature);
         } catch (RuntimeException failure) {
             closeQuietly(autoClickerFeature, failure);
             closeQuietly(noHitDelayFeature, failure);
+            closeQuietly(speedMineFeature, failure);
             closeQuietly(fastBreakFeature, failure);
             closeQuietly(fastPlaceFeature, failure);
             closeQuietly(noSlowFeature, failure);
@@ -872,6 +887,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189FastBreakModule fastBreak() {
         requireOpen();
         return fastBreakFeature.module();
+    }
+
+    public Minecraft189SpeedMineModule speedMine() {
+        requireOpen();
+        return speedMineFeature.module();
     }
 
     public Minecraft189NoHitDelayModule noHitDelay() {
@@ -1100,6 +1120,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             noHitDelayFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            speedMineFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,
