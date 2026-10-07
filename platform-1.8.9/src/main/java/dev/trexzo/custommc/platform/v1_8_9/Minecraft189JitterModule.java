@@ -12,12 +12,20 @@ public final class Minecraft189JitterModule
             "combat.jitter.yawDegrees";
     public static final String PITCH_SETTING_ID =
             "combat.jitter.pitchDegrees";
+    public static final String INTERVAL_SETTING_ID =
+            "combat.jitter.intervalTicks";
     public static final double DEFAULT_DEGREES =
             0.50D;
     public static final double MINIMUM_DEGREES =
             0.0D;
     public static final double MAXIMUM_DEGREES =
             5.0D;
+    public static final int DEFAULT_INTERVAL_TICKS =
+            1;
+    public static final int MINIMUM_INTERVAL_TICKS =
+            1;
+    public static final int MAXIMUM_INTERVAL_TICKS =
+            10;
 
     private final Setting<Double> yawDegrees =
             new Setting<Double>(
@@ -31,9 +39,18 @@ public final class Minecraft189JitterModule
                     DEFAULT_DEGREES,
                     Minecraft189JitterModule::validDegrees,
                     SettingCodecs.DOUBLE);
+    private final Setting<Integer> intervalTicks =
+            new Setting<Integer>(
+                    INTERVAL_SETTING_ID,
+                    DEFAULT_INTERVAL_TICKS,
+                    value -> value != null
+                            && value >= MINIMUM_INTERVAL_TICKS
+                            && value <= MAXIMUM_INTERVAL_TICKS,
+                    SettingCodecs.INTEGER);
 
     private boolean enabled;
     private boolean positivePhase = true;
+    private int ticksUntilNext;
 
     @Override
     public String id() {
@@ -48,16 +65,20 @@ public final class Minecraft189JitterModule
         return pitchDegrees;
     }
 
+    public Setting<Integer> intervalTicksSetting() {
+        return intervalTicks;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
-        positivePhase = true;
+        resetCadence();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
-        positivePhase = true;
+        resetCadence();
     }
 
     synchronized boolean apply(
@@ -69,9 +90,19 @@ public final class Minecraft189JitterModule
                 || rotation == null
                 || !rotation.available()
                 || !leftButtonHeld) {
-            positivePhase = true;
+            resetCadence();
             return false;
         }
+
+        if (ticksUntilNext > 0) {
+            ticksUntilNext--;
+            return false;
+        }
+
+        final int configuredInterval =
+                intervalTicks.get().intValue();
+        ticksUntilNext =
+                configuredInterval - 1;
 
         final double direction =
                 positivePhase
@@ -113,6 +144,11 @@ public final class Minecraft189JitterModule
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    private void resetCadence() {
+        positivePhase = true;
+        ticksUntilNext = 0;
     }
 
     private static float clampPitch(
