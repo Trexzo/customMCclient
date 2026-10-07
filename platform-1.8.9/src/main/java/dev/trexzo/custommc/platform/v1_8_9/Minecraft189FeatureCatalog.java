@@ -49,6 +49,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189CpsFeature cpsFeature;
     private final Minecraft189CoordinatesFeature coordinatesFeature;
     private final Minecraft189DirectionFeature directionFeature;
+    private final Minecraft189DimensionFeature dimensionFeature;
     private final Minecraft189HealthFeature healthFeature;
     private final Minecraft189ArmorFeature armorFeature;
     private final Minecraft189HungerFeature hungerFeature;
@@ -92,6 +93,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189CpsFeature cpsFeature,
             final Minecraft189CoordinatesFeature coordinatesFeature,
             final Minecraft189DirectionFeature directionFeature,
+            final Minecraft189DimensionFeature dimensionFeature,
             final Minecraft189HealthFeature healthFeature,
             final Minecraft189ArmorFeature armorFeature,
             final Minecraft189HungerFeature hungerFeature,
@@ -129,6 +131,7 @@ public final class Minecraft189FeatureCatalog
         this.cpsFeature = cpsFeature;
         this.coordinatesFeature = coordinatesFeature;
         this.directionFeature = directionFeature;
+        this.dimensionFeature = dimensionFeature;
         this.healthFeature = healthFeature;
         this.armorFeature = armorFeature;
         this.hungerFeature = hungerFeature;
@@ -156,6 +159,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189ClickRateTracker clickRateTracker,
             final Minecraft189PlayerPositionState playerPositionState,
             final Minecraft189PlayerRotationState playerRotationState,
+            final Minecraft189PlayerDimensionState playerDimensionState,
             final Minecraft189PlayerHealthState playerHealthState,
             final Minecraft189PlayerArmorState playerArmorState,
             final Minecraft189PlayerHungerState playerHungerState,
@@ -181,6 +185,7 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(clickRateTracker, "clickRateTracker");
         Objects.requireNonNull(playerPositionState, "playerPositionState");
         Objects.requireNonNull(playerRotationState, "playerRotationState");
+        Objects.requireNonNull(playerDimensionState, "playerDimensionState");
         Objects.requireNonNull(playerHealthState, "playerHealthState");
         Objects.requireNonNull(playerArmorState, "playerArmorState");
         Objects.requireNonNull(playerHungerState, "playerHungerState");
@@ -213,6 +218,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189CpsFeature cpsFeature = null;
         Minecraft189CoordinatesFeature coordinatesFeature = null;
         Minecraft189DirectionFeature directionFeature = null;
+        Minecraft189DimensionFeature dimensionFeature = null;
         Minecraft189HealthFeature healthFeature = null;
         Minecraft189ArmorFeature armorFeature = null;
         Minecraft189HungerFeature hungerFeature = null;
@@ -376,6 +382,18 @@ public final class Minecraft189FeatureCatalog
                             settings,
                             settingPresentations,
                             playerRotationState,
+                            renderPipeline,
+                            hostCallbacks);
+
+            dimensionFeature =
+                    Minecraft189DimensionFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
+                            playerDimensionState,
                             renderPipeline,
                             hostCallbacks);
 
@@ -548,6 +566,7 @@ public final class Minecraft189FeatureCatalog
                     cpsFeature,
                     coordinatesFeature,
                     directionFeature,
+                    dimensionFeature,
                     healthFeature,
                     armorFeature,
                     hungerFeature,
@@ -573,6 +592,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(hungerFeature, failure);
             closeQuietly(armorFeature, failure);
             closeQuietly(healthFeature, failure);
+            closeQuietly(dimensionFeature, failure);
             closeQuietly(directionFeature, failure);
             closeQuietly(coordinatesFeature, failure);
             closeQuietly(cpsFeature, failure);
@@ -628,6 +648,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189DirectionModule direction() {
         requireOpen();
         return directionFeature.module();
+    }
+
+    public Minecraft189DimensionModule dimension() {
+        requireOpen();
+        return dimensionFeature.module();
     }
 
     public Minecraft189HealthModule health() {
@@ -913,6 +938,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             healthFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            dimensionFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,
