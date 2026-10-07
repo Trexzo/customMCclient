@@ -2476,6 +2476,12 @@ final class Minecraft189MappedHostTransformationTest {
                                     player),
                     0.000001D);
 
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .fastFall()
+                    .fallSpeedSetting()
+                    .set(
+                            Minecraft189FastFallModule.DEFAULT_FALL_SPEED);
             runtime.moduleController()
                     .enable(
                             Minecraft189FastFallModule.ID);
