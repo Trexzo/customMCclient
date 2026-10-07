@@ -185,6 +185,13 @@ public final class Minecraft189Mappings {
                     "Lavl;",
                     "field_71428_T",
                     "timer");
+    public static final MappedField WORLD_LOADED_ENTITY_LIST =
+            new MappedField(
+                    WORLD,
+                    "f",
+                    "Ljava/util/List;",
+                    "field_72996_f",
+                    "loadedEntityList");
     public static final MappedField TIMER_SPEED =
             new MappedField(
                     TIMER,

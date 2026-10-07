@@ -123,6 +123,17 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
+    void authorityPinsWorldLoadedEntityListForFutureSnapshots() {
+        assertField(
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST,
+                Minecraft189Mappings.WORLD,
+                "f",
+                "Ljava/util/List;",
+                "field_72996_f",
+                "loadedEntityList");
+    }
+
+    @Test
     void authorityPinsExactFieldsAndMethodsNeededByHostHooks() {
         assertField(
                 Minecraft189Mappings.MINECRAFT_PLAYER,
@@ -1053,13 +1064,34 @@ final class Minecraft189MappingsTest {
     }
 
     @Test
-    void worldShapeGateRejectsMissingWorldTimeMethod() {
+    void worldShapeGateRejectsMissingLoadedEntityListField() {
         final IllegalStateException failure =
                 assertThrows(
                         IllegalStateException.class,
                         () -> Minecraft189ClassShapeVerifier
                                 .verifyWorld(
                                         emptyClass("adm")));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: adm.f Ljava/util/List; (loadedEntityList)",
+                failure.getMessage());
+    }
+
+    @Test
+    void worldShapeGateRejectsMissingWorldTimeMethod() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.WORLD
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyWorld(
+                                        finish(writer)));
         assertEquals(
                 "Minecraft 1.8.9 mapping method missing: adm.L()J (getWorldTime)",
                 failure.getMessage());
@@ -1071,6 +1103,9 @@ final class Minecraft189MappingsTest {
                 writer(
                         Minecraft189Mappings.WORLD
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST);
         addMethod(
                 writer,
                 Minecraft189Mappings.WORLD_GET_WORLD_TIME);
@@ -1092,6 +1127,9 @@ final class Minecraft189MappingsTest {
                 writer(
                         Minecraft189Mappings.WORLD
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST);
         addMethod(
                 writer,
                 Minecraft189Mappings.WORLD_GET_WORLD_TIME);
@@ -1132,6 +1170,9 @@ final class Minecraft189MappingsTest {
                 writer(
                         Minecraft189Mappings.WORLD
                                 .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST);
         addMethod(
                 writer,
                 Minecraft189Mappings.WORLD_GET_WORLD_TIME);

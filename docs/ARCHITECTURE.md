@@ -1473,3 +1473,11 @@ Airborne state continues to rearm Auto Jump regardless of the forward key. When 
 The host supplies W from the existing parent-owned `Minecraft189InputState` and certified `LegacyKeyboardCodes.W = 17`. Existing Long Jump, High Jump, Low Hop and Bunny Hop ownership remains unchanged because Auto Jump is still reached only when those higher-priority movement-jump modules are inactive.
 
 No new Minecraft mapping or transformer hook is introduced. Focused and transformed-host coverage prove default parity, airborne rearm, W-released suppression, grounded W-held activation, one-shot arming, setting registration and teardown.
+
+## World loaded-entity mapping authority
+
+M204 pins the exact Minecraft 1.8.9 `World.loadedEntityList` field required by future target/entity snapshots. The existing mapping provenance already points at `BigBroadBean/mappings-extracted` commit `2265da88e93c20411ec70f0b892f4fbc84ebc3c9`; its pinned 1.8.9 sources establish `adm` as `net/minecraft/world/World`, `adm.f` as SRG `field_72996_f`, and MCP name `loadedEntityList`. The erased JVM descriptor is `Ljava/util/List;`.
+
+`Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST` records that authority and the strict World class-shape verifier now rejects runtime World classes missing the exact field before transformation proceeds. Mapping and transformed-host fixtures include the same field shape.
+
+M204 intentionally does **not** expose the raw `List<Entity>` to parent-owned runtime code. Entity instances belong to the Minecraft child loader, so retaining or casting that list across the loader boundary would violate the existing isolation model. A later milestone must build a child-side traversal plus parent-owned primitive snapshot boundary before Aim Assist, ESP, Reach or other target-aware modules may consume world entities.

@@ -5412,6 +5412,10 @@ final class Minecraft189MappedHostTransformationTest {
                 classWriter("adm");
         field(
                 writer,
+                "f",
+                "Ljava/util/List;");
+        field(
+                writer,
                 "worldTime",
                 "J");
         field(
