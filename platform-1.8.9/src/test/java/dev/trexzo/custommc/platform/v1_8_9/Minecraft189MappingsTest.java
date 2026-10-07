@@ -69,6 +69,10 @@ final class Minecraft189MappingsTest {
                 "bdc",
                 "net/minecraft/client/network/NetworkPlayerInfo");
         assertClass(
+                Minecraft189Mappings.SERVER_DATA,
+                "bde",
+                "net/minecraft/client/multiplayer/ServerData");
+        assertClass(
                 Minecraft189Mappings.ENTITY_PLAYER,
                 "wn",
                 "net/minecraft/entity/player/EntityPlayer");
@@ -131,6 +135,20 @@ final class Minecraft189MappingsTest {
                 "Lavh;",
                 "field_71474_y",
                 "gameSettings");
+        assertField(
+                Minecraft189Mappings.MINECRAFT_CURRENT_SERVER_DATA,
+                Minecraft189Mappings.MINECRAFT,
+                "Q",
+                "Lbde;",
+                "field_71422_O",
+                "currentServerData");
+        assertField(
+                Minecraft189Mappings.SERVER_DATA_SERVER_IP,
+                Minecraft189Mappings.SERVER_DATA,
+                "b",
+                "Ljava/lang/String;",
+                "field_78845_b",
+                "serverIP");
         assertField(
                 Minecraft189Mappings.ENTITY_POS_X,
                 Minecraft189Mappings.ENTITY,
@@ -418,6 +436,8 @@ final class Minecraft189MappingsTest {
                 abstractClientPlayerShape());
         Minecraft189ClassShapeVerifier.verifyNetworkPlayerInfo(
                 networkPlayerInfoShape());
+        Minecraft189ClassShapeVerifier.verifyServerData(
+                serverDataShape());
         Minecraft189ClassShapeVerifier.verifyFoodStats(
                 foodStatsShape());
         Minecraft189ClassShapeVerifier.verifyPotionEffect(
@@ -458,6 +478,63 @@ final class Minecraft189MappingsTest {
         assertEquals(
                 "Minecraft 1.8.9 mapping method missing: ave.s()V (runTick)",
                 memberFailure.getMessage());
+    }
+
+    @Test
+    void minecraftShapeGateRejectsMissingCurrentServerDataField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.MINECRAFT
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_PLAYER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_ENTITY_RENDERER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_INGAME_GUI);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_GAME_SETTINGS);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyMinecraft(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: ave.Q Lbde; (currentServerData)",
+                failure.getMessage());
+    }
+
+    @Test
+    void serverDataShapeGateRejectsMissingServerIpField() {
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyServerData(
+                                        emptyClass("bde")));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: bde.b Ljava/lang/String; (serverIP)",
+                failure.getMessage());
+    }
+
+    private static byte[] serverDataShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.SERVER_DATA
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.SERVER_DATA_SERVER_IP);
+        return finish(writer);
     }
 
     @Test
@@ -1009,6 +1086,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_GAME_SETTINGS);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_CURRENT_SERVER_DATA);
     }
 
     private static ClassWriter writer(
