@@ -459,8 +459,8 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerPositionAccess player) {
         requireOpen();
         nearestPlayerTargetState.clear();
-        targetRotationState.clear();
         if (player == null) {
+            targetRotationState.clear();
             playerPositionState.clear();
             movementSpeedTracker.clear();
             return;
@@ -507,12 +507,27 @@ public final class Minecraft189HostRuntime
                         : null;
         final Minecraft189PlayerRotationState.Snapshot rotation =
                 playerRotationState.snapshot();
+        final boolean leftButtonHeld =
+                inputState.pointerPressed(
+                        Minecraft189ClickRateTracker.LEFT_BUTTON);
         if (featureCatalog.spin()
                 .apply(
                         control,
                         rotation,
-                        inputState.pointerPressed(
-                                Minecraft189ClickRateTracker.LEFT_BUTTON))) {
+                        leftButtonHeld)) {
+            featureCatalog.jitter()
+                    .apply(
+                            null,
+                            null,
+                            false);
+            return;
+        }
+        if (featureCatalog.aimAssist()
+                .apply(
+                        control,
+                        rotation,
+                        targetRotationState.snapshot(),
+                        leftButtonHeld)) {
             featureCatalog.jitter()
                     .apply(
                             null,
@@ -524,8 +539,7 @@ public final class Minecraft189HostRuntime
                 .apply(
                         control,
                         rotation,
-                        inputState.pointerPressed(
-                                Minecraft189ClickRateTracker.LEFT_BUTTON));
+                        leftButtonHeld);
     }
 
     void playerDimension(

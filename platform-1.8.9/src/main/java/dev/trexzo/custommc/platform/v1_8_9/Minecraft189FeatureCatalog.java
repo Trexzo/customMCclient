@@ -105,6 +105,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189AutoClickerFeature autoClickerFeature;
     private final Minecraft189VelocityFeature velocityFeature;
     private final Minecraft189JitterFeature jitterFeature;
+    private final Minecraft189AimAssistFeature aimAssistFeature;
     private final Minecraft189SpinFeature spinFeature;
     private final Minecraft189WTapFeature wTapFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
@@ -188,6 +189,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189AutoClickerFeature autoClickerFeature,
             final Minecraft189VelocityFeature velocityFeature,
             final Minecraft189JitterFeature jitterFeature,
+            final Minecraft189AimAssistFeature aimAssistFeature,
             final Minecraft189SpinFeature spinFeature,
             final Minecraft189WTapFeature wTapFeature) {
         this.modules = modules;
@@ -265,6 +267,7 @@ public final class Minecraft189FeatureCatalog
         this.autoClickerFeature = autoClickerFeature;
         this.velocityFeature = velocityFeature;
         this.jitterFeature = jitterFeature;
+        this.aimAssistFeature = aimAssistFeature;
         this.spinFeature = spinFeature;
         this.wTapFeature = wTapFeature;
     }
@@ -397,6 +400,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189AutoClickerFeature autoClickerFeature = null;
         Minecraft189VelocityFeature velocityFeature = null;
         Minecraft189JitterFeature jitterFeature = null;
+        Minecraft189AimAssistFeature aimAssistFeature = null;
         Minecraft189SpinFeature spinFeature = null;
         Minecraft189WTapFeature wTapFeature = null;
 
@@ -770,6 +774,12 @@ public final class Minecraft189FeatureCatalog
                             settings,
                             settingPresentations);
 
+            aimAssistFeature =
+                    Minecraft189AimAssistFeature.install(
+                            modules,
+                            moduleController,
+                            presentations);
+
             spinFeature =
                     Minecraft189SpinFeature.install(
                             modules,
@@ -1126,11 +1136,13 @@ public final class Minecraft189FeatureCatalog
                     autoClickerFeature,
                     velocityFeature,
                     jitterFeature,
+                    aimAssistFeature,
                     spinFeature,
                     wTapFeature);
         } catch (RuntimeException failure) {
             closeQuietly(wTapFeature, failure);
             closeQuietly(spinFeature, failure);
+            closeQuietly(aimAssistFeature, failure);
             closeQuietly(jitterFeature, failure);
             closeQuietly(velocityFeature, failure);
             closeQuietly(autoClickerFeature, failure);
@@ -1403,6 +1415,11 @@ public final class Minecraft189FeatureCatalog
         return jitterFeature.module();
     }
 
+    public Minecraft189AimAssistModule aimAssist() {
+        requireOpen();
+        return aimAssistFeature.module();
+    }
+
     public Minecraft189SpinModule spin() {
         requireOpen();
         return spinFeature.module();
@@ -1634,6 +1651,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             spinFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            aimAssistFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,

@@ -1025,6 +1025,11 @@ final class Minecraft189MappedHostTransformationTest {
             assertTrue(
                     runtime.modules()
                             .find(
+                                    Minecraft189AimAssistModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
                                     Minecraft189SpinModule.ID)
                             != null);
             assertTrue(
@@ -4883,6 +4888,109 @@ final class Minecraft189MappedHostTransformationTest {
                     -5.875010F,
                     targetRotation.pitch(),
                     0.0001F);
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .yawDegreesSetting()
+                    .set(
+                            1.0D);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .pitchDegreesSetting()
+                    .set(
+                            1.0D);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .yawEnabledSetting()
+                    .set(
+                            Boolean.TRUE);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .pitchEnabledSetting()
+                    .set(
+                            Boolean.TRUE);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .intervalTicksSetting()
+                    .set(
+                            1);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .jitter()
+                    .requireHoldSetting()
+                    .set(
+                            Boolean.TRUE);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189JitterModule.ID);
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189AimAssistModule.ID);
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            true);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            25.0F);
+            playerClass.getField("z")
+                    .setFloat(
+                            player,
+                            15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    -67.833654F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.0001F);
+            assertEquals(
+                    -5.875010F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.0001F);
+
+            runtime.requireHostRuntime()
+                    .inputState()
+                    .pointerButton(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON,
+                            false);
+            playerClass.getField("y")
+                    .setFloat(
+                            player,
+                            25.0F);
+            playerClass.getField("z")
+                    .setFloat(
+                            player,
+                            15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    25.0F,
+                    playerClass.getField("y")
+                            .getFloat(
+                                    player),
+                    0.0001F);
+            assertEquals(
+                    15.0F,
+                    playerClass.getField("z")
+                            .getFloat(
+                                    player),
+                    0.0001F);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189AimAssistModule.ID);
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189JitterModule.ID);
 
             final Minecraft189ServerAddressState.Snapshot server =
                     runtime.requireHostRuntime()
