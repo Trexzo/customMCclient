@@ -2099,6 +2099,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "Q", "Lbde;");
         field(writer, "ap", "I");
         field(writer, "ag", "I");
+        field(writer, "clickMouseCalls", "I");
         endDefaultConstructor(writer, "ave");
 
         final MethodVisitor getMinecraft =
@@ -2119,7 +2120,41 @@ final class Minecraft189MappedHostTransformationTest {
 
         voidMethod(writer, "am");
         runTickMethod(writer);
-        voidMethod(writer, "aw");
+
+        final MethodVisitor clickMouse =
+                writer.visitMethod(
+                        Opcodes.ACC_PUBLIC,
+                        "aw",
+                        "()V",
+                        null,
+                        null);
+        clickMouse.visitCode();
+        clickMouse.visitVarInsn(
+                Opcodes.ALOAD,
+                0);
+        clickMouse.visitInsn(
+                Opcodes.DUP);
+        clickMouse.visitFieldInsn(
+                Opcodes.GETFIELD,
+                "ave",
+                "clickMouseCalls",
+                "I");
+        clickMouse.visitInsn(
+                Opcodes.ICONST_1);
+        clickMouse.visitInsn(
+                Opcodes.IADD);
+        clickMouse.visitFieldInsn(
+                Opcodes.PUTFIELD,
+                "ave",
+                "clickMouseCalls",
+                "I");
+        clickMouse.visitInsn(
+                Opcodes.RETURN);
+        clickMouse.visitMaxs(
+                3,
+                1);
+        clickMouse.visitEnd();
+
         voidMethod(writer, "ax");
         voidMethod(writer, "az");
         voidMethod(writer, "Z");
