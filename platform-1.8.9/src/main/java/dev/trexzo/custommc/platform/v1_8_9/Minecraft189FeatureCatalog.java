@@ -85,6 +85,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189FlightFeature flightFeature;
     private final Minecraft189StrafeFeature strafeFeature;
     private final Minecraft189GlideFeature glideFeature;
+    private final Minecraft189FastFallFeature fastFallFeature;
     private final Minecraft189FastPlaceFeature fastPlaceFeature;
     private final Minecraft189FastBreakFeature fastBreakFeature;
     private final Minecraft189SpeedMineFeature speedMineFeature;
@@ -153,6 +154,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189FlightFeature flightFeature,
             final Minecraft189StrafeFeature strafeFeature,
             final Minecraft189GlideFeature glideFeature,
+            final Minecraft189FastFallFeature fastFallFeature,
             final Minecraft189FastPlaceFeature fastPlaceFeature,
             final Minecraft189FastBreakFeature fastBreakFeature,
             final Minecraft189SpeedMineFeature speedMineFeature,
@@ -215,6 +217,7 @@ public final class Minecraft189FeatureCatalog
         this.flightFeature = flightFeature;
         this.strafeFeature = strafeFeature;
         this.glideFeature = glideFeature;
+        this.fastFallFeature = fastFallFeature;
         this.fastPlaceFeature = fastPlaceFeature;
         this.fastBreakFeature = fastBreakFeature;
         this.speedMineFeature = speedMineFeature;
@@ -330,6 +333,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189FlightFeature flightFeature = null;
         Minecraft189StrafeFeature strafeFeature = null;
         Minecraft189GlideFeature glideFeature = null;
+        Minecraft189FastFallFeature fastFallFeature = null;
         Minecraft189FastPlaceFeature fastPlaceFeature = null;
         Minecraft189FastBreakFeature fastBreakFeature = null;
         Minecraft189SpeedMineFeature speedMineFeature = null;
@@ -518,6 +522,15 @@ public final class Minecraft189FeatureCatalog
 
             glideFeature =
                     Minecraft189GlideFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
+
+            fastFallFeature =
+                    Minecraft189FastFallFeature.install(
                             modules,
                             moduleController,
                             presentations,
@@ -888,6 +901,7 @@ public final class Minecraft189FeatureCatalog
                     flightFeature,
                     strafeFeature,
                     glideFeature,
+                    fastFallFeature,
                     fastPlaceFeature,
                     fastBreakFeature,
                     speedMineFeature,
@@ -903,6 +917,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(speedMineFeature, failure);
             closeQuietly(fastBreakFeature, failure);
             closeQuietly(fastPlaceFeature, failure);
+            closeQuietly(fastFallFeature, failure);
             closeQuietly(glideFeature, failure);
             closeQuietly(strafeFeature, failure);
             closeQuietly(flightFeature, failure);
@@ -1058,6 +1073,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189GlideModule glide() {
         requireOpen();
         return glideFeature.module();
+    }
+
+    public Minecraft189FastFallModule fastFall() {
+        requireOpen();
+        return fastFallFeature.module();
     }
 
     public Minecraft189FastPlaceModule fastPlace() {
@@ -1351,6 +1371,14 @@ public final class Minecraft189FeatureCatalog
 
         try {
             fastPlaceFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
+        }
+
+        try {
+            fastFallFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(
                     failure,
