@@ -493,6 +493,9 @@ public final class Minecraft189FeatureCatalog
                             modules,
                             moduleController,
                             presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations,
                             inputState);
 
             fastPlaceFeature =
