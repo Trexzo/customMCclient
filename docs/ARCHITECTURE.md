@@ -1333,3 +1333,13 @@ M188 adds a loader-safe write boundary for the rotation primitives certified by 
 The parent runtime does not retain the child Entity instance, and M188 does not add any automatic rotation behavior. It establishes only a narrow primitive control surface for later modules. Transformed-host coverage casts the real transformed player to the parent interface, writes yaw/pitch through the generated methods, asserts the exact mapped fields changed, then restores the original values before the normal runTick snapshot proof continues.
 
 No new Minecraft mapping is introduced in M188.
+
+## Combat Jitter
+
+M189 adds **Combat → Jitter** entirely on the certified M187/M188 rotation snapshot and control bridge. No new Minecraft mapping or runTick transformer injection is introduced.
+
+The module exposes persistent DOUBLE settings `combat.jitter.yawDegrees` and `combat.jitter.pitchDegrees`, both defaulting to `0.50`, ranging `0.0..5.0`, with `0.10` UI steps. Jitter is active only while the physical left mouse button is held; Auto Clicker's optional no-hold mode does not implicitly activate rotation jitter.
+
+Each eligible rotation callback first captures the raw mapped yaw/pitch snapshot, then applies a deterministic alternating phase. The first held tick adds the configured offsets and the next held tick subtracts them from the newly sampled rotation, returning to baseline when the user has not moved the mouse. Releasing LMB, disabling the module, or losing a usable rotation control resets the next phase to positive. Pitch writes are clamped to Minecraft's `[-90, 90]` viewing range.
+
+Focused coverage proves alternating phases, release reset, custom amplitudes, pitch clamping, lifecycle and setting teardown. Transformed-host coverage proves exact `pk.y/pk.z` writes through the M188 control bridge while the parent-owned snapshot remains the pre-jitter rotation for that tick.
