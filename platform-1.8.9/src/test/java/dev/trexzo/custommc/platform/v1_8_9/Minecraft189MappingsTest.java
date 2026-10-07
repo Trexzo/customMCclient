@@ -105,6 +105,10 @@ final class Minecraft189MappingsTest {
                 "xg",
                 "net/minecraft/util/FoodStats");
         assertClass(
+                Minecraft189Mappings.MOVEMENT_INPUT,
+                "beu",
+                "net/minecraft/util/MovementInput");
+        assertClass(
                 Minecraft189Mappings.POTION_EFFECT,
                 "pf",
                 "net/minecraft/potion/PotionEffect");
@@ -175,6 +179,27 @@ final class Minecraft189MappingsTest {
                 "I",
                 "field_71429_W",
                 "leftClickCounter");
+        assertField(
+                Minecraft189Mappings.ENTITY_PLAYER_SP_MOVEMENT_INPUT,
+                Minecraft189Mappings.ENTITY_PLAYER_SP,
+                "b",
+                "Lbeu;",
+                "field_71158_b",
+                "movementInput");
+        assertField(
+                Minecraft189Mappings.MOVEMENT_INPUT_MOVE_STRAFE,
+                Minecraft189Mappings.MOVEMENT_INPUT,
+                "a",
+                "F",
+                "field_78902_a",
+                "moveStrafe");
+        assertField(
+                Minecraft189Mappings.MOVEMENT_INPUT_MOVE_FORWARD,
+                Minecraft189Mappings.MOVEMENT_INPUT,
+                "b",
+                "F",
+                "field_78900_b",
+                "moveForward");
         assertField(
                 Minecraft189Mappings.SERVER_DATA_SERVER_IP,
                 Minecraft189Mappings.SERVER_DATA,
@@ -303,6 +328,13 @@ final class Minecraft189MappingsTest {
                 "field_151455_aw",
                 "forceUnicodeFont");
 
+        assertMethod(
+                Minecraft189Mappings.ENTITY_PLAYER_SP_ON_LIVING_UPDATE,
+                Minecraft189Mappings.ENTITY_PLAYER_SP,
+                "m",
+                "()V",
+                "func_70636_d",
+                "onLivingUpdate");
         assertMethod(
                 Minecraft189Mappings.ENTITY_IS_SNEAKING,
                 Minecraft189Mappings.ENTITY,
@@ -577,6 +609,10 @@ final class Minecraft189MappingsTest {
                 entityShape());
         Minecraft189ClassShapeVerifier.verifyEntityLivingBase(
                 entityLivingBaseShape());
+        Minecraft189ClassShapeVerifier.verifyEntityPlayerSp(
+                entityPlayerSpShape());
+        Minecraft189ClassShapeVerifier.verifyMovementInput(
+                movementInputShape());
         Minecraft189ClassShapeVerifier.verifyEntityPlayer(
                 entityPlayerShape());
         Minecraft189ClassShapeVerifier.verifyInventoryPlayer(
@@ -1435,6 +1471,118 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_JUMP);
+        return finish(writer);
+    }
+
+    @Test
+    void entityPlayerSpShapeGateRejectsMissingMovementInputField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY_PLAYER_SP
+                                .obfuscatedInternalName());
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_SP_ON_LIVING_UPDATE);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntityPlayerSp(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: bew.b Lbeu; (movementInput)",
+                failure.getMessage());
+    }
+
+    @Test
+    void entityPlayerSpShapeGateRejectsMissingOnLivingUpdateMethod() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY_PLAYER_SP
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_SP_MOVEMENT_INPUT);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyEntityPlayerSp(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping method missing: bew.m()V (onLivingUpdate)",
+                failure.getMessage());
+    }
+
+    @Test
+    void movementInputShapeGateRejectsMissingMoveStrafeField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.MOVEMENT_INPUT
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.MOVEMENT_INPUT_MOVE_FORWARD);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyMovementInput(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: beu.a F (moveStrafe)",
+                failure.getMessage());
+    }
+
+    @Test
+    void movementInputShapeGateRejectsMissingMoveForwardField() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.MOVEMENT_INPUT
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.MOVEMENT_INPUT_MOVE_STRAFE);
+
+        final IllegalStateException failure =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier
+                                .verifyMovementInput(
+                                        finish(writer)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: beu.b F (moveForward)",
+                failure.getMessage());
+    }
+
+    private static byte[] entityPlayerSpShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.ENTITY_PLAYER_SP
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_SP_MOVEMENT_INPUT);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_SP_ON_LIVING_UPDATE);
+        return finish(writer);
+    }
+
+    private static byte[] movementInputShape() {
+        final ClassWriter writer =
+                writer(
+                        Minecraft189Mappings.MOVEMENT_INPUT
+                                .obfuscatedInternalName());
+        addField(
+                writer,
+                Minecraft189Mappings.MOVEMENT_INPUT_MOVE_STRAFE);
+        addField(
+                writer,
+                Minecraft189Mappings.MOVEMENT_INPUT_MOVE_FORWARD);
         return finish(writer);
     }
 
