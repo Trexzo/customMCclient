@@ -446,6 +446,14 @@ final class Minecraft189MappedHostTransformationTest {
                     .setInt(
                             playerController,
                             4);
+            playerControllerClass.getField("e")
+                    .setFloat(
+                            playerController,
+                            0.25F);
+            playerControllerClass.getField("h")
+                    .setBoolean(
+                            playerController,
+                            true);
             minecraftClass.getField("c")
                     .set(
                             minecraft,
@@ -806,6 +814,11 @@ final class Minecraft189MappedHostTransformationTest {
                     runtime.modules()
                             .find(
                                     Minecraft189FastBreakModule.ID)
+                            != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
+                                    Minecraft189SpeedMineModule.ID)
                             != null);
             assertTrue(
                     runtime.modules()
@@ -1379,6 +1392,116 @@ final class Minecraft189MappedHostTransformationTest {
                     playerControllerClass.getField("g")
                             .getInt(
                                     playerController));
+
+            playerControllerClass.getField("h")
+                    .setBoolean(
+                            playerController,
+                            true);
+            playerControllerClass.getField("e")
+                    .setFloat(
+                            playerController,
+                            0.25F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.25F,
+                    playerControllerClass.getField("e")
+                            .getFloat(
+                                    playerController),
+                    0.000001F);
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189SpeedMineModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .speedMine()
+                            .active());
+
+            playerControllerClass.getField("h")
+                    .setBoolean(
+                            playerController,
+                            true);
+            playerControllerClass.getField("e")
+                    .setFloat(
+                            playerController,
+                            0.25F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.70F,
+                    playerControllerClass.getField("e")
+                            .getFloat(
+                                    playerController),
+                    0.000001F);
+
+            playerControllerClass.getField("e")
+                    .setFloat(
+                            playerController,
+                            0.90F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.90F,
+                    playerControllerClass.getField("e")
+                            .getFloat(
+                                    playerController),
+                    0.000001F);
+
+            playerControllerClass.getField("h")
+                    .setBoolean(
+                            playerController,
+                            false);
+            playerControllerClass.getField("e")
+                    .setFloat(
+                            playerController,
+                            0.10F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.10F,
+                    playerControllerClass.getField("e")
+                            .getFloat(
+                                    playerController),
+                    0.000001F);
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .speedMine()
+                    .progressPercentSetting()
+                    .set(90);
+            playerControllerClass.getField("h")
+                    .setBoolean(
+                            playerController,
+                            true);
+            playerControllerClass.getField("e")
+                    .setFloat(
+                            playerController,
+                            0.20F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.90F,
+                    playerControllerClass.getField("e")
+                            .getFloat(
+                                    playerController),
+                    0.000001F);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189SpeedMineModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .speedMine()
+                            .active());
+            playerControllerClass.getField("e")
+                    .setFloat(
+                            playerController,
+                            0.20F);
+            runTick.invoke(minecraft);
+            assertEquals(
+                    0.20F,
+                    playerControllerClass.getField("e")
+                            .getFloat(
+                                    playerController),
+                    0.000001F);
 
             runtime.moduleController()
                     .enable(
