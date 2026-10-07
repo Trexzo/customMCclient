@@ -76,6 +76,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189AutoSprintFeature autoSprintFeature;
     private final Minecraft189FastPlaceFeature fastPlaceFeature;
     private final Minecraft189NoHitDelayFeature noHitDelayFeature;
+    private final Minecraft189AutoClickerFeature autoClickerFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
     private Minecraft189FovFeature fovFeature;
     private Minecraft189NoBobbingFeature noBobbingFeature;
@@ -127,7 +128,8 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189CrosshairFeature crosshairFeature,
             final Minecraft189AutoSprintFeature autoSprintFeature,
             final Minecraft189FastPlaceFeature fastPlaceFeature,
-            final Minecraft189NoHitDelayFeature noHitDelayFeature) {
+            final Minecraft189NoHitDelayFeature noHitDelayFeature,
+            final Minecraft189AutoClickerFeature autoClickerFeature) {
         this.modules = modules;
         this.moduleController = moduleController;
         this.modulePresentations = modulePresentations;
@@ -174,6 +176,7 @@ public final class Minecraft189FeatureCatalog
         this.autoSprintFeature = autoSprintFeature;
         this.fastPlaceFeature = fastPlaceFeature;
         this.noHitDelayFeature = noHitDelayFeature;
+        this.autoClickerFeature = autoClickerFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -273,6 +276,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189AutoSprintFeature autoSprintFeature = null;
         Minecraft189FastPlaceFeature fastPlaceFeature = null;
         Minecraft189NoHitDelayFeature noHitDelayFeature = null;
+        Minecraft189AutoClickerFeature autoClickerFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -394,6 +398,15 @@ public final class Minecraft189FeatureCatalog
                             modules,
                             moduleController,
                             presentations);
+
+            autoClickerFeature =
+                    Minecraft189AutoClickerFeature.install(
+                            modules,
+                            moduleController,
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             arrayListFeature =
                     Minecraft189ArrayListFeature.install(
@@ -691,8 +704,10 @@ public final class Minecraft189FeatureCatalog
                     crosshairFeature,
                     autoSprintFeature,
                     fastPlaceFeature,
-                    noHitDelayFeature);
+                    noHitDelayFeature,
+                    autoClickerFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(autoClickerFeature, failure);
             closeQuietly(noHitDelayFeature, failure);
             closeQuietly(fastPlaceFeature, failure);
             closeQuietly(autoSprintFeature, failure);
@@ -794,6 +809,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189NoHitDelayModule noHitDelay() {
         requireOpen();
         return noHitDelayFeature.module();
+    }
+
+    public Minecraft189AutoClickerModule autoClicker() {
+        requireOpen();
+        return autoClickerFeature.module();
     }
 
     public Minecraft189HealthModule health() {
@@ -1000,6 +1020,14 @@ public final class Minecraft189FeatureCatalog
                         failure,
                         closeFailure);
             }
+        }
+
+        try {
+            autoClickerFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(
+                    failure,
+                    closeFailure);
         }
 
         try {
