@@ -21,10 +21,13 @@ final class Minecraft189AimAssistFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration yawSpeedSetting;
     private final SettingRegistry.Registration pitchSpeedSetting;
+    private final SettingRegistry.Registration requireHoldSetting;
     private final SettingPresentationRegistry.Registration yawSpeedPresentation;
     private final SettingPresentationRegistry.Registration pitchSpeedPresentation;
+    private final SettingPresentationRegistry.Registration requireHoldPresentation;
     private final ModuleSettingRegistry.Registration yawSpeedBinding;
     private final ModuleSettingRegistry.Registration pitchSpeedBinding;
+    private final ModuleSettingRegistry.Registration requireHoldBinding;
     private boolean closed;
 
     private Minecraft189AimAssistFeature(
@@ -34,20 +37,26 @@ final class Minecraft189AimAssistFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration yawSpeedSetting,
             final SettingRegistry.Registration pitchSpeedSetting,
+            final SettingRegistry.Registration requireHoldSetting,
             final SettingPresentationRegistry.Registration yawSpeedPresentation,
             final SettingPresentationRegistry.Registration pitchSpeedPresentation,
+            final SettingPresentationRegistry.Registration requireHoldPresentation,
             final ModuleSettingRegistry.Registration yawSpeedBinding,
-            final ModuleSettingRegistry.Registration pitchSpeedBinding) {
+            final ModuleSettingRegistry.Registration pitchSpeedBinding,
+            final ModuleSettingRegistry.Registration requireHoldBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.yawSpeedSetting = yawSpeedSetting;
         this.pitchSpeedSetting = pitchSpeedSetting;
+        this.requireHoldSetting = requireHoldSetting;
         this.yawSpeedPresentation = yawSpeedPresentation;
         this.pitchSpeedPresentation = pitchSpeedPresentation;
+        this.requireHoldPresentation = requireHoldPresentation;
         this.yawSpeedBinding = yawSpeedBinding;
         this.pitchSpeedBinding = pitchSpeedBinding;
+        this.requireHoldBinding = requireHoldBinding;
     }
 
     static Minecraft189AimAssistFeature install(
@@ -64,10 +73,13 @@ final class Minecraft189AimAssistFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration yawSpeedSetting = null;
         SettingRegistry.Registration pitchSpeedSetting = null;
+        SettingRegistry.Registration requireHoldSetting = null;
         SettingPresentationRegistry.Registration yawSpeedPresentation = null;
         SettingPresentationRegistry.Registration pitchSpeedPresentation = null;
+        SettingPresentationRegistry.Registration requireHoldPresentation = null;
         ModuleSettingRegistry.Registration yawSpeedBinding = null;
         ModuleSettingRegistry.Registration pitchSpeedBinding = null;
+        ModuleSettingRegistry.Registration requireHoldBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -87,6 +99,9 @@ final class Minecraft189AimAssistFeature
             pitchSpeedSetting =
                     settings.register(
                             module.pitchSpeedSetting());
+            requireHoldSetting =
+                    settings.register(
+                            module.requireHoldSetting());
             yawSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -109,6 +124,13 @@ final class Minecraft189AimAssistFeature
                                             Minecraft189AimAssistModule.MINIMUM_SPEED,
                                             Minecraft189AimAssistModule.MAXIMUM_SPEED,
                                             0.5D)));
+            requireHoldPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189AimAssistModule.REQUIRE_HOLD_SETTING_ID,
+                                    "Require Hold",
+                                    SettingValueKind.BOOLEAN,
+                                    20));
             yawSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -121,6 +143,12 @@ final class Minecraft189AimAssistFeature
                                     Minecraft189AimAssistModule.ID,
                                     Minecraft189AimAssistModule.PITCH_SPEED_SETTING_ID,
                                     10));
+            requireHoldBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189AimAssistModule.ID,
+                                    Minecraft189AimAssistModule.REQUIRE_HOLD_SETTING_ID,
+                                    20));
 
             return new Minecraft189AimAssistFeature(
                     controller,
@@ -129,15 +157,21 @@ final class Minecraft189AimAssistFeature
                     presentation,
                     yawSpeedSetting,
                     pitchSpeedSetting,
+                    requireHoldSetting,
                     yawSpeedPresentation,
                     pitchSpeedPresentation,
+                    requireHoldPresentation,
                     yawSpeedBinding,
-                    pitchSpeedBinding);
+                    pitchSpeedBinding,
+                    requireHoldBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(requireHoldBinding, failure);
             closeQuietly(pitchSpeedBinding, failure);
             closeQuietly(yawSpeedBinding, failure);
+            closeQuietly(requireHoldPresentation, failure);
             closeQuietly(pitchSpeedPresentation, failure);
             closeQuietly(yawSpeedPresentation, failure);
+            closeQuietly(requireHoldSetting, failure);
             closeQuietly(pitchSpeedSetting, failure);
             closeQuietly(yawSpeedSetting, failure);
             closeQuietly(presentation, failure);
@@ -173,10 +207,13 @@ final class Minecraft189AimAssistFeature
             failure = closeFailure;
         }
 
+        failure = close(requireHoldBinding, failure);
         failure = close(pitchSpeedBinding, failure);
         failure = close(yawSpeedBinding, failure);
+        failure = close(requireHoldPresentation, failure);
         failure = close(pitchSpeedPresentation, failure);
         failure = close(yawSpeedPresentation, failure);
+        failure = close(requireHoldSetting, failure);
         failure = close(pitchSpeedSetting, failure);
         failure = close(yawSpeedSetting, failure);
         failure = close(presentation, failure);

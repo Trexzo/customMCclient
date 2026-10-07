@@ -1543,3 +1543,9 @@ M210 adds persistent **Yaw Speed** (`combat.aimAssist.yawSpeed`) and **Pitch Spe
 Yaw uses the shortest wrapped delta in Minecraft's [-180, 180) convention, then limits that delta to the configured yaw speed. Pitch uses an independent linear delta limited by the configured pitch speed. Aim Assist still owns an eligible held-LMB tick even when a limited step is zero/already aligned, so Jitter cannot perturb the tracked target.
 
 The transformed-host proof configures yaw speed 10 and pitch speed 4 from a live starting rotation of (25, 15) toward the certified M208 solution and proves the tick lands at (15, 11), while configured Jitter remains suppressed. No mapping, target-selection or transformer changes are introduced.
+
+## Aim Assist activation mode
+
+M211 adds persistent BOOLEAN setting `combat.aimAssist.requireHold`, presented as **Require Hold** and defaulting to `true`. The default preserves M209/M210 behavior: Aim Assist owns rotation only while physical LMB is held. Setting it to `false` allows continuous tracking whenever the module is enabled and the coherent M208 target-rotation latch is available.
+
+Activation mode does not change rotation precedence or smoothing. Spin remains higher priority, Aim Assist still owns eligible ticks over Jitter, and configured yaw/pitch speed limits apply identically in held and continuous modes. Focused and transformed-host coverage prove the default, persistence registration, no-hold activation when disabled, and teardown.
