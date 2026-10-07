@@ -6,6 +6,13 @@ public final class Minecraft189PlayerRotationState {
     private float pitch;
 
     public synchronized void update(
+            final float nextYaw) {
+        update(
+                nextYaw,
+                0.0F);
+    }
+
+    public synchronized void update(
             final float nextYaw,
             final float nextPitch) {
         if (Float.isNaN(nextYaw)
