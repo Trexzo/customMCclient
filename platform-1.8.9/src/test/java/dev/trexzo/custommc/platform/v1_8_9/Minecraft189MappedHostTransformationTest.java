@@ -881,6 +881,11 @@ final class Minecraft189MappedHostTransformationTest {
                             .find(
                                     Minecraft189AutoClickerModule.ID)
                             != null);
+            assertTrue(
+                    runtime.modules()
+                            .find(
+                                    Minecraft189VelocityModule.ID)
+                            != null);
             assertEquals(
                     0.35F,
                     settingsClass.getField("aJ")
@@ -1866,6 +1871,155 @@ final class Minecraft189MappedHostTransformationTest {
                     .pointerButton(
                             Minecraft189ClickRateTracker.LEFT_BUTTON,
                             false);
+
+            final Class<?> entityClass =
+                    loader.loadClass("pk");
+            final Method knockBack =
+                    playerClass.getMethod(
+                            "a",
+                            entityClass,
+                            Float.TYPE,
+                            Double.TYPE,
+                            Double.TYPE);
+
+            playerClass.getField("v")
+                    .setDouble(
+                            player,
+                            2.0D);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            3.0D);
+            playerClass.getField("x")
+                    .setDouble(
+                            player,
+                            4.0D);
+            knockBack.invoke(
+                    player,
+                    player,
+                    Float.valueOf(0.4F),
+                    Double.valueOf(1.0D),
+                    Double.valueOf(-2.0D));
+            assertEquals(
+                    3.0D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    3.4D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    2.0D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.moduleController()
+                    .enable(
+                            Minecraft189VelocityModule.ID);
+            assertTrue(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .velocity()
+                            .active());
+
+            playerClass.getField("v")
+                    .setDouble(
+                            player,
+                            2.0D);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            3.0D);
+            playerClass.getField("x")
+                    .setDouble(
+                            player,
+                            4.0D);
+            knockBack.invoke(
+                    player,
+                    player,
+                    Float.valueOf(0.4F),
+                    Double.valueOf(1.0D),
+                    Double.valueOf(-2.0D));
+            assertEquals(
+                    2.0D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    3.0D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    4.0D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .velocity()
+                    .horizontalPercentSetting()
+                    .set(50);
+            runtime.requireHostRuntime()
+                    .featureCatalog()
+                    .velocity()
+                    .verticalPercentSetting()
+                    .set(25);
+            playerClass.getField("v")
+                    .setDouble(
+                            player,
+                            2.0D);
+            playerClass.getField("w")
+                    .setDouble(
+                            player,
+                            3.0D);
+            playerClass.getField("x")
+                    .setDouble(
+                            player,
+                            4.0D);
+            knockBack.invoke(
+                    player,
+                    player,
+                    Float.valueOf(0.4F),
+                    Double.valueOf(1.0D),
+                    Double.valueOf(-2.0D));
+            assertEquals(
+                    2.5D,
+                    playerClass.getField("v")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    3.1D,
+                    playerClass.getField("w")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+            assertEquals(
+                    3.0D,
+                    playerClass.getField("x")
+                            .getDouble(
+                                    player),
+                    0.000001D);
+
+            runtime.moduleController()
+                    .disable(
+                            Minecraft189VelocityModule.ID);
+            assertFalse(
+                    runtime.requireHostRuntime()
+                            .featureCatalog()
+                            .velocity()
+                            .active());
 
             final Minecraft189PlayerHealthState.Snapshot health =
                     runtime.requireHostRuntime()
