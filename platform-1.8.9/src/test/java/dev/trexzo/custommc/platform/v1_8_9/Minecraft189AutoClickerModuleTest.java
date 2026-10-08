@@ -595,6 +595,114 @@ final class Minecraft189AutoClickerModuleTest {
         assertNull(modules.find(Minecraft189AutoClickerModule.ID));
     }
 
+    @Test
+    void startDelayConsumesOnlyEligibleTicksAndNeverAccumulatesClickCredit() {
+        final Minecraft189AutoClickerModule module =
+                new Minecraft189AutoClickerModule();
+        module.minCpsSetting().set(20);
+        module.maxCpsSetting().set(20);
+        assertEquals(0, module.startDelayTicksSetting().get().intValue());
+        module.onEnable();
+        assertTrue(module.shouldClick(true)); // Default 20 CPS starts immediately.
+
+        module.startDelayTicksSetting().set(3);
+        for (int i = 0; i < 3; i++) {
+            assertFalse(module.shouldClick(true));
+        }
+        assertTrue(module.shouldClick(true)); // No stored phase during delay.
+        assertTrue(module.shouldClick(true));
+
+        // Losing physical hold forces a fresh delay on resume.
+        assertFalse(module.shouldClick(false));
+        for (int i = 0; i < 3; i++) {
+            assertFalse(module.shouldClick(true));
+        }
+        assertTrue(module.shouldClick(true));
+
+        // An opt-in context gate cancels the current warmup entirely.
+        module.pauseWhileRightClickingSetting().set(Boolean.TRUE);
+        assertFalse(module.shouldClick(true, false, true));
+        for (int i = 0; i < 3; i++) {
+            assertFalse(module.shouldClick(true, false, false));
+        }
+        assertTrue(module.shouldClick(true, false, false));
+
+        // Edits reset timing even during an active uninterrupted hold.
+        module.startDelayTicksSetting().set(1);
+        assertFalse(module.shouldClick(true));
+        assertTrue(module.shouldClick(true));
+        module.minCpsSetting().set(10);
+        module.maxCpsSetting().set(10);
+        assertFalse(module.shouldClick(true)); // Fresh one-tick delay.
+        assertFalse(module.shouldClick(true)); // First CPS phase tick.
+        assertTrue(module.shouldClick(true)); // Second CPS tick.
+        module.startDelayTicksSetting().set(0);
+        assertFalse(module.shouldClick(true)); // Normal 10 CPS phase.
+        assertTrue(module.shouldClick(true));
+
+        module.onDisable();
+        assertFalse(module.shouldClick(true));
+        module.onEnable();
+        assertFalse(module.shouldClick(true)); // Starts at 10 CPS without delay.
+        assertTrue(module.shouldClick(true));
+        assertThrows(IllegalArgumentException.class,
+                () -> module.startDelayTicksSetting().set(-1));
+        assertThrows(IllegalArgumentException.class,
+                () -> module.startDelayTicksSetting().set(41));
+    }
+
+    @Test
+    void hostStartDelayPersistsResetsAndUnregistersWithoutNewHooks() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189AutoClickerModule module =
+                    runtime.featureCatalog().autoClicker();
+            assertEquals("0", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.START_DELAY_SETTING_ID));
+            module.minCpsSetting().set(20);
+            module.maxCpsSetting().set(20);
+            module.startDelayTicksSetting().set(2);
+            assertEquals("2", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.START_DELAY_SETTING_ID));
+            controller.enable(Minecraft189AutoClickerModule.ID);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            assertFalse(runtime.shouldAutoClick());
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+            module.startDelayTicksSetting().set(0);
+            assertTrue(runtime.shouldAutoClick());
+            controller.disable(Minecraft189AutoClickerModule.ID);
+            assertFalse(runtime.shouldAutoClick());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189AutoClickerModule.START_DELAY_SETTING_ID));
+        assertNull(modules.find(Minecraft189AutoClickerModule.ID));
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override
