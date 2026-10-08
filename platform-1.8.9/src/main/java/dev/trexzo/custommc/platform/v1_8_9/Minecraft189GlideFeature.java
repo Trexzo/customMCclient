@@ -20,8 +20,11 @@ final class Minecraft189GlideFeature
     private final ModuleRegistry.Registration moduleRegistration;
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration fallSpeedSetting;
+    private final SettingRegistry.Registration requireSneakingSetting;
     private final SettingPresentationRegistry.Registration fallSpeedPresentation;
+    private final SettingPresentationRegistry.Registration requireSneakingPresentation;
     private final ModuleSettingRegistry.Registration fallSpeedBinding;
+    private final ModuleSettingRegistry.Registration requireSneakingBinding;
     private boolean closed;
 
     private Minecraft189GlideFeature(
@@ -30,15 +33,21 @@ final class Minecraft189GlideFeature
             final ModuleRegistry.Registration moduleRegistration,
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration fallSpeedSetting,
+            final SettingRegistry.Registration requireSneakingSetting,
             final SettingPresentationRegistry.Registration fallSpeedPresentation,
-            final ModuleSettingRegistry.Registration fallSpeedBinding) {
+            final SettingPresentationRegistry.Registration requireSneakingPresentation,
+            final ModuleSettingRegistry.Registration fallSpeedBinding,
+            final ModuleSettingRegistry.Registration requireSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.fallSpeedSetting = fallSpeedSetting;
+        this.requireSneakingSetting = requireSneakingSetting;
         this.fallSpeedPresentation = fallSpeedPresentation;
+        this.requireSneakingPresentation = requireSneakingPresentation;
         this.fallSpeedBinding = fallSpeedBinding;
+        this.requireSneakingBinding = requireSneakingBinding;
     }
 
     static Minecraft189GlideFeature install(
@@ -54,8 +63,11 @@ final class Minecraft189GlideFeature
         ModuleRegistry.Registration moduleRegistration = null;
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration fallSpeedSetting = null;
+        SettingRegistry.Registration requireSneakingSetting = null;
         SettingPresentationRegistry.Registration fallSpeedPresentation = null;
+        SettingPresentationRegistry.Registration requireSneakingPresentation = null;
         ModuleSettingRegistry.Registration fallSpeedBinding = null;
+        ModuleSettingRegistry.Registration requireSneakingBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -73,6 +85,7 @@ final class Minecraft189GlideFeature
             fallSpeedSetting =
                     settings.register(
                             module.fallSpeedSetting());
+            requireSneakingSetting = settings.register(module.requireSneakingSetting());
             fallSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -84,6 +97,10 @@ final class Minecraft189GlideFeature
                                             Minecraft189GlideModule.MINIMUM_FALL_SPEED,
                                             Minecraft189GlideModule.MAXIMUM_FALL_SPEED,
                                             0.01D)));
+            requireSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189GlideModule.REQUIRE_SNEAKING_SETTING_ID,
+                            "Require Sneaking", SettingValueKind.BOOLEAN, 10));
             fallSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -91,15 +108,26 @@ final class Minecraft189GlideFeature
                                     Minecraft189GlideModule.FALL_SPEED_SETTING_ID,
                                     0));
 
+            requireSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189GlideModule.ID,
+                            Minecraft189GlideModule.REQUIRE_SNEAKING_SETTING_ID, 10));
+
             return new Minecraft189GlideFeature(
                     controller,
                     module,
                     moduleRegistration,
                     presentation,
                     fallSpeedSetting,
+                    requireSneakingSetting,
                     fallSpeedPresentation,
-                    fallSpeedBinding);
+                    requireSneakingPresentation,
+                    fallSpeedBinding,
+                    requireSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(requireSneakingBinding, failure);
+            closeQuietly(requireSneakingPresentation, failure);
+            closeQuietly(requireSneakingSetting, failure);
             closeQuietly(fallSpeedBinding, failure);
             closeQuietly(fallSpeedPresentation, failure);
             closeQuietly(fallSpeedSetting, failure);
@@ -136,6 +164,9 @@ final class Minecraft189GlideFeature
             failure = closeFailure;
         }
 
+        failure = close(requireSneakingBinding, failure);
+        failure = close(requireSneakingPresentation, failure);
+        failure = close(requireSneakingSetting, failure);
         failure = close(fallSpeedBinding, failure);
         failure = close(fallSpeedPresentation, failure);
         failure = close(fallSpeedSetting, failure);

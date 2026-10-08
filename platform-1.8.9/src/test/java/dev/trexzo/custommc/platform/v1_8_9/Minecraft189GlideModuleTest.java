@@ -74,6 +74,11 @@ final class Minecraft189GlideModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189GlideModule.FALL_SPEED_SETTING_ID));
+            assertNotNull(settings.find(Minecraft189GlideModule.REQUIRE_SNEAKING_SETTING_ID));
+            assertFalse(runtime.featureCatalog().glide()
+                    .requireSneakingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189GlideModule.REQUIRE_SNEAKING_SETTING_ID));
             assertEquals(
                     Minecraft189GlideModule.DEFAULT_FALL_SPEED,
                     runtime.featureCatalog()
@@ -189,6 +194,59 @@ final class Minecraft189GlideModuleTest {
                     player.motionY,
                     0.000000001D);
 
+            // Optional sneak-to-glide gate: default OFF is unchanged.
+            final Minecraft189GlideModule glide = runtime.featureCatalog().glide();
+            glide.requireSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189GlideModule.REQUIRE_SNEAKING_SETTING_ID));
+            int writesBeforeGate = player.verticalSetCalls;
+            player.motionY = -0.40D;
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.40D, player.motionY, 0.000000001D);
+            assertEquals(writesBeforeGate, player.verticalSetCalls);
+
+            runtime.playerMovementState().update(false, true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.15D, player.motionY, 0.000000001D);
+            assertEquals(writesBeforeGate + 1, player.verticalSetCalls);
+
+            // Do not write again when the current motion is already capped.
+            runtime.playerMotionControl(player);
+            assertEquals(writesBeforeGate + 1, player.verticalSetCalls);
+
+            player.motionY = -0.40D;
+            runtime.playerMovementState().update(true, true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.40D, player.motionY, 0.000000001D);
+
+            runtime.playerMovementState().clear();
+            runtime.playerMotionControl(player);
+            assertEquals(-0.40D, player.motionY, 0.000000001D);
+
+            // Toggle OFF immediately restores original airborne behavior.
+            runtime.playerMovementState().update(false, false, false);
+            glide.requireSneakingSetting().set(Boolean.FALSE);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.15D, player.motionY, 0.000000001D);
+            player.motionY = Double.NaN;
+            final int beforeInvalid = player.verticalSetCalls;
+            runtime.playerMotionControl(player);
+            assertEquals(beforeInvalid, player.verticalSetCalls);
+            player.motionY = Double.NEGATIVE_INFINITY;
+            runtime.playerMotionControl(player);
+            assertEquals(beforeInvalid, player.verticalSetCalls);
+
+            // Suspension priority is unchanged even while sneak gate is ON.
+            glide.requireSneakingSetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(false, true, false);
+            controller.enable(Minecraft189FlightModule.ID);
+            player.motionY = -0.40D;
+            runtime.playerMotionControl(player);
+            assertEquals(Minecraft189FlightModule.HOVER_MOTION_Y,
+                    player.motionY, 0.000000001D);
+            controller.disable(Minecraft189FlightModule.ID);
+
             controller.disable(
                     Minecraft189GlideModule.ID);
             assertFalse(
@@ -215,6 +273,8 @@ final class Minecraft189GlideModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189GlideModule.FALL_SPEED_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189GlideModule.REQUIRE_SNEAKING_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
