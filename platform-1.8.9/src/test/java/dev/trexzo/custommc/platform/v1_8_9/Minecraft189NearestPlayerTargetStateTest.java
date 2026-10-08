@@ -162,4 +162,68 @@ final class Minecraft189NearestPlayerTargetStateTest {
                 target.snapshot()
                         .available());
     }
+
+    @Test
+    void rangeQualifiedSelectionSkipsCloserPlayersWithoutChangingLegacySelection() {
+        final Minecraft189PlayerPositionState local = new Minecraft189PlayerPositionState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        final Minecraft189NearestPlayerTargetState target =
+                new Minecraft189NearestPlayerTargetState();
+        local.update(0.0D, 0.0D, 0.0D);
+        positions.update(new double[]{
+                0.0D, 0.0D, 0.0D,
+                2.0D, 0.0D, 0.0D,
+                0.0D, 0.0D, 7.0D,
+                0.0D, 0.0D, 9.0D
+        });
+        kinds.update(new int[]{
+                Minecraft189WorldEntityKindState.LIVING
+                        | Minecraft189WorldEntityKindState.PLAYER
+                        | Minecraft189WorldEntityKindState.LOCAL_PLAYER,
+                Minecraft189WorldEntityKindState.LIVING
+                        | Minecraft189WorldEntityKindState.PLAYER,
+                Minecraft189WorldEntityKindState.LIVING
+                        | Minecraft189WorldEntityKindState.PLAYER,
+                Minecraft189WorldEntityKindState.LIVING
+                        | Minecraft189WorldEntityKindState.PLAYER
+        });
+        target.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+        assertEquals(1, target.snapshot().entityIndex());
+        assertEquals(4.0D, target.snapshot().distanceSquared());
+
+        target.update(local.snapshot(), positions.snapshot(), kinds.snapshot(),
+                5.0D, 20.0D);
+        assertTrue(target.snapshot().available());
+        assertTrue(target.snapshot().found());
+        assertEquals(2, target.snapshot().entityIndex());
+        assertEquals(49.0D, target.snapshot().distanceSquared());
+        assertEquals(7.0D, target.snapshot().distance());
+
+        target.update(local.snapshot(), positions.snapshot(), kinds.snapshot(),
+                7.0D, 7.0D);
+        assertEquals(2, target.snapshot().entityIndex());
+        target.update(local.snapshot(), positions.snapshot(), kinds.snapshot(),
+                8.0D, 9.0D);
+        assertEquals(3, target.snapshot().entityIndex());
+        target.update(local.snapshot(), positions.snapshot(), kinds.snapshot(),
+                3.0D, 6.0D);
+        assertTrue(target.snapshot().available());
+        assertFalse(target.snapshot().found());
+        assertEquals(-1, target.snapshot().entityIndex());
+
+        target.update(local.snapshot(), positions.snapshot(), kinds.snapshot(),
+                10.0D, 9.0D);
+        assertFalse(target.snapshot().available());
+        assertFalse(target.snapshot().found());
+        target.update(local.snapshot(), positions.snapshot(), kinds.snapshot(),
+                Double.NaN, 20.0D);
+        assertFalse(target.snapshot().available());
+        target.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+        assertTrue(target.snapshot().available());
+        assertEquals(1, target.snapshot().entityIndex());
+    }
+
 }
