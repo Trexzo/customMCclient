@@ -59,6 +59,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189CoordinatesFeature coordinatesFeature;
     private final Minecraft189DirectionFeature directionFeature;
     private final Minecraft189TargetHudFeature targetHudFeature;
+    private final Minecraft189NearbyPlayersFeature nearbyPlayersFeature;
     private final Minecraft189DimensionFeature dimensionFeature;
     private final Minecraft189MovementStatusFeature movementStatusFeature;
     private final Minecraft189HealthFeature healthFeature;
@@ -144,6 +145,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189CoordinatesFeature coordinatesFeature,
             final Minecraft189DirectionFeature directionFeature,
             final Minecraft189TargetHudFeature targetHudFeature,
+            final Minecraft189NearbyPlayersFeature nearbyPlayersFeature,
             final Minecraft189DimensionFeature dimensionFeature,
             final Minecraft189MovementStatusFeature movementStatusFeature,
             final Minecraft189HealthFeature healthFeature,
@@ -223,6 +225,7 @@ public final class Minecraft189FeatureCatalog
         this.coordinatesFeature = coordinatesFeature;
         this.directionFeature = directionFeature;
         this.targetHudFeature = targetHudFeature;
+        this.nearbyPlayersFeature = nearbyPlayersFeature;
         this.dimensionFeature = dimensionFeature;
         this.movementStatusFeature = movementStatusFeature;
         this.healthFeature = healthFeature;
@@ -305,6 +308,8 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
             final Minecraft189NearestPlayerTargetState nearestPlayerTargetState,
             final Minecraft189TargetRotationState targetRotationState,
+            final Minecraft189WorldEntityPositionState worldEntityPositionState,
+            final Minecraft189WorldEntityKindState worldEntityKindState,
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
         Objects.requireNonNull(modules, "modules");
@@ -336,6 +341,8 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(movementSpeedTracker, "movementSpeedTracker");
         Objects.requireNonNull(nearestPlayerTargetState, "nearestPlayerTargetState");
         Objects.requireNonNull(targetRotationState, "targetRotationState");
+        Objects.requireNonNull(worldEntityPositionState, "worldEntityPositionState");
+        Objects.requireNonNull(worldEntityKindState, "worldEntityKindState");
         Objects.requireNonNull(renderPipeline, "renderPipeline");
         Objects.requireNonNull(hostCallbacks, "hostCallbacks");
 
@@ -361,6 +368,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189CoordinatesFeature coordinatesFeature = null;
         Minecraft189DirectionFeature directionFeature = null;
         Minecraft189TargetHudFeature targetHudFeature = null;
+        Minecraft189NearbyPlayersFeature nearbyPlayersFeature = null;
         Minecraft189DimensionFeature dimensionFeature = null;
         Minecraft189MovementStatusFeature movementStatusFeature = null;
         Minecraft189HealthFeature healthFeature = null;
@@ -892,6 +900,19 @@ public final class Minecraft189FeatureCatalog
                     renderPipeline,
                     hostCallbacks);
 
+            nearbyPlayersFeature = Minecraft189NearbyPlayersFeature.install(
+                    modules,
+                    moduleController,
+                    presentations,
+                    moduleSettings,
+                    settings,
+                    settingPresentations,
+                    playerPositionState,
+                    worldEntityPositionState,
+                    worldEntityKindState,
+                    renderPipeline,
+                    hostCallbacks);
+
             dimensionFeature =
                     Minecraft189DimensionFeature.install(
                             modules,
@@ -1113,6 +1134,7 @@ public final class Minecraft189FeatureCatalog
                     coordinatesFeature,
                     directionFeature,
                     targetHudFeature,
+                    nearbyPlayersFeature,
                     dimensionFeature,
                     movementStatusFeature,
                     healthFeature,
@@ -1214,6 +1236,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(healthFeature, failure);
             closeQuietly(movementStatusFeature, failure);
             closeQuietly(dimensionFeature, failure);
+            closeQuietly(nearbyPlayersFeature, failure);
             closeQuietly(targetHudFeature, failure);
             closeQuietly(directionFeature, failure);
             closeQuietly(coordinatesFeature, failure);
@@ -1278,6 +1301,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189TargetHudModule targetHud() {
         requireOpen();
         return targetHudFeature.module();
+    }
+
+    public Minecraft189NearbyPlayersModule nearbyPlayers() {
+        requireOpen();
+        return nearbyPlayersFeature.module();
     }
 
     public Minecraft189DimensionModule dimension() {
@@ -2061,6 +2089,12 @@ public final class Minecraft189FeatureCatalog
             failure = append(
                     failure,
                     closeFailure);
+        }
+
+        try {
+            nearbyPlayersFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
         }
 
         try {
