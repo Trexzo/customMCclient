@@ -1226,7 +1226,8 @@ public final class Minecraft189HostRuntime
         requireOpen();
         featureCatalog.timerSpeed()
                 .apply(
-                        timer);
+                        timer,
+                        playerMovementState.snapshot());
     }
 
     int leftClickCounter(
