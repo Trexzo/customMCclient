@@ -21,6 +21,7 @@ final class Minecraft189AimAssistFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration yawSpeedSetting;
     private final SettingRegistry.Registration pitchSpeedSetting;
+    private final SettingRegistry.Registration requireForwardSetting;
     private final SettingRegistry.Registration requireHoldSetting;
     private final SettingRegistry.Registration minDistanceSetting;
     private final SettingRegistry.Registration maxDistanceSetting;
@@ -33,6 +34,7 @@ final class Minecraft189AimAssistFeature
     private final SettingRegistry.Registration pitchEnabledSetting;
     private final SettingPresentationRegistry.Registration yawSpeedPresentation;
     private final SettingPresentationRegistry.Registration pitchSpeedPresentation;
+    private final SettingPresentationRegistry.Registration requireForwardPresentation;
     private final SettingPresentationRegistry.Registration requireHoldPresentation;
     private final SettingPresentationRegistry.Registration minDistancePresentation;
     private final SettingPresentationRegistry.Registration maxDistancePresentation;
@@ -45,6 +47,7 @@ final class Minecraft189AimAssistFeature
     private final SettingPresentationRegistry.Registration pitchEnabledPresentation;
     private final ModuleSettingRegistry.Registration yawSpeedBinding;
     private final ModuleSettingRegistry.Registration pitchSpeedBinding;
+    private final ModuleSettingRegistry.Registration requireForwardBinding;
     private final ModuleSettingRegistry.Registration requireHoldBinding;
     private final ModuleSettingRegistry.Registration minDistanceBinding;
     private final ModuleSettingRegistry.Registration maxDistanceBinding;
@@ -64,6 +67,7 @@ final class Minecraft189AimAssistFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration yawSpeedSetting,
             final SettingRegistry.Registration pitchSpeedSetting,
+            final SettingRegistry.Registration requireForwardSetting,
             final SettingRegistry.Registration requireHoldSetting,
             final SettingRegistry.Registration minDistanceSetting,
             final SettingRegistry.Registration maxDistanceSetting,
@@ -76,6 +80,7 @@ final class Minecraft189AimAssistFeature
             final SettingRegistry.Registration pitchEnabledSetting,
             final SettingPresentationRegistry.Registration yawSpeedPresentation,
             final SettingPresentationRegistry.Registration pitchSpeedPresentation,
+            final SettingPresentationRegistry.Registration requireForwardPresentation,
             final SettingPresentationRegistry.Registration requireHoldPresentation,
             final SettingPresentationRegistry.Registration minDistancePresentation,
             final SettingPresentationRegistry.Registration maxDistancePresentation,
@@ -88,6 +93,7 @@ final class Minecraft189AimAssistFeature
             final SettingPresentationRegistry.Registration pitchEnabledPresentation,
             final ModuleSettingRegistry.Registration yawSpeedBinding,
             final ModuleSettingRegistry.Registration pitchSpeedBinding,
+            final ModuleSettingRegistry.Registration requireForwardBinding,
             final ModuleSettingRegistry.Registration requireHoldBinding,
             final ModuleSettingRegistry.Registration minDistanceBinding,
             final ModuleSettingRegistry.Registration maxDistanceBinding,
@@ -104,6 +110,7 @@ final class Minecraft189AimAssistFeature
         this.presentation = presentation;
         this.yawSpeedSetting = yawSpeedSetting;
         this.pitchSpeedSetting = pitchSpeedSetting;
+        this.requireForwardSetting = requireForwardSetting;
         this.requireHoldSetting = requireHoldSetting;
         this.minDistanceSetting = minDistanceSetting;
         this.maxDistanceSetting = maxDistanceSetting;
@@ -116,6 +123,7 @@ final class Minecraft189AimAssistFeature
         this.pitchEnabledSetting = pitchEnabledSetting;
         this.yawSpeedPresentation = yawSpeedPresentation;
         this.pitchSpeedPresentation = pitchSpeedPresentation;
+        this.requireForwardPresentation = requireForwardPresentation;
         this.requireHoldPresentation = requireHoldPresentation;
         this.minDistancePresentation = minDistancePresentation;
         this.maxDistancePresentation = maxDistancePresentation;
@@ -128,6 +136,7 @@ final class Minecraft189AimAssistFeature
         this.pitchEnabledPresentation = pitchEnabledPresentation;
         this.yawSpeedBinding = yawSpeedBinding;
         this.pitchSpeedBinding = pitchSpeedBinding;
+        this.requireForwardBinding = requireForwardBinding;
         this.requireHoldBinding = requireHoldBinding;
         this.minDistanceBinding = minDistanceBinding;
         this.maxDistanceBinding = maxDistanceBinding;
@@ -154,6 +163,7 @@ final class Minecraft189AimAssistFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration yawSpeedSetting = null;
         SettingRegistry.Registration pitchSpeedSetting = null;
+        SettingRegistry.Registration requireForwardSetting = null;
         SettingRegistry.Registration requireHoldSetting = null;
         SettingRegistry.Registration minDistanceSetting = null;
         SettingRegistry.Registration maxDistanceSetting = null;
@@ -166,6 +176,7 @@ final class Minecraft189AimAssistFeature
         SettingRegistry.Registration pitchEnabledSetting = null;
         SettingPresentationRegistry.Registration yawSpeedPresentation = null;
         SettingPresentationRegistry.Registration pitchSpeedPresentation = null;
+        SettingPresentationRegistry.Registration requireForwardPresentation = null;
         SettingPresentationRegistry.Registration requireHoldPresentation = null;
         SettingPresentationRegistry.Registration minDistancePresentation = null;
         SettingPresentationRegistry.Registration maxDistancePresentation = null;
@@ -178,6 +189,7 @@ final class Minecraft189AimAssistFeature
         SettingPresentationRegistry.Registration pitchEnabledPresentation = null;
         ModuleSettingRegistry.Registration yawSpeedBinding = null;
         ModuleSettingRegistry.Registration pitchSpeedBinding = null;
+        ModuleSettingRegistry.Registration requireForwardBinding = null;
         ModuleSettingRegistry.Registration requireHoldBinding = null;
         ModuleSettingRegistry.Registration minDistanceBinding = null;
         ModuleSettingRegistry.Registration maxDistanceBinding = null;
@@ -207,6 +219,9 @@ final class Minecraft189AimAssistFeature
             pitchSpeedSetting =
                     settings.register(
                             module.pitchSpeedSetting());
+            requireForwardSetting =
+                    settings.register(
+                            module.requireForwardSetting());
             requireHoldSetting =
                     settings.register(
                             module.requireHoldSetting());
@@ -259,6 +274,13 @@ final class Minecraft189AimAssistFeature
                                             Minecraft189AimAssistModule.MINIMUM_SPEED,
                                             Minecraft189AimAssistModule.MAXIMUM_SPEED,
                                             0.5D)));
+            requireForwardPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189AimAssistModule.REQUIRE_FORWARD_SETTING_ID,
+                                    "Require Forward",
+                                    SettingValueKind.BOOLEAN,
+                                    18));
             requireHoldPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -369,6 +391,12 @@ final class Minecraft189AimAssistFeature
                                     Minecraft189AimAssistModule.ID,
                                     Minecraft189AimAssistModule.PITCH_SPEED_SETTING_ID,
                                     10));
+            requireForwardBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189AimAssistModule.ID,
+                                    Minecraft189AimAssistModule.REQUIRE_FORWARD_SETTING_ID,
+                                    18));
             requireHoldBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -437,6 +465,7 @@ final class Minecraft189AimAssistFeature
                     presentation,
                     yawSpeedSetting,
                     pitchSpeedSetting,
+                    requireForwardSetting,
                     requireHoldSetting,
                     minDistanceSetting,
                     maxDistanceSetting,
@@ -449,6 +478,7 @@ final class Minecraft189AimAssistFeature
                     pitchEnabledSetting,
                     yawSpeedPresentation,
                     pitchSpeedPresentation,
+                    requireForwardPresentation,
                     requireHoldPresentation,
                     minDistancePresentation,
                     maxDistancePresentation,
@@ -461,6 +491,7 @@ final class Minecraft189AimAssistFeature
                     pitchEnabledPresentation,
                     yawSpeedBinding,
                     pitchSpeedBinding,
+                    requireForwardBinding,
                     requireHoldBinding,
                     minDistanceBinding,
                     maxDistanceBinding,
@@ -482,6 +513,7 @@ final class Minecraft189AimAssistFeature
             closeQuietly(maxDistanceBinding, failure);
             closeQuietly(minDistanceBinding, failure);
             closeQuietly(requireHoldBinding, failure);
+            closeQuietly(requireForwardBinding, failure);
             closeQuietly(pitchSpeedBinding, failure);
             closeQuietly(yawSpeedBinding, failure);
             closeQuietly(pitchEnabledPresentation, failure);
@@ -494,6 +526,7 @@ final class Minecraft189AimAssistFeature
             closeQuietly(maxDistancePresentation, failure);
             closeQuietly(minDistancePresentation, failure);
             closeQuietly(requireHoldPresentation, failure);
+            closeQuietly(requireForwardPresentation, failure);
             closeQuietly(pitchSpeedPresentation, failure);
             closeQuietly(yawSpeedPresentation, failure);
             closeQuietly(pitchEnabledSetting, failure);
@@ -506,6 +539,7 @@ final class Minecraft189AimAssistFeature
             closeQuietly(maxDistanceSetting, failure);
             closeQuietly(minDistanceSetting, failure);
             closeQuietly(requireHoldSetting, failure);
+            closeQuietly(requireForwardSetting, failure);
             closeQuietly(pitchSpeedSetting, failure);
             closeQuietly(yawSpeedSetting, failure);
             closeQuietly(presentation, failure);
@@ -551,6 +585,7 @@ final class Minecraft189AimAssistFeature
         failure = close(maxDistanceBinding, failure);
         failure = close(minDistanceBinding, failure);
         failure = close(requireHoldBinding, failure);
+        failure = close(requireForwardBinding, failure);
         failure = close(pitchSpeedBinding, failure);
         failure = close(yawSpeedBinding, failure);
         failure = close(pitchEnabledPresentation, failure);
@@ -563,6 +598,7 @@ final class Minecraft189AimAssistFeature
         failure = close(maxDistancePresentation, failure);
         failure = close(minDistancePresentation, failure);
         failure = close(requireHoldPresentation, failure);
+        failure = close(requireForwardPresentation, failure);
         failure = close(pitchSpeedPresentation, failure);
         failure = close(yawSpeedPresentation, failure);
         failure = close(pitchEnabledSetting, failure);
@@ -575,6 +611,7 @@ final class Minecraft189AimAssistFeature
         failure = close(maxDistanceSetting, failure);
         failure = close(minDistanceSetting, failure);
         failure = close(requireHoldSetting, failure);
+        failure = close(requireForwardSetting, failure);
         failure = close(pitchSpeedSetting, failure);
         failure = close(yawSpeedSetting, failure);
         failure = close(presentation, failure);

@@ -12,6 +12,8 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.yawSpeed";
     public static final String PITCH_SPEED_SETTING_ID =
             "combat.aimAssist.pitchSpeed";
+    public static final String REQUIRE_FORWARD_SETTING_ID =
+            "combat.aimAssist.requireForward";
     public static final String REQUIRE_HOLD_SETTING_ID =
             "combat.aimAssist.requireHold";
     public static final String MIN_DISTANCE_SETTING_ID =
@@ -86,6 +88,12 @@ public final class Minecraft189AimAssistModule
                     DEFAULT_PITCH_SPEED,
                     Minecraft189AimAssistModule::validSpeed,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> requireForward =
+            new Setting<Boolean>(
+                    REQUIRE_FORWARD_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private final Setting<Boolean> requireHold =
             new Setting<Boolean>(
                     REQUIRE_HOLD_SETTING_ID,
@@ -162,6 +170,10 @@ public final class Minecraft189AimAssistModule
         return pitchSpeed;
     }
 
+    public Setting<Boolean> requireForwardSetting() {
+        return requireForward;
+    }
+
     public Setting<Boolean> requireHoldSetting() {
         return requireHold;
     }
@@ -217,6 +229,15 @@ public final class Minecraft189AimAssistModule
             final Minecraft189PlayerRotationState.Snapshot rotation,
             final Minecraft189TargetRotationState.Snapshot target,
             final boolean leftButtonHeld) {
+        return apply(player, rotation, target, leftButtonHeld, false);
+    }
+
+    synchronized boolean apply(
+            final Minecraft189PlayerRotationControl player,
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final Minecraft189TargetRotationState.Snapshot target,
+            final boolean leftButtonHeld,
+            final boolean forwardHeld) {
         if (!enabled
                 || (!yawEnabled.get().booleanValue()
                         && !pitchEnabled.get().booleanValue())
@@ -238,7 +259,9 @@ public final class Minecraft189AimAssistModule
                         target,
                         maxPitchFov.get().doubleValue())
                 || (requireHold.get().booleanValue()
-                        && !leftButtonHeld)) {
+                        && !leftButtonHeld)
+                || (requireForward.get().booleanValue()
+                        && !forwardHeld)) {
             return false;
         }
 
