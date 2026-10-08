@@ -14,6 +14,8 @@ public final class Minecraft189AutoClickerModule
             "combat.autoClicker.minCps";
     public static final String MAX_CPS_SETTING_ID =
             "combat.autoClicker.maxCps";
+    public static final String REQUIRE_FORWARD_SETTING_ID =
+            "combat.autoClicker.requireForward";
     public static final String REQUIRE_HOLD_SETTING_ID =
             "combat.autoClicker.requireHold";
 
@@ -33,6 +35,12 @@ public final class Minecraft189AutoClickerModule
                     value -> value >= 1
                             && value <= TICKS_PER_SECOND,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> requireForward =
+            new Setting<Boolean>(
+                    REQUIRE_FORWARD_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private final Setting<Boolean> requireHold =
             new Setting<Boolean>(
                     REQUIRE_HOLD_SETTING_ID,
@@ -57,6 +65,10 @@ public final class Minecraft189AutoClickerModule
         return maxCps;
     }
 
+    public Setting<Boolean> requireForwardSetting() {
+        return requireForward;
+    }
+
     public Setting<Boolean> requireHoldSetting() {
         return requireHold;
     }
@@ -75,9 +87,17 @@ public final class Minecraft189AutoClickerModule
 
     synchronized boolean shouldClick(
             final boolean leftButtonHeld) {
+        return shouldClick(leftButtonHeld, false);
+    }
+
+    synchronized boolean shouldClick(
+            final boolean leftButtonHeld,
+            final boolean forwardHeld) {
         if (!enabled
                 || (requireHold.get().booleanValue()
-                        && !leftButtonHeld)) {
+                        && !leftButtonHeld)
+                || (requireForward.get().booleanValue()
+                        && !forwardHeld)) {
             resetSchedule();
             return false;
         }
