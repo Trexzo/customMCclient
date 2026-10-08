@@ -18,6 +18,13 @@ public final class Minecraft189WTapModule
             "combat.wTap.requireForward";
     public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
             "combat.wTap.pauseWhileSneaking";
+    public static final String REQUIRE_NEARBY_PLAYER_SETTING_ID =
+            "combat.wTap.requireNearbyPlayer";
+    public static final String MAX_PLAYER_DISTANCE_SETTING_ID =
+            "combat.wTap.maxPlayerDistance";
+    public static final double DEFAULT_MAX_PLAYER_DISTANCE = 4.0D;
+    public static final double MINIMUM_MAX_PLAYER_DISTANCE = 0.5D;
+    public static final double MAXIMUM_MAX_PLAYER_DISTANCE = 16.0D;
     public static final int DEFAULT_COOLDOWN_TICKS =
             0;
     public static final int MINIMUM_COOLDOWN_TICKS =
@@ -67,6 +74,21 @@ public final class Minecraft189WTapModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> requireNearbyPlayer =
+            new Setting<Boolean>(
+                    REQUIRE_NEARBY_PLAYER_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Double> maxPlayerDistance =
+            new Setting<Double>(
+                    MAX_PLAYER_DISTANCE_SETTING_ID,
+                    DEFAULT_MAX_PLAYER_DISTANCE,
+                    value -> value != null && Double.isFinite(value.doubleValue())
+                            && value >= MINIMUM_MAX_PLAYER_DISTANCE
+                            && value <= MAXIMUM_MAX_PLAYER_DISTANCE,
+                    SettingCodecs.DOUBLE);
+
     private boolean enabled;
     private boolean previousLeftButtonHeld;
     private int cooldownRemaining;
@@ -97,6 +119,14 @@ public final class Minecraft189WTapModule
         return pauseWhileSneaking;
     }
 
+    public Setting<Boolean> requireNearbyPlayerSetting() {
+        return requireNearbyPlayer;
+    }
+
+    public Setting<Double> maxPlayerDistanceSetting() {
+        return maxPlayerDistance;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -114,6 +144,15 @@ public final class Minecraft189WTapModule
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean leftButtonHeld,
             final boolean forwardHeld) {
+        return apply(player, movement, leftButtonHeld, forwardHeld, null);
+    }
+
+    synchronized boolean apply(
+            final Minecraft189PlayerSprintControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean leftButtonHeld,
+            final boolean forwardHeld,
+            final Minecraft189NearestPlayerTargetState.Snapshot nearestPlayer) {
         if (!enabled
                 || player == null
                 || movement == null
@@ -127,6 +166,20 @@ public final class Minecraft189WTapModule
             // A pause cancels even an in-flight multi-tick reset. Preserve
             // the physical attack-button edge so holding attack while
             // leaving sneak does not create a delayed sprint reset.
+            resetState();
+            previousLeftButtonHeld = leftButtonHeld;
+            return false;
+        }
+
+        if (requireNearbyPlayer.get().booleanValue()
+                && (nearestPlayer == null
+                    || !nearestPlayer.available()
+                    || !nearestPlayer.found()
+                    || !Double.isFinite(nearestPlayer.distance())
+                    || nearestPlayer.distance() > maxPlayerDistance.get().doubleValue())) {
+            // Missing, out-of-range, or stale nearest-player evidence must
+            // cancel an in-flight reset and preserve the physical edge.
+            // A held attack cannot retrigger when a target reappears.
             resetState();
             previousLeftButtonHeld = leftButtonHeld;
             return false;
