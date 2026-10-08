@@ -85,6 +85,28 @@ final class Minecraft189NearbyPlayersModuleTest {
     }
 
     @Test
+    void yawProjectionUsesForwardAtTopAndRightAtScreenRight() {
+        final float[] south = Minecraft189NearbyPlayersModule.projectRadar(
+                0.0D, 5.0D, 0.0F, 5);
+        assertEquals(0.0F, south[0], 0.0001F);
+        assertEquals(-46.0F, south[1], 0.0001F);
+        final float[] west = Minecraft189NearbyPlayersModule.projectRadar(
+                0.0D, 5.0D, 90.0F, 5);
+        assertEquals(46.0F, west[0], 0.0001F);
+        assertEquals(0.0F, west[1], 0.0001F);
+        final float[] east = Minecraft189NearbyPlayersModule.projectRadar(
+                5.0D, 0.0D, 0.0F, 5);
+        assertEquals(46.0F, east[0], 0.0001F);
+        assertEquals(0.0F, east[1], 0.0001F);
+        assertNull(Minecraft189NearbyPlayersModule.projectRadar(
+                Double.NaN, 0.0D, 0.0F, 5));
+        assertNull(Minecraft189NearbyPlayersModule.projectRadar(
+                0.0D, 1.0D, Float.NaN, 5));
+        assertNull(Minecraft189NearbyPlayersModule.projectRadar(
+                0.0D, 1.0D, 0.0F, 0));
+    }
+
+    @Test
     void visualHudReadsMappedSnapshotsAndUnregistersCleanly() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -106,6 +128,7 @@ final class Minecraft189NearbyPlayersModuleTest {
             assertEquals(ModuleState.DISABLED,
                     controller.stateOf(Minecraft189NearbyPlayersModule.ID));
             assertFalse(radar.renderPassInstalled());
+            assertFalse(radar.showRadarSetting().get().booleanValue());
             runtime.renderHud(0L, 0.0F);
             assertTrue(host.texts.isEmpty());
             radar.xSetting().set(25);
@@ -117,8 +140,9 @@ final class Minecraft189NearbyPlayersModuleTest {
             assertTrue(host.texts.isEmpty());
 
             runtime.playerPositionState().update(0, 0, 0);
+            // 3-4-5 horizontal target at x=3,z=4, not x=3,y=4.
             runtime.worldEntityPositionState().update(new double[]{
-                    0, 0, 0, 3, 4, 0, 6, 0, 0
+                    0, 0, 0, 3, 0, 4, 6, 0, 0
             });
             runtime.worldEntityKindState().update(new int[]{
                     LOCAL, REMOTE, REMOTE
@@ -145,9 +169,41 @@ final class Minecraft189NearbyPlayersModuleTest {
             runtime.renderHud(3L, 0.0F);
             assertEquals("PLAYERS  0 / 1m", host.texts.get(2));
             assertEquals("NEAREST  --", host.texts.get(3));
+            // With map mode ON but no mapped yaw, preserve count card
+            // rather than rendering an invented facing direction.
+            radar.showRadarSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded()
+                    .get(Minecraft189NearbyPlayersModule.SHOW_RADAR_SETTING_ID));
+            radar.radiusSetting().set(5);
+            runtime.renderHud(41L, 0.0F);
+            assertEquals(6, host.texts.size());
+            assertEquals(0, host.markerXs.size());
+            assertEquals(42.0F, host.lastCardHeight, 0.001F);
+
+            // Existing yaw authority projects a real forward/right blip.
+            runtime.playerRotationState().update(0.0F, 0.0F);
+            runtime.renderHud(42L, 0.0F);
+            assertEquals(8, host.texts.size());
+            assertEquals(1, host.markerXs.size());
+            assertEquals(152.0F, host.lastExpandedHeight, 0.001F);
+            assertEquals(128.6F, host.markerXs.get(0), 0.001F);
+            assertEquals(257.2F, host.markerYs.get(0), 0.001F);
+
+            runtime.playerRotationState().update(90.0F, 0.0F);
+            runtime.renderHud(43L, 0.0F);
+            assertEquals(2, host.markerXs.size());
+            assertEquals(137.8F, host.markerXs.get(1), 0.001F);
+            assertEquals(321.6F, host.markerYs.get(1), 0.001F);
+
+            // A missing yaw snapshot makes the radar map disappear.
+            runtime.playerRotationState().clear();
+            runtime.renderHud(44L, 0.0F);
+            assertEquals(2, host.markerXs.size());
+            radar.showRadarSetting().set(Boolean.FALSE);
+
             runtime.worldEntityPositionState().clear();
             runtime.renderHud(4L, 0.0F);
-            assertEquals(4, host.texts.size());
+            assertEquals(12, host.texts.size());
 
             controller.disable(Minecraft189NearbyPlayersModule.ID);
             assertFalse(radar.renderPassInstalled());
@@ -161,12 +217,16 @@ final class Minecraft189NearbyPlayersModuleTest {
         assertNull(settings.find(Minecraft189NearbyPlayersModule.X_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.Y_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.RADIUS_SETTING_ID));
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_RADAR_SETTING_ID));
     }
 
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private final java.util.List<String> texts = new java.util.ArrayList<String>();
         private int roundedRects;
+        private float lastExpandedHeight;
+        private final java.util.List<Float> markerXs = new java.util.ArrayList<Float>();
+        private final java.util.List<Float> markerYs = new java.util.ArrayList<Float>();
         private float lastCardWidth;
         private float lastCardHeight;
         private int begins;
@@ -212,9 +272,14 @@ final class Minecraft189NearbyPlayersModuleTest {
                 final float height,
                 final float radius,
                 final int argb) {
-            if (roundedRects % 2 == 0) {
+            if (width == 156.0F) {
                 lastCardWidth = width;
                 lastCardHeight = height;
+                if (height == 152.0F) lastExpandedHeight = height;
+            }
+            if (width == 4.0F && height == 4.0F) {
+                markerXs.add(x);
+                markerYs.add(y);
             }
             roundedRects++;
         }
