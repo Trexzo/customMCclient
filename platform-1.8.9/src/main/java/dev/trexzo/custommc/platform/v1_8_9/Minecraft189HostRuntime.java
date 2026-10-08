@@ -274,6 +274,8 @@ public final class Minecraft189HostRuntime
                             movementSpeedTracker,
                             nearestPlayerTargetState,
                             targetRotationState,
+                            worldEntityPositionState,
+                            worldEntityKindState,
                             services.require(
                                     RenderPipeline.class),
                             hostCallbacks);
