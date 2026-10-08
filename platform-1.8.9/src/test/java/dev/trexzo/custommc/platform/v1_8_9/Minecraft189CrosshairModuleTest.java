@@ -24,6 +24,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189CrosshairModuleTest {
@@ -80,6 +81,8 @@ final class Minecraft189CrosshairModuleTest {
             crosshair.gapSetting().set(3);
             crosshair.thicknessSetting().set(2);
             crosshair.dotSetting().set(Boolean.TRUE);
+            assertEquals(Boolean.FALSE, crosshair.sprintExpansionSetting().get());
+            assertEquals(Integer.valueOf(4), crosshair.sprintGapBonusSetting().get());
 
             controller.enable(
                     Minecraft189CrosshairModule.ID);
@@ -119,6 +122,62 @@ final class Minecraft189CrosshairModuleTest {
                             .get(
                                     Minecraft189CrosshairModule.DOT_SETTING_ID));
 
+            // Sprinting must not alter the default crosshair while expansion is OFF.
+            host.rectangles.clear();
+            runtime.playerMovementState().update(true, false, true);
+            runtime.renderHud(1L, 0.0F);
+            assertEquals(Arrays.asList(
+                    "311.0,179.0,6.0,2.0",
+                    "323.0,179.0,6.0,2.0",
+                    "319.0,171.0,2.0,6.0",
+                    "319.0,183.0,2.0,6.0",
+                    "319.0,179.0,2.0,2.0"), host.rectangles);
+
+            crosshair.sprintExpansionSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.SPRINT_EXPANSION_SETTING_ID));
+            assertEquals("4", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.SPRINT_GAP_BONUS_SETTING_ID));
+            host.rectangles.clear();
+            runtime.renderHud(2L, 0.0F);
+            assertEquals(Arrays.asList(
+                    "307.0,179.0,6.0,2.0",
+                    "327.0,179.0,6.0,2.0",
+                    "319.0,167.0,2.0,6.0",
+                    "319.0,187.0,2.0,6.0",
+                    "319.0,179.0,2.0,2.0"), host.rectangles);
+
+            crosshair.sprintGapBonusSetting().set(2);
+            assertEquals("2", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.SPRINT_GAP_BONUS_SETTING_ID));
+            host.rectangles.clear();
+            runtime.renderHud(3L, 0.0F);
+            assertEquals(Arrays.asList(
+                    "309.0,179.0,6.0,2.0",
+                    "325.0,179.0,6.0,2.0",
+                    "319.0,169.0,2.0,6.0",
+                    "319.0,185.0,2.0,6.0",
+                    "319.0,179.0,2.0,2.0"), host.rectangles);
+
+            // Walking, missing authority and toggle OFF restore base geometry.
+            runtime.playerMovementState().update(true, false, false);
+            host.rectangles.clear();
+            runtime.renderHud(4L, 0.0F);
+            assertEquals("311.0,179.0,6.0,2.0", host.rectangles.get(0));
+            runtime.playerMovementState().clear();
+            host.rectangles.clear();
+            runtime.renderHud(5L, 0.0F);
+            assertEquals("311.0,179.0,6.0,2.0", host.rectangles.get(0));
+            runtime.playerMovementState().update(true, false, true);
+            crosshair.sprintExpansionSetting().set(Boolean.FALSE);
+            host.rectangles.clear();
+            runtime.renderHud(6L, 0.0F);
+            assertEquals("311.0,179.0,6.0,2.0", host.rectangles.get(0));
+            assertThrows(IllegalArgumentException.class,
+                    () -> crosshair.sprintGapBonusSetting().set(0));
+            assertThrows(IllegalArgumentException.class,
+                    () -> crosshair.sprintGapBonusSetting().set(13));
+
             host.rectangles.clear();
             controller.disable(
                     Minecraft189CrosshairModule.ID);
@@ -149,6 +208,33 @@ final class Minecraft189CrosshairModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189CrosshairModule.DOT_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189CrosshairModule.SPRINT_EXPANSION_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189CrosshairModule.SPRINT_GAP_BONUS_SETTING_ID));
+    }
+
+    @Test
+    void effectiveGapRequiresCertifiedSprintStateAndNeverInfersMovement() {
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        assertEquals(3.0F, Minecraft189CrosshairModule.effectiveGap(
+                3.0F, false, 4, null));
+        assertEquals(3.0F, Minecraft189CrosshairModule.effectiveGap(
+                3.0F, true, 4, null));
+        assertEquals(3.0F, Minecraft189CrosshairModule.effectiveGap(
+                3.0F, true, 4, movement.snapshot()));
+        movement.update(true, false, false);
+        assertEquals(3.0F, Minecraft189CrosshairModule.effectiveGap(
+                3.0F, true, 4, movement.snapshot()));
+        movement.update(false, false, true);
+        assertEquals(7.0F, Minecraft189CrosshairModule.effectiveGap(
+                3.0F, true, 4, movement.snapshot()));
+        assertEquals(3.0F, Minecraft189CrosshairModule.effectiveGap(
+                3.0F, false, 4, movement.snapshot()));
+        movement.clear();
+        assertEquals(3.0F, Minecraft189CrosshairModule.effectiveGap(
+                3.0F, true, 4, movement.snapshot()));
     }
 
     private static final class RecordingHost

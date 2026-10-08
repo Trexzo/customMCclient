@@ -1102,6 +1102,7 @@ public final class Minecraft189FeatureCatalog
                             moduleSettings,
                             settings,
                             settingPresentations,
+                            playerMovementState,
                             renderPipeline,
                             hostCallbacks);
 

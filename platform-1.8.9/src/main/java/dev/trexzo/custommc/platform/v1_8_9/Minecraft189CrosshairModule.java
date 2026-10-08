@@ -24,6 +24,10 @@ public final class Minecraft189CrosshairModule
             "render.crosshair.thickness";
     public static final String DOT_SETTING_ID =
             "render.crosshair.dot";
+    public static final String SPRINT_EXPANSION_SETTING_ID =
+            "render.crosshair.sprintExpansion";
+    public static final String SPRINT_GAP_BONUS_SETTING_ID =
+            "render.crosshair.sprintGapBonus";
     public static final String RENDER_PASS_ID =
             "crosshair";
 
@@ -32,6 +36,7 @@ public final class Minecraft189CrosshairModule
 
     private final RenderPipeline renderPipeline;
     private final LegacyUiHostCallbacks hostCallbacks;
+    private final Minecraft189PlayerMovementState movementState;
     private final Setting<Integer> length =
             new Setting<Integer>(
                     LENGTH_SETTING_ID,
@@ -59,11 +64,27 @@ public final class Minecraft189CrosshairModule
                     Boolean.FALSE,
                     value -> true,
                     SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> sprintExpansion =
+            new Setting<Boolean>(
+                    SPRINT_EXPANSION_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> sprintGapBonus =
+            new Setting<Integer>(
+                    SPRINT_GAP_BONUS_SETTING_ID, 4,
+                    value -> value != null && value >= 1 && value <= 12,
+                    SettingCodecs.INTEGER);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189CrosshairModule(
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
+        this(renderPipeline, hostCallbacks, null);
+    }
+
+    public Minecraft189CrosshairModule(
+            final RenderPipeline renderPipeline,
+            final LegacyUiHostCallbacks hostCallbacks,
+            final Minecraft189PlayerMovementState movementState) {
         this.renderPipeline =
                 Objects.requireNonNull(
                         renderPipeline,
@@ -72,6 +93,7 @@ public final class Minecraft189CrosshairModule
                 Objects.requireNonNull(
                         hostCallbacks,
                         "hostCallbacks");
+        this.movementState = movementState;
     }
 
     @Override
@@ -93,6 +115,24 @@ public final class Minecraft189CrosshairModule
 
     public Setting<Boolean> dotSetting() {
         return dot;
+    }
+
+    public Setting<Boolean> sprintExpansionSetting() {
+        return sprintExpansion;
+    }
+
+    public Setting<Integer> sprintGapBonusSetting() {
+        return sprintGapBonus;
+    }
+
+    static float effectiveGap(final float baseGap,
+            final boolean expansionEnabled, final int bonus,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
+        if (!expansionEnabled || movement == null
+                || !movement.available() || !movement.sprinting()) {
+            return baseGap;
+        }
+        return baseGap + bonus;
     }
 
     @Override
@@ -156,7 +196,11 @@ public final class Minecraft189CrosshairModule
             final float lineLength =
                     length.get().floatValue();
             final float lineGap =
-                    gap.get().floatValue();
+                    effectiveGap(
+                            gap.get().floatValue(),
+                            sprintExpansion.get().booleanValue(),
+                            sprintGapBonus.get().intValue(),
+                            movementState == null ? null : movementState.snapshot());
             final float lineThickness =
                     thickness.get().floatValue();
             final float halfThickness =
