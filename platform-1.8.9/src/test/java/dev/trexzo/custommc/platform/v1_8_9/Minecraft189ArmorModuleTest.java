@@ -17,9 +17,13 @@ import dev.trexzo.custommc.platform.PlatformContext;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189ArmorModuleTest {
@@ -174,15 +178,83 @@ final class Minecraft189ArmorModuleTest {
             assertFalse(
                     snapshot.leggingsDurability()
                             .available());
+            assertFalse(armor.lowDurabilityWarningSetting().get().booleanValue());
+            assertEquals(Integer.valueOf(20), armor.warningPercentSetting().get());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189ArmorModule.LOW_DURABILITY_WARNING_SETTING_ID));
+            assertEquals("20", settings.snapshotEncoded().get(
+                    Minecraft189ArmorModule.WARNING_PERCENT_SETTING_ID));
             assertEquals(
                     180,
                     snapshot.bootsDurability()
                             .durabilityRemaining());
 
+            // A mixed, exact-slot test for zero, low, boundary, and unknown
+            // durability. Existing visuals remain a single line by default.
+            runtime.playerArmorState().update(
+                    true, true, true, true,
+                    armorItem(80, 100),
+                    null,
+                    armorItem(95, 100),
+                    armorItem(100, 100));
+            host.drawnTexts.clear();
+            host.drawnColors.clear();
+            runtime.renderHud(1L, 0.0F);
+            assertEquals(1, host.drawnTexts.size());
+            assertEquals(
+                    "Armor: 4/4 [H 0/100 | C 5/100 | L ? | B 20/100]",
+                    host.drawnTexts.get(0));
+
+            armor.lowDurabilityWarningSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189ArmorModule.LOW_DURABILITY_WARNING_SETTING_ID));
+            host.drawnTexts.clear();
+            host.drawnColors.clear();
+            runtime.renderHud(2L, 0.0F);
+            assertEquals(2, host.drawnTexts.size());
+            assertEquals("LOW ARMOR: H 0% | C 5% | B 20%",
+                    host.drawnTexts.get(1));
+            assertEquals(Integer.valueOf(0xFFFF6969), host.drawnColors.get(1));
+            assertEquals(40.0F, host.lastX);
+            assertEquals(224.0F, host.lastY);
+
+            armor.warningPercentSetting().set(5);
+            assertEquals("5", settings.snapshotEncoded().get(
+                    Minecraft189ArmorModule.WARNING_PERCENT_SETTING_ID));
+            host.drawnTexts.clear();
+            runtime.renderHud(3L, 0.0F);
+            assertEquals("LOW ARMOR: H 0% | C 5%", host.drawnTexts.get(1));
+            armor.warningPercentSetting().set(1);
+            host.drawnTexts.clear();
+            runtime.renderHud(4L, 0.0F);
+            assertEquals("LOW ARMOR: H 0%", host.drawnTexts.get(1));
+
+            // Non-damageable equipped slots are not false positives.
+            runtime.playerArmorState().update(
+                    true, true, true, true,
+                    armorItem(0, 0), null, armorItem(0, 100), armorItem(0, 0));
+            host.drawnTexts.clear();
+            runtime.renderHud(5L, 0.0F);
+            assertEquals(1, host.drawnTexts.size());
+            assertNull(Minecraft189ArmorModule.lowDurabilityTextFor(
+                    runtime.playerArmorState().snapshot(), 20));
+
+            armor.lowDurabilityWarningSetting().set(Boolean.FALSE);
+            runtime.playerArmorState().update(
+                    true, false, false, false,
+                    armorItem(100, 100), null, null, null);
+            host.drawnTexts.clear();
+            runtime.renderHud(6L, 0.0F);
+            assertEquals(1, host.drawnTexts.size());
+            assertThrows(IllegalArgumentException.class,
+                    () -> armor.warningPercentSetting().set(0));
+            assertThrows(IllegalArgumentException.class,
+                    () -> armor.warningPercentSetting().set(101));
+
             host.lastText = null;
             runtime.playerArmor(null);
             runtime.renderHud(
-                    1L,
+                    7L,
                     0.0F);
             assertNull(host.lastText);
 
@@ -203,6 +275,10 @@ final class Minecraft189ArmorModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189ArmorModule.Y_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189ArmorModule.LOW_DURABILITY_WARNING_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189ArmorModule.WARNING_PERCENT_SETTING_ID));
     }
 
     @Test
@@ -273,6 +349,8 @@ final class Minecraft189ArmorModuleTest {
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private String lastText;
+        private final List<String> drawnTexts = new ArrayList<String>();
+        private final List<Integer> drawnColors = new ArrayList<Integer>();
         private float lastX;
         private float lastY;
 
@@ -345,6 +423,8 @@ final class Minecraft189ArmorModuleTest {
                 final String text,
                 final int argb) {
             lastText = text;
+            drawnTexts.add(text);
+            drawnColors.add(Integer.valueOf(argb));
             lastX = x;
             lastY = y;
         }

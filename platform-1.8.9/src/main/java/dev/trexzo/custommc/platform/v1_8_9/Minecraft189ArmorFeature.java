@@ -23,10 +23,16 @@ final class Minecraft189ArmorFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration xSetting;
     private final SettingRegistry.Registration ySetting;
+    private final SettingRegistry.Registration lowDurabilityWarningSetting;
+    private final SettingRegistry.Registration warningPercentSetting;
     private final SettingPresentationRegistry.Registration xPresentation;
     private final SettingPresentationRegistry.Registration yPresentation;
+    private final SettingPresentationRegistry.Registration lowDurabilityWarningPresentation;
+    private final SettingPresentationRegistry.Registration warningPercentPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final ModuleSettingRegistry.Registration lowDurabilityWarningBinding;
+    private final ModuleSettingRegistry.Registration warningPercentBinding;
     private boolean closed;
 
     private Minecraft189ArmorFeature(
@@ -36,20 +42,32 @@ final class Minecraft189ArmorFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration xSetting,
             final SettingRegistry.Registration ySetting,
+            final SettingRegistry.Registration lowDurabilityWarningSetting,
+            final SettingRegistry.Registration warningPercentSetting,
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
+            final SettingPresentationRegistry.Registration lowDurabilityWarningPresentation,
+            final SettingPresentationRegistry.Registration warningPercentPresentation,
             final ModuleSettingRegistry.Registration xBinding,
-            final ModuleSettingRegistry.Registration yBinding) {
+            final ModuleSettingRegistry.Registration yBinding,
+            final ModuleSettingRegistry.Registration lowDurabilityWarningBinding,
+            final ModuleSettingRegistry.Registration warningPercentBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.xSetting = xSetting;
         this.ySetting = ySetting;
+        this.lowDurabilityWarningSetting = lowDurabilityWarningSetting;
+        this.warningPercentSetting = warningPercentSetting;
         this.xPresentation = xPresentation;
         this.yPresentation = yPresentation;
+        this.lowDurabilityWarningPresentation = lowDurabilityWarningPresentation;
+        this.warningPercentPresentation = warningPercentPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.lowDurabilityWarningBinding = lowDurabilityWarningBinding;
+        this.warningPercentBinding = warningPercentBinding;
     }
 
     static Minecraft189ArmorFeature install(
@@ -72,10 +90,16 @@ final class Minecraft189ArmorFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration xSetting = null;
         SettingRegistry.Registration ySetting = null;
+        SettingRegistry.Registration lowDurabilityWarningSetting = null;
+        SettingRegistry.Registration warningPercentSetting = null;
         SettingPresentationRegistry.Registration xPresentation = null;
         SettingPresentationRegistry.Registration yPresentation = null;
+        SettingPresentationRegistry.Registration lowDurabilityWarningPresentation = null;
+        SettingPresentationRegistry.Registration warningPercentPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        ModuleSettingRegistry.Registration lowDurabilityWarningBinding = null;
+        ModuleSettingRegistry.Registration warningPercentBinding = null;
 
         try {
             moduleRegistration =
@@ -95,6 +119,10 @@ final class Minecraft189ArmorFeature
             ySetting =
                     settings.register(
                             module.ySetting());
+            lowDurabilityWarningSetting = settings.register(
+                    module.lowDurabilityWarningSetting());
+            warningPercentSetting = settings.register(
+                    module.warningPercentSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -117,6 +145,15 @@ final class Minecraft189ArmorFeature
                                             0.0D,
                                             4096.0D,
                                             1.0D)));
+            lowDurabilityWarningPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189ArmorModule.LOW_DURABILITY_WARNING_SETTING_ID,
+                            "Low Durability Warning", SettingValueKind.BOOLEAN, 20));
+            warningPercentPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189ArmorModule.WARNING_PERCENT_SETTING_ID,
+                            "Warning Below %", SettingValueKind.INTEGER, 30,
+                            new SettingNumericSpec(1.0D, 100.0D, 1.0D)));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -130,6 +167,15 @@ final class Minecraft189ArmorFeature
                                     Minecraft189ArmorModule.Y_SETTING_ID,
                                     10));
 
+            lowDurabilityWarningBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189ArmorModule.ID,
+                            Minecraft189ArmorModule.LOW_DURABILITY_WARNING_SETTING_ID, 20));
+            warningPercentBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189ArmorModule.ID,
+                            Minecraft189ArmorModule.WARNING_PERCENT_SETTING_ID, 30));
+
             return new Minecraft189ArmorFeature(
                     controller,
                     module,
@@ -137,11 +183,23 @@ final class Minecraft189ArmorFeature
                     presentation,
                     xSetting,
                     ySetting,
+                    lowDurabilityWarningSetting,
+                    warningPercentSetting,
                     xPresentation,
                     yPresentation,
+                    lowDurabilityWarningPresentation,
+                    warningPercentPresentation,
                     xBinding,
-                    yBinding);
+                    yBinding,
+                    lowDurabilityWarningBinding,
+                    warningPercentBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(warningPercentBinding, failure);
+            closeQuietly(lowDurabilityWarningBinding, failure);
+            closeQuietly(warningPercentPresentation, failure);
+            closeQuietly(lowDurabilityWarningPresentation, failure);
+            closeQuietly(warningPercentSetting, failure);
+            closeQuietly(lowDurabilityWarningSetting, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
             closeQuietly(yPresentation, failure);
@@ -181,6 +239,12 @@ final class Minecraft189ArmorFeature
             failure = closeFailure;
         }
 
+        failure = close(warningPercentBinding, failure);
+        failure = close(lowDurabilityWarningBinding, failure);
+        failure = close(warningPercentPresentation, failure);
+        failure = close(lowDurabilityWarningPresentation, failure);
+        failure = close(warningPercentSetting, failure);
+        failure = close(lowDurabilityWarningSetting, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
         failure = close(yPresentation, failure);

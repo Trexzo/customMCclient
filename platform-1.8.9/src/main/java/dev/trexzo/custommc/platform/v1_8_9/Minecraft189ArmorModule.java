@@ -21,11 +21,17 @@ public final class Minecraft189ArmorModule
             "render.armor.x";
     public static final String Y_SETTING_ID =
             "render.armor.y";
+    public static final String LOW_DURABILITY_WARNING_SETTING_ID =
+            "render.armor.lowDurabilityWarning";
+    public static final String WARNING_PERCENT_SETTING_ID =
+            "render.armor.warningPercent";
     public static final String RENDER_PASS_ID =
             "armor";
 
     private static final int PRIORITY = 129;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
+    private static final int WARNING_ARGB = 0xFFFF6969;
+    private static final float WARNING_LINE_SPACING = 12.0F;
 
     private final Minecraft189PlayerArmorState armorState;
     private final RenderPipeline renderPipeline;
@@ -43,6 +49,18 @@ public final class Minecraft189ArmorModule
                     212,
                     value -> value >= 0
                             && value <= 4096,
+                    SettingCodecs.INTEGER);
+    private final Setting<Boolean> lowDurabilityWarning =
+            new Setting<Boolean>(
+                    LOW_DURABILITY_WARNING_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Integer> warningPercent =
+            new Setting<Integer>(
+                    WARNING_PERCENT_SETTING_ID,
+                    20,
+                    value -> value != null && value >= 1 && value <= 100,
                     SettingCodecs.INTEGER);
     private RenderPipeline.Registration renderRegistration;
 
@@ -75,6 +93,14 @@ public final class Minecraft189ArmorModule
 
     public Setting<Integer> ySetting() {
         return y;
+    }
+
+    public Setting<Boolean> lowDurabilityWarningSetting() {
+        return lowDurabilityWarning;
+    }
+
+    public Setting<Integer> warningPercentSetting() {
+        return warningPercent;
     }
 
     @Override
@@ -153,6 +179,47 @@ public final class Minecraft189ArmorModule
                 + "]";
     }
 
+    static String lowDurabilityTextFor(
+            final Minecraft189PlayerArmorState.Snapshot armor,
+            final int thresholdPercent) {
+        Objects.requireNonNull(armor, "armor");
+        if (!armor.available() || thresholdPercent < 1 || thresholdPercent > 100) {
+            return null;
+        }
+        final StringBuilder warning = new StringBuilder("LOW ARMOR: ");
+        appendLowDurability(warning, armor.helmet(), "H",
+                armor.helmetDurability(), thresholdPercent);
+        appendLowDurability(warning, armor.chestplate(), "C",
+                armor.chestplateDurability(), thresholdPercent);
+        appendLowDurability(warning, armor.leggings(), "L",
+                armor.leggingsDurability(), thresholdPercent);
+        appendLowDurability(warning, armor.boots(), "B",
+                armor.bootsDurability(), thresholdPercent);
+        return warning.length() == "LOW ARMOR: ".length()
+                ? null : warning.toString();
+    }
+
+    private static void appendLowDurability(
+            final StringBuilder warning,
+            final boolean equipped,
+            final String slot,
+            final Minecraft189PlayerArmorState.SlotDurability durability,
+            final int thresholdPercent) {
+        if (!equipped || !durability.damageable()) {
+            return;
+        }
+        final long remaining = durability.durabilityRemaining();
+        final long total = durability.maxDamage();
+        if (remaining * 100L > total * thresholdPercent) {
+            return;
+        }
+        if (warning.length() > "LOW ARMOR: ".length()) {
+            warning.append(" | ");
+        }
+        warning.append(slot).append(" ")
+                .append(remaining * 100L / total).append("%");
+    }
+
     private static String slot(
             final boolean equipped,
             final String label) {
@@ -226,6 +293,18 @@ public final class Minecraft189ArmorModule
                         textFor(
                                 armor),
                         TEXT_ARGB);
+                if (lowDurabilityWarning.get().booleanValue()) {
+                    final String warning = lowDurabilityTextFor(
+                            armor, warningPercent.get().intValue());
+                    if (warning != null) {
+                        hostCallbacks.drawText(
+                                UiFonts.DEFAULT,
+                                x.get().floatValue(),
+                                y.get().floatValue() + WARNING_LINE_SPACING,
+                                warning,
+                                WARNING_ARGB);
+                    }
+                }
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
                 throw drawFailure;
