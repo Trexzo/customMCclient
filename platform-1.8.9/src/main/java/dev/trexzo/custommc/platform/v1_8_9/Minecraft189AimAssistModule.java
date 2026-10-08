@@ -296,16 +296,7 @@ public final class Minecraft189AimAssistModule
                         target,
                         minDistance.get().doubleValue(),
                         maxDistance.get().doubleValue())
-                || (yawEnabled.get().booleanValue()
-                        && !withinFov(
-                                rotation,
-                                target,
-                                maxFov.get().doubleValue()))
-                || (pitchEnabled.get().booleanValue()
-                        && !withinPitchFov(
-                                rotation,
-                                target,
-                                maxPitchFov.get().doubleValue()))
+                || !targetWithinFov(rotation, target)
                 || (requireHold.get().booleanValue()
                         && !leftButtonHeld)
                 || (requireForward.get().booleanValue()
@@ -375,6 +366,23 @@ public final class Minecraft189AimAssistModule
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    // Single FOV authority shared by final rotation eligibility and
+    // candidate filtering so offsets, wrapping, and disabled axes agree.
+    synchronized boolean targetWithinFov(
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final Minecraft189TargetRotationState.Snapshot target) {
+        return rotation != null
+                && rotation.available()
+                && target != null
+                && target.available()
+                && (!yawEnabled.get().booleanValue()
+                        || withinFov(rotation, target,
+                                maxFov.get().doubleValue()))
+                && (!pitchEnabled.get().booleanValue()
+                        || withinPitchFov(rotation, target,
+                                maxPitchFov.get().doubleValue()));
     }
 
     private float effectiveYaw(final float rawYaw) {

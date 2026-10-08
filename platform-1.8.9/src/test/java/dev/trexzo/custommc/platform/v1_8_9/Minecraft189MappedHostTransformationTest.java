@@ -5451,6 +5451,127 @@ final class Minecraft189MappedHostTransformationTest {
                             Minecraft189AimAssistModule.DEFAULT_MAX_DISTANCE);
             runTick.invoke(minecraft);
 
+            // M226: with restricted yaw FOV, ignore the nearest player
+            // outside the crosshair cone and aim at the farther eligible player.
+            worldClass.getField("f").set(world,
+                    java.util.Arrays.asList(player, tooCloseEntity, nearbyEntity));
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxFovSetting().set(10.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(1, runtime.requireHostRuntime()
+                    .nearestPlayerTargetState().snapshot().entityIndex());
+            assertEquals(-67.833654F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(11.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            // Offset contributes to selection and boundary-inclusive FOV.
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawOffsetSetting().set(30.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-60.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawOffsetSetting().set(0.0D);
+
+            // Wide FOV restores unchanged M225 nearest-in-range selection.
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxFovSetting().set(180.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-80.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+
+            // Restricted pitch FOV also falls through a closer high target.
+            // Replace the world entity rather than mutating the previous
+            // snapshot's backing object: world readers must see new identity.
+            final Object raisedEntity =
+                    remotePlayerClass.getDeclaredConstructor().newInstance();
+            remotePlayerClass.getField("s").setDouble(raisedEntity, 125.25D);
+            remotePlayerClass.getField("t").setDouble(raisedEntity, 66.5D);
+            remotePlayerClass.getField("u").setDouble(raisedEntity, -42.75D);
+            worldClass.getField("f").set(world,
+                    java.util.Arrays.asList(player, raisedEntity, nearbyEntity));
+            playerClass.getField("t").setDouble(player, 64.5D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .pitchEnabledSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawEnabledSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxPitchFovSetting().set(10.0D);
+            // Mapped world positions/kinds publish later in the host tick
+            // than rotation: refresh the new entity view without activating
+            // combat, then verify selection on a separate held-click tick.
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            runTick.invoke(minecraft);
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-45.0F, runtime.requireHostRuntime()
+                    .targetRotationState().snapshot().pitch(), 0.0001F);
+            final Minecraft189PlayerPositionState.Snapshot localM226 =
+                    runtime.requireHostRuntime().playerPositionState().snapshot();
+            final Minecraft189NearestPlayerTargetState fartherM226 =
+                    new Minecraft189NearestPlayerTargetState();
+            fartherM226.update(localM226,
+                    runtime.requireHostRuntime().worldEntityPositionState().snapshot(),
+                    runtime.requireHostRuntime().worldEntityKindState().snapshot(),
+                    5.0D, 20.0D);
+            assertEquals(2, fartherM226.snapshot().entityIndex());
+            final Minecraft189TargetRotationState farRotationM226 =
+                    new Minecraft189TargetRotationState();
+            farRotationM226.update(localM226, fartherM226.snapshot());
+            assertEquals(-5.875010F,
+                    farRotationM226.snapshot().pitch(), 0.0001F);
+            assertTrue(runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .targetWithinFov(
+                            runtime.requireHostRuntime().playerRotationState().snapshot(),
+                            farRotationM226.snapshot()));
+            // Confirm the production selector—not merely an isolated
+            // geometry probe—selected the farther in-cone player.
+            final Field rangeTargetFieldM226 =
+                    Minecraft189HostRuntime.class.getDeclaredField(
+                            "aimAssistRangeTargetState");
+            rangeTargetFieldM226.setAccessible(true);
+            final Minecraft189NearestPlayerTargetState selectedM226 =
+                    (Minecraft189NearestPlayerTargetState) rangeTargetFieldM226.get(
+                            runtime.requireHostRuntime());
+            assertTrue(selectedM226.snapshot().found());
+            assertEquals(2, selectedM226.snapshot().entityIndex());
+            final float yawM226 =
+                    playerClass.getField("y").getFloat(player);
+            // Separately classify a wrongly selected nearer player vs no lock.
+            assertFalse(Math.abs(yawM226 + 80.0F) < 0.0001F);
+            assertFalse(Math.abs(yawM226 + 70.0F) < 0.0001F);
+            assertEquals(-67.833654F, yawM226, 0.0001F);
+            assertEquals(-4.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxPitchFovSetting().set(180.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-80.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+
+            // No changes to the general target or fixture after M226.
+            worldClass.getField("f").set(world,
+                    java.util.Arrays.asList(player, nearbyEntity));
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxFovSetting().set(180.0D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxPitchFovSetting().set(180.0D);
+            runTick.invoke(minecraft);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AimAssistModule.ID);
