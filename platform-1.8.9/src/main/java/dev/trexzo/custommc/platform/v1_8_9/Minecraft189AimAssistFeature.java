@@ -21,6 +21,7 @@ final class Minecraft189AimAssistFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration yawSpeedSetting;
     private final SettingRegistry.Registration pitchSpeedSetting;
+    private final SettingRegistry.Registration pauseWhileSneakingSetting;
     private final SettingRegistry.Registration requireGroundSetting;
     private final SettingRegistry.Registration requireForwardSetting;
     private final SettingRegistry.Registration requireHoldSetting;
@@ -35,6 +36,7 @@ final class Minecraft189AimAssistFeature
     private final SettingRegistry.Registration pitchEnabledSetting;
     private final SettingPresentationRegistry.Registration yawSpeedPresentation;
     private final SettingPresentationRegistry.Registration pitchSpeedPresentation;
+    private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
     private final SettingPresentationRegistry.Registration requireGroundPresentation;
     private final SettingPresentationRegistry.Registration requireForwardPresentation;
     private final SettingPresentationRegistry.Registration requireHoldPresentation;
@@ -49,6 +51,7 @@ final class Minecraft189AimAssistFeature
     private final SettingPresentationRegistry.Registration pitchEnabledPresentation;
     private final ModuleSettingRegistry.Registration yawSpeedBinding;
     private final ModuleSettingRegistry.Registration pitchSpeedBinding;
+    private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private final ModuleSettingRegistry.Registration requireGroundBinding;
     private final ModuleSettingRegistry.Registration requireForwardBinding;
     private final ModuleSettingRegistry.Registration requireHoldBinding;
@@ -70,6 +73,7 @@ final class Minecraft189AimAssistFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration yawSpeedSetting,
             final SettingRegistry.Registration pitchSpeedSetting,
+            final SettingRegistry.Registration pauseWhileSneakingSetting,
             final SettingRegistry.Registration requireGroundSetting,
             final SettingRegistry.Registration requireForwardSetting,
             final SettingRegistry.Registration requireHoldSetting,
@@ -84,6 +88,7 @@ final class Minecraft189AimAssistFeature
             final SettingRegistry.Registration pitchEnabledSetting,
             final SettingPresentationRegistry.Registration yawSpeedPresentation,
             final SettingPresentationRegistry.Registration pitchSpeedPresentation,
+            final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
             final SettingPresentationRegistry.Registration requireGroundPresentation,
             final SettingPresentationRegistry.Registration requireForwardPresentation,
             final SettingPresentationRegistry.Registration requireHoldPresentation,
@@ -98,6 +103,7 @@ final class Minecraft189AimAssistFeature
             final SettingPresentationRegistry.Registration pitchEnabledPresentation,
             final ModuleSettingRegistry.Registration yawSpeedBinding,
             final ModuleSettingRegistry.Registration pitchSpeedBinding,
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding,
             final ModuleSettingRegistry.Registration requireGroundBinding,
             final ModuleSettingRegistry.Registration requireForwardBinding,
             final ModuleSettingRegistry.Registration requireHoldBinding,
@@ -116,6 +122,7 @@ final class Minecraft189AimAssistFeature
         this.presentation = presentation;
         this.yawSpeedSetting = yawSpeedSetting;
         this.pitchSpeedSetting = pitchSpeedSetting;
+        this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
         this.requireGroundSetting = requireGroundSetting;
         this.requireForwardSetting = requireForwardSetting;
         this.requireHoldSetting = requireHoldSetting;
@@ -130,6 +137,7 @@ final class Minecraft189AimAssistFeature
         this.pitchEnabledSetting = pitchEnabledSetting;
         this.yawSpeedPresentation = yawSpeedPresentation;
         this.pitchSpeedPresentation = pitchSpeedPresentation;
+        this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
         this.requireGroundPresentation = requireGroundPresentation;
         this.requireForwardPresentation = requireForwardPresentation;
         this.requireHoldPresentation = requireHoldPresentation;
@@ -144,6 +152,7 @@ final class Minecraft189AimAssistFeature
         this.pitchEnabledPresentation = pitchEnabledPresentation;
         this.yawSpeedBinding = yawSpeedBinding;
         this.pitchSpeedBinding = pitchSpeedBinding;
+        this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
         this.requireGroundBinding = requireGroundBinding;
         this.requireForwardBinding = requireForwardBinding;
         this.requireHoldBinding = requireHoldBinding;
@@ -172,6 +181,7 @@ final class Minecraft189AimAssistFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration yawSpeedSetting = null;
         SettingRegistry.Registration pitchSpeedSetting = null;
+        SettingRegistry.Registration pauseWhileSneakingSetting = null;
         SettingRegistry.Registration requireGroundSetting = null;
         SettingRegistry.Registration requireForwardSetting = null;
         SettingRegistry.Registration requireHoldSetting = null;
@@ -186,6 +196,7 @@ final class Minecraft189AimAssistFeature
         SettingRegistry.Registration pitchEnabledSetting = null;
         SettingPresentationRegistry.Registration yawSpeedPresentation = null;
         SettingPresentationRegistry.Registration pitchSpeedPresentation = null;
+        SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
         SettingPresentationRegistry.Registration requireGroundPresentation = null;
         SettingPresentationRegistry.Registration requireForwardPresentation = null;
         SettingPresentationRegistry.Registration requireHoldPresentation = null;
@@ -200,6 +211,7 @@ final class Minecraft189AimAssistFeature
         SettingPresentationRegistry.Registration pitchEnabledPresentation = null;
         ModuleSettingRegistry.Registration yawSpeedBinding = null;
         ModuleSettingRegistry.Registration pitchSpeedBinding = null;
+        ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
         ModuleSettingRegistry.Registration requireGroundBinding = null;
         ModuleSettingRegistry.Registration requireForwardBinding = null;
         ModuleSettingRegistry.Registration requireHoldBinding = null;
@@ -231,6 +243,9 @@ final class Minecraft189AimAssistFeature
             pitchSpeedSetting =
                     settings.register(
                             module.pitchSpeedSetting());
+            pauseWhileSneakingSetting =
+                    settings.register(
+                            module.pauseWhileSneakingSetting());
             requireGroundSetting =
                     settings.register(
                             module.requireGroundSetting());
@@ -289,6 +304,13 @@ final class Minecraft189AimAssistFeature
                                             Minecraft189AimAssistModule.MINIMUM_SPEED,
                                             Minecraft189AimAssistModule.MAXIMUM_SPEED,
                                             0.5D)));
+            pauseWhileSneakingPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189AimAssistModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                                    "Pause While Sneaking",
+                                    SettingValueKind.BOOLEAN,
+                                    16));
             requireGroundPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -413,6 +435,12 @@ final class Minecraft189AimAssistFeature
                                     Minecraft189AimAssistModule.ID,
                                     Minecraft189AimAssistModule.PITCH_SPEED_SETTING_ID,
                                     10));
+            pauseWhileSneakingBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189AimAssistModule.ID,
+                                    Minecraft189AimAssistModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                                    16));
             requireGroundBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -493,6 +521,7 @@ final class Minecraft189AimAssistFeature
                     presentation,
                     yawSpeedSetting,
                     pitchSpeedSetting,
+                    pauseWhileSneakingSetting,
                     requireGroundSetting,
                     requireForwardSetting,
                     requireHoldSetting,
@@ -507,6 +536,7 @@ final class Minecraft189AimAssistFeature
                     pitchEnabledSetting,
                     yawSpeedPresentation,
                     pitchSpeedPresentation,
+                    pauseWhileSneakingPresentation,
                     requireGroundPresentation,
                     requireForwardPresentation,
                     requireHoldPresentation,
@@ -521,6 +551,7 @@ final class Minecraft189AimAssistFeature
                     pitchEnabledPresentation,
                     yawSpeedBinding,
                     pitchSpeedBinding,
+                    pauseWhileSneakingBinding,
                     requireGroundBinding,
                     requireForwardBinding,
                     requireHoldBinding,
@@ -546,6 +577,7 @@ final class Minecraft189AimAssistFeature
             closeQuietly(requireHoldBinding, failure);
             closeQuietly(requireForwardBinding, failure);
             closeQuietly(requireGroundBinding, failure);
+            closeQuietly(pauseWhileSneakingBinding, failure);
             closeQuietly(pitchSpeedBinding, failure);
             closeQuietly(yawSpeedBinding, failure);
             closeQuietly(pitchEnabledPresentation, failure);
@@ -560,6 +592,7 @@ final class Minecraft189AimAssistFeature
             closeQuietly(requireHoldPresentation, failure);
             closeQuietly(requireForwardPresentation, failure);
             closeQuietly(requireGroundPresentation, failure);
+            closeQuietly(pauseWhileSneakingPresentation, failure);
             closeQuietly(pitchSpeedPresentation, failure);
             closeQuietly(yawSpeedPresentation, failure);
             closeQuietly(pitchEnabledSetting, failure);
@@ -574,6 +607,7 @@ final class Minecraft189AimAssistFeature
             closeQuietly(requireHoldSetting, failure);
             closeQuietly(requireForwardSetting, failure);
             closeQuietly(requireGroundSetting, failure);
+            closeQuietly(pauseWhileSneakingSetting, failure);
             closeQuietly(pitchSpeedSetting, failure);
             closeQuietly(yawSpeedSetting, failure);
             closeQuietly(presentation, failure);
@@ -621,6 +655,7 @@ final class Minecraft189AimAssistFeature
         failure = close(requireHoldBinding, failure);
         failure = close(requireForwardBinding, failure);
         failure = close(requireGroundBinding, failure);
+        failure = close(pauseWhileSneakingBinding, failure);
         failure = close(pitchSpeedBinding, failure);
         failure = close(yawSpeedBinding, failure);
         failure = close(pitchEnabledPresentation, failure);
@@ -635,6 +670,7 @@ final class Minecraft189AimAssistFeature
         failure = close(requireHoldPresentation, failure);
         failure = close(requireForwardPresentation, failure);
         failure = close(requireGroundPresentation, failure);
+        failure = close(pauseWhileSneakingPresentation, failure);
         failure = close(pitchSpeedPresentation, failure);
         failure = close(yawSpeedPresentation, failure);
         failure = close(pitchEnabledSetting, failure);
@@ -649,6 +685,7 @@ final class Minecraft189AimAssistFeature
         failure = close(requireHoldSetting, failure);
         failure = close(requireForwardSetting, failure);
         failure = close(requireGroundSetting, failure);
+        failure = close(pauseWhileSneakingSetting, failure);
         failure = close(pitchSpeedSetting, failure);
         failure = close(yawSpeedSetting, failure);
         failure = close(presentation, failure);

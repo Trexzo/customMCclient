@@ -12,6 +12,8 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.yawSpeed";
     public static final String PITCH_SPEED_SETTING_ID =
             "combat.aimAssist.pitchSpeed";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "combat.aimAssist.pauseWhileSneaking";
     public static final String REQUIRE_GROUND_SETTING_ID =
             "combat.aimAssist.requireGround";
     public static final String REQUIRE_FORWARD_SETTING_ID =
@@ -90,6 +92,12 @@ public final class Minecraft189AimAssistModule
                     DEFAULT_PITCH_SPEED,
                     Minecraft189AimAssistModule::validSpeed,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> pauseWhileSneaking =
+            new Setting<Boolean>(
+                    PAUSE_WHILE_SNEAKING_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private final Setting<Boolean> requireGround =
             new Setting<Boolean>(
                     REQUIRE_GROUND_SETTING_ID,
@@ -176,6 +184,10 @@ public final class Minecraft189AimAssistModule
 
     public Setting<Double> pitchSpeedSetting() {
         return pitchSpeed;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
     }
 
     public Setting<Boolean> requireGroundSetting() {
@@ -289,7 +301,11 @@ public final class Minecraft189AimAssistModule
                 || (requireGround.get().booleanValue()
                         && (movement == null
                         || !movement.available()
-                        || !movement.onGround()))) {
+                        || !movement.onGround()))
+                || (pauseWhileSneaking.get().booleanValue()
+                        && (movement == null
+                        || !movement.available()
+                        || movement.sneaking()))) {
             return false;
         }
 
