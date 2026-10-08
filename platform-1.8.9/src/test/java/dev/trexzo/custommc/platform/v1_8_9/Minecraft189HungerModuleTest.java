@@ -67,6 +67,15 @@ final class Minecraft189HungerModuleTest {
             final Minecraft189HungerModule hunger =
                     runtime.featureCatalog()
                             .hunger();
+            assertFalse(hunger.showMetersSetting().get().booleanValue());
+            assertFalse(hunger.lowFoodAlertSetting().get().booleanValue());
+            assertEquals(Integer.valueOf(6), hunger.lowFoodThresholdSetting().get());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189HungerModule.SHOW_METERS_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189HungerModule.LOW_FOOD_ALERT_SETTING_ID));
+            assertEquals("6", settings.snapshotEncoded().get(
+                    Minecraft189HungerModule.LOW_FOOD_THRESHOLD_SETTING_ID));
 
             assertEquals(
                     ModuleState.DISABLED,
@@ -100,6 +109,8 @@ final class Minecraft189HungerModuleTest {
             assertEquals(
                     "Hunger: 17/20 | Sat: 6.5",
                     host.lastText);
+            assertEquals(0xFFFFFFFF, host.lastArgb);
+            assertTrue(host.bars.isEmpty()); // Default OFF draw-call parity.
             assertEquals(
                     48.0F,
                     host.lastX);
@@ -129,6 +140,64 @@ final class Minecraft189HungerModuleTest {
                     6.5F,
                     snapshot.saturationLevel());
 
+            // Two tracks plus independent food and saturation fills.
+            hunger.showMetersSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189HungerModule.SHOW_METERS_SETTING_ID));
+            runtime.renderHud(1L, 0.0F);
+            assertEquals(4, host.bars.size());
+            assertBar(host.bars.get(0), 48.0F, 240.0F, 100.0F, 3.0F, 0xFF303D4A);
+            assertBar(host.bars.get(1), 48.0F, 246.0F, 100.0F, 3.0F, 0xFF303D4A);
+            assertBar(host.bars.get(2), 48.0F, 240.0F, 85.0F, 3.0F, 0xFF7EC97A);
+            assertBar(host.bars.get(3), 48.0F, 246.0F, 32.5F, 3.0F, 0xFF69BFE8);
+            host.bars.clear();
+
+            // Inclusive warning boundary; text and food fill change color.
+            hunger.lowFoodAlertSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189HungerModule.LOW_FOOD_ALERT_SETTING_ID));
+            runtime.playerHunger(hungerAccess(6, 1.5F));
+            runtime.renderHud(2L, 0.0F);
+            assertEquals("Hunger: 6/20 | Sat: 1.5", host.lastText);
+            assertEquals(0xFFFFB65C, host.lastArgb);
+            assertEquals(4, host.bars.size());
+            assertBar(host.bars.get(2), 48.0F, 240.0F, 30.0F, 3.0F, 0xFFFFB65C);
+            assertBar(host.bars.get(3), 48.0F, 246.0F, 7.5F, 3.0F, 0xFF69BFE8);
+
+            host.bars.clear();
+            runtime.playerHunger(hungerAccess(7, 1.5F));
+            runtime.renderHud(3L, 0.0F);
+            assertEquals(0xFFFFFFFF, host.lastArgb);
+            assertBar(host.bars.get(2), 48.0F, 240.0F, 35.0F, 3.0F, 0xFF7EC97A);
+            hunger.lowFoodThresholdSetting().set(8);
+            assertEquals("8", settings.snapshotEncoded().get(
+                    Minecraft189HungerModule.LOW_FOOD_THRESHOLD_SETTING_ID));
+            host.bars.clear();
+            runtime.renderHud(4L, 0.0F);
+            assertEquals(0xFFFFB65C, host.lastArgb);
+            assertBar(host.bars.get(2), 48.0F, 240.0F, 35.0F, 3.0F, 0xFFFFB65C);
+
+            hunger.lowFoodAlertSetting().set(Boolean.FALSE);
+            host.bars.clear();
+            runtime.renderHud(5L, 0.0F);
+            assertEquals(0xFFFFFFFF, host.lastArgb);
+            assertBar(host.bars.get(2), 48.0F, 240.0F, 35.0F, 3.0F, 0xFF7EC97A);
+
+            // Zero values never generate zero-width fill draw calls.
+            runtime.playerHunger(hungerAccess(0, 0.0F));
+            host.bars.clear();
+            runtime.renderHud(6L, 0.0F);
+            assertEquals(2, host.bars.size());
+            hunger.showMetersSetting().set(Boolean.FALSE);
+            host.bars.clear();
+            runtime.renderHud(7L, 0.0F);
+            assertTrue(host.bars.isEmpty());
+            assertEquals("Hunger: 0/20 | Sat: 0.0", host.lastText);
+            assertThrows(IllegalArgumentException.class,
+                    () -> hunger.lowFoodThresholdSetting().set(0));
+            assertThrows(IllegalArgumentException.class,
+                    () -> hunger.lowFoodThresholdSetting().set(21));
+
             host.lastText = null;
             runtime.playerHunger(null);
             runtime.renderHud(
@@ -153,6 +222,9 @@ final class Minecraft189HungerModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189HungerModule.Y_SETTING_ID));
+        assertNull(settings.find(Minecraft189HungerModule.SHOW_METERS_SETTING_ID));
+        assertNull(settings.find(Minecraft189HungerModule.LOW_FOOD_ALERT_SETTING_ID));
+        assertNull(settings.find(Minecraft189HungerModule.LOW_FOOD_THRESHOLD_SETTING_ID));
     }
 
     @Test
@@ -190,9 +262,74 @@ final class Minecraft189HungerModuleTest {
                         .foodLevel());
     }
 
+    @Test
+    void meterFractionsClampAndFailClosedForNonfiniteSourceNumbers() {
+        assertEquals(0.0F, Minecraft189HungerModule.meterFillWidth(-1.0D), 0.0001F);
+        assertEquals(0.0F, Minecraft189HungerModule.meterFillWidth(Double.NaN), 0.0001F);
+        assertEquals(0.0F, Minecraft189HungerModule.meterFillWidth(
+                Double.POSITIVE_INFINITY), 0.0001F);
+        assertEquals(0.0F, Minecraft189HungerModule.meterFillWidth(
+                Double.NEGATIVE_INFINITY), 0.0001F);
+        assertEquals(0.0F, Minecraft189HungerModule.meterFillWidth(0.0D), 0.0001F);
+        assertEquals(25.0F, Minecraft189HungerModule.meterFillWidth(5.0D), 0.0001F);
+        assertEquals(100.0F, Minecraft189HungerModule.meterFillWidth(20.0D), 0.0001F);
+        assertEquals(100.0F, Minecraft189HungerModule.meterFillWidth(200.0D), 0.0001F);
+        final Minecraft189PlayerHungerState state = new Minecraft189PlayerHungerState();
+        assertFalse(Minecraft189HungerModule.belowFoodThreshold(
+                state.snapshot(), 6));
+        state.update(6, 2.0F);
+        assertTrue(Minecraft189HungerModule.belowFoodThreshold(
+                state.snapshot(), 6));
+        assertFalse(Minecraft189HungerModule.belowFoodThreshold(
+                state.snapshot(), 5));
+    }
+
+    private static Minecraft189PlayerHungerAccess hungerAccess(
+            final int food, final float saturation) {
+        return new Minecraft189PlayerHungerAccess() {
+            @Override
+            public int customMcFoodLevel() {
+                return food;
+            }
+
+            @Override
+            public float customMcSaturationLevel() {
+                return saturation;
+            }
+        };
+    }
+
+    private static void assertBar(final Bar bar, final float x,
+            final float y, final float width, final float height, final int argb) {
+        assertEquals(x, bar.x, 0.0001F);
+        assertEquals(y, bar.y, 0.0001F);
+        assertEquals(width, bar.width, 0.0001F);
+        assertEquals(height, bar.height, 0.0001F);
+        assertEquals(argb, bar.argb);
+    }
+
+    private static final class Bar {
+        private final float x;
+        private final float y;
+        private final float width;
+        private final float height;
+        private final int argb;
+
+        private Bar(final float x, final float y,
+                final float width, final float height, final int argb) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+            this.argb = argb;
+        }
+    }
+
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private String lastText;
+        private int lastArgb;
+        private final java.util.List<Bar> bars = new java.util.ArrayList<Bar>();
         private float lastX;
         private float lastY;
 
@@ -223,6 +360,7 @@ final class Minecraft189HungerModuleTest {
                 final float width,
                 final float height,
                 final int argb) {
+            bars.add(new Bar(x, y, width, height, argb));
         }
 
         @Override
@@ -265,6 +403,7 @@ final class Minecraft189HungerModuleTest {
                 final String text,
                 final int argb) {
             lastText = text;
+            lastArgb = argb;
             lastX = x;
             lastY = y;
         }
