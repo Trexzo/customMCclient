@@ -43,6 +43,12 @@ final class Minecraft189JitterFeature
     private final ModuleSettingRegistry.Registration requireHoldBinding;
     private final ModuleSettingRegistry.Registration variableStrengthBinding;
     private final ModuleSettingRegistry.Registration strengthVariationBinding;
+    private final SettingRegistry.Registration randomIntervalSetting;
+    private final SettingRegistry.Registration intervalVariationSetting;
+    private final SettingPresentationRegistry.Registration randomIntervalPresentation;
+    private final SettingPresentationRegistry.Registration intervalVariationPresentation;
+    private final ModuleSettingRegistry.Registration randomIntervalBinding;
+    private final ModuleSettingRegistry.Registration intervalVariationBinding;
     private boolean closed;
 
     private Minecraft189JitterFeature(
@@ -73,7 +79,13 @@ final class Minecraft189JitterFeature
             final ModuleSettingRegistry.Registration intervalBinding,
             final ModuleSettingRegistry.Registration requireHoldBinding,
             final ModuleSettingRegistry.Registration variableStrengthBinding,
-            final ModuleSettingRegistry.Registration strengthVariationBinding) {
+            final ModuleSettingRegistry.Registration strengthVariationBinding,
+            final SettingRegistry.Registration randomIntervalSetting,
+            final SettingRegistry.Registration intervalVariationSetting,
+            final SettingPresentationRegistry.Registration randomIntervalPresentation,
+            final SettingPresentationRegistry.Registration intervalVariationPresentation,
+            final ModuleSettingRegistry.Registration randomIntervalBinding,
+            final ModuleSettingRegistry.Registration intervalVariationBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -102,6 +114,12 @@ final class Minecraft189JitterFeature
         this.requireHoldBinding = requireHoldBinding;
         this.variableStrengthBinding = variableStrengthBinding;
         this.strengthVariationBinding = strengthVariationBinding;
+        this.randomIntervalSetting = randomIntervalSetting;
+        this.intervalVariationSetting = intervalVariationSetting;
+        this.randomIntervalPresentation = randomIntervalPresentation;
+        this.intervalVariationPresentation = intervalVariationPresentation;
+        this.randomIntervalBinding = randomIntervalBinding;
+        this.intervalVariationBinding = intervalVariationBinding;
     }
 
     static Minecraft189JitterFeature install(
@@ -140,6 +158,12 @@ final class Minecraft189JitterFeature
         ModuleSettingRegistry.Registration requireHoldBinding = null;
         ModuleSettingRegistry.Registration variableStrengthBinding = null;
         ModuleSettingRegistry.Registration strengthVariationBinding = null;
+        SettingRegistry.Registration randomIntervalSetting = null;
+        SettingRegistry.Registration intervalVariationSetting = null;
+        SettingPresentationRegistry.Registration randomIntervalPresentation = null;
+        SettingPresentationRegistry.Registration intervalVariationPresentation = null;
+        ModuleSettingRegistry.Registration randomIntervalBinding = null;
+        ModuleSettingRegistry.Registration intervalVariationBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -174,6 +198,9 @@ final class Minecraft189JitterFeature
                     module.variableStrengthSetting());
             strengthVariationSetting = settings.register(
                     module.strengthVariationPercentSetting());
+            randomIntervalSetting = settings.register(module.randomIntervalSetting());
+            intervalVariationSetting = settings.register(
+                    module.intervalVariationTicksSetting());
             yawPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -237,6 +264,17 @@ final class Minecraft189JitterFeature
                             Minecraft189JitterModule.STRENGTH_VARIATION_SETTING_ID,
                             "Strength Variation %", SettingValueKind.INTEGER, 50,
                             new SettingNumericSpec(0.0D, 100.0D, 5.0D)));
+            randomIntervalPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189JitterModule.RANDOM_INTERVAL_SETTING_ID,
+                            "Random Interval", SettingValueKind.BOOLEAN, 60));
+            intervalVariationPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189JitterModule.INTERVAL_VARIATION_SETTING_ID,
+                            "Interval Variation", SettingValueKind.INTEGER, 70,
+                            new SettingNumericSpec(0.0D,
+                                    Minecraft189JitterModule.MAXIMUM_INTERVAL_VARIATION_TICKS,
+                                    1.0D)));
             yawBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -283,6 +321,15 @@ final class Minecraft189JitterFeature
                             Minecraft189JitterModule.ID,
                             Minecraft189JitterModule.STRENGTH_VARIATION_SETTING_ID, 50));
 
+            randomIntervalBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189JitterModule.ID,
+                            Minecraft189JitterModule.RANDOM_INTERVAL_SETTING_ID, 60));
+            intervalVariationBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189JitterModule.ID,
+                            Minecraft189JitterModule.INTERVAL_VARIATION_SETTING_ID, 70));
+
             return new Minecraft189JitterFeature(
                     controller,
                     module,
@@ -311,8 +358,20 @@ final class Minecraft189JitterFeature
                     intervalBinding,
                     requireHoldBinding,
                     variableStrengthBinding,
-                    strengthVariationBinding);
+                    strengthVariationBinding,
+                    randomIntervalSetting,
+                    intervalVariationSetting,
+                    randomIntervalPresentation,
+                    intervalVariationPresentation,
+                    randomIntervalBinding,
+                    intervalVariationBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(intervalVariationBinding, failure);
+            closeQuietly(randomIntervalBinding, failure);
+            closeQuietly(intervalVariationPresentation, failure);
+            closeQuietly(randomIntervalPresentation, failure);
+            closeQuietly(intervalVariationSetting, failure);
+            closeQuietly(randomIntervalSetting, failure);
             closeQuietly(strengthVariationBinding, failure);
             closeQuietly(variableStrengthBinding, failure);
             closeQuietly(strengthVariationPresentation, failure);
@@ -370,6 +429,12 @@ final class Minecraft189JitterFeature
             failure = closeFailure;
         }
 
+        failure = close(intervalVariationBinding, failure);
+        failure = close(randomIntervalBinding, failure);
+        failure = close(intervalVariationPresentation, failure);
+        failure = close(randomIntervalPresentation, failure);
+        failure = close(intervalVariationSetting, failure);
+        failure = close(randomIntervalSetting, failure);
         failure = close(strengthVariationBinding, failure);
         failure = close(variableStrengthBinding, failure);
         failure = close(strengthVariationPresentation, failure);
