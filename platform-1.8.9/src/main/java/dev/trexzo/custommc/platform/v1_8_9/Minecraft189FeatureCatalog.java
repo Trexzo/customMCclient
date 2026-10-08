@@ -303,6 +303,8 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189ServerAddressState serverAddressState,
             final Minecraft189HeldItemState heldItemState,
             final Minecraft189MovementSpeedTracker movementSpeedTracker,
+            final Minecraft189NearestPlayerTargetState nearestPlayerTargetState,
+            final Minecraft189TargetRotationState targetRotationState,
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
         Objects.requireNonNull(modules, "modules");
@@ -332,6 +334,8 @@ public final class Minecraft189FeatureCatalog
         Objects.requireNonNull(serverAddressState, "serverAddressState");
         Objects.requireNonNull(heldItemState, "heldItemState");
         Objects.requireNonNull(movementSpeedTracker, "movementSpeedTracker");
+        Objects.requireNonNull(nearestPlayerTargetState, "nearestPlayerTargetState");
+        Objects.requireNonNull(targetRotationState, "targetRotationState");
         Objects.requireNonNull(renderPipeline, "renderPipeline");
         Objects.requireNonNull(hostCallbacks, "hostCallbacks");
 

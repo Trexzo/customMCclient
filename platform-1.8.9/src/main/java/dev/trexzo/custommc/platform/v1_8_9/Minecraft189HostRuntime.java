@@ -272,6 +272,8 @@ public final class Minecraft189HostRuntime
                             serverAddressState,
                             heldItemState,
                             movementSpeedTracker,
+                            nearestPlayerTargetState,
+                            targetRotationState,
                             services.require(
                                     RenderPipeline.class),
                             hostCallbacks);
