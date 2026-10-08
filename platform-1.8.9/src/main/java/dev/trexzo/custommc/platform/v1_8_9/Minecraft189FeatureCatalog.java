@@ -58,6 +58,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189CpsFeature cpsFeature;
     private final Minecraft189CoordinatesFeature coordinatesFeature;
     private final Minecraft189DirectionFeature directionFeature;
+    private final Minecraft189TargetHudFeature targetHudFeature;
     private final Minecraft189DimensionFeature dimensionFeature;
     private final Minecraft189MovementStatusFeature movementStatusFeature;
     private final Minecraft189HealthFeature healthFeature;
@@ -142,6 +143,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189CpsFeature cpsFeature,
             final Minecraft189CoordinatesFeature coordinatesFeature,
             final Minecraft189DirectionFeature directionFeature,
+            final Minecraft189TargetHudFeature targetHudFeature,
             final Minecraft189DimensionFeature dimensionFeature,
             final Minecraft189MovementStatusFeature movementStatusFeature,
             final Minecraft189HealthFeature healthFeature,
@@ -220,6 +222,7 @@ public final class Minecraft189FeatureCatalog
         this.cpsFeature = cpsFeature;
         this.coordinatesFeature = coordinatesFeature;
         this.directionFeature = directionFeature;
+        this.targetHudFeature = targetHudFeature;
         this.dimensionFeature = dimensionFeature;
         this.movementStatusFeature = movementStatusFeature;
         this.healthFeature = healthFeature;
@@ -353,6 +356,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189CpsFeature cpsFeature = null;
         Minecraft189CoordinatesFeature coordinatesFeature = null;
         Minecraft189DirectionFeature directionFeature = null;
+        Minecraft189TargetHudFeature targetHudFeature = null;
         Minecraft189DimensionFeature dimensionFeature = null;
         Minecraft189MovementStatusFeature movementStatusFeature = null;
         Minecraft189HealthFeature healthFeature = null;
@@ -872,6 +876,18 @@ public final class Minecraft189FeatureCatalog
                             renderPipeline,
                             hostCallbacks);
 
+            targetHudFeature = Minecraft189TargetHudFeature.install(
+                    modules,
+                    moduleController,
+                    presentations,
+                    moduleSettings,
+                    settings,
+                    settingPresentations,
+                    nearestPlayerTargetState,
+                    targetRotationState,
+                    renderPipeline,
+                    hostCallbacks);
+
             dimensionFeature =
                     Minecraft189DimensionFeature.install(
                             modules,
@@ -1092,6 +1108,7 @@ public final class Minecraft189FeatureCatalog
                     cpsFeature,
                     coordinatesFeature,
                     directionFeature,
+                    targetHudFeature,
                     dimensionFeature,
                     movementStatusFeature,
                     healthFeature,
@@ -1193,6 +1210,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(healthFeature, failure);
             closeQuietly(movementStatusFeature, failure);
             closeQuietly(dimensionFeature, failure);
+            closeQuietly(targetHudFeature, failure);
             closeQuietly(directionFeature, failure);
             closeQuietly(coordinatesFeature, failure);
             closeQuietly(cpsFeature, failure);
@@ -1251,6 +1269,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189DirectionModule direction() {
         requireOpen();
         return directionFeature.module();
+    }
+
+    public Minecraft189TargetHudModule targetHud() {
+        requireOpen();
+        return targetHudFeature.module();
     }
 
     public Minecraft189DimensionModule dimension() {
@@ -2034,6 +2057,12 @@ public final class Minecraft189FeatureCatalog
             failure = append(
                     failure,
                     closeFailure);
+        }
+
+        try {
+            targetHudFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
         }
 
         try {
