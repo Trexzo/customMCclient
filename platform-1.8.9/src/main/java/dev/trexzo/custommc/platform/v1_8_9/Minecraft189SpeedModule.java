@@ -22,6 +22,10 @@ public final class Minecraft189SpeedModule
             "render.speed.x";
     public static final String Y_SETTING_ID =
             "render.speed.y";
+    public static final String SHOW_PEAK_SETTING_ID =
+            "render.speed.showPeak";
+    public static final String BLOCKS_PER_TICK_SETTING_ID =
+            "render.speed.blocksPerTick";
     public static final String RENDER_PASS_ID =
             "speed";
 
@@ -43,6 +47,18 @@ public final class Minecraft189SpeedModule
                     164,
                     value -> value >= 0 && value <= 4096,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> showPeak =
+            new Setting<Boolean>(
+                    SHOW_PEAK_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> blocksPerTick =
+            new Setting<Boolean>(
+                    BLOCKS_PER_TICK_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189SpeedModule(
@@ -74,6 +90,31 @@ public final class Minecraft189SpeedModule
 
     public Setting<Integer> ySetting() {
         return y;
+    }
+
+    public Setting<Boolean> showPeakSetting() {
+        return showPeak;
+    }
+
+    public Setting<Boolean> blocksPerTickSetting() {
+        return blocksPerTick;
+    }
+
+    static String textFor(
+            final Minecraft189MovementSpeedTracker.Snapshot speed,
+            final boolean useBlocksPerTick,
+            final boolean includePeak) {
+        Objects.requireNonNull(speed, "speed");
+        final double unitScale = useBlocksPerTick ? 1.0D / 20.0D : 1.0D;
+        final String unit = useBlocksPerTick ? "BPT" : "BPS";
+        final String current = String.format(
+                Locale.ROOT, "Speed: %.2f %s",
+                speed.blocksPerSecond() * unitScale, unit);
+        return includePeak
+                ? current + String.format(
+                        Locale.ROOT, " | Peak: %.2f %s",
+                        speed.peakBlocksPerSecond() * unitScale, unit)
+                : current;
     }
 
     @Override
@@ -142,10 +183,10 @@ public final class Minecraft189SpeedModule
                         UiFonts.DEFAULT,
                         x.get().floatValue(),
                         y.get().floatValue(),
-                        String.format(
-                                Locale.ROOT,
-                                "Speed: %.2f BPS",
-                                speed.blocksPerSecond()),
+                        textFor(
+                                speed,
+                                blocksPerTick.get().booleanValue(),
+                                showPeak.get().booleanValue()),
                         TEXT_ARGB);
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;

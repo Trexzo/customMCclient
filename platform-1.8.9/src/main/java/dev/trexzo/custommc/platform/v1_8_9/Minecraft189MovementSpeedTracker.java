@@ -8,6 +8,7 @@ public final class Minecraft189MovementSpeedTracker {
     private double previousZ;
     private boolean speedAvailable;
     private double blocksPerSecond;
+    private double peakBlocksPerSecond;
 
     public synchronized void sample(
             final double x,
@@ -30,6 +31,11 @@ public final class Minecraft189MovementSpeedTracker {
                                     + deltaZ * deltaZ)
                             * TICKS_PER_SECOND;
             speedAvailable = true;
+            if (Double.isFinite(blocksPerSecond)) {
+                peakBlocksPerSecond = Math.max(
+                        peakBlocksPerSecond,
+                        blocksPerSecond);
+            }
         } else {
             blocksPerSecond = 0.0D;
             speedAvailable = false;
@@ -46,12 +52,14 @@ public final class Minecraft189MovementSpeedTracker {
         previousZ = 0.0D;
         speedAvailable = false;
         blocksPerSecond = 0.0D;
+        peakBlocksPerSecond = 0.0D;
     }
 
     public synchronized Snapshot snapshot() {
         return new Snapshot(
                 speedAvailable,
-                blocksPerSecond);
+                blocksPerSecond,
+                peakBlocksPerSecond);
     }
 
     private static void requireFinite(
@@ -67,12 +75,15 @@ public final class Minecraft189MovementSpeedTracker {
     public static final class Snapshot {
         private final boolean available;
         private final double blocksPerSecond;
+        private final double peakBlocksPerSecond;
 
         private Snapshot(
                 final boolean available,
-                final double blocksPerSecond) {
+                final double blocksPerSecond,
+                final double peakBlocksPerSecond) {
             this.available = available;
             this.blocksPerSecond = blocksPerSecond;
+            this.peakBlocksPerSecond = peakBlocksPerSecond;
         }
 
         public boolean available() {
@@ -81,6 +92,10 @@ public final class Minecraft189MovementSpeedTracker {
 
         public double blocksPerSecond() {
             return blocksPerSecond;
+        }
+
+        public double peakBlocksPerSecond() {
+            return peakBlocksPerSecond;
         }
     }
 }
