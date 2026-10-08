@@ -648,6 +648,17 @@ final class Minecraft189AimAssistModuleTest {
         rotation.update(player.yaw, player.pitch);
         assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true));
         assertEquals(0.0F, player.yaw, 0.0001F);
+
+        // Target at +90°, offset to +120°; from -179° the shortest step
+        // crosses the -180° boundary and must wrap to +177°.
+        positions.update(new double[]{-10.0D, 0.0D, 0.0D});
+        nearest.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+        target.update(local.snapshot(), nearest.snapshot());
+        module.yawOffsetSetting().set(30.0D);
+        player.yaw = -179.0F;
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        assertEquals(177.0F, player.yaw, 0.0001F);
         module.onDisable();
     }
 
