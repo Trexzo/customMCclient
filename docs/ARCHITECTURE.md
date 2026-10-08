@@ -1557,3 +1557,11 @@ M212 extends the coherent M208 target-rotation latch with the selected target's 
 The range gate compares the latched target distance against the configured maximum before Aim Assist claims rotation ownership. Because distance is captured alongside the same entity index, yaw and pitch during M208 recomputation, M212 never combines a previous-tick angle with a separately refreshed distance. Out-of-range Aim Assist yields normally, so lower-priority Jitter remains eligible.
 
 Focused coverage proves latched distance integrity, setting registration/defaults, out-of-range rejection and in-range activation. The transformed-host proof uses the certified ~7.33-block remote player: max distance 5 suppresses Aim Assist, while max distance 8 allows the configured smoothed step.
+
+## Aim Assist maximum FOV
+
+M213 extends **Combat → Aim Assist** with persistent DOUBLE setting `combat.aimAssist.maxFov`, presented as **Max FOV**. The default is 180 degrees, preserving all M212 behavior. Valid values are 1–180 degrees.
+
+The gate compares the current player yaw with the certified target yaw using the same shortest-path wrapping already used by Aim Assist smoothing. Aim Assist may own rotation only when the absolute wrapped yaw delta is less than or equal to Max FOV. For example, Max FOV 45 accepts a target within ±45 degrees of the current horizontal view and rejects a target farther around the yaw circle.
+
+Distance, Require Hold, smoothing and ownership precedence remain unchanged: Spin > Aim Assist > Jitter. M213 adds no Minecraft mapping, transformer hook or target-enumeration behavior. Focused and transformed-host tests prove default parity, out-of-FOV suppression and in-FOV activation.
