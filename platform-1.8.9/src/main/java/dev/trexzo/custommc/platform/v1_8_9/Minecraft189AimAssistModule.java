@@ -18,6 +18,8 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.maxDistance";
     public static final String MAX_FOV_SETTING_ID =
             "combat.aimAssist.maxFov";
+    public static final String DEAD_ZONE_SETTING_ID =
+            "combat.aimAssist.deadZone";
     public static final String YAW_ENABLED_SETTING_ID =
             "combat.aimAssist.yawEnabled";
     public static final String PITCH_ENABLED_SETTING_ID =
@@ -38,6 +40,12 @@ public final class Minecraft189AimAssistModule
             128.0D;
     public static final double DEFAULT_MAX_FOV =
             180.0D;
+    public static final double DEFAULT_DEAD_ZONE =
+            0.0D;
+    public static final double MINIMUM_DEAD_ZONE =
+            0.0D;
+    public static final double MAXIMUM_DEAD_ZONE =
+            30.0D;
     public static final double MINIMUM_MAX_FOV =
             1.0D;
     public static final double MAXIMUM_MAX_FOV =
@@ -72,6 +80,12 @@ public final class Minecraft189AimAssistModule
                     MAX_FOV_SETTING_ID,
                     DEFAULT_MAX_FOV,
                     Minecraft189AimAssistModule::validMaxFov,
+                    SettingCodecs.DOUBLE);
+    private final Setting<Double> deadZone =
+            new Setting<Double>(
+                    DEAD_ZONE_SETTING_ID,
+                    DEFAULT_DEAD_ZONE,
+                    Minecraft189AimAssistModule::validDeadZone,
                     SettingCodecs.DOUBLE);
     private final Setting<Boolean> yawEnabled =
             new Setting<Boolean>(
@@ -111,6 +125,10 @@ public final class Minecraft189AimAssistModule
 
     public Setting<Double> maxFovSetting() {
         return maxFov;
+    }
+
+    public Setting<Double> deadZoneSetting() {
+        return deadZone;
     }
 
     public Setting<Boolean> yawEnabledSetting() {
@@ -156,6 +174,23 @@ public final class Minecraft189AimAssistModule
             return false;
         }
 
+        final double deadZoneDegrees =
+                deadZone.get().doubleValue();
+        final boolean adjustYaw =
+                yawEnabled.get().booleanValue()
+                        && (deadZoneDegrees == 0.0D
+                        || Math.abs(wrapYaw(
+                                target.yaw() - rotation.yaw()))
+                                > deadZoneDegrees);
+        final boolean adjustPitch =
+                pitchEnabled.get().booleanValue()
+                        && (deadZoneDegrees == 0.0D
+                        || Math.abs(target.pitch() - rotation.pitch())
+                                > deadZoneDegrees);
+        if (!adjustYaw && !adjustPitch) {
+            return false;
+        }
+
         final float targetYaw =
                 stepYaw(
                         rotation.yaw(),
@@ -167,14 +202,14 @@ public final class Minecraft189AimAssistModule
                         target.pitch(),
                         pitchSpeed.get().doubleValue());
 
-        if (yawEnabled.get().booleanValue()
+        if (adjustYaw
                 && Float.compare(
                         rotation.yaw(),
                         targetYaw) != 0) {
             player.customMcSetRotationYaw(
                     targetYaw);
         }
-        if (pitchEnabled.get().booleanValue()
+        if (adjustPitch
                 && Float.compare(
                         rotation.pitch(),
                         targetPitch) != 0) {
@@ -262,6 +297,15 @@ public final class Minecraft189AimAssistModule
         return Math.abs(
                 yawDelta)
                 <= maximumFov;
+    }
+
+    private static boolean validDeadZone(
+            final Double value) {
+        return value != null
+                && !Double.isNaN(value.doubleValue())
+                && !Double.isInfinite(value.doubleValue())
+                && value.doubleValue() >= MINIMUM_DEAD_ZONE
+                && value.doubleValue() <= MAXIMUM_DEAD_ZONE;
     }
 
     private static boolean validMaxFov(
