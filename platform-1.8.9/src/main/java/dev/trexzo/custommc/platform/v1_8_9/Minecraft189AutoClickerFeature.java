@@ -49,6 +49,9 @@ final class Minecraft189AutoClickerFeature
     private final ModuleSettingRegistry.Registration requireHoldBinding;
     private final ModuleSettingRegistry.Registration rampUpBinding;
     private final ModuleSettingRegistry.Registration rampUpTicksBinding;
+    private final SettingRegistry.Registration startDelaySetting;
+    private final SettingPresentationRegistry.Registration startDelayPresentation;
+    private final ModuleSettingRegistry.Registration startDelayBinding;
     private boolean closed;
 
     private Minecraft189AutoClickerFeature(
@@ -85,7 +88,10 @@ final class Minecraft189AutoClickerFeature
             final ModuleSettingRegistry.Registration requireForwardBinding,
             final ModuleSettingRegistry.Registration requireHoldBinding,
             final ModuleSettingRegistry.Registration rampUpBinding,
-            final ModuleSettingRegistry.Registration rampUpTicksBinding) {
+            final ModuleSettingRegistry.Registration rampUpTicksBinding,
+            final SettingRegistry.Registration startDelaySetting,
+            final SettingPresentationRegistry.Registration startDelayPresentation,
+            final ModuleSettingRegistry.Registration startDelayBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -120,6 +126,9 @@ final class Minecraft189AutoClickerFeature
         this.requireHoldBinding = requireHoldBinding;
         this.rampUpBinding = rampUpBinding;
         this.rampUpTicksBinding = rampUpTicksBinding;
+        this.startDelaySetting = startDelaySetting;
+        this.startDelayPresentation = startDelayPresentation;
+        this.startDelayBinding = startDelayBinding;
     }
 
     static Minecraft189AutoClickerFeature install(
@@ -164,6 +173,9 @@ final class Minecraft189AutoClickerFeature
         ModuleSettingRegistry.Registration requireHoldBinding = null;
         ModuleSettingRegistry.Registration rampUpBinding = null;
         ModuleSettingRegistry.Registration rampUpTicksBinding = null;
+        SettingRegistry.Registration startDelaySetting = null;
+        SettingPresentationRegistry.Registration startDelayPresentation = null;
+        ModuleSettingRegistry.Registration startDelayBinding = null;
 
         try {
             moduleRegistration =
@@ -200,6 +212,7 @@ final class Minecraft189AutoClickerFeature
                             module.requireHoldSetting());
             rampUpSetting = settings.register(module.rampUpSetting());
             rampUpTicksSetting = settings.register(module.rampUpTicksSetting());
+            startDelaySetting = settings.register(module.startDelayTicksSetting());
             minPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -268,6 +281,13 @@ final class Minecraft189AutoClickerFeature
                                     Minecraft189AutoClickerModule.MINIMUM_RAMP_UP_TICKS,
                                     Minecraft189AutoClickerModule.MAXIMUM_RAMP_UP_TICKS,
                                     1.0D)));
+            startDelayPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoClickerModule.START_DELAY_SETTING_ID,
+                            "Start Delay Ticks", SettingValueKind.INTEGER, 70,
+                            new SettingNumericSpec(0.0D,
+                                    Minecraft189AutoClickerModule.MAXIMUM_START_DELAY_TICKS,
+                                    1.0D)));
             minBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -320,6 +340,11 @@ final class Minecraft189AutoClickerFeature
                             Minecraft189AutoClickerModule.ID,
                             Minecraft189AutoClickerModule.RAMP_UP_TICKS_SETTING_ID, 60));
 
+            startDelayBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoClickerModule.ID,
+                            Minecraft189AutoClickerModule.START_DELAY_SETTING_ID, 70));
+
             return new Minecraft189AutoClickerFeature(
                     controller,
                     module,
@@ -354,8 +379,14 @@ final class Minecraft189AutoClickerFeature
                     requireForwardBinding,
                     requireHoldBinding,
                     rampUpBinding,
-                    rampUpTicksBinding);
+                    rampUpTicksBinding,
+                    startDelaySetting,
+                    startDelayPresentation,
+                    startDelayBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(startDelayBinding, failure);
+            closeQuietly(startDelayPresentation, failure);
+            closeQuietly(startDelaySetting, failure);
             closeQuietly(rampUpTicksBinding, failure);
             closeQuietly(rampUpBinding, failure);
             closeQuietly(rampUpTicksPresentation, failure);
@@ -459,6 +490,9 @@ final class Minecraft189AutoClickerFeature
             failure = closeFailure;
         }
 
+        failure = close(startDelayBinding, failure);
+        failure = close(startDelayPresentation, failure);
+        failure = close(startDelaySetting, failure);
         failure = close(rampUpTicksBinding, failure);
         failure = close(rampUpBinding, failure);
         failure = close(rampUpTicksPresentation, failure);
