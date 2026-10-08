@@ -12,6 +12,13 @@ public final class Minecraft189DamageBoostModule
             "movement.damageBoost.multiplier";
     public static final String VERTICAL_MULTIPLIER_SETTING_ID =
             "movement.damageBoost.verticalMultiplier";
+    public static final String CAP_HORIZONTAL_SETTING_ID =
+            "movement.damageBoost.capHorizontal";
+    public static final String MAX_HORIZONTAL_SPEED_SETTING_ID =
+            "movement.damageBoost.maxHorizontalSpeed";
+    public static final double DEFAULT_MAX_HORIZONTAL_SPEED = 0.70D;
+    public static final double MINIMUM_MAX_HORIZONTAL_SPEED = 0.10D;
+    public static final double MAXIMUM_MAX_HORIZONTAL_SPEED = 5.00D;
     public static final double DEFAULT_MULTIPLIER =
             1.25D;
     public static final double DEFAULT_VERTICAL_MULTIPLIER =
@@ -34,6 +41,18 @@ public final class Minecraft189DamageBoostModule
                     Minecraft189DamageBoostModule::validMultiplier,
                     SettingCodecs.DOUBLE);
 
+    private final Setting<Boolean> capHorizontal =
+            new Setting<Boolean>(
+                    CAP_HORIZONTAL_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Double> maxHorizontalSpeed =
+            new Setting<Double>(
+                    MAX_HORIZONTAL_SPEED_SETTING_ID,
+                    DEFAULT_MAX_HORIZONTAL_SPEED,
+                    value -> value != null && Double.isFinite(value)
+                            && value >= MINIMUM_MAX_HORIZONTAL_SPEED
+                            && value <= MAXIMUM_MAX_HORIZONTAL_SPEED,
+                    SettingCodecs.DOUBLE);
     private boolean enabled;
     private boolean previousAvailable;
     private int previousHurtTime;
@@ -49,6 +68,14 @@ public final class Minecraft189DamageBoostModule
 
     public Setting<Double> verticalMultiplierSetting() {
         return verticalMultiplier;
+    }
+
+    public Setting<Boolean> capHorizontalSetting() {
+        return capHorizontal;
+    }
+
+    public Setting<Double> maxHorizontalSpeedSetting() {
+        return maxHorizontalSpeed;
     }
 
     @Override
@@ -98,15 +125,32 @@ public final class Minecraft189DamageBoostModule
                 player.customMcMotionY();
         final double currentZ =
                 player.customMcMotionZ();
-        final double targetX =
-                cleanZero(
-                        currentX * configuredMultiplier);
+        double targetX =
+                cleanZero(currentX * configuredMultiplier);
         final double targetY =
-                cleanZero(
-                        currentY * configuredVerticalMultiplier);
-        final double targetZ =
-                cleanZero(
-                        currentZ * configuredMultiplier);
+                cleanZero(currentY * configuredVerticalMultiplier);
+        double targetZ =
+                cleanZero(currentZ * configuredMultiplier);
+
+        if (capHorizontal.get().booleanValue()) {
+            // Cap only the *additional* momentum from this boost.
+            // Never slow pre-existing horizontal motion above the cap.
+            // If real mapped velocity is malformed, fail closed on
+            // horizontal writes without affecting the vertical owner.
+            final double currentMagnitude = Math.hypot(currentX, currentZ);
+            final double boostedMagnitude = Math.hypot(targetX, targetZ);
+            final double cap = maxHorizontalSpeed.get().doubleValue();
+            if (!Double.isFinite(currentMagnitude)
+                    || !Double.isFinite(boostedMagnitude)
+                    || currentMagnitude >= cap) {
+                targetX = currentX;
+                targetZ = currentZ;
+            } else if (boostedMagnitude > cap) {
+                final double fraction = cap / boostedMagnitude;
+                targetX = cleanZero(targetX * fraction);
+                targetZ = cleanZero(targetZ * fraction);
+            }
+        }
 
         boolean changed = false;
         if (Double.compare(
