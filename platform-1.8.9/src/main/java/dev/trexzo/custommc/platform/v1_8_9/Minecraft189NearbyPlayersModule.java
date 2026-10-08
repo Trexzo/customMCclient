@@ -27,6 +27,7 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public static final String SHOW_BEARING_SETTING_ID = ID + ".showBearing";
     public static final String PROXIMITY_WARNING_SETTING_ID = ID + ".proximityWarning";
     public static final String WARNING_DISTANCE_SETTING_ID = ID + ".warningDistance";
+    public static final String NEAREST_HEIGHT_SETTING_ID = ID + ".nearestHeight";
     public static final String RENDER_PASS_ID = "nearby-players";
 
     private final Minecraft189PlayerPositionState local;
@@ -68,6 +69,9 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     private final Setting<Integer> warningDistance = new Setting<Integer>(
             WARNING_DISTANCE_SETTING_ID, 8,
             v -> v != null && v >= 1 && v <= 128, SettingCodecs.INTEGER);
+    private final Setting<Boolean> nearestHeight = new Setting<Boolean>(
+            NEAREST_HEIGHT_SETTING_ID, Boolean.FALSE,
+            v -> v != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration registration;
 
     public Minecraft189NearbyPlayersModule(
@@ -97,6 +101,7 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public Setting<Boolean> showBearingSetting() { return showBearing; }
     public Setting<Boolean> proximityWarningSetting() { return proximityWarning; }
     public Setting<Integer> warningDistanceSetting() { return warningDistance; }
+    public Setting<Boolean> nearestHeightSetting() { return nearestHeight; }
 
     @Override public synchronized void onEnable() {
         if (registration != null) {
@@ -244,6 +249,23 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                 && nearby.nearestDistance() <= threshold;
     }
 
+    /** Relative vertical offset for the already-selected eligible nearest player. */
+    static String nearestHeightLabel(
+            final NearbySnapshot nearby,
+            final Minecraft189PlayerPositionState.Snapshot local,
+            final Minecraft189WorldEntityPositionState.Snapshot positions) {
+        if (nearby == null || !nearby.available() || nearby.nearestIndex() < 0
+                || local == null || positions == null || !local.available()
+                || !positions.available()
+                || nearby.nearestIndex() >= positions.entityCount()) {
+            return "HEIGHT  --";
+        }
+        final double dy = positions.y(nearby.nearestIndex()) - local.y();
+        return Double.isFinite(dy)
+                ? String.format(Locale.ROOT, "HEIGHT  %+.1fm", dy)
+                : "HEIGHT  --";
+    }
+
     private void drawRadar(
             final float x, final float y, final int range,
             final Minecraft189PlayerPositionState.Snapshot me,
@@ -312,7 +334,9 @@ public final class Minecraft189NearbyPlayersModule implements Module {
             final boolean northUpMode = northUp.get().booleanValue();
             final boolean map = showRadar.get().booleanValue()
                     && (northUpMode || facing.available());
-            final float height = map ? 152.0F : 42.0F;
+            final boolean heightRow = nearestHeight.get().booleanValue();
+            final float rowOffset = heightRow ? 18.0F : 0.0F;
+            final float height = (map ? 152.0F : 42.0F) + rowOffset;
             final UiViewport viewport = new UiViewport(
                     graphics.framebufferWidth(),
                     graphics.framebufferHeight(), graphics.uiScale());
@@ -345,7 +369,11 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                     graphics.drawText(UiFonts.DEFAULT, left + 140.0F, top + 7.0F,
                             "!", 0xFFFFA8AF);
                 }
-                if (map) drawRadar(left, top, range, me, positions, types,
+                if (heightRow) {
+                    graphics.drawText(UiFonts.DEFAULT, left + 12.0F, top + 41.0F,
+                            nearestHeightLabel(nearby, me, positions), 0xFFC4CBD5);
+                }
+                if (map) drawRadar(left, top + rowOffset, range, me, positions, types,
                         facing.yaw(), northUpMode,
                         heightColors.get().booleanValue(),
                         highlightNearest.get().booleanValue(),
