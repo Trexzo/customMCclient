@@ -59,6 +59,8 @@ public final class Minecraft189AutoClickerModule
     private boolean enabled;
     private int phaseCredit;
     private int targetCps;
+    private int scheduledMinimumCps;
+    private int scheduledMaximumCps;
 
     @Override
     public String id() {
@@ -123,6 +125,18 @@ public final class Minecraft189AutoClickerModule
             return false;
         }
 
+        // A live CPS edit must not inherit phase credit or a sampled
+        // click target from the previous configuration. Compare BOTH
+        // bounds so editing either Min or Max resets the cadence.
+        final int currentMinimumCps = minCps.get().intValue();
+        final int currentMaximumCps = maxCps.get().intValue();
+        if (scheduledMinimumCps != currentMinimumCps
+                || scheduledMaximumCps != currentMaximumCps) {
+            resetSchedule();
+            scheduledMinimumCps = currentMinimumCps;
+            scheduledMaximumCps = currentMaximumCps;
+        }
+
         if (targetCps <= 0) {
             targetCps = nextTargetCps();
         }
@@ -166,5 +180,7 @@ public final class Minecraft189AutoClickerModule
     private void resetSchedule() {
         phaseCredit = 0;
         targetCps = 0;
+        scheduledMinimumCps = 0;
+        scheduledMaximumCps = 0;
     }
 }
