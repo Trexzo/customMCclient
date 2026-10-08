@@ -549,7 +549,10 @@ public final class Minecraft189FeatureCatalog
                     Minecraft189AutoSneakFeature.install(
                             modules,
                             moduleController,
-                            presentations);
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             noSlowFeature =
                     Minecraft189NoSlowFeature.install(
