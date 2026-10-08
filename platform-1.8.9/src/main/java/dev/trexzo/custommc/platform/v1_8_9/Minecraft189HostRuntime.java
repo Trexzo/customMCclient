@@ -783,8 +783,11 @@ public final class Minecraft189HostRuntime
                     .apply(
                             player,
                             movement,
-                            inputState.keyPressed(
-                                    LegacyKeyboardCodes.W));
+                            inputState.keyPressed(LegacyKeyboardCodes.W),
+                            inputState.keyPressed(LegacyKeyboardCodes.W)
+                                    || inputState.keyPressed(LegacyKeyboardCodes.A)
+                                    || inputState.keyPressed(LegacyKeyboardCodes.S)
+                                    || inputState.keyPressed(LegacyKeyboardCodes.D));
         }
         featureCatalog.airJump()
                 .apply(

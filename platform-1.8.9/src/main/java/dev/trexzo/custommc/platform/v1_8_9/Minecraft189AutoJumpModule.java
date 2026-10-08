@@ -12,6 +12,8 @@ public final class Minecraft189AutoJumpModule
             "movement.autoJump";
     public static final String REQUIRE_FORWARD_SETTING_ID =
             "movement.autoJump.requireForward";
+    public static final String REQUIRE_MOVEMENT_SETTING_ID =
+            "movement.autoJump.requireMovement";
     public static final String LANDING_DELAY_SETTING_ID =
             "movement.autoJump.landingDelayTicks";
     public static final int MAXIMUM_LANDING_DELAY_TICKS = 10;
@@ -23,6 +25,10 @@ public final class Minecraft189AutoJumpModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> requireMovement =
+            new Setting<Boolean>(
+                    REQUIRE_MOVEMENT_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
     private final Setting<Integer> landingDelayTicks =
             new Setting<Integer>(
                     LANDING_DELAY_SETTING_ID,
@@ -45,6 +51,10 @@ public final class Minecraft189AutoJumpModule
         return requireForward;
     }
 
+    public Setting<Boolean> requireMovementSetting() {
+        return requireMovement;
+    }
+
     public Setting<Integer> landingDelayTicksSetting() {
         return landingDelayTicks;
     }
@@ -65,6 +75,15 @@ public final class Minecraft189AutoJumpModule
             final Minecraft189PlayerJumpControl player,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean forwardHeld) {
+        // Legacy callers have no independent A/S/D input authority.
+        apply(player, movement, forwardHeld, forwardHeld);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerJumpControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean forwardHeld,
+            final boolean anyMovementHeld) {
         Objects.requireNonNull(
                 movement,
                 "movement");
@@ -97,7 +116,10 @@ public final class Minecraft189AutoJumpModule
         }
 
         if ((requireForward.get().booleanValue()
-                && !forwardHeld) || !armed) {
+                && !forwardHeld)
+                || (requireMovement.get().booleanValue()
+                        && !anyMovementHeld)
+                || !armed) {
             return;
         }
 

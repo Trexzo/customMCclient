@@ -364,6 +364,103 @@ final class Minecraft189AutoJumpModuleTest {
         assertNull(modules.find(Minecraft189AutoJumpModule.ID));
     }
 
+    @Test
+    void requireMovementUsesLiveWASDAndKeepsForwardGateIndependent() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189AutoJumpModule jump = runtime.featureCatalog().autoJump();
+            final TestPlayer player = new TestPlayer();
+            assertFalse(jump.requireMovementSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoJumpModule.REQUIRE_MOVEMENT_SETTING_ID));
+            controller.enable(Minecraft189AutoJumpModule.ID);
+            jump.requireMovementSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoJumpModule.REQUIRE_MOVEMENT_SETTING_ID));
+
+            runtime.playerMovementState(player);
+            runtime.playerJumpControl(player);
+            assertEquals(0, player.jumpCalls);
+            final int[] keys = {
+                    LegacyKeyboardCodes.A, LegacyKeyboardCodes.S,
+                    LegacyKeyboardCodes.D, LegacyKeyboardCodes.W};
+            for (int i = 0; i < keys.length; i++) {
+                runtime.inputState().key(keys[i], true);
+                runtime.playerMovementState(player);
+                runtime.playerJumpControl(player);
+                assertEquals(i + 1, player.jumpCalls);
+                runtime.playerJumpControl(player);
+                assertEquals(i + 1, player.jumpCalls);
+                runtime.inputState().key(keys[i], false);
+                player.onGround = false;
+                runtime.playerMovementState(player);
+                runtime.playerJumpControl(player);
+                player.onGround = true;
+                runtime.playerMovementState(player);
+                runtime.playerJumpControl(player);
+                assertEquals(i + 1, player.jumpCalls);
+            }
+
+            jump.requireForwardSetting().set(Boolean.TRUE);
+            runtime.inputState().key(LegacyKeyboardCodes.D, true);
+            runtime.playerJumpControl(player);
+            assertEquals(4, player.jumpCalls);
+            runtime.inputState().key(LegacyKeyboardCodes.D, false);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerJumpControl(player);
+            assertEquals(5, player.jumpCalls);
+            runtime.inputState().key(LegacyKeyboardCodes.W, false);
+
+            player.onGround = false;
+            runtime.playerMovementState(player);
+            runtime.playerJumpControl(player);
+            player.onGround = true;
+            runtime.playerMovementState(player);
+            jump.requireMovementSetting().set(Boolean.FALSE);
+            jump.requireForwardSetting().set(Boolean.FALSE);
+            runtime.playerJumpControl(player);
+            assertEquals(6, player.jumpCalls);
+            controller.disable(Minecraft189AutoJumpModule.ID);
+            runtime.playerJumpControl(player);
+            assertEquals(6, player.jumpCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189AutoJumpModule.REQUIRE_MOVEMENT_SETTING_ID));
+        assertNull(modules.find(Minecraft189AutoJumpModule.ID));
+    }
+
+    @Test
+    void legacyJumpOverloadNeverInfersStrafeInput() {
+        final Minecraft189AutoJumpModule module = new Minecraft189AutoJumpModule();
+        final Minecraft189PlayerMovementState state = new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer();
+        module.requireMovementSetting().set(Boolean.TRUE);
+        module.onEnable();
+        state.update(true, false, false);
+        module.apply(player, state.snapshot(), false);
+        assertEquals(0, player.jumpCalls);
+        module.apply(player, state.snapshot(), false, true);
+        assertEquals(1, player.jumpCalls);
+        module.apply(player, state.snapshot(), false, true);
+        assertEquals(1, player.jumpCalls);
+        module.onDisable();
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMovementStateAccess,
             Minecraft189PlayerJumpControl {
