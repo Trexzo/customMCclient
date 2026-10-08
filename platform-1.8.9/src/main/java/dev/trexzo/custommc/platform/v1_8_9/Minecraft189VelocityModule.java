@@ -14,6 +14,10 @@ public final class Minecraft189VelocityModule
             "combat.velocity.verticalPercent";
     public static final String ONLY_WHILE_SPRINTING_SETTING_ID =
             "combat.velocity.onlyWhileSprinting";
+    public static final String GROUND_ONLY_SETTING_ID =
+            "combat.velocity.groundOnly";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "combat.velocity.pauseWhileSneaking";
     public static final String AIRBORNE_OVERRIDE_SETTING_ID =
             "combat.velocity.airborneOverride";
     public static final String AIRBORNE_HORIZONTAL_SETTING_ID =
@@ -45,6 +49,13 @@ public final class Minecraft189VelocityModule
                     Boolean.FALSE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+
+    private final Setting<Boolean> groundOnly = new Setting<Boolean>(
+            GROUND_ONLY_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> pauseWhileSneaking = new Setting<Boolean>(
+            PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
 
     private final Setting<Boolean> airborneOverride =
             new Setting<Boolean>(
@@ -82,6 +93,14 @@ public final class Minecraft189VelocityModule
 
     public Setting<Boolean> onlyWhileSprintingSetting() {
         return onlyWhileSprinting;
+    }
+
+    public Setting<Boolean> groundOnlySetting() {
+        return groundOnly;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
     }
 
     public Setting<Boolean> airborneOverrideSetting() {
@@ -148,10 +167,23 @@ public final class Minecraft189VelocityModule
 
     private boolean shouldScale(
             final Minecraft189PlayerMovementState.Snapshot movement) {
-        return enabled
-                && (!onlyWhileSprinting.get().booleanValue()
-                || (movement != null && movement.available()
-                && movement.sprinting()));
+        if (!enabled) {
+            return false;
+        }
+        // Opt-in movement authority guards both knockback axes. Missing
+        // or stale state returns vanilla delta, never a scaled guess.
+        final boolean ground = groundOnly.get().booleanValue();
+        final boolean pauseSneak = pauseWhileSneaking.get().booleanValue();
+        final boolean sprint = onlyWhileSprinting.get().booleanValue();
+        if (!ground && !pauseSneak && !sprint) {
+            return true;
+        }
+        if (movement == null || !movement.available()) {
+            return false;
+        }
+        return (!ground || movement.onGround())
+                && (!pauseSneak || !movement.sneaking())
+                && (!sprint || movement.sprinting());
     }
 
     private boolean useAirbornePercent(
