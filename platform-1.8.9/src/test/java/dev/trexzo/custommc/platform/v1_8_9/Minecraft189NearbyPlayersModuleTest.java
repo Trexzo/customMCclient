@@ -215,6 +215,49 @@ final class Minecraft189NearbyPlayersModuleTest {
     }
 
     @Test
+    void nearestHeightLabelUsesSelectedPlayerAndRejectsUnavailablePositions() {
+        final Minecraft189PlayerPositionState local =
+                new Minecraft189PlayerPositionState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        local.update(0, 10, 0);
+        positions.update(new double[]{
+                0, 10, 0,   // local
+                3, 14, 0,   // eligible nearest above
+                0, 5, 10   // eligible farther below
+        });
+        kinds.update(new int[]{LOCAL, REMOTE, REMOTE});
+        Minecraft189NearbyPlayersModule.NearbySnapshot nearest =
+                Minecraft189NearbyPlayersModule.countNearby(
+                        local.snapshot(), positions.snapshot(), kinds.snapshot(), 12);
+        assertEquals(1, nearest.nearestIndex());
+        assertEquals("HEIGHT  +4.0m", Minecraft189NearbyPlayersModule.nearestHeightLabel(
+                nearest, local.snapshot(), positions.snapshot()));
+        positions.update(new double[]{
+                0, 10, 0, 0, 7, 4, 0, 5, 10
+        });
+        nearest = Minecraft189NearbyPlayersModule.countNearby(
+                local.snapshot(), positions.snapshot(), kinds.snapshot(), 12);
+        assertEquals("HEIGHT  -3.0m", Minecraft189NearbyPlayersModule.nearestHeightLabel(
+                nearest, local.snapshot(), positions.snapshot()));
+        positions.update(new double[]{0, 10, 0, 0, 10, 0});
+        kinds.update(new int[]{LOCAL, REMOTE});
+        nearest = Minecraft189NearbyPlayersModule.countNearby(
+                local.snapshot(), positions.snapshot(), kinds.snapshot(), 12);
+        assertEquals("HEIGHT  +0.0m", Minecraft189NearbyPlayersModule.nearestHeightLabel(
+                nearest, local.snapshot(), positions.snapshot()));
+        nearest = Minecraft189NearbyPlayersModule.countNearby(
+                local.snapshot(), positions.snapshot(), kinds.snapshot(), 1);
+        positions.clear();
+        assertEquals("HEIGHT  --", Minecraft189NearbyPlayersModule.nearestHeightLabel(
+                nearest, local.snapshot(), positions.snapshot()));
+        assertEquals("HEIGHT  --", Minecraft189NearbyPlayersModule.nearestHeightLabel(
+                null, local.snapshot(), positions.snapshot()));
+    }
+
+    @Test
     void visualHudReadsMappedSnapshotsAndUnregistersCleanly() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -244,6 +287,7 @@ final class Minecraft189NearbyPlayersModuleTest {
             assertFalse(radar.showBearingSetting().get().booleanValue());
             assertFalse(radar.proximityWarningSetting().get().booleanValue());
             assertEquals(8, radar.warningDistanceSetting().get().intValue());
+            assertFalse(radar.nearestHeightSetting().get().booleanValue());
             runtime.renderHud(0L, 0.0F);
             assertTrue(host.texts.isEmpty());
             radar.xSetting().set(25);
@@ -361,6 +405,7 @@ final class Minecraft189NearbyPlayersModuleTest {
         assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_BEARING_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.PROXIMITY_WARNING_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.WARNING_DISTANCE_SETTING_ID));
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.NEAREST_HEIGHT_SETTING_ID));
     }
 
     @Test
@@ -498,6 +543,7 @@ final class Minecraft189NearbyPlayersModuleTest {
             assertFalse(radar.showBearingSetting().get().booleanValue());
             assertFalse(radar.proximityWarningSetting().get().booleanValue());
             assertEquals(8, radar.warningDistanceSetting().get().intValue());
+            assertFalse(radar.nearestHeightSetting().get().booleanValue());
             radar.showRadarSetting().set(Boolean.TRUE);
             radar.northUpSetting().set(Boolean.TRUE);
             radar.radiusSetting().set(10);
@@ -768,6 +814,81 @@ final class Minecraft189NearbyPlayersModuleTest {
         }
         assertNull(settings.find(Minecraft189NearbyPlayersModule.PROXIMITY_WARNING_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.WARNING_DISTANCE_SETTING_ID));
+    }
+
+    @Test
+    void optionalNearestHeightRowExpandsCardAndOffsetsRadarOnlyWhenEnabled() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189NearbyPlayersModule radar =
+                    runtime.featureCatalog().nearbyPlayers();
+            controller.enable(Minecraft189NearbyPlayersModule.ID);
+            radar.radiusSetting().set(10);
+            runtime.playerPositionState().update(0, 0, 0);
+            runtime.worldEntityPositionState().update(new double[]{
+                    0, 0, 0,   // local
+                    3, 4, 0,   // nearest player, +4 vertical, 5m away
+                    0, 0, 12   // remote outside scan range
+            });
+            runtime.worldEntityKindState().update(new int[]{LOCAL, REMOTE, REMOTE});
+            runtime.renderHud(101L, 0.0F);
+            assertEquals(42.0F, host.lastCardHeight, 0.001F);
+            assertEquals(2, host.texts.size());
+
+            radar.nearestHeightSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NearbyPlayersModule.NEAREST_HEIGHT_SETTING_ID));
+            runtime.renderHud(102L, 0.0F);
+            assertEquals(60.0F, host.lastCardHeight, 0.001F);
+            assertEquals("HEIGHT  +4.0m", host.texts.get(4));
+
+            radar.radiusSetting().set(4);
+            runtime.renderHud(103L, 0.0F);
+            assertEquals("HEIGHT  --", host.texts.get(7));
+            radar.radiusSetting().set(10);
+            radar.showRadarSetting().set(Boolean.TRUE);
+            radar.northUpSetting().set(Boolean.TRUE);
+            // No mapped yaw: North-Up still draws the whole shifted map.
+            runtime.renderHud(104L, 0.0F);
+            assertEquals(170.0F, host.lastCardHeight, 0.001F);
+            assertEquals(1, host.markerYs.size());
+            assertEquals(390.0F, host.markerYs.get(0), 0.001F);
+            assertEquals("HEIGHT  +4.0m", host.texts.get(10));
+
+            radar.nearestHeightSetting().set(Boolean.FALSE);
+            runtime.renderHud(105L, 0.0F);
+            assertEquals(152.0F, host.lastCardHeight, 0.001F);
+            assertEquals(2, host.markerYs.size());
+            assertEquals(372.0F, host.markerYs.get(1), 0.001F);
+
+            radar.nearestHeightSetting().set(Boolean.TRUE);
+            runtime.worldEntityPositionState().update(new double[]{
+                    0, 0, 0, 0, -3, 4, 0, 0, 12
+            });
+            runtime.renderHud(106L, 0.0F);
+            assertEquals("HEIGHT  -3.0m", host.texts.get(15));
+            runtime.worldEntityPositionState().clear();
+            final int beforeClear = host.texts.size();
+            runtime.renderHud(107L, 0.0F);
+            assertEquals(beforeClear, host.texts.size());
+            controller.disable(Minecraft189NearbyPlayersModule.ID);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.NEAREST_HEIGHT_SETTING_ID));
     }
 
     private static final class RecordingHost
