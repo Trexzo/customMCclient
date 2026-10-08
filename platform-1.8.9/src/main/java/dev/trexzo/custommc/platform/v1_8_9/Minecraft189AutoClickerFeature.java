@@ -459,6 +459,12 @@ final class Minecraft189AutoClickerFeature
             failure = closeFailure;
         }
 
+        failure = close(rampUpTicksBinding, failure);
+        failure = close(rampUpBinding, failure);
+        failure = close(rampUpTicksPresentation, failure);
+        failure = close(rampUpPresentation, failure);
+        failure = close(rampUpTicksSetting, failure);
+        failure = close(rampUpSetting, failure);
         failure = close(pauseWhileSneakingBinding, failure);
         failure = close(pauseWhileSneakingPresentation, failure);
         failure = close(pauseWhileSneakingSetting, failure);
