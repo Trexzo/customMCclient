@@ -21,10 +21,13 @@ final class Minecraft189VelocityFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration horizontalSetting;
     private final SettingRegistry.Registration verticalSetting;
+    private final SettingRegistry.Registration onlyWhileSprintingSetting;
     private final SettingPresentationRegistry.Registration horizontalPresentation;
     private final SettingPresentationRegistry.Registration verticalPresentation;
+    private final SettingPresentationRegistry.Registration onlyWhileSprintingPresentation;
     private final ModuleSettingRegistry.Registration horizontalBinding;
     private final ModuleSettingRegistry.Registration verticalBinding;
+    private final ModuleSettingRegistry.Registration onlyWhileSprintingBinding;
     private boolean closed;
 
     private Minecraft189VelocityFeature(
@@ -34,20 +37,26 @@ final class Minecraft189VelocityFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration horizontalSetting,
             final SettingRegistry.Registration verticalSetting,
+            final SettingRegistry.Registration onlyWhileSprintingSetting,
             final SettingPresentationRegistry.Registration horizontalPresentation,
             final SettingPresentationRegistry.Registration verticalPresentation,
+            final SettingPresentationRegistry.Registration onlyWhileSprintingPresentation,
             final ModuleSettingRegistry.Registration horizontalBinding,
-            final ModuleSettingRegistry.Registration verticalBinding) {
+            final ModuleSettingRegistry.Registration verticalBinding,
+            final ModuleSettingRegistry.Registration onlyWhileSprintingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.horizontalSetting = horizontalSetting;
         this.verticalSetting = verticalSetting;
+        this.onlyWhileSprintingSetting = onlyWhileSprintingSetting;
         this.horizontalPresentation = horizontalPresentation;
         this.verticalPresentation = verticalPresentation;
+        this.onlyWhileSprintingPresentation = onlyWhileSprintingPresentation;
         this.horizontalBinding = horizontalBinding;
         this.verticalBinding = verticalBinding;
+        this.onlyWhileSprintingBinding = onlyWhileSprintingBinding;
     }
 
     static Minecraft189VelocityFeature install(
@@ -64,10 +73,13 @@ final class Minecraft189VelocityFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration horizontalSetting = null;
         SettingRegistry.Registration verticalSetting = null;
+        SettingRegistry.Registration onlyWhileSprintingSetting = null;
         SettingPresentationRegistry.Registration horizontalPresentation = null;
         SettingPresentationRegistry.Registration verticalPresentation = null;
+        SettingPresentationRegistry.Registration onlyWhileSprintingPresentation = null;
         ModuleSettingRegistry.Registration horizontalBinding = null;
         ModuleSettingRegistry.Registration verticalBinding = null;
+        ModuleSettingRegistry.Registration onlyWhileSprintingBinding = null;
 
         try {
             moduleRegistration =
@@ -87,6 +99,8 @@ final class Minecraft189VelocityFeature
             verticalSetting =
                     settings.register(
                             module.verticalPercentSetting());
+            onlyWhileSprintingSetting = settings.register(
+                    module.onlyWhileSprintingSetting());
 
             horizontalPresentation =
                     settingPresentations.register(
@@ -111,6 +125,11 @@ final class Minecraft189VelocityFeature
                                             Minecraft189VelocityModule.MAXIMUM_PERCENT,
                                             5.0D)));
 
+            onlyWhileSprintingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189VelocityModule.ONLY_WHILE_SPRINTING_SETTING_ID,
+                            "Only While Sprinting", SettingValueKind.BOOLEAN, 20));
+
             horizontalBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -124,6 +143,11 @@ final class Minecraft189VelocityFeature
                                     Minecraft189VelocityModule.VERTICAL_SETTING_ID,
                                     10));
 
+            onlyWhileSprintingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189VelocityModule.ID,
+                            Minecraft189VelocityModule.ONLY_WHILE_SPRINTING_SETTING_ID, 20));
+
             return new Minecraft189VelocityFeature(
                     controller,
                     module,
@@ -131,15 +155,21 @@ final class Minecraft189VelocityFeature
                     presentation,
                     horizontalSetting,
                     verticalSetting,
+                    onlyWhileSprintingSetting,
                     horizontalPresentation,
                     verticalPresentation,
+                    onlyWhileSprintingPresentation,
                     horizontalBinding,
-                    verticalBinding);
+                    verticalBinding,
+                    onlyWhileSprintingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(onlyWhileSprintingBinding, failure);
             closeQuietly(verticalBinding, failure);
             closeQuietly(horizontalBinding, failure);
+            closeQuietly(onlyWhileSprintingPresentation, failure);
             closeQuietly(verticalPresentation, failure);
             closeQuietly(horizontalPresentation, failure);
+            closeQuietly(onlyWhileSprintingSetting, failure);
             closeQuietly(verticalSetting, failure);
             closeQuietly(horizontalSetting, failure);
             closeQuietly(presentation, failure);
@@ -175,10 +205,13 @@ final class Minecraft189VelocityFeature
             failure = closeFailure;
         }
 
+        failure = close(onlyWhileSprintingBinding, failure);
         failure = close(verticalBinding, failure);
         failure = close(horizontalBinding, failure);
+        failure = close(onlyWhileSprintingPresentation, failure);
         failure = close(verticalPresentation, failure);
         failure = close(horizontalPresentation, failure);
+        failure = close(onlyWhileSprintingSetting, failure);
         failure = close(verticalSetting, failure);
         failure = close(horizontalSetting, failure);
         failure = close(presentation, failure);

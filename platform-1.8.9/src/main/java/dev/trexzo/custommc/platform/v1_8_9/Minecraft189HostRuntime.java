@@ -708,7 +708,8 @@ public final class Minecraft189HostRuntime
         return featureCatalog.velocity()
                 .adjustHorizontal(
                         before,
-                        after);
+                        after,
+                        playerMovementState.snapshot());
     }
 
     double adjustVelocityVertical(
@@ -718,7 +719,8 @@ public final class Minecraft189HostRuntime
         return featureCatalog.velocity()
                 .adjustVertical(
                         before,
-                        after);
+                        after,
+                        playerMovementState.snapshot());
     }
 
     void playerJumpControl(
