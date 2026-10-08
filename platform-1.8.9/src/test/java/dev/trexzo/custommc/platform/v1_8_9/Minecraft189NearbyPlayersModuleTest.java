@@ -162,6 +162,7 @@ final class Minecraft189NearbyPlayersModuleTest {
             assertFalse(radar.showRadarSetting().get().booleanValue());
             assertFalse(radar.northUpSetting().get().booleanValue());
             assertFalse(radar.heightColorsSetting().get().booleanValue());
+            assertFalse(radar.highlightNearestSetting().get().booleanValue());
             runtime.renderHud(0L, 0.0F);
             assertTrue(host.texts.isEmpty());
             radar.xSetting().set(25);
@@ -274,6 +275,7 @@ final class Minecraft189NearbyPlayersModuleTest {
         assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_RADAR_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.NORTH_UP_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.HEIGHT_COLORS_SETTING_ID));
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.HIGHLIGHT_NEAREST_SETTING_ID));
     }
 
     @Test
@@ -347,6 +349,123 @@ final class Minecraft189NearbyPlayersModuleTest {
         assertNull(settings.find(Minecraft189NearbyPlayersModule.HEIGHT_COLORS_SETTING_ID));
     }
 
+    @Test
+    void nearestIndexUsesExactThreeDimensionalDistanceAndStableTies() {
+        final Minecraft189PlayerPositionState local =
+                new Minecraft189PlayerPositionState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        local.update(0, 0, 0);
+        positions.update(new double[]{
+                0, 0, 0,    // Local
+                7, 0, 0,    // Far eligible
+                0, 2, 0,    // Nearest: 2m vertical separation
+                2, 0, 0,    // Same distance: later index must lose
+                0, 0, 0.5,  // Nonplayer, closer but ineligible
+                11, 0, 0   // Remote outside 10m radius
+        });
+        kinds.update(new int[]{LOCAL, REMOTE, REMOTE, REMOTE,
+                Minecraft189WorldEntityKindState.LIVING, REMOTE});
+        Minecraft189NearbyPlayersModule.NearbySnapshot count =
+                Minecraft189NearbyPlayersModule.countNearby(
+                        local.snapshot(), positions.snapshot(), kinds.snapshot(), 10);
+        assertTrue(count.available());
+        assertEquals(3, count.count());
+        assertEquals(2.0D, count.nearestDistance(), 0.00001D);
+        assertEquals(2, count.nearestIndex());
+
+        count = Minecraft189NearbyPlayersModule.countNearby(
+                local.snapshot(), positions.snapshot(), kinds.snapshot(), 1);
+        assertTrue(count.available());
+        assertEquals(0, count.count());
+        assertEquals(-1, count.nearestIndex());
+        assertEquals(0.0D, count.nearestDistance(), 0.00001D);
+        kinds.clear();
+        count = Minecraft189NearbyPlayersModule.countNearby(
+                local.snapshot(), positions.snapshot(), kinds.snapshot(), 10);
+        assertFalse(count.available());
+        assertEquals(-1, count.nearestIndex());
+    }
+
+    @Test
+    void nearestRadarHaloRespectsDistanceAndModes() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189NearbyPlayersModule radar =
+                    runtime.featureCatalog().nearbyPlayers();
+            assertFalse(radar.highlightNearestSetting().get().booleanValue());
+            radar.showRadarSetting().set(Boolean.TRUE);
+            radar.northUpSetting().set(Boolean.TRUE);
+            radar.radiusSetting().set(10);
+            controller.enable(Minecraft189NearbyPlayersModule.ID);
+            runtime.playerPositionState().update(0, 0, 0);
+            runtime.worldEntityPositionState().update(new double[]{
+                    0, 0, 0,  // Local ignored
+                    7, 0, 0,  // Remote farther
+                    2, 0, 0,  // Nearest eligible
+                    0, 0, 2,  // Same distance: later index loses tie
+                    0, 0, 11, // Beyond radius
+                    0, 0, 1   // Nonplayer, although closer
+            });
+            runtime.worldEntityKindState().update(new int[]{
+                    LOCAL, REMOTE, REMOTE, REMOTE, REMOTE,
+                    Minecraft189WorldEntityKindState.LIVING});
+            runtime.renderHud(61L, 0.0F);
+            assertEquals(0, host.haloXs.size());
+            assertEquals(3, host.markerXs.size());
+            assertTrue(host.texts.contains("NEAREST  2.0m"));
+
+            radar.highlightNearestSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NearbyPlayersModule.HIGHLIGHT_NEAREST_SETTING_ID));
+            runtime.renderHud(62L, 0.0F);
+            assertEquals(1, host.haloXs.size());
+            // Default position x=18/y=278, fixed projection of x=2 radius 10.
+            assertEquals(18.0F + 78.0F + 9.2F - 4.0F,
+                    host.haloXs.get(0), 0.001F);
+            assertEquals(278.0F + 96.0F - 4.0F,
+                    host.haloYs.get(0), 0.001F);
+            assertEquals(0xFFF5F8FF, host.haloColors.get(0).intValue());
+
+            // With yaw unavailable, relative radar must fail closed.
+            radar.northUpSetting().set(Boolean.FALSE);
+            runtime.renderHud(63L, 0.0F);
+            assertEquals(1, host.haloXs.size());
+            runtime.playerRotationState().update(90.0F, 0.0F);
+            runtime.renderHud(64L, 0.0F);
+            assertEquals(2, host.haloXs.size());
+
+            // Reducing the 3D radius removes all players and the halo.
+            radar.northUpSetting().set(Boolean.TRUE);
+            radar.radiusSetting().set(1);
+            runtime.renderHud(65L, 0.0F);
+            assertEquals(2, host.haloXs.size());
+            assertTrue(host.texts.contains("NEAREST  --"));
+            radar.radiusSetting().set(10);
+            runtime.worldEntityPositionState().clear();
+            runtime.renderHud(66L, 0.0F);
+            assertEquals(2, host.haloXs.size());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.HIGHLIGHT_NEAREST_SETTING_ID));
+    }
+
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private final java.util.List<String> texts = new java.util.ArrayList<String>();
@@ -355,6 +474,9 @@ final class Minecraft189NearbyPlayersModuleTest {
         private final java.util.List<Float> markerXs = new java.util.ArrayList<Float>();
         private final java.util.List<Float> markerYs = new java.util.ArrayList<Float>();
         private final java.util.List<Integer> markerColors = new java.util.ArrayList<Integer>();
+        private final java.util.List<Float> haloXs = new java.util.ArrayList<Float>();
+        private final java.util.List<Float> haloYs = new java.util.ArrayList<Float>();
+        private final java.util.List<Integer> haloColors = new java.util.ArrayList<Integer>();
         private float lastCardWidth;
         private float lastCardHeight;
         private int begins;
@@ -409,6 +531,11 @@ final class Minecraft189NearbyPlayersModuleTest {
                 markerXs.add(x);
                 markerYs.add(y);
                 markerColors.add(argb);
+            }
+            if (width == 8.0F && height == 8.0F) {
+                haloXs.add(x);
+                haloYs.add(y);
+                haloColors.add(argb);
             }
             roundedRects++;
         }
