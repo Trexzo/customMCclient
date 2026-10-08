@@ -5237,6 +5237,37 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(-4.0F,
                     playerClass.getField("z").getFloat(player), 0.0001F);
 
+            // M220: the physical legacy W key gates mapped Aim Assist ownership.
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .requireForwardSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().inputState()
+                    .key(LegacyKeyboardCodes.W, false);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-70.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(0.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            runtime.requireHostRuntime().inputState()
+                    .key(LegacyKeyboardCodes.W, true);
+            runTick.invoke(minecraft);
+            assertEquals(-67.833654F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(-4.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            runtime.requireHostRuntime().inputState()
+                    .key(LegacyKeyboardCodes.W, false);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-70.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(0.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AimAssistModule.ID);

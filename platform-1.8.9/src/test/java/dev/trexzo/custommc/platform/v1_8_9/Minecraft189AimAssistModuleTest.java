@@ -55,6 +55,7 @@ final class Minecraft189AimAssistModuleTest {
                             .get()
                             .doubleValue(),
                     0.000001D);
+            assertFalse(module.requireForwardSetting().get().booleanValue());
             assertTrue(
                     module.requireHoldSetting()
                             .get()
@@ -106,6 +107,10 @@ final class Minecraft189AimAssistModuleTest {
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.PITCH_SPEED_SETTING_ID)
+                            != null);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.REQUIRE_FORWARD_SETTING_ID)
                             != null);
             assertTrue(
                     settings.find(
@@ -524,6 +529,9 @@ final class Minecraft189AimAssistModuleTest {
                         Minecraft189AimAssistModule.PITCH_SPEED_SETTING_ID));
         assertNull(
                 settings.find(
+                        Minecraft189AimAssistModule.REQUIRE_FORWARD_SETTING_ID));
+        assertNull(
+                settings.find(
                         Minecraft189AimAssistModule.REQUIRE_HOLD_SETTING_ID));
         assertNull(
                 settings.find(
@@ -739,6 +747,59 @@ final class Minecraft189AimAssistModuleTest {
                 target.snapshot(), true));
 
         module.onDisable();
+    }
+
+
+    @Test
+    void requireForwardUsesPhysicalWAndYieldsWithoutRotationWrites() {
+        final Minecraft189AimAssistModule module = new Minecraft189AimAssistModule();
+        final Minecraft189PlayerPositionState local = new Minecraft189PlayerPositionState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds = new Minecraft189WorldEntityKindState();
+        final Minecraft189NearestPlayerTargetState nearest =
+                new Minecraft189NearestPlayerTargetState();
+        final Minecraft189TargetRotationState target = new Minecraft189TargetRotationState();
+        final Minecraft189PlayerRotationState rotation = new Minecraft189PlayerRotationState();
+        final TestPlayer player = new TestPlayer(30.0F, 10.0F);
+        local.update(0.0D, 0.0D, 0.0D);
+        positions.update(new double[]{0.0D, 0.0D, 10.0D});
+        kinds.update(new int[]{Minecraft189WorldEntityKindState.LIVING
+                | Minecraft189WorldEntityKindState.PLAYER});
+        nearest.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+        target.update(local.snapshot(), nearest.snapshot());
+        module.onEnable();
+        rotation.update(player.yaw, player.pitch);
+
+        // Default false retains the original four-argument path.
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true, false));
+        assertEquals(0.0F, player.yaw, 0.0001F);
+        player.yaw = 30.0F;
+        player.pitch = 10.0F;
+        rotation.update(player.yaw, player.pitch);
+
+        module.requireForwardSetting().set(Boolean.TRUE);
+        final int yawWrites = player.yawWrites;
+        final int pitchWrites = player.pitchWrites;
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(), true, false));
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        assertEquals(yawWrites, player.yawWrites);
+        assertEquals(pitchWrites, player.pitchWrites);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true, true));
+        assertEquals(0.0F, player.yaw, 0.0001F);
+        assertEquals(0.0F, player.pitch, 0.0001F);
+
+        module.requireHoldSetting().set(Boolean.TRUE);
+        player.yaw = 30.0F;
+        player.pitch = 10.0F;
+        rotation.update(player.yaw, player.pitch);
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(), false, true));
+        module.requireHoldSetting().set(Boolean.FALSE);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), false, true));
+        module.onDisable();
+        player.yaw = 30.0F;
+        rotation.update(player.yaw, player.pitch);
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(), true, true));
     }
 
     private static final class TestPlayer
