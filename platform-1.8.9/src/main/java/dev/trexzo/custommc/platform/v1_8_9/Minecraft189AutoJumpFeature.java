@@ -8,6 +8,7 @@ import dev.trexzo.custommc.core.module.ModuleSettingBinding;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
 import dev.trexzo.custommc.core.module.ModuleState;
 import dev.trexzo.custommc.core.setting.SettingDescriptor;
+import dev.trexzo.custommc.core.setting.SettingNumericSpec;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.setting.SettingValueKind;
@@ -19,8 +20,11 @@ final class Minecraft189AutoJumpFeature
     private final ModuleRegistry.Registration moduleRegistration;
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration requireForwardSetting;
+    private final SettingRegistry.Registration landingDelaySetting;
     private final SettingPresentationRegistry.Registration requireForwardPresentation;
+    private final SettingPresentationRegistry.Registration landingDelayPresentation;
     private final ModuleSettingRegistry.Registration requireForwardBinding;
+    private final ModuleSettingRegistry.Registration landingDelayBinding;
     private boolean closed;
 
     private Minecraft189AutoJumpFeature(
@@ -29,15 +33,21 @@ final class Minecraft189AutoJumpFeature
             final ModuleRegistry.Registration moduleRegistration,
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration requireForwardSetting,
+            final SettingRegistry.Registration landingDelaySetting,
             final SettingPresentationRegistry.Registration requireForwardPresentation,
-            final ModuleSettingRegistry.Registration requireForwardBinding) {
+            final SettingPresentationRegistry.Registration landingDelayPresentation,
+            final ModuleSettingRegistry.Registration requireForwardBinding,
+            final ModuleSettingRegistry.Registration landingDelayBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.requireForwardSetting = requireForwardSetting;
+        this.landingDelaySetting = landingDelaySetting;
         this.requireForwardPresentation = requireForwardPresentation;
+        this.landingDelayPresentation = landingDelayPresentation;
         this.requireForwardBinding = requireForwardBinding;
+        this.landingDelayBinding = landingDelayBinding;
     }
 
     static Minecraft189AutoJumpFeature install(
@@ -53,8 +63,11 @@ final class Minecraft189AutoJumpFeature
         ModuleRegistry.Registration moduleRegistration = null;
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration requireForwardSetting = null;
+        SettingRegistry.Registration landingDelaySetting = null;
         SettingPresentationRegistry.Registration requireForwardPresentation = null;
+        SettingPresentationRegistry.Registration landingDelayPresentation = null;
         ModuleSettingRegistry.Registration requireForwardBinding = null;
+        ModuleSettingRegistry.Registration landingDelayBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -71,6 +84,8 @@ final class Minecraft189AutoJumpFeature
             requireForwardSetting =
                     settings.register(
                             module.requireForwardSetting());
+            landingDelaySetting = settings.register(
+                    module.landingDelayTicksSetting());
             requireForwardPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -78,6 +93,16 @@ final class Minecraft189AutoJumpFeature
                                     "Require Forward",
                                     SettingValueKind.BOOLEAN,
                                     0));
+            landingDelayPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoJumpModule.LANDING_DELAY_SETTING_ID,
+                            "Landing Delay Ticks",
+                            SettingValueKind.INTEGER,
+                            10,
+                            new SettingNumericSpec(
+                                    0.0D,
+                                    Minecraft189AutoJumpModule.MAXIMUM_LANDING_DELAY_TICKS,
+                                    1.0D)));
             requireForwardBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -85,15 +110,27 @@ final class Minecraft189AutoJumpFeature
                                     Minecraft189AutoJumpModule.REQUIRE_FORWARD_SETTING_ID,
                                     0));
 
+            landingDelayBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoJumpModule.ID,
+                            Minecraft189AutoJumpModule.LANDING_DELAY_SETTING_ID,
+                            10));
+
             return new Minecraft189AutoJumpFeature(
                     controller,
                     module,
                     moduleRegistration,
                     presentation,
                     requireForwardSetting,
+                    landingDelaySetting,
                     requireForwardPresentation,
-                    requireForwardBinding);
+                    landingDelayPresentation,
+                    requireForwardBinding,
+                    landingDelayBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(landingDelayBinding, failure);
+            closeQuietly(landingDelayPresentation, failure);
+            closeQuietly(landingDelaySetting, failure);
             closeQuietly(requireForwardBinding, failure);
             closeQuietly(requireForwardPresentation, failure);
             closeQuietly(requireForwardSetting, failure);
@@ -134,6 +171,9 @@ final class Minecraft189AutoJumpFeature
             failure = closeFailure;
         }
 
+        failure = close(landingDelayBinding, failure);
+        failure = close(landingDelayPresentation, failure);
+        failure = close(landingDelaySetting, failure);
         failure = close(requireForwardBinding, failure);
         failure = close(requireForwardPresentation, failure);
         failure = close(requireForwardSetting, failure);
