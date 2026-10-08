@@ -27,6 +27,9 @@ final class Minecraft189CoordinatesFeature
     private final SettingPresentationRegistry.Registration yPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final SettingRegistry.Registration showChunkSetting;
+    private final SettingPresentationRegistry.Registration showChunkPresentation;
+    private final ModuleSettingRegistry.Registration showChunkBinding;
     private boolean closed;
 
     private Minecraft189CoordinatesFeature(
@@ -39,7 +42,10 @@ final class Minecraft189CoordinatesFeature
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
             final ModuleSettingRegistry.Registration xBinding,
-            final ModuleSettingRegistry.Registration yBinding) {
+            final ModuleSettingRegistry.Registration yBinding,
+            final SettingRegistry.Registration showChunkSetting,
+            final SettingPresentationRegistry.Registration showChunkPresentation,
+            final ModuleSettingRegistry.Registration showChunkBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -50,6 +56,9 @@ final class Minecraft189CoordinatesFeature
         this.yPresentation = yPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.showChunkSetting = showChunkSetting;
+        this.showChunkPresentation = showChunkPresentation;
+        this.showChunkBinding = showChunkBinding;
     }
 
     static Minecraft189CoordinatesFeature install(
@@ -76,6 +85,9 @@ final class Minecraft189CoordinatesFeature
         SettingPresentationRegistry.Registration yPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        SettingRegistry.Registration showChunkSetting = null;
+        SettingPresentationRegistry.Registration showChunkPresentation = null;
+        ModuleSettingRegistry.Registration showChunkBinding = null;
 
         try {
             moduleRegistration =
@@ -95,6 +107,8 @@ final class Minecraft189CoordinatesFeature
             ySetting =
                     settings.register(
                             module.ySetting());
+            showChunkSetting =
+                    settings.register(module.showChunkSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -117,6 +131,13 @@ final class Minecraft189CoordinatesFeature
                                             0.0D,
                                             4096.0D,
                                             1.0D)));
+            showChunkPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189CoordinatesModule.SHOW_CHUNK_SETTING_ID,
+                                    "Show Chunk",
+                                    SettingValueKind.BOOLEAN,
+                                    20));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -130,6 +151,13 @@ final class Minecraft189CoordinatesFeature
                                     Minecraft189CoordinatesModule.Y_SETTING_ID,
                                     10));
 
+            showChunkBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189CoordinatesModule.ID,
+                                    Minecraft189CoordinatesModule.SHOW_CHUNK_SETTING_ID,
+                                    20));
+
             return new Minecraft189CoordinatesFeature(
                     controller,
                     module,
@@ -140,8 +168,14 @@ final class Minecraft189CoordinatesFeature
                     xPresentation,
                     yPresentation,
                     xBinding,
-                    yBinding);
+                    yBinding,
+                    showChunkSetting,
+                    showChunkPresentation,
+                    showChunkBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(showChunkBinding, failure);
+            closeQuietly(showChunkPresentation, failure);
+            closeQuietly(showChunkSetting, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
             closeQuietly(yPresentation, failure);
@@ -181,6 +215,9 @@ final class Minecraft189CoordinatesFeature
             failure = closeFailure;
         }
 
+        failure = close(showChunkBinding, failure);
+        failure = close(showChunkPresentation, failure);
+        failure = close(showChunkSetting, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
         failure = close(yPresentation, failure);
