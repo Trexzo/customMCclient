@@ -232,9 +232,9 @@ public final class Minecraft189AutoClickerModule
             targetCps = nextTargetCps();
         }
 
-        // Progress only while all existing click gates pass. The first
-        // eligible tick starts at a bounded 1-CPS minimum; the configured
-        // target CPS is reached within rampUpTicks eligible callbacks.
+        // Progress only while all existing click gates pass. The effective
+        // rate starts at the first ramp fraction (minimum 1 CPS) and reaches
+        // the target CPS within rampUpTicks eligible callbacks.
         // Target CPS is still re-sampled by the original click scheduler.
         final int effectiveCps;
         if (currentRampUp) {
