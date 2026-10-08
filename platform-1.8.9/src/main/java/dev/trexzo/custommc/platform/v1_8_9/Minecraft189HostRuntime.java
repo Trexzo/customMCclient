@@ -670,7 +670,8 @@ public final class Minecraft189HostRuntime
                         inputState.pointerPressed(
                                 Minecraft189ClickRateTracker.LEFT_BUTTON),
                         inputState.keyPressed(
-                                LegacyKeyboardCodes.W))) {
+                                LegacyKeyboardCodes.W),
+                        nearestPlayerTargetState.snapshot())) {
             return;
         }
         featureCatalog.autoSprint()
