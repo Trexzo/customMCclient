@@ -104,6 +104,19 @@ final class Minecraft189NearbyPlayersModuleTest {
                 0.0D, 1.0D, Float.NaN, 5));
         assertNull(Minecraft189NearbyPlayersModule.projectRadar(
                 0.0D, 1.0D, 0.0F, 0));
+        // Fixed map uses world axes: east +X, north -Z.
+        final float[] north = Minecraft189NearbyPlayersModule.projectNorthUp(
+                0.0D, -5.0D, 5);
+        assertEquals(0.0F, north[0], 0.0001F);
+        assertEquals(-46.0F, north[1], 0.0001F);
+        final float[] eastFixed = Minecraft189NearbyPlayersModule.projectNorthUp(
+                5.0D, 0.0D, 5);
+        assertEquals(46.0F, eastFixed[0], 0.0001F);
+        assertEquals(0.0F, eastFixed[1], 0.0001F);
+        assertNull(Minecraft189NearbyPlayersModule.projectNorthUp(
+                Double.NaN, 0.0D, 5));
+        assertNull(Minecraft189NearbyPlayersModule.projectNorthUp(
+                0.0D, 1.0D, 129));
     }
 
     @Test
@@ -129,6 +142,7 @@ final class Minecraft189NearbyPlayersModuleTest {
                     controller.stateOf(Minecraft189NearbyPlayersModule.ID));
             assertFalse(radar.renderPassInstalled());
             assertFalse(radar.showRadarSetting().get().booleanValue());
+            assertFalse(radar.northUpSetting().get().booleanValue());
             runtime.renderHud(0L, 0.0F);
             assertTrue(host.texts.isEmpty());
             radar.xSetting().set(25);
@@ -199,11 +213,32 @@ final class Minecraft189NearbyPlayersModuleTest {
             runtime.playerRotationState().clear();
             runtime.renderHud(44L, 0.0F);
             assertEquals(2, host.markerXs.size());
+            // Fixed north-up mode uses real positions without requiring yaw.
+            radar.northUpSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NearbyPlayersModule.NORTH_UP_SETTING_ID));
+            runtime.renderHud(45L, 0.0F);
+            assertEquals(3, host.markerXs.size());
+            assertEquals(128.6F, host.markerXs.get(2), 0.001F);
+            assertEquals(330.8F, host.markerYs.get(2), 0.001F);
+            assertEquals(152.0F, host.lastCardHeight, 0.001F);
+            // In fixed orientation, turning the player does not rotate blips.
+            runtime.playerRotationState().update(90.0F, 0.0F);
+            runtime.renderHud(46L, 0.0F);
+            assertEquals(4, host.markerXs.size());
+            assertEquals(host.markerXs.get(2), host.markerXs.get(3));
+            assertEquals(host.markerYs.get(2), host.markerYs.get(3));
+            // Default relative mode still fails closed if yaw is absent.
+            radar.northUpSetting().set(Boolean.FALSE);
+            runtime.playerRotationState().clear();
+            runtime.renderHud(47L, 0.0F);
+            assertEquals(4, host.markerXs.size());
+            assertEquals(42.0F, host.lastCardHeight, 0.001F);
             radar.showRadarSetting().set(Boolean.FALSE);
 
             runtime.worldEntityPositionState().clear();
             runtime.renderHud(4L, 0.0F);
-            assertEquals(12, host.texts.size());
+            assertEquals(18, host.texts.size());
 
             controller.disable(Minecraft189NearbyPlayersModule.ID);
             assertFalse(radar.renderPassInstalled());
@@ -218,6 +253,7 @@ final class Minecraft189NearbyPlayersModuleTest {
         assertNull(settings.find(Minecraft189NearbyPlayersModule.Y_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.RADIUS_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_RADAR_SETTING_ID));
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.NORTH_UP_SETTING_ID));
     }
 
     private static final class RecordingHost

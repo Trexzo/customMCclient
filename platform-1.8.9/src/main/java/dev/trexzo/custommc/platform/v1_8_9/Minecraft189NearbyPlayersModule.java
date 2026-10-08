@@ -20,6 +20,7 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public static final String Y_SETTING_ID = ID + ".y";
     public static final String RADIUS_SETTING_ID = ID + ".radius";
     public static final String SHOW_RADAR_SETTING_ID = ID + ".showRadar";
+    public static final String NORTH_UP_SETTING_ID = ID + ".northUp";
     public static final String RENDER_PASS_ID = "nearby-players";
 
     private final Minecraft189PlayerPositionState local;
@@ -39,6 +40,9 @@ public final class Minecraft189NearbyPlayersModule implements Module {
             SettingCodecs.INTEGER);
     private final Setting<Boolean> showRadar = new Setting<Boolean>(
             SHOW_RADAR_SETTING_ID, Boolean.FALSE,
+            v -> v != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> northUp = new Setting<Boolean>(
+            NORTH_UP_SETTING_ID, Boolean.FALSE,
             v -> v != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration registration;
 
@@ -62,6 +66,7 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public Setting<Integer> ySetting() { return y; }
     public Setting<Integer> radiusSetting() { return radius; }
     public Setting<Boolean> showRadarSetting() { return showRadar; }
+    public Setting<Boolean> northUpSetting() { return northUp; }
 
     @Override public synchronized void onEnable() {
         if (registration != null) {
@@ -128,6 +133,19 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                 ? new float[]{px, py} : null;
     }
 
+    /** Fixed world orientation: north (-Z) at top, east (+X) at right. */
+    static float[] projectNorthUp(
+            final double dx, final double dz, final int radius) {
+        if (!Double.isFinite(dx) || !Double.isFinite(dz)
+                || radius < 1 || radius > 128) {
+            return null;
+        }
+        final float px = (float) (dx * 46.0D / radius);
+        final float py = (float) (dz * 46.0D / radius);
+        return Float.isFinite(px) && Float.isFinite(py)
+                ? new float[]{px, py} : null;
+    }
+
     static final class NearbySnapshot {
         private final boolean available;
         private final int count;
@@ -150,7 +168,7 @@ public final class Minecraft189NearbyPlayersModule implements Module {
             final Minecraft189PlayerPositionState.Snapshot me,
             final Minecraft189WorldEntityPositionState.Snapshot positions,
             final Minecraft189WorldEntityKindState.Snapshot types,
-            final float yaw) {
+            final float yaw, final boolean northUpMode) {
         final float centerX = x + 78.0F;
         final float centerY = y + 96.0F;
         graphics.fillRoundedRect(x + 30, y + 48, 96, 96, 4, 0xFF1B2634);
@@ -164,7 +182,9 @@ public final class Minecraft189NearbyPlayersModule implements Module {
             final double dz = positions.z(i) - me.z();
             final double squared = dx * dx + dy * dy + dz * dz;
             if (!Double.isFinite(squared) || squared > maxSquared) continue;
-            final float[] offset = projectRadar(dx, dz, yaw, range);
+            final float[] offset = northUpMode
+                    ? projectNorthUp(dx, dz, range)
+                    : projectRadar(dx, dz, yaw, range);
             if (offset != null) {
                 graphics.fillRoundedRect(centerX + offset[0] - 2,
                         centerY + offset[1] - 2, 4, 4, 2, 0xFFFFB56B);
@@ -187,7 +207,9 @@ public final class Minecraft189NearbyPlayersModule implements Module {
             final NearbySnapshot nearby = countNearby(me, positions, types, range);
             if (!nearby.available()) return;
             final Minecraft189PlayerRotationState.Snapshot facing = rotation.snapshot();
-            final boolean map = showRadar.get().booleanValue() && facing.available();
+            final boolean northUpMode = northUp.get().booleanValue();
+            final boolean map = showRadar.get().booleanValue()
+                    && (northUpMode || facing.available());
             final float height = map ? 152.0F : 42.0F;
             final UiViewport viewport = new UiViewport(
                     graphics.framebufferWidth(),
@@ -210,7 +232,8 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                                 "NEAREST  %.1fm", nearby.nearestDistance());
                 graphics.drawText(UiFonts.DEFAULT, left + 12.0F, top + 24.0F,
                         nearestLabel, 0xFFC4CBD5);
-                if (map) drawRadar(left, top, range, me, positions, types, facing.yaw());
+                if (map) drawRadar(left, top, range, me, positions, types,
+                        facing.yaw(), northUpMode);
             } catch (RuntimeException renderFailure) {
                 failure = renderFailure;
                 throw renderFailure;
