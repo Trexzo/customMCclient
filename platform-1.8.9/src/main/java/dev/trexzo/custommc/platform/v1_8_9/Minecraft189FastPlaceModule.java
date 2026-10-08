@@ -10,6 +10,10 @@ public final class Minecraft189FastPlaceModule
             "player.fastPlace";
     public static final String DELAY_SETTING_ID =
             "player.fastPlace.delay";
+    public static final String AIRBORNE_OVERRIDE_SETTING_ID =
+            "player.fastPlace.airborneOverride";
+    public static final String AIRBORNE_DELAY_SETTING_ID =
+            "player.fastPlace.airborneDelay";
     public static final String REQUIRE_USE_HELD_SETTING_ID =
             "player.fastPlace.requireUseHeld";
     public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
@@ -32,6 +36,15 @@ public final class Minecraft189FastPlaceModule
                     PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
                     value -> value != null, SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> airborneOverride =
+            new Setting<Boolean>(
+                    AIRBORNE_OVERRIDE_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> airborneDelay =
+            new Setting<Integer>(
+                    AIRBORNE_DELAY_SETTING_ID, 0,
+                    value -> value != null && value >= 0 && value <= 4,
+                    SettingCodecs.INTEGER);
     private boolean enabled;
 
     @Override
@@ -49,6 +62,14 @@ public final class Minecraft189FastPlaceModule
 
     public Setting<Boolean> pauseWhileSneakingSetting() {
         return pauseWhileSneaking;
+    }
+
+    public Setting<Boolean> airborneOverrideSetting() {
+        return airborneOverride;
+    }
+
+    public Setting<Integer> airborneDelaySetting() {
+        return airborneDelay;
     }
 
     @Override
@@ -77,8 +98,15 @@ public final class Minecraft189FastPlaceModule
                         || movement.sneaking()))) {
             return currentDelay;
         }
+        // Optional airborne delay is selected only from real available
+        // mapped movement state; missing state uses the normal delay.
         final int configured =
-                delayTicks.get().intValue();
+                airborneOverride.get().booleanValue()
+                        && movement != null
+                        && movement.available()
+                        && !movement.onGround()
+                        ? airborneDelay.get().intValue()
+                        : delayTicks.get().intValue();
         return currentDelay > configured
                 ? configured
                 : currentDelay;
