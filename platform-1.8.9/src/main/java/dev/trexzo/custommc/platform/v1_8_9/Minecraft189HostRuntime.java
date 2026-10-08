@@ -1206,7 +1206,10 @@ public final class Minecraft189HostRuntime
         requireOpen();
         featureCatalog.fastBreak()
                 .apply(
-                        controller);
+                        controller,
+                        inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.LEFT_BUTTON),
+                        playerMovementState.snapshot());
     }
 
     void playerControllerMiningControl(
