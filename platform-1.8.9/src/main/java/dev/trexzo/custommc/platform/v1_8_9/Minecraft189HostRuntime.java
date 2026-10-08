@@ -1193,7 +1193,10 @@ public final class Minecraft189HostRuntime
         requireOpen();
         return featureCatalog.fastPlace()
                 .apply(
-                        currentDelay);
+                        currentDelay,
+                        inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                        playerMovementState.snapshot());
     }
 
     void playerControllerBreakControl(
