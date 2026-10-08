@@ -5063,6 +5063,13 @@ final class Minecraft189MappedHostTransformationTest {
                     .maxFovSetting()
                     .set(
                             100.0D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxPitchFovSetting().set(10.0D);
+            runTick.invoke(minecraft);
+            assertEquals(25.0F, playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(15.0F, playerClass.getField("z").getFloat(player), 0.0001F);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxPitchFovSetting().set(30.0D);
             runTick.invoke(minecraft);
             assertEquals(
                     15.0F,

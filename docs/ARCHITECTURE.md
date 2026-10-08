@@ -1579,3 +1579,9 @@ Require Hold, Max Distance, Max FOV, yaw/pitch smoothing and Spin > Aim Assist >
 M215 introduces persistent DOUBLE setting `combat.aimAssist.deadZone`, shown as **Dead Zone** (0–30 degrees, default 0). With a positive dead zone, Aim Assist leaves each enabled axis untouched while its absolute angular error is within the threshold; yaw uses the certified shortest-path ±180-degree wrap, and pitch uses the linear difference. When both eligible axes are within the dead zone, Aim Assist yields rotation ownership to the existing lower-priority policy rather than claiming the tick. An eligible axis beyond the threshold continues to use its existing smoothing speed.
 
 At the default 0, the M214 write and ownership behavior is preserved exactly. Max FOV, max distance, Require Hold, axis toggles and Spin > Aim Assist > Jitter precedence are unchanged. No new game mappings or transformer hooks. Focused and transformed-host tests exercise zero-default parity, single-axis suppression, both-axis yielding, and exact mapped rotation fields.
+
+## Aim Assist vertical FOV
+
+M216 adds persistent DOUBLE setting `combat.aimAssist.maxPitchFov`, presented as **Max Pitch FOV** (1–180 degrees, default 180). Aim Assist now optionally rejects the target when the absolute difference between the current player pitch and certified target pitch exceeds this limit. This is an independent vertical eligibility gate; existing **Max FOV** remains the shortest-path yaw gate. Defaults preserve all M215 behavior.
+
+Only the already certified rotation snapshots are used. Max Distance, Require Hold, yaw/pitch enable switches, yaw/pitch smoothing, dead zone and Spin > Aim Assist > Jitter ownership are unchanged. Full settings registration/close symmetry, focused rejection/acceptance tests and exact transformed-host field assertions are included; no new Minecraft mappings or transformers.

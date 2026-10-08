@@ -24,6 +24,7 @@ final class Minecraft189AimAssistFeature
     private final SettingRegistry.Registration requireHoldSetting;
     private final SettingRegistry.Registration maxDistanceSetting;
     private final SettingRegistry.Registration maxFovSetting;
+    private final SettingRegistry.Registration maxPitchFovSetting;
     private final SettingRegistry.Registration deadZoneSetting;
     private final SettingRegistry.Registration yawEnabledSetting;
     private final SettingRegistry.Registration pitchEnabledSetting;
@@ -32,6 +33,7 @@ final class Minecraft189AimAssistFeature
     private final SettingPresentationRegistry.Registration requireHoldPresentation;
     private final SettingPresentationRegistry.Registration maxDistancePresentation;
     private final SettingPresentationRegistry.Registration maxFovPresentation;
+    private final SettingPresentationRegistry.Registration maxPitchFovPresentation;
     private final SettingPresentationRegistry.Registration deadZonePresentation;
     private final SettingPresentationRegistry.Registration yawEnabledPresentation;
     private final SettingPresentationRegistry.Registration pitchEnabledPresentation;
@@ -40,6 +42,7 @@ final class Minecraft189AimAssistFeature
     private final ModuleSettingRegistry.Registration requireHoldBinding;
     private final ModuleSettingRegistry.Registration maxDistanceBinding;
     private final ModuleSettingRegistry.Registration maxFovBinding;
+    private final ModuleSettingRegistry.Registration maxPitchFovBinding;
     private final ModuleSettingRegistry.Registration deadZoneBinding;
     private final ModuleSettingRegistry.Registration yawEnabledBinding;
     private final ModuleSettingRegistry.Registration pitchEnabledBinding;
@@ -55,6 +58,7 @@ final class Minecraft189AimAssistFeature
             final SettingRegistry.Registration requireHoldSetting,
             final SettingRegistry.Registration maxDistanceSetting,
             final SettingRegistry.Registration maxFovSetting,
+            final SettingRegistry.Registration maxPitchFovSetting,
             final SettingRegistry.Registration deadZoneSetting,
             final SettingRegistry.Registration yawEnabledSetting,
             final SettingRegistry.Registration pitchEnabledSetting,
@@ -63,6 +67,7 @@ final class Minecraft189AimAssistFeature
             final SettingPresentationRegistry.Registration requireHoldPresentation,
             final SettingPresentationRegistry.Registration maxDistancePresentation,
             final SettingPresentationRegistry.Registration maxFovPresentation,
+            final SettingPresentationRegistry.Registration maxPitchFovPresentation,
             final SettingPresentationRegistry.Registration deadZonePresentation,
             final SettingPresentationRegistry.Registration yawEnabledPresentation,
             final SettingPresentationRegistry.Registration pitchEnabledPresentation,
@@ -71,6 +76,7 @@ final class Minecraft189AimAssistFeature
             final ModuleSettingRegistry.Registration requireHoldBinding,
             final ModuleSettingRegistry.Registration maxDistanceBinding,
             final ModuleSettingRegistry.Registration maxFovBinding,
+            final ModuleSettingRegistry.Registration maxPitchFovBinding,
             final ModuleSettingRegistry.Registration deadZoneBinding,
             final ModuleSettingRegistry.Registration yawEnabledBinding,
             final ModuleSettingRegistry.Registration pitchEnabledBinding) {
@@ -83,6 +89,7 @@ final class Minecraft189AimAssistFeature
         this.requireHoldSetting = requireHoldSetting;
         this.maxDistanceSetting = maxDistanceSetting;
         this.maxFovSetting = maxFovSetting;
+        this.maxPitchFovSetting = maxPitchFovSetting;
         this.deadZoneSetting = deadZoneSetting;
         this.yawEnabledSetting = yawEnabledSetting;
         this.pitchEnabledSetting = pitchEnabledSetting;
@@ -91,6 +98,7 @@ final class Minecraft189AimAssistFeature
         this.requireHoldPresentation = requireHoldPresentation;
         this.maxDistancePresentation = maxDistancePresentation;
         this.maxFovPresentation = maxFovPresentation;
+        this.maxPitchFovPresentation = maxPitchFovPresentation;
         this.deadZonePresentation = deadZonePresentation;
         this.yawEnabledPresentation = yawEnabledPresentation;
         this.pitchEnabledPresentation = pitchEnabledPresentation;
@@ -99,6 +107,7 @@ final class Minecraft189AimAssistFeature
         this.requireHoldBinding = requireHoldBinding;
         this.maxDistanceBinding = maxDistanceBinding;
         this.maxFovBinding = maxFovBinding;
+        this.maxPitchFovBinding = maxPitchFovBinding;
         this.deadZoneBinding = deadZoneBinding;
         this.yawEnabledBinding = yawEnabledBinding;
         this.pitchEnabledBinding = pitchEnabledBinding;
@@ -121,6 +130,7 @@ final class Minecraft189AimAssistFeature
         SettingRegistry.Registration requireHoldSetting = null;
         SettingRegistry.Registration maxDistanceSetting = null;
         SettingRegistry.Registration maxFovSetting = null;
+        SettingRegistry.Registration maxPitchFovSetting = null;
         SettingRegistry.Registration deadZoneSetting = null;
         SettingRegistry.Registration yawEnabledSetting = null;
         SettingRegistry.Registration pitchEnabledSetting = null;
@@ -129,6 +139,7 @@ final class Minecraft189AimAssistFeature
         SettingPresentationRegistry.Registration requireHoldPresentation = null;
         SettingPresentationRegistry.Registration maxDistancePresentation = null;
         SettingPresentationRegistry.Registration maxFovPresentation = null;
+        SettingPresentationRegistry.Registration maxPitchFovPresentation = null;
         SettingPresentationRegistry.Registration deadZonePresentation = null;
         SettingPresentationRegistry.Registration yawEnabledPresentation = null;
         SettingPresentationRegistry.Registration pitchEnabledPresentation = null;
@@ -137,6 +148,7 @@ final class Minecraft189AimAssistFeature
         ModuleSettingRegistry.Registration requireHoldBinding = null;
         ModuleSettingRegistry.Registration maxDistanceBinding = null;
         ModuleSettingRegistry.Registration maxFovBinding = null;
+        ModuleSettingRegistry.Registration maxPitchFovBinding = null;
         ModuleSettingRegistry.Registration deadZoneBinding = null;
         ModuleSettingRegistry.Registration yawEnabledBinding = null;
         ModuleSettingRegistry.Registration pitchEnabledBinding = null;
@@ -168,6 +180,9 @@ final class Minecraft189AimAssistFeature
             maxFovSetting =
                     settings.register(
                             module.maxFovSetting());
+            maxPitchFovSetting =
+                    settings.register(
+                            module.maxPitchFovSetting());
             deadZoneSetting =
                     settings.register(
                             module.deadZoneSetting());
@@ -228,6 +243,17 @@ final class Minecraft189AimAssistFeature
                                             Minecraft189AimAssistModule.MINIMUM_MAX_FOV,
                                             Minecraft189AimAssistModule.MAXIMUM_MAX_FOV,
                                             1.0D)));
+            maxPitchFovPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189AimAssistModule.MAX_PITCH_FOV_SETTING_ID,
+                                    "Max Pitch FOV",
+                                    SettingValueKind.DOUBLE,
+                                    42,
+                                    new SettingNumericSpec(
+                                            Minecraft189AimAssistModule.MINIMUM_MAX_PITCH_FOV,
+                                            Minecraft189AimAssistModule.MAXIMUM_MAX_PITCH_FOV,
+                                            1.0D)));
             deadZonePresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -283,6 +309,12 @@ final class Minecraft189AimAssistFeature
                                     Minecraft189AimAssistModule.ID,
                                     Minecraft189AimAssistModule.MAX_FOV_SETTING_ID,
                                     40));
+            maxPitchFovBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189AimAssistModule.ID,
+                                    Minecraft189AimAssistModule.MAX_PITCH_FOV_SETTING_ID,
+                                    42));
             deadZoneBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -312,6 +344,7 @@ final class Minecraft189AimAssistFeature
                     requireHoldSetting,
                     maxDistanceSetting,
                     maxFovSetting,
+                    maxPitchFovSetting,
                     deadZoneSetting,
                     yawEnabledSetting,
                     pitchEnabledSetting,
@@ -320,6 +353,7 @@ final class Minecraft189AimAssistFeature
                     requireHoldPresentation,
                     maxDistancePresentation,
                     maxFovPresentation,
+                    maxPitchFovPresentation,
                     deadZonePresentation,
                     yawEnabledPresentation,
                     pitchEnabledPresentation,
@@ -328,6 +362,7 @@ final class Minecraft189AimAssistFeature
                     requireHoldBinding,
                     maxDistanceBinding,
                     maxFovBinding,
+                    maxPitchFovBinding,
                     deadZoneBinding,
                     yawEnabledBinding,
                     pitchEnabledBinding);
@@ -335,6 +370,7 @@ final class Minecraft189AimAssistFeature
             closeQuietly(pitchEnabledBinding, failure);
             closeQuietly(yawEnabledBinding, failure);
             closeQuietly(deadZoneBinding, failure);
+            closeQuietly(maxPitchFovBinding, failure);
             closeQuietly(maxFovBinding, failure);
             closeQuietly(maxDistanceBinding, failure);
             closeQuietly(requireHoldBinding, failure);
@@ -343,6 +379,7 @@ final class Minecraft189AimAssistFeature
             closeQuietly(pitchEnabledPresentation, failure);
             closeQuietly(yawEnabledPresentation, failure);
             closeQuietly(deadZonePresentation, failure);
+            closeQuietly(maxPitchFovPresentation, failure);
             closeQuietly(maxFovPresentation, failure);
             closeQuietly(maxDistancePresentation, failure);
             closeQuietly(requireHoldPresentation, failure);
@@ -351,6 +388,7 @@ final class Minecraft189AimAssistFeature
             closeQuietly(pitchEnabledSetting, failure);
             closeQuietly(yawEnabledSetting, failure);
             closeQuietly(deadZoneSetting, failure);
+            closeQuietly(maxPitchFovSetting, failure);
             closeQuietly(maxFovSetting, failure);
             closeQuietly(maxDistanceSetting, failure);
             closeQuietly(requireHoldSetting, failure);
@@ -392,6 +430,7 @@ final class Minecraft189AimAssistFeature
         failure = close(pitchEnabledBinding, failure);
         failure = close(yawEnabledBinding, failure);
         failure = close(deadZoneBinding, failure);
+        failure = close(maxPitchFovBinding, failure);
         failure = close(maxFovBinding, failure);
         failure = close(maxDistanceBinding, failure);
         failure = close(requireHoldBinding, failure);
@@ -400,6 +439,7 @@ final class Minecraft189AimAssistFeature
         failure = close(pitchEnabledPresentation, failure);
         failure = close(yawEnabledPresentation, failure);
         failure = close(deadZonePresentation, failure);
+        failure = close(maxPitchFovPresentation, failure);
         failure = close(maxFovPresentation, failure);
         failure = close(maxDistancePresentation, failure);
         failure = close(requireHoldPresentation, failure);
@@ -408,6 +448,7 @@ final class Minecraft189AimAssistFeature
         failure = close(pitchEnabledSetting, failure);
         failure = close(yawEnabledSetting, failure);
         failure = close(deadZoneSetting, failure);
+        failure = close(maxPitchFovSetting, failure);
         failure = close(maxFovSetting, failure);
         failure = close(maxDistanceSetting, failure);
         failure = close(requireHoldSetting, failure);
