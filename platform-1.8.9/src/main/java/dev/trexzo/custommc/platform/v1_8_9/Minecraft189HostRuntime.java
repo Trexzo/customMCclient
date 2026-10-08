@@ -529,7 +529,8 @@ public final class Minecraft189HostRuntime
                         targetRotationState.snapshot(),
                         leftButtonHeld,
                         inputState.keyPressed(
-                                LegacyKeyboardCodes.W))) {
+                                LegacyKeyboardCodes.W),
+                        playerMovementState.snapshot())) {
             featureCatalog.jitter()
                     .apply(
                             null,
