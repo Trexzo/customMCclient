@@ -28,6 +28,12 @@ final class Minecraft189TimerSpeedFeature
     private final ModuleSettingRegistry.Registration speedBinding;
     private final ModuleSettingRegistry.Registration airborneOverrideBinding;
     private final ModuleSettingRegistry.Registration airborneSpeedBinding;
+    private final SettingRegistry.Registration smoothTransitionSetting;
+    private final SettingRegistry.Registration transitionStepSetting;
+    private final SettingPresentationRegistry.Registration smoothTransitionPresentation;
+    private final SettingPresentationRegistry.Registration transitionStepPresentation;
+    private final ModuleSettingRegistry.Registration smoothTransitionBinding;
+    private final ModuleSettingRegistry.Registration transitionStepBinding;
     private boolean closed;
 
     private Minecraft189TimerSpeedFeature(
@@ -43,7 +49,13 @@ final class Minecraft189TimerSpeedFeature
             final SettingPresentationRegistry.Registration airborneSpeedPresentation,
             final ModuleSettingRegistry.Registration speedBinding,
             final ModuleSettingRegistry.Registration airborneOverrideBinding,
-            final ModuleSettingRegistry.Registration airborneSpeedBinding) {
+            final ModuleSettingRegistry.Registration airborneSpeedBinding,
+            final SettingRegistry.Registration smoothTransitionSetting,
+            final SettingRegistry.Registration transitionStepSetting,
+            final SettingPresentationRegistry.Registration smoothTransitionPresentation,
+            final SettingPresentationRegistry.Registration transitionStepPresentation,
+            final ModuleSettingRegistry.Registration smoothTransitionBinding,
+            final ModuleSettingRegistry.Registration transitionStepBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -57,6 +69,12 @@ final class Minecraft189TimerSpeedFeature
         this.speedBinding = speedBinding;
         this.airborneOverrideBinding = airborneOverrideBinding;
         this.airborneSpeedBinding = airborneSpeedBinding;
+        this.smoothTransitionSetting = smoothTransitionSetting;
+        this.transitionStepSetting = transitionStepSetting;
+        this.smoothTransitionPresentation = smoothTransitionPresentation;
+        this.transitionStepPresentation = transitionStepPresentation;
+        this.smoothTransitionBinding = smoothTransitionBinding;
+        this.transitionStepBinding = transitionStepBinding;
     }
 
     static Minecraft189TimerSpeedFeature install(
@@ -80,6 +98,12 @@ final class Minecraft189TimerSpeedFeature
         ModuleSettingRegistry.Registration speedBinding = null;
         ModuleSettingRegistry.Registration airborneOverrideBinding = null;
         ModuleSettingRegistry.Registration airborneSpeedBinding = null;
+        SettingRegistry.Registration smoothTransitionSetting = null;
+        SettingRegistry.Registration transitionStepSetting = null;
+        SettingPresentationRegistry.Registration smoothTransitionPresentation = null;
+        SettingPresentationRegistry.Registration transitionStepPresentation = null;
+        ModuleSettingRegistry.Registration smoothTransitionBinding = null;
+        ModuleSettingRegistry.Registration transitionStepBinding = null;
 
         try {
             moduleRegistration =
@@ -99,6 +123,8 @@ final class Minecraft189TimerSpeedFeature
                     module.airborneOverrideSetting());
             airborneSpeedSetting = settings.register(
                     module.airborneSpeedPercentSetting());
+            smoothTransitionSetting = settings.register(module.smoothTransitionSetting());
+            transitionStepSetting = settings.register(module.transitionStepPercentSetting());
             speedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -122,6 +148,18 @@ final class Minecraft189TimerSpeedFeature
                                     Minecraft189TimerSpeedModule.MINIMUM_SPEED_PERCENT,
                                     Minecraft189TimerSpeedModule.MAXIMUM_SPEED_PERCENT,
                                     5.0D)));
+            smoothTransitionPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189TimerSpeedModule.SMOOTH_TRANSITION_SETTING_ID,
+                            "Smooth Transition", SettingValueKind.BOOLEAN, 30));
+            transitionStepPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189TimerSpeedModule.TRANSITION_STEP_SETTING_ID,
+                            "Transition Step %", SettingValueKind.INTEGER, 40,
+                            new SettingNumericSpec(
+                                    Minecraft189TimerSpeedModule.MINIMUM_TRANSITION_STEP_PERCENT,
+                                    Minecraft189TimerSpeedModule.MAXIMUM_TRANSITION_STEP_PERCENT,
+                                    5.0D)));
             speedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -138,6 +176,15 @@ final class Minecraft189TimerSpeedFeature
                             Minecraft189TimerSpeedModule.ID,
                             Minecraft189TimerSpeedModule.AIRBORNE_SPEED_SETTING_ID, 20));
 
+            smoothTransitionBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189TimerSpeedModule.ID,
+                            Minecraft189TimerSpeedModule.SMOOTH_TRANSITION_SETTING_ID, 30));
+            transitionStepBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189TimerSpeedModule.ID,
+                            Minecraft189TimerSpeedModule.TRANSITION_STEP_SETTING_ID, 40));
+
             return new Minecraft189TimerSpeedFeature(
                     controller,
                     module,
@@ -151,8 +198,20 @@ final class Minecraft189TimerSpeedFeature
                     airborneSpeedPresentation,
                     speedBinding,
                     airborneOverrideBinding,
-                    airborneSpeedBinding);
+                    airborneSpeedBinding,
+                    smoothTransitionSetting,
+                    transitionStepSetting,
+                    smoothTransitionPresentation,
+                    transitionStepPresentation,
+                    smoothTransitionBinding,
+                    transitionStepBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(transitionStepBinding, failure);
+            closeQuietly(smoothTransitionBinding, failure);
+            closeQuietly(transitionStepPresentation, failure);
+            closeQuietly(smoothTransitionPresentation, failure);
+            closeQuietly(transitionStepSetting, failure);
+            closeQuietly(smoothTransitionSetting, failure);
             closeQuietly(airborneSpeedBinding, failure);
             closeQuietly(airborneOverrideBinding, failure);
             closeQuietly(airborneSpeedPresentation, failure);
@@ -195,6 +254,12 @@ final class Minecraft189TimerSpeedFeature
             failure = closeFailure;
         }
 
+        failure = close(transitionStepBinding, failure);
+        failure = close(smoothTransitionBinding, failure);
+        failure = close(transitionStepPresentation, failure);
+        failure = close(smoothTransitionPresentation, failure);
+        failure = close(transitionStepSetting, failure);
+        failure = close(smoothTransitionSetting, failure);
         failure = close(airborneSpeedBinding, failure);
         failure = close(airborneOverrideBinding, failure);
         failure = close(airborneSpeedPresentation, failure);
