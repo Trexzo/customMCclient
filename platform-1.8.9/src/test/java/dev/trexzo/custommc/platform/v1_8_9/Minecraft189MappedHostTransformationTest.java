@@ -5504,6 +5504,14 @@ final class Minecraft189MappedHostTransformationTest {
                     .yawEnabledSetting().set(Boolean.TRUE);
             runtime.requireHostRuntime().featureCatalog().aimAssist()
                     .maxPitchFovSetting().set(10.0D);
+            // Mapped world positions/kinds publish later in the host tick
+            // than rotation: refresh the new entity view without activating
+            // combat, then verify selection on a separate held-click tick.
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            runTick.invoke(minecraft);
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
             playerClass.getField("y").setFloat(player, -70.0F);
             playerClass.getField("z").setFloat(player, 0.0F);
             runTick.invoke(minecraft);
@@ -5527,6 +5535,17 @@ final class Minecraft189MappedHostTransformationTest {
                     .targetWithinFov(
                             runtime.requireHostRuntime().playerRotationState().snapshot(),
                             farRotationM226.snapshot()));
+            // Confirm the production selector—not merely an isolated
+            // geometry probe—selected the farther in-cone player.
+            final Field rangeTargetFieldM226 =
+                    Minecraft189HostRuntime.class.getDeclaredField(
+                            "aimAssistRangeTargetState");
+            rangeTargetFieldM226.setAccessible(true);
+            final Minecraft189NearestPlayerTargetState selectedM226 =
+                    (Minecraft189NearestPlayerTargetState) rangeTargetFieldM226.get(
+                            runtime.requireHostRuntime());
+            assertTrue(selectedM226.snapshot().found());
+            assertEquals(2, selectedM226.snapshot().entityIndex());
             final float yawM226 =
                     playerClass.getField("y").getFloat(player);
             // Separately classify a wrongly selected nearer player vs no lock.
