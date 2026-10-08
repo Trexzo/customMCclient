@@ -16,6 +16,8 @@ public final class Minecraft189WTapModule
             "combat.wTap.resetTicks";
     public static final String REQUIRE_FORWARD_SETTING_ID =
             "combat.wTap.requireForward";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "combat.wTap.pauseWhileSneaking";
     public static final int DEFAULT_COOLDOWN_TICKS =
             0;
     public static final int MINIMUM_COOLDOWN_TICKS =
@@ -58,6 +60,13 @@ public final class Minecraft189WTapModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> pauseWhileSneaking =
+            new Setting<Boolean>(
+                    PAUSE_WHILE_SNEAKING_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+
     private boolean enabled;
     private boolean previousLeftButtonHeld;
     private int cooldownRemaining;
@@ -84,6 +93,10 @@ public final class Minecraft189WTapModule
         return requireForward;
     }
 
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -106,6 +119,16 @@ public final class Minecraft189WTapModule
                 || movement == null
                 || !movement.available()) {
             resetState();
+            return false;
+        }
+
+        if (pauseWhileSneaking.get().booleanValue()
+                && movement.sneaking()) {
+            // A pause cancels even an in-flight multi-tick reset. Preserve
+            // the physical attack-button edge so holding attack while
+            // leaving sneak does not create a delayed sprint reset.
+            resetState();
+            previousLeftButtonHeld = leftButtonHeld;
             return false;
         }
 
