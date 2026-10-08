@@ -66,8 +66,10 @@ public final class Minecraft189TargetHudModule implements Module {
     }
 
     static String directionText(final Minecraft189TargetRotationState.Snapshot rotation) {
-        return String.format(Locale.ROOT, "YAW  %.0f°    PITCH  %.0f°",
-                (double) rotation.yaw(), (double) rotation.pitch());
+        // Avoid displaying -0 degrees when the exact target angles
+        // carry IEEE-754 negative zero from atan2.
+        return String.format(Locale.ROOT, "YAW  %d°    PITCH  %d°",
+                Math.round(rotation.yaw()), Math.round(rotation.pitch()));
     }
 
     private final class TargetHudPass implements RenderPass {
