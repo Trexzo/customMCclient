@@ -28,6 +28,12 @@ final class Minecraft189FastPlaceFeature
     private final ModuleSettingRegistry.Registration delayBinding;
     private final ModuleSettingRegistry.Registration requireUseHeldBinding;
     private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
+    private final SettingRegistry.Registration airborneOverrideSetting;
+    private final SettingRegistry.Registration airborneDelaySetting;
+    private final SettingPresentationRegistry.Registration airborneOverridePresentation;
+    private final SettingPresentationRegistry.Registration airborneDelayPresentation;
+    private final ModuleSettingRegistry.Registration airborneOverrideBinding;
+    private final ModuleSettingRegistry.Registration airborneDelayBinding;
     private boolean closed;
 
     private Minecraft189FastPlaceFeature(
@@ -43,7 +49,13 @@ final class Minecraft189FastPlaceFeature
             final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
             final ModuleSettingRegistry.Registration delayBinding,
             final ModuleSettingRegistry.Registration requireUseHeldBinding,
-            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding,
+            final SettingRegistry.Registration airborneOverrideSetting,
+            final SettingRegistry.Registration airborneDelaySetting,
+            final SettingPresentationRegistry.Registration airborneOverridePresentation,
+            final SettingPresentationRegistry.Registration airborneDelayPresentation,
+            final ModuleSettingRegistry.Registration airborneOverrideBinding,
+            final ModuleSettingRegistry.Registration airborneDelayBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -57,6 +69,12 @@ final class Minecraft189FastPlaceFeature
         this.delayBinding = delayBinding;
         this.requireUseHeldBinding = requireUseHeldBinding;
         this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
+        this.airborneOverrideSetting = airborneOverrideSetting;
+        this.airborneDelaySetting = airborneDelaySetting;
+        this.airborneOverridePresentation = airborneOverridePresentation;
+        this.airborneDelayPresentation = airborneDelayPresentation;
+        this.airborneOverrideBinding = airborneOverrideBinding;
+        this.airborneDelayBinding = airborneDelayBinding;
     }
 
     static Minecraft189FastPlaceFeature install(
@@ -80,6 +98,12 @@ final class Minecraft189FastPlaceFeature
         ModuleSettingRegistry.Registration delayBinding = null;
         ModuleSettingRegistry.Registration requireUseHeldBinding = null;
         ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
+        SettingRegistry.Registration airborneOverrideSetting = null;
+        SettingRegistry.Registration airborneDelaySetting = null;
+        SettingPresentationRegistry.Registration airborneOverridePresentation = null;
+        SettingPresentationRegistry.Registration airborneDelayPresentation = null;
+        ModuleSettingRegistry.Registration airborneOverrideBinding = null;
+        ModuleSettingRegistry.Registration airborneDelayBinding = null;
 
         try {
             moduleRegistration =
@@ -99,6 +123,8 @@ final class Minecraft189FastPlaceFeature
                             module.delayTicksSetting());
             requireUseHeldSetting = settings.register(module.requireUseHeldSetting());
             pauseWhileSneakingSetting = settings.register(module.pauseWhileSneakingSetting());
+            airborneOverrideSetting = settings.register(module.airborneOverrideSetting());
+            airborneDelaySetting = settings.register(module.airborneDelaySetting());
             delayPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -118,6 +144,15 @@ final class Minecraft189FastPlaceFeature
                     new SettingDescriptor(
                             Minecraft189FastPlaceModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
                             "Pause While Sneaking", SettingValueKind.BOOLEAN, 20));
+            airborneOverridePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FastPlaceModule.AIRBORNE_OVERRIDE_SETTING_ID,
+                            "Airborne Override", SettingValueKind.BOOLEAN, 30));
+            airborneDelayPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FastPlaceModule.AIRBORNE_DELAY_SETTING_ID,
+                            "Airborne Delay", SettingValueKind.INTEGER, 40,
+                            new SettingNumericSpec(0.0D, 4.0D, 1.0D)));
             delayBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -134,6 +169,15 @@ final class Minecraft189FastPlaceFeature
                             Minecraft189FastPlaceModule.ID,
                             Minecraft189FastPlaceModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 20));
 
+            airborneOverrideBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FastPlaceModule.ID,
+                            Minecraft189FastPlaceModule.AIRBORNE_OVERRIDE_SETTING_ID, 30));
+            airborneDelayBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FastPlaceModule.ID,
+                            Minecraft189FastPlaceModule.AIRBORNE_DELAY_SETTING_ID, 40));
+
             return new Minecraft189FastPlaceFeature(
                     controller,
                     module,
@@ -147,8 +191,20 @@ final class Minecraft189FastPlaceFeature
                     pauseWhileSneakingPresentation,
                     delayBinding,
                     requireUseHeldBinding,
-                    pauseWhileSneakingBinding);
+                    pauseWhileSneakingBinding,
+                    airborneOverrideSetting,
+                    airborneDelaySetting,
+                    airborneOverridePresentation,
+                    airborneDelayPresentation,
+                    airborneOverrideBinding,
+                    airborneDelayBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(airborneDelayBinding, failure);
+            closeQuietly(airborneOverrideBinding, failure);
+            closeQuietly(airborneDelayPresentation, failure);
+            closeQuietly(airborneOverridePresentation, failure);
+            closeQuietly(airborneDelaySetting, failure);
+            closeQuietly(airborneOverrideSetting, failure);
             closeQuietly(pauseWhileSneakingBinding, failure);
             closeQuietly(requireUseHeldBinding, failure);
             closeQuietly(pauseWhileSneakingPresentation, failure);
@@ -201,6 +257,12 @@ final class Minecraft189FastPlaceFeature
             failure = closeFailure;
         }
 
+        failure = close(airborneDelayBinding, failure);
+        failure = close(airborneOverrideBinding, failure);
+        failure = close(airborneDelayPresentation, failure);
+        failure = close(airborneOverridePresentation, failure);
+        failure = close(airborneDelaySetting, failure);
+        failure = close(airborneOverrideSetting, failure);
         failure = close(pauseWhileSneakingBinding, failure);
         failure = close(requireUseHeldBinding, failure);
         failure = close(pauseWhileSneakingPresentation, failure);
