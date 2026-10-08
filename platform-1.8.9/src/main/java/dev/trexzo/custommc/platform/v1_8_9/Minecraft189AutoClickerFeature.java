@@ -22,6 +22,7 @@ final class Minecraft189AutoClickerFeature
     private final SettingRegistry.Registration minSetting;
     private final SettingRegistry.Registration maxSetting;
     private final SettingRegistry.Registration pauseWhileRightClickingSetting;
+    private final SettingRegistry.Registration pauseWhileSneakingSetting;
     private final SettingRegistry.Registration requireNearbyPlayerSetting;
     private final SettingRegistry.Registration maxPlayerDistanceSetting;
     private final SettingRegistry.Registration requireForwardSetting;
@@ -29,6 +30,7 @@ final class Minecraft189AutoClickerFeature
     private final SettingPresentationRegistry.Registration minPresentation;
     private final SettingPresentationRegistry.Registration maxPresentation;
     private final SettingPresentationRegistry.Registration pauseWhileRightClickingPresentation;
+    private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
     private final SettingPresentationRegistry.Registration requireNearbyPlayerPresentation;
     private final SettingPresentationRegistry.Registration maxPlayerDistancePresentation;
     private final SettingPresentationRegistry.Registration requireForwardPresentation;
@@ -36,6 +38,7 @@ final class Minecraft189AutoClickerFeature
     private final ModuleSettingRegistry.Registration minBinding;
     private final ModuleSettingRegistry.Registration maxBinding;
     private final ModuleSettingRegistry.Registration pauseWhileRightClickingBinding;
+    private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private final ModuleSettingRegistry.Registration requireNearbyPlayerBinding;
     private final ModuleSettingRegistry.Registration maxPlayerDistanceBinding;
     private final ModuleSettingRegistry.Registration requireForwardBinding;
@@ -50,6 +53,7 @@ final class Minecraft189AutoClickerFeature
             final SettingRegistry.Registration minSetting,
             final SettingRegistry.Registration maxSetting,
             final SettingRegistry.Registration pauseWhileRightClickingSetting,
+            final SettingRegistry.Registration pauseWhileSneakingSetting,
             final SettingRegistry.Registration requireNearbyPlayerSetting,
             final SettingRegistry.Registration maxPlayerDistanceSetting,
             final SettingRegistry.Registration requireForwardSetting,
@@ -57,6 +61,7 @@ final class Minecraft189AutoClickerFeature
             final SettingPresentationRegistry.Registration minPresentation,
             final SettingPresentationRegistry.Registration maxPresentation,
             final SettingPresentationRegistry.Registration pauseWhileRightClickingPresentation,
+            final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
             final SettingPresentationRegistry.Registration requireNearbyPlayerPresentation,
             final SettingPresentationRegistry.Registration maxPlayerDistancePresentation,
             final SettingPresentationRegistry.Registration requireForwardPresentation,
@@ -64,6 +69,7 @@ final class Minecraft189AutoClickerFeature
             final ModuleSettingRegistry.Registration minBinding,
             final ModuleSettingRegistry.Registration maxBinding,
             final ModuleSettingRegistry.Registration pauseWhileRightClickingBinding,
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding,
             final ModuleSettingRegistry.Registration requireNearbyPlayerBinding,
             final ModuleSettingRegistry.Registration maxPlayerDistanceBinding,
             final ModuleSettingRegistry.Registration requireForwardBinding,
@@ -75,6 +81,7 @@ final class Minecraft189AutoClickerFeature
         this.minSetting = minSetting;
         this.maxSetting = maxSetting;
         this.pauseWhileRightClickingSetting = pauseWhileRightClickingSetting;
+        this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
         this.requireNearbyPlayerSetting = requireNearbyPlayerSetting;
         this.maxPlayerDistanceSetting = maxPlayerDistanceSetting;
         this.requireForwardSetting = requireForwardSetting;
@@ -82,6 +89,7 @@ final class Minecraft189AutoClickerFeature
         this.minPresentation = minPresentation;
         this.maxPresentation = maxPresentation;
         this.pauseWhileRightClickingPresentation = pauseWhileRightClickingPresentation;
+        this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
         this.requireNearbyPlayerPresentation = requireNearbyPlayerPresentation;
         this.maxPlayerDistancePresentation = maxPlayerDistancePresentation;
         this.requireForwardPresentation = requireForwardPresentation;
@@ -89,6 +97,7 @@ final class Minecraft189AutoClickerFeature
         this.minBinding = minBinding;
         this.maxBinding = maxBinding;
         this.pauseWhileRightClickingBinding = pauseWhileRightClickingBinding;
+        this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
         this.requireNearbyPlayerBinding = requireNearbyPlayerBinding;
         this.maxPlayerDistanceBinding = maxPlayerDistanceBinding;
         this.requireForwardBinding = requireForwardBinding;
@@ -110,6 +119,7 @@ final class Minecraft189AutoClickerFeature
         SettingRegistry.Registration minSetting = null;
         SettingRegistry.Registration maxSetting = null;
         SettingRegistry.Registration pauseWhileRightClickingSetting = null;
+        SettingRegistry.Registration pauseWhileSneakingSetting = null;
         SettingRegistry.Registration requireNearbyPlayerSetting = null;
         SettingRegistry.Registration maxPlayerDistanceSetting = null;
         SettingRegistry.Registration requireForwardSetting = null;
@@ -117,6 +127,7 @@ final class Minecraft189AutoClickerFeature
         SettingPresentationRegistry.Registration minPresentation = null;
         SettingPresentationRegistry.Registration maxPresentation = null;
         SettingPresentationRegistry.Registration pauseWhileRightClickingPresentation = null;
+        SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
         SettingPresentationRegistry.Registration requireNearbyPlayerPresentation = null;
         SettingPresentationRegistry.Registration maxPlayerDistancePresentation = null;
         SettingPresentationRegistry.Registration requireForwardPresentation = null;
@@ -124,6 +135,7 @@ final class Minecraft189AutoClickerFeature
         ModuleSettingRegistry.Registration minBinding = null;
         ModuleSettingRegistry.Registration maxBinding = null;
         ModuleSettingRegistry.Registration pauseWhileRightClickingBinding = null;
+        ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
         ModuleSettingRegistry.Registration requireNearbyPlayerBinding = null;
         ModuleSettingRegistry.Registration maxPlayerDistanceBinding = null;
         ModuleSettingRegistry.Registration requireForwardBinding = null;
@@ -151,6 +163,7 @@ final class Minecraft189AutoClickerFeature
             pauseWhileRightClickingSetting =
                     settings.register(
                             module.pauseWhileRightClickingSetting());
+            pauseWhileSneakingSetting = settings.register(module.pauseWhileSneakingSetting());
             requireNearbyPlayerSetting =
                     settings.register(module.requireNearbyPlayerSetting());
             maxPlayerDistanceSetting =
@@ -190,6 +203,10 @@ final class Minecraft189AutoClickerFeature
                                     "Pause While Right Clicking",
                                     SettingValueKind.BOOLEAN,
                                     25));
+            pauseWhileSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoClickerModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 27));
             requireNearbyPlayerPresentation = settingPresentations.register(
                     new SettingDescriptor(
                             Minecraft189AutoClickerModule.REQUIRE_NEARBY_PLAYER_SETTING_ID,
@@ -231,6 +248,10 @@ final class Minecraft189AutoClickerFeature
                                     Minecraft189AutoClickerModule.ID,
                                     Minecraft189AutoClickerModule.PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID,
                                     25));
+            pauseWhileSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoClickerModule.ID,
+                            Minecraft189AutoClickerModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 27));
             requireNearbyPlayerBinding = moduleSettings.register(
                     new ModuleSettingBinding(
                             Minecraft189AutoClickerModule.ID,
@@ -260,6 +281,7 @@ final class Minecraft189AutoClickerFeature
                     minSetting,
                     maxSetting,
                     pauseWhileRightClickingSetting,
+                    pauseWhileSneakingSetting,
                     requireNearbyPlayerSetting,
                     maxPlayerDistanceSetting,
                     requireForwardSetting,
@@ -267,6 +289,7 @@ final class Minecraft189AutoClickerFeature
                     minPresentation,
                     maxPresentation,
                     pauseWhileRightClickingPresentation,
+                    pauseWhileSneakingPresentation,
                     requireNearbyPlayerPresentation,
                     maxPlayerDistancePresentation,
                     requireForwardPresentation,
@@ -274,11 +297,15 @@ final class Minecraft189AutoClickerFeature
                     minBinding,
                     maxBinding,
                     pauseWhileRightClickingBinding,
+                    pauseWhileSneakingBinding,
                     requireNearbyPlayerBinding,
                     maxPlayerDistanceBinding,
                     requireForwardBinding,
                     requireHoldBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseWhileSneakingBinding, failure);
+            closeQuietly(pauseWhileSneakingPresentation, failure);
+            closeQuietly(pauseWhileSneakingSetting, failure);
             closeQuietly(
                     requireHoldBinding,
                     failure);
@@ -373,6 +400,9 @@ final class Minecraft189AutoClickerFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseWhileSneakingBinding, failure);
+        failure = close(pauseWhileSneakingPresentation, failure);
+        failure = close(pauseWhileSneakingSetting, failure);
         failure = close(
                 requireHoldBinding,
                 failure);

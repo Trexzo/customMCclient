@@ -1239,7 +1239,8 @@ public final class Minecraft189HostRuntime
                                         LegacyKeyboardCodes.W),
                                 inputState.pointerPressed(
                                         Minecraft189ClickRateTracker.RIGHT_BUTTON),
-                                nearestPlayerTargetState.snapshot());
+                                nearestPlayerTargetState.snapshot(),
+                                playerMovementState.snapshot());
         if (click) {
             clickRateTracker.recordPress(
                     Minecraft189ClickRateTracker.LEFT_BUTTON);

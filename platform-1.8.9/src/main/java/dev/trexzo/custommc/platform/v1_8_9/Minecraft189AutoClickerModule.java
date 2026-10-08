@@ -16,6 +16,8 @@ public final class Minecraft189AutoClickerModule
             "combat.autoClicker.maxCps";
     public static final String PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID =
             "combat.autoClicker.pauseWhileRightClicking";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "combat.autoClicker.pauseWhileSneaking";
     public static final String REQUIRE_NEARBY_PLAYER_SETTING_ID =
             "combat.autoClicker.requireNearbyPlayer";
     public static final String MAX_PLAYER_DISTANCE_SETTING_ID =
@@ -48,6 +50,9 @@ public final class Minecraft189AutoClickerModule
                     Boolean.FALSE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> pauseWhileSneaking = new Setting<Boolean>(
+            PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> requireNearbyPlayer = new Setting<Boolean>(
             REQUIRE_NEARBY_PLAYER_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
@@ -90,6 +95,10 @@ public final class Minecraft189AutoClickerModule
 
     public Setting<Boolean> pauseWhileRightClickingSetting() {
         return pauseWhileRightClicking;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
     }
 
     public Setting<Boolean> requireNearbyPlayerSetting() {
@@ -143,6 +152,16 @@ public final class Minecraft189AutoClickerModule
             final boolean forwardHeld,
             final boolean rightButtonHeld,
             final Minecraft189NearestPlayerTargetState.Snapshot nearestPlayer) {
+        return shouldClick(leftButtonHeld, forwardHeld, rightButtonHeld,
+                nearestPlayer, null);
+    }
+
+    synchronized boolean shouldClick(
+            final boolean leftButtonHeld,
+            final boolean forwardHeld,
+            final boolean rightButtonHeld,
+            final Minecraft189NearestPlayerTargetState.Snapshot nearestPlayer,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
         if (!enabled
                 || (requireHold.get().booleanValue()
                         && !leftButtonHeld)
@@ -150,6 +169,9 @@ public final class Minecraft189AutoClickerModule
                         && !forwardHeld)
                 || (pauseWhileRightClicking.get().booleanValue()
                         && rightButtonHeld)
+                || (pauseWhileSneaking.get().booleanValue()
+                        && (movement == null || !movement.available()
+                        || movement.sneaking()))
                 || (requireNearbyPlayer.get().booleanValue()
                         && (nearestPlayer == null
                         || !nearestPlayer.available()
