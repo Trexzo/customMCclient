@@ -17,6 +17,10 @@ public final class Minecraft189StrafeModule
             "movement.strafe.smoothAcceleration";
     public static final String ACCELERATION_PERCENT_SETTING_ID =
             "movement.strafe.accelerationPercent";
+    public static final String GROUND_ONLY_SETTING_ID =
+            "movement.strafe.groundOnly";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "movement.strafe.pauseWhileSneaking";
     public static final int DEFAULT_ACCELERATION_PERCENT = 50;
     public static final double DEFAULT_SPEED =
             0.30D;
@@ -44,6 +48,18 @@ public final class Minecraft189StrafeModule
                     DEFAULT_ACCELERATION_PERCENT,
                     value -> value != null && value >= 10 && value <= 100,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> groundOnly =
+            new Setting<Boolean>(
+                    GROUND_ONLY_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> pauseWhileSneaking =
+            new Setting<Boolean>(
+                    PAUSE_WHILE_SNEAKING_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private boolean enabled;
 
     Minecraft189StrafeModule(
@@ -71,6 +87,14 @@ public final class Minecraft189StrafeModule
         return accelerationPercent;
     }
 
+    public Setting<Boolean> groundOnlySetting() {
+        return groundOnly;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -85,13 +109,31 @@ public final class Minecraft189StrafeModule
             final Minecraft189PlayerMotionControl player,
             final Minecraft189PlayerRotationState.Snapshot rotation,
             final boolean suspended) {
+        apply(player, rotation, suspended, null);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerMotionControl player,
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final boolean suspended,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
         Objects.requireNonNull(
                 rotation,
                 "rotation");
         if (!enabled
                 || suspended
                 || player == null
-                || !rotation.available()) {
+                || !rotation.available()
+                || (groundOnly.get().booleanValue()
+                        && (movement == null
+                        || !movement.available()
+                        || !movement.onGround()))
+                || (pauseWhileSneaking.get().booleanValue()
+                        && (movement == null
+                        || !movement.available()
+                        || movement.sneaking()))) {
+            // Rejected authority never writes motion or advances a
+            // smoothing schedule; next allowed tick samples live motion.
             return;
         }
 
