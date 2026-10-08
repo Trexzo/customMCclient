@@ -46,6 +46,7 @@ final class Minecraft189TargetHudModuleTest {
             assertEquals(ModuleState.DISABLED,
                     controller.stateOf(Minecraft189TargetHudModule.ID));
             assertFalse(hud.renderPassInstalled());
+            assertFalse(hud.compactSetting().get().booleanValue());
             runtime.renderHud(0L, 0.0F);
             assertTrue(host.texts.isEmpty());
 
@@ -88,10 +89,32 @@ final class Minecraft189TargetHudModuleTest {
             assertEquals("202", settings.snapshotEncoded()
                     .get(Minecraft189TargetHudModule.Y_SETTING_ID));
 
+            // M232: switch to the smaller source-grounded two-row layout
+            // at runtime; no change to selected target or position.
+            hud.compactSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded()
+                    .get(Minecraft189TargetHudModule.COMPACT_SETTING_ID));
+            runtime.renderHud(21L, 0.0F);
+            assertEquals(5, host.texts.size());
+            assertEquals("TARGET  #2", host.texts.get(3));
+            assertEquals("DIST  9.0m", host.texts.get(4));
+            assertEquals(4, host.roundedRects);
+            assertEquals(142.0F, host.lastCardWidth, 0.001F);
+            assertEquals(38.0F, host.lastCardHeight, 0.001F);
+            assertEquals(2, host.begins);
+            assertEquals(2, host.ends);
+
+            hud.compactSetting().set(Boolean.FALSE);
+            runtime.renderHud(22L, 0.0F);
+            assertEquals(8, host.texts.size());
+            assertEquals("YAW  0°    PITCH  0°", host.texts.get(7));
+            assertEquals(164.0F, host.lastCardWidth, 0.001F);
+            assertEquals(56.0F, host.lastCardHeight, 0.001F);
+
             runtime.nearestPlayerTargetState().clear();
             runtime.targetRotationState().clear();
             runtime.renderHud(3L, 0.0F);
-            assertEquals(3, host.texts.size());
+            assertEquals(8, host.texts.size());
 
             controller.disable(Minecraft189TargetHudModule.ID);
             assertFalse(hud.renderPassInstalled());
@@ -104,12 +127,15 @@ final class Minecraft189TargetHudModuleTest {
         assertNull(modules.find(Minecraft189TargetHudModule.ID));
         assertNull(settings.find(Minecraft189TargetHudModule.X_SETTING_ID));
         assertNull(settings.find(Minecraft189TargetHudModule.Y_SETTING_ID));
+        assertNull(settings.find(Minecraft189TargetHudModule.COMPACT_SETTING_ID));
     }
 
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private final java.util.List<String> texts = new java.util.ArrayList<String>();
         private int roundedRects;
+        private float lastCardWidth;
+        private float lastCardHeight;
         private int begins;
         private int ends;
         private float lastX;
@@ -153,6 +179,10 @@ final class Minecraft189TargetHudModuleTest {
                 final float height,
                 final float radius,
                 final int argb) {
+            if (roundedRects % 2 == 0) {
+                lastCardWidth = width;
+                lastCardHeight = height;
+            }
             roundedRects++;
         }
 

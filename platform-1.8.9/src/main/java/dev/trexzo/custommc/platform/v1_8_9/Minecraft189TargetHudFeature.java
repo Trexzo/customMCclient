@@ -23,10 +23,13 @@ final class Minecraft189TargetHudFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration xSetting;
     private final SettingRegistry.Registration ySetting;
+    private final SettingRegistry.Registration compactSetting;
     private final SettingPresentationRegistry.Registration xPresentation;
     private final SettingPresentationRegistry.Registration yPresentation;
+    private final SettingPresentationRegistry.Registration compactPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final ModuleSettingRegistry.Registration compactBinding;
     private boolean closed;
 
     private Minecraft189TargetHudFeature(
@@ -36,20 +39,26 @@ final class Minecraft189TargetHudFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration xSetting,
             final SettingRegistry.Registration ySetting,
+            final SettingRegistry.Registration compactSetting,
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
+            final SettingPresentationRegistry.Registration compactPresentation,
             final ModuleSettingRegistry.Registration xBinding,
-            final ModuleSettingRegistry.Registration yBinding) {
+            final ModuleSettingRegistry.Registration yBinding,
+            final ModuleSettingRegistry.Registration compactBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.xSetting = xSetting;
         this.ySetting = ySetting;
+        this.compactSetting = compactSetting;
         this.xPresentation = xPresentation;
         this.yPresentation = yPresentation;
+        this.compactPresentation = compactPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.compactBinding = compactBinding;
     }
 
     static Minecraft189TargetHudFeature install(
@@ -73,10 +82,13 @@ final class Minecraft189TargetHudFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration xSetting = null;
         SettingRegistry.Registration ySetting = null;
+        SettingRegistry.Registration compactSetting = null;
         SettingPresentationRegistry.Registration xPresentation = null;
         SettingPresentationRegistry.Registration yPresentation = null;
+        SettingPresentationRegistry.Registration compactPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        ModuleSettingRegistry.Registration compactBinding = null;
 
         try {
             moduleRegistration =
@@ -96,6 +108,7 @@ final class Minecraft189TargetHudFeature
             ySetting =
                     settings.register(
                             module.ySetting());
+            compactSetting = settings.register(module.compactSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -118,6 +131,12 @@ final class Minecraft189TargetHudFeature
                                             0.0D,
                                             4096.0D,
                                             1.0D)));
+            compactPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189TargetHudModule.COMPACT_SETTING_ID,
+                            "Compact",
+                            SettingValueKind.BOOLEAN,
+                            20));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -131,6 +150,11 @@ final class Minecraft189TargetHudFeature
                                     Minecraft189TargetHudModule.Y_SETTING_ID,
                                     10));
 
+            compactBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189TargetHudModule.ID,
+                            Minecraft189TargetHudModule.COMPACT_SETTING_ID, 20));
+
             return new Minecraft189TargetHudFeature(
                     controller,
                     module,
@@ -138,15 +162,21 @@ final class Minecraft189TargetHudFeature
                     presentation,
                     xSetting,
                     ySetting,
+                    compactSetting,
                     xPresentation,
                     yPresentation,
+                    compactPresentation,
                     xBinding,
-                    yBinding);
+                    yBinding,
+                    compactBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(compactBinding, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
+            closeQuietly(compactPresentation, failure);
             closeQuietly(yPresentation, failure);
             closeQuietly(xPresentation, failure);
+            closeQuietly(compactSetting, failure);
             closeQuietly(ySetting, failure);
             closeQuietly(xSetting, failure);
             closeQuietly(presentation, failure);
@@ -182,10 +212,13 @@ final class Minecraft189TargetHudFeature
             failure = closeFailure;
         }
 
+        failure = close(compactBinding, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
+        failure = close(compactPresentation, failure);
         failure = close(yPresentation, failure);
         failure = close(xPresentation, failure);
+        failure = close(compactSetting, failure);
         failure = close(ySetting, failure);
         failure = close(xSetting, failure);
         failure = close(presentation, failure);

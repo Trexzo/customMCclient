@@ -17,6 +17,7 @@ public final class Minecraft189TargetHudModule implements Module {
     public static final String ID = "render.targetHud";
     public static final String X_SETTING_ID = "render.targetHud.x";
     public static final String Y_SETTING_ID = "render.targetHud.y";
+    public static final String COMPACT_SETTING_ID = "render.targetHud.compact";
     public static final String RENDER_PASS_ID = "target-hud";
     private final Minecraft189NearestPlayerTargetState nearest;
     private final Minecraft189TargetRotationState direction;
@@ -26,6 +27,8 @@ public final class Minecraft189TargetHudModule implements Module {
             X_SETTING_ID, 18, v -> v != null && v >= 0 && v <= 4096, SettingCodecs.INTEGER);
     private final Setting<Integer> y = new Setting<Integer>(
             Y_SETTING_ID, 210, v -> v != null && v >= 0 && v <= 4096, SettingCodecs.INTEGER);
+    private final Setting<Boolean> compact = new Setting<Boolean>(
+            COMPACT_SETTING_ID, Boolean.FALSE, v -> v != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration registration;
 
     public Minecraft189TargetHudModule(
@@ -42,6 +45,7 @@ public final class Minecraft189TargetHudModule implements Module {
     @Override public String id() { return ID; }
     public Setting<Integer> xSetting() { return x; }
     public Setting<Integer> ySetting() { return y; }
+    public Setting<Boolean> compactSetting() { return compact; }
 
     @Override public synchronized void onEnable() {
         if (registration != null) {
@@ -88,17 +92,22 @@ public final class Minecraft189TargetHudModule implements Module {
                     graphics.framebufferWidth(), graphics.framebufferHeight(), graphics.uiScale());
             final float left = x.get().floatValue();
             final float top = y.get().floatValue();
+            final boolean small = compact.get().booleanValue();
+            final float width = small ? 142.0F : 164.0F;
+            final float height = small ? 38.0F : 56.0F;
             graphics.beginUi(viewport);
             RuntimeException failure = null;
             try {
-                graphics.fillRoundedRect(left, top, 164.0F, 56.0F, 6.0F, 0xE610141E);
-                graphics.fillRoundedRect(left, top, 3.0F, 56.0F, 1.5F, 0xFF70C9E8);
+                graphics.fillRoundedRect(left, top, width, height, 6.0F, 0xE610141E);
+                graphics.fillRoundedRect(left, top, 3.0F, height, 1.5F, 0xFF70C9E8);
                 graphics.drawText(UiFonts.DEFAULT, left + 12, top + 7,
                         "TARGET  #" + (target.entityIndex() + 1), 0xFFFFFFFF);
                 graphics.drawText(UiFonts.DEFAULT, left + 12, top + 23,
                         distanceText(target), 0xFFC4CBD5);
-                graphics.drawText(UiFonts.DEFAULT, left + 12, top + 39,
-                        directionText(angle), 0xFF92A8BF);
+                if (!small) {
+                    graphics.drawText(UiFonts.DEFAULT, left + 12, top + 39,
+                            directionText(angle), 0xFF92A8BF);
+                }
             } catch (RuntimeException e) {
                 failure = e;
                 throw e;
