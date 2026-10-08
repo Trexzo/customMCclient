@@ -31,6 +31,12 @@ final class Minecraft189SpinFeature
     private final ModuleSettingRegistry.Registration reverseBinding;
     private final ModuleSettingRegistry.Registration requireHoldBinding;
     private final ModuleSettingRegistry.Registration intervalBinding;
+    private final SettingRegistry.Registration randomIntervalSetting;
+    private final SettingRegistry.Registration intervalVariationSetting;
+    private final SettingPresentationRegistry.Registration randomIntervalPresentation;
+    private final SettingPresentationRegistry.Registration intervalVariationPresentation;
+    private final ModuleSettingRegistry.Registration randomIntervalBinding;
+    private final ModuleSettingRegistry.Registration intervalVariationBinding;
     private boolean closed;
 
     private Minecraft189SpinFeature(
@@ -49,7 +55,13 @@ final class Minecraft189SpinFeature
             final ModuleSettingRegistry.Registration yawSpeedBinding,
             final ModuleSettingRegistry.Registration reverseBinding,
             final ModuleSettingRegistry.Registration requireHoldBinding,
-            final ModuleSettingRegistry.Registration intervalBinding) {
+            final ModuleSettingRegistry.Registration intervalBinding,
+            final SettingRegistry.Registration randomIntervalSetting,
+            final SettingRegistry.Registration intervalVariationSetting,
+            final SettingPresentationRegistry.Registration randomIntervalPresentation,
+            final SettingPresentationRegistry.Registration intervalVariationPresentation,
+            final ModuleSettingRegistry.Registration randomIntervalBinding,
+            final ModuleSettingRegistry.Registration intervalVariationBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -66,6 +78,12 @@ final class Minecraft189SpinFeature
         this.reverseBinding = reverseBinding;
         this.requireHoldBinding = requireHoldBinding;
         this.intervalBinding = intervalBinding;
+        this.randomIntervalSetting = randomIntervalSetting;
+        this.intervalVariationSetting = intervalVariationSetting;
+        this.randomIntervalPresentation = randomIntervalPresentation;
+        this.intervalVariationPresentation = intervalVariationPresentation;
+        this.randomIntervalBinding = randomIntervalBinding;
+        this.intervalVariationBinding = intervalVariationBinding;
     }
 
     static Minecraft189SpinFeature install(
@@ -92,6 +110,12 @@ final class Minecraft189SpinFeature
         ModuleSettingRegistry.Registration reverseBinding = null;
         ModuleSettingRegistry.Registration requireHoldBinding = null;
         ModuleSettingRegistry.Registration intervalBinding = null;
+        SettingRegistry.Registration randomIntervalSetting = null;
+        SettingRegistry.Registration intervalVariationSetting = null;
+        SettingPresentationRegistry.Registration randomIntervalPresentation = null;
+        SettingPresentationRegistry.Registration intervalVariationPresentation = null;
+        ModuleSettingRegistry.Registration randomIntervalBinding = null;
+        ModuleSettingRegistry.Registration intervalVariationBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -115,6 +139,9 @@ final class Minecraft189SpinFeature
             intervalSetting =
                     settings.register(
                             module.intervalTicksSetting());
+            randomIntervalSetting = settings.register(module.randomIntervalSetting());
+            intervalVariationSetting = settings.register(
+                    module.intervalVariationTicksSetting());
             yawSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -151,6 +178,17 @@ final class Minecraft189SpinFeature
                                             Minecraft189SpinModule.MINIMUM_INTERVAL_TICKS,
                                             Minecraft189SpinModule.MAXIMUM_INTERVAL_TICKS,
                                             1.0D)));
+            randomIntervalPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189SpinModule.RANDOM_INTERVAL_SETTING_ID,
+                            "Random Interval", SettingValueKind.BOOLEAN, 40));
+            intervalVariationPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189SpinModule.INTERVAL_VARIATION_SETTING_ID,
+                            "Interval Variation", SettingValueKind.INTEGER, 50,
+                            new SettingNumericSpec(0.0D,
+                                    Minecraft189SpinModule.MAXIMUM_INTERVAL_VARIATION_TICKS,
+                                    1.0D)));
             yawSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -176,6 +214,15 @@ final class Minecraft189SpinFeature
                                     Minecraft189SpinModule.INTERVAL_SETTING_ID,
                                     30));
 
+            randomIntervalBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189SpinModule.ID,
+                            Minecraft189SpinModule.RANDOM_INTERVAL_SETTING_ID, 40));
+            intervalVariationBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189SpinModule.ID,
+                            Minecraft189SpinModule.INTERVAL_VARIATION_SETTING_ID, 50));
+
             return new Minecraft189SpinFeature(
                     controller,
                     module,
@@ -192,8 +239,20 @@ final class Minecraft189SpinFeature
                     yawSpeedBinding,
                     reverseBinding,
                     requireHoldBinding,
-                    intervalBinding);
+                    intervalBinding,
+                    randomIntervalSetting,
+                    intervalVariationSetting,
+                    randomIntervalPresentation,
+                    intervalVariationPresentation,
+                    randomIntervalBinding,
+                    intervalVariationBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(intervalVariationBinding, failure);
+            closeQuietly(randomIntervalBinding, failure);
+            closeQuietly(intervalVariationPresentation, failure);
+            closeQuietly(randomIntervalPresentation, failure);
+            closeQuietly(intervalVariationSetting, failure);
+            closeQuietly(randomIntervalSetting, failure);
             closeQuietly(intervalBinding, failure);
             closeQuietly(requireHoldBinding, failure);
             closeQuietly(reverseBinding, failure);
@@ -239,6 +298,12 @@ final class Minecraft189SpinFeature
             failure = closeFailure;
         }
 
+        failure = close(intervalVariationBinding, failure);
+        failure = close(randomIntervalBinding, failure);
+        failure = close(intervalVariationPresentation, failure);
+        failure = close(randomIntervalPresentation, failure);
+        failure = close(intervalVariationSetting, failure);
+        failure = close(randomIntervalSetting, failure);
         failure = close(intervalBinding, failure);
         failure = close(requireHoldBinding, failure);
         failure = close(reverseBinding, failure);
