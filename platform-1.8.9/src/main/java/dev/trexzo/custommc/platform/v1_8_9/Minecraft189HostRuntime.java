@@ -507,6 +507,22 @@ public final class Minecraft189HostRuntime
                         : null;
         final Minecraft189PlayerRotationState.Snapshot rotation =
                 playerRotationState.snapshot();
+
+        // Refresh ground authority from the exact player being rotated,
+        // not a movement snapshot published later in the host tick.
+        final Minecraft189PlayerMovementState.Snapshot rotationMovement;
+        if (player instanceof Minecraft189PlayerMovementStateAccess) {
+            final Minecraft189PlayerMovementStateAccess movementPlayer =
+                    (Minecraft189PlayerMovementStateAccess) player;
+            playerMovementState.update(
+                    movementPlayer.customMcOnGround(),
+                    movementPlayer.customMcSneaking(),
+                    movementPlayer.customMcSprinting());
+            rotationMovement = playerMovementState.snapshot();
+        } else {
+            rotationMovement = null;
+        }
+
         final boolean leftButtonHeld =
                 inputState.pointerPressed(
                         Minecraft189ClickRateTracker.LEFT_BUTTON);
@@ -530,7 +546,7 @@ public final class Minecraft189HostRuntime
                         leftButtonHeld,
                         inputState.keyPressed(
                                 LegacyKeyboardCodes.W),
-                        playerMovementState.snapshot())) {
+                        rotationMovement)) {
             featureCatalog.jitter()
                     .apply(
                             null,
