@@ -104,6 +104,16 @@ final class Minecraft189AimAssistModuleTest {
                     module.pitchEnabledSetting()
                             .get()
                             .booleanValue());
+            assertFalse(module.angularEasingSetting().get().booleanValue());
+            assertEquals(Integer.valueOf(50), module.easingStrengthSetting().get());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AimAssistModule.ANGULAR_EASING_SETTING_ID));
+            assertEquals("50", settings.snapshotEncoded().get(
+                    Minecraft189AimAssistModule.EASING_STRENGTH_SETTING_ID));
+            assertTrue(settings.find(
+                    Minecraft189AimAssistModule.ANGULAR_EASING_SETTING_ID) != null);
+            assertTrue(settings.find(
+                    Minecraft189AimAssistModule.EASING_STRENGTH_SETTING_ID) != null);
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.YAW_SPEED_SETTING_ID)
@@ -592,6 +602,10 @@ final class Minecraft189AimAssistModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189AimAssistModule.PITCH_ENABLED_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189AimAssistModule.ANGULAR_EASING_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189AimAssistModule.EASING_STRENGTH_SETTING_ID));
     }
 
 
@@ -1179,6 +1193,138 @@ final class Minecraft189AimAssistModuleTest {
                         rotation.snapshot(), candidateRotation.snapshot()));
         assertEquals(Double.POSITIVE_INFINITY,
                 module.targetAngularErrorSquared(null, null));
+    }
+
+    @Test
+    void angularEasingApproachesBothAxesWithoutChangingExistingGates() {
+        final Minecraft189AimAssistModule module =
+                new Minecraft189AimAssistModule();
+        final Minecraft189PlayerPositionState local =
+                new Minecraft189PlayerPositionState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        final Minecraft189NearestPlayerTargetState nearest =
+                new Minecraft189NearestPlayerTargetState();
+        final Minecraft189TargetRotationState target =
+                new Minecraft189TargetRotationState();
+        final Minecraft189PlayerRotationState rotation =
+                new Minecraft189PlayerRotationState();
+        final TestPlayer player = new TestPlayer(40.0F, 20.0F);
+        local.update(0.0D, 0.0D, 0.0D);
+        positions.update(new double[]{0.0D, 0.0D, 10.0D});
+        kinds.update(new int[]{
+                Minecraft189WorldEntityKindState.LIVING
+                        | Minecraft189WorldEntityKindState.PLAYER});
+        nearest.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+        target.update(local.snapshot(), nearest.snapshot());
+        module.onEnable();
+        rotation.update(player.yaw, player.pitch);
+
+        // Default OFF: both axes still snap using their original 180° caps.
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        assertEquals(0.0F, player.yaw, 0.0001F);
+        assertEquals(0.0F, player.pitch, 0.0001F);
+        player.yaw = 40.0F;
+        player.pitch = 20.0F;
+        module.angularEasingSetting().set(Boolean.TRUE);
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        assertEquals(20.0F, player.yaw, 0.0001F);
+        assertEquals(10.0F, player.pitch, 0.0001F);
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        assertEquals(10.0F, player.yaw, 0.0001F);
+        assertEquals(5.0F, player.pitch, 0.0001F);
+
+        module.easingStrengthSetting().set(90);
+        player.yaw = 40.0F;
+        player.pitch = 20.0F;
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        assertEquals(36.0F, player.yaw, 0.0001F);
+        assertEquals(18.0F, player.pitch, 0.0001F);
+
+        // Existing dead-zone gate suppresses both axes before easing.
+        player.yaw = 4.0F;
+        player.pitch = 2.0F;
+        module.deadZoneSetting().set(5.0D);
+        rotation.update(player.yaw, player.pitch);
+        final int beforeYaw = player.yawWrites;
+        final int beforePitch = player.pitchWrites;
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        assertEquals(beforeYaw, player.yawWrites);
+        assertEquals(beforePitch, player.pitchWrites);
+        module.deadZoneSetting().set(0.0D);
+
+        // Existing Require Hold wins over the new easing option.
+        player.yaw = 40.0F;
+        player.pitch = 20.0F;
+        rotation.update(player.yaw, player.pitch);
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(), false));
+        assertEquals(beforeYaw, player.yawWrites);
+        assertEquals(beforePitch, player.pitchWrites);
+
+        // Each axis is independent; yaw disabled must never be written.
+        module.yawEnabledSetting().set(Boolean.FALSE);
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        assertEquals(40.0F, player.yaw, 0.0001F);
+        assertEquals(18.0F, player.pitch, 0.0001F);
+        assertEquals(beforeYaw, player.yawWrites);
+
+        // Live disable restores the unmodified original maximum steps.
+        module.yawEnabledSetting().set(Boolean.TRUE);
+        module.angularEasingSetting().set(Boolean.FALSE);
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        assertEquals(0.0F, player.yaw, 0.0001F);
+        assertEquals(0.0F, player.pitch, 0.0001F);
+
+        // Wrapped yaw must follow the short arc, not rotate 269 degrees.
+        module.angularEasingSetting().set(Boolean.TRUE);
+        module.easingStrengthSetting().set(50);
+        positions.update(new double[]{-10.0D, 0.0D, 0.0D});
+        nearest.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+        target.update(local.snapshot(), nearest.snapshot());
+        player.yaw = -179.0F;
+        player.pitch = 0.0F;
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        assertEquals(135.5F, player.yaw, 0.0001F);
+        assertEquals(0.0F, player.pitch, 0.0001F);
+        module.onDisable();
+    }
+
+    @Test
+    void easedAngularCapPreservesSpeedLimitsAndRejectsInvalidStrength() {
+        assertEquals(10.0D,
+                Minecraft189AimAssistModule.easedMaximumStep(20.0F, 180.0D, 50),
+                0.000001D);
+        assertEquals(2.0D,
+                Minecraft189AimAssistModule.easedMaximumStep(-20.0F, 180.0D, 90),
+                0.000001D);
+        assertEquals(4.0D,
+                Minecraft189AimAssistModule.easedMaximumStep(20.0F, 4.0D, 50),
+                0.000001D);
+        assertEquals(0.1D,
+                Minecraft189AimAssistModule.easedMaximumStep(0.01F, 180.0D, 50),
+                0.000001D);
+        assertEquals(4.0D,
+                Minecraft189AimAssistModule.easedMaximumStep(Float.NaN, 4.0D, 50),
+                0.000001D);
+
+        final Minecraft189AimAssistModule module =
+                new Minecraft189AimAssistModule();
+        assertThrows(IllegalArgumentException.class,
+                () -> module.easingStrengthSetting().set(9));
+        assertThrows(IllegalArgumentException.class,
+                () -> module.easingStrengthSetting().set(91));
+        module.easingStrengthSetting().set(10);
+        assertEquals(Integer.valueOf(10), module.easingStrengthSetting().get());
+        module.easingStrengthSetting().set(90);
+        assertEquals(Integer.valueOf(90), module.easingStrengthSetting().get());
     }
 
     private static final class TestPlayer
