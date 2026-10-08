@@ -290,6 +290,84 @@ final class Minecraft189FastBreakModuleTest {
         assertEquals(2, live.setCalls);
     }
 
+    @Test
+    void fastBreakGroundOnlyUsesMappedMovementWithoutChangingDefault() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(
+                new EventBus(), modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(), new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189FastBreakModule fastBreak =
+                    runtime.featureCatalog().fastBreak();
+            final TestController live = new TestController();
+            controller.enable(Minecraft189FastBreakModule.ID);
+            assertFalse(fastBreak.groundOnlySetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FastBreakModule.GROUND_ONLY_SETTING_ID));
+
+            // Legacy output is unchanged with the new option OFF,
+            // including missing movement authority or airborne state.
+            live.delay = 5;
+            runtime.playerControllerBreakControl(live);
+            assertEquals(0, live.delay);
+            assertEquals(1, live.setCalls);
+            runtime.playerMovementState().update(false, true, false);
+            live.delay = 5;
+            runtime.playerControllerBreakControl(live);
+            assertEquals(2, live.setCalls);
+
+            fastBreak.groundOnlySetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FastBreakModule.GROUND_ONLY_SETTING_ID));
+            live.delay = 5;
+            runtime.playerControllerBreakControl(live);
+            assertEquals(5, live.delay);
+            assertEquals(2, live.setCalls);  // Airborne.
+            runtime.playerMovementState().clear();
+            runtime.playerControllerBreakControl(live);
+            assertEquals(2, live.setCalls);  // Missing state.
+            runtime.playerMovementState().update(true, true, true);
+            runtime.playerControllerBreakControl(live);
+            assertEquals(0, live.delay);
+            assertEquals(3, live.setCalls);  // Ground Only does not forbid sneak.
+            fastBreak.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            live.delay = 5;
+            runtime.playerControllerBreakControl(live);
+            assertEquals(5, live.delay);
+            assertEquals(3, live.setCalls);  // Independent sneak gate.
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerControllerBreakControl(live);
+            assertEquals(0, live.delay);
+            assertEquals(4, live.setCalls);
+
+            // The legacy overload lacks the required movement authority.
+            fastBreak.apply(live);
+            assertEquals(4, live.setCalls);
+            fastBreak.groundOnlySetting().set(Boolean.FALSE);
+            fastBreak.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            runtime.playerMovementState().clear();
+            runtime.playerControllerBreakControl(live);
+            assertEquals(5, live.setCalls);
+            controller.disable(Minecraft189FastBreakModule.ID);
+            runtime.playerControllerBreakControl(live);
+            assertEquals(5, live.setCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189FastBreakModule.GROUND_ONLY_SETTING_ID));
+        assertNull(modules.find(Minecraft189FastBreakModule.ID));
+    }
+
     private static final class TestController
             implements Minecraft189BlockHitDelayControl {
         private int delay;

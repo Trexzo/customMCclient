@@ -442,6 +442,87 @@ final class Minecraft189SpeedMineModuleTest {
         module.apply(null, true, movement.snapshot());
     }
 
+    @Test
+    void speedMineGroundOnlyGatesInstantAndProgressiveWrites() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(
+                new EventBus(), modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(), new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189SpeedMineModule mine =
+                    runtime.featureCatalog().speedMine();
+            final TestController live = new TestController();
+            live.hitting = true;
+            controller.enable(Minecraft189SpeedMineModule.ID);
+            assertFalse(mine.groundOnlySetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.GROUND_ONLY_SETTING_ID));
+            live.progress = 0.20F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.70F, live.progress, 0.000001F);
+            assertEquals(1, live.setCalls); // Default without movement state.
+            mine.groundOnlySetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.GROUND_ONLY_SETTING_ID));
+            live.progress = 0.20F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(1, live.setCalls); // Missing movement.
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(1, live.setCalls); // Airborne.
+            runtime.playerMovementState().update(true, true, false);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(2, live.setCalls); // Grounded; sneaking by itself is allowed.
+            assertEquals(0.70F, live.progress, 0.000001F);
+            mine.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            live.progress = 0.20F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(2, live.setCalls); // Sneak gate remains independent.
+            runtime.playerMovementState().update(true, false, false);
+            mine.progressiveSetting().set(Boolean.TRUE);
+            mine.stepPercentSetting().set(15);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.35F, live.progress, 0.000001F);
+            assertEquals(3, live.setCalls);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(3, live.setCalls);
+            runtime.playerMovementState().clear();
+            runtime.playerControllerMiningControl(live);
+            assertEquals(3, live.setCalls);
+            runtime.playerMovementState().update(true, false, true);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.50F, live.progress, 0.000001F);
+            assertEquals(4, live.setCalls); // No deferred ramp during pause.
+
+            mine.apply(live); // Legacy overload fails closed with Ground Only.
+            assertEquals(4, live.setCalls);
+            mine.groundOnlySetting().set(Boolean.FALSE);
+            mine.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            runtime.playerMovementState().clear();
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.65F, live.progress, 0.000001F);
+            assertEquals(5, live.setCalls); // Legacy behavior restored.
+            controller.disable(Minecraft189SpeedMineModule.ID);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(5, live.setCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189SpeedMineModule.GROUND_ONLY_SETTING_ID));
+        assertNull(modules.find(Minecraft189SpeedMineModule.ID));
+    }
+
     private static final class TestController
             implements Minecraft189BlockMiningControl {
         private boolean hitting;

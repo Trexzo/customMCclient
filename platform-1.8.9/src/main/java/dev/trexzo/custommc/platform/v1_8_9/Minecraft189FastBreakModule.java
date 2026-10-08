@@ -14,6 +14,8 @@ public final class Minecraft189FastBreakModule
             "player.fastBreak.requireAttackHeld";
     public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
             "player.fastBreak.pauseWhileSneaking";
+    public static final String GROUND_ONLY_SETTING_ID =
+            "player.fastBreak.groundOnly";
     public static final int DEFAULT_DELAY = 0;
     public static final int MINIMUM_DELAY = 0;
     public static final int MAXIMUM_DELAY = 5;
@@ -40,6 +42,13 @@ public final class Minecraft189FastBreakModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> groundOnly =
+            new Setting<Boolean>(
+                    GROUND_ONLY_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+
     private boolean enabled;
 
     @Override
@@ -57,6 +66,10 @@ public final class Minecraft189FastBreakModule
 
     public Setting<Boolean> pauseWhileSneakingSetting() {
         return pauseWhileSneaking;
+    }
+
+    public Setting<Boolean> groundOnlySetting() {
+        return groundOnly;
     }
 
     @Override
@@ -85,7 +98,11 @@ public final class Minecraft189FastBreakModule
                 || (pauseWhileSneaking.get().booleanValue()
                         && (movement == null
                         || !movement.available()
-                        || movement.sneaking()))) {
+                        || movement.sneaking()))
+                || (groundOnly.get().booleanValue()
+                        && (movement == null
+                        || !movement.available()
+                        || !movement.onGround()))) {
             return;
         }
         controller.customMcSetBlockHitDelay(

@@ -34,6 +34,9 @@ final class Minecraft189SpeedMineFeature
     private final ModuleSettingRegistry.Registration stepPercentBinding;
     private final ModuleSettingRegistry.Registration requireAttackHeldBinding;
     private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
+    private final SettingRegistry.Registration groundOnlySetting;
+    private final SettingPresentationRegistry.Registration groundOnlyPresentation;
+    private final ModuleSettingRegistry.Registration groundOnlyBinding;
     private boolean closed;
 
     private Minecraft189SpeedMineFeature(
@@ -55,7 +58,10 @@ final class Minecraft189SpeedMineFeature
             final ModuleSettingRegistry.Registration progressiveBinding,
             final ModuleSettingRegistry.Registration stepPercentBinding,
             final ModuleSettingRegistry.Registration requireAttackHeldBinding,
-            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding,
+            final SettingRegistry.Registration groundOnlySetting,
+            final SettingPresentationRegistry.Registration groundOnlyPresentation,
+            final ModuleSettingRegistry.Registration groundOnlyBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -75,6 +81,9 @@ final class Minecraft189SpeedMineFeature
         this.stepPercentBinding = stepPercentBinding;
         this.requireAttackHeldBinding = requireAttackHeldBinding;
         this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
+        this.groundOnlySetting = groundOnlySetting;
+        this.groundOnlyPresentation = groundOnlyPresentation;
+        this.groundOnlyBinding = groundOnlyBinding;
     }
 
     static Minecraft189SpeedMineFeature install(
@@ -104,6 +113,9 @@ final class Minecraft189SpeedMineFeature
         ModuleSettingRegistry.Registration stepPercentBinding = null;
         ModuleSettingRegistry.Registration requireAttackHeldBinding = null;
         ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
+        SettingRegistry.Registration groundOnlySetting = null;
+        SettingPresentationRegistry.Registration groundOnlyPresentation = null;
+        ModuleSettingRegistry.Registration groundOnlyBinding = null;
 
         try {
             moduleRegistration =
@@ -125,6 +137,7 @@ final class Minecraft189SpeedMineFeature
             stepPercentSetting = settings.register(module.stepPercentSetting());
             requireAttackHeldSetting = settings.register(module.requireAttackHeldSetting());
             pauseWhileSneakingSetting = settings.register(module.pauseWhileSneakingSetting());
+            groundOnlySetting = settings.register(module.groundOnlySetting());
             progressPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -153,6 +166,10 @@ final class Minecraft189SpeedMineFeature
                     new SettingDescriptor(
                             Minecraft189SpeedMineModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
                             "Pause While Sneaking", SettingValueKind.BOOLEAN, 40));
+            groundOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189SpeedMineModule.GROUND_ONLY_SETTING_ID,
+                            "Ground Only", SettingValueKind.BOOLEAN, 50));
             progressBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -178,6 +195,11 @@ final class Minecraft189SpeedMineFeature
                             Minecraft189SpeedMineModule.ID,
                             Minecraft189SpeedMineModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 40));
 
+            groundOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189SpeedMineModule.ID,
+                            Minecraft189SpeedMineModule.GROUND_ONLY_SETTING_ID, 50));
+
             return new Minecraft189SpeedMineFeature(
                     controller,
                     module,
@@ -197,8 +219,14 @@ final class Minecraft189SpeedMineFeature
                     progressiveBinding,
                     stepPercentBinding,
                     requireAttackHeldBinding,
-                    pauseWhileSneakingBinding);
+                    pauseWhileSneakingBinding,
+                    groundOnlySetting,
+                    groundOnlyPresentation,
+                    groundOnlyBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(groundOnlyBinding, failure);
+            closeQuietly(groundOnlyPresentation, failure);
+            closeQuietly(groundOnlySetting, failure);
             closeQuietly(pauseWhileSneakingBinding, failure);
             closeQuietly(requireAttackHeldBinding, failure);
             closeQuietly(pauseWhileSneakingPresentation, failure);
@@ -257,6 +285,9 @@ final class Minecraft189SpeedMineFeature
             failure = closeFailure;
         }
 
+        failure = close(groundOnlyBinding, failure);
+        failure = close(groundOnlyPresentation, failure);
+        failure = close(groundOnlySetting, failure);
         failure = close(pauseWhileSneakingBinding, failure);
         failure = close(requireAttackHeldBinding, failure);
         failure = close(pauseWhileSneakingPresentation, failure);

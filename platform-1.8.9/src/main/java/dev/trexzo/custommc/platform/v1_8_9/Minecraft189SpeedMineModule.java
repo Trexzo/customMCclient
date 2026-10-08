@@ -19,6 +19,9 @@ public final class Minecraft189SpeedMineModule
     public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
             "player.speedMine.pauseWhileSneaking";
 
+    public static final String GROUND_ONLY_SETTING_ID =
+            "player.speedMine.groundOnly";
+
     private final Setting<Integer> progressPercent =
             new Setting<Integer>(
                     PROGRESS_SETTING_ID,
@@ -53,6 +56,13 @@ public final class Minecraft189SpeedMineModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> groundOnly =
+            new Setting<Boolean>(
+                    GROUND_ONLY_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+
     private boolean enabled;
 
     @Override
@@ -78,6 +88,10 @@ public final class Minecraft189SpeedMineModule
 
     public Setting<Boolean> pauseWhileSneakingSetting() {
         return pauseWhileSneaking;
+    }
+
+    public Setting<Boolean> groundOnlySetting() {
+        return groundOnly;
     }
 
     @Override
@@ -107,7 +121,11 @@ public final class Minecraft189SpeedMineModule
                 || (pauseWhileSneaking.get().booleanValue()
                         && (movement == null
                         || !movement.available()
-                        || movement.sneaking()))) {
+                        || movement.sneaking()))
+                || (groundOnly.get().booleanValue()
+                        && (movement == null
+                        || !movement.available()
+                        || !movement.onGround()))) {
             return;
         }
 
