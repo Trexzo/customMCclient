@@ -28,11 +28,16 @@ public final class Minecraft189CrosshairModule
             "render.crosshair.sprintExpansion";
     public static final String SPRINT_GAP_BONUS_SETTING_ID =
             "render.crosshair.sprintGapBonus";
+    public static final String OUTLINE_SETTING_ID =
+            "render.crosshair.outline";
+    public static final String OUTLINE_SIZE_SETTING_ID =
+            "render.crosshair.outlineSize";
     public static final String RENDER_PASS_ID =
             "crosshair";
 
     private static final int PRIORITY = 130;
     private static final int COLOR_ARGB = 0xFFFFFFFF;
+    private static final int OUTLINE_ARGB = 0xFF000000;
 
     private final RenderPipeline renderPipeline;
     private final LegacyUiHostCallbacks hostCallbacks;
@@ -72,6 +77,15 @@ public final class Minecraft189CrosshairModule
             new Setting<Integer>(
                     SPRINT_GAP_BONUS_SETTING_ID, 4,
                     value -> value != null && value >= 1 && value <= 12,
+                    SettingCodecs.INTEGER);
+    private final Setting<Boolean> outline =
+            new Setting<Boolean>(
+                    OUTLINE_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> outlineSize =
+            new Setting<Integer>(
+                    OUTLINE_SIZE_SETTING_ID, 1,
+                    value -> value != null && value >= 1 && value <= 3,
                     SettingCodecs.INTEGER);
     private RenderPipeline.Registration renderRegistration;
 
@@ -123,6 +137,14 @@ public final class Minecraft189CrosshairModule
 
     public Setting<Integer> sprintGapBonusSetting() {
         return sprintGapBonus;
+    }
+
+    public Setting<Boolean> outlineSetting() {
+        return outline;
+    }
+
+    public Setting<Integer> outlineSizeSetting() {
+        return outlineSize;
     }
 
     static float effectiveGap(final float baseGap,
@@ -209,6 +231,45 @@ public final class Minecraft189CrosshairModule
             hostCallbacks.beginUi(viewport);
             RuntimeException failure = null;
             try {
+                // Draw backing silhouettes first, then the exact original
+                // white arm/dot geometry. With Outline OFF, the render
+                // sequence and output are byte-for-byte unchanged.
+                if (outline.get().booleanValue()) {
+                    final float pad = outlineSize.get().floatValue();
+                    final float twicePad = 2.0F * pad;
+                    hostCallbacks.fillRect(
+                            centerX - lineGap - lineLength - pad,
+                            centerY - halfThickness - pad,
+                            lineLength + twicePad,
+                            lineThickness + twicePad,
+                            OUTLINE_ARGB);
+                    hostCallbacks.fillRect(
+                            centerX + lineGap - pad,
+                            centerY - halfThickness - pad,
+                            lineLength + twicePad,
+                            lineThickness + twicePad,
+                            OUTLINE_ARGB);
+                    hostCallbacks.fillRect(
+                            centerX - halfThickness - pad,
+                            centerY - lineGap - lineLength - pad,
+                            lineThickness + twicePad,
+                            lineLength + twicePad,
+                            OUTLINE_ARGB);
+                    hostCallbacks.fillRect(
+                            centerX - halfThickness - pad,
+                            centerY + lineGap - pad,
+                            lineThickness + twicePad,
+                            lineLength + twicePad,
+                            OUTLINE_ARGB);
+                    if (dot.get().booleanValue()) {
+                        hostCallbacks.fillRect(
+                                centerX - halfThickness - pad,
+                                centerY - halfThickness - pad,
+                                lineThickness + twicePad,
+                                lineThickness + twicePad,
+                                OUTLINE_ARGB);
+                    }
+                }
                 hostCallbacks.fillRect(
                         centerX - lineGap - lineLength,
                         centerY - halfThickness,
