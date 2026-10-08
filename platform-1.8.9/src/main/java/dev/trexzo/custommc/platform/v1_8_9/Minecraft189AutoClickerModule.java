@@ -31,6 +31,10 @@ public final class Minecraft189AutoClickerModule
             "combat.autoClicker.rampUp";
     public static final String RAMP_UP_TICKS_SETTING_ID =
             "combat.autoClicker.rampUpTicks";
+    public static final String START_DELAY_SETTING_ID =
+            "combat.autoClicker.startDelayTicks";
+    public static final int DEFAULT_START_DELAY_TICKS = 0;
+    public static final int MAXIMUM_START_DELAY_TICKS = 40;
     public static final int DEFAULT_RAMP_UP_TICKS = 20;
     public static final int MINIMUM_RAMP_UP_TICKS = 1;
     public static final int MAXIMUM_RAMP_UP_TICKS = 100;
@@ -91,7 +95,18 @@ public final class Minecraft189AutoClickerModule
                     && value <= MAXIMUM_RAMP_UP_TICKS,
             SettingCodecs.INTEGER);
 
+    private final Setting<Integer> startDelayTicks =
+            new Setting<Integer>(
+                    START_DELAY_SETTING_ID,
+                    DEFAULT_START_DELAY_TICKS,
+                    value -> value != null && value >= 0
+                            && value <= MAXIMUM_START_DELAY_TICKS,
+                    SettingCodecs.INTEGER);
+
     private boolean enabled;
+    private boolean startDelayPrimed;
+    private int startDelayRemaining;
+    private int scheduledStartDelayTicks;
     private int elapsedEligibleTicks;
     private boolean scheduledRampUp;
     private int scheduledRampUpTicks;
@@ -143,6 +158,10 @@ public final class Minecraft189AutoClickerModule
 
     public Setting<Integer> rampUpTicksSetting() {
         return rampUpTicks;
+    }
+
+    public Setting<Integer> startDelayTicksSetting() {
+        return startDelayTicks;
     }
 
     @Override
@@ -217,15 +236,29 @@ public final class Minecraft189AutoClickerModule
         final int currentMaximumCps = maxCps.get().intValue();
         final boolean currentRampUp = rampUp.get().booleanValue();
         final int currentRampUpTicks = rampUpTicks.get().intValue();
+        final int currentStartDelayTicks = startDelayTicks.get().intValue();
         if (scheduledMinimumCps != currentMinimumCps
                 || scheduledMaximumCps != currentMaximumCps
                 || scheduledRampUp != currentRampUp
-                || scheduledRampUpTicks != currentRampUpTicks) {
+                || scheduledRampUpTicks != currentRampUpTicks
+                || scheduledStartDelayTicks != currentStartDelayTicks) {
             resetSchedule();
             scheduledMinimumCps = currentMinimumCps;
             scheduledMaximumCps = currentMaximumCps;
             scheduledRampUp = currentRampUp;
             scheduledRampUpTicks = currentRampUpTicks;
+            scheduledStartDelayTicks = currentStartDelayTicks;
+        }
+
+        // Start delay consumes eligible callbacks, never scheduler phase
+        // or ramp credit. Any failed input/target gate fully resets it.
+        if (!startDelayPrimed) {
+            startDelayPrimed = true;
+            startDelayRemaining = currentStartDelayTicks;
+        }
+        if (startDelayRemaining > 0) {
+            startDelayRemaining--;
+            return false;
         }
 
         if (targetCps <= 0) {
@@ -284,6 +317,9 @@ public final class Minecraft189AutoClickerModule
     }
 
     private void resetSchedule() {
+        startDelayPrimed = false;
+        startDelayRemaining = 0;
+        scheduledStartDelayTicks = 0;
         phaseCredit = 0;
         targetCps = 0;
         scheduledMinimumCps = 0;
