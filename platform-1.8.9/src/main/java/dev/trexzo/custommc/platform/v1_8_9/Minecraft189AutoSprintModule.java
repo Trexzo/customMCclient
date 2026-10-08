@@ -12,10 +12,19 @@ public final class Minecraft189AutoSprintModule
             "movement.autoSprint";
     public static final String REQUIRE_FORWARD_SETTING_ID =
             "movement.autoSprint.requireForward";
+    public static final String GROUND_ONLY_SETTING_ID =
+            "movement.autoSprint.groundOnly";
 
     private final Setting<Boolean> requireForward =
             new Setting<Boolean>(
                     REQUIRE_FORWARD_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+
+    private final Setting<Boolean> groundOnly =
+            new Setting<Boolean>(
+                    GROUND_ONLY_SETTING_ID,
                     Boolean.FALSE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
@@ -29,6 +38,10 @@ public final class Minecraft189AutoSprintModule
 
     public Setting<Boolean> requireForwardSetting() {
         return requireForward;
+    }
+
+    public Setting<Boolean> groundOnlySetting() {
+        return groundOnly;
     }
 
     @Override
@@ -53,6 +66,8 @@ public final class Minecraft189AutoSprintModule
                 || !movement.available()
                 || (requireForward.get().booleanValue()
                         && !forwardHeld)
+                || (groundOnly.get().booleanValue()
+                        && !movement.onGround())
                 || movement.sneaking()
                 || movement.sprinting()) {
             return;

@@ -19,8 +19,11 @@ final class Minecraft189AutoSprintFeature
     private final ModuleRegistry.Registration moduleRegistration;
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration requireForwardSetting;
+    private final SettingRegistry.Registration groundOnlySetting;
     private final SettingPresentationRegistry.Registration requireForwardPresentation;
+    private final SettingPresentationRegistry.Registration groundOnlyPresentation;
     private final ModuleSettingRegistry.Registration requireForwardBinding;
+    private final ModuleSettingRegistry.Registration groundOnlyBinding;
     private boolean closed;
 
     private Minecraft189AutoSprintFeature(
@@ -29,15 +32,21 @@ final class Minecraft189AutoSprintFeature
             final ModuleRegistry.Registration moduleRegistration,
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration requireForwardSetting,
+            final SettingRegistry.Registration groundOnlySetting,
             final SettingPresentationRegistry.Registration requireForwardPresentation,
-            final ModuleSettingRegistry.Registration requireForwardBinding) {
+            final SettingPresentationRegistry.Registration groundOnlyPresentation,
+            final ModuleSettingRegistry.Registration requireForwardBinding,
+            final ModuleSettingRegistry.Registration groundOnlyBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.requireForwardSetting = requireForwardSetting;
+        this.groundOnlySetting = groundOnlySetting;
         this.requireForwardPresentation = requireForwardPresentation;
+        this.groundOnlyPresentation = groundOnlyPresentation;
         this.requireForwardBinding = requireForwardBinding;
+        this.groundOnlyBinding = groundOnlyBinding;
     }
 
     static Minecraft189AutoSprintFeature install(
@@ -53,8 +62,11 @@ final class Minecraft189AutoSprintFeature
         ModuleRegistry.Registration moduleRegistration = null;
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration requireForwardSetting = null;
+        SettingRegistry.Registration groundOnlySetting = null;
         SettingPresentationRegistry.Registration requireForwardPresentation = null;
+        SettingPresentationRegistry.Registration groundOnlyPresentation = null;
         ModuleSettingRegistry.Registration requireForwardBinding = null;
+        ModuleSettingRegistry.Registration groundOnlyBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -71,6 +83,7 @@ final class Minecraft189AutoSprintFeature
             requireForwardSetting =
                     settings.register(
                             module.requireForwardSetting());
+            groundOnlySetting = settings.register(module.groundOnlySetting());
             requireForwardPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -78,12 +91,20 @@ final class Minecraft189AutoSprintFeature
                                     "Require Forward",
                                     SettingValueKind.BOOLEAN,
                                     0));
+            groundOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoSprintModule.GROUND_ONLY_SETTING_ID,
+                            "Ground Only", SettingValueKind.BOOLEAN, 10));
             requireForwardBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
                                     Minecraft189AutoSprintModule.ID,
                                     Minecraft189AutoSprintModule.REQUIRE_FORWARD_SETTING_ID,
                                     0));
+            groundOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoSprintModule.ID,
+                            Minecraft189AutoSprintModule.GROUND_ONLY_SETTING_ID, 10));
 
             return new Minecraft189AutoSprintFeature(
                     controller,
@@ -91,9 +112,15 @@ final class Minecraft189AutoSprintFeature
                     moduleRegistration,
                     presentation,
                     requireForwardSetting,
+                    groundOnlySetting,
                     requireForwardPresentation,
-                    requireForwardBinding);
+                    groundOnlyPresentation,
+                    requireForwardBinding,
+                    groundOnlyBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(groundOnlyBinding, failure);
+            closeQuietly(groundOnlyPresentation, failure);
+            closeQuietly(groundOnlySetting, failure);
             closeQuietly(requireForwardBinding, failure);
             closeQuietly(requireForwardPresentation, failure);
             closeQuietly(requireForwardSetting, failure);
@@ -134,6 +161,9 @@ final class Minecraft189AutoSprintFeature
             failure = closeFailure;
         }
 
+        failure = close(groundOnlyBinding, failure);
+        failure = close(groundOnlyPresentation, failure);
+        failure = close(groundOnlySetting, failure);
         failure = close(requireForwardBinding, failure);
         failure = close(requireForwardPresentation, failure);
         failure = close(requireForwardSetting, failure);
