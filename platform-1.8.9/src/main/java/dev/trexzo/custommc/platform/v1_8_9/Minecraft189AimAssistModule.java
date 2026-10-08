@@ -20,6 +20,8 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.maxFov";
     public static final String MAX_PITCH_FOV_SETTING_ID =
             "combat.aimAssist.maxPitchFov";
+    public static final String YAW_OFFSET_SETTING_ID =
+            "combat.aimAssist.yawOffset";
     public static final String PITCH_OFFSET_SETTING_ID =
             "combat.aimAssist.pitchOffset";
     public static final String DEAD_ZONE_SETTING_ID =
@@ -50,6 +52,9 @@ public final class Minecraft189AimAssistModule
             1.0D;
     public static final double MAXIMUM_MAX_PITCH_FOV =
             180.0D;
+    public static final double DEFAULT_YAW_OFFSET = 0.0D;
+    public static final double MINIMUM_YAW_OFFSET = -30.0D;
+    public static final double MAXIMUM_YAW_OFFSET = 30.0D;
     public static final double DEFAULT_PITCH_OFFSET = 0.0D;
     public static final double MINIMUM_PITCH_OFFSET = -30.0D;
     public static final double MAXIMUM_PITCH_OFFSET = 30.0D;
@@ -99,6 +104,12 @@ public final class Minecraft189AimAssistModule
                     MAX_PITCH_FOV_SETTING_ID,
                     DEFAULT_MAX_PITCH_FOV,
                     Minecraft189AimAssistModule::validMaxPitchFov,
+                    SettingCodecs.DOUBLE);
+    private final Setting<Double> yawOffset =
+            new Setting<Double>(
+                    YAW_OFFSET_SETTING_ID,
+                    DEFAULT_YAW_OFFSET,
+                    Minecraft189AimAssistModule::validYawOffset,
                     SettingCodecs.DOUBLE);
     private final Setting<Double> pitchOffset =
             new Setting<Double>(
@@ -156,6 +167,10 @@ public final class Minecraft189AimAssistModule
         return maxPitchFov;
     }
 
+    public Setting<Double> yawOffsetSetting() {
+        return yawOffset;
+    }
+
     public Setting<Double> pitchOffsetSetting() {
         return pitchOffset;
     }
@@ -211,6 +226,7 @@ public final class Minecraft189AimAssistModule
             return false;
         }
 
+        final float desiredYaw = effectiveYaw(target.yaw());
         final float desiredPitch = effectivePitch(target.pitch());
         final double deadZoneDegrees =
                 deadZone.get().doubleValue();
@@ -218,7 +234,7 @@ public final class Minecraft189AimAssistModule
                 yawEnabled.get().booleanValue()
                         && (deadZoneDegrees == 0.0D
                         || Math.abs(wrapYaw(
-                                target.yaw() - rotation.yaw()))
+                                desiredYaw - rotation.yaw()))
                                 > deadZoneDegrees);
         final boolean adjustPitch =
                 pitchEnabled.get().booleanValue()
@@ -232,7 +248,7 @@ public final class Minecraft189AimAssistModule
         final float targetYaw =
                 stepYaw(
                         rotation.yaw(),
-                        target.yaw(),
+                        desiredYaw,
                         yawSpeed.get().doubleValue());
         final float targetPitch =
                 stepLinear(
@@ -260,6 +276,10 @@ public final class Minecraft189AimAssistModule
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    private float effectiveYaw(final float rawYaw) {
+        return wrapYaw(rawYaw + yawOffset.get().floatValue());
     }
 
     private float effectivePitch(final float rawPitch) {
@@ -329,13 +349,13 @@ public final class Minecraft189AimAssistModule
                 <= maximumDistanceSquared;
     }
 
-    private static boolean withinFov(
+    private boolean withinFov(
             final Minecraft189PlayerRotationState.Snapshot rotation,
             final Minecraft189TargetRotationState.Snapshot target,
             final double maximumFov) {
         final float yawDelta =
                 wrapYaw(
-                        target.yaw()
+                        effectiveYaw(target.yaw())
                                 - rotation.yaw());
         return Math.abs(
                 yawDelta)
@@ -348,6 +368,14 @@ public final class Minecraft189AimAssistModule
             final double maximumPitchFov) {
         return Math.abs(effectivePitch(target.pitch()) - rotation.pitch())
                 <= maximumPitchFov;
+    }
+
+    private static boolean validYawOffset(final Double value) {
+        return value != null
+                && !Double.isNaN(value.doubleValue())
+                && !Double.isInfinite(value.doubleValue())
+                && value.doubleValue() >= MINIMUM_YAW_OFFSET
+                && value.doubleValue() <= MAXIMUM_YAW_OFFSET;
     }
 
     private static boolean validPitchOffset(final Double value) {

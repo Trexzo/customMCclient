@@ -5197,6 +5197,37 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(-4.0F,
                     playerClass.getField("z").getFloat(player), 0.0001F);
 
+            // M218: mapped player yaw uses the adjusted target yaw.
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawOffsetSetting().set(8.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-60.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(-4.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxFovSetting().set(5.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-70.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(0.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxFovSetting().set(180.0D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawOffsetSetting().set(0.0D);
+            runTick.invoke(minecraft);
+            assertEquals(-67.833654F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(-4.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AimAssistModule.ID);

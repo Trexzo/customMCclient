@@ -1591,3 +1591,9 @@ Only the already certified rotation snapshots are used. Max Distance, Require Ho
 M217 adds persistent DOUBLE setting `combat.aimAssist.pitchOffset`, presented as **Pitch Offset** in Combat → Aim Assist (−30° to +30°, default 0°). Positive offsets move desired pitch downward in Minecraft's convention and negative offsets move it upward. Effective pitch is clamped to the legal [−90°, +90°] interval.
 
 The adjusted pitch drives Max Pitch FOV eligibility, the pitch dead zone and existing pitch smoothing consistently. Max Distance, yaw FOV, activation, axis controls and Spin > Aim Assist > Jitter precedence remain unchanged. The zero-degree default preserves M216 behavior. Focused and transformed-host tests verify positive/negative offsets, vertical FOV suppression, dead-zone behavior, zero-default parity and setting lifecycle. No new Minecraft mappings or transformer hooks.
+
+## Aim Assist yaw offset
+
+M218 adds persistent DOUBLE setting `combat.aimAssist.yawOffset`, shown as **Yaw Offset** (−30° to +30°, default 0°). It adjusts the desired horizontal aim angle using certified yaw and shortest-path wrapping into [−180°, +180°). The effective angle consistently drives horizontal Max FOV, yaw dead-zone and yaw smoothing. Max Pitch FOV, pitch offset, distance, activation and Spin > Aim Assist > Jitter precedence are unchanged.
+
+The zero offset preserves M217 behavior. Focused and transformed-host tests validate positive and negative offsets, wrapped angle handling, FOV rejection, dead-zone yielding, zero-default parity and complete registration/teardown lifecycle. No new mapping, new transformer or target selection rule.
