@@ -24,12 +24,18 @@ final class Minecraft189TargetHudFeature
     private final SettingRegistry.Registration xSetting;
     private final SettingRegistry.Registration ySetting;
     private final SettingRegistry.Registration compactSetting;
+    private final SettingRegistry.Registration proximityMeterSetting;
+    private final SettingRegistry.Registration proximityRangeSetting;
     private final SettingPresentationRegistry.Registration xPresentation;
     private final SettingPresentationRegistry.Registration yPresentation;
     private final SettingPresentationRegistry.Registration compactPresentation;
+    private final SettingPresentationRegistry.Registration proximityMeterPresentation;
+    private final SettingPresentationRegistry.Registration proximityRangePresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
     private final ModuleSettingRegistry.Registration compactBinding;
+    private final ModuleSettingRegistry.Registration proximityMeterBinding;
+    private final ModuleSettingRegistry.Registration proximityRangeBinding;
     private boolean closed;
 
     private Minecraft189TargetHudFeature(
@@ -40,12 +46,18 @@ final class Minecraft189TargetHudFeature
             final SettingRegistry.Registration xSetting,
             final SettingRegistry.Registration ySetting,
             final SettingRegistry.Registration compactSetting,
+            final SettingRegistry.Registration proximityMeterSetting,
+            final SettingRegistry.Registration proximityRangeSetting,
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
             final SettingPresentationRegistry.Registration compactPresentation,
+            final SettingPresentationRegistry.Registration proximityMeterPresentation,
+            final SettingPresentationRegistry.Registration proximityRangePresentation,
             final ModuleSettingRegistry.Registration xBinding,
             final ModuleSettingRegistry.Registration yBinding,
-            final ModuleSettingRegistry.Registration compactBinding) {
+            final ModuleSettingRegistry.Registration compactBinding,
+            final ModuleSettingRegistry.Registration proximityMeterBinding,
+            final ModuleSettingRegistry.Registration proximityRangeBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -53,12 +65,18 @@ final class Minecraft189TargetHudFeature
         this.xSetting = xSetting;
         this.ySetting = ySetting;
         this.compactSetting = compactSetting;
+        this.proximityMeterSetting = proximityMeterSetting;
+        this.proximityRangeSetting = proximityRangeSetting;
         this.xPresentation = xPresentation;
         this.yPresentation = yPresentation;
         this.compactPresentation = compactPresentation;
+        this.proximityMeterPresentation = proximityMeterPresentation;
+        this.proximityRangePresentation = proximityRangePresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
         this.compactBinding = compactBinding;
+        this.proximityMeterBinding = proximityMeterBinding;
+        this.proximityRangeBinding = proximityRangeBinding;
     }
 
     static Minecraft189TargetHudFeature install(
@@ -83,12 +101,18 @@ final class Minecraft189TargetHudFeature
         SettingRegistry.Registration xSetting = null;
         SettingRegistry.Registration ySetting = null;
         SettingRegistry.Registration compactSetting = null;
+        SettingRegistry.Registration proximityMeterSetting = null;
+        SettingRegistry.Registration proximityRangeSetting = null;
         SettingPresentationRegistry.Registration xPresentation = null;
         SettingPresentationRegistry.Registration yPresentation = null;
         SettingPresentationRegistry.Registration compactPresentation = null;
+        SettingPresentationRegistry.Registration proximityMeterPresentation = null;
+        SettingPresentationRegistry.Registration proximityRangePresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
         ModuleSettingRegistry.Registration compactBinding = null;
+        ModuleSettingRegistry.Registration proximityMeterBinding = null;
+        ModuleSettingRegistry.Registration proximityRangeBinding = null;
 
         try {
             moduleRegistration =
@@ -109,6 +133,8 @@ final class Minecraft189TargetHudFeature
                     settings.register(
                             module.ySetting());
             compactSetting = settings.register(module.compactSetting());
+            proximityMeterSetting = settings.register(module.proximityMeterSetting());
+            proximityRangeSetting = settings.register(module.proximityRangeSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -137,6 +163,18 @@ final class Minecraft189TargetHudFeature
                             "Compact",
                             SettingValueKind.BOOLEAN,
                             20));
+            proximityMeterPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189TargetHudModule.PROXIMITY_METER_SETTING_ID,
+                            "Proximity Meter", SettingValueKind.BOOLEAN, 30));
+            proximityRangePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189TargetHudModule.PROXIMITY_RANGE_SETTING_ID,
+                            "Meter Range (Blocks)", SettingValueKind.INTEGER, 40,
+                            new SettingNumericSpec(
+                                    Minecraft189TargetHudModule.MINIMUM_PROXIMITY_RANGE,
+                                    Minecraft189TargetHudModule.MAXIMUM_PROXIMITY_RANGE,
+                                    1.0D)));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -155,6 +193,15 @@ final class Minecraft189TargetHudFeature
                             Minecraft189TargetHudModule.ID,
                             Minecraft189TargetHudModule.COMPACT_SETTING_ID, 20));
 
+            proximityMeterBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189TargetHudModule.ID,
+                            Minecraft189TargetHudModule.PROXIMITY_METER_SETTING_ID, 30));
+            proximityRangeBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189TargetHudModule.ID,
+                            Minecraft189TargetHudModule.PROXIMITY_RANGE_SETTING_ID, 40));
+
             return new Minecraft189TargetHudFeature(
                     controller,
                     module,
@@ -163,13 +210,25 @@ final class Minecraft189TargetHudFeature
                     xSetting,
                     ySetting,
                     compactSetting,
+                    proximityMeterSetting,
+                    proximityRangeSetting,
                     xPresentation,
                     yPresentation,
                     compactPresentation,
+                    proximityMeterPresentation,
+                    proximityRangePresentation,
                     xBinding,
                     yBinding,
-                    compactBinding);
+                    compactBinding,
+                    proximityMeterBinding,
+                    proximityRangeBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(proximityRangeBinding, failure);
+            closeQuietly(proximityMeterBinding, failure);
+            closeQuietly(proximityRangePresentation, failure);
+            closeQuietly(proximityMeterPresentation, failure);
+            closeQuietly(proximityRangeSetting, failure);
+            closeQuietly(proximityMeterSetting, failure);
             closeQuietly(compactBinding, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
@@ -212,6 +271,12 @@ final class Minecraft189TargetHudFeature
             failure = closeFailure;
         }
 
+        failure = close(proximityRangeBinding, failure);
+        failure = close(proximityMeterBinding, failure);
+        failure = close(proximityRangePresentation, failure);
+        failure = close(proximityMeterPresentation, failure);
+        failure = close(proximityRangeSetting, failure);
+        failure = close(proximityMeterSetting, failure);
         failure = close(compactBinding, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);

@@ -47,6 +47,12 @@ final class Minecraft189TargetHudModuleTest {
                     controller.stateOf(Minecraft189TargetHudModule.ID));
             assertFalse(hud.renderPassInstalled());
             assertFalse(hud.compactSetting().get().booleanValue());
+            assertFalse(hud.proximityMeterSetting().get().booleanValue());
+            assertEquals(Integer.valueOf(16), hud.proximityRangeSetting().get());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189TargetHudModule.PROXIMITY_METER_SETTING_ID));
+            assertEquals("16", settings.snapshotEncoded().get(
+                    Minecraft189TargetHudModule.PROXIMITY_RANGE_SETTING_ID));
             runtime.renderHud(0L, 0.0F);
             assertTrue(host.texts.isEmpty());
 
@@ -82,6 +88,7 @@ final class Minecraft189TargetHudModuleTest {
             assertEquals(2, host.roundedRects);
             assertEquals(1, host.begins);
             assertEquals(1, host.ends);
+            assertTrue(host.bars.isEmpty()); // Default HUD is pixel-compatible.
             assertEquals(36.0F, host.lastX, 0.001F);
             assertEquals(241.0F, host.lastY, 0.001F);
             assertEquals("24", settings.snapshotEncoded()
@@ -111,10 +118,55 @@ final class Minecraft189TargetHudModuleTest {
             assertEquals(164.0F, host.lastCardWidth, 0.001F);
             assertEquals(56.0F, host.lastCardHeight, 0.001F);
 
+            // M265: optional meter is distance-only, not HP or reach.
+            hud.proximityMeterSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189TargetHudModule.PROXIMITY_METER_SETTING_ID));
+            runtime.renderHud(23L, 0.0F);
+            assertEquals(2, host.bars.size());
+            assertBar(host.bars.get(0), 36.0F, 253.0F,
+                    140.0F, 2.0F, 0xFF303D4A);
+            assertBar(host.bars.get(1), 36.0F, 253.0F,
+                    61.25F, 2.0F, 0xFF70C9E8);
+
+            // Range beyond 9m -> proportional fill; below 9m -> no fill.
+            hud.proximityRangeSetting().set(8);
+            host.bars.clear();
+            runtime.renderHud(24L, 0.0F);
+            assertEquals(1, host.bars.size()); // Empty track only.
+            assertBar(host.bars.get(0), 36.0F, 253.0F,
+                    140.0F, 2.0F, 0xFF303D4A);
+
+            // Full and compact cards use the same proximity formula but
+            // different in-card bar widths and positions.
+            hud.proximityRangeSetting().set(40);
+            assertEquals("40", settings.snapshotEncoded().get(
+                    Minecraft189TargetHudModule.PROXIMITY_RANGE_SETTING_ID));
+            hud.compactSetting().set(Boolean.TRUE);
+            host.bars.clear();
+            runtime.renderHud(25L, 0.0F);
+            assertEquals(2, host.bars.size());
+            assertBar(host.bars.get(0), 36.0F, 235.0F,
+                    118.0F, 2.0F, 0xFF303D4A);
+            assertBar(host.bars.get(1), 36.0F, 235.0F,
+                    91.45F, 2.0F, 0xFFFFB65C);
+
+            hud.proximityMeterSetting().set(Boolean.FALSE);
+            host.bars.clear();
+            runtime.renderHud(26L, 0.0F);
+            assertTrue(host.bars.isEmpty());
+            assertThrows(IllegalArgumentException.class,
+                    () -> hud.proximityRangeSetting().set(0));
+            assertThrows(IllegalArgumentException.class,
+                    () -> hud.proximityRangeSetting().set(65));
+
+            final int renderedTextsBeforeClear = host.texts.size();
+            final int renderedBarsBeforeClear = host.bars.size();
             runtime.nearestPlayerTargetState().clear();
             runtime.targetRotationState().clear();
-            runtime.renderHud(3L, 0.0F);
-            assertEquals(8, host.texts.size());
+            runtime.renderHud(30L, 0.0F);
+            assertEquals(renderedTextsBeforeClear, host.texts.size());
+            assertEquals(renderedBarsBeforeClear, host.bars.size());
 
             controller.disable(Minecraft189TargetHudModule.ID);
             assertFalse(hud.renderPassInstalled());
@@ -128,11 +180,72 @@ final class Minecraft189TargetHudModuleTest {
         assertNull(settings.find(Minecraft189TargetHudModule.X_SETTING_ID));
         assertNull(settings.find(Minecraft189TargetHudModule.Y_SETTING_ID));
         assertNull(settings.find(Minecraft189TargetHudModule.COMPACT_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189TargetHudModule.PROXIMITY_METER_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189TargetHudModule.PROXIMITY_RANGE_SETTING_ID));
+    }
+
+    @Test
+    void proximityFractionIsBoundedAndRequiresFiniteGroundedDistance() {
+        assertEquals(1.0F,
+                Minecraft189TargetHudModule.proximityFraction(0.0D, 16), 0.000001F);
+        assertEquals(0.75F,
+                Minecraft189TargetHudModule.proximityFraction(4.0D, 16), 0.000001F);
+        assertEquals(0.4375F,
+                Minecraft189TargetHudModule.proximityFraction(9.0D, 16), 0.000001F);
+        assertEquals(0.0F,
+                Minecraft189TargetHudModule.proximityFraction(16.0D, 16), 0.000001F);
+        assertEquals(0.0F,
+                Minecraft189TargetHudModule.proximityFraction(100.0D, 16), 0.000001F);
+        assertEquals(0.0F,
+                Minecraft189TargetHudModule.proximityFraction(Double.NaN, 16), 0.000001F);
+        assertEquals(0.0F,
+                Minecraft189TargetHudModule.proximityFraction(
+                        Double.POSITIVE_INFINITY, 16), 0.000001F);
+        assertEquals(0.0F,
+                Minecraft189TargetHudModule.proximityFraction(-1.0D, 16), 0.000001F);
+        assertEquals(0.0F,
+                Minecraft189TargetHudModule.proximityFraction(4.0D, 0), 0.000001F);
+        assertEquals(0.0F,
+                Minecraft189TargetHudModule.proximityFraction(4.0D, 65), 0.000001F);
+        assertEquals(0xFF70C9E8,
+                Minecraft189TargetHudModule.proximityFillColor(0.749F));
+        assertEquals(0xFFFFB65C,
+                Minecraft189TargetHudModule.proximityFillColor(0.75F));
+    }
+
+    private static void assertBar(
+            final Bar bar,
+            final float x, final float y,
+            final float width, final float height, final int color) {
+        assertEquals(x, bar.x, 0.0001F);
+        assertEquals(y, bar.y, 0.0001F);
+        assertEquals(width, bar.width, 0.0001F);
+        assertEquals(height, bar.height, 0.0001F);
+        assertEquals(color, bar.color);
+    }
+
+    private static final class Bar {
+        private final float x;
+        private final float y;
+        private final float width;
+        private final float height;
+        private final int color;
+        private Bar(final float x, final float y, final float width,
+                final float height, final int color) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+            this.color = color;
+        }
     }
 
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private final java.util.List<String> texts = new java.util.ArrayList<String>();
+        private final java.util.List<Bar> bars = new java.util.ArrayList<Bar>();
         private int roundedRects;
         private float lastCardWidth;
         private float lastCardHeight;
@@ -169,6 +282,7 @@ final class Minecraft189TargetHudModuleTest {
                 final float width,
                 final float height,
                 final int argb) {
+            bars.add(new Bar(x, y, width, height, argb));
         }
 
         @Override
