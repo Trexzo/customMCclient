@@ -23,10 +23,19 @@ final class Minecraft189PotionEffectsFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration xSetting;
     private final SettingRegistry.Registration ySetting;
+    private final SettingRegistry.Registration sortByExpirySetting;
+    private final SettingRegistry.Registration expiryAlertSetting;
+    private final SettingRegistry.Registration expiryThresholdSetting;
     private final SettingPresentationRegistry.Registration xPresentation;
     private final SettingPresentationRegistry.Registration yPresentation;
+    private final SettingPresentationRegistry.Registration sortByExpiryPresentation;
+    private final SettingPresentationRegistry.Registration expiryAlertPresentation;
+    private final SettingPresentationRegistry.Registration expiryThresholdPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final ModuleSettingRegistry.Registration sortByExpiryBinding;
+    private final ModuleSettingRegistry.Registration expiryAlertBinding;
+    private final ModuleSettingRegistry.Registration expiryThresholdBinding;
     private boolean closed;
 
     private Minecraft189PotionEffectsFeature(
@@ -36,20 +45,38 @@ final class Minecraft189PotionEffectsFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration xSetting,
             final SettingRegistry.Registration ySetting,
+            final SettingRegistry.Registration sortByExpirySetting,
+            final SettingRegistry.Registration expiryAlertSetting,
+            final SettingRegistry.Registration expiryThresholdSetting,
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
+            final SettingPresentationRegistry.Registration sortByExpiryPresentation,
+            final SettingPresentationRegistry.Registration expiryAlertPresentation,
+            final SettingPresentationRegistry.Registration expiryThresholdPresentation,
             final ModuleSettingRegistry.Registration xBinding,
-            final ModuleSettingRegistry.Registration yBinding) {
+            final ModuleSettingRegistry.Registration yBinding,
+            final ModuleSettingRegistry.Registration sortByExpiryBinding,
+            final ModuleSettingRegistry.Registration expiryAlertBinding,
+            final ModuleSettingRegistry.Registration expiryThresholdBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.xSetting = xSetting;
         this.ySetting = ySetting;
+        this.sortByExpirySetting = sortByExpirySetting;
+        this.expiryAlertSetting = expiryAlertSetting;
+        this.expiryThresholdSetting = expiryThresholdSetting;
         this.xPresentation = xPresentation;
         this.yPresentation = yPresentation;
+        this.sortByExpiryPresentation = sortByExpiryPresentation;
+        this.expiryAlertPresentation = expiryAlertPresentation;
+        this.expiryThresholdPresentation = expiryThresholdPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.sortByExpiryBinding = sortByExpiryBinding;
+        this.expiryAlertBinding = expiryAlertBinding;
+        this.expiryThresholdBinding = expiryThresholdBinding;
     }
 
     static Minecraft189PotionEffectsFeature install(
@@ -72,10 +99,19 @@ final class Minecraft189PotionEffectsFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration xSetting = null;
         SettingRegistry.Registration ySetting = null;
+        SettingRegistry.Registration sortByExpirySetting = null;
+        SettingRegistry.Registration expiryAlertSetting = null;
+        SettingRegistry.Registration expiryThresholdSetting = null;
         SettingPresentationRegistry.Registration xPresentation = null;
         SettingPresentationRegistry.Registration yPresentation = null;
+        SettingPresentationRegistry.Registration sortByExpiryPresentation = null;
+        SettingPresentationRegistry.Registration expiryAlertPresentation = null;
+        SettingPresentationRegistry.Registration expiryThresholdPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        ModuleSettingRegistry.Registration sortByExpiryBinding = null;
+        ModuleSettingRegistry.Registration expiryAlertBinding = null;
+        ModuleSettingRegistry.Registration expiryThresholdBinding = null;
 
         try {
             moduleRegistration =
@@ -95,6 +131,10 @@ final class Minecraft189PotionEffectsFeature
             ySetting =
                     settings.register(
                             module.ySetting());
+            sortByExpirySetting = settings.register(module.sortByExpirySetting());
+            expiryAlertSetting = settings.register(module.expiryAlertSetting());
+            expiryThresholdSetting = settings.register(
+                    module.expiryThresholdSecondsSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -117,6 +157,22 @@ final class Minecraft189PotionEffectsFeature
                                             0.0D,
                                             4096.0D,
                                             1.0D)));
+            sortByExpiryPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189PotionEffectsModule.SORT_BY_EXPIRY_SETTING_ID,
+                            "Soonest First", SettingValueKind.BOOLEAN, 20));
+            expiryAlertPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189PotionEffectsModule.EXPIRY_ALERT_SETTING_ID,
+                            "Expiry Alert", SettingValueKind.BOOLEAN, 30));
+            expiryThresholdPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189PotionEffectsModule.EXPIRY_THRESHOLD_SETTING_ID,
+                            "Alert Within (Seconds)", SettingValueKind.INTEGER, 40,
+                            new SettingNumericSpec(
+                                    1.0D,
+                                    Minecraft189PotionEffectsModule.MAXIMUM_EXPIRY_THRESHOLD_SECONDS,
+                                    5.0D)));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -130,6 +186,19 @@ final class Minecraft189PotionEffectsFeature
                                     Minecraft189PotionEffectsModule.Y_SETTING_ID,
                                     10));
 
+            sortByExpiryBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189PotionEffectsModule.ID,
+                            Minecraft189PotionEffectsModule.SORT_BY_EXPIRY_SETTING_ID, 20));
+            expiryAlertBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189PotionEffectsModule.ID,
+                            Minecraft189PotionEffectsModule.EXPIRY_ALERT_SETTING_ID, 30));
+            expiryThresholdBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189PotionEffectsModule.ID,
+                            Minecraft189PotionEffectsModule.EXPIRY_THRESHOLD_SETTING_ID, 40));
+
             return new Minecraft189PotionEffectsFeature(
                     controller,
                     module,
@@ -137,11 +206,29 @@ final class Minecraft189PotionEffectsFeature
                     presentation,
                     xSetting,
                     ySetting,
+                    sortByExpirySetting,
+                    expiryAlertSetting,
+                    expiryThresholdSetting,
                     xPresentation,
                     yPresentation,
+                    sortByExpiryPresentation,
+                    expiryAlertPresentation,
+                    expiryThresholdPresentation,
                     xBinding,
-                    yBinding);
+                    yBinding,
+                    sortByExpiryBinding,
+                    expiryAlertBinding,
+                    expiryThresholdBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(expiryThresholdBinding, failure);
+            closeQuietly(expiryAlertBinding, failure);
+            closeQuietly(sortByExpiryBinding, failure);
+            closeQuietly(expiryThresholdPresentation, failure);
+            closeQuietly(expiryAlertPresentation, failure);
+            closeQuietly(sortByExpiryPresentation, failure);
+            closeQuietly(expiryThresholdSetting, failure);
+            closeQuietly(expiryAlertSetting, failure);
+            closeQuietly(sortByExpirySetting, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
             closeQuietly(yPresentation, failure);
@@ -181,6 +268,15 @@ final class Minecraft189PotionEffectsFeature
             failure = closeFailure;
         }
 
+        failure = close(expiryThresholdBinding, failure);
+        failure = close(expiryAlertBinding, failure);
+        failure = close(sortByExpiryBinding, failure);
+        failure = close(expiryThresholdPresentation, failure);
+        failure = close(expiryAlertPresentation, failure);
+        failure = close(sortByExpiryPresentation, failure);
+        failure = close(expiryThresholdSetting, failure);
+        failure = close(expiryAlertSetting, failure);
+        failure = close(sortByExpirySetting, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
         failure = close(yPresentation, failure);
