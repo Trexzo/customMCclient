@@ -25,18 +25,24 @@ final class Minecraft189JitterFeature
     private final SettingRegistry.Registration pitchEnabledSetting;
     private final SettingRegistry.Registration intervalSetting;
     private final SettingRegistry.Registration requireHoldSetting;
+    private final SettingRegistry.Registration variableStrengthSetting;
+    private final SettingRegistry.Registration strengthVariationSetting;
     private final SettingPresentationRegistry.Registration yawPresentation;
     private final SettingPresentationRegistry.Registration pitchPresentation;
     private final SettingPresentationRegistry.Registration yawEnabledPresentation;
     private final SettingPresentationRegistry.Registration pitchEnabledPresentation;
     private final SettingPresentationRegistry.Registration intervalPresentation;
     private final SettingPresentationRegistry.Registration requireHoldPresentation;
+    private final SettingPresentationRegistry.Registration variableStrengthPresentation;
+    private final SettingPresentationRegistry.Registration strengthVariationPresentation;
     private final ModuleSettingRegistry.Registration yawBinding;
     private final ModuleSettingRegistry.Registration pitchBinding;
     private final ModuleSettingRegistry.Registration yawEnabledBinding;
     private final ModuleSettingRegistry.Registration pitchEnabledBinding;
     private final ModuleSettingRegistry.Registration intervalBinding;
     private final ModuleSettingRegistry.Registration requireHoldBinding;
+    private final ModuleSettingRegistry.Registration variableStrengthBinding;
+    private final ModuleSettingRegistry.Registration strengthVariationBinding;
     private boolean closed;
 
     private Minecraft189JitterFeature(
@@ -50,18 +56,24 @@ final class Minecraft189JitterFeature
             final SettingRegistry.Registration pitchEnabledSetting,
             final SettingRegistry.Registration intervalSetting,
             final SettingRegistry.Registration requireHoldSetting,
+            final SettingRegistry.Registration variableStrengthSetting,
+            final SettingRegistry.Registration strengthVariationSetting,
             final SettingPresentationRegistry.Registration yawPresentation,
             final SettingPresentationRegistry.Registration pitchPresentation,
             final SettingPresentationRegistry.Registration yawEnabledPresentation,
             final SettingPresentationRegistry.Registration pitchEnabledPresentation,
             final SettingPresentationRegistry.Registration intervalPresentation,
             final SettingPresentationRegistry.Registration requireHoldPresentation,
+            final SettingPresentationRegistry.Registration variableStrengthPresentation,
+            final SettingPresentationRegistry.Registration strengthVariationPresentation,
             final ModuleSettingRegistry.Registration yawBinding,
             final ModuleSettingRegistry.Registration pitchBinding,
             final ModuleSettingRegistry.Registration yawEnabledBinding,
             final ModuleSettingRegistry.Registration pitchEnabledBinding,
             final ModuleSettingRegistry.Registration intervalBinding,
-            final ModuleSettingRegistry.Registration requireHoldBinding) {
+            final ModuleSettingRegistry.Registration requireHoldBinding,
+            final ModuleSettingRegistry.Registration variableStrengthBinding,
+            final ModuleSettingRegistry.Registration strengthVariationBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -72,18 +84,24 @@ final class Minecraft189JitterFeature
         this.pitchEnabledSetting = pitchEnabledSetting;
         this.intervalSetting = intervalSetting;
         this.requireHoldSetting = requireHoldSetting;
+        this.variableStrengthSetting = variableStrengthSetting;
+        this.strengthVariationSetting = strengthVariationSetting;
         this.yawPresentation = yawPresentation;
         this.pitchPresentation = pitchPresentation;
         this.yawEnabledPresentation = yawEnabledPresentation;
         this.pitchEnabledPresentation = pitchEnabledPresentation;
         this.intervalPresentation = intervalPresentation;
         this.requireHoldPresentation = requireHoldPresentation;
+        this.variableStrengthPresentation = variableStrengthPresentation;
+        this.strengthVariationPresentation = strengthVariationPresentation;
         this.yawBinding = yawBinding;
         this.pitchBinding = pitchBinding;
         this.yawEnabledBinding = yawEnabledBinding;
         this.pitchEnabledBinding = pitchEnabledBinding;
         this.intervalBinding = intervalBinding;
         this.requireHoldBinding = requireHoldBinding;
+        this.variableStrengthBinding = variableStrengthBinding;
+        this.strengthVariationBinding = strengthVariationBinding;
     }
 
     static Minecraft189JitterFeature install(
@@ -104,18 +122,24 @@ final class Minecraft189JitterFeature
         SettingRegistry.Registration pitchEnabledSetting = null;
         SettingRegistry.Registration intervalSetting = null;
         SettingRegistry.Registration requireHoldSetting = null;
+        SettingRegistry.Registration variableStrengthSetting = null;
+        SettingRegistry.Registration strengthVariationSetting = null;
         SettingPresentationRegistry.Registration yawPresentation = null;
         SettingPresentationRegistry.Registration pitchPresentation = null;
         SettingPresentationRegistry.Registration yawEnabledPresentation = null;
         SettingPresentationRegistry.Registration pitchEnabledPresentation = null;
         SettingPresentationRegistry.Registration intervalPresentation = null;
         SettingPresentationRegistry.Registration requireHoldPresentation = null;
+        SettingPresentationRegistry.Registration variableStrengthPresentation = null;
+        SettingPresentationRegistry.Registration strengthVariationPresentation = null;
         ModuleSettingRegistry.Registration yawBinding = null;
         ModuleSettingRegistry.Registration pitchBinding = null;
         ModuleSettingRegistry.Registration yawEnabledBinding = null;
         ModuleSettingRegistry.Registration pitchEnabledBinding = null;
         ModuleSettingRegistry.Registration intervalBinding = null;
         ModuleSettingRegistry.Registration requireHoldBinding = null;
+        ModuleSettingRegistry.Registration variableStrengthBinding = null;
+        ModuleSettingRegistry.Registration strengthVariationBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -146,6 +170,10 @@ final class Minecraft189JitterFeature
             requireHoldSetting =
                     settings.register(
                             module.requireHoldSetting());
+            variableStrengthSetting = settings.register(
+                    module.variableStrengthSetting());
+            strengthVariationSetting = settings.register(
+                    module.strengthVariationPercentSetting());
             yawPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -200,6 +228,15 @@ final class Minecraft189JitterFeature
                                     "Require Hold",
                                     SettingValueKind.BOOLEAN,
                                     30));
+            variableStrengthPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189JitterModule.VARIABLE_STRENGTH_SETTING_ID,
+                            "Variable Strength", SettingValueKind.BOOLEAN, 40));
+            strengthVariationPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189JitterModule.STRENGTH_VARIATION_SETTING_ID,
+                            "Strength Variation %", SettingValueKind.INTEGER, 50,
+                            new SettingNumericSpec(0.0D, 100.0D, 5.0D)));
             yawBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -237,6 +274,15 @@ final class Minecraft189JitterFeature
                                     Minecraft189JitterModule.REQUIRE_HOLD_SETTING_ID,
                                     30));
 
+            variableStrengthBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189JitterModule.ID,
+                            Minecraft189JitterModule.VARIABLE_STRENGTH_SETTING_ID, 40));
+            strengthVariationBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189JitterModule.ID,
+                            Minecraft189JitterModule.STRENGTH_VARIATION_SETTING_ID, 50));
+
             return new Minecraft189JitterFeature(
                     controller,
                     module,
@@ -248,19 +294,31 @@ final class Minecraft189JitterFeature
                     pitchEnabledSetting,
                     intervalSetting,
                     requireHoldSetting,
+                    variableStrengthSetting,
+                    strengthVariationSetting,
                     yawPresentation,
                     pitchPresentation,
                     yawEnabledPresentation,
                     pitchEnabledPresentation,
                     intervalPresentation,
                     requireHoldPresentation,
+                    variableStrengthPresentation,
+                    strengthVariationPresentation,
                     yawBinding,
                     pitchBinding,
                     yawEnabledBinding,
                     pitchEnabledBinding,
                     intervalBinding,
-                    requireHoldBinding);
+                    requireHoldBinding,
+                    variableStrengthBinding,
+                    strengthVariationBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(strengthVariationBinding, failure);
+            closeQuietly(variableStrengthBinding, failure);
+            closeQuietly(strengthVariationPresentation, failure);
+            closeQuietly(variableStrengthPresentation, failure);
+            closeQuietly(strengthVariationSetting, failure);
+            closeQuietly(variableStrengthSetting, failure);
             closeQuietly(requireHoldBinding, failure);
             closeQuietly(pitchEnabledBinding, failure);
             closeQuietly(yawEnabledBinding, failure);
@@ -312,6 +370,12 @@ final class Minecraft189JitterFeature
             failure = closeFailure;
         }
 
+        failure = close(strengthVariationBinding, failure);
+        failure = close(variableStrengthBinding, failure);
+        failure = close(strengthVariationPresentation, failure);
+        failure = close(variableStrengthPresentation, failure);
+        failure = close(strengthVariationSetting, failure);
+        failure = close(variableStrengthSetting, failure);
         failure = close(requireHoldBinding, failure);
         failure = close(intervalBinding, failure);
         failure = close(pitchEnabledBinding, failure);
