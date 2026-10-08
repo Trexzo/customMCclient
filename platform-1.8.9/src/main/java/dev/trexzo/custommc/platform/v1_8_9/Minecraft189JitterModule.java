@@ -28,6 +28,12 @@ public final class Minecraft189JitterModule
             "combat.jitter.variableStrength";
     public static final String STRENGTH_VARIATION_SETTING_ID =
             "combat.jitter.strengthVariationPercent";
+    public static final String RANDOM_INTERVAL_SETTING_ID =
+            "combat.jitter.randomInterval";
+    public static final String INTERVAL_VARIATION_SETTING_ID =
+            "combat.jitter.intervalVariationTicks";
+    public static final int DEFAULT_INTERVAL_VARIATION_TICKS = 2;
+    public static final int MAXIMUM_INTERVAL_VARIATION_TICKS = 5;
     public static final int DEFAULT_STRENGTH_VARIATION_PERCENT = 35;
     public static final double DEFAULT_DEGREES =
             0.50D;
@@ -93,10 +99,25 @@ public final class Minecraft189JitterModule
                     DEFAULT_STRENGTH_VARIATION_PERCENT,
                     value -> value != null && value >= 0 && value <= 100,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> randomInterval =
+            new Setting<Boolean>(
+                    RANDOM_INTERVAL_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> intervalVariationTicks =
+            new Setting<Integer>(
+                    INTERVAL_VARIATION_SETTING_ID,
+                    DEFAULT_INTERVAL_VARIATION_TICKS,
+                    value -> value != null && value >= 0
+                            && value <= MAXIMUM_INTERVAL_VARIATION_TICKS,
+                    SettingCodecs.INTEGER);
+
     private final DoubleSupplier randomUnit;
     private boolean enabled;
     private boolean positivePhase = true;
     private boolean previousVariableStrength;
+    private boolean previousRandomInterval;
+    private int previousIntervalVariationTicks;
+    private int previousIntervalTicks;
     private float pairedYawDelta;
     private float pairedPitchDelta;
     private int ticksUntilNext;
@@ -148,11 +169,22 @@ public final class Minecraft189JitterModule
         return strengthVariationPercent;
     }
 
+    public Setting<Boolean> randomIntervalSetting() {
+        return randomInterval;
+    }
+
+    public Setting<Integer> intervalVariationTicksSetting() {
+        return intervalVariationTicks;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
         resetCadence();
         previousVariableStrength = variableStrength.get().booleanValue();
+        previousRandomInterval = randomInterval.get().booleanValue();
+        previousIntervalVariationTicks = intervalVariationTicks.get().intValue();
+        previousIntervalTicks = intervalTicks.get().intValue();
     }
 
     @Override
@@ -170,9 +202,18 @@ public final class Minecraft189JitterModule
         final boolean pitchAxisEnabled =
                 pitchEnabled.get().booleanValue();
         final boolean varying = variableStrength.get().booleanValue();
-        if (varying != previousVariableStrength) {
+        final boolean randomTiming = randomInterval.get().booleanValue();
+        final int variationTicks = intervalVariationTicks.get().intValue();
+        final int configuredInterval = intervalTicks.get().intValue();
+        if (varying != previousVariableStrength
+                || randomTiming != previousRandomInterval
+                || variationTicks != previousIntervalVariationTicks
+                || configuredInterval != previousIntervalTicks) {
             resetCadence();
             previousVariableStrength = varying;
+            previousRandomInterval = randomTiming;
+            previousIntervalVariationTicks = variationTicks;
+            previousIntervalTicks = configuredInterval;
         }
         if (!enabled
                 || player == null
@@ -191,10 +232,8 @@ public final class Minecraft189JitterModule
             return false;
         }
 
-        final int configuredInterval =
-                intervalTicks.get().intValue();
         ticksUntilNext =
-                configuredInterval - 1;
+                sampledInterval(configuredInterval, randomTiming, variationTicks) - 1;
 
         final boolean outwardStroke = positivePhase;
         final double direction = outwardStroke ? 1.0D : -1.0D;
@@ -257,6 +296,24 @@ public final class Minecraft189JitterModule
         ticksUntilNext = 0;
         pairedYawDelta = 0.0F;
         pairedPitchDelta = 0.0F;
+    }
+
+    private int sampledInterval(
+            final int baseInterval,
+            final boolean randomTiming,
+            final int variationTicks) {
+        if (!randomTiming || variationTicks == 0) {
+            return baseInterval;
+        }
+        final double candidate = randomUnit.getAsDouble();
+        // Invalid injection is neutral; runtime RNG always samples [0, 1).
+        final double sample = Double.isFinite(candidate)
+                && candidate >= 0.0D && candidate < 1.0D
+                ? candidate : 0.5D;
+        final int variation = (int) Math.floor(
+                sample * (variationTicks * 2 + 1)) - variationTicks;
+        return Math.max(MINIMUM_INTERVAL_TICKS,
+                Math.min(MAXIMUM_INTERVAL_TICKS, baseInterval + variation));
     }
 
     private double sampledDegrees(final double configuredDegrees) {
