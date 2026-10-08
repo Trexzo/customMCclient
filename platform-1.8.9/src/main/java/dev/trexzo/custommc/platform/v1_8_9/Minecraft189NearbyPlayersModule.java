@@ -24,6 +24,7 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public static final String HEIGHT_COLORS_SETTING_ID = ID + ".heightColors";
     public static final String HIGHLIGHT_NEAREST_SETTING_ID = ID + ".highlightNearest";
     public static final String SHOW_NORTH_SETTING_ID = ID + ".showNorth";
+    public static final String SHOW_BEARING_SETTING_ID = ID + ".showBearing";
     public static final String RENDER_PASS_ID = "nearby-players";
 
     private final Minecraft189PlayerPositionState local;
@@ -56,6 +57,9 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     private final Setting<Boolean> showNorth = new Setting<Boolean>(
             SHOW_NORTH_SETTING_ID, Boolean.FALSE,
             v -> v != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> showBearing = new Setting<Boolean>(
+            SHOW_BEARING_SETTING_ID, Boolean.FALSE,
+            v -> v != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration registration;
 
     public Minecraft189NearbyPlayersModule(
@@ -82,6 +86,7 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public Setting<Boolean> heightColorsSetting() { return heightColors; }
     public Setting<Boolean> highlightNearestSetting() { return highlightNearest; }
     public Setting<Boolean> showNorthSetting() { return showNorth; }
+    public Setting<Boolean> showBearingSetting() { return showBearing; }
 
     @Override public synchronized void onEnable() {
         if (registration != null) {
@@ -174,6 +179,19 @@ public final class Minecraft189NearbyPlayersModule implements Module {
         if (projected == null) return null;
         return new float[]{projected[0] * (36.0F / 46.0F),
                 projected[1] * (36.0F / 46.0F)};
+    }
+
+    /** Eight-direction world bearing; Minecraft north is -Z, east is +X. */
+    static String cardinalBearing(final double dx, final double dz) {
+        if (!Double.isFinite(dx) || !Double.isFinite(dz)
+                || (dx == 0.0D && dz == 0.0D)) {
+            return "--";
+        }
+        final String[] labels = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+        double clockwise = Math.toDegrees(Math.atan2(dx, -dz));
+        if (clockwise < 0.0D) clockwise += 360.0D;
+        final int sector = ((int) Math.floor((clockwise + 22.5D) / 45.0D)) % 8;
+        return labels[sector];
     }
 
     /** Vertical colors use measured relative Y and do not infer visibility. */
@@ -286,10 +304,16 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                 graphics.drawText(UiFonts.DEFAULT, left + 12.0F, top + 7.0F,
                         "PLAYERS  " + nearby.count() + " / " + range + "m",
                         0xFFFFFFFF);
-                final String nearestLabel = nearby.count() == 0
+                String nearestLabel = nearby.count() == 0
                         ? "NEAREST  --"
                         : String.format(Locale.ROOT,
                                 "NEAREST  %.1fm", nearby.nearestDistance());
+                if (showBearing.get().booleanValue() && nearby.nearestIndex() >= 0) {
+                    final int nearest = nearby.nearestIndex();
+                    nearestLabel += " " + cardinalBearing(
+                            positions.x(nearest) - me.x(),
+                            positions.z(nearest) - me.z());
+                }
                 graphics.drawText(UiFonts.DEFAULT, left + 12.0F, top + 24.0F,
                         nearestLabel, 0xFFC4CBD5);
                 if (map) drawRadar(left, top, range, me, positions, types,
