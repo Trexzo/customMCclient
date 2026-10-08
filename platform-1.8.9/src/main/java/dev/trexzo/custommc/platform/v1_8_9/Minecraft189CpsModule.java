@@ -21,6 +21,10 @@ public final class Minecraft189CpsModule
             "render.cps.x";
     public static final String Y_SETTING_ID =
             "render.cps.y";
+    public static final String COMPACT_SETTING_ID =
+            "render.cps.compact";
+    public static final String SHOW_TOTAL_SETTING_ID =
+            "render.cps.showTotal";
     public static final String RENDER_PASS_ID =
             "cps";
 
@@ -44,6 +48,14 @@ public final class Minecraft189CpsModule
                     value -> value >= 0
                             && value <= 4096,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> compact =
+            new Setting<Boolean>(
+                    COMPACT_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> showTotal =
+            new Setting<Boolean>(
+                    SHOW_TOTAL_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189CpsModule(
@@ -75,6 +87,31 @@ public final class Minecraft189CpsModule
 
     public Setting<Integer> ySetting() {
         return y;
+    }
+
+    public Setting<Boolean> compactSetting() {
+        return compact;
+    }
+
+    public Setting<Boolean> showTotalSetting() {
+        return showTotal;
+    }
+
+    static String textFor(
+            final int left,
+            final int right,
+            final boolean useCompact,
+            final boolean includeTotal) {
+        // CPS snapshots already contain rolling left/right counts; these
+        // options change only their local text presentation.
+        final String prefix = useCompact
+                ? "CPS: L" + left + " R" + right
+                : "CPS: L " + left + " | R " + right;
+        if (!includeTotal) {
+            return prefix;
+        }
+        final long total = (long) left + (long) right;
+        return prefix + (useCompact ? " T" : " | T ") + total;
     }
 
     @Override
@@ -141,10 +178,9 @@ public final class Minecraft189CpsModule
                         UiFonts.DEFAULT,
                         x.get().floatValue(),
                         y.get().floatValue(),
-                        "CPS: L "
-                                + rates.left()
-                                + " | R "
-                                + rates.right(),
+                        textFor(rates.left(), rates.right(),
+                                compact.get().booleanValue(),
+                                showTotal.get().booleanValue()),
                         TEXT_ARGB);
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
