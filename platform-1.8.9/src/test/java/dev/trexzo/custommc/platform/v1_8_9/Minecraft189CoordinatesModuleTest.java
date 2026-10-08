@@ -143,9 +143,9 @@ final class Minecraft189CoordinatesModuleTest {
         final ModuleController controller = new ModuleController(modules);
         final ModulePresentationRegistry presentations =
                 new ModulePresentationRegistry();
-        final ModuleSettingRegistry moduleSettings =
-                new ModuleSettingRegistry();
         final SettingRegistry settings = new SettingRegistry();
+        final ModuleSettingRegistry moduleSettings =
+                new ModuleSettingRegistry(modules, settings);
         final SettingPresentationRegistry settingPresentations =
                 new SettingPresentationRegistry();
         final Minecraft189CoordinatesFeature feature =
