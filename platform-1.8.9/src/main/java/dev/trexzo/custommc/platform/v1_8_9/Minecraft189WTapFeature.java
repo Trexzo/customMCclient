@@ -23,14 +23,17 @@ final class Minecraft189WTapFeature
     private final SettingRegistry.Registration cooldownSetting;
     private final SettingRegistry.Registration resetTicksSetting;
     private final SettingRegistry.Registration requireForwardSetting;
+    private final SettingRegistry.Registration pauseWhileSneakingSetting;
     private final SettingPresentationRegistry.Registration requireGroundPresentation;
     private final SettingPresentationRegistry.Registration cooldownPresentation;
     private final SettingPresentationRegistry.Registration resetTicksPresentation;
     private final SettingPresentationRegistry.Registration requireForwardPresentation;
+    private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
     private final ModuleSettingRegistry.Registration requireGroundBinding;
     private final ModuleSettingRegistry.Registration cooldownBinding;
     private final ModuleSettingRegistry.Registration resetTicksBinding;
     private final ModuleSettingRegistry.Registration requireForwardBinding;
+    private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private boolean closed;
 
     private Minecraft189WTapFeature(
@@ -42,14 +45,17 @@ final class Minecraft189WTapFeature
             final SettingRegistry.Registration cooldownSetting,
             final SettingRegistry.Registration resetTicksSetting,
             final SettingRegistry.Registration requireForwardSetting,
+            final SettingRegistry.Registration pauseWhileSneakingSetting,
             final SettingPresentationRegistry.Registration requireGroundPresentation,
             final SettingPresentationRegistry.Registration cooldownPresentation,
             final SettingPresentationRegistry.Registration resetTicksPresentation,
             final SettingPresentationRegistry.Registration requireForwardPresentation,
+            final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
             final ModuleSettingRegistry.Registration requireGroundBinding,
             final ModuleSettingRegistry.Registration cooldownBinding,
             final ModuleSettingRegistry.Registration resetTicksBinding,
-            final ModuleSettingRegistry.Registration requireForwardBinding) {
+            final ModuleSettingRegistry.Registration requireForwardBinding,
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -58,14 +64,17 @@ final class Minecraft189WTapFeature
         this.cooldownSetting = cooldownSetting;
         this.resetTicksSetting = resetTicksSetting;
         this.requireForwardSetting = requireForwardSetting;
+        this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
         this.requireGroundPresentation = requireGroundPresentation;
         this.cooldownPresentation = cooldownPresentation;
         this.resetTicksPresentation = resetTicksPresentation;
         this.requireForwardPresentation = requireForwardPresentation;
+        this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
         this.requireGroundBinding = requireGroundBinding;
         this.cooldownBinding = cooldownBinding;
         this.resetTicksBinding = resetTicksBinding;
         this.requireForwardBinding = requireForwardBinding;
+        this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
     }
 
     static Minecraft189WTapFeature install(
@@ -84,14 +93,17 @@ final class Minecraft189WTapFeature
         SettingRegistry.Registration cooldownSetting = null;
         SettingRegistry.Registration resetTicksSetting = null;
         SettingRegistry.Registration requireForwardSetting = null;
+        SettingRegistry.Registration pauseWhileSneakingSetting = null;
         SettingPresentationRegistry.Registration requireGroundPresentation = null;
         SettingPresentationRegistry.Registration cooldownPresentation = null;
         SettingPresentationRegistry.Registration resetTicksPresentation = null;
         SettingPresentationRegistry.Registration requireForwardPresentation = null;
+        SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
         ModuleSettingRegistry.Registration requireGroundBinding = null;
         ModuleSettingRegistry.Registration cooldownBinding = null;
         ModuleSettingRegistry.Registration resetTicksBinding = null;
         ModuleSettingRegistry.Registration requireForwardBinding = null;
+        ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -116,6 +128,8 @@ final class Minecraft189WTapFeature
             requireForwardSetting =
                     settings.register(
                             module.requireForwardSetting());
+            pauseWhileSneakingSetting = settings.register(
+                    module.pauseWhileSneakingSetting());
             requireGroundPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -152,6 +166,10 @@ final class Minecraft189WTapFeature
                                     "Require Forward",
                                     SettingValueKind.BOOLEAN,
                                     30));
+            pauseWhileSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189WTapModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 40));
             requireGroundBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -177,6 +195,11 @@ final class Minecraft189WTapFeature
                                     Minecraft189WTapModule.REQUIRE_FORWARD_SETTING_ID,
                                     30));
 
+            pauseWhileSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189WTapModule.ID,
+                            Minecraft189WTapModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 40));
+
             return new Minecraft189WTapFeature(
                     controller,
                     module,
@@ -186,15 +209,21 @@ final class Minecraft189WTapFeature
                     cooldownSetting,
                     resetTicksSetting,
                     requireForwardSetting,
+                    pauseWhileSneakingSetting,
                     requireGroundPresentation,
                     cooldownPresentation,
                     resetTicksPresentation,
                     requireForwardPresentation,
+                    pauseWhileSneakingPresentation,
                     requireGroundBinding,
                     cooldownBinding,
                     resetTicksBinding,
-                    requireForwardBinding);
+                    requireForwardBinding,
+                    pauseWhileSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseWhileSneakingBinding, failure);
+            closeQuietly(pauseWhileSneakingPresentation, failure);
+            closeQuietly(pauseWhileSneakingSetting, failure);
             closeQuietly(requireForwardBinding, failure);
             closeQuietly(resetTicksBinding, failure);
             closeQuietly(cooldownBinding, failure);
@@ -244,6 +273,9 @@ final class Minecraft189WTapFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseWhileSneakingBinding, failure);
+        failure = close(pauseWhileSneakingPresentation, failure);
+        failure = close(pauseWhileSneakingSetting, failure);
         failure = close(requireForwardBinding, failure);
         failure = close(resetTicksBinding, failure);
         failure = close(cooldownBinding, failure);
