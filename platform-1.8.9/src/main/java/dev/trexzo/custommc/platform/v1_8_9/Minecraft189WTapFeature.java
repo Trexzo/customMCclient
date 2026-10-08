@@ -24,16 +24,22 @@ final class Minecraft189WTapFeature
     private final SettingRegistry.Registration resetTicksSetting;
     private final SettingRegistry.Registration requireForwardSetting;
     private final SettingRegistry.Registration pauseWhileSneakingSetting;
+    private final SettingRegistry.Registration requireNearbyPlayerSetting;
+    private final SettingRegistry.Registration maxPlayerDistanceSetting;
     private final SettingPresentationRegistry.Registration requireGroundPresentation;
     private final SettingPresentationRegistry.Registration cooldownPresentation;
     private final SettingPresentationRegistry.Registration resetTicksPresentation;
     private final SettingPresentationRegistry.Registration requireForwardPresentation;
     private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
+    private final SettingPresentationRegistry.Registration requireNearbyPlayerPresentation;
+    private final SettingPresentationRegistry.Registration maxPlayerDistancePresentation;
     private final ModuleSettingRegistry.Registration requireGroundBinding;
     private final ModuleSettingRegistry.Registration cooldownBinding;
     private final ModuleSettingRegistry.Registration resetTicksBinding;
     private final ModuleSettingRegistry.Registration requireForwardBinding;
     private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
+    private final ModuleSettingRegistry.Registration requireNearbyPlayerBinding;
+    private final ModuleSettingRegistry.Registration maxPlayerDistanceBinding;
     private boolean closed;
 
     private Minecraft189WTapFeature(
@@ -46,16 +52,22 @@ final class Minecraft189WTapFeature
             final SettingRegistry.Registration resetTicksSetting,
             final SettingRegistry.Registration requireForwardSetting,
             final SettingRegistry.Registration pauseWhileSneakingSetting,
+            final SettingRegistry.Registration requireNearbyPlayerSetting,
+            final SettingRegistry.Registration maxPlayerDistanceSetting,
             final SettingPresentationRegistry.Registration requireGroundPresentation,
             final SettingPresentationRegistry.Registration cooldownPresentation,
             final SettingPresentationRegistry.Registration resetTicksPresentation,
             final SettingPresentationRegistry.Registration requireForwardPresentation,
             final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
+            final SettingPresentationRegistry.Registration requireNearbyPlayerPresentation,
+            final SettingPresentationRegistry.Registration maxPlayerDistancePresentation,
             final ModuleSettingRegistry.Registration requireGroundBinding,
             final ModuleSettingRegistry.Registration cooldownBinding,
             final ModuleSettingRegistry.Registration resetTicksBinding,
             final ModuleSettingRegistry.Registration requireForwardBinding,
-            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding,
+            final ModuleSettingRegistry.Registration requireNearbyPlayerBinding,
+            final ModuleSettingRegistry.Registration maxPlayerDistanceBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -65,16 +77,22 @@ final class Minecraft189WTapFeature
         this.resetTicksSetting = resetTicksSetting;
         this.requireForwardSetting = requireForwardSetting;
         this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
+        this.requireNearbyPlayerSetting = requireNearbyPlayerSetting;
+        this.maxPlayerDistanceSetting = maxPlayerDistanceSetting;
         this.requireGroundPresentation = requireGroundPresentation;
         this.cooldownPresentation = cooldownPresentation;
         this.resetTicksPresentation = resetTicksPresentation;
         this.requireForwardPresentation = requireForwardPresentation;
         this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
+        this.requireNearbyPlayerPresentation = requireNearbyPlayerPresentation;
+        this.maxPlayerDistancePresentation = maxPlayerDistancePresentation;
         this.requireGroundBinding = requireGroundBinding;
         this.cooldownBinding = cooldownBinding;
         this.resetTicksBinding = resetTicksBinding;
         this.requireForwardBinding = requireForwardBinding;
         this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
+        this.requireNearbyPlayerBinding = requireNearbyPlayerBinding;
+        this.maxPlayerDistanceBinding = maxPlayerDistanceBinding;
     }
 
     static Minecraft189WTapFeature install(
@@ -94,16 +112,22 @@ final class Minecraft189WTapFeature
         SettingRegistry.Registration resetTicksSetting = null;
         SettingRegistry.Registration requireForwardSetting = null;
         SettingRegistry.Registration pauseWhileSneakingSetting = null;
+        SettingRegistry.Registration requireNearbyPlayerSetting = null;
+        SettingRegistry.Registration maxPlayerDistanceSetting = null;
         SettingPresentationRegistry.Registration requireGroundPresentation = null;
         SettingPresentationRegistry.Registration cooldownPresentation = null;
         SettingPresentationRegistry.Registration resetTicksPresentation = null;
         SettingPresentationRegistry.Registration requireForwardPresentation = null;
         SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
+        SettingPresentationRegistry.Registration requireNearbyPlayerPresentation = null;
+        SettingPresentationRegistry.Registration maxPlayerDistancePresentation = null;
         ModuleSettingRegistry.Registration requireGroundBinding = null;
         ModuleSettingRegistry.Registration cooldownBinding = null;
         ModuleSettingRegistry.Registration resetTicksBinding = null;
         ModuleSettingRegistry.Registration requireForwardBinding = null;
         ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
+        ModuleSettingRegistry.Registration requireNearbyPlayerBinding = null;
+        ModuleSettingRegistry.Registration maxPlayerDistanceBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -130,6 +154,10 @@ final class Minecraft189WTapFeature
                             module.requireForwardSetting());
             pauseWhileSneakingSetting = settings.register(
                     module.pauseWhileSneakingSetting());
+            requireNearbyPlayerSetting = settings.register(
+                    module.requireNearbyPlayerSetting());
+            maxPlayerDistanceSetting = settings.register(
+                    module.maxPlayerDistanceSetting());
             requireGroundPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -170,6 +198,18 @@ final class Minecraft189WTapFeature
                     new SettingDescriptor(
                             Minecraft189WTapModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
                             "Pause While Sneaking", SettingValueKind.BOOLEAN, 40));
+            requireNearbyPlayerPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189WTapModule.REQUIRE_NEARBY_PLAYER_SETTING_ID,
+                            "Require Nearby Player", SettingValueKind.BOOLEAN, 50));
+            maxPlayerDistancePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189WTapModule.MAX_PLAYER_DISTANCE_SETTING_ID,
+                            "Nearby Range", SettingValueKind.DOUBLE, 60,
+                            new SettingNumericSpec(
+                                    Minecraft189WTapModule.MINIMUM_MAX_PLAYER_DISTANCE,
+                                    Minecraft189WTapModule.MAXIMUM_MAX_PLAYER_DISTANCE,
+                                    0.5D)));
             requireGroundBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -200,6 +240,15 @@ final class Minecraft189WTapFeature
                             Minecraft189WTapModule.ID,
                             Minecraft189WTapModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 40));
 
+            requireNearbyPlayerBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189WTapModule.ID,
+                            Minecraft189WTapModule.REQUIRE_NEARBY_PLAYER_SETTING_ID, 50));
+            maxPlayerDistanceBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189WTapModule.ID,
+                            Minecraft189WTapModule.MAX_PLAYER_DISTANCE_SETTING_ID, 60));
+
             return new Minecraft189WTapFeature(
                     controller,
                     module,
@@ -210,17 +259,29 @@ final class Minecraft189WTapFeature
                     resetTicksSetting,
                     requireForwardSetting,
                     pauseWhileSneakingSetting,
+                    requireNearbyPlayerSetting,
+                    maxPlayerDistanceSetting,
                     requireGroundPresentation,
                     cooldownPresentation,
                     resetTicksPresentation,
                     requireForwardPresentation,
                     pauseWhileSneakingPresentation,
+                    requireNearbyPlayerPresentation,
+                    maxPlayerDistancePresentation,
                     requireGroundBinding,
                     cooldownBinding,
                     resetTicksBinding,
                     requireForwardBinding,
-                    pauseWhileSneakingBinding);
+                    pauseWhileSneakingBinding,
+                    requireNearbyPlayerBinding,
+                    maxPlayerDistanceBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(maxPlayerDistanceBinding, failure);
+            closeQuietly(requireNearbyPlayerBinding, failure);
+            closeQuietly(maxPlayerDistancePresentation, failure);
+            closeQuietly(requireNearbyPlayerPresentation, failure);
+            closeQuietly(maxPlayerDistanceSetting, failure);
+            closeQuietly(requireNearbyPlayerSetting, failure);
             closeQuietly(pauseWhileSneakingBinding, failure);
             closeQuietly(pauseWhileSneakingPresentation, failure);
             closeQuietly(pauseWhileSneakingSetting, failure);
@@ -273,6 +334,12 @@ final class Minecraft189WTapFeature
             failure = closeFailure;
         }
 
+        failure = close(maxPlayerDistanceBinding, failure);
+        failure = close(requireNearbyPlayerBinding, failure);
+        failure = close(maxPlayerDistancePresentation, failure);
+        failure = close(requireNearbyPlayerPresentation, failure);
+        failure = close(maxPlayerDistanceSetting, failure);
+        failure = close(requireNearbyPlayerSetting, failure);
         failure = close(pauseWhileSneakingBinding, failure);
         failure = close(pauseWhileSneakingPresentation, failure);
         failure = close(pauseWhileSneakingSetting, failure);
