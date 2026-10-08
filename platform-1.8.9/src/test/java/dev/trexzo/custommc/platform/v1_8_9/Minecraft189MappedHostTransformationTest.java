@@ -3848,6 +3848,57 @@ final class Minecraft189MappedHostTransformationTest {
                             Minecraft189ClickRateTracker.LEFT_BUTTON,
                             false);
 
+            // M228: mapped runTick -> shouldAutoClick uses physical W and
+            // resets scheduling on W release without inventing a new hook.
+            runtime.moduleController().enable(
+                    Minecraft189AutoClickerModule.ID);
+            runtime.requireHostRuntime().featureCatalog().autoClicker()
+                    .requireForwardSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            runtime.requireHostRuntime().inputState().key(
+                    LegacyKeyboardCodes.W, false);
+            runTick.invoke(minecraft);
+            runTick.invoke(minecraft);
+            assertEquals(2, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+
+            runtime.requireHostRuntime().inputState().key(
+                    LegacyKeyboardCodes.W, true);
+            runTick.invoke(minecraft);
+            assertEquals(2, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+            runTick.invoke(minecraft);
+            assertEquals(3, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+
+            runtime.requireHostRuntime().inputState().key(
+                    LegacyKeyboardCodes.W, false);
+            runTick.invoke(minecraft);
+            runTick.invoke(minecraft);
+            assertEquals(3, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+
+            runtime.requireHostRuntime().inputState().key(
+                    LegacyKeyboardCodes.W, true);
+            runTick.invoke(minecraft);
+            runTick.invoke(minecraft);
+            assertEquals(4, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+
+            runtime.requireHostRuntime().featureCatalog().autoClicker()
+                    .requireForwardSetting().set(Boolean.FALSE);
+            runtime.requireHostRuntime().inputState().key(
+                    LegacyKeyboardCodes.W, false);
+            runTick.invoke(minecraft);
+            runTick.invoke(minecraft);
+            assertEquals(5, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+            runtime.moduleController().disable(
+                    Minecraft189AutoClickerModule.ID);
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+
             runtime.requireHostRuntime()
                     .featureCatalog()
                     .jitter()

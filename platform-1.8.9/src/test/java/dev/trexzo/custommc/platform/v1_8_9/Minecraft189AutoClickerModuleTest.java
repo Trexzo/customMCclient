@@ -80,6 +80,8 @@ final class Minecraft189AutoClickerModuleTest {
                     autoClicker.requireHoldSetting()
                             .get()
                             .booleanValue());
+            assertFalse(autoClicker.requireForwardSetting()
+                    .get().booleanValue());
             assertEquals(
                     "10",
                     settings.snapshotEncoded()
@@ -95,6 +97,8 @@ final class Minecraft189AutoClickerModuleTest {
                     settings.snapshotEncoded()
                             .get(
                                     Minecraft189AutoClickerModule.REQUIRE_HOLD_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded()
+                    .get(Minecraft189AutoClickerModule.REQUIRE_FORWARD_SETTING_ID));
 
             controller.enable(
                     Minecraft189AutoClickerModule.ID);
@@ -161,6 +165,27 @@ final class Minecraft189AutoClickerModuleTest {
             assertTrue(
                     runtime.shouldAutoClick());
 
+            // M228: the new default-off gate uses real W input and resets
+            // accumulated CPS credit each time physical forward is released.
+            autoClicker.requireForwardSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded()
+                    .get(Minecraft189AutoClickerModule.REQUIRE_FORWARD_SETTING_ID));
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+            runtime.inputState().key(LegacyKeyboardCodes.W, false);
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+            runtime.inputState().key(LegacyKeyboardCodes.W, false);
+            autoClicker.requireForwardSetting().set(Boolean.FALSE);
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+
             controller.disable(
                     Minecraft189AutoClickerModule.ID);
             assertFalse(
@@ -183,6 +208,8 @@ final class Minecraft189AutoClickerModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189AutoClickerModule.REQUIRE_HOLD_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189AutoClickerModule.REQUIRE_FORWARD_SETTING_ID));
     }
 
     private static final class NoOpHost
