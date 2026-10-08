@@ -85,6 +85,10 @@ final class Minecraft189AutoClickerModuleTest {
                     .get().booleanValue());
             assertFalse(autoClicker.pauseWhileRightClickingSetting()
                     .get().booleanValue());
+            assertFalse(autoClicker.requireNearbyPlayerSetting()
+                    .get().booleanValue());
+            assertEquals(4.0D,
+                    autoClicker.maxPlayerDistanceSetting().get().doubleValue(), 0.00001D);
             assertEquals(
                     "10",
                     settings.snapshotEncoded()
@@ -104,6 +108,10 @@ final class Minecraft189AutoClickerModuleTest {
                     .get(Minecraft189AutoClickerModule.REQUIRE_FORWARD_SETTING_ID));
             assertEquals("false", settings.snapshotEncoded()
                     .get(Minecraft189AutoClickerModule.PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded()
+                    .get(Minecraft189AutoClickerModule.REQUIRE_NEARBY_PLAYER_SETTING_ID));
+            assertEquals("4.0", settings.snapshotEncoded()
+                    .get(Minecraft189AutoClickerModule.MAX_PLAYER_DISTANCE_SETTING_ID));
 
             controller.enable(
                     Minecraft189AutoClickerModule.ID);
@@ -228,6 +236,42 @@ final class Minecraft189AutoClickerModuleTest {
             runtime.inputState().pointerButton(
                     Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
 
+            // M233: this is proximity-only, never a claimed raycast.
+            autoClicker.requireNearbyPlayerSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded()
+                    .get(Minecraft189AutoClickerModule.REQUIRE_NEARBY_PLAYER_SETTING_ID));
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick()); // missing authority
+            runtime.playerPositionState().update(0.0D, 0.0D, 0.0D);
+            runtime.worldEntityPositionState().update(
+                    new double[]{0.0D, 0.0D, 0.0D, 0.0D, 0.0D, 4.0D});
+            runtime.worldEntityKindState().update(new int[]{
+                    Minecraft189WorldEntityKindState.LIVING
+                            | Minecraft189WorldEntityKindState.PLAYER
+                            | Minecraft189WorldEntityKindState.LOCAL_PLAYER,
+                    Minecraft189WorldEntityKindState.LIVING
+                            | Minecraft189WorldEntityKindState.PLAYER});
+            runtime.nearestPlayerTargetState().update(
+                    runtime.playerPositionState().snapshot(),
+                    runtime.worldEntityPositionState().snapshot(),
+                    runtime.worldEntityKindState().snapshot());
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick()); // inclusive 4 blocks
+
+            autoClicker.maxPlayerDistanceSetting().set(3.5D);
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            autoClicker.maxPlayerDistanceSetting().set(4.0D);
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+
+            runtime.nearestPlayerTargetState().clear();
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            autoClicker.requireNearbyPlayerSetting().set(Boolean.FALSE);
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+
             controller.disable(
                     Minecraft189AutoClickerModule.ID);
             assertFalse(
@@ -254,6 +298,10 @@ final class Minecraft189AutoClickerModuleTest {
                 Minecraft189AutoClickerModule.REQUIRE_FORWARD_SETTING_ID));
         assertNull(settings.find(
                 Minecraft189AutoClickerModule.PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189AutoClickerModule.REQUIRE_NEARBY_PLAYER_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189AutoClickerModule.MAX_PLAYER_DISTANCE_SETTING_ID));
     }
 
     @Test
