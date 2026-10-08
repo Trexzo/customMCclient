@@ -22,12 +22,21 @@ final class Minecraft189VelocityFeature
     private final SettingRegistry.Registration horizontalSetting;
     private final SettingRegistry.Registration verticalSetting;
     private final SettingRegistry.Registration onlyWhileSprintingSetting;
+    private final SettingRegistry.Registration airborneOverrideSetting;
+    private final SettingRegistry.Registration airborneHorizontalSetting;
+    private final SettingRegistry.Registration airborneVerticalSetting;
     private final SettingPresentationRegistry.Registration horizontalPresentation;
     private final SettingPresentationRegistry.Registration verticalPresentation;
     private final SettingPresentationRegistry.Registration onlyWhileSprintingPresentation;
+    private final SettingPresentationRegistry.Registration airborneOverridePresentation;
+    private final SettingPresentationRegistry.Registration airborneHorizontalPresentation;
+    private final SettingPresentationRegistry.Registration airborneVerticalPresentation;
     private final ModuleSettingRegistry.Registration horizontalBinding;
     private final ModuleSettingRegistry.Registration verticalBinding;
     private final ModuleSettingRegistry.Registration onlyWhileSprintingBinding;
+    private final ModuleSettingRegistry.Registration airborneOverrideBinding;
+    private final ModuleSettingRegistry.Registration airborneHorizontalBinding;
+    private final ModuleSettingRegistry.Registration airborneVerticalBinding;
     private boolean closed;
 
     private Minecraft189VelocityFeature(
@@ -38,12 +47,21 @@ final class Minecraft189VelocityFeature
             final SettingRegistry.Registration horizontalSetting,
             final SettingRegistry.Registration verticalSetting,
             final SettingRegistry.Registration onlyWhileSprintingSetting,
+            final SettingRegistry.Registration airborneOverrideSetting,
+            final SettingRegistry.Registration airborneHorizontalSetting,
+            final SettingRegistry.Registration airborneVerticalSetting,
             final SettingPresentationRegistry.Registration horizontalPresentation,
             final SettingPresentationRegistry.Registration verticalPresentation,
             final SettingPresentationRegistry.Registration onlyWhileSprintingPresentation,
+            final SettingPresentationRegistry.Registration airborneOverridePresentation,
+            final SettingPresentationRegistry.Registration airborneHorizontalPresentation,
+            final SettingPresentationRegistry.Registration airborneVerticalPresentation,
             final ModuleSettingRegistry.Registration horizontalBinding,
             final ModuleSettingRegistry.Registration verticalBinding,
-            final ModuleSettingRegistry.Registration onlyWhileSprintingBinding) {
+            final ModuleSettingRegistry.Registration onlyWhileSprintingBinding,
+            final ModuleSettingRegistry.Registration airborneOverrideBinding,
+            final ModuleSettingRegistry.Registration airborneHorizontalBinding,
+            final ModuleSettingRegistry.Registration airborneVerticalBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -51,12 +69,21 @@ final class Minecraft189VelocityFeature
         this.horizontalSetting = horizontalSetting;
         this.verticalSetting = verticalSetting;
         this.onlyWhileSprintingSetting = onlyWhileSprintingSetting;
+        this.airborneOverrideSetting = airborneOverrideSetting;
+        this.airborneHorizontalSetting = airborneHorizontalSetting;
+        this.airborneVerticalSetting = airborneVerticalSetting;
         this.horizontalPresentation = horizontalPresentation;
         this.verticalPresentation = verticalPresentation;
         this.onlyWhileSprintingPresentation = onlyWhileSprintingPresentation;
+        this.airborneOverridePresentation = airborneOverridePresentation;
+        this.airborneHorizontalPresentation = airborneHorizontalPresentation;
+        this.airborneVerticalPresentation = airborneVerticalPresentation;
         this.horizontalBinding = horizontalBinding;
         this.verticalBinding = verticalBinding;
         this.onlyWhileSprintingBinding = onlyWhileSprintingBinding;
+        this.airborneOverrideBinding = airborneOverrideBinding;
+        this.airborneHorizontalBinding = airborneHorizontalBinding;
+        this.airborneVerticalBinding = airborneVerticalBinding;
     }
 
     static Minecraft189VelocityFeature install(
@@ -74,12 +101,21 @@ final class Minecraft189VelocityFeature
         SettingRegistry.Registration horizontalSetting = null;
         SettingRegistry.Registration verticalSetting = null;
         SettingRegistry.Registration onlyWhileSprintingSetting = null;
+        SettingRegistry.Registration airborneOverrideSetting = null;
+        SettingRegistry.Registration airborneHorizontalSetting = null;
+        SettingRegistry.Registration airborneVerticalSetting = null;
         SettingPresentationRegistry.Registration horizontalPresentation = null;
         SettingPresentationRegistry.Registration verticalPresentation = null;
         SettingPresentationRegistry.Registration onlyWhileSprintingPresentation = null;
+        SettingPresentationRegistry.Registration airborneOverridePresentation = null;
+        SettingPresentationRegistry.Registration airborneHorizontalPresentation = null;
+        SettingPresentationRegistry.Registration airborneVerticalPresentation = null;
         ModuleSettingRegistry.Registration horizontalBinding = null;
         ModuleSettingRegistry.Registration verticalBinding = null;
         ModuleSettingRegistry.Registration onlyWhileSprintingBinding = null;
+        ModuleSettingRegistry.Registration airborneOverrideBinding = null;
+        ModuleSettingRegistry.Registration airborneHorizontalBinding = null;
+        ModuleSettingRegistry.Registration airborneVerticalBinding = null;
 
         try {
             moduleRegistration =
@@ -101,6 +137,12 @@ final class Minecraft189VelocityFeature
                             module.verticalPercentSetting());
             onlyWhileSprintingSetting = settings.register(
                     module.onlyWhileSprintingSetting());
+            airborneOverrideSetting = settings.register(
+                    module.airborneOverrideSetting());
+            airborneHorizontalSetting = settings.register(
+                    module.airborneHorizontalPercentSetting());
+            airborneVerticalSetting = settings.register(
+                    module.airborneVerticalPercentSetting());
 
             horizontalPresentation =
                     settingPresentations.register(
@@ -130,6 +172,27 @@ final class Minecraft189VelocityFeature
                             Minecraft189VelocityModule.ONLY_WHILE_SPRINTING_SETTING_ID,
                             "Only While Sprinting", SettingValueKind.BOOLEAN, 20));
 
+            airborneOverridePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189VelocityModule.AIRBORNE_OVERRIDE_SETTING_ID,
+                            "Airborne Override", SettingValueKind.BOOLEAN, 30));
+            airborneHorizontalPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189VelocityModule.AIRBORNE_HORIZONTAL_SETTING_ID,
+                            "Air Horizontal %", SettingValueKind.INTEGER, 40,
+                            new SettingNumericSpec(
+                                    Minecraft189VelocityModule.MINIMUM_PERCENT,
+                                    Minecraft189VelocityModule.MAXIMUM_PERCENT,
+                                    5.0D)));
+            airborneVerticalPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189VelocityModule.AIRBORNE_VERTICAL_SETTING_ID,
+                            "Air Vertical %", SettingValueKind.INTEGER, 50,
+                            new SettingNumericSpec(
+                                    Minecraft189VelocityModule.MINIMUM_PERCENT,
+                                    Minecraft189VelocityModule.MAXIMUM_PERCENT,
+                                    5.0D)));
+
             horizontalBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -148,6 +211,19 @@ final class Minecraft189VelocityFeature
                             Minecraft189VelocityModule.ID,
                             Minecraft189VelocityModule.ONLY_WHILE_SPRINTING_SETTING_ID, 20));
 
+            airborneOverrideBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189VelocityModule.ID,
+                            Minecraft189VelocityModule.AIRBORNE_OVERRIDE_SETTING_ID, 30));
+            airborneHorizontalBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189VelocityModule.ID,
+                            Minecraft189VelocityModule.AIRBORNE_HORIZONTAL_SETTING_ID, 40));
+            airborneVerticalBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189VelocityModule.ID,
+                            Minecraft189VelocityModule.AIRBORNE_VERTICAL_SETTING_ID, 50));
+
             return new Minecraft189VelocityFeature(
                     controller,
                     module,
@@ -156,13 +232,31 @@ final class Minecraft189VelocityFeature
                     horizontalSetting,
                     verticalSetting,
                     onlyWhileSprintingSetting,
+                    airborneOverrideSetting,
+                    airborneHorizontalSetting,
+                    airborneVerticalSetting,
                     horizontalPresentation,
                     verticalPresentation,
                     onlyWhileSprintingPresentation,
+                    airborneOverridePresentation,
+                    airborneHorizontalPresentation,
+                    airborneVerticalPresentation,
                     horizontalBinding,
                     verticalBinding,
-                    onlyWhileSprintingBinding);
+                    onlyWhileSprintingBinding,
+                    airborneOverrideBinding,
+                    airborneHorizontalBinding,
+                    airborneVerticalBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(airborneVerticalBinding, failure);
+            closeQuietly(airborneHorizontalBinding, failure);
+            closeQuietly(airborneOverrideBinding, failure);
+            closeQuietly(airborneVerticalPresentation, failure);
+            closeQuietly(airborneHorizontalPresentation, failure);
+            closeQuietly(airborneOverridePresentation, failure);
+            closeQuietly(airborneVerticalSetting, failure);
+            closeQuietly(airborneHorizontalSetting, failure);
+            closeQuietly(airborneOverrideSetting, failure);
             closeQuietly(onlyWhileSprintingBinding, failure);
             closeQuietly(verticalBinding, failure);
             closeQuietly(horizontalBinding, failure);
@@ -205,6 +299,15 @@ final class Minecraft189VelocityFeature
             failure = closeFailure;
         }
 
+        failure = close(airborneVerticalBinding, failure);
+        failure = close(airborneHorizontalBinding, failure);
+        failure = close(airborneOverrideBinding, failure);
+        failure = close(airborneVerticalPresentation, failure);
+        failure = close(airborneHorizontalPresentation, failure);
+        failure = close(airborneOverridePresentation, failure);
+        failure = close(airborneVerticalSetting, failure);
+        failure = close(airborneHorizontalSetting, failure);
+        failure = close(airborneOverrideSetting, failure);
         failure = close(onlyWhileSprintingBinding, failure);
         failure = close(verticalBinding, failure);
         failure = close(horizontalBinding, failure);
