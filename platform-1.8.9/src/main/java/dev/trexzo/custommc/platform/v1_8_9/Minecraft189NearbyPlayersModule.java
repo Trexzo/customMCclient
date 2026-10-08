@@ -25,6 +25,8 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public static final String HIGHLIGHT_NEAREST_SETTING_ID = ID + ".highlightNearest";
     public static final String SHOW_NORTH_SETTING_ID = ID + ".showNorth";
     public static final String SHOW_BEARING_SETTING_ID = ID + ".showBearing";
+    public static final String PROXIMITY_WARNING_SETTING_ID = ID + ".proximityWarning";
+    public static final String WARNING_DISTANCE_SETTING_ID = ID + ".warningDistance";
     public static final String RENDER_PASS_ID = "nearby-players";
 
     private final Minecraft189PlayerPositionState local;
@@ -60,6 +62,12 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     private final Setting<Boolean> showBearing = new Setting<Boolean>(
             SHOW_BEARING_SETTING_ID, Boolean.FALSE,
             v -> v != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> proximityWarning = new Setting<Boolean>(
+            PROXIMITY_WARNING_SETTING_ID, Boolean.FALSE,
+            v -> v != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> warningDistance = new Setting<Integer>(
+            WARNING_DISTANCE_SETTING_ID, 8,
+            v -> v != null && v >= 1 && v <= 128, SettingCodecs.INTEGER);
     private RenderPipeline.Registration registration;
 
     public Minecraft189NearbyPlayersModule(
@@ -87,6 +95,8 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public Setting<Boolean> highlightNearestSetting() { return highlightNearest; }
     public Setting<Boolean> showNorthSetting() { return showNorth; }
     public Setting<Boolean> showBearingSetting() { return showBearing; }
+    public Setting<Boolean> proximityWarningSetting() { return proximityWarning; }
+    public Setting<Integer> warningDistanceSetting() { return warningDistance; }
 
     @Override public synchronized void onEnable() {
         if (registration != null) {
@@ -223,6 +233,17 @@ public final class Minecraft189NearbyPlayersModule implements Module {
         int nearestIndex() { return nearestIndex; }
     }
 
+    /** Inclusive warning threshold, based on the same eligible 3D nearest snapshot. */
+    static boolean proximityWarningActive(
+            final NearbySnapshot nearby, final boolean enabled,
+            final int threshold) {
+        return enabled && nearby != null && nearby.available()
+                && nearby.nearestIndex() >= 0
+                && threshold >= 1 && threshold <= 128
+                && Double.isFinite(nearby.nearestDistance())
+                && nearby.nearestDistance() <= threshold;
+    }
+
     private void drawRadar(
             final float x, final float y, final int range,
             final Minecraft189PlayerPositionState.Snapshot me,
@@ -284,6 +305,9 @@ public final class Minecraft189NearbyPlayersModule implements Module {
             final Minecraft189WorldEntityKindState.Snapshot types = kinds.snapshot();
             final NearbySnapshot nearby = countNearby(me, positions, types, range);
             if (!nearby.available()) return;
+            final boolean warning = proximityWarningActive(nearby,
+                    proximityWarning.get().booleanValue(),
+                    warningDistance.get().intValue());
             final Minecraft189PlayerRotationState.Snapshot facing = rotation.snapshot();
             final boolean northUpMode = northUp.get().booleanValue();
             final boolean map = showRadar.get().booleanValue()
@@ -300,7 +324,8 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                 graphics.fillRoundedRect(left, top, 156.0F, height,
                         6.0F, 0xE610141E);
                 graphics.fillRoundedRect(left, top, 3.0F, height,
-                        1.5F, nearby.count() == 0 ? 0xFF667789 : 0xFFFFB56B);
+                        1.5F, warning ? 0xFFFF6A70
+                                : nearby.count() == 0 ? 0xFF667789 : 0xFFFFB56B);
                 graphics.drawText(UiFonts.DEFAULT, left + 12.0F, top + 7.0F,
                         "PLAYERS  " + nearby.count() + " / " + range + "m",
                         0xFFFFFFFF);
@@ -315,7 +340,11 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                             positions.z(nearest) - me.z());
                 }
                 graphics.drawText(UiFonts.DEFAULT, left + 12.0F, top + 24.0F,
-                        nearestLabel, 0xFFC4CBD5);
+                        nearestLabel, warning ? 0xFFFFA8AF : 0xFFC4CBD5);
+                if (warning) {
+                    graphics.drawText(UiFonts.DEFAULT, left + 140.0F, top + 7.0F,
+                            "!", 0xFFFFA8AF);
+                }
                 if (map) drawRadar(left, top, range, me, positions, types,
                         facing.yaw(), northUpMode,
                         heightColors.get().booleanValue(),
