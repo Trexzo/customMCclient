@@ -16,6 +16,10 @@ import dev.trexzo.custommc.core.ui.UiFonts;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 
 public final class Minecraft189ArrayListModule
@@ -26,6 +30,10 @@ public final class Minecraft189ArrayListModule
             "render.array-list.x";
     public static final String Y_SETTING_ID =
             "render.array-list.y";
+    public static final String SHOW_CATEGORIES_SETTING_ID =
+            "render.array-list.showCategories";
+    public static final String GROUP_CATEGORIES_SETTING_ID =
+            "render.array-list.groupCategories";
     public static final String RENDER_PASS_ID =
             "array-list";
 
@@ -52,6 +60,12 @@ public final class Minecraft189ArrayListModule
                     value -> value >= 0
                             && value <= 4096,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> showCategories =
+            new Setting<Boolean>(SHOW_CATEGORIES_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> groupCategories =
+            new Setting<Boolean>(GROUP_CATEGORIES_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189ArrayListModule(
@@ -88,6 +102,27 @@ public final class Minecraft189ArrayListModule
 
     public Setting<Integer> ySetting() {
         return y;
+    }
+
+    public Setting<Boolean> showCategoriesSetting() { return showCategories; }
+    public Setting<Boolean> groupCategoriesSetting() { return groupCategories; }
+
+    static int categoryOrder(final ModuleDescriptor descriptor) {
+        final String id = descriptor == null
+                ? ModuleDescriptor.DEFAULT_CATEGORY_ID : descriptor.categoryId();
+        if (Minecraft189FeatureCatalog.COMBAT_CATEGORY_ID.equals(id)) return 0;
+        if (Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID.equals(id)) return 1;
+        if (Minecraft189FeatureCatalog.PLAYER_CATEGORY_ID.equals(id)) return 2;
+        if (Minecraft189FeatureCatalog.VISUALS_CATEGORY_ID.equals(id)) return 3;
+        return 4;
+    }
+
+    static String moduleLabel(final String moduleId,
+            final ModuleDescriptor descriptor, final boolean withCategory) {
+        final String name = descriptor == null ? moduleId : descriptor.displayName();
+        if (!withCategory) return name;
+        final String[] categories = {"Combat", "Movement", "Player", "Visuals", "Other"};
+        return "[" + categories[categoryOrder(descriptor)] + "] " + name;
     }
 
     @Override
@@ -150,27 +185,28 @@ public final class Minecraft189ArrayListModule
             try {
                 float currentY =
                         y.get().floatValue();
-                for (Module module :
-                        modules.snapshot()) {
-                    if (controller.stateOf(
-                            module.id())
-                            != ModuleState.ENABLED) {
-                        continue;
+                final List<Module> enabled = new ArrayList<Module>();
+                for (Module module : modules.snapshot()) {
+                    if (controller.stateOf(module.id()) == ModuleState.ENABLED) {
+                        enabled.add(module);
                     }
-
-                    final ModuleDescriptor descriptor =
-                            presentations.find(
-                                    module.id());
-                    final String displayName =
-                            descriptor == null
-                                    ? module.id()
-                                    : descriptor.displayName();
-
-                    hostCallbacks.drawText(
-                            UiFonts.DEFAULT,
-                            x.get().floatValue(),
-                            currentY,
-                            displayName,
+                }
+                if (groupCategories.get().booleanValue()) {
+                    // Java's stable list sort preserves order within each category.
+                    Collections.sort(enabled, new Comparator<Module>() {
+                        @Override
+                        public int compare(final Module left, final Module right) {
+                            return Integer.compare(
+                                    categoryOrder(presentations.find(left.id())),
+                                    categoryOrder(presentations.find(right.id())));
+                        }
+                    });
+                }
+                final boolean withCategory = showCategories.get().booleanValue();
+                for (Module module : enabled) {
+                    final ModuleDescriptor descriptor = presentations.find(module.id());
+                    hostCallbacks.drawText(UiFonts.DEFAULT, x.get().floatValue(),
+                            currentY, moduleLabel(module.id(), descriptor, withCategory),
                             TEXT_ARGB);
                     currentY += LINE_HEIGHT;
                 }

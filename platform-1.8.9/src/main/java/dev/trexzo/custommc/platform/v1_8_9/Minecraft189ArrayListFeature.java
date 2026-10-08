@@ -25,10 +25,16 @@ final class Minecraft189ArrayListFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration xSetting;
     private final SettingRegistry.Registration ySetting;
+    private final SettingRegistry.Registration showCategoriesSetting;
+    private final SettingRegistry.Registration groupCategoriesSetting;
     private final SettingPresentationRegistry.Registration xPresentation;
     private final SettingPresentationRegistry.Registration yPresentation;
+    private final SettingPresentationRegistry.Registration showCategoriesPresentation;
+    private final SettingPresentationRegistry.Registration groupCategoriesPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final ModuleSettingRegistry.Registration showCategoriesBinding;
+    private final ModuleSettingRegistry.Registration groupCategoriesBinding;
     private boolean closed;
 
     private Minecraft189ArrayListFeature(
@@ -38,20 +44,32 @@ final class Minecraft189ArrayListFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration xSetting,
             final SettingRegistry.Registration ySetting,
+            final SettingRegistry.Registration showCategoriesSetting,
+            final SettingRegistry.Registration groupCategoriesSetting,
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
+            final SettingPresentationRegistry.Registration showCategoriesPresentation,
+            final SettingPresentationRegistry.Registration groupCategoriesPresentation,
             final ModuleSettingRegistry.Registration xBinding,
-            final ModuleSettingRegistry.Registration yBinding) {
+            final ModuleSettingRegistry.Registration yBinding,
+            final ModuleSettingRegistry.Registration showCategoriesBinding,
+            final ModuleSettingRegistry.Registration groupCategoriesBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.xSetting = xSetting;
         this.ySetting = ySetting;
+        this.showCategoriesSetting = showCategoriesSetting;
+        this.groupCategoriesSetting = groupCategoriesSetting;
         this.xPresentation = xPresentation;
         this.yPresentation = yPresentation;
+        this.showCategoriesPresentation = showCategoriesPresentation;
+        this.groupCategoriesPresentation = groupCategoriesPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.showCategoriesBinding = showCategoriesBinding;
+        this.groupCategoriesBinding = groupCategoriesBinding;
     }
 
     static Minecraft189ArrayListFeature install(
@@ -82,10 +100,16 @@ final class Minecraft189ArrayListFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration xSetting = null;
         SettingRegistry.Registration ySetting = null;
+        SettingRegistry.Registration showCategoriesSetting = null;
+        SettingRegistry.Registration groupCategoriesSetting = null;
         SettingPresentationRegistry.Registration xPresentation = null;
         SettingPresentationRegistry.Registration yPresentation = null;
+        SettingPresentationRegistry.Registration showCategoriesPresentation = null;
+        SettingPresentationRegistry.Registration groupCategoriesPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        ModuleSettingRegistry.Registration showCategoriesBinding = null;
+        ModuleSettingRegistry.Registration groupCategoriesBinding = null;
 
         try {
             moduleRegistration =
@@ -106,6 +130,8 @@ final class Minecraft189ArrayListFeature
             ySetting =
                     settings.register(
                             module.ySetting());
+            showCategoriesSetting = settings.register(module.showCategoriesSetting());
+            groupCategoriesSetting = settings.register(module.groupCategoriesSetting());
 
             xPresentation =
                     settingPresentations.register(
@@ -130,6 +156,15 @@ final class Minecraft189ArrayListFeature
                                             4096.0D,
                                             1.0D)));
 
+            showCategoriesPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189ArrayListModule.SHOW_CATEGORIES_SETTING_ID,
+                            "Show Categories", SettingValueKind.BOOLEAN, 20));
+            groupCategoriesPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189ArrayListModule.GROUP_CATEGORIES_SETTING_ID,
+                            "Group by Category", SettingValueKind.BOOLEAN, 30));
+
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -143,6 +178,15 @@ final class Minecraft189ArrayListFeature
                                     Minecraft189ArrayListModule.Y_SETTING_ID,
                                     10));
 
+            showCategoriesBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189ArrayListModule.ID,
+                            Minecraft189ArrayListModule.SHOW_CATEGORIES_SETTING_ID, 20));
+            groupCategoriesBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189ArrayListModule.ID,
+                            Minecraft189ArrayListModule.GROUP_CATEGORIES_SETTING_ID, 30));
+
             return new Minecraft189ArrayListFeature(
                     controller,
                     module,
@@ -150,15 +194,27 @@ final class Minecraft189ArrayListFeature
                     presentation,
                     xSetting,
                     ySetting,
+                    showCategoriesSetting,
+                    groupCategoriesSetting,
                     xPresentation,
                     yPresentation,
+                    showCategoriesPresentation,
+                    groupCategoriesPresentation,
                     xBinding,
-                    yBinding);
+                    yBinding,
+                    showCategoriesBinding,
+                    groupCategoriesBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(groupCategoriesBinding, failure);
+            closeQuietly(showCategoriesBinding, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
+            closeQuietly(groupCategoriesPresentation, failure);
+            closeQuietly(showCategoriesPresentation, failure);
             closeQuietly(yPresentation, failure);
             closeQuietly(xPresentation, failure);
+            closeQuietly(groupCategoriesSetting, failure);
+            closeQuietly(showCategoriesSetting, failure);
             closeQuietly(ySetting, failure);
             closeQuietly(xSetting, failure);
             closeQuietly(presentation, failure);
@@ -194,10 +250,16 @@ final class Minecraft189ArrayListFeature
             failure = closeFailure;
         }
 
+        failure = close(groupCategoriesBinding, failure);
+        failure = close(showCategoriesBinding, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
+        failure = close(groupCategoriesPresentation, failure);
+        failure = close(showCategoriesPresentation, failure);
         failure = close(yPresentation, failure);
         failure = close(xPresentation, failure);
+        failure = close(groupCategoriesSetting, failure);
+        failure = close(showCategoriesSetting, failure);
         failure = close(ySetting, failure);
         failure = close(xSetting, failure);
         failure = close(presentation, failure);
