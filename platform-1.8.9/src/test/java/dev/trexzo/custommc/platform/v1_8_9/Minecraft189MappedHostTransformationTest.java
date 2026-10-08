@@ -5365,6 +5365,37 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(15.0F,
                     playerClass.getField("z").getFloat(player), 0.0001F);
 
+            // M224: certified mapped sprinting state gates Aim Assist.
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .pauseWhileSneakingSetting().set(Boolean.FALSE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .requireSprintSetting().set(Boolean.TRUE);
+            playerClass.getField("sneaking").setBoolean(player, false);
+            playerClass.getField("sprinting").setBoolean(player, false);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-70.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(15.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            playerClass.getField("sprinting").setBoolean(player, true);
+            runTick.invoke(minecraft);
+            assertEquals(-67.833654F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(11.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            playerClass.getField("sprinting").setBoolean(player, false);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-70.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(15.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AimAssistModule.ID);

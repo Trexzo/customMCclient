@@ -55,6 +55,7 @@ final class Minecraft189AimAssistModuleTest {
                             .get()
                             .doubleValue(),
                     0.000001D);
+            assertFalse(module.requireSprintSetting().get().booleanValue());
             assertFalse(module.pauseWhileSneakingSetting().get().booleanValue());
             assertFalse(module.requireGroundSetting().get().booleanValue());
             assertFalse(module.requireForwardSetting().get().booleanValue());
@@ -109,6 +110,10 @@ final class Minecraft189AimAssistModuleTest {
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.PITCH_SPEED_SETTING_ID)
+                            != null);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.REQUIRE_SPRINT_SETTING_ID)
                             != null);
             assertTrue(
                     settings.find(
@@ -537,6 +542,9 @@ final class Minecraft189AimAssistModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189AimAssistModule.PITCH_SPEED_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AimAssistModule.REQUIRE_SPRINT_SETTING_ID));
         assertNull(
                 settings.find(
                         Minecraft189AimAssistModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
@@ -1012,6 +1020,74 @@ final class Minecraft189AimAssistModuleTest {
         module.onDisable();
         assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(),
                 true, false, movement.snapshot()));
+    }
+
+
+    @Test
+    void requireSprintGatesCertifiedMovementAndComposesWithGround() {
+        final Minecraft189AimAssistModule module = new Minecraft189AimAssistModule();
+        final Minecraft189PlayerPositionState local = new Minecraft189PlayerPositionState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds = new Minecraft189WorldEntityKindState();
+        final Minecraft189NearestPlayerTargetState nearest =
+                new Minecraft189NearestPlayerTargetState();
+        final Minecraft189TargetRotationState target = new Minecraft189TargetRotationState();
+        final Minecraft189PlayerRotationState rotation = new Minecraft189PlayerRotationState();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer(30.0F, 10.0F);
+        local.update(0.0D, 0.0D, 0.0D);
+        positions.update(new double[]{0.0D, 0.0D, 10.0D});
+        kinds.update(new int[]{Minecraft189WorldEntityKindState.LIVING
+                | Minecraft189WorldEntityKindState.PLAYER});
+        nearest.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+        target.update(local.snapshot(), nearest.snapshot());
+        rotation.update(player.yaw, player.pitch);
+        module.onEnable();
+
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, null)); // default OFF parity
+        player.yaw = 30.0F;
+        player.pitch = 10.0F;
+        rotation.update(player.yaw, player.pitch);
+        module.requireSprintSetting().set(Boolean.TRUE);
+        final int yawWrites = player.yawWrites;
+        final int pitchWrites = player.pitchWrites;
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, null));
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, movement.snapshot()));
+        movement.update(true, false, false);
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, movement.snapshot()));
+        assertEquals(yawWrites, player.yawWrites);
+        assertEquals(pitchWrites, player.pitchWrites);
+
+        movement.update(false, false, true);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, movement.snapshot()));
+        assertEquals(0.0F, player.yaw, 0.0001F);
+        assertEquals(0.0F, player.pitch, 0.0001F);
+
+        // Both independent gates must be satisfied when also requiring ground.
+        module.requireGroundSetting().set(Boolean.TRUE);
+        player.yaw = 30.0F;
+        player.pitch = 10.0F;
+        rotation.update(player.yaw, player.pitch);
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, movement.snapshot()));
+        movement.update(true, false, true);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, movement.snapshot()));
+        movement.clear();
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, movement.snapshot()));
+
+        module.requireSprintSetting().set(Boolean.FALSE);
+        module.requireGroundSetting().set(Boolean.FALSE);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, null));
+        module.onDisable();
     }
 
     private static final class TestPlayer
