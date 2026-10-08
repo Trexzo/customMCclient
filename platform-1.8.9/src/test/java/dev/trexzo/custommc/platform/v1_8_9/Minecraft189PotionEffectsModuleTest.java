@@ -138,6 +138,17 @@ final class Minecraft189PotionEffectsModuleTest {
                     settings.snapshotEncoded()
                             .get(
                                     Minecraft189PotionEffectsModule.Y_SETTING_ID));
+            assertEquals(Arrays.asList(0xFFFFFFFF, 0xFFFFFFFF), host.colors);
+            assertFalse(potionEffects.sortByExpirySetting().get().booleanValue());
+            assertFalse(potionEffects.expiryAlertSetting().get().booleanValue());
+            assertEquals(Integer.valueOf(10),
+                    potionEffects.expiryThresholdSecondsSetting().get());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189PotionEffectsModule.SORT_BY_EXPIRY_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189PotionEffectsModule.EXPIRY_ALERT_SETTING_ID));
+            assertEquals("10", settings.snapshotEncoded().get(
+                    Minecraft189PotionEffectsModule.EXPIRY_THRESHOLD_SETTING_ID));
 
             final Minecraft189PlayerPotionEffectsState.StateSnapshot snapshot =
                     runtime.playerPotionEffectsState()
@@ -153,6 +164,73 @@ final class Minecraft189PotionEffectsModuleTest {
                     snapshot.effects()
                             .get(0)
                             .effectName());
+
+            // Render-local expiry ordering is stable on equal durations;
+            // alert compares exact source ticks, not display-rounded secs.
+            potionEffects.sortByExpirySetting().set(Boolean.TRUE);
+            potionEffects.expiryAlertSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189PotionEffectsModule.SORT_BY_EXPIRY_SETTING_ID));
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189PotionEffectsModule.EXPIRY_ALERT_SETTING_ID));
+            runtime.playerPotionEffects(() -> new Minecraft189PotionEffectAccess[]{
+                    effect(10, 400, 0, "potion.regeneration"),
+                    effect(1, 1800, 1, "potion.moveSpeed"),
+                    effect(5, 201, 0, "potion.blink"),
+                    effect(6, 200, 0, "potion.aura"),
+                    effect(7, 200, 0, "potion.absorption")
+            });
+            final Minecraft189PlayerPotionEffectsState.StateSnapshot sortedSource =
+                    runtime.playerPotionEffectsState().snapshot();
+            assertEquals(Arrays.asList(
+                    "potion.absorption", "potion.aura", "potion.blink",
+                    "potion.moveSpeed", "potion.regeneration"),
+                    names(sortedSource));
+            host.clear();
+            runtime.renderHud(2L, 0.0F);
+            assertEquals(Arrays.asList(
+                    "potion.absorption Lv 1 0:10",
+                    "potion.aura Lv 1 0:10",
+                    "potion.blink Lv 1 0:10",
+                    "potion.regeneration Lv 1 0:20",
+                    "potion.moveSpeed Lv 2 1:30"), host.texts);
+            assertEquals(Arrays.asList(
+                    0xFFFFB65C, 0xFFFFB65C, 0xFFFFFFFF,
+                    0xFFFFFFFF, 0xFFFFFFFF), host.colors);
+            assertEquals(Arrays.asList(
+                    244.0F, 256.0F, 268.0F, 280.0F, 292.0F), host.ys);
+            // Stable source-state order must remain untouched by HUD sorting.
+            assertEquals(Arrays.asList(
+                    "potion.absorption", "potion.aura", "potion.blink",
+                    "potion.moveSpeed", "potion.regeneration"),
+                    names(runtime.playerPotionEffectsState().snapshot()));
+
+            potionEffects.expiryThresholdSecondsSetting().set(11);
+            assertEquals("11", settings.snapshotEncoded().get(
+                    Minecraft189PotionEffectsModule.EXPIRY_THRESHOLD_SETTING_ID));
+            host.clear();
+            runtime.renderHud(3L, 0.0F);
+            assertEquals(Arrays.asList(
+                    0xFFFFB65C, 0xFFFFB65C, 0xFFFFB65C,
+                    0xFFFFFFFF, 0xFFFFFFFF), host.colors);
+            potionEffects.sortByExpirySetting().set(Boolean.FALSE);
+            potionEffects.expiryAlertSetting().set(Boolean.FALSE);
+            host.clear();
+            runtime.renderHud(4L, 0.0F);
+            assertEquals(Arrays.asList(
+                    "potion.absorption Lv 1 0:10",
+                    "potion.aura Lv 1 0:10",
+                    "potion.blink Lv 1 0:10",
+                    "potion.moveSpeed Lv 2 1:30",
+                    "potion.regeneration Lv 1 0:20"), host.texts);
+            assertEquals(Arrays.asList(
+                    0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+                    0xFFFFFFFF, 0xFFFFFFFF), host.colors);
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> potionEffects.expiryThresholdSecondsSetting().set(0));
+            assertThrows(IllegalArgumentException.class,
+                    () -> potionEffects.expiryThresholdSecondsSetting().set(121));
 
             host.clear();
             runtime.playerPotionEffects(null);
@@ -179,6 +257,12 @@ final class Minecraft189PotionEffectsModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189PotionEffectsModule.Y_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189PotionEffectsModule.SORT_BY_EXPIRY_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189PotionEffectsModule.EXPIRY_ALERT_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189PotionEffectsModule.EXPIRY_THRESHOLD_SETTING_ID));
     }
 
     @Test
@@ -225,6 +309,15 @@ final class Minecraft189PotionEffectsModuleTest {
                         }));
     }
 
+    private static List<String> names(
+            final Minecraft189PlayerPotionEffectsState.StateSnapshot state) {
+        final List<String> names = new ArrayList<String>();
+        for (Minecraft189PlayerPotionEffectsState.Snapshot effect : state.effects()) {
+            names.add(effect.effectName());
+        }
+        return names;
+    }
+
     private static Minecraft189PotionEffectAccess effect(
             final int potionId,
             final int durationTicks,
@@ -261,11 +354,14 @@ final class Minecraft189PotionEffectsModuleTest {
                 new ArrayList<Float>();
         private final List<Float> ys =
                 new ArrayList<Float>();
+        private final List<Integer> colors =
+                new ArrayList<Integer>();
 
         void clear() {
             texts.clear();
             xs.clear();
             ys.clear();
+            colors.clear();
         }
 
         @Override
@@ -339,6 +435,7 @@ final class Minecraft189PotionEffectsModuleTest {
             texts.add(text);
             xs.add(x);
             ys.add(y);
+            colors.add(argb);
         }
 
         @Override
