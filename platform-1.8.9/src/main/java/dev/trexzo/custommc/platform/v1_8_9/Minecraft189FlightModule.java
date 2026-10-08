@@ -15,6 +15,13 @@ public final class Minecraft189FlightModule
             "movement.flight.horizontalSpeed";
     public static final String VERTICAL_SPEED_SETTING_ID =
             "movement.flight.verticalSpeed";
+    public static final String SPRINT_BOOST_SETTING_ID =
+            "movement.flight.sprintBoost";
+    public static final String SPRINT_MULTIPLIER_SETTING_ID =
+            "movement.flight.sprintMultiplier";
+    public static final double DEFAULT_SPRINT_MULTIPLIER = 1.50D;
+    public static final double MINIMUM_SPRINT_MULTIPLIER = 1.00D;
+    public static final double MAXIMUM_SPRINT_MULTIPLIER = 3.00D;
     public static final double DEFAULT_HORIZONTAL_SPEED =
             0.30D;
     public static final double DEFAULT_VERTICAL_SPEED =
@@ -45,6 +52,18 @@ public final class Minecraft189FlightModule
                     DEFAULT_VERTICAL_SPEED,
                     Minecraft189FlightModule::validSpeed,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> sprintBoost =
+            new Setting<Boolean>(
+                    SPRINT_BOOST_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Double> sprintMultiplier =
+            new Setting<Double>(
+                    SPRINT_MULTIPLIER_SETTING_ID,
+                    DEFAULT_SPRINT_MULTIPLIER,
+                    Minecraft189FlightModule::validSprintMultiplier,
+                    SettingCodecs.DOUBLE);
     private boolean enabled;
 
     Minecraft189FlightModule(
@@ -68,6 +87,14 @@ public final class Minecraft189FlightModule
         return verticalSpeed;
     }
 
+    public Setting<Boolean> sprintBoostSetting() {
+        return sprintBoost;
+    }
+
+    public Setting<Double> sprintMultiplierSetting() {
+        return sprintMultiplier;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -81,19 +108,21 @@ public final class Minecraft189FlightModule
     synchronized void apply(
             final Minecraft189PlayerMotionControl player,
             final Minecraft189PlayerRotationState.Snapshot rotation) {
-        Objects.requireNonNull(
-                rotation,
-                "rotation");
+        apply(player, rotation, null);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerMotionControl player,
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
+        Objects.requireNonNull(rotation, "rotation");
         if (!enabled || player == null) {
             return;
         }
 
-        applyVertical(
-                player);
+        applyVertical(player);
         if (rotation.available()) {
-            applyHorizontal(
-                    player,
-                    rotation.yaw());
+            applyHorizontal(player, rotation.yaw(), movement);
         }
     }
 
@@ -132,7 +161,8 @@ public final class Minecraft189FlightModule
 
     private void applyHorizontal(
             final Minecraft189PlayerMotionControl player,
-            final float yawDegrees) {
+            final float yawDegrees,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
         double forward =
                 (inputState.keyPressed(
                         LegacyKeyboardCodes.W)
@@ -170,8 +200,18 @@ public final class Minecraft189FlightModule
         final double cos =
                 Math.cos(
                         yawRadians);
+        // Sprint boost applies only to horizontal motion when the mapped
+        // live player snapshot confirms sprinting. Unknown movement state
+        // retains the certified normal Flight speed and vertical motion.
+        final double multiplier =
+                sprintBoost.get().booleanValue()
+                        && movement != null
+                        && movement.available()
+                        && movement.sprinting()
+                                ? sprintMultiplier.get().doubleValue()
+                                : 1.0D;
         final double configuredHorizontalSpeed =
-                horizontalSpeed.get().doubleValue();
+                horizontalSpeed.get().doubleValue() * multiplier;
 
         final double targetMotionX =
                 cleanZero(
@@ -196,6 +236,13 @@ public final class Minecraft189FlightModule
             player.customMcSetMotionZ(
                     targetMotionZ);
         }
+    }
+
+    private static boolean validSprintMultiplier(final Double value) {
+        return value != null
+                && Double.isFinite(value.doubleValue())
+                && value.doubleValue() >= MINIMUM_SPRINT_MULTIPLIER
+                && value.doubleValue() <= MAXIMUM_SPRINT_MULTIPLIER;
     }
 
     private static boolean validSpeed(
