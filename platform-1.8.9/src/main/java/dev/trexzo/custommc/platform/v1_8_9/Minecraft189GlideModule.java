@@ -10,6 +10,8 @@ public final class Minecraft189GlideModule
             "movement.glide";
     public static final String FALL_SPEED_SETTING_ID =
             "movement.glide.fallSpeed";
+    public static final String REQUIRE_SNEAKING_SETTING_ID =
+            "movement.glide.requireSneaking";
     public static final double DEFAULT_FALL_SPEED =
             0.08D;
     public static final double MINIMUM_FALL_SPEED =
@@ -23,6 +25,12 @@ public final class Minecraft189GlideModule
                     DEFAULT_FALL_SPEED,
                     Minecraft189GlideModule::validFallSpeed,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> requireSneaking =
+            new Setting<Boolean>(
+                    REQUIRE_SNEAKING_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private boolean enabled;
 
     @Override
@@ -32,6 +40,10 @@ public final class Minecraft189GlideModule
 
     public Setting<Double> fallSpeedSetting() {
         return fallSpeed;
+    }
+
+    public Setting<Boolean> requireSneakingSetting() {
+        return requireSneaking;
     }
 
     @Override
@@ -53,14 +65,17 @@ public final class Minecraft189GlideModule
                 || player == null
                 || movement == null
                 || !movement.available()
-                || movement.onGround()) {
+                || movement.onGround()
+                || (requireSneaking.get().booleanValue()
+                        && !movement.sneaking())) {
             return;
         }
 
         final double targetMotionY =
                 -fallSpeed.get().doubleValue();
-        if (player.customMcMotionY()
-                < targetMotionY) {
+        final double currentMotionY = player.customMcMotionY();
+        if (Double.isFinite(currentMotionY)
+                && currentMotionY < targetMotionY) {
             player.customMcSetMotionY(
                     targetMotionY);
         }
