@@ -107,6 +107,93 @@ final class Minecraft189StepModuleTest {
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
     }
 
+    @Test
+    void stepGroundAndSneakGatesRestoreVanillaOnFailedMovementAuthority() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189StepModule step = runtime.featureCatalog().step();
+            final TestPlayer player = new TestPlayer();
+            assertFalse(step.groundOnlySetting().get().booleanValue());
+            assertFalse(step.pauseWhileSneakingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189StepModule.GROUND_ONLY_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189StepModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            controller.enable(Minecraft189StepModule.ID);
+            step.heightPercentSetting().set(180);
+
+            // Legacy default: elevated step height without movement state.
+            runtime.playerStepControl(player);
+            assertEquals(1.8F, player.height, 0.000001F);
+            step.groundOnlySetting().set(Boolean.TRUE);
+            runtime.playerStepControl(player);
+            assertEquals(0.6F, player.height, 0.000001F);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerStepControl(player);
+            assertEquals(0.6F, player.height, 0.000001F);
+            runtime.playerMovementState().update(true, true, false);
+            runtime.playerStepControl(player);
+            assertEquals(1.8F, player.height, 0.000001F); // Ground gate alone.
+
+            step.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            runtime.playerStepControl(player);
+            assertEquals(0.6F, player.height, 0.000001F);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerStepControl(player);
+            assertEquals(1.8F, player.height, 0.000001F);
+            runtime.playerMovementState().clear();
+            runtime.playerStepControl(player);
+            assertEquals(0.6F, player.height, 0.000001F);
+
+            // Sneaking suppression independently of the ground gate.
+            step.groundOnlySetting().set(Boolean.FALSE);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerStepControl(player);
+            assertEquals(1.8F, player.height, 0.000001F);
+            runtime.playerMovementState().update(false, true, false);
+            runtime.playerStepControl(player);
+            assertEquals(0.6F, player.height, 0.000001F);
+
+            // Live OFF returns exact legacy behavior even with absent state.
+            step.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            runtime.playerMovementState().clear();
+            runtime.playerStepControl(player);
+            assertEquals(1.8F, player.height, 0.000001F);
+            step.groundOnlySetting().set(Boolean.TRUE);
+            step.apply(player); // Legacy overload fails closed safely.
+            assertEquals(0.6F, player.height, 0.000001F);
+            step.groundOnlySetting().set(Boolean.FALSE);
+            step.apply(player); // Default legacy overload unchanged.
+            assertEquals(1.8F, player.height, 0.000001F);
+
+            player.height = Float.NaN;
+            runtime.playerStepControl(player);
+            assertEquals(1.8F, player.height, 0.000001F);
+            controller.disable(Minecraft189StepModule.ID);
+            runtime.playerStepControl(player);
+            assertEquals(0.6F, player.height, 0.000001F);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189StepModule.GROUND_ONLY_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189StepModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189StepModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerStepControl {
         private float height =

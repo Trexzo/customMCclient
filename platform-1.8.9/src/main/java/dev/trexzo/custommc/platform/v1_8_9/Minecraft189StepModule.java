@@ -10,6 +10,10 @@ public final class Minecraft189StepModule
             "movement.step";
     public static final String HEIGHT_SETTING_ID =
             "movement.step.heightPercent";
+    public static final String GROUND_ONLY_SETTING_ID =
+            "movement.step.groundOnly";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "movement.step.pauseWhileSneaking";
     public static final int DEFAULT_HEIGHT_PERCENT = 100;
     public static final float VANILLA_STEP_HEIGHT = 0.6F;
 
@@ -21,6 +25,14 @@ public final class Minecraft189StepModule
                             && value <= 250,
                     SettingCodecs.INTEGER);
 
+    private final Setting<Boolean> groundOnly =
+            new Setting<Boolean>(
+                    GROUND_ONLY_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> pauseWhileSneaking =
+            new Setting<Boolean>(
+                    PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
 
     @Override
@@ -30,6 +42,14 @@ public final class Minecraft189StepModule
 
     public Setting<Integer> heightPercentSetting() {
         return heightPercent;
+    }
+
+    public Setting<Boolean> groundOnlySetting() {
+        return groundOnly;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
     }
 
     @Override
@@ -44,19 +64,33 @@ public final class Minecraft189StepModule
 
     synchronized void apply(
             final Minecraft189PlayerStepControl player) {
+        apply(player, null);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerStepControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
         if (player == null) {
             return;
         }
 
-        final float target =
-                enabled
-                        ? heightPercent.get().intValue() / 100.0F
-                        : VANILLA_STEP_HEIGHT;
-        if (Math.abs(
-                player.customMcStepHeight()
-                        - target) > 0.000001F) {
-            player.customMcSetStepHeight(
-                    target);
+        final boolean groundGate = groundOnly.get().booleanValue();
+        final boolean sneakGate = pauseWhileSneaking.get().booleanValue();
+        final boolean permitted =
+                enabled && ((!groundGate && !sneakGate)
+                        || (movement != null && movement.available()
+                        && (!groundGate || movement.onGround())
+                        && (!sneakGate || !movement.sneaking())));
+        // Restoring vanilla on failed authority is essential: simply
+        // skipping writes would retain a stale boosted step height while
+        // airborne, sneaking, disconnected or disabled.
+        final float target = permitted
+                ? heightPercent.get().intValue() / 100.0F
+                : VANILLA_STEP_HEIGHT;
+        final float current = player.customMcStepHeight();
+        if (!Float.isFinite(current)
+                || Math.abs(current - target) > 0.000001F) {
+            player.customMcSetStepHeight(target);
         }
     }
 

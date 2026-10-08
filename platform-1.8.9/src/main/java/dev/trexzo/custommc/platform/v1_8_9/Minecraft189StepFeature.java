@@ -22,6 +22,12 @@ final class Minecraft189StepFeature
     private final SettingRegistry.Registration heightSetting;
     private final SettingPresentationRegistry.Registration heightPresentation;
     private final ModuleSettingRegistry.Registration heightBinding;
+    private final SettingRegistry.Registration groundOnlySetting;
+    private final SettingRegistry.Registration pauseWhileSneakingSetting;
+    private final SettingPresentationRegistry.Registration groundOnlyPresentation;
+    private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
+    private final ModuleSettingRegistry.Registration groundOnlyBinding;
+    private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private boolean closed;
 
     private Minecraft189StepFeature(
@@ -31,7 +37,13 @@ final class Minecraft189StepFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration heightSetting,
             final SettingPresentationRegistry.Registration heightPresentation,
-            final ModuleSettingRegistry.Registration heightBinding) {
+            final ModuleSettingRegistry.Registration heightBinding,
+            final SettingRegistry.Registration groundOnlySetting,
+            final SettingRegistry.Registration pauseWhileSneakingSetting,
+            final SettingPresentationRegistry.Registration groundOnlyPresentation,
+            final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
+            final ModuleSettingRegistry.Registration groundOnlyBinding,
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -39,6 +51,12 @@ final class Minecraft189StepFeature
         this.heightSetting = heightSetting;
         this.heightPresentation = heightPresentation;
         this.heightBinding = heightBinding;
+        this.groundOnlySetting = groundOnlySetting;
+        this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
+        this.groundOnlyPresentation = groundOnlyPresentation;
+        this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
+        this.groundOnlyBinding = groundOnlyBinding;
+        this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
     }
 
     static Minecraft189StepFeature install(
@@ -56,6 +74,12 @@ final class Minecraft189StepFeature
         SettingRegistry.Registration heightSetting = null;
         SettingPresentationRegistry.Registration heightPresentation = null;
         ModuleSettingRegistry.Registration heightBinding = null;
+        SettingRegistry.Registration groundOnlySetting = null;
+        SettingRegistry.Registration pauseWhileSneakingSetting = null;
+        SettingPresentationRegistry.Registration groundOnlyPresentation = null;
+        SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
+        ModuleSettingRegistry.Registration groundOnlyBinding = null;
+        ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
 
         try {
             moduleRegistration =
@@ -72,6 +96,8 @@ final class Minecraft189StepFeature
             heightSetting =
                     settings.register(
                             module.heightPercentSetting());
+            groundOnlySetting = settings.register(module.groundOnlySetting());
+            pauseWhileSneakingSetting = settings.register(module.pauseWhileSneakingSetting());
             heightPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -83,12 +109,29 @@ final class Minecraft189StepFeature
                                             60.0D,
                                             250.0D,
                                             5.0D)));
+            groundOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189StepModule.GROUND_ONLY_SETTING_ID,
+                            "Ground Only", SettingValueKind.BOOLEAN, 10));
+            pauseWhileSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189StepModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 20));
             heightBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
                                     Minecraft189StepModule.ID,
                                     Minecraft189StepModule.HEIGHT_SETTING_ID,
                                     0));
+
+            groundOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189StepModule.ID,
+                            Minecraft189StepModule.GROUND_ONLY_SETTING_ID, 10));
+            pauseWhileSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189StepModule.ID,
+                            Minecraft189StepModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 20));
 
             return new Minecraft189StepFeature(
                     controller,
@@ -97,8 +140,20 @@ final class Minecraft189StepFeature
                     presentation,
                     heightSetting,
                     heightPresentation,
-                    heightBinding);
+                    heightBinding,
+                    groundOnlySetting,
+                    pauseWhileSneakingSetting,
+                    groundOnlyPresentation,
+                    pauseWhileSneakingPresentation,
+                    groundOnlyBinding,
+                    pauseWhileSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseWhileSneakingBinding, failure);
+            closeQuietly(groundOnlyBinding, failure);
+            closeQuietly(pauseWhileSneakingPresentation, failure);
+            closeQuietly(groundOnlyPresentation, failure);
+            closeQuietly(pauseWhileSneakingSetting, failure);
+            closeQuietly(groundOnlySetting, failure);
             closeQuietly(heightBinding, failure);
             closeQuietly(heightPresentation, failure);
             closeQuietly(heightSetting, failure);
@@ -135,6 +190,12 @@ final class Minecraft189StepFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseWhileSneakingBinding, failure);
+        failure = close(groundOnlyBinding, failure);
+        failure = close(pauseWhileSneakingPresentation, failure);
+        failure = close(groundOnlyPresentation, failure);
+        failure = close(pauseWhileSneakingSetting, failure);
+        failure = close(groundOnlySetting, failure);
         failure = close(heightBinding, failure);
         failure = close(heightPresentation, failure);
         failure = close(heightSetting, failure);

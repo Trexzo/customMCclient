@@ -800,7 +800,8 @@ public final class Minecraft189HostRuntime
         requireOpen();
         featureCatalog.step()
                 .apply(
-                        player);
+                        player,
+                        playerMovementState.snapshot());
     }
 
     void playerFallDistanceControl(
