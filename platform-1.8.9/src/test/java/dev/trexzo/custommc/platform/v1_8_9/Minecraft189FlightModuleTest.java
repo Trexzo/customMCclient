@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189FlightModuleTest {
@@ -356,9 +357,138 @@ final class Minecraft189FlightModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189FlightModule.VERTICAL_SPEED_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189FlightModule.SPRINT_BOOST_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189FlightModule.SPRINT_MULTIPLIER_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
+    }
+
+    @Test
+    void flightSprintBoostScalesHorizontalOnlyWhenMappedSprinting() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189FlightModule flight = runtime.featureCatalog().flight();
+            assertFalse(flight.sprintBoostSetting().get().booleanValue());
+            assertEquals(Minecraft189FlightModule.DEFAULT_SPRINT_MULTIPLIER,
+                    flight.sprintMultiplierSetting().get().doubleValue(), 0.000001D);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FlightModule.SPRINT_BOOST_SETTING_ID));
+            assertEquals("1.5", settings.snapshotEncoded().get(
+                    Minecraft189FlightModule.SPRINT_MULTIPLIER_SETTING_ID));
+
+            final TestPlayer player = new TestPlayer();
+            controller.enable(Minecraft189FlightModule.ID);
+            runtime.playerRotationState().update(0.0F);
+            runtime.playerMovementState().update(true, false, true);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerMotionControl(player);
+            // Default OFF must ignore even a known sprinting snapshot.
+            assertEquals(0.30D, player.motionZ, 0.000000001D);
+            assertEquals(0.0D, player.motionX, 0.000000001D);
+            assertEquals(0.0D, player.motionY, 0.000000001D);
+
+            flight.sprintBoostSetting().set(Boolean.TRUE);
+            flight.sprintMultiplierSetting().set(2.0D);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FlightModule.SPRINT_BOOST_SETTING_ID));
+            assertEquals("2.0", settings.snapshotEncoded().get(
+                    Minecraft189FlightModule.SPRINT_MULTIPLIER_SETTING_ID));
+            runtime.playerMotionControl(player);
+            assertEquals(0.60D, player.motionZ, 0.000000001D);
+            assertEquals(0.0D, player.motionY, 0.000000001D);
+            final int unchangedWrites = player.setCalls;
+            runtime.playerMotionControl(player);
+            assertEquals(unchangedWrites, player.setCalls);
+
+            // A second movement axis preserves normalized diagonal speed.
+            runtime.inputState().key(LegacyKeyboardCodes.A, true);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerMotionControl(player);
+            assertEquals(0.60D / Math.sqrt(2.0D), player.motionX, 0.000000001D);
+            assertEquals(0.60D / Math.sqrt(2.0D), player.motionZ, 0.000000001D);
+            assertEquals(0.30D, player.motionY, 0.000000001D);
+            flight.sprintMultiplierSetting().set(3.0D);
+            runtime.playerMotionControl(player);
+            assertEquals(0.90D / Math.sqrt(2.0D), player.motionX, 0.000000001D);
+            assertEquals(0.90D / Math.sqrt(2.0D), player.motionZ, 0.000000001D);
+            assertEquals(0.30D, player.motionY, 0.000000001D);
+
+            runtime.inputState().key(LegacyKeyboardCodes.A, false);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionZ, 0.000000001D);
+            assertEquals(0.0D, player.motionY, 0.000000001D);
+            runtime.playerMovementState().clear();
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionZ, 0.000000001D);
+
+            runtime.playerMovementState().update(false, false, true);
+            runtime.playerMotionControl(player);
+            assertEquals(0.90D, player.motionZ, 0.000000001D);
+            flight.sprintBoostSetting().set(Boolean.FALSE);
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionZ, 0.000000001D);
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> flight.sprintMultiplierSetting().set(0.99D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> flight.sprintMultiplierSetting().set(3.01D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> flight.sprintMultiplierSetting().set(Double.NaN));
+            assertThrows(IllegalArgumentException.class,
+                    () -> flight.sprintMultiplierSetting().set(Double.POSITIVE_INFINITY));
+            controller.disable(Minecraft189FlightModule.ID);
+            player.motionZ = 0.13D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.13D, player.motionZ, 0.000000001D);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189FlightModule.SPRINT_BOOST_SETTING_ID));
+        assertNull(settings.find(Minecraft189FlightModule.SPRINT_MULTIPLIER_SETTING_ID));
+        assertNull(modules.find(Minecraft189FlightModule.ID));
+    }
+
+    @Test
+    void oldFlightApplyOverloadUsesNormalSpeedWithNoMovementAuthority() {
+        final Minecraft189InputState input = new Minecraft189InputState();
+        final Minecraft189FlightModule flight = new Minecraft189FlightModule(input);
+        final Minecraft189PlayerRotationState rotation = new Minecraft189PlayerRotationState();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer();
+        rotation.update(0.0F);
+        input.key(LegacyKeyboardCodes.W, true);
+        flight.onEnable();
+        flight.sprintBoostSetting().set(Boolean.TRUE);
+        flight.sprintMultiplierSetting().set(2.0D);
+        flight.apply(player, rotation.snapshot());
+        assertEquals(0.30D, player.motionZ, 0.000000001D);
+        movement.update(true, false, true);
+        flight.apply(player, rotation.snapshot(), movement.snapshot());
+        assertEquals(0.60D, player.motionZ, 0.000000001D);
+        flight.apply(player, rotation.snapshot());
+        assertEquals(0.30D, player.motionZ, 0.000000001D);
+        flight.onDisable();
+        player.motionZ = 0.20D;
+        flight.apply(player, rotation.snapshot(), movement.snapshot());
+        assertEquals(0.20D, player.motionZ, 0.000000001D);
     }
 
     private static final class TestPlayer

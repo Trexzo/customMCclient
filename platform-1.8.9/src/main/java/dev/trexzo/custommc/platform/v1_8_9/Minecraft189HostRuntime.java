@@ -912,7 +912,8 @@ public final class Minecraft189HostRuntime
         featureCatalog.flight()
                 .apply(
                         player,
-                        rotation);
+                        rotation,
+                        movement);
         featureCatalog.strafe()
                 .apply(
                         player,

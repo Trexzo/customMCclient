@@ -21,10 +21,16 @@ final class Minecraft189FlightFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration horizontalSpeedSetting;
     private final SettingRegistry.Registration verticalSpeedSetting;
+    private final SettingRegistry.Registration sprintBoostSetting;
+    private final SettingRegistry.Registration sprintMultiplierSetting;
     private final SettingPresentationRegistry.Registration horizontalSpeedPresentation;
     private final SettingPresentationRegistry.Registration verticalSpeedPresentation;
+    private final SettingPresentationRegistry.Registration sprintBoostPresentation;
+    private final SettingPresentationRegistry.Registration sprintMultiplierPresentation;
     private final ModuleSettingRegistry.Registration horizontalSpeedBinding;
     private final ModuleSettingRegistry.Registration verticalSpeedBinding;
+    private final ModuleSettingRegistry.Registration sprintBoostBinding;
+    private final ModuleSettingRegistry.Registration sprintMultiplierBinding;
     private boolean closed;
 
     private Minecraft189FlightFeature(
@@ -34,20 +40,32 @@ final class Minecraft189FlightFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration horizontalSpeedSetting,
             final SettingRegistry.Registration verticalSpeedSetting,
+            final SettingRegistry.Registration sprintBoostSetting,
+            final SettingRegistry.Registration sprintMultiplierSetting,
             final SettingPresentationRegistry.Registration horizontalSpeedPresentation,
             final SettingPresentationRegistry.Registration verticalSpeedPresentation,
+            final SettingPresentationRegistry.Registration sprintBoostPresentation,
+            final SettingPresentationRegistry.Registration sprintMultiplierPresentation,
             final ModuleSettingRegistry.Registration horizontalSpeedBinding,
-            final ModuleSettingRegistry.Registration verticalSpeedBinding) {
+            final ModuleSettingRegistry.Registration verticalSpeedBinding,
+            final ModuleSettingRegistry.Registration sprintBoostBinding,
+            final ModuleSettingRegistry.Registration sprintMultiplierBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.horizontalSpeedSetting = horizontalSpeedSetting;
         this.verticalSpeedSetting = verticalSpeedSetting;
+        this.sprintBoostSetting = sprintBoostSetting;
+        this.sprintMultiplierSetting = sprintMultiplierSetting;
         this.horizontalSpeedPresentation = horizontalSpeedPresentation;
         this.verticalSpeedPresentation = verticalSpeedPresentation;
+        this.sprintBoostPresentation = sprintBoostPresentation;
+        this.sprintMultiplierPresentation = sprintMultiplierPresentation;
         this.horizontalSpeedBinding = horizontalSpeedBinding;
         this.verticalSpeedBinding = verticalSpeedBinding;
+        this.sprintBoostBinding = sprintBoostBinding;
+        this.sprintMultiplierBinding = sprintMultiplierBinding;
     }
 
     static Minecraft189FlightFeature install(
@@ -66,10 +84,16 @@ final class Minecraft189FlightFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration horizontalSpeedSetting = null;
         SettingRegistry.Registration verticalSpeedSetting = null;
+        SettingRegistry.Registration sprintBoostSetting = null;
+        SettingRegistry.Registration sprintMultiplierSetting = null;
         SettingPresentationRegistry.Registration horizontalSpeedPresentation = null;
         SettingPresentationRegistry.Registration verticalSpeedPresentation = null;
+        SettingPresentationRegistry.Registration sprintBoostPresentation = null;
+        SettingPresentationRegistry.Registration sprintMultiplierPresentation = null;
         ModuleSettingRegistry.Registration horizontalSpeedBinding = null;
         ModuleSettingRegistry.Registration verticalSpeedBinding = null;
+        ModuleSettingRegistry.Registration sprintBoostBinding = null;
+        ModuleSettingRegistry.Registration sprintMultiplierBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -90,6 +114,8 @@ final class Minecraft189FlightFeature
             verticalSpeedSetting =
                     settings.register(
                             module.verticalSpeedSetting());
+            sprintBoostSetting = settings.register(module.sprintBoostSetting());
+            sprintMultiplierSetting = settings.register(module.sprintMultiplierSetting());
 
             horizontalSpeedPresentation =
                     settingPresentations.register(
@@ -114,6 +140,18 @@ final class Minecraft189FlightFeature
                                             Minecraft189FlightModule.MAXIMUM_SPEED,
                                             0.05D)));
 
+            sprintBoostPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FlightModule.SPRINT_BOOST_SETTING_ID,
+                            "Sprint Boost", SettingValueKind.BOOLEAN, 20));
+            sprintMultiplierPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FlightModule.SPRINT_MULTIPLIER_SETTING_ID,
+                            "Sprint Multiplier", SettingValueKind.DOUBLE, 30,
+                            new SettingNumericSpec(
+                                    Minecraft189FlightModule.MINIMUM_SPRINT_MULTIPLIER,
+                                    Minecraft189FlightModule.MAXIMUM_SPRINT_MULTIPLIER,
+                                    0.10D)));
             horizontalSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -127,6 +165,15 @@ final class Minecraft189FlightFeature
                                     Minecraft189FlightModule.VERTICAL_SPEED_SETTING_ID,
                                     10));
 
+            sprintBoostBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FlightModule.ID,
+                            Minecraft189FlightModule.SPRINT_BOOST_SETTING_ID, 20));
+            sprintMultiplierBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FlightModule.ID,
+                            Minecraft189FlightModule.SPRINT_MULTIPLIER_SETTING_ID, 30));
+
             return new Minecraft189FlightFeature(
                     controller,
                     module,
@@ -134,11 +181,23 @@ final class Minecraft189FlightFeature
                     presentation,
                     horizontalSpeedSetting,
                     verticalSpeedSetting,
+                    sprintBoostSetting,
+                    sprintMultiplierSetting,
                     horizontalSpeedPresentation,
                     verticalSpeedPresentation,
+                    sprintBoostPresentation,
+                    sprintMultiplierPresentation,
                     horizontalSpeedBinding,
-                    verticalSpeedBinding);
+                    verticalSpeedBinding,
+                    sprintBoostBinding,
+                    sprintMultiplierBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(sprintMultiplierBinding, failure);
+            closeQuietly(sprintBoostBinding, failure);
+            closeQuietly(sprintMultiplierPresentation, failure);
+            closeQuietly(sprintBoostPresentation, failure);
+            closeQuietly(sprintMultiplierSetting, failure);
+            closeQuietly(sprintBoostSetting, failure);
             closeQuietly(verticalSpeedBinding, failure);
             closeQuietly(horizontalSpeedBinding, failure);
             closeQuietly(verticalSpeedPresentation, failure);
@@ -178,6 +237,12 @@ final class Minecraft189FlightFeature
             failure = closeFailure;
         }
 
+        failure = close(sprintMultiplierBinding, failure);
+        failure = close(sprintBoostBinding, failure);
+        failure = close(sprintMultiplierPresentation, failure);
+        failure = close(sprintBoostPresentation, failure);
+        failure = close(sprintMultiplierSetting, failure);
+        failure = close(sprintBoostSetting, failure);
         failure = close(verticalSpeedBinding, failure);
         failure = close(horizontalSpeedBinding, failure);
         failure = close(verticalSpeedPresentation, failure);
