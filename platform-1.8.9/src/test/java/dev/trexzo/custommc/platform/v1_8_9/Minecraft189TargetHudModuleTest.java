@@ -213,20 +213,36 @@ final class Minecraft189TargetHudModuleTest {
     }
 
     private static void assertBar(
-            final float[] bar,
+            final Bar bar,
             final float x, final float y,
             final float width, final float height, final int color) {
-        assertEquals(x, bar[0], 0.0001F);
-        assertEquals(y, bar[1], 0.0001F);
-        assertEquals(width, bar[2], 0.0001F);
-        assertEquals(height, bar[3], 0.0001F);
-        assertEquals(color, (int) bar[4]);
+        assertEquals(x, bar.x, 0.0001F);
+        assertEquals(y, bar.y, 0.0001F);
+        assertEquals(width, bar.width, 0.0001F);
+        assertEquals(height, bar.height, 0.0001F);
+        assertEquals(color, bar.color);
+    }
+
+    private static final class Bar {
+        private final float x;
+        private final float y;
+        private final float width;
+        private final float height;
+        private final int color;
+        private Bar(final float x, final float y, final float width,
+                final float height, final int color) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+            this.color = color;
+        }
     }
 
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private final java.util.List<String> texts = new java.util.ArrayList<String>();
-        private final java.util.List<float[]> bars = new java.util.ArrayList<float[]>();
+        private final java.util.List<Bar> bars = new java.util.ArrayList<Bar>();
         private int roundedRects;
         private float lastCardWidth;
         private float lastCardHeight;
@@ -263,7 +279,7 @@ final class Minecraft189TargetHudModuleTest {
                 final float width,
                 final float height,
                 final int argb) {
-            bars.add(new float[]{x, y, width, height, argb});
+            bars.add(new Bar(x, y, width, height, argb));
         }
 
         @Override
