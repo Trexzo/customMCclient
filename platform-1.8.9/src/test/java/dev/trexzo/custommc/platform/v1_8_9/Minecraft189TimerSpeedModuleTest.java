@@ -232,7 +232,9 @@ final class Minecraft189TimerSpeedModuleTest {
                     () -> timerModule.airborneSpeedPercentSetting().set(9));
             assertThrows(IllegalArgumentException.class,
                     () -> timerModule.airborneSpeedPercentSetting().set(301));
-            assertThrows(IllegalArgumentException.class,
+            // Setting.set(null) rejects absent values via its non-null
+            // contract before the per-setting numeric validator is invoked.
+            assertThrows(NullPointerException.class,
                     () -> timerModule.airborneSpeedPercentSetting().set(null));
 
             controller.disable(Minecraft189TimerSpeedModule.ID);
