@@ -256,6 +256,51 @@ final class Minecraft189AutoClickerModuleTest {
                 Minecraft189AutoClickerModule.PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID));
     }
 
+    @Test
+    void editingEitherCpsBoundResetsPendingPhaseAndTarget() {
+        final Minecraft189AutoClickerModule module =
+                new Minecraft189AutoClickerModule();
+        module.minCpsSetting().set(10);
+        module.maxCpsSetting().set(10);
+        module.onEnable();
+        assertFalse(module.shouldClick(true, false, false));
+        assertTrue(module.shouldClick(true, false, false));
+        // Credit at 10 CPS would complete on the next tick. Retuning
+        // must discard that near-complete previous interval.
+        assertFalse(module.shouldClick(true, false, false));
+        module.minCpsSetting().set(4);
+        module.maxCpsSetting().set(4);
+        for (int tick = 0; tick < 4; tick++) {
+            assertFalse(module.shouldClick(true, false, false));
+        }
+        assertTrue(module.shouldClick(true, false, false));
+
+        // Change only Max during an in-progress 4 CPS interval.
+        for (int tick = 0; tick < 4; tick++) {
+            assertFalse(module.shouldClick(true, false, false));
+        }
+        module.maxCpsSetting().set(5);
+        assertFalse(module.shouldClick(true, false, false));
+        module.maxCpsSetting().set(4);
+        for (int tick = 0; tick < 4; tick++) {
+            assertFalse(module.shouldClick(true, false, false));
+        }
+        assertTrue(module.shouldClick(true, false, false));
+
+        module.minCpsSetting().set(20);
+        module.maxCpsSetting().set(20);
+        assertTrue(module.shouldClick(true, false, false));
+        assertTrue(module.shouldClick(true, false, false));
+        module.onDisable();
+        assertFalse(module.shouldClick(true, false, false));
+        module.minCpsSetting().set(10);
+        module.maxCpsSetting().set(10);
+        module.onEnable();
+        assertFalse(module.shouldClick(true, false, false));
+        assertTrue(module.shouldClick(true, false, false));
+        module.onDisable();
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override

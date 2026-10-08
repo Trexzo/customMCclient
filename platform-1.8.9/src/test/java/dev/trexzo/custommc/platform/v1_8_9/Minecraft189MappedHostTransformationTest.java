@@ -3947,6 +3947,41 @@ final class Minecraft189MappedHostTransformationTest {
                     .getInt(minecraft));
             runtime.requireHostRuntime().inputState().pointerButton(
                     Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
+
+            // M230: adjusting Min/Max CPS mid-interval must never fire
+            // on stale credit from the former sampled click rate.
+            runTick.invoke(minecraft);
+            assertEquals(8, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+            runtime.requireHostRuntime().featureCatalog().autoClicker()
+                    .minCpsSetting().set(4);
+            runtime.requireHostRuntime().featureCatalog().autoClicker()
+                    .maxCpsSetting().set(4);
+            for (int tick = 0; tick < 4; tick++) {
+                runTick.invoke(minecraft);
+                assertEquals(8, minecraftClass.getField("clickMouseCalls")
+                        .getInt(minecraft));
+            }
+            runTick.invoke(minecraft);
+            assertEquals(9, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+            runtime.requireHostRuntime().featureCatalog().autoClicker()
+                    .minCpsSetting().set(20);
+            runtime.requireHostRuntime().featureCatalog().autoClicker()
+                    .maxCpsSetting().set(20);
+            runTick.invoke(minecraft);
+            assertEquals(10, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+            runtime.requireHostRuntime().featureCatalog().autoClicker()
+                    .minCpsSetting().set(10);
+            runtime.requireHostRuntime().featureCatalog().autoClicker()
+                    .maxCpsSetting().set(10);
+            runTick.invoke(minecraft);
+            assertEquals(10, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+            runTick.invoke(minecraft);
+            assertEquals(11, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
             runtime.moduleController().disable(
                     Minecraft189AutoClickerModule.ID);
             runtime.requireHostRuntime().inputState().pointerButton(
