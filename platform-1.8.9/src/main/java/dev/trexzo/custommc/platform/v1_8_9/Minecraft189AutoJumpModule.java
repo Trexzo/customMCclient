@@ -12,6 +12,9 @@ public final class Minecraft189AutoJumpModule
             "movement.autoJump";
     public static final String REQUIRE_FORWARD_SETTING_ID =
             "movement.autoJump.requireForward";
+    public static final String LANDING_DELAY_SETTING_ID =
+            "movement.autoJump.landingDelayTicks";
+    public static final int MAXIMUM_LANDING_DELAY_TICKS = 10;
 
     private final Setting<Boolean> requireForward =
             new Setting<Boolean>(
@@ -20,8 +23,18 @@ public final class Minecraft189AutoJumpModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    private final Setting<Integer> landingDelayTicks =
+            new Setting<Integer>(
+                    LANDING_DELAY_SETTING_ID,
+                    0,
+                    value -> value != null && value >= 0
+                            && value <= MAXIMUM_LANDING_DELAY_TICKS,
+                    SettingCodecs.INTEGER);
+
     private boolean enabled;
     private boolean armed = true;
+    private boolean airborneObserved;
+    private int groundedUpdatesRemaining;
 
     @Override
     public String id() {
@@ -32,16 +45,20 @@ public final class Minecraft189AutoJumpModule
         return requireForward;
     }
 
+    public Setting<Integer> landingDelayTicksSetting() {
+        return landingDelayTicks;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
-        armed = true;
+        resetCadence();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
-        armed = true;
+        resetCadence();
     }
 
     synchronized void apply(
@@ -51,20 +68,36 @@ public final class Minecraft189AutoJumpModule
         Objects.requireNonNull(
                 movement,
                 "movement");
-        if (!enabled
-                || player == null
-                || !movement.available()) {
+        if (!enabled || player == null || !movement.available()) {
+            // An unknown or stale movement snapshot must never advance
+            // a pending landing countdown into a synthetic jump.
+            if (enabled) {
+                resetCadence();
+            }
             return;
         }
 
         if (!movement.onGround()) {
+            airborneObserved = true;
             armed = true;
+            groundedUpdatesRemaining = 0;
+            return;
+        }
+
+        if (airborneObserved) {
+            // Apply the configured delay once per observed landing, not on
+            // every grounded callback. Each delayed callback represents one
+            // grounded update; a new airborne sample cancels the countdown.
+            airborneObserved = false;
+            groundedUpdatesRemaining = landingDelayTicks.get().intValue();
+        }
+        if (groundedUpdatesRemaining > 0) {
+            groundedUpdatesRemaining--;
             return;
         }
 
         if ((requireForward.get().booleanValue()
-                && !forwardHeld)
-                || !armed) {
+                && !forwardHeld) || !armed) {
             return;
         }
 
@@ -74,5 +107,11 @@ public final class Minecraft189AutoJumpModule
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    private void resetCadence() {
+        armed = true;
+        airborneObserved = false;
+        groundedUpdatesRemaining = 0;
     }
 }

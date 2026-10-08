@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189AutoJumpModuleTest {
@@ -81,6 +82,10 @@ final class Minecraft189AutoJumpModuleTest {
                             .requireForwardSetting()
                             .get()
                             .booleanValue());
+            assertEquals(Integer.valueOf(0), runtime.featureCatalog()
+                    .autoJump().landingDelayTicksSetting().get());
+            assertEquals("0", settings.snapshotEncoded().get(
+                    Minecraft189AutoJumpModule.LANDING_DELAY_SETTING_ID));
 
             final TestPlayer player =
                     new TestPlayer();
@@ -180,6 +185,11 @@ final class Minecraft189AutoJumpModuleTest {
                             LegacyKeyboardCodes.W,
                             false);
 
+            // The new persisted delay must remain opt-in and must not
+            // alter the established instant-jump behavior at zero.
+            assertEquals("0", settings.snapshotEncoded().get(
+                    Minecraft189AutoJumpModule.LANDING_DELAY_SETTING_ID));
+
             controller.disable(
                     Minecraft189AutoJumpModule.ID);
             assertFalse(
@@ -210,9 +220,148 @@ final class Minecraft189AutoJumpModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189AutoJumpModule.REQUIRE_FORWARD_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189AutoJumpModule.LANDING_DELAY_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
+    }
+
+    @Test
+    void landingDelayWaitsExactGroundedUpdatesAndCancelsOnFreshAirContact() {
+        final Minecraft189AutoJumpModule module = new Minecraft189AutoJumpModule();
+        final Minecraft189PlayerMovementState state =
+                new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer();
+        assertEquals(Integer.valueOf(0), module.landingDelayTicksSetting().get());
+        module.onEnable();
+        state.update(true, false, false);
+        module.apply(player, state.snapshot(), true);
+        assertEquals(1, player.jumpCalls);
+        module.apply(player, state.snapshot(), true);
+        assertEquals(1, player.jumpCalls);
+
+        module.landingDelayTicksSetting().set(2);
+        assertEquals(Integer.valueOf(2), module.landingDelayTicksSetting().get());
+        state.update(false, false, false);
+        module.apply(player, state.snapshot(), true);
+        state.update(true, false, false);
+        module.apply(player, state.snapshot(), true); // Grounded 1/2.
+        assertEquals(1, player.jumpCalls);
+        module.apply(player, state.snapshot(), true); // Grounded 2/2.
+        assertEquals(1, player.jumpCalls);
+        module.apply(player, state.snapshot(), true); // First eligible callback.
+        assertEquals(2, player.jumpCalls);
+        module.apply(player, state.snapshot(), true);
+        assertEquals(2, player.jumpCalls); // No duplicate on same contact.
+
+        // An intervening airborne observation restarts the complete delay.
+        state.update(false, false, false);
+        module.apply(player, state.snapshot(), true);
+        state.update(true, false, false);
+        module.apply(player, state.snapshot(), true); // Grounded 1/2.
+        assertEquals(2, player.jumpCalls);
+        state.update(false, false, false);
+        module.apply(player, state.snapshot(), true); // Cancel pending.
+        state.update(true, false, false);
+        module.apply(player, state.snapshot(), true); // New grounded 1/2.
+        module.apply(player, state.snapshot(), true); // Grounded 2/2.
+        assertEquals(2, player.jumpCalls);
+        module.apply(player, state.snapshot(), true);
+        assertEquals(3, player.jumpCalls);
+
+        // The require-forward gate cannot consume or rearm a second jump.
+        module.requireForwardSetting().set(Boolean.TRUE);
+        state.update(false, false, false);
+        module.apply(player, state.snapshot(), false);
+        state.update(true, false, false);
+        module.apply(player, state.snapshot(), false); // 1/2.
+        module.apply(player, state.snapshot(), false); // 2/2.
+        module.apply(player, state.snapshot(), false); // Eligible but gated.
+        assertEquals(3, player.jumpCalls);
+        module.apply(player, state.snapshot(), true);
+        assertEquals(4, player.jumpCalls);
+        module.apply(player, state.snapshot(), true);
+        assertEquals(4, player.jumpCalls);
+
+        // Unknown movement never decrements/consumes pending delay.
+        state.update(false, false, false);
+        module.apply(player, state.snapshot(), true);
+        state.update(true, false, false);
+        module.apply(player, state.snapshot(), true); // 1/2
+        state.clear();
+        module.apply(player, state.snapshot(), true);
+        assertEquals(4, player.jumpCalls);
+        state.update(true, false, false);
+        module.apply(player, state.snapshot(), true);
+        assertEquals(5, player.jumpCalls); // Fresh known ground after reset.
+        module.onDisable();
+        module.apply(player, state.snapshot(), true);
+        assertEquals(5, player.jumpCalls);
+        module.onEnable();
+        module.landingDelayTicksSetting().set(0);
+        state.update(false, false, false);
+        module.apply(player, state.snapshot(), true);
+        state.update(true, false, false);
+        module.apply(player, state.snapshot(), true);
+        assertEquals(6, player.jumpCalls); // Exact original no-delay parity.
+        assertThrows(IllegalArgumentException.class,
+                () -> module.landingDelayTicksSetting().set(-1));
+        assertThrows(IllegalArgumentException.class,
+                () -> module.landingDelayTicksSetting().set(11));
+        module.onDisable();
+    }
+
+    @Test
+    void landingDelayPersistsThroughFeatureAndUnregistersOnClose() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189AutoJumpModule module =
+                    runtime.featureCatalog().autoJump();
+            assertEquals("0", settings.snapshotEncoded().get(
+                    Minecraft189AutoJumpModule.LANDING_DELAY_SETTING_ID));
+            module.landingDelayTicksSetting().set(3);
+            assertEquals("3", settings.snapshotEncoded().get(
+                    Minecraft189AutoJumpModule.LANDING_DELAY_SETTING_ID));
+            controller.enable(Minecraft189AutoJumpModule.ID);
+            final TestPlayer player = new TestPlayer();
+            // Initial ground remains eligible without an observed landing.
+            runtime.playerMovementState(player);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+            player.onGround = false;
+            runtime.playerMovementState(player);
+            runtime.playerJumpControl(player);
+            player.onGround = true;
+            runtime.playerMovementState(player);
+            runtime.playerJumpControl(player); // 1/3
+            runtime.playerJumpControl(player); // 2/3
+            runtime.playerJumpControl(player); // 3/3
+            assertEquals(1, player.jumpCalls);
+            runtime.playerJumpControl(player); // Now eligible
+            assertEquals(2, player.jumpCalls);
+            controller.disable(Minecraft189AutoJumpModule.ID);
+            runtime.playerJumpControl(player);
+            assertEquals(2, player.jumpCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189AutoJumpModule.LANDING_DELAY_SETTING_ID));
+        assertNull(modules.find(Minecraft189AutoJumpModule.ID));
     }
 
     private static final class TestPlayer
