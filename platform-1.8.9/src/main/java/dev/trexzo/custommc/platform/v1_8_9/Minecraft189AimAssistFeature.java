@@ -26,6 +26,7 @@ final class Minecraft189AimAssistFeature
     private final SettingRegistry.Registration requireGroundSetting;
     private final SettingRegistry.Registration requireForwardSetting;
     private final SettingRegistry.Registration requireHoldSetting;
+    private final SettingRegistry.Registration prioritizeCrosshairSetting;
     private final SettingRegistry.Registration minDistanceSetting;
     private final SettingRegistry.Registration maxDistanceSetting;
     private final SettingRegistry.Registration maxFovSetting;
@@ -42,6 +43,7 @@ final class Minecraft189AimAssistFeature
     private final SettingPresentationRegistry.Registration requireGroundPresentation;
     private final SettingPresentationRegistry.Registration requireForwardPresentation;
     private final SettingPresentationRegistry.Registration requireHoldPresentation;
+    private final SettingPresentationRegistry.Registration prioritizeCrosshairPresentation;
     private final SettingPresentationRegistry.Registration minDistancePresentation;
     private final SettingPresentationRegistry.Registration maxDistancePresentation;
     private final SettingPresentationRegistry.Registration maxFovPresentation;
@@ -58,6 +60,7 @@ final class Minecraft189AimAssistFeature
     private final ModuleSettingRegistry.Registration requireGroundBinding;
     private final ModuleSettingRegistry.Registration requireForwardBinding;
     private final ModuleSettingRegistry.Registration requireHoldBinding;
+    private final ModuleSettingRegistry.Registration prioritizeCrosshairBinding;
     private final ModuleSettingRegistry.Registration minDistanceBinding;
     private final ModuleSettingRegistry.Registration maxDistanceBinding;
     private final ModuleSettingRegistry.Registration maxFovBinding;
@@ -81,6 +84,7 @@ final class Minecraft189AimAssistFeature
             final SettingRegistry.Registration requireGroundSetting,
             final SettingRegistry.Registration requireForwardSetting,
             final SettingRegistry.Registration requireHoldSetting,
+            final SettingRegistry.Registration prioritizeCrosshairSetting,
             final SettingRegistry.Registration minDistanceSetting,
             final SettingRegistry.Registration maxDistanceSetting,
             final SettingRegistry.Registration maxFovSetting,
@@ -97,6 +101,7 @@ final class Minecraft189AimAssistFeature
             final SettingPresentationRegistry.Registration requireGroundPresentation,
             final SettingPresentationRegistry.Registration requireForwardPresentation,
             final SettingPresentationRegistry.Registration requireHoldPresentation,
+            final SettingPresentationRegistry.Registration prioritizeCrosshairPresentation,
             final SettingPresentationRegistry.Registration minDistancePresentation,
             final SettingPresentationRegistry.Registration maxDistancePresentation,
             final SettingPresentationRegistry.Registration maxFovPresentation,
@@ -113,6 +118,7 @@ final class Minecraft189AimAssistFeature
             final ModuleSettingRegistry.Registration requireGroundBinding,
             final ModuleSettingRegistry.Registration requireForwardBinding,
             final ModuleSettingRegistry.Registration requireHoldBinding,
+            final ModuleSettingRegistry.Registration prioritizeCrosshairBinding,
             final ModuleSettingRegistry.Registration minDistanceBinding,
             final ModuleSettingRegistry.Registration maxDistanceBinding,
             final ModuleSettingRegistry.Registration maxFovBinding,
@@ -133,6 +139,7 @@ final class Minecraft189AimAssistFeature
         this.requireGroundSetting = requireGroundSetting;
         this.requireForwardSetting = requireForwardSetting;
         this.requireHoldSetting = requireHoldSetting;
+        this.prioritizeCrosshairSetting = prioritizeCrosshairSetting;
         this.minDistanceSetting = minDistanceSetting;
         this.maxDistanceSetting = maxDistanceSetting;
         this.maxFovSetting = maxFovSetting;
@@ -149,6 +156,7 @@ final class Minecraft189AimAssistFeature
         this.requireGroundPresentation = requireGroundPresentation;
         this.requireForwardPresentation = requireForwardPresentation;
         this.requireHoldPresentation = requireHoldPresentation;
+        this.prioritizeCrosshairPresentation = prioritizeCrosshairPresentation;
         this.minDistancePresentation = minDistancePresentation;
         this.maxDistancePresentation = maxDistancePresentation;
         this.maxFovPresentation = maxFovPresentation;
@@ -165,6 +173,7 @@ final class Minecraft189AimAssistFeature
         this.requireGroundBinding = requireGroundBinding;
         this.requireForwardBinding = requireForwardBinding;
         this.requireHoldBinding = requireHoldBinding;
+        this.prioritizeCrosshairBinding = prioritizeCrosshairBinding;
         this.minDistanceBinding = minDistanceBinding;
         this.maxDistanceBinding = maxDistanceBinding;
         this.maxFovBinding = maxFovBinding;
@@ -195,6 +204,7 @@ final class Minecraft189AimAssistFeature
         SettingRegistry.Registration requireGroundSetting = null;
         SettingRegistry.Registration requireForwardSetting = null;
         SettingRegistry.Registration requireHoldSetting = null;
+        SettingRegistry.Registration prioritizeCrosshairSetting = null;
         SettingRegistry.Registration minDistanceSetting = null;
         SettingRegistry.Registration maxDistanceSetting = null;
         SettingRegistry.Registration maxFovSetting = null;
@@ -211,6 +221,7 @@ final class Minecraft189AimAssistFeature
         SettingPresentationRegistry.Registration requireGroundPresentation = null;
         SettingPresentationRegistry.Registration requireForwardPresentation = null;
         SettingPresentationRegistry.Registration requireHoldPresentation = null;
+        SettingPresentationRegistry.Registration prioritizeCrosshairPresentation = null;
         SettingPresentationRegistry.Registration minDistancePresentation = null;
         SettingPresentationRegistry.Registration maxDistancePresentation = null;
         SettingPresentationRegistry.Registration maxFovPresentation = null;
@@ -227,6 +238,7 @@ final class Minecraft189AimAssistFeature
         ModuleSettingRegistry.Registration requireGroundBinding = null;
         ModuleSettingRegistry.Registration requireForwardBinding = null;
         ModuleSettingRegistry.Registration requireHoldBinding = null;
+        ModuleSettingRegistry.Registration prioritizeCrosshairBinding = null;
         ModuleSettingRegistry.Registration minDistanceBinding = null;
         ModuleSettingRegistry.Registration maxDistanceBinding = null;
         ModuleSettingRegistry.Registration maxFovBinding = null;
@@ -270,6 +282,9 @@ final class Minecraft189AimAssistFeature
             requireHoldSetting =
                     settings.register(
                             module.requireHoldSetting());
+            prioritizeCrosshairSetting =
+                    settings.register(
+                            module.prioritizeCrosshairSetting());
             minDistanceSetting =
                     settings.register(
                             module.minDistanceSetting());
@@ -354,6 +369,13 @@ final class Minecraft189AimAssistFeature
                                     "Require Hold",
                                     SettingValueKind.BOOLEAN,
                                     20));
+            prioritizeCrosshairPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189AimAssistModule.PRIORITIZE_CROSSHAIR_SETTING_ID,
+                                    "Crosshair Priority",
+                                    SettingValueKind.BOOLEAN,
+                                    22));
             minDistancePresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -487,6 +509,12 @@ final class Minecraft189AimAssistFeature
                                     Minecraft189AimAssistModule.ID,
                                     Minecraft189AimAssistModule.REQUIRE_HOLD_SETTING_ID,
                                     20));
+            prioritizeCrosshairBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189AimAssistModule.ID,
+                                    Minecraft189AimAssistModule.PRIORITIZE_CROSSHAIR_SETTING_ID,
+                                    22));
             minDistanceBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -554,6 +582,7 @@ final class Minecraft189AimAssistFeature
                     requireGroundSetting,
                     requireForwardSetting,
                     requireHoldSetting,
+                    prioritizeCrosshairSetting,
                     minDistanceSetting,
                     maxDistanceSetting,
                     maxFovSetting,
@@ -570,6 +599,7 @@ final class Minecraft189AimAssistFeature
                     requireGroundPresentation,
                     requireForwardPresentation,
                     requireHoldPresentation,
+                    prioritizeCrosshairPresentation,
                     minDistancePresentation,
                     maxDistancePresentation,
                     maxFovPresentation,
@@ -586,6 +616,7 @@ final class Minecraft189AimAssistFeature
                     requireGroundBinding,
                     requireForwardBinding,
                     requireHoldBinding,
+                    prioritizeCrosshairBinding,
                     minDistanceBinding,
                     maxDistanceBinding,
                     maxFovBinding,
@@ -605,6 +636,7 @@ final class Minecraft189AimAssistFeature
             closeQuietly(maxFovBinding, failure);
             closeQuietly(maxDistanceBinding, failure);
             closeQuietly(minDistanceBinding, failure);
+            closeQuietly(prioritizeCrosshairBinding, failure);
             closeQuietly(requireHoldBinding, failure);
             closeQuietly(requireForwardBinding, failure);
             closeQuietly(requireGroundBinding, failure);
@@ -621,6 +653,7 @@ final class Minecraft189AimAssistFeature
             closeQuietly(maxFovPresentation, failure);
             closeQuietly(maxDistancePresentation, failure);
             closeQuietly(minDistancePresentation, failure);
+            closeQuietly(prioritizeCrosshairPresentation, failure);
             closeQuietly(requireHoldPresentation, failure);
             closeQuietly(requireForwardPresentation, failure);
             closeQuietly(requireGroundPresentation, failure);
@@ -637,6 +670,7 @@ final class Minecraft189AimAssistFeature
             closeQuietly(maxFovSetting, failure);
             closeQuietly(maxDistanceSetting, failure);
             closeQuietly(minDistanceSetting, failure);
+            closeQuietly(prioritizeCrosshairSetting, failure);
             closeQuietly(requireHoldSetting, failure);
             closeQuietly(requireForwardSetting, failure);
             closeQuietly(requireGroundSetting, failure);
@@ -686,6 +720,7 @@ final class Minecraft189AimAssistFeature
         failure = close(maxFovBinding, failure);
         failure = close(maxDistanceBinding, failure);
         failure = close(minDistanceBinding, failure);
+        failure = close(prioritizeCrosshairBinding, failure);
         failure = close(requireHoldBinding, failure);
         failure = close(requireForwardBinding, failure);
         failure = close(requireGroundBinding, failure);
@@ -702,6 +737,7 @@ final class Minecraft189AimAssistFeature
         failure = close(maxFovPresentation, failure);
         failure = close(maxDistancePresentation, failure);
         failure = close(minDistancePresentation, failure);
+        failure = close(prioritizeCrosshairPresentation, failure);
         failure = close(requireHoldPresentation, failure);
         failure = close(requireForwardPresentation, failure);
         failure = close(requireGroundPresentation, failure);
@@ -718,6 +754,7 @@ final class Minecraft189AimAssistFeature
         failure = close(maxFovSetting, failure);
         failure = close(maxDistanceSetting, failure);
         failure = close(minDistanceSetting, failure);
+        failure = close(prioritizeCrosshairSetting, failure);
         failure = close(requireHoldSetting, failure);
         failure = close(requireForwardSetting, failure);
         failure = close(requireGroundSetting, failure);

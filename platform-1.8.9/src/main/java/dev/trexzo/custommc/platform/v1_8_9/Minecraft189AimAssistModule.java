@@ -22,6 +22,8 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.requireForward";
     public static final String REQUIRE_HOLD_SETTING_ID =
             "combat.aimAssist.requireHold";
+    public static final String PRIORITIZE_CROSSHAIR_SETTING_ID =
+            "combat.aimAssist.prioritizeCrosshair";
     public static final String MIN_DISTANCE_SETTING_ID =
             "combat.aimAssist.minDistance";
     public static final String MAX_DISTANCE_SETTING_ID =
@@ -124,6 +126,12 @@ public final class Minecraft189AimAssistModule
                     Boolean.TRUE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> prioritizeCrosshair =
+            new Setting<Boolean>(
+                    PRIORITIZE_CROSSHAIR_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private final Setting<Double> minDistance =
             new Setting<Double>(
                     MIN_DISTANCE_SETTING_ID,
@@ -212,6 +220,10 @@ public final class Minecraft189AimAssistModule
 
     public Setting<Boolean> requireHoldSetting() {
         return requireHold;
+    }
+
+    public Setting<Boolean> prioritizeCrosshairSetting() {
+        return prioritizeCrosshair;
     }
 
     public Setting<Double> minDistanceSetting() {
@@ -383,6 +395,26 @@ public final class Minecraft189AimAssistModule
                 && (!pitchEnabled.get().booleanValue()
                         || withinPitchFov(rotation, target,
                                 maxPitchFov.get().doubleValue()));
+    }
+
+    // Uses the same axis toggles and effective offsets as final FOV
+    // qualification. A disabled axis contributes no angular error.
+    synchronized double targetAngularErrorSquared(
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final Minecraft189TargetRotationState.Snapshot target) {
+        if (rotation == null || !rotation.available()
+                || target == null || !target.available()
+                || (!yawEnabled.get().booleanValue()
+                        && !pitchEnabled.get().booleanValue())) {
+            return Double.POSITIVE_INFINITY;
+        }
+        final double yawDelta = yawEnabled.get().booleanValue()
+                ? wrapYaw(effectiveYaw(target.yaw()) - rotation.yaw())
+                : 0.0D;
+        final double pitchDelta = pitchEnabled.get().booleanValue()
+                ? effectivePitch(target.pitch()) - rotation.pitch()
+                : 0.0D;
+        return yawDelta * yawDelta + pitchDelta * pitchDelta;
     }
 
     private float effectiveYaw(final float rawYaw) {

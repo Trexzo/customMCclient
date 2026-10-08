@@ -6,6 +6,11 @@ public final class Minecraft189NearestPlayerTargetState {
         boolean accepts(Snapshot candidate);
     }
 
+    @FunctionalInterface
+    public interface CandidateScore {
+        double score(Snapshot candidate);
+    }
+
     private boolean available;
     private boolean found;
     private int entityIndex = -1;
@@ -37,6 +42,18 @@ public final class Minecraft189NearestPlayerTargetState {
             final double minimumDistance,
             final double maximumDistance,
             final CandidateFilter filter) {
+        update(local, positions, kinds, minimumDistance, maximumDistance,
+                filter, null);
+    }
+
+    public synchronized void update(
+            final Minecraft189PlayerPositionState.Snapshot local,
+            final Minecraft189WorldEntityPositionState.Snapshot positions,
+            final Minecraft189WorldEntityKindState.Snapshot kinds,
+            final double minimumDistance,
+            final double maximumDistance,
+            final CandidateFilter filter,
+            final CandidateScore candidateScore) {
         if (!Double.isFinite(minimumDistance)
                 || !Double.isFinite(maximumDistance)
                 || minimumDistance < 0.0D
@@ -58,6 +75,7 @@ public final class Minecraft189NearestPlayerTargetState {
         final double maximumDistanceSquared =
                 maximumDistance * maximumDistance;
         int bestIndex = -1;
+        double bestScore = Double.POSITIVE_INFINITY;
         double bestDistanceSquared =
                 Double.POSITIVE_INFINITY;
         double bestX = 0.0D;
@@ -89,13 +107,27 @@ public final class Minecraft189NearestPlayerTargetState {
                             + dy * dy
                             + dz * dz;
 
-            if (candidateDistanceSquared >= minimumDistanceSquared
-                    && candidateDistanceSquared <= maximumDistanceSquared
-                    && candidateDistanceSquared < bestDistanceSquared
-                    && (filter == null || filter.accepts(
-                            new Snapshot(true, true, index,
-                                    candidateX, candidateY, candidateZ,
-                                    candidateDistanceSquared)))) {
+            if (candidateDistanceSquared < minimumDistanceSquared
+                    || candidateDistanceSquared > maximumDistanceSquared) {
+                continue;
+            }
+            final Snapshot candidate =
+                    new Snapshot(true, true, index,
+                            candidateX, candidateY, candidateZ,
+                            candidateDistanceSquared);
+            if (filter != null && !filter.accepts(candidate)) {
+                continue;
+            }
+            final double score = candidateScore == null
+                    ? candidateDistanceSquared
+                    : candidateScore.score(candidate);
+            if (!Double.isFinite(score) || score < 0.0D) {
+                continue;
+            }
+            if (score < bestScore
+                    || (score == bestScore
+                            && candidateDistanceSquared < bestDistanceSquared)) {
+                bestScore = score;
                 bestIndex = index;
                 bestDistanceSquared =
                         candidateDistanceSquared;
