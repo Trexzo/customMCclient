@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189BunnyHopModuleTest {
     @Test
@@ -75,6 +76,10 @@ final class Minecraft189BunnyHopModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189BunnyHopModule.SPEED_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189BunnyHopModule.SMOOTH_ACCELERATION_SETTING_ID));
+            assertEquals("50", settings.snapshotEncoded().get(
+                    Minecraft189BunnyHopModule.ACCELERATION_PERCENT_SETTING_ID));
             assertEquals(
                     Minecraft189BunnyHopModule.DEFAULT_SPEED,
                     runtime.featureCatalog()
@@ -289,9 +294,98 @@ final class Minecraft189BunnyHopModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189BunnyHopModule.SPEED_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189BunnyHopModule.SMOOTH_ACCELERATION_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189BunnyHopModule.ACCELERATION_PERCENT_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
+    }
+
+    @Test
+    void bunnyHopSmoothAccelerationBlendsActualMotionAndPreservesJumpCadence() {
+        final Minecraft189InputState input = new Minecraft189InputState();
+        final Minecraft189BunnyHopModule module = new Minecraft189BunnyHopModule(input);
+        final Minecraft189PlayerRotationState rotation =
+                new Minecraft189PlayerRotationState();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer();
+        rotation.update(0.0F);
+        movement.update(true, false, false);
+        module.onEnable();
+        input.key(LegacyKeyboardCodes.W, true);
+        assertFalse(module.smoothAccelerationSetting().get().booleanValue());
+        assertEquals(50, module.accelerationPercentSetting().get().intValue());
+        assertTrue(module.applyMotion(player, rotation.snapshot(), false));
+        assertEquals(0.38D, player.motionZ, 0.000000001D); // Instant default.
+
+        player.motionZ = 0.0D;
+        module.smoothAccelerationSetting().set(Boolean.TRUE);
+        assertTrue(module.applyMotion(player, rotation.snapshot(), false));
+        assertEquals(0.19D, player.motionZ, 0.000000001D);
+        module.applyMotion(player, rotation.snapshot(), false);
+        assertEquals(0.285D, player.motionZ, 0.000000001D);
+
+        module.accelerationPercentSetting().set(100);
+        module.applyMotion(player, rotation.snapshot(), false);
+        assertEquals(0.38D, player.motionZ, 0.000000001D);
+        module.speedSetting().set(0.60D);
+        module.accelerationPercentSetting().set(50);
+        module.applyMotion(player, rotation.snapshot(), false);
+        assertEquals(0.49D, player.motionZ, 0.000000001D);
+
+        // No horizontal writes during a higher-priority owner, and no
+        // accumulated interpolation credit when movement is suspended.
+        final double beforeSuspend = player.motionZ;
+        module.applyMotion(player, rotation.snapshot(), true);
+        assertEquals(beforeSuspend, player.motionZ, 0.000000001D);
+        input.key(LegacyKeyboardCodes.W, false);
+        assertFalse(module.applyMotion(player, rotation.snapshot(), false));
+        assertEquals(beforeSuspend, player.motionZ, 0.000000001D);
+        input.key(LegacyKeyboardCodes.S, true);
+        module.applyMotion(player, rotation.snapshot(), false);
+        assertEquals(-0.055D, player.motionZ, 0.000000001D);
+
+        input.key(LegacyKeyboardCodes.S, false);
+        input.key(LegacyKeyboardCodes.W, true);
+        player.motionZ = Double.NaN;
+        module.applyMotion(player, rotation.snapshot(), false);
+        assertEquals(0.60D, player.motionZ, 0.000000001D);
+        player.motionZ = Double.POSITIVE_INFINITY;
+        module.applyMotion(player, rotation.snapshot(), false);
+        assertEquals(0.60D, player.motionZ, 0.000000001D);
+        assertEquals(0.60D, Minecraft189BunnyHopModule.interpolate(
+                Double.NEGATIVE_INFINITY, 0.60D, 0.5D), 0.000000001D);
+        assertEquals(0.30D, Minecraft189BunnyHopModule.interpolate(
+                0.0D, 0.60D, 0.5D), 0.000000001D);
+        assertEquals(0.60D, Minecraft189BunnyHopModule.interpolate(
+                0.5999999D, 0.60D, 0.5D), 0.000000001D);
+
+        // Jump rearm is unchanged by horizontal smoothing.
+        module.applyJump(player, movement.snapshot(), false);
+        assertEquals(1, player.jumpCalls);
+        module.applyJump(player, movement.snapshot(), false);
+        assertEquals(1, player.jumpCalls);
+        movement.update(false, false, false);
+        module.applyJump(player, movement.snapshot(), false);
+        movement.update(true, false, false);
+        module.applyJump(player, movement.snapshot(), false);
+        assertEquals(2, player.jumpCalls);
+
+        module.smoothAccelerationSetting().set(Boolean.FALSE);
+        player.motionZ = 0.0D;
+        module.applyMotion(player, rotation.snapshot(), false);
+        assertEquals(0.60D, player.motionZ, 0.000000001D);
+        module.onDisable();
+        player.motionZ = 0.1D;
+        assertFalse(module.applyMotion(player, rotation.snapshot(), false));
+        assertEquals(0.1D, player.motionZ, 0.000000001D);
+        assertThrows(IllegalArgumentException.class,
+                () -> module.accelerationPercentSetting().set(9));
+        assertThrows(IllegalArgumentException.class,
+                () -> module.accelerationPercentSetting().set(101));
     }
 
     private static final class TestPlayer

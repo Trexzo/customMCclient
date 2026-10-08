@@ -13,6 +13,11 @@ public final class Minecraft189BunnyHopModule
             "movement.bunnyHop";
     public static final String SPEED_SETTING_ID =
             "movement.bunnyHop.speed";
+    public static final String SMOOTH_ACCELERATION_SETTING_ID =
+            "movement.bunnyHop.smoothAcceleration";
+    public static final String ACCELERATION_PERCENT_SETTING_ID =
+            "movement.bunnyHop.accelerationPercent";
+    public static final int DEFAULT_ACCELERATION_PERCENT = 50;
     public static final double DEFAULT_SPEED =
             0.38D;
     public static final double MINIMUM_SPEED =
@@ -27,6 +32,19 @@ public final class Minecraft189BunnyHopModule
                     DEFAULT_SPEED,
                     Minecraft189BunnyHopModule::validSpeed,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> smoothAcceleration =
+            new Setting<Boolean>(
+                    SMOOTH_ACCELERATION_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Integer> accelerationPercent =
+            new Setting<Integer>(
+                    ACCELERATION_PERCENT_SETTING_ID,
+                    DEFAULT_ACCELERATION_PERCENT,
+                    value -> value != null && value >= 10
+                            && value <= 100,
+                    SettingCodecs.INTEGER);
     private boolean enabled;
     private boolean armed = true;
 
@@ -45,6 +63,14 @@ public final class Minecraft189BunnyHopModule
 
     public Setting<Double> speedSetting() {
         return speed;
+    }
+
+    public Setting<Boolean> smoothAccelerationSetting() {
+        return smoothAcceleration;
+    }
+
+    public Setting<Integer> accelerationPercentSetting() {
+        return accelerationPercent;
     }
 
     @Override
@@ -155,17 +181,20 @@ public final class Minecraft189BunnyHopModule
                                 + sin * strafe)
                                 * configuredSpeed);
 
-        if (Double.compare(
-                player.customMcMotionX(),
-                targetMotionX) != 0) {
-            player.customMcSetMotionX(
-                    targetMotionX);
+        final double fraction = smoothAcceleration.get().booleanValue()
+                ? accelerationPercent.get().intValue() / 100.0D
+                : 1.0D;
+        // Each callback interpolates from the actual mapped velocity.
+        // No hidden phase credit, accumulated target or deferred writes.
+        final double currentX = player.customMcMotionX();
+        final double currentZ = player.customMcMotionZ();
+        final double nextX = interpolate(currentX, targetMotionX, fraction);
+        final double nextZ = interpolate(currentZ, targetMotionZ, fraction);
+        if (Double.compare(currentX, nextX) != 0) {
+            player.customMcSetMotionX(nextX);
         }
-        if (Double.compare(
-                player.customMcMotionZ(),
-                targetMotionZ) != 0) {
-            player.customMcSetMotionZ(
-                    targetMotionZ);
+        if (Double.compare(currentZ, nextZ) != 0) {
+            player.customMcSetMotionZ(nextZ);
         }
         return true;
     }
@@ -183,6 +212,25 @@ public final class Minecraft189BunnyHopModule
                         LegacyKeyboardCodes.S)
                 || inputState.keyPressed(
                         LegacyKeyboardCodes.D);
+    }
+
+    static double interpolate(
+            final double current,
+            final double target,
+            final double fraction) {
+        // Smooth mode must not propagate invalid mapped velocity.
+        // With the feature OFF, preserve the original direct target.
+        if (fraction >= 1.0D || !Double.isFinite(current)) {
+            return target;
+        }
+        final double delta = target - current;
+        if (!Double.isFinite(delta)) {
+            return target;
+        }
+        if (Math.abs(delta) <= 0.000001D) {
+            return target;
+        }
+        return cleanZero(current + delta * fraction);
     }
 
     private static boolean validSpeed(
