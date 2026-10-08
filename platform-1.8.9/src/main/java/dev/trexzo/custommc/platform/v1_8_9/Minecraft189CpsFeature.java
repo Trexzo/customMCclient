@@ -27,6 +27,12 @@ final class Minecraft189CpsFeature
     private final SettingPresentationRegistry.Registration yPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final SettingRegistry.Registration compactSetting;
+    private final SettingRegistry.Registration showTotalSetting;
+    private final SettingPresentationRegistry.Registration compactPresentation;
+    private final SettingPresentationRegistry.Registration showTotalPresentation;
+    private final ModuleSettingRegistry.Registration compactBinding;
+    private final ModuleSettingRegistry.Registration showTotalBinding;
     private boolean closed;
 
     private Minecraft189CpsFeature(
@@ -39,7 +45,13 @@ final class Minecraft189CpsFeature
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
             final ModuleSettingRegistry.Registration xBinding,
-            final ModuleSettingRegistry.Registration yBinding) {
+            final ModuleSettingRegistry.Registration yBinding,
+            final SettingRegistry.Registration compactSetting,
+            final SettingRegistry.Registration showTotalSetting,
+            final SettingPresentationRegistry.Registration compactPresentation,
+            final SettingPresentationRegistry.Registration showTotalPresentation,
+            final ModuleSettingRegistry.Registration compactBinding,
+            final ModuleSettingRegistry.Registration showTotalBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -50,6 +62,12 @@ final class Minecraft189CpsFeature
         this.yPresentation = yPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.compactSetting = compactSetting;
+        this.showTotalSetting = showTotalSetting;
+        this.compactPresentation = compactPresentation;
+        this.showTotalPresentation = showTotalPresentation;
+        this.compactBinding = compactBinding;
+        this.showTotalBinding = showTotalBinding;
     }
 
     static Minecraft189CpsFeature install(
@@ -76,6 +94,12 @@ final class Minecraft189CpsFeature
         SettingPresentationRegistry.Registration yPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        SettingRegistry.Registration compactSetting = null;
+        SettingRegistry.Registration showTotalSetting = null;
+        SettingPresentationRegistry.Registration compactPresentation = null;
+        SettingPresentationRegistry.Registration showTotalPresentation = null;
+        ModuleSettingRegistry.Registration compactBinding = null;
+        ModuleSettingRegistry.Registration showTotalBinding = null;
 
         try {
             moduleRegistration =
@@ -95,6 +119,8 @@ final class Minecraft189CpsFeature
             ySetting =
                     settings.register(
                             module.ySetting());
+            compactSetting = settings.register(module.compactSetting());
+            showTotalSetting = settings.register(module.showTotalSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -117,6 +143,14 @@ final class Minecraft189CpsFeature
                                             0.0D,
                                             4096.0D,
                                             1.0D)));
+            compactPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189CpsModule.COMPACT_SETTING_ID,
+                            "Compact", SettingValueKind.BOOLEAN, 20));
+            showTotalPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189CpsModule.SHOW_TOTAL_SETTING_ID,
+                            "Show Total", SettingValueKind.BOOLEAN, 30));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -130,6 +164,15 @@ final class Minecraft189CpsFeature
                                     Minecraft189CpsModule.Y_SETTING_ID,
                                     10));
 
+            compactBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189CpsModule.ID,
+                            Minecraft189CpsModule.COMPACT_SETTING_ID, 20));
+            showTotalBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189CpsModule.ID,
+                            Minecraft189CpsModule.SHOW_TOTAL_SETTING_ID, 30));
+
             return new Minecraft189CpsFeature(
                     controller,
                     module,
@@ -140,8 +183,20 @@ final class Minecraft189CpsFeature
                     xPresentation,
                     yPresentation,
                     xBinding,
-                    yBinding);
+                    yBinding,
+                    compactSetting,
+                    showTotalSetting,
+                    compactPresentation,
+                    showTotalPresentation,
+                    compactBinding,
+                    showTotalBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(showTotalBinding, failure);
+            closeQuietly(compactBinding, failure);
+            closeQuietly(showTotalPresentation, failure);
+            closeQuietly(compactPresentation, failure);
+            closeQuietly(showTotalSetting, failure);
+            closeQuietly(compactSetting, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
             closeQuietly(yPresentation, failure);
@@ -181,6 +236,12 @@ final class Minecraft189CpsFeature
             failure = closeFailure;
         }
 
+        failure = close(showTotalBinding, failure);
+        failure = close(compactBinding, failure);
+        failure = close(showTotalPresentation, failure);
+        failure = close(compactPresentation, failure);
+        failure = close(showTotalSetting, failure);
+        failure = close(compactSetting, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
         failure = close(yPresentation, failure);
