@@ -24,12 +24,15 @@ final class Minecraft189NearbyPlayersFeature
     private final SettingRegistry.Registration xSetting;
     private final SettingRegistry.Registration ySetting;
     private final SettingRegistry.Registration radiusSetting;
+    private final SettingRegistry.Registration showRadarSetting;
     private final SettingPresentationRegistry.Registration xPresentation;
     private final SettingPresentationRegistry.Registration yPresentation;
     private final SettingPresentationRegistry.Registration radiusPresentation;
+    private final SettingPresentationRegistry.Registration showRadarPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
     private final ModuleSettingRegistry.Registration radiusBinding;
+    private final ModuleSettingRegistry.Registration showRadarBinding;
     private boolean closed;
 
     private Minecraft189NearbyPlayersFeature(
@@ -40,12 +43,15 @@ final class Minecraft189NearbyPlayersFeature
             final SettingRegistry.Registration xSetting,
             final SettingRegistry.Registration ySetting,
             final SettingRegistry.Registration radiusSetting,
+            final SettingRegistry.Registration showRadarSetting,
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
             final SettingPresentationRegistry.Registration radiusPresentation,
+            final SettingPresentationRegistry.Registration showRadarPresentation,
             final ModuleSettingRegistry.Registration xBinding,
             final ModuleSettingRegistry.Registration yBinding,
-            final ModuleSettingRegistry.Registration radiusBinding) {
+            final ModuleSettingRegistry.Registration radiusBinding,
+            final ModuleSettingRegistry.Registration showRadarBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -53,12 +59,15 @@ final class Minecraft189NearbyPlayersFeature
         this.xSetting = xSetting;
         this.ySetting = ySetting;
         this.radiusSetting = radiusSetting;
+        this.showRadarSetting = showRadarSetting;
         this.xPresentation = xPresentation;
         this.yPresentation = yPresentation;
         this.radiusPresentation = radiusPresentation;
+        this.showRadarPresentation = showRadarPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
         this.radiusBinding = radiusBinding;
+        this.showRadarBinding = showRadarBinding;
     }
 
     static Minecraft189NearbyPlayersFeature install(
@@ -71,11 +80,12 @@ final class Minecraft189NearbyPlayersFeature
             final Minecraft189PlayerPositionState local,
             final Minecraft189WorldEntityPositionState entities,
             final Minecraft189WorldEntityKindState kinds,
+            final Minecraft189PlayerRotationState rotation,
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
         final Minecraft189NearbyPlayersModule module =
                 new Minecraft189NearbyPlayersModule(
-                        local, entities, kinds,
+                        local, entities, kinds, rotation,
                         renderPipeline,
                         hostCallbacks);
 
@@ -84,12 +94,15 @@ final class Minecraft189NearbyPlayersFeature
         SettingRegistry.Registration xSetting = null;
         SettingRegistry.Registration ySetting = null;
         SettingRegistry.Registration radiusSetting = null;
+        SettingRegistry.Registration showRadarSetting = null;
         SettingPresentationRegistry.Registration xPresentation = null;
         SettingPresentationRegistry.Registration yPresentation = null;
         SettingPresentationRegistry.Registration radiusPresentation = null;
+        SettingPresentationRegistry.Registration showRadarPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
         ModuleSettingRegistry.Registration radiusBinding = null;
+        ModuleSettingRegistry.Registration showRadarBinding = null;
 
         try {
             moduleRegistration =
@@ -110,6 +123,7 @@ final class Minecraft189NearbyPlayersFeature
                     settings.register(
                             module.ySetting());
             radiusSetting = settings.register(module.radiusSetting());
+            showRadarSetting = settings.register(module.showRadarSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -139,6 +153,10 @@ final class Minecraft189NearbyPlayersFeature
                             SettingValueKind.INTEGER,
                             20,
                             new SettingNumericSpec(1.0D, 128.0D, 1.0D)));
+            showRadarPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189NearbyPlayersModule.SHOW_RADAR_SETTING_ID,
+                            "2D Radar", SettingValueKind.BOOLEAN, 30));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -158,6 +176,11 @@ final class Minecraft189NearbyPlayersFeature
                             Minecraft189NearbyPlayersModule.RADIUS_SETTING_ID,
                             20));
 
+            showRadarBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189NearbyPlayersModule.ID,
+                            Minecraft189NearbyPlayersModule.SHOW_RADAR_SETTING_ID, 30));
+
             return new Minecraft189NearbyPlayersFeature(
                     controller,
                     module,
@@ -166,19 +189,25 @@ final class Minecraft189NearbyPlayersFeature
                     xSetting,
                     ySetting,
                     radiusSetting,
+                    showRadarSetting,
                     xPresentation,
                     yPresentation,
                     radiusPresentation,
+                    showRadarPresentation,
                     xBinding,
                     yBinding,
-                    radiusBinding);
+                    radiusBinding,
+                    showRadarBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(showRadarBinding, failure);
             closeQuietly(radiusBinding, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
+            closeQuietly(showRadarPresentation, failure);
             closeQuietly(radiusPresentation, failure);
             closeQuietly(yPresentation, failure);
             closeQuietly(xPresentation, failure);
+            closeQuietly(showRadarSetting, failure);
             closeQuietly(radiusSetting, failure);
             closeQuietly(ySetting, failure);
             closeQuietly(xSetting, failure);
@@ -215,12 +244,15 @@ final class Minecraft189NearbyPlayersFeature
             failure = closeFailure;
         }
 
+        failure = close(showRadarBinding, failure);
         failure = close(radiusBinding, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
+        failure = close(showRadarPresentation, failure);
         failure = close(radiusPresentation, failure);
         failure = close(yPresentation, failure);
         failure = close(xPresentation, failure);
+        failure = close(showRadarSetting, failure);
         failure = close(radiusSetting, failure);
         failure = close(ySetting, failure);
         failure = close(xSetting, failure);

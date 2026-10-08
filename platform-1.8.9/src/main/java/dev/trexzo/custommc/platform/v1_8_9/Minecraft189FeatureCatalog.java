@@ -910,6 +910,7 @@ public final class Minecraft189FeatureCatalog
                     playerPositionState,
                     worldEntityPositionState,
                     worldEntityKindState,
+                    playerRotationState,
                     renderPipeline,
                     hostCallbacks);
 
