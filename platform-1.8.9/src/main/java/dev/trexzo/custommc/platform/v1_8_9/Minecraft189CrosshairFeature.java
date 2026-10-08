@@ -39,6 +39,12 @@ final class Minecraft189CrosshairFeature
     private final ModuleSettingRegistry.Registration dotBinding;
     private final ModuleSettingRegistry.Registration sprintExpansionBinding;
     private final ModuleSettingRegistry.Registration sprintGapBonusBinding;
+    private final SettingRegistry.Registration outlineSetting;
+    private final SettingRegistry.Registration outlineSizeSetting;
+    private final SettingPresentationRegistry.Registration outlinePresentation;
+    private final SettingPresentationRegistry.Registration outlineSizePresentation;
+    private final ModuleSettingRegistry.Registration outlineBinding;
+    private final ModuleSettingRegistry.Registration outlineSizeBinding;
     private boolean closed;
 
     private Minecraft189CrosshairFeature(
@@ -63,7 +69,13 @@ final class Minecraft189CrosshairFeature
             final ModuleSettingRegistry.Registration thicknessBinding,
             final ModuleSettingRegistry.Registration dotBinding,
             final ModuleSettingRegistry.Registration sprintExpansionBinding,
-            final ModuleSettingRegistry.Registration sprintGapBonusBinding) {
+            final ModuleSettingRegistry.Registration sprintGapBonusBinding,
+            final SettingRegistry.Registration outlineSetting,
+            final SettingRegistry.Registration outlineSizeSetting,
+            final SettingPresentationRegistry.Registration outlinePresentation,
+            final SettingPresentationRegistry.Registration outlineSizePresentation,
+            final ModuleSettingRegistry.Registration outlineBinding,
+            final ModuleSettingRegistry.Registration outlineSizeBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -86,6 +98,12 @@ final class Minecraft189CrosshairFeature
         this.dotBinding = dotBinding;
         this.sprintExpansionBinding = sprintExpansionBinding;
         this.sprintGapBonusBinding = sprintGapBonusBinding;
+        this.outlineSetting = outlineSetting;
+        this.outlineSizeSetting = outlineSizeSetting;
+        this.outlinePresentation = outlinePresentation;
+        this.outlineSizePresentation = outlineSizePresentation;
+        this.outlineBinding = outlineBinding;
+        this.outlineSizeBinding = outlineSizeBinding;
     }
 
     static Minecraft189CrosshairFeature install(
@@ -124,6 +142,12 @@ final class Minecraft189CrosshairFeature
         ModuleSettingRegistry.Registration dotBinding = null;
         ModuleSettingRegistry.Registration sprintExpansionBinding = null;
         ModuleSettingRegistry.Registration sprintGapBonusBinding = null;
+        SettingRegistry.Registration outlineSetting = null;
+        SettingRegistry.Registration outlineSizeSetting = null;
+        SettingPresentationRegistry.Registration outlinePresentation = null;
+        SettingPresentationRegistry.Registration outlineSizePresentation = null;
+        ModuleSettingRegistry.Registration outlineBinding = null;
+        ModuleSettingRegistry.Registration outlineSizeBinding = null;
 
         try {
             moduleRegistration =
@@ -152,6 +176,8 @@ final class Minecraft189CrosshairFeature
                             module.dotSetting());
             sprintExpansionSetting = settings.register(module.sprintExpansionSetting());
             sprintGapBonusSetting = settings.register(module.sprintGapBonusSetting());
+            outlineSetting = settings.register(module.outlineSetting());
+            outlineSizeSetting = settings.register(module.outlineSizeSetting());
 
             lengthPresentation =
                     settingPresentations.register(
@@ -204,6 +230,16 @@ final class Minecraft189CrosshairFeature
                             "Sprint Gap Bonus", SettingValueKind.INTEGER, 50,
                             new SettingNumericSpec(1.0D, 12.0D, 1.0D)));
 
+            outlinePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189CrosshairModule.OUTLINE_SETTING_ID,
+                            "Outline", SettingValueKind.BOOLEAN, 60));
+            outlineSizePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189CrosshairModule.OUTLINE_SIZE_SETTING_ID,
+                            "Outline Size", SettingValueKind.INTEGER, 70,
+                            new SettingNumericSpec(1.0D, 3.0D, 1.0D)));
+
             lengthBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -238,6 +274,15 @@ final class Minecraft189CrosshairFeature
                             Minecraft189CrosshairModule.ID,
                             Minecraft189CrosshairModule.SPRINT_GAP_BONUS_SETTING_ID, 50));
 
+            outlineBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189CrosshairModule.ID,
+                            Minecraft189CrosshairModule.OUTLINE_SETTING_ID, 60));
+            outlineSizeBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189CrosshairModule.ID,
+                            Minecraft189CrosshairModule.OUTLINE_SIZE_SETTING_ID, 70));
+
             return new Minecraft189CrosshairFeature(
                     controller,
                     module,
@@ -260,8 +305,20 @@ final class Minecraft189CrosshairFeature
                     thicknessBinding,
                     dotBinding,
                     sprintExpansionBinding,
-                    sprintGapBonusBinding);
+                    sprintGapBonusBinding,
+                    outlineSetting,
+                    outlineSizeSetting,
+                    outlinePresentation,
+                    outlineSizePresentation,
+                    outlineBinding,
+                    outlineSizeBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(outlineSizeBinding, failure);
+            closeQuietly(outlineBinding, failure);
+            closeQuietly(outlineSizePresentation, failure);
+            closeQuietly(outlinePresentation, failure);
+            closeQuietly(outlineSizeSetting, failure);
+            closeQuietly(outlineSetting, failure);
             closeQuietly(sprintGapBonusBinding, failure);
             closeQuietly(sprintExpansionBinding, failure);
             closeQuietly(dotBinding, failure);
@@ -313,6 +370,12 @@ final class Minecraft189CrosshairFeature
             failure = closeFailure;
         }
 
+        failure = close(outlineSizeBinding, failure);
+        failure = close(outlineBinding, failure);
+        failure = close(outlineSizePresentation, failure);
+        failure = close(outlinePresentation, failure);
+        failure = close(outlineSizeSetting, failure);
+        failure = close(outlineSetting, failure);
         failure = close(sprintGapBonusBinding, failure);
         failure = close(sprintExpansionBinding, failure);
         failure = close(dotBinding, failure);
