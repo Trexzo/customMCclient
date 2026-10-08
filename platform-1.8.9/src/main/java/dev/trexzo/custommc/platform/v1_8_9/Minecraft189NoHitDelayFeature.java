@@ -22,6 +22,12 @@ final class Minecraft189NoHitDelayFeature
     private final SettingRegistry.Registration delaySetting;
     private final SettingPresentationRegistry.Registration delayPresentation;
     private final ModuleSettingRegistry.Registration delayBinding;
+    private final SettingRegistry.Registration groundOnlySetting;
+    private final SettingRegistry.Registration pauseSneakingSetting;
+    private final SettingPresentationRegistry.Registration groundOnlyPresentation;
+    private final SettingPresentationRegistry.Registration pauseSneakingPresentation;
+    private final ModuleSettingRegistry.Registration groundOnlyBinding;
+    private final ModuleSettingRegistry.Registration pauseSneakingBinding;
     private boolean closed;
 
     private Minecraft189NoHitDelayFeature(
@@ -31,7 +37,13 @@ final class Minecraft189NoHitDelayFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration delaySetting,
             final SettingPresentationRegistry.Registration delayPresentation,
-            final ModuleSettingRegistry.Registration delayBinding) {
+            final ModuleSettingRegistry.Registration delayBinding,
+            final SettingRegistry.Registration groundOnlySetting,
+            final SettingRegistry.Registration pauseSneakingSetting,
+            final SettingPresentationRegistry.Registration groundOnlyPresentation,
+            final SettingPresentationRegistry.Registration pauseSneakingPresentation,
+            final ModuleSettingRegistry.Registration groundOnlyBinding,
+            final ModuleSettingRegistry.Registration pauseSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -39,6 +51,12 @@ final class Minecraft189NoHitDelayFeature
         this.delaySetting = delaySetting;
         this.delayPresentation = delayPresentation;
         this.delayBinding = delayBinding;
+        this.groundOnlySetting = groundOnlySetting;
+        this.pauseSneakingSetting = pauseSneakingSetting;
+        this.groundOnlyPresentation = groundOnlyPresentation;
+        this.pauseSneakingPresentation = pauseSneakingPresentation;
+        this.groundOnlyBinding = groundOnlyBinding;
+        this.pauseSneakingBinding = pauseSneakingBinding;
     }
 
     static Minecraft189NoHitDelayFeature install(
@@ -56,6 +74,12 @@ final class Minecraft189NoHitDelayFeature
         SettingRegistry.Registration delaySetting = null;
         SettingPresentationRegistry.Registration delayPresentation = null;
         ModuleSettingRegistry.Registration delayBinding = null;
+        SettingRegistry.Registration groundOnlySetting = null;
+        SettingRegistry.Registration pauseSneakingSetting = null;
+        SettingPresentationRegistry.Registration groundOnlyPresentation = null;
+        SettingPresentationRegistry.Registration pauseSneakingPresentation = null;
+        ModuleSettingRegistry.Registration groundOnlyBinding = null;
+        ModuleSettingRegistry.Registration pauseSneakingBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -71,6 +95,9 @@ final class Minecraft189NoHitDelayFeature
             delaySetting =
                     settings.register(
                             module.delaySetting());
+            groundOnlySetting = settings.register(module.groundOnlySetting());
+            pauseSneakingSetting = settings.register(
+                    module.pauseWhileSneakingSetting());
             delayPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -82,12 +109,29 @@ final class Minecraft189NoHitDelayFeature
                                             Minecraft189NoHitDelayModule.MINIMUM_DELAY,
                                             Minecraft189NoHitDelayModule.MAXIMUM_DELAY,
                                             1.0D)));
+            groundOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189NoHitDelayModule.GROUND_ONLY_SETTING_ID,
+                            "Ground Only", SettingValueKind.BOOLEAN, 10));
+            pauseSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189NoHitDelayModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 20));
             delayBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
                                     Minecraft189NoHitDelayModule.ID,
                                     Minecraft189NoHitDelayModule.DELAY_SETTING_ID,
                                     0));
+
+            groundOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189NoHitDelayModule.ID,
+                            Minecraft189NoHitDelayModule.GROUND_ONLY_SETTING_ID, 10));
+            pauseSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189NoHitDelayModule.ID,
+                            Minecraft189NoHitDelayModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 20));
 
             return new Minecraft189NoHitDelayFeature(
                     controller,
@@ -96,10 +140,22 @@ final class Minecraft189NoHitDelayFeature
                     presentation,
                     delaySetting,
                     delayPresentation,
-                    delayBinding);
+                    delayBinding,
+                    groundOnlySetting,
+                    pauseSneakingSetting,
+                    groundOnlyPresentation,
+                    pauseSneakingPresentation,
+                    groundOnlyBinding,
+                    pauseSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseSneakingBinding, failure);
+            closeQuietly(groundOnlyBinding, failure);
             closeQuietly(delayBinding, failure);
+            closeQuietly(pauseSneakingPresentation, failure);
+            closeQuietly(groundOnlyPresentation, failure);
             closeQuietly(delayPresentation, failure);
+            closeQuietly(pauseSneakingSetting, failure);
+            closeQuietly(groundOnlySetting, failure);
             closeQuietly(delaySetting, failure);
             closeQuietly(presentation, failure);
             closeQuietly(moduleRegistration, failure);
@@ -134,8 +190,14 @@ final class Minecraft189NoHitDelayFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseSneakingBinding, failure);
+        failure = close(groundOnlyBinding, failure);
         failure = close(delayBinding, failure);
+        failure = close(pauseSneakingPresentation, failure);
+        failure = close(groundOnlyPresentation, failure);
         failure = close(delayPresentation, failure);
+        failure = close(pauseSneakingSetting, failure);
+        failure = close(groundOnlySetting, failure);
         failure = close(delaySetting, failure);
         failure = close(presentation, failure);
         failure = close(moduleRegistration, failure);

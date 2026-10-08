@@ -110,6 +110,48 @@ final class Minecraft189NoHitDelayModuleTest {
                     runtime.leftClickCounter(
                             -1));
 
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189NoHitDelayModule.GROUND_ONLY_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189NoHitDelayModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            // Default-off parity: invalid/missing movement snapshots
+            // must not change existing No Hit Delay behavior.
+            assertFalse(runtime.playerMovementState().snapshot().available());
+            assertEquals(0, runtime.leftClickCounter(7));
+
+            runtime.featureCatalog().noHitDelay()
+                    .groundOnlySetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NoHitDelayModule.GROUND_ONLY_SETTING_ID));
+            assertEquals(7, runtime.leftClickCounter(7));
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(7, runtime.leftClickCounter(7));
+            runtime.playerMovementState().update(true, false, false);
+            assertEquals(0, runtime.leftClickCounter(7));
+            runtime.playerMovementState().update(true, true, false);
+            // Ground Only does not itself reject sneaking.
+            assertEquals(0, runtime.leftClickCounter(7));
+
+            runtime.featureCatalog().noHitDelay()
+                    .pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NoHitDelayModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            assertEquals(7, runtime.leftClickCounter(7));
+            runtime.playerMovementState().update(true, false, true);
+            assertEquals(0, runtime.leftClickCounter(7));
+            // Independent pause gate works when Ground Only is OFF.
+            runtime.featureCatalog().noHitDelay()
+                    .groundOnlySetting().set(Boolean.FALSE);
+            runtime.playerMovementState().update(false, true, false);
+            assertEquals(7, runtime.leftClickCounter(7));
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(0, runtime.leftClickCounter(7));
+            runtime.playerMovementState().clear();
+            assertEquals(7, runtime.leftClickCounter(7));
+            runtime.featureCatalog().noHitDelay()
+                    .pauseWhileSneakingSetting().set(Boolean.FALSE);
+            assertEquals(0, runtime.leftClickCounter(7));
+
             runtime.featureCatalog()
                     .noHitDelay()
                     .delaySetting()
@@ -148,6 +190,10 @@ final class Minecraft189NoHitDelayModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189NoHitDelayModule.DELAY_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189NoHitDelayModule.GROUND_ONLY_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189NoHitDelayModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.COMBAT_CATEGORY_ID));
