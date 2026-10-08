@@ -1,6 +1,11 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
 public final class Minecraft189NearestPlayerTargetState {
+    @FunctionalInterface
+    public interface CandidateFilter {
+        boolean accepts(Snapshot candidate);
+    }
+
     private boolean available;
     private boolean found;
     private int entityIndex = -1;
@@ -22,6 +27,16 @@ public final class Minecraft189NearestPlayerTargetState {
             final Minecraft189WorldEntityKindState.Snapshot kinds,
             final double minimumDistance,
             final double maximumDistance) {
+        update(local, positions, kinds, minimumDistance, maximumDistance, null);
+    }
+
+    public synchronized void update(
+            final Minecraft189PlayerPositionState.Snapshot local,
+            final Minecraft189WorldEntityPositionState.Snapshot positions,
+            final Minecraft189WorldEntityKindState.Snapshot kinds,
+            final double minimumDistance,
+            final double maximumDistance,
+            final CandidateFilter filter) {
         if (!Double.isFinite(minimumDistance)
                 || !Double.isFinite(maximumDistance)
                 || minimumDistance < 0.0D
@@ -76,7 +91,11 @@ public final class Minecraft189NearestPlayerTargetState {
 
             if (candidateDistanceSquared >= minimumDistanceSquared
                     && candidateDistanceSquared <= maximumDistanceSquared
-                    && candidateDistanceSquared < bestDistanceSquared) {
+                    && candidateDistanceSquared < bestDistanceSquared
+                    && (filter == null || filter.accepts(
+                            new Snapshot(true, true, index,
+                                    candidateX, candidateY, candidateZ,
+                                    candidateDistanceSquared)))) {
                 bestIndex = index;
                 bestDistanceSquared =
                         candidateDistanceSquared;

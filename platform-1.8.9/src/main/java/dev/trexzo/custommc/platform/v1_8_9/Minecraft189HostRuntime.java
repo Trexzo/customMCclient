@@ -49,6 +49,8 @@ public final class Minecraft189HostRuntime
             new Minecraft189NearestPlayerTargetState();
     private final Minecraft189TargetRotationState aimAssistRangeRotationState =
             new Minecraft189TargetRotationState();
+    private final Minecraft189TargetRotationState aimAssistCandidateRotationState =
+            new Minecraft189TargetRotationState();
     private final Minecraft189ServerAddressState serverAddressState;
     private final Minecraft189HeldItemState heldItemState;
     private final Minecraft189MovementSpeedTracker movementSpeedTracker;
@@ -492,6 +494,7 @@ public final class Minecraft189HostRuntime
             playerRotationState.clear();
             aimAssistRangeTargetState.clear();
             aimAssistRangeRotationState.clear();
+            aimAssistCandidateRotationState.clear();
             featureCatalog.spin()
                     .apply(
                             null,
@@ -549,16 +552,34 @@ public final class Minecraft189HostRuntime
                 featureCatalog.aimAssist();
         Minecraft189TargetRotationState.Snapshot assistTarget =
                 targetRotationState.snapshot();
+        final boolean limitedFov =
+                (assist.yawEnabledSetting().get().booleanValue()
+                        && assist.maxFovSetting().get().doubleValue() < 180.0D)
+                || (assist.pitchEnabledSetting().get().booleanValue()
+                        && assist.maxPitchFovSetting().get().doubleValue() < 180.0D);
         if (assist.active()
-                && assist.minDistanceSetting().get().doubleValue() > 0.0D) {
+                && (assist.minDistanceSetting().get().doubleValue() > 0.0D
+                        || limitedFov)) {
             final Minecraft189PlayerPositionState.Snapshot local =
                     playerPositionState.snapshot();
+            final Minecraft189NearestPlayerTargetState.CandidateFilter filter;
+            if (limitedFov) {
+                filter = candidate -> {
+                    aimAssistCandidateRotationState.update(local, candidate);
+                    return assist.targetWithinFov(
+                            rotation,
+                            aimAssistCandidateRotationState.snapshot());
+                };
+            } else {
+                filter = null;
+            }
             aimAssistRangeTargetState.update(
                     local,
                     worldEntityPositionState.snapshot(),
                     worldEntityKindState.snapshot(),
                     assist.minDistanceSetting().get().doubleValue(),
-                    assist.maxDistanceSetting().get().doubleValue());
+                    assist.maxDistanceSetting().get().doubleValue(),
+                    filter);
             aimAssistRangeRotationState.update(
                     local,
                     aimAssistRangeTargetState.snapshot());
