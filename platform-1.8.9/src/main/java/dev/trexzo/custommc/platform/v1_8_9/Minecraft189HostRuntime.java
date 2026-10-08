@@ -1218,7 +1218,10 @@ public final class Minecraft189HostRuntime
         requireOpen();
         featureCatalog.speedMine()
                 .apply(
-                        controller);
+                        controller,
+                        inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.LEFT_BUTTON),
+                        playerMovementState.snapshot());
     }
 
     void timerSpeedControl(
