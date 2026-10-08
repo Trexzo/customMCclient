@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189DamageBoostModuleTest {
     @Test
@@ -275,9 +276,126 @@ final class Minecraft189DamageBoostModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189DamageBoostModule.VERTICAL_MULTIPLIER_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189DamageBoostModule.CAP_HORIZONTAL_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189DamageBoostModule.MAX_HORIZONTAL_SPEED_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
+    }
+
+    @Test
+    void cappedDamageBoostLimitsOnlyExtraMomentumAndRetainsVerticalBehavior() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189DamageBoostModule boost =
+                    runtime.featureCatalog().damageBoost();
+            final TestPlayer player = new TestPlayer();
+            boost.multiplierSetting().set(2.0D);
+            boost.verticalMultiplierSetting().set(1.5D);
+            assertFalse(boost.capHorizontalSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189DamageBoostModule.CAP_HORIZONTAL_SETTING_ID));
+            assertEquals("0.7", settings.snapshotEncoded().get(
+                    Minecraft189DamageBoostModule.MAX_HORIZONTAL_SPEED_SETTING_ID));
+            controller.enable(Minecraft189DamageBoostModule.ID);
+
+            // Default OFF preserves the unrestricted multiplier behavior.
+            player.motionX = 0.30D;
+            player.motionZ = 0.40D;
+            player.motionY = 0.20D;
+            runtime.playerHurtTimeState().update(8);
+            runtime.playerMotionControl(player); // Prime observation.
+            runtime.playerHurtTimeState().update(10);
+            runtime.playerMotionControl(player);
+            assertEquals(0.60D, player.motionX, 0.000000001D);
+            assertEquals(0.80D, player.motionZ, 0.000000001D);
+            assertEquals(0.30D, player.motionY, 0.000000001D);
+
+            boost.capHorizontalSetting().set(Boolean.TRUE);
+            boost.maxHorizontalSpeedSetting().set(0.75D);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189DamageBoostModule.CAP_HORIZONTAL_SETTING_ID));
+            assertEquals("0.75", settings.snapshotEncoded().get(
+                    Minecraft189DamageBoostModule.MAX_HORIZONTAL_SPEED_SETTING_ID));
+            player.motionX = 0.30D;
+            player.motionZ = 0.40D;
+            player.motionY = 0.20D;
+            runtime.playerHurtTimeState().update(8);
+            runtime.playerMotionControl(player);
+            runtime.playerHurtTimeState().update(10);
+            runtime.playerMotionControl(player);
+            assertEquals(0.45D, player.motionX, 0.000000001D);
+            assertEquals(0.60D, player.motionZ, 0.000000001D);
+            assertEquals(0.75D, Math.hypot(player.motionX, player.motionZ),
+                    0.000000001D);
+            assertEquals(0.30D, player.motionY, 0.000000001D);
+            // Repeated callbacks for the same fresh-hit value do not multiply.
+            runtime.playerMotionControl(player);
+            assertEquals(0.45D, player.motionX, 0.000000001D);
+
+            // Already-above-cap pre-hit momentum must never be reduced.
+            player.motionX = 0.80D;
+            player.motionZ = 0.60D;
+            player.motionY = 0.20D;
+            runtime.playerHurtTimeState().update(8);
+            runtime.playerMotionControl(player);
+            runtime.playerHurtTimeState().update(10);
+            runtime.playerMotionControl(player);
+            assertEquals(0.80D, player.motionX, 0.000000001D);
+            assertEquals(0.60D, player.motionZ, 0.000000001D);
+            assertEquals(0.30D, player.motionY, 0.000000001D);
+
+            // Missing or malformed source horizontal motion is fail-closed
+            // under the enabled cap, independently of finite vertical motion.
+            player.motionX = Double.NaN;
+            player.motionZ = 0.20D;
+            player.motionY = 0.20D;
+            runtime.playerHurtTimeState().update(8);
+            runtime.playerMotionControl(player);
+            runtime.playerHurtTimeState().update(10);
+            runtime.playerMotionControl(player);
+            assertTrue(Double.isNaN(player.motionX));
+            assertEquals(0.20D, player.motionZ, 0.000000001D);
+            assertEquals(0.30D, player.motionY, 0.000000001D);
+            boost.maxHorizontalSpeedSetting().set(1.50D);
+            boost.capHorizontalSetting().set(Boolean.FALSE);
+            player.motionX = 0.40D;
+            player.motionZ = 0.0D;
+            runtime.playerHurtTimeState().update(8);
+            runtime.playerMotionControl(player);
+            runtime.playerHurtTimeState().update(10);
+            runtime.playerMotionControl(player);
+            assertEquals(0.80D, player.motionX, 0.000000001D);
+            controller.disable(Minecraft189DamageBoostModule.ID);
+            assertThrows(IllegalArgumentException.class,
+                    () -> boost.maxHorizontalSpeedSetting().set(0.09D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> boost.maxHorizontalSpeedSetting().set(5.01D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> boost.maxHorizontalSpeedSetting().set(Double.NaN));
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189DamageBoostModule.CAP_HORIZONTAL_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189DamageBoostModule.MAX_HORIZONTAL_SPEED_SETTING_ID));
+        assertNull(modules.find(Minecraft189DamageBoostModule.ID));
     }
 
     private static final class TestPlayer
