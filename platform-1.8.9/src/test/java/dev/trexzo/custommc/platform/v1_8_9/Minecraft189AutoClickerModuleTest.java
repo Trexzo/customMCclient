@@ -83,6 +83,8 @@ final class Minecraft189AutoClickerModuleTest {
                             .booleanValue());
             assertFalse(autoClicker.requireForwardSetting()
                     .get().booleanValue());
+            assertFalse(autoClicker.pauseWhileRightClickingSetting()
+                    .get().booleanValue());
             assertEquals(
                     "10",
                     settings.snapshotEncoded()
@@ -100,6 +102,8 @@ final class Minecraft189AutoClickerModuleTest {
                                     Minecraft189AutoClickerModule.REQUIRE_HOLD_SETTING_ID));
             assertEquals("false", settings.snapshotEncoded()
                     .get(Minecraft189AutoClickerModule.REQUIRE_FORWARD_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded()
+                    .get(Minecraft189AutoClickerModule.PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID));
 
             controller.enable(
                     Minecraft189AutoClickerModule.ID);
@@ -187,6 +191,43 @@ final class Minecraft189AutoClickerModuleTest {
             assertFalse(runtime.shouldAutoClick());
             assertTrue(runtime.shouldAutoClick());
 
+            // M229: physical right hold suspends the click schedule and
+            // resuming never consumes accumulated CPS phase immediately.
+            autoClicker.pauseWhileRightClickingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded()
+                    .get(Minecraft189AutoClickerModule.PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID));
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, true);
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+
+            // Both independent gates must pass together.
+            autoClicker.requireForwardSetting().set(Boolean.TRUE);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, true);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            assertFalse(runtime.shouldAutoClick());
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+            runtime.inputState().key(LegacyKeyboardCodes.W, false);
+            assertFalse(runtime.shouldAutoClick());
+
+            // Default-off parity: right-clicking no longer suppresses CPS.
+            autoClicker.requireForwardSetting().set(Boolean.FALSE);
+            autoClicker.pauseWhileRightClickingSetting().set(Boolean.FALSE);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, true);
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
+
             controller.disable(
                     Minecraft189AutoClickerModule.ID);
             assertFalse(
@@ -211,6 +252,8 @@ final class Minecraft189AutoClickerModuleTest {
                         Minecraft189AutoClickerModule.REQUIRE_HOLD_SETTING_ID));
         assertNull(settings.find(
                 Minecraft189AutoClickerModule.REQUIRE_FORWARD_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189AutoClickerModule.PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID));
     }
 
     private static final class NoOpHost
