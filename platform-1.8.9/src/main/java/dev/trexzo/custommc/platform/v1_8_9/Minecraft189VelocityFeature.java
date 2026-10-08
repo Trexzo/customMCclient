@@ -37,6 +37,12 @@ final class Minecraft189VelocityFeature
     private final ModuleSettingRegistry.Registration airborneOverrideBinding;
     private final ModuleSettingRegistry.Registration airborneHorizontalBinding;
     private final ModuleSettingRegistry.Registration airborneVerticalBinding;
+    private final SettingRegistry.Registration groundOnlySetting;
+    private final SettingRegistry.Registration pauseWhileSneakingSetting;
+    private final SettingPresentationRegistry.Registration groundOnlyPresentation;
+    private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
+    private final ModuleSettingRegistry.Registration groundOnlyBinding;
+    private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private boolean closed;
 
     private Minecraft189VelocityFeature(
@@ -61,7 +67,13 @@ final class Minecraft189VelocityFeature
             final ModuleSettingRegistry.Registration onlyWhileSprintingBinding,
             final ModuleSettingRegistry.Registration airborneOverrideBinding,
             final ModuleSettingRegistry.Registration airborneHorizontalBinding,
-            final ModuleSettingRegistry.Registration airborneVerticalBinding) {
+            final ModuleSettingRegistry.Registration airborneVerticalBinding,
+            final SettingRegistry.Registration groundOnlySetting,
+            final SettingRegistry.Registration pauseWhileSneakingSetting,
+            final SettingPresentationRegistry.Registration groundOnlyPresentation,
+            final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
+            final ModuleSettingRegistry.Registration groundOnlyBinding,
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -84,6 +96,12 @@ final class Minecraft189VelocityFeature
         this.airborneOverrideBinding = airborneOverrideBinding;
         this.airborneHorizontalBinding = airborneHorizontalBinding;
         this.airborneVerticalBinding = airborneVerticalBinding;
+        this.groundOnlySetting = groundOnlySetting;
+        this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
+        this.groundOnlyPresentation = groundOnlyPresentation;
+        this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
+        this.groundOnlyBinding = groundOnlyBinding;
+        this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
     }
 
     static Minecraft189VelocityFeature install(
@@ -116,6 +134,12 @@ final class Minecraft189VelocityFeature
         ModuleSettingRegistry.Registration airborneOverrideBinding = null;
         ModuleSettingRegistry.Registration airborneHorizontalBinding = null;
         ModuleSettingRegistry.Registration airborneVerticalBinding = null;
+        SettingRegistry.Registration groundOnlySetting = null;
+        SettingRegistry.Registration pauseWhileSneakingSetting = null;
+        SettingPresentationRegistry.Registration groundOnlyPresentation = null;
+        SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
+        ModuleSettingRegistry.Registration groundOnlyBinding = null;
+        ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
 
         try {
             moduleRegistration =
@@ -143,6 +167,9 @@ final class Minecraft189VelocityFeature
                     module.airborneHorizontalPercentSetting());
             airborneVerticalSetting = settings.register(
                     module.airborneVerticalPercentSetting());
+            groundOnlySetting = settings.register(module.groundOnlySetting());
+            pauseWhileSneakingSetting = settings.register(
+                    module.pauseWhileSneakingSetting());
 
             horizontalPresentation =
                     settingPresentations.register(
@@ -193,6 +220,14 @@ final class Minecraft189VelocityFeature
                                     Minecraft189VelocityModule.MAXIMUM_PERCENT,
                                     5.0D)));
 
+            groundOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189VelocityModule.GROUND_ONLY_SETTING_ID,
+                            "Ground Only", SettingValueKind.BOOLEAN, 60));
+            pauseWhileSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189VelocityModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 70));
             horizontalBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -224,6 +259,15 @@ final class Minecraft189VelocityFeature
                             Minecraft189VelocityModule.ID,
                             Minecraft189VelocityModule.AIRBORNE_VERTICAL_SETTING_ID, 50));
 
+            groundOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189VelocityModule.ID,
+                            Minecraft189VelocityModule.GROUND_ONLY_SETTING_ID, 60));
+            pauseWhileSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189VelocityModule.ID,
+                            Minecraft189VelocityModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 70));
+
             return new Minecraft189VelocityFeature(
                     controller,
                     module,
@@ -246,8 +290,20 @@ final class Minecraft189VelocityFeature
                     onlyWhileSprintingBinding,
                     airborneOverrideBinding,
                     airborneHorizontalBinding,
-                    airborneVerticalBinding);
+                    airborneVerticalBinding,
+                    groundOnlySetting,
+                    pauseWhileSneakingSetting,
+                    groundOnlyPresentation,
+                    pauseWhileSneakingPresentation,
+                    groundOnlyBinding,
+                    pauseWhileSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseWhileSneakingBinding, failure);
+            closeQuietly(groundOnlyBinding, failure);
+            closeQuietly(pauseWhileSneakingPresentation, failure);
+            closeQuietly(groundOnlyPresentation, failure);
+            closeQuietly(pauseWhileSneakingSetting, failure);
+            closeQuietly(groundOnlySetting, failure);
             closeQuietly(airborneVerticalBinding, failure);
             closeQuietly(airborneHorizontalBinding, failure);
             closeQuietly(airborneOverrideBinding, failure);
@@ -299,6 +355,12 @@ final class Minecraft189VelocityFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseWhileSneakingBinding, failure);
+        failure = close(groundOnlyBinding, failure);
+        failure = close(pauseWhileSneakingPresentation, failure);
+        failure = close(groundOnlyPresentation, failure);
+        failure = close(pauseWhileSneakingSetting, failure);
+        failure = close(groundOnlySetting, failure);
         failure = close(airborneVerticalBinding, failure);
         failure = close(airborneHorizontalBinding, failure);
         failure = close(airborneOverrideBinding, failure);
