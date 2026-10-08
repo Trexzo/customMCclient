@@ -557,9 +557,11 @@ public final class Minecraft189HostRuntime
                         && assist.maxFovSetting().get().doubleValue() < 180.0D)
                 || (assist.pitchEnabledSetting().get().booleanValue()
                         && assist.maxPitchFovSetting().get().doubleValue() < 180.0D);
+        final boolean crosshairPriority =
+                assist.prioritizeCrosshairSetting().get().booleanValue();
         if (assist.active()
                 && (assist.minDistanceSetting().get().doubleValue() > 0.0D
-                        || limitedFov)) {
+                        || limitedFov || crosshairPriority)) {
             final Minecraft189PlayerPositionState.Snapshot local =
                     playerPositionState.snapshot();
             final Minecraft189NearestPlayerTargetState.CandidateFilter filter;
@@ -573,13 +575,25 @@ public final class Minecraft189HostRuntime
             } else {
                 filter = null;
             }
+            final Minecraft189NearestPlayerTargetState.CandidateScore score;
+            if (crosshairPriority) {
+                score = candidate -> {
+                    aimAssistCandidateRotationState.update(local, candidate);
+                    return assist.targetAngularErrorSquared(
+                            rotation,
+                            aimAssistCandidateRotationState.snapshot());
+                };
+            } else {
+                score = null;
+            }
             aimAssistRangeTargetState.update(
                     local,
                     worldEntityPositionState.snapshot(),
                     worldEntityKindState.snapshot(),
                     assist.minDistanceSetting().get().doubleValue(),
                     assist.maxDistanceSetting().get().doubleValue(),
-                    filter);
+                    filter,
+                    score);
             aimAssistRangeRotationState.update(
                     local,
                     aimAssistRangeTargetState.snapshot());

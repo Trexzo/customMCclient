@@ -55,6 +55,7 @@ final class Minecraft189AimAssistModuleTest {
                             .get()
                             .doubleValue(),
                     0.000001D);
+            assertFalse(module.prioritizeCrosshairSetting().get().booleanValue());
             assertFalse(module.requireSprintSetting().get().booleanValue());
             assertFalse(module.pauseWhileSneakingSetting().get().booleanValue());
             assertFalse(module.requireGroundSetting().get().booleanValue());
@@ -130,6 +131,10 @@ final class Minecraft189AimAssistModuleTest {
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.REQUIRE_HOLD_SETTING_ID)
+                            != null);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.PRIORITIZE_CROSSHAIR_SETTING_ID)
                             != null);
             assertTrue(
                     settings.find(
@@ -557,6 +562,9 @@ final class Minecraft189AimAssistModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189AimAssistModule.REQUIRE_HOLD_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AimAssistModule.PRIORITIZE_CROSSHAIR_SETTING_ID));
         assertNull(
                 settings.find(
                         Minecraft189AimAssistModule.MIN_DISTANCE_SETTING_ID));
@@ -1088,6 +1096,89 @@ final class Minecraft189AimAssistModuleTest {
         assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(),
                 true, false, null));
         module.onDisable();
+    }
+
+
+    @Test
+    void angularRankingHonorsAxisTogglesOffsetsAndMissingSnapshots() {
+        final Minecraft189AimAssistModule module =
+                new Minecraft189AimAssistModule();
+        final Minecraft189PlayerPositionState local =
+                new Minecraft189PlayerPositionState();
+        final Minecraft189NearestPlayerTargetState target =
+                new Minecraft189NearestPlayerTargetState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        final Minecraft189TargetRotationState candidateRotation =
+                new Minecraft189TargetRotationState();
+        final Minecraft189PlayerRotationState rotation =
+                new Minecraft189PlayerRotationState();
+        local.update(0.0D, 0.0D, 0.0D);
+        positions.update(new double[]{
+                0.0D, 0.0D, 0.0D,
+                3.0D, 0.0D, 0.0D,
+                0.0D, 0.0D, 10.0D
+        });
+        kinds.update(new int[]{
+                Minecraft189WorldEntityKindState.LIVING
+                        | Minecraft189WorldEntityKindState.PLAYER
+                        | Minecraft189WorldEntityKindState.LOCAL_PLAYER,
+                Minecraft189WorldEntityKindState.LIVING
+                        | Minecraft189WorldEntityKindState.PLAYER,
+                Minecraft189WorldEntityKindState.LIVING
+                        | Minecraft189WorldEntityKindState.PLAYER
+        });
+        rotation.update(0.0F, 0.0F);
+        final Minecraft189NearestPlayerTargetState.CandidateScore crosshair =
+                candidate -> {
+                    candidateRotation.update(local.snapshot(), candidate);
+                    return module.targetAngularErrorSquared(
+                            rotation.snapshot(), candidateRotation.snapshot());
+                };
+
+        target.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+        assertEquals(1, target.snapshot().entityIndex());
+        assertFalse(module.prioritizeCrosshairSetting().get().booleanValue());
+
+        target.update(local.snapshot(), positions.snapshot(), kinds.snapshot(),
+                0.0D, 128.0D, null, crosshair);
+        assertEquals(2, target.snapshot().entityIndex());
+        assertEquals(100.0D, target.snapshot().distanceSquared());
+
+        // After disabling yaw, equal pitch scores tie-break by distance.
+        module.yawEnabledSetting().set(Boolean.FALSE);
+        target.update(local.snapshot(), positions.snapshot(), kinds.snapshot(),
+                0.0D, 128.0D, null, crosshair);
+        assertEquals(1, target.snapshot().entityIndex());
+
+        module.yawEnabledSetting().set(Boolean.TRUE);
+        module.pitchEnabledSetting().set(Boolean.FALSE);
+        module.yawOffsetSetting().set(30.0D);
+        rotation.update(-60.0F, 0.0F);
+        target.update(local.snapshot(), positions.snapshot(), kinds.snapshot(),
+                0.0D, 128.0D, null, crosshair);
+        assertEquals(1, target.snapshot().entityIndex());
+
+        // Range gate still wins even when the farther candidate is on crosshair.
+        module.yawOffsetSetting().set(0.0D);
+        rotation.update(0.0F, 0.0F);
+        target.update(local.snapshot(), positions.snapshot(), kinds.snapshot(),
+                0.0D, 5.0D, null, crosshair);
+        assertEquals(1, target.snapshot().entityIndex());
+
+        module.yawEnabledSetting().set(Boolean.FALSE);
+        assertEquals(Double.POSITIVE_INFINITY,
+                module.targetAngularErrorSquared(
+                        rotation.snapshot(), candidateRotation.snapshot()));
+        module.yawEnabledSetting().set(Boolean.TRUE);
+        rotation.clear();
+        assertEquals(Double.POSITIVE_INFINITY,
+                module.targetAngularErrorSquared(
+                        rotation.snapshot(), candidateRotation.snapshot()));
+        assertEquals(Double.POSITIVE_INFINITY,
+                module.targetAngularErrorSquared(null, null));
     }
 
     private static final class TestPlayer
