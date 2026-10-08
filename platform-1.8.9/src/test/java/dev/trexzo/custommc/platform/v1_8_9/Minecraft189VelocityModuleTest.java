@@ -349,6 +349,105 @@ final class Minecraft189VelocityModuleTest {
                 Minecraft189VelocityModule.AIRBORNE_VERTICAL_SETTING_ID));
     }
 
+    @Test
+    void velocityGroundAndSneakGatesPreserveKnockbackUnlessAuthorityQualifies() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189VelocityModule velocity =
+                    runtime.featureCatalog().velocity();
+            assertFalse(velocity.groundOnlySetting().get().booleanValue());
+            assertFalse(velocity.pauseWhileSneakingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.GROUND_ONLY_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            controller.enable(Minecraft189VelocityModule.ID);
+            velocity.horizontalPercentSetting().set(50);
+            velocity.verticalPercentSetting().set(25);
+
+            // Both default OFF: legacy and live hooks need no movement data.
+            assertEquals(3.5D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+            assertEquals(4.5D, runtime.adjustVelocityVertical(4, 6), 0.000001D);
+            runtime.playerMovementState().update(false, true, false);
+            assertEquals(3.5D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+
+            velocity.groundOnlySetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.GROUND_ONLY_SETTING_ID));
+            assertEquals(5.0D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+            assertEquals(6.0D, runtime.adjustVelocityVertical(4, 6), 0.000001D);
+            runtime.playerMovementState().update(true, true, false);
+            // Ground gate independent of sneak: grounded sneak still scales.
+            assertEquals(3.5D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+            assertEquals(4.5D, runtime.adjustVelocityVertical(4, 6), 0.000001D);
+
+            velocity.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            assertEquals(5.0D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+            assertEquals(6.0D, runtime.adjustVelocityVertical(4, 6), 0.000001D);
+            runtime.playerMovementState().update(true, false, false);
+            assertEquals(3.5D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+            assertEquals(4.5D, runtime.adjustVelocityVertical(4, 6), 0.000001D);
+
+            // Ground gate disables airborne override even when configured.
+            velocity.airborneOverrideSetting().set(Boolean.TRUE);
+            velocity.airborneHorizontalPercentSetting().set(150);
+            velocity.airborneVerticalPercentSetting().set(175);
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(5.0D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+            assertEquals(6.0D, runtime.adjustVelocityVertical(4, 6), 0.000001D);
+            velocity.groundOnlySetting().set(Boolean.FALSE);
+            assertEquals(6.5D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+            assertEquals(7.5D, runtime.adjustVelocityVertical(4, 6), 0.000001D);
+
+            // Pause While Sneaking is an independent condition even airborne.
+            runtime.playerMovementState().update(false, true, false);
+            assertEquals(5.0D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+            runtime.playerMovementState().clear();
+            assertEquals(5.0D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+            assertEquals(6.0D, runtime.adjustVelocityVertical(4, 6), 0.000001D);
+            // Old overload lacks state and therefore fails closed.
+            assertEquals(5.0D, velocity.adjustHorizontal(2, 5), 0.000001D);
+            velocity.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            assertEquals(3.5D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+
+            // Sprint condition composes with both new gates.
+            velocity.onlyWhileSprintingSetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(true, false, false);
+            assertEquals(5.0D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+            runtime.playerMovementState().update(true, false, true);
+            assertEquals(3.5D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+            velocity.groundOnlySetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(false, false, true);
+            assertEquals(5.0D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+            runtime.playerMovementState().update(true, false, true);
+            assertEquals(3.5D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+            controller.disable(Minecraft189VelocityModule.ID);
+            assertEquals(5.0D, runtime.adjustVelocityHorizontal(2, 5), 0.000001D);
+        } finally {
+            runtime.close();
+        }
+        assertEquals(null, settings.find(
+                Minecraft189VelocityModule.GROUND_ONLY_SETTING_ID));
+        assertEquals(null, settings.find(
+                Minecraft189VelocityModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertEquals(null, modules.find(Minecraft189VelocityModule.ID));
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override
