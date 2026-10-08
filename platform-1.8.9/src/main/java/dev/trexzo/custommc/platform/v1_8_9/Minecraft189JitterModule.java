@@ -4,6 +4,10 @@ import dev.trexzo.custommc.core.module.Module;
 import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
 
+import java.util.Objects;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.DoubleSupplier;
+
 public final class Minecraft189JitterModule
         implements Module {
     public static final String ID =
@@ -20,6 +24,11 @@ public final class Minecraft189JitterModule
             "combat.jitter.intervalTicks";
     public static final String REQUIRE_HOLD_SETTING_ID =
             "combat.jitter.requireHold";
+    public static final String VARIABLE_STRENGTH_SETTING_ID =
+            "combat.jitter.variableStrength";
+    public static final String STRENGTH_VARIATION_SETTING_ID =
+            "combat.jitter.strengthVariationPercent";
+    public static final int DEFAULT_STRENGTH_VARIATION_PERCENT = 35;
     public static final double DEFAULT_DEGREES =
             0.50D;
     public static final double MINIMUM_DEGREES =
@@ -72,9 +81,35 @@ public final class Minecraft189JitterModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> variableStrength =
+            new Setting<Boolean>(
+                    VARIABLE_STRENGTH_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Integer> strengthVariationPercent =
+            new Setting<Integer>(
+                    STRENGTH_VARIATION_SETTING_ID,
+                    DEFAULT_STRENGTH_VARIATION_PERCENT,
+                    value -> value != null && value >= 0 && value <= 100,
+                    SettingCodecs.INTEGER);
+    private final DoubleSupplier randomUnit;
     private boolean enabled;
     private boolean positivePhase = true;
+    private boolean previousVariableStrength;
+    private float pairedYawDelta;
+    private float pairedPitchDelta;
     private int ticksUntilNext;
+
+    public Minecraft189JitterModule() {
+        this(() -> ThreadLocalRandom.current().nextDouble());
+    }
+
+    // An injected sequence makes variable-strength behavior reproducible in
+    // regression tests without coupling the runtime to a fixed RNG seed.
+    Minecraft189JitterModule(final DoubleSupplier randomUnit) {
+        this.randomUnit = Objects.requireNonNull(randomUnit, "randomUnit");
+    }
 
     @Override
     public String id() {
@@ -105,10 +140,19 @@ public final class Minecraft189JitterModule
         return requireHold;
     }
 
+    public Setting<Boolean> variableStrengthSetting() {
+        return variableStrength;
+    }
+
+    public Setting<Integer> strengthVariationPercentSetting() {
+        return strengthVariationPercent;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
         resetCadence();
+        previousVariableStrength = variableStrength.get().booleanValue();
     }
 
     @Override
@@ -125,6 +169,11 @@ public final class Minecraft189JitterModule
                 yawEnabled.get().booleanValue();
         final boolean pitchAxisEnabled =
                 pitchEnabled.get().booleanValue();
+        final boolean varying = variableStrength.get().booleanValue();
+        if (varying != previousVariableStrength) {
+            resetCadence();
+            previousVariableStrength = varying;
+        }
         if (!enabled
                 || player == null
                 || rotation == null
@@ -147,29 +196,39 @@ public final class Minecraft189JitterModule
         ticksUntilNext =
                 configuredInterval - 1;
 
-        final double direction =
-                positivePhase
-                        ? 1.0D
-                        : -1.0D;
+        final boolean outwardStroke = positivePhase;
+        final double direction = outwardStroke ? 1.0D : -1.0D;
         positivePhase = !positivePhase;
 
-        final float currentYaw =
-                rotation.yaw();
-        final float currentPitch =
-                rotation.pitch();
+        final float currentYaw = rotation.yaw();
+        final float currentPitch = rotation.pitch();
+        final double yawDelta = !varying
+                ? yawDegrees.get().doubleValue()
+                : outwardStroke
+                        ? sampledDegrees(yawDegrees.get().doubleValue())
+                        : pairedYawDelta;
+        final double pitchDelta = !varying
+                ? pitchDegrees.get().doubleValue()
+                : outwardStroke
+                        ? sampledDegrees(pitchDegrees.get().doubleValue())
+                        : pairedPitchDelta;
         final float targetYaw =
                 yawAxisEnabled
-                        ? (float) (currentYaw
-                                + direction
-                                * yawDegrees.get().doubleValue())
+                        ? (float) (currentYaw + direction * yawDelta)
                         : currentYaw;
         final float targetPitch =
                 pitchAxisEnabled
                         ? clampPitch(
-                                (float) (currentPitch
-                                        + direction
-                                        * pitchDegrees.get().doubleValue()))
+                                (float) (currentPitch + direction * pitchDelta))
                         : currentPitch;
+
+        if (varying && outwardStroke) {
+            // Pair the exact applied float deltas, including pitch clipping.
+            // A variable outward stroke and its return cannot accumulate
+            // unbounded random-walk offsets in a stable player snapshot.
+            pairedYawDelta = yawAxisEnabled ? targetYaw - currentYaw : 0.0F;
+            pairedPitchDelta = pitchAxisEnabled ? targetPitch - currentPitch : 0.0F;
+        }
 
         boolean changed = false;
         if (Float.compare(
@@ -196,6 +255,22 @@ public final class Minecraft189JitterModule
     private void resetCadence() {
         positivePhase = true;
         ticksUntilNext = 0;
+        pairedYawDelta = 0.0F;
+        pairedPitchDelta = 0.0F;
+    }
+
+    private double sampledDegrees(final double configuredDegrees) {
+        // Zero variation is exactly the original configured amplitude.
+        final int variation = strengthVariationPercent.get().intValue();
+        if (variation == 0 || configuredDegrees == 0.0D) {
+            return configuredDegrees;
+        }
+        final double candidate = randomUnit.getAsDouble();
+        // Fail closed for a bad test source; the production RNG is [0, 1).
+        final double sample =
+                Double.isFinite(candidate) && candidate >= 0.0D
+                        && candidate < 1.0D ? candidate : 0.0D;
+        return configuredDegrees * (1.0D - variation / 100.0D * sample);
     }
 
     private static float clampPitch(
