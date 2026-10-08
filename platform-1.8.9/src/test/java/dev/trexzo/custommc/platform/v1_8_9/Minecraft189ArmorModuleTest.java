@@ -254,7 +254,7 @@ final class Minecraft189ArmorModuleTest {
             host.lastText = null;
             runtime.playerArmor(null);
             runtime.renderHud(
-                    1L,
+                    7L,
                     0.0F);
             assertNull(host.lastText);
 
