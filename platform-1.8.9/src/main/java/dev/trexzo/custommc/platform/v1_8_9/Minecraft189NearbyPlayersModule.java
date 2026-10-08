@@ -21,6 +21,7 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public static final String RADIUS_SETTING_ID = ID + ".radius";
     public static final String SHOW_RADAR_SETTING_ID = ID + ".showRadar";
     public static final String NORTH_UP_SETTING_ID = ID + ".northUp";
+    public static final String HEIGHT_COLORS_SETTING_ID = ID + ".heightColors";
     public static final String RENDER_PASS_ID = "nearby-players";
 
     private final Minecraft189PlayerPositionState local;
@@ -43,6 +44,9 @@ public final class Minecraft189NearbyPlayersModule implements Module {
             v -> v != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> northUp = new Setting<Boolean>(
             NORTH_UP_SETTING_ID, Boolean.FALSE,
+            v -> v != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> heightColors = new Setting<Boolean>(
+            HEIGHT_COLORS_SETTING_ID, Boolean.FALSE,
             v -> v != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration registration;
 
@@ -67,6 +71,7 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public Setting<Integer> radiusSetting() { return radius; }
     public Setting<Boolean> showRadarSetting() { return showRadar; }
     public Setting<Boolean> northUpSetting() { return northUp; }
+    public Setting<Boolean> heightColorsSetting() { return heightColors; }
 
     @Override public synchronized void onEnable() {
         if (registration != null) {
@@ -146,6 +151,14 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                 ? new float[]{px, py} : null;
     }
 
+    /** Vertical colors use measured relative Y and do not infer visibility. */
+    static int radarBlipColor(final double dy, final boolean heightColorsMode) {
+        if (!heightColorsMode || !Double.isFinite(dy)) return 0xFFFFB56B;
+        if (dy > 2.0D) return 0xFFE391FF; // Above by more than 2 blocks.
+        if (dy < -2.0D) return 0xFF6EA8FF; // Below by more than 2 blocks.
+        return 0xFFFFB56B; // Within 2 blocks vertically.
+    }
+
     static final class NearbySnapshot {
         private final boolean available;
         private final int count;
@@ -168,7 +181,8 @@ public final class Minecraft189NearbyPlayersModule implements Module {
             final Minecraft189PlayerPositionState.Snapshot me,
             final Minecraft189WorldEntityPositionState.Snapshot positions,
             final Minecraft189WorldEntityKindState.Snapshot types,
-            final float yaw, final boolean northUpMode) {
+            final float yaw, final boolean northUpMode,
+            final boolean heightColorsMode) {
         final float centerX = x + 78.0F;
         final float centerY = y + 96.0F;
         graphics.fillRoundedRect(x + 30, y + 48, 96, 96, 4, 0xFF1B2634);
@@ -187,7 +201,8 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                     : projectRadar(dx, dz, yaw, range);
             if (offset != null) {
                 graphics.fillRoundedRect(centerX + offset[0] - 2,
-                        centerY + offset[1] - 2, 4, 4, 2, 0xFFFFB56B);
+                        centerY + offset[1] - 2, 4, 4, 2,
+                        radarBlipColor(dy, heightColorsMode));
             }
         }
         graphics.fillRoundedRect(centerX - 3, centerY - 3, 6, 6, 3, 0xFF70C9E8);
@@ -233,7 +248,8 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                 graphics.drawText(UiFonts.DEFAULT, left + 12.0F, top + 24.0F,
                         nearestLabel, 0xFFC4CBD5);
                 if (map) drawRadar(left, top, range, me, positions, types,
-                        facing.yaw(), northUpMode);
+                        facing.yaw(), northUpMode,
+                        heightColors.get().booleanValue());
             } catch (RuntimeException renderFailure) {
                 failure = renderFailure;
                 throw renderFailure;

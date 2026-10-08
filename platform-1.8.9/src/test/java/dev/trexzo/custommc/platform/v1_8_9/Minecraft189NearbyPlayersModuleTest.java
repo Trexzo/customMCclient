@@ -120,6 +120,24 @@ final class Minecraft189NearbyPlayersModuleTest {
     }
 
     @Test
+    void heightColorsHaveStrictTwoBlockThresholdAndStableDefault() {
+        assertEquals(0xFFFFB56B,
+                Minecraft189NearbyPlayersModule.radarBlipColor(9.0D, false));
+        assertEquals(0xFFFFB56B,
+                Minecraft189NearbyPlayersModule.radarBlipColor(-9.0D, false));
+        assertEquals(0xFFFFB56B,
+                Minecraft189NearbyPlayersModule.radarBlipColor(2.0D, true));
+        assertEquals(0xFFFFB56B,
+                Minecraft189NearbyPlayersModule.radarBlipColor(-2.0D, true));
+        assertEquals(0xFFE391FF,
+                Minecraft189NearbyPlayersModule.radarBlipColor(2.01D, true));
+        assertEquals(0xFF6EA8FF,
+                Minecraft189NearbyPlayersModule.radarBlipColor(-2.01D, true));
+        assertEquals(0xFFFFB56B,
+                Minecraft189NearbyPlayersModule.radarBlipColor(Double.NaN, true));
+    }
+
+    @Test
     void visualHudReadsMappedSnapshotsAndUnregistersCleanly() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -143,6 +161,7 @@ final class Minecraft189NearbyPlayersModuleTest {
             assertFalse(radar.renderPassInstalled());
             assertFalse(radar.showRadarSetting().get().booleanValue());
             assertFalse(radar.northUpSetting().get().booleanValue());
+            assertFalse(radar.heightColorsSetting().get().booleanValue());
             runtime.renderHud(0L, 0.0F);
             assertTrue(host.texts.isEmpty());
             radar.xSetting().set(25);
@@ -254,6 +273,78 @@ final class Minecraft189NearbyPlayersModuleTest {
         assertNull(settings.find(Minecraft189NearbyPlayersModule.RADIUS_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_RADAR_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.NORTH_UP_SETTING_ID));
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.HEIGHT_COLORS_SETTING_ID));
+    }
+
+    @Test
+    void heightColorsUseLiveMeasuredYAndRespectThreeDimensionalRadius() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189NearbyPlayersModule radar =
+                    runtime.featureCatalog().nearbyPlayers();
+            radar.showRadarSetting().set(Boolean.TRUE);
+            radar.northUpSetting().set(Boolean.TRUE);
+            radar.radiusSetting().set(5);
+            controller.enable(Minecraft189NearbyPlayersModule.ID);
+            runtime.playerPositionState().update(0, 0, 0);
+            runtime.worldEntityPositionState().update(new double[]{
+                    0, 0, 0,  // Local
+                    1, 0, 0,  // Level
+                    0, 3, 0,  // Above
+                    0, -3, 0, // Below
+                    0, 7, 0,  // Remote player outside radius
+                    0, 3, 0   // Non-player, must not appear
+            });
+            runtime.worldEntityKindState().update(new int[]{
+                    LOCAL, REMOTE, REMOTE, REMOTE, REMOTE,
+                    Minecraft189WorldEntityKindState.LIVING});
+            runtime.renderHud(51L, 0.0F);
+            assertEquals(3, host.markerColors.size());
+            assertEquals(0xFFFFB56B, host.markerColors.get(0).intValue());
+            assertEquals(0xFFFFB56B, host.markerColors.get(1).intValue());
+            assertEquals(0xFFFFB56B, host.markerColors.get(2).intValue());
+
+            radar.heightColorsSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NearbyPlayersModule.HEIGHT_COLORS_SETTING_ID));
+            runtime.renderHud(52L, 0.0F);
+            assertEquals(6, host.markerColors.size());
+            assertEquals(0xFFFFB56B, host.markerColors.get(3).intValue());
+            assertEquals(0xFFE391FF, host.markerColors.get(4).intValue());
+            assertEquals(0xFF6EA8FF, host.markerColors.get(5).intValue());
+
+            // Altitude never bypasses inclusive 3D radius filtering.
+            radar.radiusSetting().set(2);
+            runtime.renderHud(53L, 0.0F);
+            assertEquals(7, host.markerColors.size());
+            assertEquals(0xFFFFB56B, host.markerColors.get(6).intValue());
+
+            // Relative orientation shares the exact same altitude palette.
+            radar.radiusSetting().set(5);
+            radar.northUpSetting().set(Boolean.FALSE);
+            runtime.playerRotationState().update(90.0F, 0.0F);
+            runtime.renderHud(54L, 0.0F);
+            assertEquals(10, host.markerColors.size());
+            assertEquals(0xFFE391FF, host.markerColors.get(8).intValue());
+            assertEquals(0xFF6EA8FF, host.markerColors.get(9).intValue());
+            controller.disable(Minecraft189NearbyPlayersModule.ID);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.HEIGHT_COLORS_SETTING_ID));
     }
 
     private static final class RecordingHost
@@ -263,6 +354,7 @@ final class Minecraft189NearbyPlayersModuleTest {
         private float lastExpandedHeight;
         private final java.util.List<Float> markerXs = new java.util.ArrayList<Float>();
         private final java.util.List<Float> markerYs = new java.util.ArrayList<Float>();
+        private final java.util.List<Integer> markerColors = new java.util.ArrayList<Integer>();
         private float lastCardWidth;
         private float lastCardHeight;
         private int begins;
@@ -316,6 +408,7 @@ final class Minecraft189NearbyPlayersModuleTest {
             if (width == 4.0F && height == 4.0F) {
                 markerXs.add(x);
                 markerYs.add(y);
+                markerColors.add(argb);
             }
             roundedRects++;
         }
