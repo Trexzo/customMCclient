@@ -1597,3 +1597,9 @@ The adjusted pitch drives Max Pitch FOV eligibility, the pitch dead zone and exi
 M218 adds persistent DOUBLE setting `combat.aimAssist.yawOffset`, shown as **Yaw Offset** (−30° to +30°, default 0°). It adjusts the desired horizontal aim angle using certified yaw and shortest-path wrapping into [−180°, +180°). The effective angle consistently drives horizontal Max FOV, yaw dead-zone and yaw smoothing. Max Pitch FOV, pitch offset, distance, activation and Spin > Aim Assist > Jitter precedence are unchanged.
 
 The zero offset preserves M217 behavior. Focused and transformed-host tests validate positive and negative offsets, wrapped angle handling, FOV rejection, dead-zone yielding, zero-default parity and complete registration/teardown lifecycle. No new mapping, new transformer or target selection rule.
+
+## Aim Assist minimum distance
+
+M219 introduces persistent DOUBLE `combat.aimAssist.minDistance` (**Min Distance**, 0–128 blocks, default 0). The existing nearest-remote-player target snapshot is eligible for Aim Assist only when its certified squared distance is inclusively within Min Distance and Max Distance. Inverted user configuration (Min Distance > Max Distance) fails closed without rotation writes. At the zero default, behavior is unchanged from M218.
+
+The minimum distance is a filter on the **already selected nearest target**; it does not cause a different candidate to be selected. Max Distance, Max FOV, Max Pitch FOV, offsets, smoothing, dead zone, activation, axis controls and Spin > Aim Assist > Jitter ownership remain unchanged. Focused tests validate exact inclusive boundary, near-target suppression, inverted interval, and existing Max Distance interplay; transformed-host tests validate actual mapped yaw/pitch non-writes and reactivation. No new mappings or transformer hooks.
