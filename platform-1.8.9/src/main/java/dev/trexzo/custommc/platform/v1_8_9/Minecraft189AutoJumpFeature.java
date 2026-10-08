@@ -25,6 +25,9 @@ final class Minecraft189AutoJumpFeature
     private final SettingPresentationRegistry.Registration landingDelayPresentation;
     private final ModuleSettingRegistry.Registration requireForwardBinding;
     private final ModuleSettingRegistry.Registration landingDelayBinding;
+    private final SettingRegistry.Registration requireMovementSetting;
+    private final SettingPresentationRegistry.Registration requireMovementPresentation;
+    private final ModuleSettingRegistry.Registration requireMovementBinding;
     private boolean closed;
 
     private Minecraft189AutoJumpFeature(
@@ -37,7 +40,10 @@ final class Minecraft189AutoJumpFeature
             final SettingPresentationRegistry.Registration requireForwardPresentation,
             final SettingPresentationRegistry.Registration landingDelayPresentation,
             final ModuleSettingRegistry.Registration requireForwardBinding,
-            final ModuleSettingRegistry.Registration landingDelayBinding) {
+            final ModuleSettingRegistry.Registration landingDelayBinding,
+            final SettingRegistry.Registration requireMovementSetting,
+            final SettingPresentationRegistry.Registration requireMovementPresentation,
+            final ModuleSettingRegistry.Registration requireMovementBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -48,6 +54,9 @@ final class Minecraft189AutoJumpFeature
         this.landingDelayPresentation = landingDelayPresentation;
         this.requireForwardBinding = requireForwardBinding;
         this.landingDelayBinding = landingDelayBinding;
+        this.requireMovementSetting = requireMovementSetting;
+        this.requireMovementPresentation = requireMovementPresentation;
+        this.requireMovementBinding = requireMovementBinding;
     }
 
     static Minecraft189AutoJumpFeature install(
@@ -68,6 +77,9 @@ final class Minecraft189AutoJumpFeature
         SettingPresentationRegistry.Registration landingDelayPresentation = null;
         ModuleSettingRegistry.Registration requireForwardBinding = null;
         ModuleSettingRegistry.Registration landingDelayBinding = null;
+        SettingRegistry.Registration requireMovementSetting = null;
+        SettingPresentationRegistry.Registration requireMovementPresentation = null;
+        ModuleSettingRegistry.Registration requireMovementBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -86,6 +98,7 @@ final class Minecraft189AutoJumpFeature
                             module.requireForwardSetting());
             landingDelaySetting = settings.register(
                     module.landingDelayTicksSetting());
+            requireMovementSetting = settings.register(module.requireMovementSetting());
             requireForwardPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -103,6 +116,10 @@ final class Minecraft189AutoJumpFeature
                                     0.0D,
                                     Minecraft189AutoJumpModule.MAXIMUM_LANDING_DELAY_TICKS,
                                     1.0D)));
+            requireMovementPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoJumpModule.REQUIRE_MOVEMENT_SETTING_ID,
+                            "Require Movement (WASD)", SettingValueKind.BOOLEAN, 20));
             requireForwardBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -116,6 +133,11 @@ final class Minecraft189AutoJumpFeature
                             Minecraft189AutoJumpModule.LANDING_DELAY_SETTING_ID,
                             10));
 
+            requireMovementBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoJumpModule.ID,
+                            Minecraft189AutoJumpModule.REQUIRE_MOVEMENT_SETTING_ID, 20));
+
             return new Minecraft189AutoJumpFeature(
                     controller,
                     module,
@@ -126,8 +148,14 @@ final class Minecraft189AutoJumpFeature
                     requireForwardPresentation,
                     landingDelayPresentation,
                     requireForwardBinding,
-                    landingDelayBinding);
+                    landingDelayBinding,
+                    requireMovementSetting,
+                    requireMovementPresentation,
+                    requireMovementBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(requireMovementBinding, failure);
+            closeQuietly(requireMovementPresentation, failure);
+            closeQuietly(requireMovementSetting, failure);
             closeQuietly(landingDelayBinding, failure);
             closeQuietly(landingDelayPresentation, failure);
             closeQuietly(landingDelaySetting, failure);
@@ -171,6 +199,9 @@ final class Minecraft189AutoJumpFeature
             failure = closeFailure;
         }
 
+        failure = close(requireMovementBinding, failure);
+        failure = close(requireMovementPresentation, failure);
+        failure = close(requireMovementSetting, failure);
         failure = close(landingDelayBinding, failure);
         failure = close(landingDelayPresentation, failure);
         failure = close(landingDelaySetting, failure);
