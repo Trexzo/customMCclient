@@ -20,8 +20,14 @@ final class Minecraft189ReverseStepFeature
     private final ModuleRegistry.Registration moduleRegistration;
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration speedSetting;
+    private final SettingRegistry.Registration delayTicksSetting;
+    private final SettingRegistry.Registration requireSneakingSetting;
     private final SettingPresentationRegistry.Registration speedPresentation;
+    private final SettingPresentationRegistry.Registration delayTicksPresentation;
+    private final SettingPresentationRegistry.Registration requireSneakingPresentation;
     private final ModuleSettingRegistry.Registration speedBinding;
+    private final ModuleSettingRegistry.Registration delayTicksBinding;
+    private final ModuleSettingRegistry.Registration requireSneakingBinding;
     private boolean closed;
 
     private Minecraft189ReverseStepFeature(
@@ -30,15 +36,27 @@ final class Minecraft189ReverseStepFeature
             final ModuleRegistry.Registration moduleRegistration,
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration speedSetting,
+            final SettingRegistry.Registration delayTicksSetting,
+            final SettingRegistry.Registration requireSneakingSetting,
             final SettingPresentationRegistry.Registration speedPresentation,
-            final ModuleSettingRegistry.Registration speedBinding) {
+            final SettingPresentationRegistry.Registration delayTicksPresentation,
+            final SettingPresentationRegistry.Registration requireSneakingPresentation,
+            final ModuleSettingRegistry.Registration speedBinding,
+            final ModuleSettingRegistry.Registration delayTicksBinding,
+            final ModuleSettingRegistry.Registration requireSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.speedSetting = speedSetting;
+        this.delayTicksSetting = delayTicksSetting;
+        this.requireSneakingSetting = requireSneakingSetting;
         this.speedPresentation = speedPresentation;
+        this.delayTicksPresentation = delayTicksPresentation;
+        this.requireSneakingPresentation = requireSneakingPresentation;
         this.speedBinding = speedBinding;
+        this.delayTicksBinding = delayTicksBinding;
+        this.requireSneakingBinding = requireSneakingBinding;
     }
 
     static Minecraft189ReverseStepFeature install(
@@ -54,8 +72,14 @@ final class Minecraft189ReverseStepFeature
         ModuleRegistry.Registration moduleRegistration = null;
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration speedSetting = null;
+        SettingRegistry.Registration delayTicksSetting = null;
+        SettingRegistry.Registration requireSneakingSetting = null;
         SettingPresentationRegistry.Registration speedPresentation = null;
+        SettingPresentationRegistry.Registration delayTicksPresentation = null;
+        SettingPresentationRegistry.Registration requireSneakingPresentation = null;
         ModuleSettingRegistry.Registration speedBinding = null;
+        ModuleSettingRegistry.Registration delayTicksBinding = null;
+        ModuleSettingRegistry.Registration requireSneakingBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -72,6 +96,9 @@ final class Minecraft189ReverseStepFeature
             speedSetting =
                     settings.register(
                             module.speedSetting());
+            delayTicksSetting = settings.register(module.delayTicksSetting());
+            requireSneakingSetting = settings.register(
+                    module.requireSneakingSetting());
             speedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -83,6 +110,18 @@ final class Minecraft189ReverseStepFeature
                                             Minecraft189ReverseStepModule.MINIMUM_SPEED,
                                             Minecraft189ReverseStepModule.MAXIMUM_SPEED,
                                             0.05D)));
+            delayTicksPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189ReverseStepModule.DELAY_TICKS_SETTING_ID,
+                            "Drop Delay Ticks", SettingValueKind.INTEGER, 10,
+                            new SettingNumericSpec(
+                                    Minecraft189ReverseStepModule.MINIMUM_DELAY_TICKS,
+                                    Minecraft189ReverseStepModule.MAXIMUM_DELAY_TICKS,
+                                    1.0D)));
+            requireSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189ReverseStepModule.REQUIRE_SNEAK_SETTING_ID,
+                            "Require Sneaking", SettingValueKind.BOOLEAN, 20));
             speedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -90,15 +129,38 @@ final class Minecraft189ReverseStepFeature
                                     Minecraft189ReverseStepModule.SPEED_SETTING_ID,
                                     0));
 
+            delayTicksBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189ReverseStepModule.ID,
+                            Minecraft189ReverseStepModule.DELAY_TICKS_SETTING_ID,
+                            10));
+            requireSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189ReverseStepModule.ID,
+                            Minecraft189ReverseStepModule.REQUIRE_SNEAK_SETTING_ID,
+                            20));
+
             return new Minecraft189ReverseStepFeature(
                     controller,
                     module,
                     moduleRegistration,
                     presentation,
                     speedSetting,
+                    delayTicksSetting,
+                    requireSneakingSetting,
                     speedPresentation,
-                    speedBinding);
+                    delayTicksPresentation,
+                    requireSneakingPresentation,
+                    speedBinding,
+                    delayTicksBinding,
+                    requireSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(requireSneakingBinding, failure);
+            closeQuietly(delayTicksBinding, failure);
+            closeQuietly(requireSneakingPresentation, failure);
+            closeQuietly(delayTicksPresentation, failure);
+            closeQuietly(requireSneakingSetting, failure);
+            closeQuietly(delayTicksSetting, failure);
             closeQuietly(speedBinding, failure);
             closeQuietly(speedPresentation, failure);
             closeQuietly(speedSetting, failure);
@@ -135,6 +197,12 @@ final class Minecraft189ReverseStepFeature
             failure = closeFailure;
         }
 
+        failure = close(requireSneakingBinding, failure);
+        failure = close(delayTicksBinding, failure);
+        failure = close(requireSneakingPresentation, failure);
+        failure = close(delayTicksPresentation, failure);
+        failure = close(requireSneakingSetting, failure);
+        failure = close(delayTicksSetting, failure);
         failure = close(speedBinding, failure);
         failure = close(speedPresentation, failure);
         failure = close(speedSetting, failure);
