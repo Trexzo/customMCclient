@@ -20,8 +20,14 @@ final class Minecraft189FastFallFeature
     private final ModuleRegistry.Registration moduleRegistration;
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration fallSpeedSetting;
+    private final SettingRegistry.Registration progressiveSetting;
+    private final SettingRegistry.Registration rampStepSetting;
     private final SettingPresentationRegistry.Registration fallSpeedPresentation;
+    private final SettingPresentationRegistry.Registration progressivePresentation;
+    private final SettingPresentationRegistry.Registration rampStepPresentation;
     private final ModuleSettingRegistry.Registration fallSpeedBinding;
+    private final ModuleSettingRegistry.Registration progressiveBinding;
+    private final ModuleSettingRegistry.Registration rampStepBinding;
     private boolean closed;
 
     private Minecraft189FastFallFeature(
@@ -30,15 +36,27 @@ final class Minecraft189FastFallFeature
             final ModuleRegistry.Registration moduleRegistration,
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration fallSpeedSetting,
+            final SettingRegistry.Registration progressiveSetting,
+            final SettingRegistry.Registration rampStepSetting,
             final SettingPresentationRegistry.Registration fallSpeedPresentation,
-            final ModuleSettingRegistry.Registration fallSpeedBinding) {
+            final SettingPresentationRegistry.Registration progressivePresentation,
+            final SettingPresentationRegistry.Registration rampStepPresentation,
+            final ModuleSettingRegistry.Registration fallSpeedBinding,
+            final ModuleSettingRegistry.Registration progressiveBinding,
+            final ModuleSettingRegistry.Registration rampStepBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.fallSpeedSetting = fallSpeedSetting;
+        this.progressiveSetting = progressiveSetting;
+        this.rampStepSetting = rampStepSetting;
         this.fallSpeedPresentation = fallSpeedPresentation;
+        this.progressivePresentation = progressivePresentation;
+        this.rampStepPresentation = rampStepPresentation;
         this.fallSpeedBinding = fallSpeedBinding;
+        this.progressiveBinding = progressiveBinding;
+        this.rampStepBinding = rampStepBinding;
     }
 
     static Minecraft189FastFallFeature install(
@@ -54,8 +72,14 @@ final class Minecraft189FastFallFeature
         ModuleRegistry.Registration moduleRegistration = null;
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration fallSpeedSetting = null;
+        SettingRegistry.Registration progressiveSetting = null;
+        SettingRegistry.Registration rampStepSetting = null;
         SettingPresentationRegistry.Registration fallSpeedPresentation = null;
+        SettingPresentationRegistry.Registration progressivePresentation = null;
+        SettingPresentationRegistry.Registration rampStepPresentation = null;
         ModuleSettingRegistry.Registration fallSpeedBinding = null;
+        ModuleSettingRegistry.Registration progressiveBinding = null;
+        ModuleSettingRegistry.Registration rampStepBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -72,6 +96,8 @@ final class Minecraft189FastFallFeature
             fallSpeedSetting =
                     settings.register(
                             module.fallSpeedSetting());
+            progressiveSetting = settings.register(module.progressiveSetting());
+            rampStepSetting = settings.register(module.rampStepSetting());
             fallSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -83,6 +109,18 @@ final class Minecraft189FastFallFeature
                                             Minecraft189FastFallModule.MINIMUM_FALL_SPEED,
                                             Minecraft189FastFallModule.MAXIMUM_FALL_SPEED,
                                             0.05D)));
+            progressivePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FastFallModule.PROGRESSIVE_SETTING_ID,
+                            "Progressive Fall", SettingValueKind.BOOLEAN, 10));
+            rampStepPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FastFallModule.RAMP_STEP_SETTING_ID,
+                            "Fall Ramp Step", SettingValueKind.DOUBLE, 20,
+                            new SettingNumericSpec(
+                                    Minecraft189FastFallModule.MINIMUM_RAMP_STEP,
+                                    Minecraft189FastFallModule.MAXIMUM_RAMP_STEP,
+                                    0.01D)));
             fallSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -90,15 +128,36 @@ final class Minecraft189FastFallFeature
                                     Minecraft189FastFallModule.FALL_SPEED_SETTING_ID,
                                     0));
 
+            progressiveBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FastFallModule.ID,
+                            Minecraft189FastFallModule.PROGRESSIVE_SETTING_ID, 10));
+            rampStepBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FastFallModule.ID,
+                            Minecraft189FastFallModule.RAMP_STEP_SETTING_ID, 20));
+
             return new Minecraft189FastFallFeature(
                     controller,
                     module,
                     moduleRegistration,
                     presentation,
                     fallSpeedSetting,
+                    progressiveSetting,
+                    rampStepSetting,
                     fallSpeedPresentation,
-                    fallSpeedBinding);
+                    progressivePresentation,
+                    rampStepPresentation,
+                    fallSpeedBinding,
+                    progressiveBinding,
+                    rampStepBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(rampStepBinding, failure);
+            closeQuietly(progressiveBinding, failure);
+            closeQuietly(rampStepPresentation, failure);
+            closeQuietly(progressivePresentation, failure);
+            closeQuietly(rampStepSetting, failure);
+            closeQuietly(progressiveSetting, failure);
             closeQuietly(fallSpeedBinding, failure);
             closeQuietly(fallSpeedPresentation, failure);
             closeQuietly(fallSpeedSetting, failure);
@@ -135,6 +194,12 @@ final class Minecraft189FastFallFeature
             failure = closeFailure;
         }
 
+        failure = close(rampStepBinding, failure);
+        failure = close(progressiveBinding, failure);
+        failure = close(rampStepPresentation, failure);
+        failure = close(progressivePresentation, failure);
+        failure = close(rampStepSetting, failure);
+        failure = close(progressiveSetting, failure);
         failure = close(fallSpeedBinding, failure);
         failure = close(fallSpeedPresentation, failure);
         failure = close(fallSpeedSetting, failure);
