@@ -42,6 +42,13 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.yawEnabled";
     public static final String PITCH_ENABLED_SETTING_ID =
             "combat.aimAssist.pitchEnabled";
+    public static final String ANGULAR_EASING_SETTING_ID =
+            "combat.aimAssist.angularEasing";
+    public static final String EASING_STRENGTH_SETTING_ID =
+            "combat.aimAssist.easingStrengthPercent";
+    public static final int DEFAULT_EASING_STRENGTH = 50;
+    public static final int MINIMUM_EASING_STRENGTH = 10;
+    public static final int MAXIMUM_EASING_STRENGTH = 90;
     public static final double DEFAULT_YAW_SPEED =
             180.0D;
     public static final double DEFAULT_PITCH_SPEED =
@@ -187,6 +194,21 @@ public final class Minecraft189AimAssistModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> angularEasing =
+            new Setting<Boolean>(
+                    ANGULAR_EASING_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Integer> easingStrength =
+            new Setting<Integer>(
+                    EASING_STRENGTH_SETTING_ID,
+                    DEFAULT_EASING_STRENGTH,
+                    value -> value != null
+                            && value >= MINIMUM_EASING_STRENGTH
+                            && value <= MAXIMUM_EASING_STRENGTH,
+                    SettingCodecs.INTEGER);
+
     private boolean enabled;
 
     @Override
@@ -260,6 +282,14 @@ public final class Minecraft189AimAssistModule
 
     public Setting<Boolean> pitchEnabledSetting() {
         return pitchEnabled;
+    }
+
+    public Setting<Boolean> angularEasingSetting() {
+        return angularEasing;
+    }
+
+    public Setting<Integer> easingStrengthSetting() {
+        return easingStrength;
     }
 
     @Override
@@ -347,16 +377,24 @@ public final class Minecraft189AimAssistModule
             return false;
         }
 
+        final boolean ease = angularEasing.get().booleanValue();
+        final int strength = easingStrength.get().intValue();
         final float targetYaw =
                 stepYaw(
                         rotation.yaw(),
                         desiredYaw,
-                        yawSpeed.get().doubleValue());
+                        ease ? easedMaximumStep(
+                                wrapYaw(desiredYaw - rotation.yaw()),
+                                yawSpeed.get().doubleValue(), strength)
+                                : yawSpeed.get().doubleValue());
         final float targetPitch =
                 stepLinear(
                         rotation.pitch(),
                         desiredPitch,
-                        pitchSpeed.get().doubleValue());
+                        ease ? easedMaximumStep(
+                                desiredPitch - rotation.pitch(),
+                                pitchSpeed.get().doubleValue(), strength)
+                                : pitchSpeed.get().doubleValue());
 
         if (adjustYaw
                 && Float.compare(
@@ -424,6 +462,27 @@ public final class Minecraft189AimAssistModule
     private float effectivePitch(final float rawPitch) {
         return Math.max(-90.0F, Math.min(90.0F,
                 rawPitch + pitchOffset.get().floatValue()));
+    }
+
+    static double easedMaximumStep(
+            final float angularError,
+            final double configuredStep,
+            final int strengthPercent) {
+        // Per-axis geometric approach: 50% easing caps the next correction
+        // to half the remaining error, while preserving the configured
+        // maximum speed. A 0.1-degree minimum avoids sub-ULP stalls at
+        // large wrapped yaw values; existing dead-zone gates still apply.
+        if (!Float.isFinite(angularError)
+                || !Double.isFinite(configuredStep)
+                || configuredStep <= 0.0D
+                || strengthPercent < MINIMUM_EASING_STRENGTH
+                || strengthPercent > MAXIMUM_EASING_STRENGTH) {
+            return configuredStep;
+        }
+        final double remainingFraction = (100.0D - strengthPercent) / 100.0D;
+        return Math.min(configuredStep,
+                Math.max(MINIMUM_SPEED,
+                        Math.abs((double) angularError) * remainingFraction));
     }
 
     private static float stepYaw(
