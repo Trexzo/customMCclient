@@ -1,6 +1,10 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
 import dev.trexzo.custommc.core.module.ModuleController;
+import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
+import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
+import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
+import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.render.RenderFrame;
 import dev.trexzo.custommc.core.render.RenderPipeline;
@@ -85,6 +89,86 @@ final class Minecraft189CoordinatesModuleTest {
     }
 
     @Test
+    void chunkCoordinatesAreOptInAndFloorNegativePositions() {
+        final Minecraft189PlayerPositionState state =
+                new Minecraft189PlayerPositionState();
+        final RenderPipeline pipeline = new RenderPipeline();
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189CoordinatesModule coordinates =
+                new Minecraft189CoordinatesModule(state, pipeline, host);
+        final ModuleRegistry modules = new ModuleRegistry();
+        modules.register(coordinates);
+        final ModuleController controller = new ModuleController(modules);
+        controller.enable(Minecraft189CoordinatesModule.ID);
+
+        state.update(-0.1D, 70.0D, -16.01D);
+        pipeline.render(RenderStage.HUD, new RenderFrame(0L, 0.0F));
+        assertEquals(1, host.texts.size());
+        assertEquals("XYZ: -0.1 / 70.0 / -16.0", host.texts.get(0));
+        assertFalse(coordinates.showChunkSetting().get().booleanValue());
+
+        coordinates.showChunkSetting().set(Boolean.TRUE);
+        host.texts.clear();
+        host.textYs.clear();
+        pipeline.render(RenderStage.HUD, new RenderFrame(1L, 0.0F));
+        assertEquals(2, host.texts.size());
+        assertEquals("CHUNK: -1 / -2", host.texts.get(1));
+        assertEquals(160.0F, host.textYs.get(1));
+
+        state.update(16.0D, 70.0D, 0.0D);
+        host.texts.clear();
+        pipeline.render(RenderStage.HUD, new RenderFrame(2L, 0.0F));
+        assertEquals("CHUNK: 1 / 0", host.texts.get(1));
+        assertEquals(0L, Minecraft189CoordinatesModule.chunkIndex(15.999D));
+        assertEquals(1L, Minecraft189CoordinatesModule.chunkIndex(16.0D));
+        assertEquals(-1L, Minecraft189CoordinatesModule.chunkIndex(-0.001D));
+        assertEquals(-1L, Minecraft189CoordinatesModule.chunkIndex(-16.0D));
+        assertEquals(-2L, Minecraft189CoordinatesModule.chunkIndex(-16.001D));
+
+        coordinates.showChunkSetting().set(Boolean.FALSE);
+        host.texts.clear();
+        pipeline.render(RenderStage.HUD, new RenderFrame(3L, 0.0F));
+        assertEquals(1, host.texts.size());
+
+        state.clear();
+        host.texts.clear();
+        pipeline.render(RenderStage.HUD, new RenderFrame(4L, 0.0F));
+        assertTrue(host.texts.isEmpty());
+        controller.disable(Minecraft189CoordinatesModule.ID);
+    }
+
+    @Test
+    void chunkSettingIsPersistedAndUnregisteredOnClose() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final ModulePresentationRegistry presentations =
+                new ModulePresentationRegistry();
+        final ModuleSettingRegistry moduleSettings =
+                new ModuleSettingRegistry();
+        final SettingRegistry settings = new SettingRegistry();
+        final SettingPresentationRegistry settingPresentations =
+                new SettingPresentationRegistry();
+        final Minecraft189CoordinatesFeature feature =
+                Minecraft189CoordinatesFeature.install(
+                        modules, controller, presentations,
+                        moduleSettings, settings, settingPresentations,
+                        new Minecraft189PlayerPositionState(),
+                        new RenderPipeline(), new RecordingHost());
+        try {
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189CoordinatesModule.SHOW_CHUNK_SETTING_ID));
+            feature.module().showChunkSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189CoordinatesModule.SHOW_CHUNK_SETTING_ID));
+        } finally {
+            feature.close();
+        }
+        assertNull(settings.find(
+                Minecraft189CoordinatesModule.SHOW_CHUNK_SETTING_ID));
+        assertNull(modules.find(Minecraft189CoordinatesModule.ID));
+    }
+
+    @Test
     void positionStateRejectsNonFiniteCoordinates() {
         final Minecraft189PlayerPositionState state =
                 new Minecraft189PlayerPositionState();
@@ -105,6 +189,10 @@ final class Minecraft189CoordinatesModuleTest {
 
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
+        private final java.util.List<String> texts =
+                new java.util.ArrayList<String>();
+        private final java.util.List<Float> textYs =
+                new java.util.ArrayList<Float>();
         private String lastText;
         private float lastX;
         private float lastY;
@@ -177,6 +265,8 @@ final class Minecraft189CoordinatesModuleTest {
                 final float y,
                 final String text,
                 final int argb) {
+            texts.add(text);
+            textYs.add(y);
             lastText = text;
             lastX = x;
             lastY = y;
