@@ -83,6 +83,12 @@ final class Minecraft189CrosshairModuleTest {
             crosshair.dotSetting().set(Boolean.TRUE);
             assertEquals(Boolean.FALSE, crosshair.sprintExpansionSetting().get());
             assertEquals(Integer.valueOf(4), crosshair.sprintGapBonusSetting().get());
+            assertEquals(Boolean.FALSE, crosshair.outlineSetting().get());
+            assertEquals(Integer.valueOf(1), crosshair.outlineSizeSetting().get());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.OUTLINE_SETTING_ID));
+            assertEquals("1", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.OUTLINE_SIZE_SETTING_ID));
 
             controller.enable(
                     Minecraft189CrosshairModule.ID);
@@ -101,6 +107,10 @@ final class Minecraft189CrosshairModuleTest {
                             "319.0,183.0,2.0,6.0",
                             "319.0,179.0,2.0,2.0"),
                     host.rectangles);
+            assertEquals(Arrays.asList(
+                    Integer.valueOf(0xFFFFFFFF), Integer.valueOf(0xFFFFFFFF),
+                    Integer.valueOf(0xFFFFFFFF), Integer.valueOf(0xFFFFFFFF),
+                    Integer.valueOf(0xFFFFFFFF)), host.rectangleColors);
             assertEquals(
                     "6",
                     settings.snapshotEncoded()
@@ -178,6 +188,78 @@ final class Minecraft189CrosshairModuleTest {
             assertThrows(IllegalArgumentException.class,
                     () -> crosshair.sprintGapBonusSetting().set(13));
 
+            // Outline is opt-in: black backing rects precede the exact
+            // original white geometry, including center dot.
+            crosshair.outlineSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.OUTLINE_SETTING_ID));
+            host.rectangles.clear();
+            host.rectangleColors.clear();
+            runtime.renderHud(7L, 0.0F);
+            assertEquals(Arrays.asList(
+                    "310.0,178.0,8.0,4.0",
+                    "322.0,178.0,8.0,4.0",
+                    "318.0,170.0,4.0,8.0",
+                    "318.0,182.0,4.0,8.0",
+                    "318.0,178.0,4.0,4.0",
+                    "311.0,179.0,6.0,2.0",
+                    "323.0,179.0,6.0,2.0",
+                    "319.0,171.0,2.0,6.0",
+                    "319.0,183.0,2.0,6.0",
+                    "319.0,179.0,2.0,2.0"), host.rectangles);
+            assertEquals(Arrays.asList(
+                    Integer.valueOf(0xFF000000), Integer.valueOf(0xFF000000),
+                    Integer.valueOf(0xFF000000), Integer.valueOf(0xFF000000),
+                    Integer.valueOf(0xFF000000), Integer.valueOf(0xFFFFFFFF),
+                    Integer.valueOf(0xFFFFFFFF), Integer.valueOf(0xFFFFFFFF),
+                    Integer.valueOf(0xFFFFFFFF), Integer.valueOf(0xFFFFFFFF)),
+                    host.rectangleColors);
+
+            crosshair.outlineSizeSetting().set(2);
+            assertEquals("2", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.OUTLINE_SIZE_SETTING_ID));
+            host.rectangles.clear();
+            host.rectangleColors.clear();
+            runtime.renderHud(8L, 0.0F);
+            assertEquals(Arrays.asList(
+                    "309.0,177.0,10.0,6.0",
+                    "321.0,177.0,10.0,6.0",
+                    "317.0,169.0,6.0,10.0",
+                    "317.0,181.0,6.0,10.0",
+                    "317.0,177.0,6.0,6.0"), host.rectangles.subList(0, 5));
+            // Sprint expansion shifts the dark and white arms equally.
+            crosshair.sprintExpansionSetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(true, false, true);
+            host.rectangles.clear();
+            runtime.renderHud(9L, 0.0F);
+            assertEquals("307.0,177.0,10.0,6.0", host.rectangles.get(0));
+            assertEquals("309.0,179.0,6.0,2.0", host.rectangles.get(5));
+            crosshair.sprintExpansionSetting().set(Boolean.FALSE);
+            assertThrows(IllegalArgumentException.class,
+                    () -> crosshair.outlineSizeSetting().set(0));
+            assertThrows(IllegalArgumentException.class,
+                    () -> crosshair.outlineSizeSetting().set(4));
+
+            // Removing the center dot also removes its outline; disabling
+            // outline restores precisely four original white arm draws.
+            crosshair.dotSetting().set(Boolean.FALSE);
+            host.rectangles.clear();
+            host.rectangleColors.clear();
+            runtime.renderHud(10L, 0.0F);
+            assertEquals(8, host.rectangles.size());
+            assertEquals(0xFF000000, host.rectangleColors.get(0).intValue());
+            assertEquals(0xFFFFFFFF, host.rectangleColors.get(4).intValue());
+            crosshair.outlineSetting().set(Boolean.FALSE);
+            host.rectangles.clear();
+            host.rectangleColors.clear();
+            runtime.renderHud(11L, 0.0F);
+            assertEquals(Arrays.asList(
+                    "311.0,179.0,6.0,2.0",
+                    "323.0,179.0,6.0,2.0",
+                    "319.0,171.0,2.0,6.0",
+                    "319.0,183.0,2.0,6.0"), host.rectangles);
+            assertEquals(4, host.rectangleColors.size());
+
             host.rectangles.clear();
             controller.disable(
                     Minecraft189CrosshairModule.ID);
@@ -212,6 +294,10 @@ final class Minecraft189CrosshairModuleTest {
                 Minecraft189CrosshairModule.SPRINT_EXPANSION_SETTING_ID));
         assertNull(settings.find(
                 Minecraft189CrosshairModule.SPRINT_GAP_BONUS_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189CrosshairModule.OUTLINE_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189CrosshairModule.OUTLINE_SIZE_SETTING_ID));
     }
 
     @Test
@@ -241,6 +327,8 @@ final class Minecraft189CrosshairModuleTest {
             implements LegacyUiHostCallbacks {
         private final List<String> rectangles =
                 new ArrayList<String>();
+        private final List<Integer> rectangleColors =
+                new ArrayList<Integer>();
 
         @Override
         public int framebufferWidth() {
@@ -269,6 +357,7 @@ final class Minecraft189CrosshairModuleTest {
                 final float width,
                 final float height,
                 final int argb) {
+            rectangleColors.add(Integer.valueOf(argb));
             rectangles.add(
                     Float.toString(x)
                             + ","
