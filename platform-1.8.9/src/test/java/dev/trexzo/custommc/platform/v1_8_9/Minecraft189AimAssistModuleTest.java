@@ -65,6 +65,12 @@ final class Minecraft189AimAssistModuleTest {
                             .get()
                             .doubleValue(),
                     0.000001D);
+            assertEquals(
+                    Minecraft189AimAssistModule.DEFAULT_MAX_FOV,
+                    module.maxFovSetting()
+                            .get()
+                            .doubleValue(),
+                    0.000001D);
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.YAW_SPEED_SETTING_ID)
@@ -80,6 +86,10 @@ final class Minecraft189AimAssistModuleTest {
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.MAX_DISTANCE_SETTING_ID)
+                            != null);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.MAX_FOV_SETTING_ID)
                             != null);
             final Minecraft189PlayerPositionState local =
                     new Minecraft189PlayerPositionState();
@@ -174,6 +184,26 @@ final class Minecraft189AimAssistModuleTest {
             module.maxDistanceSetting()
                     .set(
                             15.0D);
+            module.maxFovSetting()
+                    .set(
+                            20.0D);
+            currentRotation.update(
+                    player.yaw,
+                    player.pitch);
+            assertFalse(
+                    module.apply(
+                            player,
+                            currentRotation.snapshot(),
+                            targetRotation.snapshot(),
+                            true));
+            assertEquals(
+                    30.0F,
+                    player.yaw,
+                    0.000001F);
+
+            module.maxFovSetting()
+                    .set(
+                            45.0D);
             currentRotation.update(
                     player.yaw,
                     player.pitch);
@@ -227,6 +257,9 @@ final class Minecraft189AimAssistModuleTest {
             targetRotation.update(
                     local.snapshot(),
                     target.snapshot());
+            module.maxFovSetting()
+                    .set(
+                            Minecraft189AimAssistModule.DEFAULT_MAX_FOV);
             module.yawSpeedSetting()
                     .set(
                             20.0D);
@@ -316,6 +349,9 @@ final class Minecraft189AimAssistModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189AimAssistModule.MAX_DISTANCE_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AimAssistModule.MAX_FOV_SETTING_ID));
     }
 
     private static final class TestPlayer
