@@ -48,6 +48,9 @@ final class Minecraft189TargetHudModuleTest {
             assertFalse(hud.renderPassInstalled());
             assertFalse(hud.compactSetting().get().booleanValue());
             assertFalse(hud.proximityMeterSetting().get().booleanValue());
+            assertFalse(hud.showCoordinatesSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189TargetHudModule.SHOW_COORDINATES_SETTING_ID));
             assertEquals(Integer.valueOf(16), hud.proximityRangeSetting().get());
             assertEquals("false", settings.snapshotEncoded().get(
                     Minecraft189TargetHudModule.PROXIMITY_METER_SETTING_ID));
@@ -160,6 +163,44 @@ final class Minecraft189TargetHudModuleTest {
             assertThrows(IllegalArgumentException.class,
                     () -> hud.proximityRangeSetting().set(65));
 
+            // M280: Optional source-grounded target XYZ. Both compact and
+            // expanded card heights grow only while a valid target exists.
+            hud.showCoordinatesSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189TargetHudModule.SHOW_COORDINATES_SETTING_ID));
+            final int textsBeforeCoordinates = host.texts.size();
+            runtime.renderHud(27L, 0.0F);
+            assertEquals(textsBeforeCoordinates + 3, host.texts.size());
+            assertEquals("XYZ  0.0 / 0.0 / 9.0",
+                    host.texts.get(host.texts.size() - 1));
+            assertEquals(208.0F, host.lastCardWidth, 0.001F);
+            assertEquals(54.0F, host.lastCardHeight, 0.001F);
+            assertEquals(241.0F, host.lastY, 0.001F);
+
+            hud.compactSetting().set(Boolean.FALSE);
+            runtime.renderHud(28L, 0.0F);
+            assertEquals("XYZ  0.0 / 0.0 / 9.0",
+                    host.texts.get(host.texts.size() - 1));
+            assertEquals(224.0F, host.lastCardWidth, 0.001F);
+            assertEquals(72.0F, host.lastCardHeight, 0.001F);
+            assertEquals(257.0F, host.lastY, 0.001F);
+            hud.proximityMeterSetting().set(Boolean.TRUE);
+            host.bars.clear();
+            runtime.renderHud(29L, 0.0F);
+            assertEquals(2, host.bars.size());
+            assertBar(host.bars.get(0), 36.0F, 269.0F,
+                    200.0F, 2.0F, 0xFF303D4A);
+
+            hud.showCoordinatesSetting().set(Boolean.FALSE);
+            hud.proximityMeterSetting().set(Boolean.FALSE);
+            host.bars.clear();
+            final int textsBeforeToggleOff = host.texts.size();
+            runtime.renderHud(29L, 0.0F);
+            assertEquals(textsBeforeToggleOff + 3, host.texts.size());
+            assertEquals(164.0F, host.lastCardWidth, 0.001F);
+            assertEquals(56.0F, host.lastCardHeight, 0.001F);
+            assertTrue(host.bars.isEmpty()); // Full legacy geometry returns.
+
             final int renderedTextsBeforeClear = host.texts.size();
             final int renderedBarsBeforeClear = host.bars.size();
             runtime.nearestPlayerTargetState().clear();
@@ -184,6 +225,8 @@ final class Minecraft189TargetHudModuleTest {
                 Minecraft189TargetHudModule.PROXIMITY_METER_SETTING_ID));
         assertNull(settings.find(
                 Minecraft189TargetHudModule.PROXIMITY_RANGE_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189TargetHudModule.SHOW_COORDINATES_SETTING_ID));
     }
 
     @Test
@@ -213,6 +256,28 @@ final class Minecraft189TargetHudModuleTest {
                 Minecraft189TargetHudModule.proximityFillColor(0.749F));
         assertEquals(0xFFFFB65C,
                 Minecraft189TargetHudModule.proximityFillColor(0.75F));
+    }
+
+    @Test
+    void coordinatesOnlyUseAvailableFiniteNearestPlayerAuthority() {
+        final Minecraft189NearestPlayerTargetState nearest =
+                new Minecraft189NearestPlayerTargetState();
+        assertNull(Minecraft189TargetHudModule.coordinateText(nearest.snapshot()));
+        final Minecraft189PlayerPositionState local =
+                new Minecraft189PlayerPositionState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        local.update(0.0D, 0.0D, 0.0D);
+        positions.update(new double[]{0.0D, 0.0D, 9.0D});
+        kinds.update(new int[]{Minecraft189WorldEntityKindState.PLAYER
+                | Minecraft189WorldEntityKindState.LIVING});
+        nearest.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+        assertEquals("XYZ  0.0 / 0.0 / 9.0",
+                Minecraft189TargetHudModule.coordinateText(nearest.snapshot()));
+        nearest.clear();
+        assertNull(Minecraft189TargetHudModule.coordinateText(nearest.snapshot()));
     }
 
     private static void assertBar(
