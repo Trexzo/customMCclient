@@ -23,10 +23,16 @@ final class Minecraft189SpeedFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration xSetting;
     private final SettingRegistry.Registration ySetting;
+    private final SettingRegistry.Registration showPeakSetting;
+    private final SettingRegistry.Registration blocksPerTickSetting;
     private final SettingPresentationRegistry.Registration xPresentation;
     private final SettingPresentationRegistry.Registration yPresentation;
+    private final SettingPresentationRegistry.Registration showPeakPresentation;
+    private final SettingPresentationRegistry.Registration blocksPerTickPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final ModuleSettingRegistry.Registration showPeakBinding;
+    private final ModuleSettingRegistry.Registration blocksPerTickBinding;
     private boolean closed;
 
     private Minecraft189SpeedFeature(
@@ -36,20 +42,32 @@ final class Minecraft189SpeedFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration xSetting,
             final SettingRegistry.Registration ySetting,
+            final SettingRegistry.Registration showPeakSetting,
+            final SettingRegistry.Registration blocksPerTickSetting,
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
+            final SettingPresentationRegistry.Registration showPeakPresentation,
+            final SettingPresentationRegistry.Registration blocksPerTickPresentation,
             final ModuleSettingRegistry.Registration xBinding,
-            final ModuleSettingRegistry.Registration yBinding) {
+            final ModuleSettingRegistry.Registration yBinding,
+            final ModuleSettingRegistry.Registration showPeakBinding,
+            final ModuleSettingRegistry.Registration blocksPerTickBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.xSetting = xSetting;
         this.ySetting = ySetting;
+        this.showPeakSetting = showPeakSetting;
+        this.blocksPerTickSetting = blocksPerTickSetting;
         this.xPresentation = xPresentation;
         this.yPresentation = yPresentation;
+        this.showPeakPresentation = showPeakPresentation;
+        this.blocksPerTickPresentation = blocksPerTickPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.showPeakBinding = showPeakBinding;
+        this.blocksPerTickBinding = blocksPerTickBinding;
     }
 
     static Minecraft189SpeedFeature install(
@@ -72,10 +90,16 @@ final class Minecraft189SpeedFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration xSetting = null;
         SettingRegistry.Registration ySetting = null;
+        SettingRegistry.Registration showPeakSetting = null;
+        SettingRegistry.Registration blocksPerTickSetting = null;
         SettingPresentationRegistry.Registration xPresentation = null;
         SettingPresentationRegistry.Registration yPresentation = null;
+        SettingPresentationRegistry.Registration showPeakPresentation = null;
+        SettingPresentationRegistry.Registration blocksPerTickPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        ModuleSettingRegistry.Registration showPeakBinding = null;
+        ModuleSettingRegistry.Registration blocksPerTickBinding = null;
 
         try {
             moduleRegistration =
@@ -95,6 +119,8 @@ final class Minecraft189SpeedFeature
             ySetting =
                     settings.register(
                             module.ySetting());
+            showPeakSetting = settings.register(module.showPeakSetting());
+            blocksPerTickSetting = settings.register(module.blocksPerTickSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -117,6 +143,14 @@ final class Minecraft189SpeedFeature
                                             0.0D,
                                             4096.0D,
                                             1.0D)));
+            showPeakPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189SpeedModule.SHOW_PEAK_SETTING_ID,
+                            "Show Peak", SettingValueKind.BOOLEAN, 20));
+            blocksPerTickPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189SpeedModule.BLOCKS_PER_TICK_SETTING_ID,
+                            "Blocks Per Tick", SettingValueKind.BOOLEAN, 30));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -130,6 +164,15 @@ final class Minecraft189SpeedFeature
                                     Minecraft189SpeedModule.Y_SETTING_ID,
                                     10));
 
+            showPeakBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189SpeedModule.ID,
+                            Minecraft189SpeedModule.SHOW_PEAK_SETTING_ID, 20));
+            blocksPerTickBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189SpeedModule.ID,
+                            Minecraft189SpeedModule.BLOCKS_PER_TICK_SETTING_ID, 30));
+
             return new Minecraft189SpeedFeature(
                     controller,
                     module,
@@ -137,11 +180,23 @@ final class Minecraft189SpeedFeature
                     presentation,
                     xSetting,
                     ySetting,
+                    showPeakSetting,
+                    blocksPerTickSetting,
                     xPresentation,
                     yPresentation,
+                    showPeakPresentation,
+                    blocksPerTickPresentation,
                     xBinding,
-                    yBinding);
+                    yBinding,
+                    showPeakBinding,
+                    blocksPerTickBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(blocksPerTickBinding, failure);
+            closeQuietly(showPeakBinding, failure);
+            closeQuietly(blocksPerTickPresentation, failure);
+            closeQuietly(showPeakPresentation, failure);
+            closeQuietly(blocksPerTickSetting, failure);
+            closeQuietly(showPeakSetting, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
             closeQuietly(yPresentation, failure);
@@ -181,6 +236,12 @@ final class Minecraft189SpeedFeature
             failure = closeFailure;
         }
 
+        failure = close(blocksPerTickBinding, failure);
+        failure = close(showPeakBinding, failure);
+        failure = close(blocksPerTickPresentation, failure);
+        failure = close(showPeakPresentation, failure);
+        failure = close(blocksPerTickSetting, failure);
+        failure = close(showPeakSetting, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
         failure = close(yPresentation, failure);
