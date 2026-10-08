@@ -5572,6 +5572,79 @@ final class Minecraft189MappedHostTransformationTest {
                     .maxPitchFovSetting().set(180.0D);
             runTick.invoke(minecraft);
 
+            // M227: optional angular ranking should select the farther
+            // player close to crosshair over the nearer player off-axis.
+            worldClass.getField("f").set(world,
+                    java.util.Arrays.asList(player, tooCloseEntity, nearbyEntity));
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .requireSprintSetting().set(Boolean.FALSE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .requireGroundSetting().set(Boolean.FALSE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .pauseWhileSneakingSetting().set(Boolean.FALSE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .minDistanceSetting().set(0.0D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxFovSetting().set(180.0D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxPitchFovSetting().set(180.0D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawOffsetSetting().set(0.0D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .pitchOffsetSetting().set(0.0D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawEnabledSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .pitchEnabledSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            runTick.invoke(minecraft);
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(1, runtime.requireHostRuntime()
+                    .nearestPlayerTargetState().snapshot().entityIndex());
+            assertEquals(-80.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .prioritizeCrosshairSetting().set(Boolean.TRUE);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-67.833654F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(-4.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+            final Minecraft189NearestPlayerTargetState angularTargetM227 =
+                    (Minecraft189NearestPlayerTargetState) rangeTargetFieldM226.get(
+                            runtime.requireHostRuntime());
+            assertEquals(2, angularTargetM227.snapshot().entityIndex());
+            assertEquals(1, runtime.requireHostRuntime()
+                    .nearestPlayerTargetState().snapshot().entityIndex());
+
+            // Offset changes angular ranking; closer player becomes favored.
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawOffsetSetting().set(30.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(1, angularTargetM227.snapshot().entityIndex());
+            assertEquals(-60.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .prioritizeCrosshairSetting().set(Boolean.FALSE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawOffsetSetting().set(0.0D);
+            worldClass.getField("f").set(world,
+                    java.util.Arrays.asList(player, nearbyEntity));
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            runTick.invoke(minecraft);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AimAssistModule.ID);
