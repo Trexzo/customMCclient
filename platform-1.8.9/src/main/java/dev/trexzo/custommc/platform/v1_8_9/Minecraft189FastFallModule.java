@@ -10,18 +10,40 @@ public final class Minecraft189FastFallModule
             "movement.fastFall";
     public static final String FALL_SPEED_SETTING_ID =
             "movement.fastFall.fallSpeed";
+    public static final String PROGRESSIVE_SETTING_ID =
+            "movement.fastFall.progressive";
+    public static final String RAMP_STEP_SETTING_ID =
+            "movement.fastFall.rampStep";
     public static final double DEFAULT_FALL_SPEED =
             0.30D;
     public static final double MINIMUM_FALL_SPEED =
             0.05D;
     public static final double MAXIMUM_FALL_SPEED =
             1.00D;
+    public static final double DEFAULT_RAMP_STEP = 0.05D;
+    public static final double MINIMUM_RAMP_STEP = 0.01D;
+    public static final double MAXIMUM_RAMP_STEP = 0.50D;
 
     private final Setting<Double> fallSpeed =
             new Setting<Double>(
                     FALL_SPEED_SETTING_ID,
                     DEFAULT_FALL_SPEED,
                     Minecraft189FastFallModule::validFallSpeed,
+                    SettingCodecs.DOUBLE);
+    private final Setting<Boolean> progressive =
+            new Setting<Boolean>(
+                    PROGRESSIVE_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Double> rampStep =
+            new Setting<Double>(
+                    RAMP_STEP_SETTING_ID,
+                    DEFAULT_RAMP_STEP,
+                    value -> value != null
+                            && Double.isFinite(value.doubleValue())
+                            && value.doubleValue() >= MINIMUM_RAMP_STEP
+                            && value.doubleValue() <= MAXIMUM_RAMP_STEP,
                     SettingCodecs.DOUBLE);
     private boolean enabled;
 
@@ -32,6 +54,14 @@ public final class Minecraft189FastFallModule
 
     public Setting<Double> fallSpeedSetting() {
         return fallSpeed;
+    }
+
+    public Setting<Boolean> progressiveSetting() {
+        return progressive;
+    }
+
+    public Setting<Double> rampStepSetting() {
+        return rampStep;
     }
 
     @Override
@@ -59,15 +89,23 @@ public final class Minecraft189FastFallModule
 
         final double currentMotionY =
                 player.customMcMotionY();
-        if (currentMotionY >= 0.0D) {
+        // Unknown vertical motion must not produce a synthetic write.
+        // Preserve the existing no-write behavior for upward and stationary
+        // motion, and for descent already at or faster than the target.
+        if (!Double.isFinite(currentMotionY) || currentMotionY >= 0.0D) {
             return;
         }
 
         final double targetMotionY =
                 -fallSpeed.get().doubleValue();
         if (currentMotionY > targetMotionY) {
-            player.customMcSetMotionY(
-                    targetMotionY);
+            final double nextMotionY = progressive.get().booleanValue()
+                    ? Math.max(targetMotionY,
+                            currentMotionY - rampStep.get().doubleValue())
+                    : targetMotionY;
+            if (nextMotionY < currentMotionY) {
+                player.customMcSetMotionY(nextMotionY);
+            }
         }
     }
 
