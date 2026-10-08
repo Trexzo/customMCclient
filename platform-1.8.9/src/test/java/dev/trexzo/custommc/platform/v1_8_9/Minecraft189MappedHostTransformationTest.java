@@ -5337,6 +5337,34 @@ final class Minecraft189MappedHostTransformationTest {
             runtime.requireHostRuntime().featureCatalog().aimAssist()
                     .maxFovSetting().set(180.0D);
 
+            // M223: exact transformed sneaking state suppresses Aim Assist.
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .pauseWhileSneakingSetting().set(Boolean.TRUE);
+            playerClass.getField("sneaking").setBoolean(player, true);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-70.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(15.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            playerClass.getField("sneaking").setBoolean(player, false);
+            runTick.invoke(minecraft);
+            assertEquals(-67.833654F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(11.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            playerClass.getField("sneaking").setBoolean(player, true);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-70.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(15.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AimAssistModule.ID);

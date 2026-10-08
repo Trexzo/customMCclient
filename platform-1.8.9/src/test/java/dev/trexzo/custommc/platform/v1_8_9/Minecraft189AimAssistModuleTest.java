@@ -55,6 +55,7 @@ final class Minecraft189AimAssistModuleTest {
                             .get()
                             .doubleValue(),
                     0.000001D);
+            assertFalse(module.pauseWhileSneakingSetting().get().booleanValue());
             assertFalse(module.requireGroundSetting().get().booleanValue());
             assertFalse(module.requireForwardSetting().get().booleanValue());
             assertTrue(
@@ -108,6 +109,10 @@ final class Minecraft189AimAssistModuleTest {
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.PITCH_SPEED_SETTING_ID)
+                            != null);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.PAUSE_WHILE_SNEAKING_SETTING_ID)
                             != null);
             assertTrue(
                     settings.find(
@@ -534,6 +539,9 @@ final class Minecraft189AimAssistModuleTest {
                         Minecraft189AimAssistModule.PITCH_SPEED_SETTING_ID));
         assertNull(
                 settings.find(
+                        Minecraft189AimAssistModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertNull(
+                settings.find(
                         Minecraft189AimAssistModule.REQUIRE_GROUND_SETTING_ID));
         assertNull(
                 settings.find(
@@ -937,6 +945,73 @@ final class Minecraft189AimAssistModuleTest {
         module.maxPitchFovSetting().set(180.0D);
         assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(), true));
         module.onDisable();
+    }
+
+
+    @Test
+    void pauseWhileSneakingIsDefaultOffAndFailsClosedOnMissingState() {
+        final Minecraft189AimAssistModule module = new Minecraft189AimAssistModule();
+        final Minecraft189PlayerPositionState local = new Minecraft189PlayerPositionState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        final Minecraft189NearestPlayerTargetState nearest =
+                new Minecraft189NearestPlayerTargetState();
+        final Minecraft189TargetRotationState target = new Minecraft189TargetRotationState();
+        final Minecraft189PlayerRotationState rotation = new Minecraft189PlayerRotationState();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer(30.0F, 10.0F);
+        local.update(0.0D, 0.0D, 0.0D);
+        positions.update(new double[]{0.0D, 0.0D, 10.0D});
+        kinds.update(new int[]{Minecraft189WorldEntityKindState.LIVING
+                | Minecraft189WorldEntityKindState.PLAYER});
+        nearest.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+        target.update(local.snapshot(), nearest.snapshot());
+        rotation.update(player.yaw, player.pitch);
+        module.onEnable();
+
+        // OFF by default preserves the historical absence-of-movement path.
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, null));
+        player.yaw = 30.0F;
+        player.pitch = 10.0F;
+        rotation.update(player.yaw, player.pitch);
+
+        module.pauseWhileSneakingSetting().set(Boolean.TRUE);
+        final int yawWrites = player.yawWrites;
+        final int pitchWrites = player.pitchWrites;
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, null));
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, movement.snapshot()));
+        movement.update(true, true, false);
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, movement.snapshot()));
+        assertEquals(yawWrites, player.yawWrites);
+        assertEquals(pitchWrites, player.pitchWrites);
+        assertEquals(30.0F, player.yaw, 0.0001F);
+        assertEquals(10.0F, player.pitch, 0.0001F);
+
+        movement.update(true, false, false);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, movement.snapshot()));
+        assertEquals(0.0F, player.yaw, 0.0001F);
+        assertEquals(0.0F, player.pitch, 0.0001F);
+
+        player.yaw = 30.0F;
+        player.pitch = 10.0F;
+        rotation.update(player.yaw, player.pitch);
+        movement.update(false, true, false);
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, movement.snapshot()));
+
+        module.pauseWhileSneakingSetting().set(Boolean.FALSE);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, null));
+        module.onDisable();
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(),
+                true, false, movement.snapshot()));
     }
 
     private static final class TestPlayer
