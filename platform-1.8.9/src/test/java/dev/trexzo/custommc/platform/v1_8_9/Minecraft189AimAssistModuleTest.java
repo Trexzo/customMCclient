@@ -72,6 +72,10 @@ final class Minecraft189AimAssistModuleTest {
                             .doubleValue(),
                     0.000001D);
             assertEquals(
+                    Minecraft189AimAssistModule.DEFAULT_MAX_PITCH_FOV,
+                    module.maxPitchFovSetting().get().doubleValue(),
+                    0.000001D);
+            assertEquals(
                     Minecraft189AimAssistModule.DEFAULT_DEAD_ZONE,
                     module.deadZoneSetting().get().doubleValue(),
                     0.000001D);
@@ -102,6 +106,10 @@ final class Minecraft189AimAssistModuleTest {
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.MAX_FOV_SETTING_ID)
+                            != null);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.MAX_PITCH_FOV_SETTING_ID)
                             != null);
             assertTrue(
                     settings.find(
@@ -228,6 +236,13 @@ final class Minecraft189AimAssistModuleTest {
             module.maxFovSetting()
                     .set(
                             45.0D);
+            module.maxPitchFovSetting().set(5.0D);
+            currentRotation.update(player.yaw, player.pitch);
+            assertFalse(module.apply(player, currentRotation.snapshot(),
+                    targetRotation.snapshot(), true));
+            assertEquals(30.0F, player.yaw, 0.0001F);
+            assertEquals(10.0F, player.pitch, 0.0001F);
+            module.maxPitchFovSetting().set(15.0D);
             currentRotation.update(
                     player.yaw,
                     player.pitch);
@@ -488,6 +503,9 @@ final class Minecraft189AimAssistModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189AimAssistModule.MAX_FOV_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AimAssistModule.MAX_PITCH_FOV_SETTING_ID));
         assertNull(
                 settings.find(
                         Minecraft189AimAssistModule.DEAD_ZONE_SETTING_ID));

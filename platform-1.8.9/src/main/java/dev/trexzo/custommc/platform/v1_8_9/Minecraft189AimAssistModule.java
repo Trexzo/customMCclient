@@ -18,6 +18,8 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.maxDistance";
     public static final String MAX_FOV_SETTING_ID =
             "combat.aimAssist.maxFov";
+    public static final String MAX_PITCH_FOV_SETTING_ID =
+            "combat.aimAssist.maxPitchFov";
     public static final String DEAD_ZONE_SETTING_ID =
             "combat.aimAssist.deadZone";
     public static final String YAW_ENABLED_SETTING_ID =
@@ -39,6 +41,12 @@ public final class Minecraft189AimAssistModule
     public static final double MAXIMUM_MAX_DISTANCE =
             128.0D;
     public static final double DEFAULT_MAX_FOV =
+            180.0D;
+    public static final double DEFAULT_MAX_PITCH_FOV =
+            180.0D;
+    public static final double MINIMUM_MAX_PITCH_FOV =
+            1.0D;
+    public static final double MAXIMUM_MAX_PITCH_FOV =
             180.0D;
     public static final double DEFAULT_DEAD_ZONE =
             0.0D;
@@ -80,6 +88,12 @@ public final class Minecraft189AimAssistModule
                     MAX_FOV_SETTING_ID,
                     DEFAULT_MAX_FOV,
                     Minecraft189AimAssistModule::validMaxFov,
+                    SettingCodecs.DOUBLE);
+    private final Setting<Double> maxPitchFov =
+            new Setting<Double>(
+                    MAX_PITCH_FOV_SETTING_ID,
+                    DEFAULT_MAX_PITCH_FOV,
+                    Minecraft189AimAssistModule::validMaxPitchFov,
                     SettingCodecs.DOUBLE);
     private final Setting<Double> deadZone =
             new Setting<Double>(
@@ -127,6 +141,10 @@ public final class Minecraft189AimAssistModule
         return maxFov;
     }
 
+    public Setting<Double> maxPitchFovSetting() {
+        return maxPitchFov;
+    }
+
     public Setting<Double> deadZoneSetting() {
         return deadZone;
     }
@@ -169,6 +187,10 @@ public final class Minecraft189AimAssistModule
                         rotation,
                         target,
                         maxFov.get().doubleValue())
+                || !withinPitchFov(
+                        rotation,
+                        target,
+                        maxPitchFov.get().doubleValue())
                 || (requireHold.get().booleanValue()
                         && !leftButtonHeld)) {
             return false;
@@ -297,6 +319,23 @@ public final class Minecraft189AimAssistModule
         return Math.abs(
                 yawDelta)
                 <= maximumFov;
+    }
+
+    private static boolean withinPitchFov(
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final Minecraft189TargetRotationState.Snapshot target,
+            final double maximumPitchFov) {
+        return Math.abs(target.pitch() - rotation.pitch())
+                <= maximumPitchFov;
+    }
+
+    private static boolean validMaxPitchFov(
+            final Double value) {
+        return value != null
+                && !Double.isNaN(value.doubleValue())
+                && !Double.isInfinite(value.doubleValue())
+                && value.doubleValue() >= MINIMUM_MAX_PITCH_FOV
+                && value.doubleValue() <= MAXIMUM_MAX_PITCH_FOV;
     }
 
     private static boolean validDeadZone(
