@@ -160,10 +160,13 @@ final class Minecraft189TargetHudModuleTest {
             assertThrows(IllegalArgumentException.class,
                     () -> hud.proximityRangeSetting().set(65));
 
+            final int renderedTextsBeforeClear = host.texts.size();
+            final int renderedBarsBeforeClear = host.bars.size();
             runtime.nearestPlayerTargetState().clear();
             runtime.targetRotationState().clear();
-            runtime.renderHud(3L, 0.0F);
-            assertEquals(8, host.texts.size());
+            runtime.renderHud(30L, 0.0F);
+            assertEquals(renderedTextsBeforeClear, host.texts.size());
+            assertEquals(renderedBarsBeforeClear, host.bars.size());
 
             controller.disable(Minecraft189TargetHudModule.ID);
             assertFalse(hud.renderPassInstalled());
