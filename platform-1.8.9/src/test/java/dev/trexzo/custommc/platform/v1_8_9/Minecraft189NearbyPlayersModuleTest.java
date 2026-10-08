@@ -161,6 +161,23 @@ final class Minecraft189NearbyPlayersModuleTest {
     }
 
     @Test
+    void nearestBearingUsesEightWorldCompassSectorsAndRejectsNoDirection() {
+        assertEquals("N", Minecraft189NearbyPlayersModule.cardinalBearing(0, -4));
+        assertEquals("NE", Minecraft189NearbyPlayersModule.cardinalBearing(4, -4));
+        assertEquals("E", Minecraft189NearbyPlayersModule.cardinalBearing(4, 0));
+        assertEquals("SE", Minecraft189NearbyPlayersModule.cardinalBearing(4, 4));
+        assertEquals("S", Minecraft189NearbyPlayersModule.cardinalBearing(0, 4));
+        assertEquals("SW", Minecraft189NearbyPlayersModule.cardinalBearing(-4, 4));
+        assertEquals("W", Minecraft189NearbyPlayersModule.cardinalBearing(-4, 0));
+        assertEquals("NW", Minecraft189NearbyPlayersModule.cardinalBearing(-4, -4));
+        assertEquals("N", Minecraft189NearbyPlayersModule.cardinalBearing(-1, -5));
+        assertEquals("NE", Minecraft189NearbyPlayersModule.cardinalBearing(1, -2));
+        assertEquals("--", Minecraft189NearbyPlayersModule.cardinalBearing(0, 0));
+        assertEquals("--", Minecraft189NearbyPlayersModule.cardinalBearing(Double.NaN, 1));
+        assertEquals("--", Minecraft189NearbyPlayersModule.cardinalBearing(1, Double.POSITIVE_INFINITY));
+    }
+
+    @Test
     void visualHudReadsMappedSnapshotsAndUnregistersCleanly() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -187,6 +204,7 @@ final class Minecraft189NearbyPlayersModuleTest {
             assertFalse(radar.heightColorsSetting().get().booleanValue());
             assertFalse(radar.highlightNearestSetting().get().booleanValue());
             assertFalse(radar.showNorthSetting().get().booleanValue());
+            assertFalse(radar.showBearingSetting().get().booleanValue());
             runtime.renderHud(0L, 0.0F);
             assertTrue(host.texts.isEmpty());
             radar.xSetting().set(25);
@@ -301,6 +319,7 @@ final class Minecraft189NearbyPlayersModuleTest {
         assertNull(settings.find(Minecraft189NearbyPlayersModule.HEIGHT_COLORS_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.HIGHLIGHT_NEAREST_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_NORTH_SETTING_ID));
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_BEARING_SETTING_ID));
     }
 
     @Test
@@ -435,6 +454,7 @@ final class Minecraft189NearbyPlayersModuleTest {
                     runtime.featureCatalog().nearbyPlayers();
             assertFalse(radar.highlightNearestSetting().get().booleanValue());
             assertFalse(radar.showNorthSetting().get().booleanValue());
+            assertFalse(radar.showBearingSetting().get().booleanValue());
             radar.showRadarSetting().set(Boolean.TRUE);
             radar.northUpSetting().set(Boolean.TRUE);
             radar.radiusSetting().set(10);
@@ -556,6 +576,76 @@ final class Minecraft189NearbyPlayersModuleTest {
             runtime.close();
         }
         assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_NORTH_SETTING_ID));
+    }
+
+    @Test
+    void nearestBearingIsReadOnlyAndWorksWithoutVisibleRadarOrYaw() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189NearbyPlayersModule radar =
+                    runtime.featureCatalog().nearbyPlayers();
+            radar.radiusSetting().set(10);
+            controller.enable(Minecraft189NearbyPlayersModule.ID);
+            runtime.playerPositionState().update(0, 0, 0);
+            runtime.worldEntityPositionState().update(new double[]{
+                    0, 0, 0,   // Local
+                    3, 0, -4,  // Nearest remote at 5m NE
+                    -9, 0, 0,  // Other remote
+                    0, 0, -1   // Nonplayer, closer but excluded
+            });
+            runtime.worldEntityKindState().update(new int[]{
+                    LOCAL, REMOTE, REMOTE, Minecraft189WorldEntityKindState.LIVING});
+            runtime.renderHud(81L, 0.0F);
+            assertEquals("NEAREST  5.0m", host.texts.get(1));
+            assertEquals(0, host.markerXs.size());
+
+            radar.showBearingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NearbyPlayersModule.SHOW_BEARING_SETTING_ID));
+            runtime.renderHud(82L, 0.0F);
+            assertEquals("NEAREST  5.0m NE", host.texts.get(3));
+            assertEquals(0, host.markerXs.size());
+
+            // World bearing is independent of view yaw or radar orientation.
+            runtime.playerRotationState().update(90.0F, 0.0F);
+            radar.showRadarSetting().set(Boolean.TRUE);
+            runtime.renderHud(83L, 0.0F);
+            assertEquals("NEAREST  5.0m NE", host.texts.get(5));
+            radar.northUpSetting().set(Boolean.TRUE);
+            runtime.playerRotationState().clear();
+            runtime.renderHud(84L, 0.0F);
+            assertEquals("NEAREST  5.0m NE", host.texts.get(7));
+
+            // No eligible player in smaller radius => no fabricated bearing.
+            radar.radiusSetting().set(4);
+            runtime.renderHud(85L, 0.0F);
+            assertEquals("NEAREST  --", host.texts.get(9));
+            radar.radiusSetting().set(10);
+            runtime.worldEntityPositionState().update(new double[]{
+                    0, 0, 0, 0, 5, 0, -9, 0, 0, 0, 0, -1
+            });
+            runtime.renderHud(86L, 0.0F);
+            assertEquals("NEAREST  5.0m --", host.texts.get(11));
+            runtime.worldEntityPositionState().clear();
+            runtime.renderHud(87L, 0.0F);
+            assertEquals(12, host.texts.size());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_BEARING_SETTING_ID));
     }
 
     private static final class RecordingHost
