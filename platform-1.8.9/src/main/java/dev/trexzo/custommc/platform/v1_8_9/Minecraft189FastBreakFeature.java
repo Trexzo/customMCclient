@@ -20,8 +20,14 @@ final class Minecraft189FastBreakFeature
     private final ModuleRegistry.Registration moduleRegistration;
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration delaySetting;
+    private final SettingRegistry.Registration requireAttackHeldSetting;
+    private final SettingRegistry.Registration pauseWhileSneakingSetting;
     private final SettingPresentationRegistry.Registration delayPresentation;
+    private final SettingPresentationRegistry.Registration requireAttackHeldPresentation;
+    private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
     private final ModuleSettingRegistry.Registration delayBinding;
+    private final ModuleSettingRegistry.Registration requireAttackHeldBinding;
+    private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private boolean closed;
 
     private Minecraft189FastBreakFeature(
@@ -30,15 +36,27 @@ final class Minecraft189FastBreakFeature
             final ModuleRegistry.Registration moduleRegistration,
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration delaySetting,
+            final SettingRegistry.Registration requireAttackHeldSetting,
+            final SettingRegistry.Registration pauseWhileSneakingSetting,
             final SettingPresentationRegistry.Registration delayPresentation,
-            final ModuleSettingRegistry.Registration delayBinding) {
+            final SettingPresentationRegistry.Registration requireAttackHeldPresentation,
+            final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
+            final ModuleSettingRegistry.Registration delayBinding,
+            final ModuleSettingRegistry.Registration requireAttackHeldBinding,
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.delaySetting = delaySetting;
+        this.requireAttackHeldSetting = requireAttackHeldSetting;
+        this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
         this.delayPresentation = delayPresentation;
+        this.requireAttackHeldPresentation = requireAttackHeldPresentation;
+        this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
         this.delayBinding = delayBinding;
+        this.requireAttackHeldBinding = requireAttackHeldBinding;
+        this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
     }
 
     static Minecraft189FastBreakFeature install(
@@ -54,8 +72,14 @@ final class Minecraft189FastBreakFeature
         ModuleRegistry.Registration moduleRegistration = null;
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration delaySetting = null;
+        SettingRegistry.Registration requireAttackHeldSetting = null;
+        SettingRegistry.Registration pauseWhileSneakingSetting = null;
         SettingPresentationRegistry.Registration delayPresentation = null;
+        SettingPresentationRegistry.Registration requireAttackHeldPresentation = null;
+        SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
         ModuleSettingRegistry.Registration delayBinding = null;
+        ModuleSettingRegistry.Registration requireAttackHeldBinding = null;
+        ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -71,6 +95,10 @@ final class Minecraft189FastBreakFeature
             delaySetting =
                     settings.register(
                             module.delaySetting());
+            requireAttackHeldSetting = settings.register(
+                    module.requireAttackHeldSetting());
+            pauseWhileSneakingSetting = settings.register(
+                    module.pauseWhileSneakingSetting());
             delayPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -82,6 +110,14 @@ final class Minecraft189FastBreakFeature
                                             Minecraft189FastBreakModule.MINIMUM_DELAY,
                                             Minecraft189FastBreakModule.MAXIMUM_DELAY,
                                             1.0D)));
+            requireAttackHeldPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FastBreakModule.REQUIRE_ATTACK_HELD_SETTING_ID,
+                            "Require Attack Held", SettingValueKind.BOOLEAN, 10));
+            pauseWhileSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FastBreakModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 20));
             delayBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -89,15 +125,36 @@ final class Minecraft189FastBreakFeature
                                     Minecraft189FastBreakModule.DELAY_SETTING_ID,
                                     0));
 
+            requireAttackHeldBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FastBreakModule.ID,
+                            Minecraft189FastBreakModule.REQUIRE_ATTACK_HELD_SETTING_ID, 10));
+            pauseWhileSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FastBreakModule.ID,
+                            Minecraft189FastBreakModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 20));
+
             return new Minecraft189FastBreakFeature(
                     controller,
                     module,
                     moduleRegistration,
                     presentation,
                     delaySetting,
+                    requireAttackHeldSetting,
+                    pauseWhileSneakingSetting,
                     delayPresentation,
-                    delayBinding);
+                    requireAttackHeldPresentation,
+                    pauseWhileSneakingPresentation,
+                    delayBinding,
+                    requireAttackHeldBinding,
+                    pauseWhileSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseWhileSneakingBinding, failure);
+            closeQuietly(requireAttackHeldBinding, failure);
+            closeQuietly(pauseWhileSneakingPresentation, failure);
+            closeQuietly(requireAttackHeldPresentation, failure);
+            closeQuietly(pauseWhileSneakingSetting, failure);
+            closeQuietly(requireAttackHeldSetting, failure);
             closeQuietly(delayBinding, failure);
             closeQuietly(delayPresentation, failure);
             closeQuietly(delaySetting, failure);
@@ -134,6 +191,12 @@ final class Minecraft189FastBreakFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseWhileSneakingBinding, failure);
+        failure = close(requireAttackHeldBinding, failure);
+        failure = close(pauseWhileSneakingPresentation, failure);
+        failure = close(requireAttackHeldPresentation, failure);
+        failure = close(pauseWhileSneakingSetting, failure);
+        failure = close(requireAttackHeldSetting, failure);
         failure = close(delayBinding, failure);
         failure = close(delayPresentation, failure);
         failure = close(delaySetting, failure);

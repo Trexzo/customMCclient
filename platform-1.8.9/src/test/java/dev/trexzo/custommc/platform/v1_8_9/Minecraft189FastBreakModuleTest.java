@@ -158,9 +158,136 @@ final class Minecraft189FastBreakModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189FastBreakModule.DELAY_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189FastBreakModule.REQUIRE_ATTACK_HELD_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189FastBreakModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.PLAYER_CATEGORY_ID));
+    }
+
+    @Test
+    void fastBreakConditionalsUseLiveAttackAndSneakWithoutChangingDefaults() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189FastBreakModule fastBreak =
+                    runtime.featureCatalog().fastBreak();
+            assertFalse(fastBreak.requireAttackHeldSetting().get().booleanValue());
+            assertFalse(fastBreak.pauseWhileSneakingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FastBreakModule.REQUIRE_ATTACK_HELD_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FastBreakModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            controller.enable(Minecraft189FastBreakModule.ID);
+            fastBreak.delaySetting().set(2);
+            final TestController live = new TestController();
+            live.delay = 5;
+            // Existing behavior stays active without input/movement authority.
+            runtime.playerControllerBreakControl(live);
+            assertEquals(2, live.delay);
+            assertEquals(1, live.setCalls);
+            fastBreak.requireAttackHeldSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FastBreakModule.REQUIRE_ATTACK_HELD_SETTING_ID));
+            live.delay = 5;
+            runtime.playerControllerBreakControl(live);
+            assertEquals(5, live.delay);
+            assertEquals(1, live.setCalls);
+
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            runtime.playerControllerBreakControl(live);
+            assertEquals(2, live.delay);
+            assertEquals(2, live.setCalls);
+
+            fastBreak.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FastBreakModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            live.delay = 5;
+            runtime.playerControllerBreakControl(live);
+            assertEquals(5, live.delay);
+            assertEquals(2, live.setCalls); // No movement snapshot.
+
+            runtime.playerMovementState().update(true, true, false);
+            runtime.playerControllerBreakControl(live);
+            assertEquals(2, live.setCalls); // Sneaking suppresses Fast Break.
+
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerControllerBreakControl(live);
+            assertEquals(2, live.delay);
+            assertEquals(3, live.setCalls); // Airborne unsneaking works.
+
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            live.delay = 5;
+            runtime.playerControllerBreakControl(live);
+            assertEquals(5, live.delay);
+            assertEquals(3, live.setCalls);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            runtime.playerMovementState().clear();
+            runtime.playerControllerBreakControl(live);
+            assertEquals(3, live.setCalls); // Missing state fails closed.
+
+            fastBreak.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            runtime.playerControllerBreakControl(live);
+            assertEquals(4, live.setCalls);
+            fastBreak.requireAttackHeldSetting().set(Boolean.FALSE);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            live.delay = 5;
+            runtime.playerControllerBreakControl(live);
+            assertEquals(2, live.delay);
+            assertEquals(5, live.setCalls); // Both settings OFF restores default.
+
+            controller.disable(Minecraft189FastBreakModule.ID);
+            live.delay = 5;
+            runtime.playerControllerBreakControl(live);
+            assertEquals(5, live.delay);
+            assertEquals(5, live.setCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189FastBreakModule.REQUIRE_ATTACK_HELD_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189FastBreakModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+    }
+
+    @Test
+    void existingFastBreakCallerOverloadFailsClosedForOptionalGates() {
+        final Minecraft189FastBreakModule module = new Minecraft189FastBreakModule();
+        final TestController live = new TestController();
+        module.onEnable();
+        module.apply(live);
+        assertEquals(1, live.setCalls);
+        module.requireAttackHeldSetting().set(Boolean.TRUE);
+        module.apply(live);
+        assertEquals(1, live.setCalls); // Legacy caller has no attack state.
+        module.requireAttackHeldSetting().set(Boolean.FALSE);
+        module.pauseWhileSneakingSetting().set(Boolean.TRUE);
+        module.apply(live);
+        assertEquals(1, live.setCalls); // Legacy caller has no mapped sneak state.
+        module.pauseWhileSneakingSetting().set(Boolean.FALSE);
+        module.apply(live);
+        assertEquals(2, live.setCalls);
+        module.onDisable();
+        module.apply(live);
+        assertEquals(2, live.setCalls);
     }
 
     private static final class TestController
