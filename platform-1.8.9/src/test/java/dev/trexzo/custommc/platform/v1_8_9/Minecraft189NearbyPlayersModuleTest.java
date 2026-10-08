@@ -178,6 +178,43 @@ final class Minecraft189NearbyPlayersModuleTest {
     }
 
     @Test
+    void proximityWarningUsesInclusiveThreeDimensionalNearestOnly() {
+        final Minecraft189PlayerPositionState local =
+                new Minecraft189PlayerPositionState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        local.update(0, 0, 0);
+        positions.update(new double[]{
+                0, 0, 0,  // Local
+                0, 0, 5,  // Remote exactly five blocks away
+                0, 0, 1   // Non-player closer
+        });
+        kinds.update(new int[]{LOCAL, REMOTE, Minecraft189WorldEntityKindState.LIVING});
+        Minecraft189NearbyPlayersModule.NearbySnapshot out =
+                Minecraft189NearbyPlayersModule.countNearby(
+                        local.snapshot(), positions.snapshot(), kinds.snapshot(), 8);
+        assertTrue(out.available());
+        assertEquals(1, out.count());
+        assertFalse(Minecraft189NearbyPlayersModule.proximityWarningActive(out, false, 5));
+        assertTrue(Minecraft189NearbyPlayersModule.proximityWarningActive(out, true, 5));
+        assertFalse(Minecraft189NearbyPlayersModule.proximityWarningActive(out, true, 4));
+        assertFalse(Minecraft189NearbyPlayersModule.proximityWarningActive(out, true, 0));
+        assertFalse(Minecraft189NearbyPlayersModule.proximityWarningActive(out, true, 129));
+        assertFalse(Minecraft189NearbyPlayersModule.proximityWarningActive(null, true, 5));
+        out = Minecraft189NearbyPlayersModule.countNearby(
+                local.snapshot(), positions.snapshot(), kinds.snapshot(), 4);
+        assertEquals(0, out.count());
+        assertFalse(Minecraft189NearbyPlayersModule.proximityWarningActive(out, true, 5));
+        kinds.clear();
+        out = Minecraft189NearbyPlayersModule.countNearby(
+                local.snapshot(), positions.snapshot(), kinds.snapshot(), 8);
+        assertFalse(out.available());
+        assertFalse(Minecraft189NearbyPlayersModule.proximityWarningActive(out, true, 8));
+    }
+
+    @Test
     void visualHudReadsMappedSnapshotsAndUnregistersCleanly() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -205,6 +242,8 @@ final class Minecraft189NearbyPlayersModuleTest {
             assertFalse(radar.highlightNearestSetting().get().booleanValue());
             assertFalse(radar.showNorthSetting().get().booleanValue());
             assertFalse(radar.showBearingSetting().get().booleanValue());
+            assertFalse(radar.proximityWarningSetting().get().booleanValue());
+            assertEquals(8, radar.warningDistanceSetting().get().intValue());
             runtime.renderHud(0L, 0.0F);
             assertTrue(host.texts.isEmpty());
             radar.xSetting().set(25);
@@ -320,6 +359,8 @@ final class Minecraft189NearbyPlayersModuleTest {
         assertNull(settings.find(Minecraft189NearbyPlayersModule.HIGHLIGHT_NEAREST_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_NORTH_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_BEARING_SETTING_ID));
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.PROXIMITY_WARNING_SETTING_ID));
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.WARNING_DISTANCE_SETTING_ID));
     }
 
     @Test
@@ -455,6 +496,8 @@ final class Minecraft189NearbyPlayersModuleTest {
             assertFalse(radar.highlightNearestSetting().get().booleanValue());
             assertFalse(radar.showNorthSetting().get().booleanValue());
             assertFalse(radar.showBearingSetting().get().booleanValue());
+            assertFalse(radar.proximityWarningSetting().get().booleanValue());
+            assertEquals(8, radar.warningDistanceSetting().get().intValue());
             radar.showRadarSetting().set(Boolean.TRUE);
             radar.northUpSetting().set(Boolean.TRUE);
             radar.radiusSetting().set(10);
@@ -648,6 +691,85 @@ final class Minecraft189NearbyPlayersModuleTest {
         assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_BEARING_SETTING_ID));
     }
 
+    @Test
+    void warningHudTracksLiveNearbyDistanceAndResetsWhenUnavailable() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189NearbyPlayersModule radar =
+                    runtime.featureCatalog().nearbyPlayers();
+            controller.enable(Minecraft189NearbyPlayersModule.ID);
+            runtime.playerPositionState().update(0, 0, 0);
+            runtime.worldEntityPositionState().update(new double[]{
+                    0, 0, 0,   // Local
+                    3, 4, 0,   // Remote 3D distance exactly five
+                    0, 0, 1    // Non-player in range
+            });
+            runtime.worldEntityKindState().update(new int[]{
+                    LOCAL, REMOTE, Minecraft189WorldEntityKindState.LIVING});
+            runtime.renderHud(91L, 0.0F);
+            assertEquals(0xFFFFB56B, host.accentColors.get(0).intValue());
+            assertEquals(2, host.texts.size());
+
+            radar.warningDistanceSetting().set(5);
+            radar.proximityWarningSetting().set(Boolean.TRUE);
+            assertEquals("5", settings.snapshotEncoded().get(
+                    Minecraft189NearbyPlayersModule.WARNING_DISTANCE_SETTING_ID));
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NearbyPlayersModule.PROXIMITY_WARNING_SETTING_ID));
+            runtime.renderHud(92L, 0.0F);
+            assertEquals(0xFFFF6A70, host.accentColors.get(1).intValue());
+            assertEquals("NEAREST  5.0m", host.texts.get(3));
+            assertEquals("!", host.texts.get(4));
+
+            radar.warningDistanceSetting().set(4);
+            runtime.renderHud(93L, 0.0F);
+            assertEquals(0xFFFFB56B, host.accentColors.get(2).intValue());
+            assertEquals(7, host.texts.size());
+
+            radar.warningDistanceSetting().set(8);
+            radar.radiusSetting().set(4);
+            runtime.renderHud(94L, 0.0F);
+            assertEquals(0xFF667789, host.accentColors.get(3).intValue());
+            assertEquals("NEAREST  --", host.texts.get(8));
+
+            radar.radiusSetting().set(8);
+            radar.showRadarSetting().set(Boolean.TRUE);
+            radar.northUpSetting().set(Boolean.TRUE);
+            runtime.renderHud(95L, 0.0F);
+            assertEquals(0xFFFF6A70, host.accentColors.get(4).intValue());
+            assertEquals("!", host.texts.get(11));
+            assertEquals(1, host.markerXs.size()); // Radar remains active.
+
+            // An out-of-range mapped player clears warning, no stale cache.
+            runtime.worldEntityPositionState().update(new double[]{
+                    0, 0, 0, 0, 20, 0, 0, 0, 1
+            });
+            runtime.renderHud(96L, 0.0F);
+            assertEquals(0xFF667789, host.accentColors.get(5).intValue());
+            runtime.worldEntityPositionState().clear();
+            final int beforeClear = host.accentColors.size();
+            runtime.renderHud(97L, 0.0F);
+            assertEquals(beforeClear, host.accentColors.size());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.PROXIMITY_WARNING_SETTING_ID));
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.WARNING_DISTANCE_SETTING_ID));
+    }
+
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private final java.util.List<String> texts = new java.util.ArrayList<String>();
@@ -656,6 +778,7 @@ final class Minecraft189NearbyPlayersModuleTest {
         private final java.util.List<Float> markerXs = new java.util.ArrayList<Float>();
         private final java.util.List<Float> markerYs = new java.util.ArrayList<Float>();
         private final java.util.List<Integer> markerColors = new java.util.ArrayList<Integer>();
+        private final java.util.List<Integer> accentColors = new java.util.ArrayList<Integer>();
         private final java.util.List<Float> haloXs = new java.util.ArrayList<Float>();
         private final java.util.List<Float> haloYs = new java.util.ArrayList<Float>();
         private final java.util.List<Integer> haloColors = new java.util.ArrayList<Integer>();
@@ -706,6 +829,9 @@ final class Minecraft189NearbyPlayersModuleTest {
                 final float height,
                 final float radius,
                 final int argb) {
+            if (width == 3.0F && (height == 42.0F || height == 152.0F)) {
+                accentColors.add(argb);
+            }
             if (width == 156.0F) {
                 lastCardWidth = width;
                 lastCardHeight = height;
