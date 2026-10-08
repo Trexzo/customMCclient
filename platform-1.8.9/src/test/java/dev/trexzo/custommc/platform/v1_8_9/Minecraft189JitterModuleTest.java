@@ -71,6 +71,10 @@ final class Minecraft189JitterModuleTest {
                     Minecraft189JitterModule.VARIABLE_STRENGTH_SETTING_ID));
             assertEquals("35", settings.snapshotEncoded().get(
                     Minecraft189JitterModule.STRENGTH_VARIATION_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189JitterModule.RANDOM_INTERVAL_SETTING_ID));
+            assertEquals("2", settings.snapshotEncoded().get(
+                    Minecraft189JitterModule.INTERVAL_VARIATION_SETTING_ID));
             assertTrue(
                     module.requireHoldSetting()
                             .get()
@@ -442,6 +446,10 @@ final class Minecraft189JitterModuleTest {
                 Minecraft189JitterModule.VARIABLE_STRENGTH_SETTING_ID));
         assertNull(settings.find(
                 Minecraft189JitterModule.STRENGTH_VARIATION_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189JitterModule.RANDOM_INTERVAL_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189JitterModule.INTERVAL_VARIATION_SETTING_ID));
     }
 
     @Test
@@ -573,6 +581,133 @@ final class Minecraft189JitterModuleTest {
         state.clear();
         assertFalse(module.apply(player, state.snapshot(), true));
         module.onDisable();
+    }
+
+    @Test
+    void randomIntervalVariesPairedStrokeSpacingWithoutChangingLegacyDefault() {
+        // Discrete draws: -2, 0, +2, with 3 tick base -> 1, 3, 5 ticks.
+        final double[] samples = {0.0D, 0.5D, 0.99D, 0.0D};
+        final int[] draws = {0};
+        final Minecraft189JitterModule module = new Minecraft189JitterModule(
+                () -> samples[draws[0]++ % samples.length]);
+        final Minecraft189PlayerRotationState state =
+                new Minecraft189PlayerRotationState();
+        final TestPlayer player = new TestPlayer(10.0F, 10.0F);
+        module.intervalTicksSetting().set(3);
+        module.yawDegreesSetting().set(2.0D);
+        module.pitchEnabledSetting().set(Boolean.FALSE);
+        module.onEnable();
+        assertFalse(module.randomIntervalSetting().get().booleanValue());
+        assertEquals(2, module.intervalVariationTicksSetting().get().intValue());
+        state.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, state.snapshot(), true)); // Fixed 3 tick.
+        assertEquals(0, draws[0]); // Default has no RNG calls.
+        assertEquals(12.0F, player.yaw, 0.000001F);
+        assertFalse(module.apply(player, state.snapshot(), true));
+        assertFalse(module.apply(player, state.snapshot(), true));
+        state.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, state.snapshot(), true));
+        assertEquals(10.0F, player.yaw, 0.000001F);
+
+        module.randomIntervalSetting().set(Boolean.TRUE);
+        // Live edit cancels old countdown / pair and starts a fresh stroke.
+        state.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, state.snapshot(), true)); // -2 => 1 tick
+        assertEquals(12.0F, player.yaw, 0.000001F);
+        assertEquals(1, draws[0]);
+        state.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, state.snapshot(), true)); // 0 => 3 ticks
+        assertEquals(10.0F, player.yaw, 0.000001F);
+        assertEquals(2, draws[0]);
+        assertFalse(module.apply(player, state.snapshot(), true));
+        assertFalse(module.apply(player, state.snapshot(), true));
+        state.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, state.snapshot(), true)); // +2 => 5 ticks
+        assertEquals(12.0F, player.yaw, 0.000001F);
+        assertEquals(3, draws[0]);
+        for (int i = 0; i < 4; i++) {
+            assertFalse(module.apply(player, state.snapshot(), true));
+        }
+        state.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, state.snapshot(), true));
+        assertEquals(10.0F, player.yaw, 0.000001F);
+        assertEquals(4, draws[0]);
+
+        // Live bounded setting edits reset cadence, no carry-over draws.
+        module.intervalVariationTicksSetting().set(0);
+        state.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, state.snapshot(), true));
+        assertEquals(12.0F, player.yaw, 0.000001F);
+        assertEquals(4, draws[0]);
+        assertFalse(module.apply(player, state.snapshot(), true));
+        assertFalse(module.apply(player, state.snapshot(), true));
+        state.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, state.snapshot(), true));
+        assertEquals(10.0F, player.yaw, 0.000001F);
+        assertEquals(4, draws[0]);
+
+        // Hold release/disable reset cadence; bad RNG never schedules
+        // outside bounded configured interval and does not throw.
+        module.intervalVariationTicksSetting().set(2);
+        module.randomIntervalSetting().set(Boolean.FALSE);
+        assertFalse(module.apply(player, state.snapshot(), false));
+        state.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, state.snapshot(), true));
+        assertEquals(12.0F, player.yaw, 0.000001F);
+        assertEquals(4, draws[0]);
+        module.onDisable();
+        assertFalse(module.apply(player, state.snapshot(), true));
+        assertThrows(IllegalArgumentException.class,
+                () -> module.intervalVariationTicksSetting().set(-1));
+        assertThrows(IllegalArgumentException.class,
+                () -> module.intervalVariationTicksSetting().set(6));
+    }
+
+    @Test
+    void randomIntervalClampsToOneAndTenTicksAndHandlesBadSample() {
+        final Minecraft189PlayerRotationState rotation =
+                new Minecraft189PlayerRotationState();
+        final TestPlayer player = new TestPlayer(0.0F, 0.0F);
+        final Minecraft189JitterModule lower = new Minecraft189JitterModule(
+                () -> 0.0D);
+        lower.intervalTicksSetting().set(1);
+        lower.intervalVariationTicksSetting().set(5);
+        lower.randomIntervalSetting().set(Boolean.TRUE);
+        lower.onEnable();
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(lower.apply(player, rotation.snapshot(), true));
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(lower.apply(player, rotation.snapshot(), true)); // Clamp to 1
+        lower.onDisable();
+
+        final Minecraft189JitterModule upper = new Minecraft189JitterModule(
+                () -> 0.99D);
+        upper.intervalTicksSetting().set(10);
+        upper.intervalVariationTicksSetting().set(5);
+        upper.randomIntervalSetting().set(Boolean.TRUE);
+        upper.onEnable();
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(upper.apply(player, rotation.snapshot(), true));
+        for (int i = 0; i < 9; i++) {
+            assertFalse(upper.apply(player, rotation.snapshot(), true));
+        }
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(upper.apply(player, rotation.snapshot(), true)); // Clamp to 10
+        upper.onDisable();
+
+        final Minecraft189JitterModule invalid = new Minecraft189JitterModule(
+                () -> Double.NaN);
+        invalid.intervalTicksSetting().set(3);
+        invalid.intervalVariationTicksSetting().set(2);
+        invalid.randomIntervalSetting().set(Boolean.TRUE);
+        invalid.onEnable();
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(invalid.apply(player, rotation.snapshot(), true));
+        assertFalse(invalid.apply(player, rotation.snapshot(), true));
+        assertFalse(invalid.apply(player, rotation.snapshot(), true));
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(invalid.apply(player, rotation.snapshot(), true)); // Neutral 3
+        invalid.onDisable();
     }
 
     private static final class TestPlayer
