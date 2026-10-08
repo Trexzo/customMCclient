@@ -140,8 +140,9 @@ final class Minecraft189NearbyPlayersModuleTest {
             assertTrue(host.texts.isEmpty());
 
             runtime.playerPositionState().update(0, 0, 0);
+            // 3-4-5 horizontal target at x=3,z=4, not x=3,y=4.
             runtime.worldEntityPositionState().update(new double[]{
-                    0, 0, 0, 3, 4, 0, 6, 0, 0
+                    0, 0, 0, 3, 0, 4, 6, 0, 0
             });
             runtime.worldEntityKindState().update(new int[]{
                     LOCAL, REMOTE, REMOTE
