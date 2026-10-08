@@ -10,6 +10,10 @@ public final class Minecraft189FastPlaceModule
             "player.fastPlace";
     public static final String DELAY_SETTING_ID =
             "player.fastPlace.delay";
+    public static final String REQUIRE_USE_HELD_SETTING_ID =
+            "player.fastPlace.requireUseHeld";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "player.fastPlace.pauseWhileSneaking";
 
     private final Setting<Integer> delayTicks =
             new Setting<Integer>(
@@ -18,6 +22,15 @@ public final class Minecraft189FastPlaceModule
                     value -> value >= 0
                             && value <= 4,
                     SettingCodecs.INTEGER);
+
+    private final Setting<Boolean> requireUseHeld =
+            new Setting<Boolean>(
+                    REQUIRE_USE_HELD_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> pauseWhileSneaking =
+            new Setting<Boolean>(
+                    PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
 
     private boolean enabled;
 
@@ -28,6 +41,14 @@ public final class Minecraft189FastPlaceModule
 
     public Setting<Integer> delayTicksSetting() {
         return delayTicks;
+    }
+
+    public Setting<Boolean> requireUseHeldSetting() {
+        return requireUseHeld;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
     }
 
     @Override
@@ -42,7 +63,18 @@ public final class Minecraft189FastPlaceModule
 
     synchronized int apply(
             final int currentDelay) {
-        if (!enabled) {
+        return apply(currentDelay, false, null);
+    }
+
+    synchronized int apply(
+            final int currentDelay,
+            final boolean useHeld,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
+        if (!enabled
+                || (requireUseHeld.get().booleanValue() && !useHeld)
+                || (pauseWhileSneaking.get().booleanValue()
+                        && (movement == null || !movement.available()
+                        || movement.sneaking()))) {
             return currentDelay;
         }
         final int configured =
