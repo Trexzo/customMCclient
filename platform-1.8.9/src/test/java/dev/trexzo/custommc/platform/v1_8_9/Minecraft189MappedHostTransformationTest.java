@@ -3894,6 +3894,59 @@ final class Minecraft189MappedHostTransformationTest {
             runTick.invoke(minecraft);
             assertEquals(5, minecraftClass.getField("clickMouseCalls")
                     .getInt(minecraft));
+
+            // M229: exact mapped right-button hold suppresses clickMouse
+            // and clears CPS phase, even while physical left remains held.
+            runtime.requireHostRuntime().featureCatalog().autoClicker()
+                    .pauseWhileRightClickingSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, true);
+            runTick.invoke(minecraft);
+            runTick.invoke(minecraft);
+            assertEquals(5, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
+            runTick.invoke(minecraft);
+            assertEquals(5, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+            runTick.invoke(minecraft);
+            assertEquals(6, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, true);
+            runTick.invoke(minecraft);
+            assertEquals(6, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
+            runTick.invoke(minecraft);
+            runTick.invoke(minecraft);
+            assertEquals(7, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+
+            // Independent gates still compose and disabling the option
+            // restores old right-held Auto Clicker behavior.
+            runtime.requireHostRuntime().featureCatalog().autoClicker()
+                    .requireForwardSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().inputState().key(
+                    LegacyKeyboardCodes.W, false);
+            runTick.invoke(minecraft);
+            runTick.invoke(minecraft);
+            assertEquals(7, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+            runtime.requireHostRuntime().featureCatalog().autoClicker()
+                    .requireForwardSetting().set(Boolean.FALSE);
+            runtime.requireHostRuntime().featureCatalog().autoClicker()
+                    .pauseWhileRightClickingSetting().set(Boolean.FALSE);
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, true);
+            runTick.invoke(minecraft);
+            runTick.invoke(minecraft);
+            assertEquals(8, minecraftClass.getField("clickMouseCalls")
+                    .getInt(minecraft));
+            runtime.requireHostRuntime().inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
             runtime.moduleController().disable(
                     Minecraft189AutoClickerModule.ID);
             runtime.requireHostRuntime().inputState().pointerButton(
