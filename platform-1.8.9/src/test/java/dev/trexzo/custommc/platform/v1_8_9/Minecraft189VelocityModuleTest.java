@@ -159,6 +159,85 @@ final class Minecraft189VelocityModuleTest {
     }
 
     @Test
+    void airborneOverrideSelectsIndependentAxesOnlyWithConfirmedMovement() {
+        final Minecraft189VelocityModule velocity = new Minecraft189VelocityModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        assertFalse(velocity.airborneOverrideSetting().get().booleanValue());
+        assertEquals(0, velocity.airborneHorizontalPercentSetting().get().intValue());
+        assertEquals(0, velocity.airborneVerticalPercentSetting().get().intValue());
+        velocity.horizontalPercentSetting().set(50);
+        velocity.verticalPercentSetting().set(25);
+        velocity.airborneHorizontalPercentSetting().set(150);
+        velocity.airborneVerticalPercentSetting().set(75);
+        velocity.onEnable();
+        movement.update(false, false, false);
+        // Default-off parity with airborne snapshot and legacy overload.
+        assertEquals(3.5D, velocity.adjustHorizontal(2, 5,
+                movement.snapshot()), 0.000000001D);
+        assertEquals(4.5D, velocity.adjustVertical(4, 6,
+                movement.snapshot()), 0.000000001D);
+        velocity.airborneOverrideSetting().set(Boolean.TRUE);
+        assertEquals(6.5D, velocity.adjustHorizontal(2, 5,
+                movement.snapshot()), 0.000000001D);
+        assertEquals(5.5D, velocity.adjustVertical(4, 6,
+                movement.snapshot()), 0.000000001D);
+
+        // Ground and unavailable state use original independent axis values.
+        movement.update(true, false, false);
+        assertEquals(3.5D, velocity.adjustHorizontal(2, 5,
+                movement.snapshot()), 0.000000001D);
+        assertEquals(4.5D, velocity.adjustVertical(4, 6,
+                movement.snapshot()), 0.000000001D);
+        movement.clear();
+        assertEquals(3.5D, velocity.adjustHorizontal(2, 5,
+                movement.snapshot()), 0.000000001D);
+        assertEquals(4.5D, velocity.adjustVertical(4, 6),
+                0.000000001D);
+
+        // Sprint requirement has priority over both percentage sets.
+        velocity.onlyWhileSprintingSetting().set(Boolean.TRUE);
+        movement.update(false, false, false);
+        assertEquals(5.0D, velocity.adjustHorizontal(2, 5,
+                movement.snapshot()), 0.000000001D);
+        assertEquals(6.0D, velocity.adjustVertical(4, 6,
+                movement.snapshot()), 0.000000001D);
+        movement.update(false, false, true);
+        assertEquals(6.5D, velocity.adjustHorizontal(2, 5,
+                movement.snapshot()), 0.000000001D);
+        assertEquals(5.5D, velocity.adjustVertical(4, 6,
+                movement.snapshot()), 0.000000001D);
+        movement.update(true, false, true);
+        assertEquals(3.5D, velocity.adjustHorizontal(2, 5,
+                movement.snapshot()), 0.000000001D);
+        movement.clear();
+        assertEquals(5.0D, velocity.adjustHorizontal(2, 5,
+                movement.snapshot()), 0.000000001D);
+
+        // Percentage endpoints: 0 cancels and 200 doubles the delta.
+        velocity.onlyWhileSprintingSetting().set(Boolean.FALSE);
+        velocity.airborneHorizontalPercentSetting().set(0);
+        velocity.airborneVerticalPercentSetting().set(200);
+        movement.update(false, true, false);
+        assertEquals(2.0D, velocity.adjustHorizontal(2, 5,
+                movement.snapshot()), 0.000000001D);
+        assertEquals(8.0D, velocity.adjustVertical(4, 6,
+                movement.snapshot()), 0.000000001D);
+        assertThrows(IllegalArgumentException.class,
+                () -> velocity.airborneHorizontalPercentSetting().set(-1));
+        assertThrows(IllegalArgumentException.class,
+                () -> velocity.airborneVerticalPercentSetting().set(201));
+        velocity.airborneOverrideSetting().set(Boolean.FALSE);
+        assertEquals(3.5D, velocity.adjustHorizontal(2, 5,
+                movement.snapshot()), 0.000000001D);
+        velocity.onDisable();
+        assertEquals(5.0D, velocity.adjustHorizontal(2, 5,
+                movement.snapshot()), 0.000000001D);
+        assertEquals(6.0D, velocity.adjustVertical(4, 6,
+                movement.snapshot()), 0.000000001D);
+    }
+
+    @Test
     void mappedHostVelocityGatePersistsAndCleansUpAcrossAxes() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -216,6 +295,42 @@ final class Minecraft189VelocityModuleTest {
             velocity.onlyWhileSprintingSetting().set(Boolean.FALSE);
             assertEquals(3.5D, runtime.adjustVelocityHorizontal(2.0D, 5.0D),
                     0.000001D);
+
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.AIRBORNE_OVERRIDE_SETTING_ID));
+            assertEquals("0", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.AIRBORNE_HORIZONTAL_SETTING_ID));
+            assertEquals("0", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.AIRBORNE_VERTICAL_SETTING_ID));
+            velocity.airborneOverrideSetting().set(Boolean.TRUE);
+            velocity.airborneHorizontalPercentSetting().set(175);
+            velocity.airborneVerticalPercentSetting().set(50);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.AIRBORNE_OVERRIDE_SETTING_ID));
+            assertEquals("175", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.AIRBORNE_HORIZONTAL_SETTING_ID));
+            assertEquals("50", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.AIRBORNE_VERTICAL_SETTING_ID));
+            runtime.playerMovementState().update(false, true, false);
+            assertEquals(7.25D, runtime.adjustVelocityHorizontal(2.0D, 5.0D),
+                    0.000001D);
+            assertEquals(5.0D, runtime.adjustVelocityVertical(4.0D, 6.0D),
+                    0.000001D);
+            runtime.playerMovementState().update(true, true, false);
+            assertEquals(3.5D, runtime.adjustVelocityHorizontal(2.0D, 5.0D),
+                    0.000001D);
+            assertEquals(4.5D, runtime.adjustVelocityVertical(4.0D, 6.0D),
+                    0.000001D);
+            runtime.playerMovementState().clear();
+            assertEquals(3.5D, runtime.adjustVelocityHorizontal(2.0D, 5.0D),
+                    0.000001D);
+            velocity.onlyWhileSprintingSetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(5.0D, runtime.adjustVelocityHorizontal(2.0D, 5.0D),
+                    0.000001D);
+            runtime.playerMovementState().update(false, false, true);
+            assertEquals(7.25D, runtime.adjustVelocityHorizontal(2.0D, 5.0D),
+                    0.000001D);
             controller.disable(Minecraft189VelocityModule.ID);
             assertEquals(5.0D, runtime.adjustVelocityHorizontal(2.0D, 5.0D),
                     0.000001D);
@@ -226,6 +341,12 @@ final class Minecraft189VelocityModuleTest {
         }
         assertEquals(null, settings.find(
                 Minecraft189VelocityModule.ONLY_WHILE_SPRINTING_SETTING_ID));
+        assertEquals(null, settings.find(
+                Minecraft189VelocityModule.AIRBORNE_OVERRIDE_SETTING_ID));
+        assertEquals(null, settings.find(
+                Minecraft189VelocityModule.AIRBORNE_HORIZONTAL_SETTING_ID));
+        assertEquals(null, settings.find(
+                Minecraft189VelocityModule.AIRBORNE_VERTICAL_SETTING_ID));
     }
 
     private static final class NoOpHost
