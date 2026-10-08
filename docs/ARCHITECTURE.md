@@ -1565,3 +1565,11 @@ M213 extends **Combat → Aim Assist** with persistent DOUBLE setting `combat.ai
 The gate compares the current player yaw with the certified target yaw using the same shortest-path wrapping already used by Aim Assist smoothing. Aim Assist may own rotation only when the absolute wrapped yaw delta is less than or equal to Max FOV. For example, Max FOV 45 accepts a target within ±45 degrees of the current horizontal view and rejects a target farther around the yaw circle.
 
 Distance, Require Hold, smoothing and ownership precedence remain unchanged: Spin > Aim Assist > Jitter. M213 adds no Minecraft mapping, transformer hook or target-enumeration behavior. Focused and transformed-host tests prove default parity, out-of-FOV suppression and in-FOV activation.
+
+## Aim Assist axis controls
+
+M214 adds persistent BOOLEAN settings `combat.aimAssist.yawEnabled` and `combat.aimAssist.pitchEnabled`, presented as **Yaw Enabled** and **Pitch Enabled**. Both default to `true`, preserving M213 behavior.
+
+When only Yaw Enabled is active, Aim Assist may adjust horizontal rotation while leaving pitch untouched. When only Pitch Enabled is active, it may adjust vertical rotation while leaving yaw untouched. If both axes are disabled, Aim Assist yields the tick instead of claiming rotation ownership with no possible write, allowing lower-priority Jitter to remain eligible.
+
+Require Hold, Max Distance, Max FOV, yaw/pitch smoothing and Spin > Aim Assist > Jitter precedence are otherwise unchanged. M214 adds no Minecraft mappings or transformer hooks. Focused and transformed-host tests cover default parity, yaw-only, pitch-only and both-disabled behavior.

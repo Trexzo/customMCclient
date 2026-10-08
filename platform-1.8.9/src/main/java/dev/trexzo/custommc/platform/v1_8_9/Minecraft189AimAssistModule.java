@@ -18,6 +18,10 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.maxDistance";
     public static final String MAX_FOV_SETTING_ID =
             "combat.aimAssist.maxFov";
+    public static final String YAW_ENABLED_SETTING_ID =
+            "combat.aimAssist.yawEnabled";
+    public static final String PITCH_ENABLED_SETTING_ID =
+            "combat.aimAssist.pitchEnabled";
     public static final double DEFAULT_YAW_SPEED =
             180.0D;
     public static final double DEFAULT_PITCH_SPEED =
@@ -69,6 +73,18 @@ public final class Minecraft189AimAssistModule
                     DEFAULT_MAX_FOV,
                     Minecraft189AimAssistModule::validMaxFov,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> yawEnabled =
+            new Setting<Boolean>(
+                    YAW_ENABLED_SETTING_ID,
+                    Boolean.TRUE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> pitchEnabled =
+            new Setting<Boolean>(
+                    PITCH_ENABLED_SETTING_ID,
+                    Boolean.TRUE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
 
     private boolean enabled;
 
@@ -97,6 +113,14 @@ public final class Minecraft189AimAssistModule
         return maxFov;
     }
 
+    public Setting<Boolean> yawEnabledSetting() {
+        return yawEnabled;
+    }
+
+    public Setting<Boolean> pitchEnabledSetting() {
+        return pitchEnabled;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -113,6 +137,8 @@ public final class Minecraft189AimAssistModule
             final Minecraft189TargetRotationState.Snapshot target,
             final boolean leftButtonHeld) {
         if (!enabled
+                || (!yawEnabled.get().booleanValue()
+                        && !pitchEnabled.get().booleanValue())
                 || player == null
                 || rotation == null
                 || !rotation.available()
@@ -141,15 +167,17 @@ public final class Minecraft189AimAssistModule
                         target.pitch(),
                         pitchSpeed.get().doubleValue());
 
-        if (Float.compare(
-                rotation.yaw(),
-                targetYaw) != 0) {
+        if (yawEnabled.get().booleanValue()
+                && Float.compare(
+                        rotation.yaw(),
+                        targetYaw) != 0) {
             player.customMcSetRotationYaw(
                     targetYaw);
         }
-        if (Float.compare(
-                rotation.pitch(),
-                targetPitch) != 0) {
+        if (pitchEnabled.get().booleanValue()
+                && Float.compare(
+                        rotation.pitch(),
+                        targetPitch) != 0) {
             player.customMcSetRotationPitch(
                     targetPitch);
         }
