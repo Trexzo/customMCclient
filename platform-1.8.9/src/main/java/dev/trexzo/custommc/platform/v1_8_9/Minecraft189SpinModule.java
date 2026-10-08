@@ -4,6 +4,10 @@ import dev.trexzo.custommc.core.module.Module;
 import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
 
+import java.util.Objects;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.DoubleSupplier;
+
 public final class Minecraft189SpinModule
         implements Module {
     public static final String ID =
@@ -16,6 +20,12 @@ public final class Minecraft189SpinModule
             "combat.spin.requireHold";
     public static final String INTERVAL_SETTING_ID =
             "combat.spin.intervalTicks";
+    public static final String RANDOM_INTERVAL_SETTING_ID =
+            "combat.spin.randomInterval";
+    public static final String INTERVAL_VARIATION_SETTING_ID =
+            "combat.spin.intervalVariationTicks";
+    public static final int DEFAULT_INTERVAL_VARIATION_TICKS = 2;
+    public static final int MAXIMUM_INTERVAL_VARIATION_TICKS = 5;
     public static final double DEFAULT_YAW_SPEED =
             20.0D;
     public static final double MINIMUM_YAW_SPEED =
@@ -56,8 +66,31 @@ public final class Minecraft189SpinModule
                             && value <= MAXIMUM_INTERVAL_TICKS,
                     SettingCodecs.INTEGER);
 
+    private final Setting<Boolean> randomInterval =
+            new Setting<Boolean>(
+                    RANDOM_INTERVAL_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> intervalVariationTicks =
+            new Setting<Integer>(
+                    INTERVAL_VARIATION_SETTING_ID,
+                    DEFAULT_INTERVAL_VARIATION_TICKS,
+                    value -> value != null && value >= 0
+                            && value <= MAXIMUM_INTERVAL_VARIATION_TICKS,
+                    SettingCodecs.INTEGER);
+    private final DoubleSupplier randomUnit;
     private boolean enabled;
     private int ticksUntilNext;
+    private boolean previousRandomInterval;
+    private int previousVariationTicks;
+    private int previousIntervalTicks;
+
+    public Minecraft189SpinModule() {
+        this(() -> ThreadLocalRandom.current().nextDouble());
+    }
+
+    Minecraft189SpinModule(final DoubleSupplier randomUnit) {
+        this.randomUnit = Objects.requireNonNull(randomUnit, "randomUnit");
+    }
 
     @Override
     public String id() {
@@ -80,10 +113,21 @@ public final class Minecraft189SpinModule
         return intervalTicks;
     }
 
+    public Setting<Boolean> randomIntervalSetting() {
+        return randomInterval;
+    }
+
+    public Setting<Integer> intervalVariationTicksSetting() {
+        return intervalVariationTicks;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
         resetCadence();
+        previousRandomInterval = randomInterval.get().booleanValue();
+        previousVariationTicks = intervalVariationTicks.get().intValue();
+        previousIntervalTicks = intervalTicks.get().intValue();
     }
 
     @Override
@@ -106,13 +150,28 @@ public final class Minecraft189SpinModule
             return false;
         }
 
+        final boolean varying = randomInterval.get().booleanValue();
+        final int variation = intervalVariationTicks.get().intValue();
+        final int configuredInterval = intervalTicks.get().intValue();
+        if (varying != previousRandomInterval
+                || (varying && (variation != previousVariationTicks
+                        || configuredInterval != previousIntervalTicks))) {
+            resetCadence();
+        }
+        previousRandomInterval = varying;
+        previousVariationTicks = variation;
+        previousIntervalTicks = configuredInterval;
+
         if (ticksUntilNext > 0) {
             ticksUntilNext--;
             return false;
         }
 
-        ticksUntilNext =
-                intervalTicks.get().intValue() - 1;
+        // Fixed mode stays identical to legacy scheduling: no random
+        // sample is read, and changing the base interval mid-countdown
+        // does not restart it. Variation is opt-in.
+        ticksUntilNext = sampleInterval(
+                configuredInterval, varying, variation) - 1;
 
         final float currentYaw =
                 rotation.yaw();
@@ -142,6 +201,24 @@ public final class Minecraft189SpinModule
 
     private void resetCadence() {
         ticksUntilNext = 0;
+    }
+
+    private int sampleInterval(
+            final int interval,
+            final boolean varying,
+            final int variation) {
+        if (!varying || variation == 0) {
+            return interval;
+        }
+        final double raw = randomUnit.getAsDouble();
+        // Invalid injected samples neutralize the offset rather than
+        // escaping 1..10 bounds or corrupting rotation cadence.
+        final double sample = Double.isFinite(raw) && raw >= 0.0D && raw < 1.0D
+                ? raw : 0.5D;
+        final int offset = (int) Math.floor(
+                sample * (variation * 2 + 1)) - variation;
+        return Math.max(MINIMUM_INTERVAL_TICKS,
+                Math.min(MAXIMUM_INTERVAL_TICKS, interval + offset));
     }
 
     private static float wrapYaw(
