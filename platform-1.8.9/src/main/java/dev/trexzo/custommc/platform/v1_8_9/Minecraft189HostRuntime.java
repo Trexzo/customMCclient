@@ -1239,7 +1239,8 @@ public final class Minecraft189HostRuntime
         requireOpen();
         return featureCatalog.noHitDelay()
                 .apply(
-                        currentCounter);
+                        currentCounter,
+                        playerMovementState.snapshot());
     }
 
     boolean shouldAutoClick() {
