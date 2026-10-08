@@ -283,6 +283,10 @@ final class Minecraft189AimAssistModuleTest {
                     1,
                     player.pitchWrites);
 
+            // Restore the default before testing an independently relocated target.
+            module.maxPitchFovSetting().set(
+                    Minecraft189AimAssistModule.DEFAULT_MAX_PITCH_FOV);
+
             positions.update(
                     new double[]{
                             -10.0D,
