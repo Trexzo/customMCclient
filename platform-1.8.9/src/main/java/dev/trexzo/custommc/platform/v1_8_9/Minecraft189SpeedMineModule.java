@@ -14,6 +14,10 @@ public final class Minecraft189SpeedMineModule
             "player.speedMine.progressive";
     public static final String STEP_PERCENT_SETTING_ID =
             "player.speedMine.stepPercent";
+    public static final String REQUIRE_ATTACK_HELD_SETTING_ID =
+            "player.speedMine.requireAttackHeld";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "player.speedMine.pauseWhileSneaking";
 
     private final Setting<Integer> progressPercent =
             new Setting<Integer>(
@@ -36,6 +40,19 @@ public final class Minecraft189SpeedMineModule
                     value -> value != null && value >= 1 && value <= 50,
                     SettingCodecs.INTEGER);
 
+    private final Setting<Boolean> requireAttackHeld =
+            new Setting<Boolean>(
+                    REQUIRE_ATTACK_HELD_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> pauseWhileSneaking =
+            new Setting<Boolean>(
+                    PAUSE_WHILE_SNEAKING_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+
     private boolean enabled;
 
     @Override
@@ -55,6 +72,14 @@ public final class Minecraft189SpeedMineModule
         return stepPercent;
     }
 
+    public Setting<Boolean> requireAttackHeldSetting() {
+        return requireAttackHeld;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -67,9 +92,22 @@ public final class Minecraft189SpeedMineModule
 
     synchronized void apply(
             final Minecraft189BlockMiningControl controller) {
+        apply(controller, false, null);
+    }
+
+    synchronized void apply(
+            final Minecraft189BlockMiningControl controller,
+            final boolean attackHeld,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
         if (!enabled
                 || controller == null
-                || !controller.customMcIsHittingBlock()) {
+                || !controller.customMcIsHittingBlock()
+                || (requireAttackHeld.get().booleanValue()
+                        && !attackHeld)
+                || (pauseWhileSneaking.get().booleanValue()
+                        && (movement == null
+                        || !movement.available()
+                        || movement.sneaking()))) {
             return;
         }
 

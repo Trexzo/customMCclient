@@ -22,12 +22,18 @@ final class Minecraft189SpeedMineFeature
     private final SettingRegistry.Registration progressSetting;
     private final SettingRegistry.Registration progressiveSetting;
     private final SettingRegistry.Registration stepPercentSetting;
+    private final SettingRegistry.Registration requireAttackHeldSetting;
+    private final SettingRegistry.Registration pauseWhileSneakingSetting;
     private final SettingPresentationRegistry.Registration progressPresentation;
     private final SettingPresentationRegistry.Registration progressivePresentation;
     private final SettingPresentationRegistry.Registration stepPercentPresentation;
+    private final SettingPresentationRegistry.Registration requireAttackHeldPresentation;
+    private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
     private final ModuleSettingRegistry.Registration progressBinding;
     private final ModuleSettingRegistry.Registration progressiveBinding;
     private final ModuleSettingRegistry.Registration stepPercentBinding;
+    private final ModuleSettingRegistry.Registration requireAttackHeldBinding;
+    private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private boolean closed;
 
     private Minecraft189SpeedMineFeature(
@@ -38,12 +44,18 @@ final class Minecraft189SpeedMineFeature
             final SettingRegistry.Registration progressSetting,
             final SettingRegistry.Registration progressiveSetting,
             final SettingRegistry.Registration stepPercentSetting,
+            final SettingRegistry.Registration requireAttackHeldSetting,
+            final SettingRegistry.Registration pauseWhileSneakingSetting,
             final SettingPresentationRegistry.Registration progressPresentation,
             final SettingPresentationRegistry.Registration progressivePresentation,
             final SettingPresentationRegistry.Registration stepPercentPresentation,
+            final SettingPresentationRegistry.Registration requireAttackHeldPresentation,
+            final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
             final ModuleSettingRegistry.Registration progressBinding,
             final ModuleSettingRegistry.Registration progressiveBinding,
-            final ModuleSettingRegistry.Registration stepPercentBinding) {
+            final ModuleSettingRegistry.Registration stepPercentBinding,
+            final ModuleSettingRegistry.Registration requireAttackHeldBinding,
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -51,12 +63,18 @@ final class Minecraft189SpeedMineFeature
         this.progressSetting = progressSetting;
         this.progressiveSetting = progressiveSetting;
         this.stepPercentSetting = stepPercentSetting;
+        this.requireAttackHeldSetting = requireAttackHeldSetting;
+        this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
         this.progressPresentation = progressPresentation;
         this.progressivePresentation = progressivePresentation;
         this.stepPercentPresentation = stepPercentPresentation;
+        this.requireAttackHeldPresentation = requireAttackHeldPresentation;
+        this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
         this.progressBinding = progressBinding;
         this.progressiveBinding = progressiveBinding;
         this.stepPercentBinding = stepPercentBinding;
+        this.requireAttackHeldBinding = requireAttackHeldBinding;
+        this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
     }
 
     static Minecraft189SpeedMineFeature install(
@@ -74,12 +92,18 @@ final class Minecraft189SpeedMineFeature
         SettingRegistry.Registration progressSetting = null;
         SettingRegistry.Registration progressiveSetting = null;
         SettingRegistry.Registration stepPercentSetting = null;
+        SettingRegistry.Registration requireAttackHeldSetting = null;
+        SettingRegistry.Registration pauseWhileSneakingSetting = null;
         SettingPresentationRegistry.Registration progressPresentation = null;
         SettingPresentationRegistry.Registration progressivePresentation = null;
         SettingPresentationRegistry.Registration stepPercentPresentation = null;
+        SettingPresentationRegistry.Registration requireAttackHeldPresentation = null;
+        SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
         ModuleSettingRegistry.Registration progressBinding = null;
         ModuleSettingRegistry.Registration progressiveBinding = null;
         ModuleSettingRegistry.Registration stepPercentBinding = null;
+        ModuleSettingRegistry.Registration requireAttackHeldBinding = null;
+        ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
 
         try {
             moduleRegistration =
@@ -99,6 +123,8 @@ final class Minecraft189SpeedMineFeature
                             module.progressPercentSetting());
             progressiveSetting = settings.register(module.progressiveSetting());
             stepPercentSetting = settings.register(module.stepPercentSetting());
+            requireAttackHeldSetting = settings.register(module.requireAttackHeldSetting());
+            pauseWhileSneakingSetting = settings.register(module.pauseWhileSneakingSetting());
             progressPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -119,6 +145,14 @@ final class Minecraft189SpeedMineFeature
                             Minecraft189SpeedMineModule.STEP_PERCENT_SETTING_ID,
                             "Ramp Step", SettingValueKind.INTEGER, 20,
                             new SettingNumericSpec(1.0D, 50.0D, 1.0D)));
+            requireAttackHeldPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189SpeedMineModule.REQUIRE_ATTACK_HELD_SETTING_ID,
+                            "Require Attack Held", SettingValueKind.BOOLEAN, 30));
+            pauseWhileSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189SpeedMineModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 40));
             progressBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -135,6 +169,15 @@ final class Minecraft189SpeedMineFeature
                             Minecraft189SpeedMineModule.ID,
                             Minecraft189SpeedMineModule.STEP_PERCENT_SETTING_ID, 20));
 
+            requireAttackHeldBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189SpeedMineModule.ID,
+                            Minecraft189SpeedMineModule.REQUIRE_ATTACK_HELD_SETTING_ID, 30));
+            pauseWhileSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189SpeedMineModule.ID,
+                            Minecraft189SpeedMineModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 40));
+
             return new Minecraft189SpeedMineFeature(
                     controller,
                     module,
@@ -143,13 +186,25 @@ final class Minecraft189SpeedMineFeature
                     progressSetting,
                     progressiveSetting,
                     stepPercentSetting,
+                    requireAttackHeldSetting,
+                    pauseWhileSneakingSetting,
                     progressPresentation,
                     progressivePresentation,
                     stepPercentPresentation,
+                    requireAttackHeldPresentation,
+                    pauseWhileSneakingPresentation,
                     progressBinding,
                     progressiveBinding,
-                    stepPercentBinding);
+                    stepPercentBinding,
+                    requireAttackHeldBinding,
+                    pauseWhileSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseWhileSneakingBinding, failure);
+            closeQuietly(requireAttackHeldBinding, failure);
+            closeQuietly(pauseWhileSneakingPresentation, failure);
+            closeQuietly(requireAttackHeldPresentation, failure);
+            closeQuietly(pauseWhileSneakingSetting, failure);
+            closeQuietly(requireAttackHeldSetting, failure);
             closeQuietly(stepPercentBinding, failure);
             closeQuietly(progressiveBinding, failure);
             closeQuietly(stepPercentPresentation, failure);
@@ -202,6 +257,12 @@ final class Minecraft189SpeedMineFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseWhileSneakingBinding, failure);
+        failure = close(requireAttackHeldBinding, failure);
+        failure = close(pauseWhileSneakingPresentation, failure);
+        failure = close(requireAttackHeldPresentation, failure);
+        failure = close(pauseWhileSneakingSetting, failure);
+        failure = close(requireAttackHeldSetting, failure);
         failure = close(stepPercentBinding, failure);
         failure = close(progressiveBinding, failure);
         failure = close(stepPercentPresentation, failure);

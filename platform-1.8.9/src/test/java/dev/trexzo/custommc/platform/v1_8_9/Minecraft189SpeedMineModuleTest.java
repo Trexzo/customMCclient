@@ -186,6 +186,10 @@ final class Minecraft189SpeedMineModuleTest {
                 Minecraft189SpeedMineModule.PROGRESSIVE_SETTING_ID));
         assertNull(settings.find(
                 Minecraft189SpeedMineModule.STEP_PERCENT_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189SpeedMineModule.REQUIRE_ATTACK_HELD_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189SpeedMineModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.PLAYER_CATEGORY_ID));
@@ -286,6 +290,156 @@ final class Minecraft189SpeedMineModuleTest {
         }
         assertNull(settings.find(Minecraft189SpeedMineModule.PROGRESSIVE_SETTING_ID));
         assertNull(settings.find(Minecraft189SpeedMineModule.STEP_PERCENT_SETTING_ID));
+    }
+
+    @Test
+    void speedMineInputGatesRespectMappedAttackAndSneakState() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189SpeedMineModule mine =
+                    runtime.featureCatalog().speedMine();
+            final TestController live = new TestController();
+            live.hitting = true;
+            live.progress = 0.20F;
+            assertFalse(mine.requireAttackHeldSetting().get().booleanValue());
+            assertFalse(mine.pauseWhileSneakingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.REQUIRE_ATTACK_HELD_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+
+            controller.enable(Minecraft189SpeedMineModule.ID);
+            // With both gates OFF, no key or movement snapshot is needed.
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.70F, live.progress, 0.000001F);
+            assertEquals(1, live.setCalls);
+
+            mine.requireAttackHeldSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.REQUIRE_ATTACK_HELD_SETTING_ID));
+            live.progress = 0.10F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.10F, live.progress, 0.000001F);
+            assertEquals(1, live.setCalls);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.70F, live.progress, 0.000001F);
+            assertEquals(2, live.setCalls);
+
+            mine.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            // Missing mapped movement state fails closed when gate is enabled.
+            live.progress = 0.10F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.10F, live.progress, 0.000001F);
+            runtime.playerMovementState().update(true, true, false);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.10F, live.progress, 0.000001F);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.70F, live.progress, 0.000001F);
+            assertEquals(3, live.setCalls);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            live.progress = 0.20F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.20F, live.progress, 0.000001F);
+
+            // Both gates also apply to progressive increments, with no
+            // catch-up credits or writes while paused.
+            mine.progressiveSetting().set(Boolean.TRUE);
+            mine.progressPercentSetting().set(80);
+            mine.stepPercentSetting().set(15);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            runtime.playerMovementState().update(false, true, false);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.20F, live.progress, 0.000001F);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.35F, live.progress, 0.000001F);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.50F, live.progress, 0.000001F);
+            assertEquals(5, live.setCalls);
+
+            runtime.playerMovementState().clear();
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.50F, live.progress, 0.000001F);
+            mine.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.65F, live.progress, 0.000001F);
+            mine.requireAttackHeldSetting().set(Boolean.FALSE);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.80F, live.progress, 0.000001F);
+            assertEquals(7, live.setCalls);
+
+            controller.disable(Minecraft189SpeedMineModule.ID);
+            live.progress = 0.10F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.10F, live.progress, 0.000001F);
+            assertEquals(7, live.setCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189SpeedMineModule.REQUIRE_ATTACK_HELD_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189SpeedMineModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189SpeedMineModule.ID));
+    }
+
+    @Test
+    void speedMineLegacyApplyFailsClosedOnlyWhenOptInGatesRequireAuthority() {
+        final Minecraft189SpeedMineModule module = new Minecraft189SpeedMineModule();
+        final TestController live = new TestController();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        live.hitting = true;
+        live.progress = 0.15F;
+        module.onEnable();
+        module.apply(live);  // Previously supported overload remains valid.
+        assertEquals(0.70F, live.progress, 0.000001F);
+
+        module.requireAttackHeldSetting().set(Boolean.TRUE);
+        live.progress = 0.15F;
+        module.apply(live);  // No attack authority -> no write.
+        assertEquals(0.15F, live.progress, 0.000001F);
+        module.apply(live, true, null);
+        assertEquals(0.70F, live.progress, 0.000001F);
+
+        module.pauseWhileSneakingSetting().set(Boolean.TRUE);
+        live.progress = 0.15F;
+        module.apply(live, true, null);
+        assertEquals(0.15F, live.progress, 0.000001F);
+        movement.update(true, true, false);
+        module.apply(live, true, movement.snapshot());
+        assertEquals(0.15F, live.progress, 0.000001F);
+        movement.update(true, false, false);
+        module.apply(live, true, movement.snapshot());
+        assertEquals(0.70F, live.progress, 0.000001F);
+
+        module.onDisable();
+        live.progress = 0.15F;
+        module.apply(live, true, movement.snapshot());
+        assertEquals(0.15F, live.progress, 0.000001F);
+        module.apply(null, true, movement.snapshot());
     }
 
     private static final class TestController
