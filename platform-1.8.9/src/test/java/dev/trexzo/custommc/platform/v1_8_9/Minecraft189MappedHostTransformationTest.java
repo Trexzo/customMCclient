@@ -5451,6 +5451,71 @@ final class Minecraft189MappedHostTransformationTest {
                             Minecraft189AimAssistModule.DEFAULT_MAX_DISTANCE);
             runTick.invoke(minecraft);
 
+            // M226: with restricted yaw FOV, ignore the nearest player
+            // outside the crosshair cone and aim at the farther eligible player.
+            worldClass.getField("f").set(world,
+                    java.util.Arrays.asList(player, tooCloseEntity, nearbyEntity));
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxFovSetting().set(10.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(1, runtime.requireHostRuntime()
+                    .nearestPlayerTargetState().snapshot().entityIndex());
+            assertEquals(-67.833654F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(11.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            // Offset contributes to selection and boundary-inclusive FOV.
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawOffsetSetting().set(30.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-60.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawOffsetSetting().set(0.0D);
+
+            // Wide FOV restores unchanged M225 nearest-in-range selection.
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxFovSetting().set(180.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-80.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+
+            // Restricted pitch FOV also falls through a closer high target.
+            remotePlayerClass.getField("t").setDouble(tooCloseEntity, 66.5D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxPitchFovSetting().set(10.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-67.833654F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(-4.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxPitchFovSetting().set(180.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-80.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+
+            // No changes to the general target or fixture after M226.
+            worldClass.getField("f").set(world,
+                    java.util.Arrays.asList(player, nearbyEntity));
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxFovSetting().set(180.0D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxPitchFovSetting().set(180.0D);
+            runTick.invoke(minecraft);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AimAssistModule.ID);
