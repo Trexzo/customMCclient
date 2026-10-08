@@ -109,6 +109,8 @@ final class Minecraft189AutoClickerModuleTest {
             assertEquals("false", settings.snapshotEncoded()
                     .get(Minecraft189AutoClickerModule.PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID));
             assertEquals("false", settings.snapshotEncoded()
+                    .get(Minecraft189AutoClickerModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded()
                     .get(Minecraft189AutoClickerModule.REQUIRE_NEARBY_PLAYER_SETTING_ID));
             assertEquals("4.0", settings.snapshotEncoded()
                     .get(Minecraft189AutoClickerModule.MAX_PLAYER_DISTANCE_SETTING_ID));
@@ -299,6 +301,8 @@ final class Minecraft189AutoClickerModuleTest {
         assertNull(settings.find(
                 Minecraft189AutoClickerModule.PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID));
         assertNull(settings.find(
+                Minecraft189AutoClickerModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertNull(settings.find(
                 Minecraft189AutoClickerModule.REQUIRE_NEARBY_PLAYER_SETTING_ID));
         assertNull(settings.find(
                 Minecraft189AutoClickerModule.MAX_PLAYER_DISTANCE_SETTING_ID));
@@ -347,6 +351,92 @@ final class Minecraft189AutoClickerModuleTest {
         assertFalse(module.shouldClick(true, false, false));
         assertTrue(module.shouldClick(true, false, false));
         module.onDisable();
+    }
+
+    @Test
+    void pauseWhileSneakingUsesCertifiedMovementAndResetsCpsPhase() {
+        final Minecraft189AutoClickerModule module = new Minecraft189AutoClickerModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        assertFalse(module.pauseWhileSneakingSetting().get().booleanValue());
+        module.minCpsSetting().set(10);
+        module.maxCpsSetting().set(10);
+        module.onEnable();
+
+        // Default OFF must retain the original behavior without movement authority.
+        assertFalse(module.shouldClick(true, false, false, null, null));
+        assertTrue(module.shouldClick(true, false, false, null, null));
+        module.pauseWhileSneakingSetting().set(Boolean.TRUE);
+        assertFalse(module.shouldClick(true, false, false, null, null));
+        assertFalse(module.shouldClick(true, false, false, null, movement.snapshot()));
+        movement.update(true, true, false);
+        assertFalse(module.shouldClick(true, false, false, null, movement.snapshot()));
+        assertFalse(module.shouldClick(true, false, false, null, movement.snapshot()));
+
+        // Resume on unsneak from zero CPS credit, not the pre-pause phase.
+        movement.update(true, false, false);
+        assertFalse(module.shouldClick(true, false, false, null, movement.snapshot()));
+        assertTrue(module.shouldClick(true, false, false, null, movement.snapshot()));
+        movement.clear();
+        assertFalse(module.shouldClick(true, false, false, null, movement.snapshot()));
+
+        module.pauseWhileSneakingSetting().set(Boolean.FALSE);
+        assertFalse(module.shouldClick(true, false, false, null, null));
+        assertTrue(module.shouldClick(true, false, false, null, null));
+        module.onDisable();
+        assertFalse(module.shouldClick(true, false, false, null, null));
+    }
+
+    @Test
+    void runtimeAutoClickerUsesMappedSneakStateAndPersistsNewGate() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), new NoOpHost());
+        try {
+            final Minecraft189AutoClickerModule clicker =
+                    runtime.featureCatalog().autoClicker();
+            clicker.minCpsSetting().set(10);
+            clicker.maxCpsSetting().set(10);
+            clicker.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            controller.enable(Minecraft189AutoClickerModule.ID);
+            runtime.inputState().pointerButton(Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+
+            assertFalse(runtime.shouldAutoClick()); // movement unavailable
+            assertFalse(runtime.shouldAutoClick());
+            runtime.playerMovementState().update(true, true, false);
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            runtime.playerMovementState().update(true, false, false);
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+
+            runtime.playerMovementState().update(true, true, false);
+            assertFalse(runtime.shouldAutoClick());
+            runtime.playerMovementState().clear();
+            assertFalse(runtime.shouldAutoClick());
+            clicker.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+
+            controller.disable(Minecraft189AutoClickerModule.ID);
+            assertFalse(runtime.shouldAutoClick());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189AutoClickerModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
     }
 
     private static final class NoOpHost
