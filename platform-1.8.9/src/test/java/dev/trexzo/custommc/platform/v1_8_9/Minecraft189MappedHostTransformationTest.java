@@ -5488,12 +5488,23 @@ final class Minecraft189MappedHostTransformationTest {
                     playerClass.getField("y").getFloat(player), 0.0001F);
 
             // Restricted pitch FOV also falls through a closer high target.
-            remotePlayerClass.getField("t").setDouble(tooCloseEntity, 66.5D);
+            // Replace the world entity rather than mutating the previous
+            // snapshot's backing object: world readers must see new identity.
+            final Object raisedEntity =
+                    remotePlayerClass.getDeclaredConstructor().newInstance();
+            remotePlayerClass.getField("s").setDouble(raisedEntity, 125.25D);
+            remotePlayerClass.getField("t").setDouble(raisedEntity, 66.5D);
+            remotePlayerClass.getField("u").setDouble(raisedEntity, -42.75D);
+            worldClass.getField("f").set(world,
+                    java.util.Arrays.asList(player, raisedEntity, nearbyEntity));
+            playerClass.getField("t").setDouble(player, 64.5D);
             runtime.requireHostRuntime().featureCatalog().aimAssist()
                     .maxPitchFovSetting().set(10.0D);
             playerClass.getField("y").setFloat(player, -70.0F);
             playerClass.getField("z").setFloat(player, 0.0F);
             runTick.invoke(minecraft);
+            assertEquals(-45.0F, runtime.requireHostRuntime()
+                    .targetRotationState().snapshot().pitch(), 0.0001F);
             assertEquals(-67.833654F,
                     playerClass.getField("y").getFloat(player), 0.0001F);
             assertEquals(-4.0F,
