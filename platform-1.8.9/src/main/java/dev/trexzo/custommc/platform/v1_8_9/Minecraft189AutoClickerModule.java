@@ -16,6 +16,11 @@ public final class Minecraft189AutoClickerModule
             "combat.autoClicker.maxCps";
     public static final String PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID =
             "combat.autoClicker.pauseWhileRightClicking";
+    public static final String REQUIRE_NEARBY_PLAYER_SETTING_ID =
+            "combat.autoClicker.requireNearbyPlayer";
+    public static final String MAX_PLAYER_DISTANCE_SETTING_ID =
+            "combat.autoClicker.maxPlayerDistance";
+    public static final double DEFAULT_MAX_PLAYER_DISTANCE = 4.0D;
     public static final String REQUIRE_FORWARD_SETTING_ID =
             "combat.autoClicker.requireForward";
     public static final String REQUIRE_HOLD_SETTING_ID =
@@ -43,6 +48,14 @@ public final class Minecraft189AutoClickerModule
                     Boolean.FALSE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> requireNearbyPlayer = new Setting<Boolean>(
+            REQUIRE_NEARBY_PLAYER_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Double> maxPlayerDistance = new Setting<Double>(
+            MAX_PLAYER_DISTANCE_SETTING_ID, DEFAULT_MAX_PLAYER_DISTANCE,
+            value -> value != null && Double.isFinite(value.doubleValue())
+                    && value.doubleValue() >= 0.5D && value.doubleValue() <= 16.0D,
+            SettingCodecs.DOUBLE);
     private final Setting<Boolean> requireForward =
             new Setting<Boolean>(
                     REQUIRE_FORWARD_SETTING_ID,
@@ -77,6 +90,14 @@ public final class Minecraft189AutoClickerModule
 
     public Setting<Boolean> pauseWhileRightClickingSetting() {
         return pauseWhileRightClicking;
+    }
+
+    public Setting<Boolean> requireNearbyPlayerSetting() {
+        return requireNearbyPlayer;
+    }
+
+    public Setting<Double> maxPlayerDistanceSetting() {
+        return maxPlayerDistance;
     }
 
     public Setting<Boolean> requireForwardSetting() {
@@ -114,13 +135,27 @@ public final class Minecraft189AutoClickerModule
             final boolean leftButtonHeld,
             final boolean forwardHeld,
             final boolean rightButtonHeld) {
+        return shouldClick(leftButtonHeld, forwardHeld, rightButtonHeld, null);
+    }
+
+    synchronized boolean shouldClick(
+            final boolean leftButtonHeld,
+            final boolean forwardHeld,
+            final boolean rightButtonHeld,
+            final Minecraft189NearestPlayerTargetState.Snapshot nearestPlayer) {
         if (!enabled
                 || (requireHold.get().booleanValue()
                         && !leftButtonHeld)
                 || (requireForward.get().booleanValue()
                         && !forwardHeld)
                 || (pauseWhileRightClicking.get().booleanValue()
-                        && rightButtonHeld)) {
+                        && rightButtonHeld)
+                || (requireNearbyPlayer.get().booleanValue()
+                        && (nearestPlayer == null
+                        || !nearestPlayer.available()
+                        || !nearestPlayer.found()
+                        || !Double.isFinite(nearestPlayer.distance())
+                        || nearestPlayer.distance() > maxPlayerDistance.get().doubleValue()))) {
             resetSchedule();
             return false;
         }
