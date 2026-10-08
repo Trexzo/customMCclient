@@ -182,9 +182,110 @@ final class Minecraft189SpeedMineModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189SpeedMineModule.PROGRESS_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189SpeedMineModule.PROGRESSIVE_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189SpeedMineModule.STEP_PERCENT_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.PLAYER_CATEGORY_ID));
+    }
+
+    @Test
+    void progressiveRampAdvancesGraduallyOnlyForActiveValidMiningProgress() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189SpeedMineModule mine =
+                    runtime.featureCatalog().speedMine();
+            assertFalse(mine.progressiveSetting().get().booleanValue());
+            assertEquals(10, mine.stepPercentSetting().get().intValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.PROGRESSIVE_SETTING_ID));
+            assertEquals("10", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.STEP_PERCENT_SETTING_ID));
+            controller.enable(Minecraft189SpeedMineModule.ID);
+            final TestController live = new TestController();
+            live.hitting = true;
+            live.progress = 0.25F;
+            // Default-off: preserve existing instant-minimum behavior.
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.70F, live.progress, 0.000001F);
+            assertEquals(1, live.setCalls);
+
+            mine.progressiveSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.PROGRESSIVE_SETTING_ID));
+            live.progress = 0.25F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.35F, live.progress, 0.000001F);
+            assertEquals(2, live.setCalls);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.45F, live.progress, 0.000001F);
+            assertEquals(3, live.setCalls);
+
+            mine.stepPercentSetting().set(25);
+            assertEquals("25", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.STEP_PERCENT_SETTING_ID));
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.70F, live.progress, 0.000001F);
+            assertEquals(4, live.setCalls);
+            runtime.playerControllerMiningControl(live);
+            assertEquals(4, live.setCalls); // No duplicate when at cap.
+
+            live.progress = 0.90F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.90F, live.progress, 0.000001F);
+            assertEquals(4, live.setCalls); // Never reduce native progress.
+
+            live.progress = Float.NaN;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(4, live.setCalls);
+            live.progress = Float.POSITIVE_INFINITY;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(4, live.setCalls);
+            live.progress = -0.5F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(4, live.setCalls);
+            live.hitting = false;
+            live.progress = 0.20F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(4, live.setCalls);
+
+            live.hitting = true;
+            mine.progressPercentSetting().set(50);
+            live.progress = 0.45F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.50F, live.progress, 0.000001F);
+            assertEquals(5, live.setCalls);
+            mine.progressiveSetting().set(Boolean.FALSE);
+            mine.progressPercentSetting().set(70);
+            live.progress = 0.20F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.70F, live.progress, 0.000001F);
+            assertEquals(6, live.setCalls);
+            controller.disable(Minecraft189SpeedMineModule.ID);
+            live.progress = 0.20F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.20F, live.progress, 0.000001F);
+            assertEquals(6, live.setCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189SpeedMineModule.PROGRESSIVE_SETTING_ID));
+        assertNull(settings.find(Minecraft189SpeedMineModule.STEP_PERCENT_SETTING_ID));
     }
 
     private static final class TestController
