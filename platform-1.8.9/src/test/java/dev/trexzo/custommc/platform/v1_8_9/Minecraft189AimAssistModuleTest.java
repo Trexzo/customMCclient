@@ -878,6 +878,67 @@ final class Minecraft189AimAssistModuleTest {
                 true, false, movement.snapshot()));
     }
 
+
+    @Test
+    void axisDisabledDoesNotGateOtherAxisByItsFov() {
+        final Minecraft189AimAssistModule module = new Minecraft189AimAssistModule();
+        final Minecraft189PlayerPositionState local = new Minecraft189PlayerPositionState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        final Minecraft189NearestPlayerTargetState nearest =
+                new Minecraft189NearestPlayerTargetState();
+        final Minecraft189TargetRotationState target = new Minecraft189TargetRotationState();
+        final Minecraft189PlayerRotationState rotation = new Minecraft189PlayerRotationState();
+        final TestPlayer player = new TestPlayer(80.0F, 60.0F);
+        local.update(0.0D, 0.0D, 0.0D);
+        positions.update(new double[]{0.0D, 0.0D, 10.0D});
+        kinds.update(new int[]{Minecraft189WorldEntityKindState.LIVING
+                | Minecraft189WorldEntityKindState.PLAYER});
+        nearest.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+        target.update(local.snapshot(), nearest.snapshot());
+        module.onEnable();
+
+        module.pitchEnabledSetting().set(Boolean.FALSE);
+        module.maxFovSetting().set(90.0D);
+        module.maxPitchFovSetting().set(5.0D);
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        assertEquals(0.0F, player.yaw, 0.0001F);
+        assertEquals(60.0F, player.pitch, 0.0001F);
+        assertEquals(0, player.pitchWrites);
+
+        module.yawEnabledSetting().set(Boolean.FALSE);
+        module.pitchEnabledSetting().set(Boolean.TRUE);
+        module.maxFovSetting().set(5.0D);
+        module.maxPitchFovSetting().set(90.0D);
+        player.yaw = 80.0F;
+        player.pitch = 60.0F;
+        rotation.update(player.yaw, player.pitch);
+        final int yawWrites = player.yawWrites;
+        assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        assertEquals(80.0F, player.yaw, 0.0001F);
+        assertEquals(0.0F, player.pitch, 0.0001F);
+        assertEquals(yawWrites, player.yawWrites);
+
+        // When both axes are enabled, either violated FOV remains a hard veto.
+        module.yawEnabledSetting().set(Boolean.TRUE);
+        player.yaw = 80.0F;
+        player.pitch = 60.0F;
+        rotation.update(player.yaw, player.pitch);
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        assertEquals(80.0F, player.yaw, 0.0001F);
+        assertEquals(60.0F, player.pitch, 0.0001F);
+
+        module.yawEnabledSetting().set(Boolean.FALSE);
+        module.pitchEnabledSetting().set(Boolean.FALSE);
+        module.maxFovSetting().set(180.0D);
+        module.maxPitchFovSetting().set(180.0D);
+        assertFalse(module.apply(player, rotation.snapshot(), target.snapshot(), true));
+        module.onDisable();
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerRotationControl {
         private float yaw;

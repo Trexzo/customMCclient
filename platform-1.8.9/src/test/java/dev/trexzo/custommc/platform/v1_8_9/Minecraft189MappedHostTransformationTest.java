@@ -5298,6 +5298,45 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(0.0F,
                     playerClass.getField("z").getFloat(player), 0.0001F);
 
+            // M222: disabled axes must not impose their FOV veto.
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .requireGroundSetting().set(Boolean.FALSE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .pitchEnabledSetting().set(Boolean.FALSE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxPitchFovSetting().set(5.0D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxFovSetting().set(90.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-67.833654F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(15.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawEnabledSetting().set(Boolean.FALSE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .pitchEnabledSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxFovSetting().set(5.0D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxPitchFovSetting().set(180.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-70.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(11.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            // Restore defaults before running unrelated post-combat assertions.
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawEnabledSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxFovSetting().set(180.0D);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AimAssistModule.ID);
