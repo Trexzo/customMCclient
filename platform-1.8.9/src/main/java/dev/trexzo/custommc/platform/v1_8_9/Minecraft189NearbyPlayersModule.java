@@ -22,6 +22,7 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public static final String SHOW_RADAR_SETTING_ID = ID + ".showRadar";
     public static final String NORTH_UP_SETTING_ID = ID + ".northUp";
     public static final String HEIGHT_COLORS_SETTING_ID = ID + ".heightColors";
+    public static final String HIGHLIGHT_NEAREST_SETTING_ID = ID + ".highlightNearest";
     public static final String RENDER_PASS_ID = "nearby-players";
 
     private final Minecraft189PlayerPositionState local;
@@ -48,6 +49,9 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     private final Setting<Boolean> heightColors = new Setting<Boolean>(
             HEIGHT_COLORS_SETTING_ID, Boolean.FALSE,
             v -> v != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> highlightNearest = new Setting<Boolean>(
+            HIGHLIGHT_NEAREST_SETTING_ID, Boolean.FALSE,
+            v -> v != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration registration;
 
     public Minecraft189NearbyPlayersModule(
@@ -72,6 +76,7 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public Setting<Boolean> showRadarSetting() { return showRadar; }
     public Setting<Boolean> northUpSetting() { return northUp; }
     public Setting<Boolean> heightColorsSetting() { return heightColors; }
+    public Setting<Boolean> highlightNearestSetting() { return highlightNearest; }
 
     @Override public synchronized void onEnable() {
         if (registration != null) {
@@ -101,10 +106,11 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                 || !local.available() || !positions.available()
                 || !kinds.available()
                 || positions.entityCount() != kinds.entityCount()) {
-            return new NearbySnapshot(false, 0, 0.0D);
+            return new NearbySnapshot(false, 0, 0.0D, -1);
         }
         final double radiusSquared = (double) radius * radius;
         double nearestSquared = Double.POSITIVE_INFINITY;
+        int nearestIndex = -1;
         int count = 0;
         for (int index = 0; index < positions.entityCount(); index++) {
             if (!kinds.player(index) || kinds.localPlayer(index)) continue;
@@ -114,10 +120,13 @@ public final class Minecraft189NearbyPlayersModule implements Module {
             final double squared = dx * dx + dy * dy + dz * dz;
             if (!Double.isFinite(squared) || squared > radiusSquared) continue;
             count++;
-            nearestSquared = Math.min(nearestSquared, squared);
+            if (squared < nearestSquared) {
+                nearestSquared = squared;
+                nearestIndex = index;
+            }
         }
         return new NearbySnapshot(true, count,
-                count == 0 ? 0.0D : Math.sqrt(nearestSquared));
+                count == 0 ? 0.0D : Math.sqrt(nearestSquared), nearestIndex);
     }
 
     // Certified 1.8.9 yaw convention: zero faces +Z, positive yaw rotates
@@ -163,17 +172,21 @@ public final class Minecraft189NearbyPlayersModule implements Module {
         private final boolean available;
         private final int count;
         private final double nearestDistance;
+        private final int nearestIndex;
         private NearbySnapshot(
                 final boolean available,
                 final int count,
-                final double nearestDistance) {
+                final double nearestDistance,
+                final int nearestIndex) {
             this.available = available;
             this.count = count;
             this.nearestDistance = nearestDistance;
+            this.nearestIndex = nearestIndex;
         }
         boolean available() { return available; }
         int count() { return count; }
         double nearestDistance() { return nearestDistance; }
+        int nearestIndex() { return nearestIndex; }
     }
 
     private void drawRadar(
@@ -182,7 +195,9 @@ public final class Minecraft189NearbyPlayersModule implements Module {
             final Minecraft189WorldEntityPositionState.Snapshot positions,
             final Minecraft189WorldEntityKindState.Snapshot types,
             final float yaw, final boolean northUpMode,
-            final boolean heightColorsMode) {
+            final boolean heightColorsMode,
+            final boolean highlightNearestMode,
+            final int nearestIndex) {
         final float centerX = x + 78.0F;
         final float centerY = y + 96.0F;
         graphics.fillRoundedRect(x + 30, y + 48, 96, 96, 4, 0xFF1B2634);
@@ -200,6 +215,10 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                     ? projectNorthUp(dx, dz, range)
                     : projectRadar(dx, dz, yaw, range);
             if (offset != null) {
+                if (highlightNearestMode && i == nearestIndex) {
+                    graphics.fillRoundedRect(centerX + offset[0] - 4,
+                            centerY + offset[1] - 4, 8, 8, 4, 0xFFF5F8FF);
+                }
                 graphics.fillRoundedRect(centerX + offset[0] - 2,
                         centerY + offset[1] - 2, 4, 4, 2,
                         radarBlipColor(dy, heightColorsMode));
@@ -249,7 +268,9 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                         nearestLabel, 0xFFC4CBD5);
                 if (map) drawRadar(left, top, range, me, positions, types,
                         facing.yaw(), northUpMode,
-                        heightColors.get().booleanValue());
+                        heightColors.get().booleanValue(),
+                        highlightNearest.get().booleanValue(),
+                        nearby.nearestIndex());
             } catch (RuntimeException renderFailure) {
                 failure = renderFailure;
                 throw renderFailure;
