@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189FastFallModuleTest {
     @Test
@@ -74,6 +75,12 @@ final class Minecraft189FastFallModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189FastFallModule.FALL_SPEED_SETTING_ID));
+            assertNotNull(settings.find(Minecraft189FastFallModule.PROGRESSIVE_SETTING_ID));
+            assertNotNull(settings.find(Minecraft189FastFallModule.RAMP_STEP_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FastFallModule.PROGRESSIVE_SETTING_ID));
+            assertEquals("0.05", settings.snapshotEncoded().get(
+                    Minecraft189FastFallModule.RAMP_STEP_SETTING_ID));
 
             final TestPlayer player =
                     new TestPlayer();
@@ -204,9 +211,164 @@ final class Minecraft189FastFallModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189FastFallModule.FALL_SPEED_SETTING_ID));
+        assertNull(settings.find(Minecraft189FastFallModule.PROGRESSIVE_SETTING_ID));
+        assertNull(settings.find(Minecraft189FastFallModule.RAMP_STEP_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
+    }
+
+    @Test
+    void progressiveFastFallRampsWithoutOvershootAndHonorsMovementPriority() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189FastFallModule fall = runtime.featureCatalog().fastFall();
+            final TestPlayer player = new TestPlayer();
+            assertFalse(fall.progressiveSetting().get().booleanValue());
+            assertEquals(Double.valueOf(0.05D), fall.rampStepSetting().get());
+            controller.enable(Minecraft189FastFallModule.ID);
+            runtime.playerMovementState().update(false, false, false);
+
+            // Default OFF preserves the existing immediate target.
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.30D, player.motionY, 0.000000001D);
+            assertEquals(1, player.verticalSetCalls);
+
+            fall.progressiveSetting().set(Boolean.TRUE);
+            fall.rampStepSetting().set(0.08D);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FastFallModule.PROGRESSIVE_SETTING_ID));
+            assertEquals("0.08", settings.snapshotEncoded().get(
+                    Minecraft189FastFallModule.RAMP_STEP_SETTING_ID));
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.13D, player.motionY, 0.000000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.21D, player.motionY, 0.000000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.29D, player.motionY, 0.000000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.30D, player.motionY, 0.000000001D);
+            final int writesAtTarget = player.verticalSetCalls;
+            runtime.playerMotionControl(player);
+            assertEquals(writesAtTarget, player.verticalSetCalls);
+
+            // Lowering the speed limit does not slow a faster native fall.
+            player.motionY = -0.60D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.60D, player.motionY, 0.000000001D);
+            assertEquals(writesAtTarget, player.verticalSetCalls);
+
+            player.motionY = 0.20D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.20D, player.motionY, 0.000000001D);
+            player.motionY = 0.0D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionY, 0.000000001D);
+            player.motionY = Double.NaN;
+            runtime.playerMotionControl(player);
+            assertTrue(Double.isNaN(player.motionY));
+            player.motionY = Double.NEGATIVE_INFINITY;
+            runtime.playerMotionControl(player);
+            assertEquals(Double.NEGATIVE_INFINITY, player.motionY);
+            assertEquals(writesAtTarget, player.verticalSetCalls);
+
+            // Live speed edits change the cap without introducing state.
+            fall.fallSpeedSetting().set(0.45D);
+            fall.rampStepSetting().set(0.20D);
+            player.motionY = -0.10D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.30D, player.motionY, 0.000000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.45D, player.motionY, 0.000000001D);
+            final int writesAtNewTarget = player.verticalSetCalls;
+
+            // Fail closed on ground or when mapped movement is unavailable.
+            runtime.playerMovementState().update(true, false, false);
+            player.motionY = -0.10D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.10D, player.motionY, 0.000000001D);
+            runtime.playerMovementState().clear();
+            runtime.playerMotionControl(player);
+            assertEquals(-0.10D, player.motionY, 0.000000001D);
+            assertEquals(writesAtNewTarget, player.verticalSetCalls);
+
+            // Flight retains its higher-priority vertical motion ownership.
+            runtime.playerMovementState().update(false, false, false);
+            controller.enable(Minecraft189FlightModule.ID);
+            player.motionY = -0.10D;
+            runtime.playerMotionControl(player);
+            assertEquals(Minecraft189FlightModule.HOVER_MOTION_Y,
+                    player.motionY, 0.000000001D);
+            controller.disable(Minecraft189FlightModule.ID);
+
+            // Disabled module never writes synthetic downward movement.
+            controller.disable(Minecraft189FastFallModule.ID);
+            player.motionY = -0.10D;
+            final int writesBeforeDisabled = player.verticalSetCalls;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.10D, player.motionY, 0.000000001D);
+            assertEquals(writesBeforeDisabled, player.verticalSetCalls);
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> fall.rampStepSetting().set(0.009D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> fall.rampStepSetting().set(0.501D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> fall.rampStepSetting().set(Double.NaN));
+            assertThrows(IllegalArgumentException.class,
+                    () -> fall.rampStepSetting().set(Double.POSITIVE_INFINITY));
+
+            // Turning progressive mode OFF restores immediate Fast Fall.
+            fall.progressiveSetting().set(Boolean.FALSE);
+            controller.enable(Minecraft189FastFallModule.ID);
+            player.motionY = -0.10D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.45D, player.motionY, 0.000000001D);
+            controller.disable(Minecraft189FastFallModule.ID);
+        } finally {
+            runtime.close();
+        }
+        assertNull(modules.find(Minecraft189FastFallModule.ID));
+        assertNull(settings.find(Minecraft189FastFallModule.FALL_SPEED_SETTING_ID));
+        assertNull(settings.find(Minecraft189FastFallModule.PROGRESSIVE_SETTING_ID));
+        assertNull(settings.find(Minecraft189FastFallModule.RAMP_STEP_SETTING_ID));
+    }
+
+    @Test
+    void suspendedProgressiveFastFallNeverWritesAndDoesNotAccumulateCredit() {
+        final Minecraft189FastFallModule fall = new Minecraft189FastFallModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer();
+        fall.onEnable();
+        fall.progressiveSetting().set(Boolean.TRUE);
+        fall.rampStepSetting().set(0.10D);
+        movement.update(false, false, false);
+        player.motionY = -0.05D;
+        fall.apply(player, movement.snapshot(), true);
+        assertEquals(-0.05D, player.motionY, 0.000000001D);
+        assertEquals(0, player.verticalSetCalls);
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(-0.15D, player.motionY, 0.000000001D);
+        assertEquals(1, player.verticalSetCalls);
+        fall.onDisable();
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(1, player.verticalSetCalls);
     }
 
     private static final class TestPlayer
