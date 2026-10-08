@@ -36,6 +36,8 @@ final class Minecraft189AimAssistFeature
     private final SettingRegistry.Registration deadZoneSetting;
     private final SettingRegistry.Registration yawEnabledSetting;
     private final SettingRegistry.Registration pitchEnabledSetting;
+    private final SettingRegistry.Registration angularEasingSetting;
+    private final SettingRegistry.Registration easingStrengthSetting;
     private final SettingPresentationRegistry.Registration yawSpeedPresentation;
     private final SettingPresentationRegistry.Registration pitchSpeedPresentation;
     private final SettingPresentationRegistry.Registration requireSprintPresentation;
@@ -53,6 +55,8 @@ final class Minecraft189AimAssistFeature
     private final SettingPresentationRegistry.Registration deadZonePresentation;
     private final SettingPresentationRegistry.Registration yawEnabledPresentation;
     private final SettingPresentationRegistry.Registration pitchEnabledPresentation;
+    private final SettingPresentationRegistry.Registration angularEasingPresentation;
+    private final SettingPresentationRegistry.Registration easingStrengthPresentation;
     private final ModuleSettingRegistry.Registration yawSpeedBinding;
     private final ModuleSettingRegistry.Registration pitchSpeedBinding;
     private final ModuleSettingRegistry.Registration requireSprintBinding;
@@ -70,6 +74,8 @@ final class Minecraft189AimAssistFeature
     private final ModuleSettingRegistry.Registration deadZoneBinding;
     private final ModuleSettingRegistry.Registration yawEnabledBinding;
     private final ModuleSettingRegistry.Registration pitchEnabledBinding;
+    private final ModuleSettingRegistry.Registration angularEasingBinding;
+    private final ModuleSettingRegistry.Registration easingStrengthBinding;
     private boolean closed;
 
     private Minecraft189AimAssistFeature(
@@ -94,6 +100,8 @@ final class Minecraft189AimAssistFeature
             final SettingRegistry.Registration deadZoneSetting,
             final SettingRegistry.Registration yawEnabledSetting,
             final SettingRegistry.Registration pitchEnabledSetting,
+            final SettingRegistry.Registration angularEasingSetting,
+            final SettingRegistry.Registration easingStrengthSetting,
             final SettingPresentationRegistry.Registration yawSpeedPresentation,
             final SettingPresentationRegistry.Registration pitchSpeedPresentation,
             final SettingPresentationRegistry.Registration requireSprintPresentation,
@@ -111,6 +119,8 @@ final class Minecraft189AimAssistFeature
             final SettingPresentationRegistry.Registration deadZonePresentation,
             final SettingPresentationRegistry.Registration yawEnabledPresentation,
             final SettingPresentationRegistry.Registration pitchEnabledPresentation,
+            final SettingPresentationRegistry.Registration angularEasingPresentation,
+            final SettingPresentationRegistry.Registration easingStrengthPresentation,
             final ModuleSettingRegistry.Registration yawSpeedBinding,
             final ModuleSettingRegistry.Registration pitchSpeedBinding,
             final ModuleSettingRegistry.Registration requireSprintBinding,
@@ -127,7 +137,9 @@ final class Minecraft189AimAssistFeature
             final ModuleSettingRegistry.Registration pitchOffsetBinding,
             final ModuleSettingRegistry.Registration deadZoneBinding,
             final ModuleSettingRegistry.Registration yawEnabledBinding,
-            final ModuleSettingRegistry.Registration pitchEnabledBinding) {
+            final ModuleSettingRegistry.Registration pitchEnabledBinding,
+            final ModuleSettingRegistry.Registration angularEasingBinding,
+            final ModuleSettingRegistry.Registration easingStrengthBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -149,6 +161,8 @@ final class Minecraft189AimAssistFeature
         this.deadZoneSetting = deadZoneSetting;
         this.yawEnabledSetting = yawEnabledSetting;
         this.pitchEnabledSetting = pitchEnabledSetting;
+        this.angularEasingSetting = angularEasingSetting;
+        this.easingStrengthSetting = easingStrengthSetting;
         this.yawSpeedPresentation = yawSpeedPresentation;
         this.pitchSpeedPresentation = pitchSpeedPresentation;
         this.requireSprintPresentation = requireSprintPresentation;
@@ -166,6 +180,8 @@ final class Minecraft189AimAssistFeature
         this.deadZonePresentation = deadZonePresentation;
         this.yawEnabledPresentation = yawEnabledPresentation;
         this.pitchEnabledPresentation = pitchEnabledPresentation;
+        this.angularEasingPresentation = angularEasingPresentation;
+        this.easingStrengthPresentation = easingStrengthPresentation;
         this.yawSpeedBinding = yawSpeedBinding;
         this.pitchSpeedBinding = pitchSpeedBinding;
         this.requireSprintBinding = requireSprintBinding;
@@ -183,6 +199,8 @@ final class Minecraft189AimAssistFeature
         this.deadZoneBinding = deadZoneBinding;
         this.yawEnabledBinding = yawEnabledBinding;
         this.pitchEnabledBinding = pitchEnabledBinding;
+        this.angularEasingBinding = angularEasingBinding;
+        this.easingStrengthBinding = easingStrengthBinding;
     }
 
     static Minecraft189AimAssistFeature install(
@@ -214,6 +232,8 @@ final class Minecraft189AimAssistFeature
         SettingRegistry.Registration deadZoneSetting = null;
         SettingRegistry.Registration yawEnabledSetting = null;
         SettingRegistry.Registration pitchEnabledSetting = null;
+        SettingRegistry.Registration angularEasingSetting = null;
+        SettingRegistry.Registration easingStrengthSetting = null;
         SettingPresentationRegistry.Registration yawSpeedPresentation = null;
         SettingPresentationRegistry.Registration pitchSpeedPresentation = null;
         SettingPresentationRegistry.Registration requireSprintPresentation = null;
@@ -231,6 +251,8 @@ final class Minecraft189AimAssistFeature
         SettingPresentationRegistry.Registration deadZonePresentation = null;
         SettingPresentationRegistry.Registration yawEnabledPresentation = null;
         SettingPresentationRegistry.Registration pitchEnabledPresentation = null;
+        SettingPresentationRegistry.Registration angularEasingPresentation = null;
+        SettingPresentationRegistry.Registration easingStrengthPresentation = null;
         ModuleSettingRegistry.Registration yawSpeedBinding = null;
         ModuleSettingRegistry.Registration pitchSpeedBinding = null;
         ModuleSettingRegistry.Registration requireSprintBinding = null;
@@ -248,6 +270,8 @@ final class Minecraft189AimAssistFeature
         ModuleSettingRegistry.Registration deadZoneBinding = null;
         ModuleSettingRegistry.Registration yawEnabledBinding = null;
         ModuleSettingRegistry.Registration pitchEnabledBinding = null;
+        ModuleSettingRegistry.Registration angularEasingBinding = null;
+        ModuleSettingRegistry.Registration easingStrengthBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -312,6 +336,8 @@ final class Minecraft189AimAssistFeature
             pitchEnabledSetting =
                     settings.register(
                             module.pitchEnabledSetting());
+            angularEasingSetting = settings.register(module.angularEasingSetting());
+            easingStrengthSetting = settings.register(module.easingStrengthSetting());
             yawSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -467,6 +493,18 @@ final class Minecraft189AimAssistFeature
                                     "Pitch Enabled",
                                     SettingValueKind.BOOLEAN,
                                     60));
+            angularEasingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AimAssistModule.ANGULAR_EASING_SETTING_ID,
+                            "Angular Easing", SettingValueKind.BOOLEAN, 70));
+            easingStrengthPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AimAssistModule.EASING_STRENGTH_SETTING_ID,
+                            "Easing Strength %", SettingValueKind.INTEGER, 80,
+                            new SettingNumericSpec(
+                                    Minecraft189AimAssistModule.MINIMUM_EASING_STRENGTH,
+                                    Minecraft189AimAssistModule.MAXIMUM_EASING_STRENGTH,
+                                    5.0D)));
             yawSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -570,6 +608,15 @@ final class Minecraft189AimAssistFeature
                                     Minecraft189AimAssistModule.PITCH_ENABLED_SETTING_ID,
                                     60));
 
+            angularEasingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AimAssistModule.ID,
+                            Minecraft189AimAssistModule.ANGULAR_EASING_SETTING_ID, 70));
+            easingStrengthBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AimAssistModule.ID,
+                            Minecraft189AimAssistModule.EASING_STRENGTH_SETTING_ID, 80));
+
             return new Minecraft189AimAssistFeature(
                     controller,
                     module,
@@ -592,6 +639,8 @@ final class Minecraft189AimAssistFeature
                     deadZoneSetting,
                     yawEnabledSetting,
                     pitchEnabledSetting,
+                    angularEasingSetting,
+                    easingStrengthSetting,
                     yawSpeedPresentation,
                     pitchSpeedPresentation,
                     requireSprintPresentation,
@@ -609,6 +658,8 @@ final class Minecraft189AimAssistFeature
                     deadZonePresentation,
                     yawEnabledPresentation,
                     pitchEnabledPresentation,
+                    angularEasingPresentation,
+                    easingStrengthPresentation,
                     yawSpeedBinding,
                     pitchSpeedBinding,
                     requireSprintBinding,
@@ -625,8 +676,16 @@ final class Minecraft189AimAssistFeature
                     pitchOffsetBinding,
                     deadZoneBinding,
                     yawEnabledBinding,
-                    pitchEnabledBinding);
+                    pitchEnabledBinding,
+                    angularEasingBinding,
+                    easingStrengthBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(easingStrengthBinding, failure);
+            closeQuietly(angularEasingBinding, failure);
+            closeQuietly(easingStrengthPresentation, failure);
+            closeQuietly(angularEasingPresentation, failure);
+            closeQuietly(easingStrengthSetting, failure);
+            closeQuietly(angularEasingSetting, failure);
             closeQuietly(pitchEnabledBinding, failure);
             closeQuietly(yawEnabledBinding, failure);
             closeQuietly(deadZoneBinding, failure);
@@ -711,6 +770,12 @@ final class Minecraft189AimAssistFeature
             failure = closeFailure;
         }
 
+        failure = close(easingStrengthBinding, failure);
+        failure = close(angularEasingBinding, failure);
+        failure = close(easingStrengthPresentation, failure);
+        failure = close(angularEasingPresentation, failure);
+        failure = close(easingStrengthSetting, failure);
+        failure = close(angularEasingSetting, failure);
         failure = close(pitchEnabledBinding, failure);
         failure = close(yawEnabledBinding, failure);
         failure = close(deadZoneBinding, failure);
