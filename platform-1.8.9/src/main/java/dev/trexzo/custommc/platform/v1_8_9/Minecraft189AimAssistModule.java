@@ -14,6 +14,8 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.pitchSpeed";
     public static final String REQUIRE_HOLD_SETTING_ID =
             "combat.aimAssist.requireHold";
+    public static final String MIN_DISTANCE_SETTING_ID =
+            "combat.aimAssist.minDistance";
     public static final String MAX_DISTANCE_SETTING_ID =
             "combat.aimAssist.maxDistance";
     public static final String MAX_FOV_SETTING_ID =
@@ -38,6 +40,9 @@ public final class Minecraft189AimAssistModule
             0.1D;
     public static final double MAXIMUM_SPEED =
             180.0D;
+    public static final double DEFAULT_MIN_DISTANCE = 0.0D;
+    public static final double MINIMUM_MIN_DISTANCE = 0.0D;
+    public static final double MAXIMUM_MIN_DISTANCE = 128.0D;
     public static final double DEFAULT_MAX_DISTANCE =
             128.0D;
     public static final double MINIMUM_MAX_DISTANCE =
@@ -87,6 +92,12 @@ public final class Minecraft189AimAssistModule
                     Boolean.TRUE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+    private final Setting<Double> minDistance =
+            new Setting<Double>(
+                    MIN_DISTANCE_SETTING_ID,
+                    DEFAULT_MIN_DISTANCE,
+                    Minecraft189AimAssistModule::validMinDistance,
+                    SettingCodecs.DOUBLE);
     private final Setting<Double> maxDistance =
             new Setting<Double>(
                     MAX_DISTANCE_SETTING_ID,
@@ -155,6 +166,10 @@ public final class Minecraft189AimAssistModule
         return requireHold;
     }
 
+    public Setting<Double> minDistanceSetting() {
+        return minDistance;
+    }
+
     public Setting<Double> maxDistanceSetting() {
         return maxDistance;
     }
@@ -212,6 +227,7 @@ public final class Minecraft189AimAssistModule
                 || !target.available()
                 || !withinRange(
                         target,
+                        minDistance.get().doubleValue(),
                         maxDistance.get().doubleValue())
                 || !withinFov(
                         rotation,
@@ -341,12 +357,13 @@ public final class Minecraft189AimAssistModule
 
     private static boolean withinRange(
             final Minecraft189TargetRotationState.Snapshot target,
+            final double minimumDistance,
             final double maximumDistance) {
-        final double maximumDistanceSquared =
-                maximumDistance
-                        * maximumDistance;
-        return target.distanceSquared()
-                <= maximumDistanceSquared;
+        final double minimumDistanceSquared = minimumDistance * minimumDistance;
+        final double maximumDistanceSquared = maximumDistance * maximumDistance;
+        return minimumDistance <= maximumDistance
+                && target.distanceSquared() >= minimumDistanceSquared
+                && target.distanceSquared() <= maximumDistanceSquared;
     }
 
     private boolean withinFov(
@@ -411,6 +428,14 @@ public final class Minecraft189AimAssistModule
                 && !Double.isInfinite(value.doubleValue())
                 && value.doubleValue() >= MINIMUM_MAX_FOV
                 && value.doubleValue() <= MAXIMUM_MAX_FOV;
+    }
+
+    private static boolean validMinDistance(final Double value) {
+        return value != null
+                && !Double.isNaN(value.doubleValue())
+                && !Double.isInfinite(value.doubleValue())
+                && value.doubleValue() >= MINIMUM_MIN_DISTANCE
+                && value.doubleValue() <= MAXIMUM_MIN_DISTANCE;
     }
 
     private static boolean validMaxDistance(

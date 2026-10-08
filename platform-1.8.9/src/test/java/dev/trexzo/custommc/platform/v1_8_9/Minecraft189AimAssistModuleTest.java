@@ -60,6 +60,10 @@ final class Minecraft189AimAssistModuleTest {
                             .get()
                             .booleanValue());
             assertEquals(
+                    Minecraft189AimAssistModule.DEFAULT_MIN_DISTANCE,
+                    module.minDistanceSetting().get().doubleValue(),
+                    0.000001D);
+            assertEquals(
                     Minecraft189AimAssistModule.DEFAULT_MAX_DISTANCE,
                     module.maxDistanceSetting()
                             .get()
@@ -106,6 +110,10 @@ final class Minecraft189AimAssistModuleTest {
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.REQUIRE_HOLD_SETTING_ID)
+                            != null);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.MIN_DISTANCE_SETTING_ID)
                             != null);
             assertTrue(
                     settings.find(
@@ -519,6 +527,9 @@ final class Minecraft189AimAssistModuleTest {
                         Minecraft189AimAssistModule.REQUIRE_HOLD_SETTING_ID));
         assertNull(
                 settings.find(
+                        Minecraft189AimAssistModule.MIN_DISTANCE_SETTING_ID));
+        assertNull(
+                settings.find(
                         Minecraft189AimAssistModule.MAX_DISTANCE_SETTING_ID));
         assertNull(
                 settings.find(
@@ -659,6 +670,74 @@ final class Minecraft189AimAssistModuleTest {
         rotation.update(player.yaw, player.pitch);
         assertTrue(module.apply(player, rotation.snapshot(), target.snapshot(), true));
         assertEquals(177.0F, player.yaw, 0.0001F);
+        module.onDisable();
+    }
+
+
+    @Test
+    void minimumDistanceBoundsAreInclusiveAndFailClosed() {
+        final Minecraft189AimAssistModule module = new Minecraft189AimAssistModule();
+        final Minecraft189PlayerPositionState local =
+                new Minecraft189PlayerPositionState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        final Minecraft189NearestPlayerTargetState nearest =
+                new Minecraft189NearestPlayerTargetState();
+        final Minecraft189TargetRotationState target =
+                new Minecraft189TargetRotationState();
+        final Minecraft189PlayerRotationState rotation =
+                new Minecraft189PlayerRotationState();
+        final TestPlayer player = new TestPlayer(30.0F, 10.0F);
+
+        local.update(0.0D, 0.0D, 0.0D);
+        positions.update(new double[]{0.0D, 0.0D, 10.0D});
+        kinds.update(new int[]{
+                Minecraft189WorldEntityKindState.LIVING
+                        | Minecraft189WorldEntityKindState.PLAYER
+        });
+        nearest.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+        target.update(local.snapshot(), nearest.snapshot());
+        module.onEnable();
+
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, rotation.snapshot(),
+                target.snapshot(), true));
+        assertEquals(0.0F, player.yaw, 0.0001F);
+        assertEquals(0.0F, player.pitch, 0.0001F);
+
+        module.minDistanceSetting().set(10.5D);
+        player.yaw = 30.0F;
+        player.pitch = 10.0F;
+        rotation.update(player.yaw, player.pitch);
+        assertFalse(module.apply(player, rotation.snapshot(),
+                target.snapshot(), true));
+        assertEquals(30.0F, player.yaw, 0.0001F);
+        assertEquals(10.0F, player.pitch, 0.0001F);
+
+        module.minDistanceSetting().set(10.0D);
+        rotation.update(player.yaw, player.pitch);
+        assertTrue(module.apply(player, rotation.snapshot(),
+                target.snapshot(), true));
+
+        module.minDistanceSetting().set(11.0D);
+        module.maxDistanceSetting().set(10.0D);
+        player.yaw = 30.0F;
+        player.pitch = 10.0F;
+        rotation.update(player.yaw, player.pitch);
+        assertFalse(module.apply(player, rotation.snapshot(),
+                target.snapshot(), true));
+
+        module.minDistanceSetting().set(0.0D);
+        module.maxDistanceSetting().set(9.5D);
+        assertFalse(module.apply(player, rotation.snapshot(),
+                target.snapshot(), true));
+
+        module.maxDistanceSetting().set(10.0D);
+        assertTrue(module.apply(player, rotation.snapshot(),
+                target.snapshot(), true));
+
         module.onDisable();
     }
 
