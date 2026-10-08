@@ -23,10 +23,19 @@ final class Minecraft189HealthFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration xSetting;
     private final SettingRegistry.Registration ySetting;
+    private final SettingRegistry.Registration showPercentSetting;
+    private final SettingRegistry.Registration lowHealthAlertSetting;
+    private final SettingRegistry.Registration lowHealthThresholdSetting;
     private final SettingPresentationRegistry.Registration xPresentation;
     private final SettingPresentationRegistry.Registration yPresentation;
+    private final SettingPresentationRegistry.Registration showPercentPresentation;
+    private final SettingPresentationRegistry.Registration lowHealthAlertPresentation;
+    private final SettingPresentationRegistry.Registration lowHealthThresholdPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final ModuleSettingRegistry.Registration showPercentBinding;
+    private final ModuleSettingRegistry.Registration lowHealthAlertBinding;
+    private final ModuleSettingRegistry.Registration lowHealthThresholdBinding;
     private boolean closed;
 
     private Minecraft189HealthFeature(
@@ -36,20 +45,38 @@ final class Minecraft189HealthFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration xSetting,
             final SettingRegistry.Registration ySetting,
+            final SettingRegistry.Registration showPercentSetting,
+            final SettingRegistry.Registration lowHealthAlertSetting,
+            final SettingRegistry.Registration lowHealthThresholdSetting,
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
+            final SettingPresentationRegistry.Registration showPercentPresentation,
+            final SettingPresentationRegistry.Registration lowHealthAlertPresentation,
+            final SettingPresentationRegistry.Registration lowHealthThresholdPresentation,
             final ModuleSettingRegistry.Registration xBinding,
-            final ModuleSettingRegistry.Registration yBinding) {
+            final ModuleSettingRegistry.Registration yBinding,
+            final ModuleSettingRegistry.Registration showPercentBinding,
+            final ModuleSettingRegistry.Registration lowHealthAlertBinding,
+            final ModuleSettingRegistry.Registration lowHealthThresholdBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.xSetting = xSetting;
         this.ySetting = ySetting;
+        this.showPercentSetting = showPercentSetting;
+        this.lowHealthAlertSetting = lowHealthAlertSetting;
+        this.lowHealthThresholdSetting = lowHealthThresholdSetting;
         this.xPresentation = xPresentation;
         this.yPresentation = yPresentation;
+        this.showPercentPresentation = showPercentPresentation;
+        this.lowHealthAlertPresentation = lowHealthAlertPresentation;
+        this.lowHealthThresholdPresentation = lowHealthThresholdPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.showPercentBinding = showPercentBinding;
+        this.lowHealthAlertBinding = lowHealthAlertBinding;
+        this.lowHealthThresholdBinding = lowHealthThresholdBinding;
     }
 
     static Minecraft189HealthFeature install(
@@ -72,10 +99,19 @@ final class Minecraft189HealthFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration xSetting = null;
         SettingRegistry.Registration ySetting = null;
+        SettingRegistry.Registration showPercentSetting = null;
+        SettingRegistry.Registration lowHealthAlertSetting = null;
+        SettingRegistry.Registration lowHealthThresholdSetting = null;
         SettingPresentationRegistry.Registration xPresentation = null;
         SettingPresentationRegistry.Registration yPresentation = null;
+        SettingPresentationRegistry.Registration showPercentPresentation = null;
+        SettingPresentationRegistry.Registration lowHealthAlertPresentation = null;
+        SettingPresentationRegistry.Registration lowHealthThresholdPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        ModuleSettingRegistry.Registration showPercentBinding = null;
+        ModuleSettingRegistry.Registration lowHealthAlertBinding = null;
+        ModuleSettingRegistry.Registration lowHealthThresholdBinding = null;
 
         try {
             moduleRegistration =
@@ -95,6 +131,9 @@ final class Minecraft189HealthFeature
             ySetting =
                     settings.register(
                             module.ySetting());
+            showPercentSetting = settings.register(module.showPercentSetting());
+            lowHealthAlertSetting = settings.register(module.lowHealthAlertSetting());
+            lowHealthThresholdSetting = settings.register(module.lowHealthThresholdSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -117,6 +156,19 @@ final class Minecraft189HealthFeature
                                             0.0D,
                                             4096.0D,
                                             1.0D)));
+            showPercentPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189HealthModule.SHOW_PERCENT_SETTING_ID,
+                            "Show Percent", SettingValueKind.BOOLEAN, 20));
+            lowHealthAlertPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189HealthModule.LOW_HEALTH_ALERT_SETTING_ID,
+                            "Low Health Alert", SettingValueKind.BOOLEAN, 30));
+            lowHealthThresholdPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189HealthModule.LOW_HEALTH_THRESHOLD_SETTING_ID,
+                            "Low Health Threshold %", SettingValueKind.INTEGER, 40,
+                            new SettingNumericSpec(1.0D, 100.0D, 5.0D)));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -130,6 +182,19 @@ final class Minecraft189HealthFeature
                                     Minecraft189HealthModule.Y_SETTING_ID,
                                     10));
 
+            showPercentBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189HealthModule.ID,
+                            Minecraft189HealthModule.SHOW_PERCENT_SETTING_ID, 20));
+            lowHealthAlertBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189HealthModule.ID,
+                            Minecraft189HealthModule.LOW_HEALTH_ALERT_SETTING_ID, 30));
+            lowHealthThresholdBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189HealthModule.ID,
+                            Minecraft189HealthModule.LOW_HEALTH_THRESHOLD_SETTING_ID, 40));
+
             return new Minecraft189HealthFeature(
                     controller,
                     module,
@@ -137,11 +202,29 @@ final class Minecraft189HealthFeature
                     presentation,
                     xSetting,
                     ySetting,
+                    showPercentSetting,
+                    lowHealthAlertSetting,
+                    lowHealthThresholdSetting,
                     xPresentation,
                     yPresentation,
+                    showPercentPresentation,
+                    lowHealthAlertPresentation,
+                    lowHealthThresholdPresentation,
                     xBinding,
-                    yBinding);
+                    yBinding,
+                    showPercentBinding,
+                    lowHealthAlertBinding,
+                    lowHealthThresholdBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(lowHealthThresholdBinding, failure);
+            closeQuietly(lowHealthAlertBinding, failure);
+            closeQuietly(showPercentBinding, failure);
+            closeQuietly(lowHealthThresholdPresentation, failure);
+            closeQuietly(lowHealthAlertPresentation, failure);
+            closeQuietly(showPercentPresentation, failure);
+            closeQuietly(lowHealthThresholdSetting, failure);
+            closeQuietly(lowHealthAlertSetting, failure);
+            closeQuietly(showPercentSetting, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
             closeQuietly(yPresentation, failure);
@@ -181,6 +264,15 @@ final class Minecraft189HealthFeature
             failure = closeFailure;
         }
 
+        failure = close(lowHealthThresholdBinding, failure);
+        failure = close(lowHealthAlertBinding, failure);
+        failure = close(showPercentBinding, failure);
+        failure = close(lowHealthThresholdPresentation, failure);
+        failure = close(lowHealthAlertPresentation, failure);
+        failure = close(showPercentPresentation, failure);
+        failure = close(lowHealthThresholdSetting, failure);
+        failure = close(lowHealthAlertSetting, failure);
+        failure = close(showPercentSetting, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
         failure = close(yPresentation, failure);

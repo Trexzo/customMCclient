@@ -22,11 +22,18 @@ public final class Minecraft189HealthModule
             "render.health.x";
     public static final String Y_SETTING_ID =
             "render.health.y";
+    public static final String SHOW_PERCENT_SETTING_ID =
+            "render.health.showPercent";
+    public static final String LOW_HEALTH_ALERT_SETTING_ID =
+            "render.health.lowHealthAlert";
+    public static final String LOW_HEALTH_THRESHOLD_SETTING_ID =
+            "render.health.lowHealthThreshold";
     public static final String RENDER_PASS_ID =
             "health";
 
     private static final int PRIORITY = 128;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
+    private static final int LOW_HEALTH_ARGB = 0xFFFF6969;
 
     private final Minecraft189PlayerHealthState healthState;
     private final RenderPipeline renderPipeline;
@@ -44,6 +51,24 @@ public final class Minecraft189HealthModule
                     196,
                     value -> value >= 0
                             && value <= 4096,
+                    SettingCodecs.INTEGER);
+    private final Setting<Boolean> showPercent =
+            new Setting<Boolean>(
+                    SHOW_PERCENT_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> lowHealthAlert =
+            new Setting<Boolean>(
+                    LOW_HEALTH_ALERT_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Integer> lowHealthThreshold =
+            new Setting<Integer>(
+                    LOW_HEALTH_THRESHOLD_SETTING_ID,
+                    30,
+                    value -> value != null && value >= 1 && value <= 100,
                     SettingCodecs.INTEGER);
     private RenderPipeline.Registration renderRegistration;
 
@@ -76,6 +101,43 @@ public final class Minecraft189HealthModule
 
     public Setting<Integer> ySetting() {
         return y;
+    }
+
+    public Setting<Boolean> showPercentSetting() {
+        return showPercent;
+    }
+
+    public Setting<Boolean> lowHealthAlertSetting() {
+        return lowHealthAlert;
+    }
+
+    public Setting<Integer> lowHealthThresholdSetting() {
+        return lowHealthThreshold;
+    }
+
+    static String textFor(
+            final Minecraft189PlayerHealthState.Snapshot health,
+            final boolean includePercent) {
+        Objects.requireNonNull(health, "health");
+        final String value = String.format(
+                Locale.ROOT,
+                "Health: %.1f / %.1f",
+                health.health(),
+                health.maxHealth());
+        return includePercent
+                ? value + String.format(
+                        Locale.ROOT, " (%.0f%%)",
+                        (double) health.health() * 100.0D / health.maxHealth())
+                : value;
+    }
+
+    static boolean lowHealth(
+            final Minecraft189PlayerHealthState.Snapshot health,
+            final int thresholdPercent) {
+        Objects.requireNonNull(health, "health");
+        return health.available()
+                && (double) health.health() * 100.0D
+                        <= (double) health.maxHealth() * thresholdPercent;
     }
 
     @Override
@@ -145,12 +207,15 @@ public final class Minecraft189HealthModule
                         UiFonts.DEFAULT,
                         x.get().floatValue(),
                         y.get().floatValue(),
-                        String.format(
-                                Locale.ROOT,
-                                "Health: %.1f / %.1f",
-                                health.health(),
-                                health.maxHealth()),
-                        TEXT_ARGB);
+                        textFor(
+                                health,
+                                showPercent.get().booleanValue()),
+                        lowHealthAlert.get().booleanValue()
+                                && lowHealth(
+                                        health,
+                                        lowHealthThreshold.get().intValue())
+                                ? LOW_HEALTH_ARGB
+                                : TEXT_ARGB);
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
                 throw drawFailure;

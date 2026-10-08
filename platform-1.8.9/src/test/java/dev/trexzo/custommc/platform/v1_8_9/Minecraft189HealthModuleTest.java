@@ -100,6 +100,16 @@ final class Minecraft189HealthModuleTest {
             assertEquals(
                     "Health: 17.5 / 20.0",
                     host.lastText);
+            assertEquals(0xFFFFFFFF, host.lastArgb);
+            assertFalse(health.showPercentSetting().get().booleanValue());
+            assertFalse(health.lowHealthAlertSetting().get().booleanValue());
+            assertEquals(Integer.valueOf(30), health.lowHealthThresholdSetting().get());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189HealthModule.SHOW_PERCENT_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189HealthModule.LOW_HEALTH_ALERT_SETTING_ID));
+            assertEquals("30", settings.snapshotEncoded().get(
+                    Minecraft189HealthModule.LOW_HEALTH_THRESHOLD_SETTING_ID));
             assertEquals(
                     32.0F,
                     host.lastX);
@@ -117,10 +127,53 @@ final class Minecraft189HealthModuleTest {
                             .get(
                                     Minecraft189HealthModule.Y_SETTING_ID));
 
+            // The percent display never alters existing position or color.
+            health.showPercentSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189HealthModule.SHOW_PERCENT_SETTING_ID));
+            runtime.renderHud(1L, 0.0F);
+            assertEquals("Health: 17.5 / 20.0 (88%)", host.lastText);
+            assertEquals(0xFFFFFFFF, host.lastArgb);
+
+            // Warning threshold is inclusive and uses the unrounded fraction:
+            // 6/20 is exactly 30%; 6.01/20 is above 30% despite 30% display.
+            health.lowHealthAlertSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189HealthModule.LOW_HEALTH_ALERT_SETTING_ID));
+            runtime.playerHealth(healthAccess(6.0F, 20.0F));
+            runtime.renderHud(2L, 0.0F);
+            assertEquals("Health: 6.0 / 20.0 (30%)", host.lastText);
+            assertEquals(0xFFFF6969, host.lastArgb);
+            runtime.playerHealth(healthAccess(6.01F, 20.0F));
+            runtime.renderHud(3L, 0.0F);
+            assertEquals(0xFFFFFFFF, host.lastArgb);
+            health.lowHealthThresholdSetting().set(31);
+            assertEquals("31", settings.snapshotEncoded().get(
+                    Minecraft189HealthModule.LOW_HEALTH_THRESHOLD_SETTING_ID));
+            runtime.renderHud(4L, 0.0F);
+            assertEquals(0xFFFF6969, host.lastArgb);
+
+            // Max-health changes must recompute percentage and warning.
+            runtime.playerHealth(healthAccess(6.0F, 40.0F));
+            runtime.renderHud(5L, 0.0F);
+            assertEquals("Health: 6.0 / 40.0 (15%)", host.lastText);
+            assertEquals(0xFFFF6969, host.lastArgb);
+            health.lowHealthAlertSetting().set(Boolean.FALSE);
+            runtime.renderHud(6L, 0.0F);
+            assertEquals(0xFFFFFFFF, host.lastArgb);
+            health.showPercentSetting().set(Boolean.FALSE);
+            runtime.renderHud(7L, 0.0F);
+            assertEquals("Health: 6.0 / 40.0", host.lastText);
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> health.lowHealthThresholdSetting().set(0));
+            assertThrows(IllegalArgumentException.class,
+                    () -> health.lowHealthThresholdSetting().set(101));
+
             host.lastText = null;
             runtime.playerHealth(null);
             runtime.renderHud(
-                    1L,
+                    8L,
                     0.0F);
             assertNull(host.lastText);
 
@@ -141,6 +194,9 @@ final class Minecraft189HealthModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189HealthModule.Y_SETTING_ID));
+        assertNull(settings.find(Minecraft189HealthModule.SHOW_PERCENT_SETTING_ID));
+        assertNull(settings.find(Minecraft189HealthModule.LOW_HEALTH_ALERT_SETTING_ID));
+        assertNull(settings.find(Minecraft189HealthModule.LOW_HEALTH_THRESHOLD_SETTING_ID));
     }
 
     @Test
@@ -165,9 +221,25 @@ final class Minecraft189HealthModuleTest {
                         0.0F));
     }
 
+    private static Minecraft189PlayerHealthAccess healthAccess(
+            final float health, final float maxHealth) {
+        return new Minecraft189PlayerHealthAccess() {
+            @Override
+            public float customMcHealth() {
+                return health;
+            }
+
+            @Override
+            public float customMcMaxHealth() {
+                return maxHealth;
+            }
+        };
+    }
+
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private String lastText;
+        private int lastArgb;
         private float lastX;
         private float lastY;
 
@@ -240,6 +312,7 @@ final class Minecraft189HealthModuleTest {
                 final String text,
                 final int argb) {
             lastText = text;
+            lastArgb = argb;
             lastX = x;
             lastY = y;
         }
