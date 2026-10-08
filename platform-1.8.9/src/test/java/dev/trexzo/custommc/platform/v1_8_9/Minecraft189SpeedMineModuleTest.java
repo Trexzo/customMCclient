@@ -15,7 +15,6 @@ import dev.trexzo.custommc.core.ui.UiFontHandle;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.platform.PlatformContext;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
-import dev.trexzo.custommc.platform.v1_8_9.input.LegacyKeyboardCodes;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
