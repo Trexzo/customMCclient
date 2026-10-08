@@ -27,6 +27,8 @@ final class Minecraft189AutoClickerFeature
     private final SettingRegistry.Registration maxPlayerDistanceSetting;
     private final SettingRegistry.Registration requireForwardSetting;
     private final SettingRegistry.Registration requireHoldSetting;
+    private final SettingRegistry.Registration rampUpSetting;
+    private final SettingRegistry.Registration rampUpTicksSetting;
     private final SettingPresentationRegistry.Registration minPresentation;
     private final SettingPresentationRegistry.Registration maxPresentation;
     private final SettingPresentationRegistry.Registration pauseWhileRightClickingPresentation;
@@ -35,6 +37,8 @@ final class Minecraft189AutoClickerFeature
     private final SettingPresentationRegistry.Registration maxPlayerDistancePresentation;
     private final SettingPresentationRegistry.Registration requireForwardPresentation;
     private final SettingPresentationRegistry.Registration requireHoldPresentation;
+    private final SettingPresentationRegistry.Registration rampUpPresentation;
+    private final SettingPresentationRegistry.Registration rampUpTicksPresentation;
     private final ModuleSettingRegistry.Registration minBinding;
     private final ModuleSettingRegistry.Registration maxBinding;
     private final ModuleSettingRegistry.Registration pauseWhileRightClickingBinding;
@@ -43,6 +47,8 @@ final class Minecraft189AutoClickerFeature
     private final ModuleSettingRegistry.Registration maxPlayerDistanceBinding;
     private final ModuleSettingRegistry.Registration requireForwardBinding;
     private final ModuleSettingRegistry.Registration requireHoldBinding;
+    private final ModuleSettingRegistry.Registration rampUpBinding;
+    private final ModuleSettingRegistry.Registration rampUpTicksBinding;
     private boolean closed;
 
     private Minecraft189AutoClickerFeature(
@@ -58,6 +64,8 @@ final class Minecraft189AutoClickerFeature
             final SettingRegistry.Registration maxPlayerDistanceSetting,
             final SettingRegistry.Registration requireForwardSetting,
             final SettingRegistry.Registration requireHoldSetting,
+            final SettingRegistry.Registration rampUpSetting,
+            final SettingRegistry.Registration rampUpTicksSetting,
             final SettingPresentationRegistry.Registration minPresentation,
             final SettingPresentationRegistry.Registration maxPresentation,
             final SettingPresentationRegistry.Registration pauseWhileRightClickingPresentation,
@@ -66,6 +74,8 @@ final class Minecraft189AutoClickerFeature
             final SettingPresentationRegistry.Registration maxPlayerDistancePresentation,
             final SettingPresentationRegistry.Registration requireForwardPresentation,
             final SettingPresentationRegistry.Registration requireHoldPresentation,
+            final SettingPresentationRegistry.Registration rampUpPresentation,
+            final SettingPresentationRegistry.Registration rampUpTicksPresentation,
             final ModuleSettingRegistry.Registration minBinding,
             final ModuleSettingRegistry.Registration maxBinding,
             final ModuleSettingRegistry.Registration pauseWhileRightClickingBinding,
@@ -73,7 +83,9 @@ final class Minecraft189AutoClickerFeature
             final ModuleSettingRegistry.Registration requireNearbyPlayerBinding,
             final ModuleSettingRegistry.Registration maxPlayerDistanceBinding,
             final ModuleSettingRegistry.Registration requireForwardBinding,
-            final ModuleSettingRegistry.Registration requireHoldBinding) {
+            final ModuleSettingRegistry.Registration requireHoldBinding,
+            final ModuleSettingRegistry.Registration rampUpBinding,
+            final ModuleSettingRegistry.Registration rampUpTicksBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -86,6 +98,8 @@ final class Minecraft189AutoClickerFeature
         this.maxPlayerDistanceSetting = maxPlayerDistanceSetting;
         this.requireForwardSetting = requireForwardSetting;
         this.requireHoldSetting = requireHoldSetting;
+        this.rampUpSetting = rampUpSetting;
+        this.rampUpTicksSetting = rampUpTicksSetting;
         this.minPresentation = minPresentation;
         this.maxPresentation = maxPresentation;
         this.pauseWhileRightClickingPresentation = pauseWhileRightClickingPresentation;
@@ -94,6 +108,8 @@ final class Minecraft189AutoClickerFeature
         this.maxPlayerDistancePresentation = maxPlayerDistancePresentation;
         this.requireForwardPresentation = requireForwardPresentation;
         this.requireHoldPresentation = requireHoldPresentation;
+        this.rampUpPresentation = rampUpPresentation;
+        this.rampUpTicksPresentation = rampUpTicksPresentation;
         this.minBinding = minBinding;
         this.maxBinding = maxBinding;
         this.pauseWhileRightClickingBinding = pauseWhileRightClickingBinding;
@@ -102,6 +118,8 @@ final class Minecraft189AutoClickerFeature
         this.maxPlayerDistanceBinding = maxPlayerDistanceBinding;
         this.requireForwardBinding = requireForwardBinding;
         this.requireHoldBinding = requireHoldBinding;
+        this.rampUpBinding = rampUpBinding;
+        this.rampUpTicksBinding = rampUpTicksBinding;
     }
 
     static Minecraft189AutoClickerFeature install(
@@ -124,6 +142,8 @@ final class Minecraft189AutoClickerFeature
         SettingRegistry.Registration maxPlayerDistanceSetting = null;
         SettingRegistry.Registration requireForwardSetting = null;
         SettingRegistry.Registration requireHoldSetting = null;
+        SettingRegistry.Registration rampUpSetting = null;
+        SettingRegistry.Registration rampUpTicksSetting = null;
         SettingPresentationRegistry.Registration minPresentation = null;
         SettingPresentationRegistry.Registration maxPresentation = null;
         SettingPresentationRegistry.Registration pauseWhileRightClickingPresentation = null;
@@ -132,6 +152,8 @@ final class Minecraft189AutoClickerFeature
         SettingPresentationRegistry.Registration maxPlayerDistancePresentation = null;
         SettingPresentationRegistry.Registration requireForwardPresentation = null;
         SettingPresentationRegistry.Registration requireHoldPresentation = null;
+        SettingPresentationRegistry.Registration rampUpPresentation = null;
+        SettingPresentationRegistry.Registration rampUpTicksPresentation = null;
         ModuleSettingRegistry.Registration minBinding = null;
         ModuleSettingRegistry.Registration maxBinding = null;
         ModuleSettingRegistry.Registration pauseWhileRightClickingBinding = null;
@@ -140,6 +162,8 @@ final class Minecraft189AutoClickerFeature
         ModuleSettingRegistry.Registration maxPlayerDistanceBinding = null;
         ModuleSettingRegistry.Registration requireForwardBinding = null;
         ModuleSettingRegistry.Registration requireHoldBinding = null;
+        ModuleSettingRegistry.Registration rampUpBinding = null;
+        ModuleSettingRegistry.Registration rampUpTicksBinding = null;
 
         try {
             moduleRegistration =
@@ -174,6 +198,8 @@ final class Minecraft189AutoClickerFeature
             requireHoldSetting =
                     settings.register(
                             module.requireHoldSetting());
+            rampUpSetting = settings.register(module.rampUpSetting());
+            rampUpTicksSetting = settings.register(module.rampUpTicksSetting());
             minPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -230,6 +256,18 @@ final class Minecraft189AutoClickerFeature
                                     "Require Hold",
                                     SettingValueKind.BOOLEAN,
                                     20));
+            rampUpPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoClickerModule.RAMP_UP_SETTING_ID,
+                            "CPS Ramp-Up", SettingValueKind.BOOLEAN, 50));
+            rampUpTicksPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoClickerModule.RAMP_UP_TICKS_SETTING_ID,
+                            "Ramp-Up Ticks", SettingValueKind.INTEGER, 60,
+                            new SettingNumericSpec(
+                                    Minecraft189AutoClickerModule.MINIMUM_RAMP_UP_TICKS,
+                                    Minecraft189AutoClickerModule.MAXIMUM_RAMP_UP_TICKS,
+                                    1.0D)));
             minBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -273,6 +311,15 @@ final class Minecraft189AutoClickerFeature
                                     Minecraft189AutoClickerModule.REQUIRE_HOLD_SETTING_ID,
                                     20));
 
+            rampUpBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoClickerModule.ID,
+                            Minecraft189AutoClickerModule.RAMP_UP_SETTING_ID, 50));
+            rampUpTicksBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoClickerModule.ID,
+                            Minecraft189AutoClickerModule.RAMP_UP_TICKS_SETTING_ID, 60));
+
             return new Minecraft189AutoClickerFeature(
                     controller,
                     module,
@@ -286,6 +333,8 @@ final class Minecraft189AutoClickerFeature
                     maxPlayerDistanceSetting,
                     requireForwardSetting,
                     requireHoldSetting,
+                    rampUpSetting,
+                    rampUpTicksSetting,
                     minPresentation,
                     maxPresentation,
                     pauseWhileRightClickingPresentation,
@@ -294,6 +343,8 @@ final class Minecraft189AutoClickerFeature
                     maxPlayerDistancePresentation,
                     requireForwardPresentation,
                     requireHoldPresentation,
+                    rampUpPresentation,
+                    rampUpTicksPresentation,
                     minBinding,
                     maxBinding,
                     pauseWhileRightClickingBinding,
@@ -301,8 +352,16 @@ final class Minecraft189AutoClickerFeature
                     requireNearbyPlayerBinding,
                     maxPlayerDistanceBinding,
                     requireForwardBinding,
-                    requireHoldBinding);
+                    requireHoldBinding,
+                    rampUpBinding,
+                    rampUpTicksBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(rampUpTicksBinding, failure);
+            closeQuietly(rampUpBinding, failure);
+            closeQuietly(rampUpTicksPresentation, failure);
+            closeQuietly(rampUpPresentation, failure);
+            closeQuietly(rampUpTicksSetting, failure);
+            closeQuietly(rampUpSetting, failure);
             closeQuietly(pauseWhileSneakingBinding, failure);
             closeQuietly(pauseWhileSneakingPresentation, failure);
             closeQuietly(pauseWhileSneakingSetting, failure);
