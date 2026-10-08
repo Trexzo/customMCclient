@@ -134,9 +134,97 @@ final class Minecraft189FastPlaceModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189FastPlaceModule.DELAY_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189FastPlaceModule.REQUIRE_USE_HELD_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189FastPlaceModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.PLAYER_CATEGORY_ID));
+    }
+
+    @Test
+    void fastPlaceHeldUseAndSneakSafetyGatesComposeWithLiveMappedInputs() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), new NoOpHost());
+        try {
+            final Minecraft189FastPlaceModule fastPlace =
+                    runtime.featureCatalog().fastPlace();
+            assertFalse(fastPlace.requireUseHeldSetting().get().booleanValue());
+            assertFalse(fastPlace.pauseWhileSneakingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FastPlaceModule.REQUIRE_USE_HELD_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FastPlaceModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            controller.enable(Minecraft189FastPlaceModule.ID);
+            fastPlace.delayTicksSetting().set(1);
+            // Legacy behavior: no held input or movement required if both OFF.
+            assertEquals(1, runtime.rightClickDelay(4));
+            assertEquals(0, runtime.rightClickDelay(0));
+
+            fastPlace.requireUseHeldSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FastPlaceModule.REQUIRE_USE_HELD_SETTING_ID));
+            assertEquals(4, runtime.rightClickDelay(4));
+            runtime.inputState().pointerButton(Minecraft189ClickRateTracker.RIGHT_BUTTON, true);
+            assertEquals(1, runtime.rightClickDelay(4));
+            assertEquals(0, runtime.rightClickDelay(0));
+
+            fastPlace.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FastPlaceModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            assertEquals(4, runtime.rightClickDelay(4)); // No movement authority
+            runtime.playerMovementState().update(true, true, false);
+            assertEquals(4, runtime.rightClickDelay(4)); // Sneaking
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(1, runtime.rightClickDelay(4)); // Not sneaking, airborne
+            runtime.inputState().pointerButton(Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
+            assertEquals(4, runtime.rightClickDelay(4)); // No physical use hold
+            runtime.inputState().pointerButton(Minecraft189ClickRateTracker.RIGHT_BUTTON, true);
+            runtime.playerMovementState().clear();
+            assertEquals(4, runtime.rightClickDelay(4)); // Stale state cleared
+
+            fastPlace.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            assertEquals(1, runtime.rightClickDelay(4)); // Missing state now allowed
+            fastPlace.requireUseHeldSetting().set(Boolean.FALSE);
+            runtime.inputState().pointerButton(Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
+            assertEquals(1, runtime.rightClickDelay(4)); // Default-off parity
+            controller.disable(Minecraft189FastPlaceModule.ID);
+            assertEquals(4, runtime.rightClickDelay(4));
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189FastPlaceModule.REQUIRE_USE_HELD_SETTING_ID));
+        assertNull(settings.find(Minecraft189FastPlaceModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+    }
+
+    @Test
+    void fastPlaceLegacyOverloadStaysUnchangedUntilSafetyGatesAreEnabled() {
+        final Minecraft189FastPlaceModule module = new Minecraft189FastPlaceModule();
+        module.onEnable();
+        assertEquals(0, module.apply(4));
+        module.delayTicksSetting().set(2);
+        assertEquals(2, module.apply(4));
+        module.requireUseHeldSetting().set(Boolean.TRUE);
+        assertEquals(4, module.apply(4)); // Caller has no physical input
+        module.requireUseHeldSetting().set(Boolean.FALSE);
+        module.pauseWhileSneakingSetting().set(Boolean.TRUE);
+        assertEquals(4, module.apply(4)); // Caller has no movement snapshot
+        module.pauseWhileSneakingSetting().set(Boolean.FALSE);
+        assertEquals(2, module.apply(4));
+        module.onDisable();
+        assertEquals(4, module.apply(4));
     }
 
     private static final class NoOpHost
