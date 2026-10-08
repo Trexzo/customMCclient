@@ -22,11 +22,28 @@ public final class Minecraft189HungerModule
             "render.hunger.x";
     public static final String Y_SETTING_ID =
             "render.hunger.y";
+    public static final String SHOW_METERS_SETTING_ID =
+            "render.hunger.showMeters";
+    public static final String LOW_FOOD_ALERT_SETTING_ID =
+            "render.hunger.lowFoodAlert";
+    public static final String LOW_FOOD_THRESHOLD_SETTING_ID =
+            "render.hunger.lowFoodThreshold";
+    public static final int DEFAULT_LOW_FOOD_THRESHOLD = 6;
+    public static final int MINIMUM_LOW_FOOD_THRESHOLD = 1;
+    public static final int MAXIMUM_LOW_FOOD_THRESHOLD = 20;
     public static final String RENDER_PASS_ID =
             "hunger";
 
     private static final int PRIORITY = 130;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
+    private static final int LOW_FOOD_ARGB = 0xFFFFB65C;
+    private static final int FOOD_ARGB = 0xFF7EC97A;
+    private static final int SATURATION_ARGB = 0xFF69BFE8;
+    private static final int TRACK_ARGB = 0xFF303D4A;
+    static final float METER_WIDTH = 100.0F;
+    static final float METER_HEIGHT = 3.0F;
+    static final float FOOD_METER_OFFSET_Y = 12.0F;
+    static final float SATURATION_METER_OFFSET_Y = 18.0F;
 
     private final Minecraft189PlayerHungerState hungerState;
     private final RenderPipeline renderPipeline;
@@ -45,6 +62,18 @@ public final class Minecraft189HungerModule
                     value -> value >= 0
                             && value <= 4096,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> showMeters = new Setting<Boolean>(
+            SHOW_METERS_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> lowFoodAlert = new Setting<Boolean>(
+            LOW_FOOD_ALERT_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> lowFoodThreshold = new Setting<Integer>(
+            LOW_FOOD_THRESHOLD_SETTING_ID, DEFAULT_LOW_FOOD_THRESHOLD,
+            value -> value != null
+                    && value >= MINIMUM_LOW_FOOD_THRESHOLD
+                    && value <= MAXIMUM_LOW_FOOD_THRESHOLD,
+            SettingCodecs.INTEGER);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189HungerModule(
@@ -76,6 +105,35 @@ public final class Minecraft189HungerModule
 
     public Setting<Integer> ySetting() {
         return y;
+    }
+
+    public Setting<Boolean> showMetersSetting() {
+        return showMeters;
+    }
+
+    public Setting<Boolean> lowFoodAlertSetting() {
+        return lowFoodAlert;
+    }
+
+    public Setting<Integer> lowFoodThresholdSetting() {
+        return lowFoodThreshold;
+    }
+
+    static float meterFillWidth(final double value) {
+        // Mapped food and saturation are bounded 0..20. Keep the render
+        // helper fail-closed even for malformed values from other callers.
+        if (!Double.isFinite(value)) {
+            return 0.0F;
+        }
+        return (float) (Math.max(0.0D, Math.min(20.0D, value))
+                / 20.0D * METER_WIDTH);
+    }
+
+    static boolean belowFoodThreshold(
+            final Minecraft189PlayerHungerState.Snapshot hunger,
+            final int threshold) {
+        return hunger != null && hunger.available()
+                && hunger.foodLevel() <= threshold;
     }
 
     @Override
@@ -153,13 +211,38 @@ public final class Minecraft189HungerModule
             hostCallbacks.beginUi(viewport);
             RuntimeException failure = null;
             try {
+                final float left = x.get().floatValue();
+                final float top = y.get().floatValue();
+                final boolean lowFood = lowFoodAlert.get().booleanValue()
+                        && belowFoodThreshold(
+                                hunger, lowFoodThreshold.get().intValue());
                 hostCallbacks.drawText(
                         UiFonts.DEFAULT,
-                        x.get().floatValue(),
-                        y.get().floatValue(),
-                        textFor(
-                                hunger),
-                        TEXT_ARGB);
+                        left,
+                        top,
+                        textFor(hunger),
+                        lowFood ? LOW_FOOD_ARGB : TEXT_ARGB);
+                if (showMeters.get().booleanValue()) {
+                    final float foodY = top + FOOD_METER_OFFSET_Y;
+                    final float saturationY = top + SATURATION_METER_OFFSET_Y;
+                    hostCallbacks.fillRect(left, foodY,
+                            METER_WIDTH, METER_HEIGHT, TRACK_ARGB);
+                    hostCallbacks.fillRect(left, saturationY,
+                            METER_WIDTH, METER_HEIGHT, TRACK_ARGB);
+                    final float foodWidth = meterFillWidth(hunger.foodLevel());
+                    final float saturationWidth =
+                            meterFillWidth(hunger.saturationLevel());
+                    if (foodWidth > 0.0F) {
+                        hostCallbacks.fillRect(left, foodY,
+                                foodWidth, METER_HEIGHT,
+                                lowFood ? LOW_FOOD_ARGB : FOOD_ARGB);
+                    }
+                    if (saturationWidth > 0.0F) {
+                        hostCallbacks.fillRect(left, saturationY,
+                                saturationWidth, METER_HEIGHT,
+                                SATURATION_ARGB);
+                    }
+                }
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
                 throw drawFailure;
