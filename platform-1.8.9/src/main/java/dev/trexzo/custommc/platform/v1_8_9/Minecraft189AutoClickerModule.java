@@ -27,6 +27,13 @@ public final class Minecraft189AutoClickerModule
             "combat.autoClicker.requireForward";
     public static final String REQUIRE_HOLD_SETTING_ID =
             "combat.autoClicker.requireHold";
+    public static final String RAMP_UP_SETTING_ID =
+            "combat.autoClicker.rampUp";
+    public static final String RAMP_UP_TICKS_SETTING_ID =
+            "combat.autoClicker.rampUpTicks";
+    public static final int DEFAULT_RAMP_UP_TICKS = 20;
+    public static final int MINIMUM_RAMP_UP_TICKS = 1;
+    public static final int MAXIMUM_RAMP_UP_TICKS = 100;
 
     private static final int TICKS_PER_SECOND = 20;
 
@@ -74,7 +81,20 @@ public final class Minecraft189AutoClickerModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> rampUp = new Setting<Boolean>(
+            RAMP_UP_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> rampUpTicks = new Setting<Integer>(
+            RAMP_UP_TICKS_SETTING_ID, DEFAULT_RAMP_UP_TICKS,
+            value -> value != null
+                    && value >= MINIMUM_RAMP_UP_TICKS
+                    && value <= MAXIMUM_RAMP_UP_TICKS,
+            SettingCodecs.INTEGER);
+
     private boolean enabled;
+    private int elapsedEligibleTicks;
+    private boolean scheduledRampUp;
+    private int scheduledRampUpTicks;
     private int phaseCredit;
     private int targetCps;
     private int scheduledMinimumCps;
@@ -115,6 +135,14 @@ public final class Minecraft189AutoClickerModule
 
     public Setting<Boolean> requireHoldSetting() {
         return requireHold;
+    }
+
+    public Setting<Boolean> rampUpSetting() {
+        return rampUp;
+    }
+
+    public Setting<Integer> rampUpTicksSetting() {
+        return rampUpTicks;
     }
 
     @Override
@@ -187,18 +215,39 @@ public final class Minecraft189AutoClickerModule
         // bounds so editing either Min or Max resets the cadence.
         final int currentMinimumCps = minCps.get().intValue();
         final int currentMaximumCps = maxCps.get().intValue();
+        final boolean currentRampUp = rampUp.get().booleanValue();
+        final int currentRampUpTicks = rampUpTicks.get().intValue();
         if (scheduledMinimumCps != currentMinimumCps
-                || scheduledMaximumCps != currentMaximumCps) {
+                || scheduledMaximumCps != currentMaximumCps
+                || scheduledRampUp != currentRampUp
+                || scheduledRampUpTicks != currentRampUpTicks) {
             resetSchedule();
             scheduledMinimumCps = currentMinimumCps;
             scheduledMaximumCps = currentMaximumCps;
+            scheduledRampUp = currentRampUp;
+            scheduledRampUpTicks = currentRampUpTicks;
         }
 
         if (targetCps <= 0) {
             targetCps = nextTargetCps();
         }
 
-        phaseCredit += targetCps;
+        // Progress only while all existing click gates pass. The effective
+        // rate starts at the first ramp fraction (minimum 1 CPS) and reaches
+        // the target CPS within rampUpTicks eligible callbacks.
+        // Target CPS is still re-sampled by the original click scheduler.
+        final int effectiveCps;
+        if (currentRampUp) {
+            elapsedEligibleTicks = Math.min(
+                    currentRampUpTicks, elapsedEligibleTicks + 1);
+            effectiveCps = Math.max(1,
+                    (targetCps * elapsedEligibleTicks
+                            + currentRampUpTicks - 1)
+                            / currentRampUpTicks);
+        } else {
+            effectiveCps = targetCps;
+        }
+        phaseCredit += effectiveCps;
         if (phaseCredit < TICKS_PER_SECOND) {
             return false;
         }
@@ -239,5 +288,8 @@ public final class Minecraft189AutoClickerModule
         targetCps = 0;
         scheduledMinimumCps = 0;
         scheduledMaximumCps = 0;
+        scheduledRampUp = false;
+        scheduledRampUpTicks = 0;
+        elapsedEligibleTicks = 0;
     }
 }

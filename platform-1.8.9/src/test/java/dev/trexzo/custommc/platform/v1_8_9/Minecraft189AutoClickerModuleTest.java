@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189AutoClickerModuleTest {
     @Test
@@ -306,6 +307,10 @@ final class Minecraft189AutoClickerModuleTest {
                 Minecraft189AutoClickerModule.REQUIRE_NEARBY_PLAYER_SETTING_ID));
         assertNull(settings.find(
                 Minecraft189AutoClickerModule.MAX_PLAYER_DISTANCE_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189AutoClickerModule.RAMP_UP_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189AutoClickerModule.RAMP_UP_TICKS_SETTING_ID));
     }
 
     @Test
@@ -437,6 +442,157 @@ final class Minecraft189AutoClickerModuleTest {
         }
         assertNull(settings.find(
                 Minecraft189AutoClickerModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+    }
+
+    @Test
+    void rampUpStartsSlowConvergesToTargetAndResetsAcrossInputAndEdits() {
+        final Minecraft189AutoClickerModule module =
+                new Minecraft189AutoClickerModule();
+        assertFalse(module.rampUpSetting().get().booleanValue());
+        assertEquals(Integer.valueOf(20), module.rampUpTicksSetting().get());
+        module.minCpsSetting().set(10);
+        module.maxCpsSetting().set(10);
+        module.onEnable();
+
+        // Original steady 10 CPS always produces 10 clicks / 20 ticks.
+        int steadyClicks = 0;
+        for (int tick = 0; tick < 20; tick++) {
+            if (module.shouldClick(true)) {
+                steadyClicks++;
+            }
+        }
+        assertEquals(10, steadyClicks);
+
+        module.rampUpSetting().set(Boolean.TRUE);
+        final int[] expectedFirstRampClicks = {8, 12, 15, 17, 19};
+        int observedHits = 0;
+        for (int tick = 1; tick <= 20; tick++) {
+            if (module.shouldClick(true)) {
+                assertEquals(expectedFirstRampClicks[observedHits], tick);
+                observedHits++;
+            }
+        }
+        assertEquals(5, observedHits);
+        int steadyAfterRamp = 0;
+        for (int tick = 0; tick < 20; tick++) {
+            if (module.shouldClick(true)) {
+                steadyAfterRamp++;
+            }
+        }
+        assertEquals(10, steadyAfterRamp);
+
+        // Invalid left input resets the entire pending CPS phase + ramp.
+        assertFalse(module.shouldClick(false));
+        for (int tick = 1; tick <= 7; tick++) {
+            assertFalse(module.shouldClick(true));
+        }
+        assertTrue(module.shouldClick(true)); // ramp tick 8, not prior phase.
+
+        // Live ramp length change must reset the credit as well.
+        module.rampUpTicksSetting().set(10);
+        for (int tick = 1; tick <= 5; tick++) {
+            assertFalse(module.shouldClick(true));
+        }
+        assertTrue(module.shouldClick(true)); // ramp 10 ticks, first click at 6.
+
+        // Toggle OFF does not retain ramp phase and restores 10 CPS instantly.
+        module.rampUpSetting().set(Boolean.FALSE);
+        assertFalse(module.shouldClick(true));
+        assertTrue(module.shouldClick(true));
+
+        // A one-tick ramp is equivalent to immediate full CPS.
+        module.rampUpTicksSetting().set(1);
+        module.rampUpSetting().set(Boolean.TRUE);
+        assertFalse(module.shouldClick(true));
+        assertTrue(module.shouldClick(true));
+
+        // Either CPS bound edit also resets the ongoing ramp, as before.
+        module.minCpsSetting().set(20);
+        module.maxCpsSetting().set(20);
+        assertTrue(module.shouldClick(true));
+        assertTrue(module.shouldClick(true));
+        assertThrows(IllegalArgumentException.class,
+                () -> module.rampUpTicksSetting().set(0));
+        assertThrows(IllegalArgumentException.class,
+                () -> module.rampUpTicksSetting().set(101));
+        module.onDisable();
+        assertFalse(module.shouldClick(true));
+        module.onEnable();
+        assertTrue(module.shouldClick(true));
+        module.onDisable();
+    }
+
+    @Test
+    void cpsRampUsesMappedHostAndPersistsAndClosesBothSettings() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189AutoClickerModule module =
+                    runtime.featureCatalog().autoClicker();
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.RAMP_UP_SETTING_ID));
+            assertEquals("20", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.RAMP_UP_TICKS_SETTING_ID));
+            module.minCpsSetting().set(10);
+            module.maxCpsSetting().set(10);
+            module.rampUpSetting().set(Boolean.TRUE);
+            module.rampUpTicksSetting().set(20);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.RAMP_UP_SETTING_ID));
+            controller.enable(Minecraft189AutoClickerModule.ID);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+
+            int first20 = 0;
+            for (int tick = 0; tick < 20; tick++) {
+                if (runtime.shouldAutoClick()) {
+                    first20++;
+                }
+            }
+            assertEquals(5, first20);
+            int second20 = 0;
+            for (int tick = 0; tick < 20; tick++) {
+                if (runtime.shouldAutoClick()) {
+                    second20++;
+                }
+            }
+            assertEquals(10, second20);
+
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            assertFalse(runtime.shouldAutoClick());
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            for (int tick = 0; tick < 7; tick++) {
+                assertFalse(runtime.shouldAutoClick());
+            }
+            assertTrue(runtime.shouldAutoClick());
+            module.rampUpTicksSetting().set(10);
+            assertEquals("10", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.RAMP_UP_TICKS_SETTING_ID));
+
+            controller.disable(Minecraft189AutoClickerModule.ID);
+            assertFalse(runtime.shouldAutoClick());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189AutoClickerModule.RAMP_UP_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189AutoClickerModule.RAMP_UP_TICKS_SETTING_ID));
+        assertNull(modules.find(Minecraft189AutoClickerModule.ID));
     }
 
     private static final class NoOpHost
