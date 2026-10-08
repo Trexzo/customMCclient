@@ -80,6 +80,9 @@ final class Minecraft189AutoSprintModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189AutoSprintModule.REQUIRE_FORWARD_SETTING_ID));
+            assertNotNull(settings.find(Minecraft189AutoSprintModule.GROUND_ONLY_SETTING_ID));
+            assertFalse(runtime.featureCatalog().autoSprint()
+                    .groundOnlySetting().get().booleanValue());
             assertFalse(
                     runtime.featureCatalog()
                             .autoSprint()
@@ -204,9 +207,98 @@ final class Minecraft189AutoSprintModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189AutoSprintModule.REQUIRE_FORWARD_SETTING_ID));
+        assertNull(settings.find(Minecraft189AutoSprintModule.GROUND_ONLY_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
+    }
+
+    @Test
+    void groundOnlyUsesLiveMappedGroundStateWithoutDisruptingForwardOrSneak() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform,
+                new ModulePresentationRegistry(), new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189AutoSprintModule sprint =
+                    runtime.featureCatalog().autoSprint();
+            final TestPlayer player = new TestPlayer();
+            player.onGround = false;
+            controller.enable(Minecraft189AutoSprintModule.ID);
+            sprint.groundOnlySetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoSprintModule.GROUND_ONLY_SETTING_ID));
+
+            runtime.playerMovementState(player);
+            runtime.playerSprintControl(player);
+            assertEquals(0, player.setCalls);
+            assertFalse(player.sprinting);
+
+            player.onGround = true;
+            runtime.playerMovementState(player);
+            runtime.playerSprintControl(player);
+            assertEquals(1, player.setCalls);
+            assertTrue(player.sprinting);
+            runtime.playerMovementState(player);
+            runtime.playerSprintControl(player);
+            assertEquals(1, player.setCalls);
+
+            player.sprinting = false;
+            player.sneaking = true;
+            runtime.playerMovementState(player);
+            runtime.playerSprintControl(player);
+            assertEquals(1, player.setCalls);
+
+            player.sneaking = false;
+            sprint.requireForwardSetting().set(Boolean.TRUE);
+            runtime.playerMovementState(player);
+            runtime.playerSprintControl(player);
+            assertEquals(1, player.setCalls);
+
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerMovementState(player);
+            runtime.playerSprintControl(player);
+            assertEquals(2, player.setCalls);
+
+            player.onGround = false;
+            player.sprinting = false;
+            runtime.playerMovementState(player);
+            runtime.playerSprintControl(player);
+            assertEquals(2, player.setCalls);
+
+            // Previous airborne behavior remains available when OFF.
+            sprint.groundOnlySetting().set(Boolean.FALSE);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoSprintModule.GROUND_ONLY_SETTING_ID));
+            runtime.playerMovementState(player);
+            runtime.playerSprintControl(player);
+            assertEquals(3, player.setCalls);
+
+            // No mapped movement authority never invents an on-ground value.
+            player.sprinting = false;
+            runtime.playerMovementState(null);
+            runtime.playerSprintControl(player);
+            assertEquals(3, player.setCalls);
+
+            controller.disable(Minecraft189AutoSprintModule.ID);
+            player.onGround = true;
+            runtime.playerMovementState(player);
+            runtime.playerSprintControl(player);
+            assertEquals(3, player.setCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189AutoSprintModule.GROUND_ONLY_SETTING_ID));
     }
 
     private static final class TestPlayer
