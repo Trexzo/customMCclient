@@ -20,8 +20,14 @@ final class Minecraft189TimerSpeedFeature
     private final ModuleRegistry.Registration moduleRegistration;
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration speedSetting;
+    private final SettingRegistry.Registration airborneOverrideSetting;
+    private final SettingRegistry.Registration airborneSpeedSetting;
     private final SettingPresentationRegistry.Registration speedPresentation;
+    private final SettingPresentationRegistry.Registration airborneOverridePresentation;
+    private final SettingPresentationRegistry.Registration airborneSpeedPresentation;
     private final ModuleSettingRegistry.Registration speedBinding;
+    private final ModuleSettingRegistry.Registration airborneOverrideBinding;
+    private final ModuleSettingRegistry.Registration airborneSpeedBinding;
     private boolean closed;
 
     private Minecraft189TimerSpeedFeature(
@@ -30,15 +36,27 @@ final class Minecraft189TimerSpeedFeature
             final ModuleRegistry.Registration moduleRegistration,
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration speedSetting,
+            final SettingRegistry.Registration airborneOverrideSetting,
+            final SettingRegistry.Registration airborneSpeedSetting,
             final SettingPresentationRegistry.Registration speedPresentation,
-            final ModuleSettingRegistry.Registration speedBinding) {
+            final SettingPresentationRegistry.Registration airborneOverridePresentation,
+            final SettingPresentationRegistry.Registration airborneSpeedPresentation,
+            final ModuleSettingRegistry.Registration speedBinding,
+            final ModuleSettingRegistry.Registration airborneOverrideBinding,
+            final ModuleSettingRegistry.Registration airborneSpeedBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.speedSetting = speedSetting;
+        this.airborneOverrideSetting = airborneOverrideSetting;
+        this.airborneSpeedSetting = airborneSpeedSetting;
         this.speedPresentation = speedPresentation;
+        this.airborneOverridePresentation = airborneOverridePresentation;
+        this.airborneSpeedPresentation = airborneSpeedPresentation;
         this.speedBinding = speedBinding;
+        this.airborneOverrideBinding = airborneOverrideBinding;
+        this.airborneSpeedBinding = airborneSpeedBinding;
     }
 
     static Minecraft189TimerSpeedFeature install(
@@ -54,8 +72,14 @@ final class Minecraft189TimerSpeedFeature
         ModuleRegistry.Registration moduleRegistration = null;
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration speedSetting = null;
+        SettingRegistry.Registration airborneOverrideSetting = null;
+        SettingRegistry.Registration airborneSpeedSetting = null;
         SettingPresentationRegistry.Registration speedPresentation = null;
+        SettingPresentationRegistry.Registration airborneOverridePresentation = null;
+        SettingPresentationRegistry.Registration airborneSpeedPresentation = null;
         ModuleSettingRegistry.Registration speedBinding = null;
+        ModuleSettingRegistry.Registration airborneOverrideBinding = null;
+        ModuleSettingRegistry.Registration airborneSpeedBinding = null;
 
         try {
             moduleRegistration =
@@ -71,6 +95,10 @@ final class Minecraft189TimerSpeedFeature
             speedSetting =
                     settings.register(
                             module.speedPercentSetting());
+            airborneOverrideSetting = settings.register(
+                    module.airborneOverrideSetting());
+            airborneSpeedSetting = settings.register(
+                    module.airborneSpeedPercentSetting());
             speedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -82,6 +110,18 @@ final class Minecraft189TimerSpeedFeature
                                             10.0D,
                                             300.0D,
                                             5.0D)));
+            airborneOverridePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189TimerSpeedModule.AIRBORNE_OVERRIDE_SETTING_ID,
+                            "Airborne Override", SettingValueKind.BOOLEAN, 10));
+            airborneSpeedPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189TimerSpeedModule.AIRBORNE_SPEED_SETTING_ID,
+                            "Air Speed %", SettingValueKind.INTEGER, 20,
+                            new SettingNumericSpec(
+                                    Minecraft189TimerSpeedModule.MINIMUM_SPEED_PERCENT,
+                                    Minecraft189TimerSpeedModule.MAXIMUM_SPEED_PERCENT,
+                                    5.0D)));
             speedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -89,15 +129,36 @@ final class Minecraft189TimerSpeedFeature
                                     Minecraft189TimerSpeedModule.SPEED_SETTING_ID,
                                     0));
 
+            airborneOverrideBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189TimerSpeedModule.ID,
+                            Minecraft189TimerSpeedModule.AIRBORNE_OVERRIDE_SETTING_ID, 10));
+            airborneSpeedBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189TimerSpeedModule.ID,
+                            Minecraft189TimerSpeedModule.AIRBORNE_SPEED_SETTING_ID, 20));
+
             return new Minecraft189TimerSpeedFeature(
                     controller,
                     module,
                     moduleRegistration,
                     presentation,
                     speedSetting,
+                    airborneOverrideSetting,
+                    airborneSpeedSetting,
                     speedPresentation,
-                    speedBinding);
+                    airborneOverridePresentation,
+                    airborneSpeedPresentation,
+                    speedBinding,
+                    airborneOverrideBinding,
+                    airborneSpeedBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(airborneSpeedBinding, failure);
+            closeQuietly(airborneOverrideBinding, failure);
+            closeQuietly(airborneSpeedPresentation, failure);
+            closeQuietly(airborneOverridePresentation, failure);
+            closeQuietly(airborneSpeedSetting, failure);
+            closeQuietly(airborneOverrideSetting, failure);
             closeQuietly(speedBinding, failure);
             closeQuietly(speedPresentation, failure);
             closeQuietly(speedSetting, failure);
@@ -134,6 +195,12 @@ final class Minecraft189TimerSpeedFeature
             failure = closeFailure;
         }
 
+        failure = close(airborneSpeedBinding, failure);
+        failure = close(airborneOverrideBinding, failure);
+        failure = close(airborneSpeedPresentation, failure);
+        failure = close(airborneOverridePresentation, failure);
+        failure = close(airborneSpeedSetting, failure);
+        failure = close(airborneOverrideSetting, failure);
         failure = close(speedBinding, failure);
         failure = close(speedPresentation, failure);
         failure = close(speedSetting, failure);
