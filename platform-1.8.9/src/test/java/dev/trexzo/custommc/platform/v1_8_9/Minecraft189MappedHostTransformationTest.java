@@ -5396,6 +5396,61 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(15.0F,
                     playerClass.getField("z").getFloat(player), 0.0001F);
 
+            // M225: nearest visible player can be too close while a
+            // second mapped player remains eligible for Aim Assist.
+            final Object tooCloseEntity =
+                    remotePlayerClass.getDeclaredConstructor().newInstance();
+            remotePlayerClass.getField("s").setDouble(tooCloseEntity, 125.25D);
+            remotePlayerClass.getField("t").setDouble(tooCloseEntity, 64.5D);
+            remotePlayerClass.getField("u").setDouble(tooCloseEntity, -42.75D);
+            worldClass.getField("f").set(world,
+                    java.util.Arrays.asList(player, tooCloseEntity, nearbyEntity));
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .requireSprintSetting().set(Boolean.FALSE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .minDistanceSetting().set(5.0D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxDistanceSetting().set(20.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(1, runtime.requireHostRuntime()
+                    .nearestPlayerTargetState().snapshot().entityIndex());
+            assertEquals(2, runtime.requireHostRuntime()
+                    .worldEntityKindState().snapshot().entityCount() - 1);
+            assertEquals(-67.833654F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(11.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .minDistanceSetting().set(0.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-80.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .minDistanceSetting().set(10.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-70.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(15.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            // Restore original world list and the default distance range.
+            worldClass.getField("f").set(world,
+                    java.util.Arrays.asList(player, nearbyEntity));
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .minDistanceSetting().set(0.0D);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .maxDistanceSetting().set(
+                            Minecraft189AimAssistModule.DEFAULT_MAX_DISTANCE);
+            runTick.invoke(minecraft);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AimAssistModule.ID);

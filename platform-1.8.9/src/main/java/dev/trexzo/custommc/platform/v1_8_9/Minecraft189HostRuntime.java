@@ -44,6 +44,11 @@ public final class Minecraft189HostRuntime
     private final Minecraft189WorldEntityKindState worldEntityKindState;
     private final Minecraft189NearestPlayerTargetState nearestPlayerTargetState;
     private final Minecraft189TargetRotationState targetRotationState;
+    // Range-only Aim Assist targeting does not replace general nearest-player state.
+    private final Minecraft189NearestPlayerTargetState aimAssistRangeTargetState =
+            new Minecraft189NearestPlayerTargetState();
+    private final Minecraft189TargetRotationState aimAssistRangeRotationState =
+            new Minecraft189TargetRotationState();
     private final Minecraft189ServerAddressState serverAddressState;
     private final Minecraft189HeldItemState heldItemState;
     private final Minecraft189MovementSpeedTracker movementSpeedTracker;
@@ -485,6 +490,8 @@ public final class Minecraft189HostRuntime
         requireOpen();
         if (player == null) {
             playerRotationState.clear();
+            aimAssistRangeTargetState.clear();
+            aimAssistRangeRotationState.clear();
             featureCatalog.spin()
                     .apply(
                             null,
@@ -538,11 +545,29 @@ public final class Minecraft189HostRuntime
                             false);
             return;
         }
-        if (featureCatalog.aimAssist()
-                .apply(
+        final Minecraft189AimAssistModule assist =
+                featureCatalog.aimAssist();
+        Minecraft189TargetRotationState.Snapshot assistTarget =
+                targetRotationState.snapshot();
+        if (assist.active()
+                && assist.minDistanceSetting().get().doubleValue() > 0.0D) {
+            final Minecraft189PlayerPositionState.Snapshot local =
+                    playerPositionState.snapshot();
+            aimAssistRangeTargetState.update(
+                    local,
+                    worldEntityPositionState.snapshot(),
+                    worldEntityKindState.snapshot(),
+                    assist.minDistanceSetting().get().doubleValue(),
+                    assist.maxDistanceSetting().get().doubleValue());
+            aimAssistRangeRotationState.update(
+                    local,
+                    aimAssistRangeTargetState.snapshot());
+            assistTarget = aimAssistRangeRotationState.snapshot();
+        }
+        if (assist.apply(
                         control,
                         rotation,
-                        targetRotationState.snapshot(),
+                        assistTarget,
                         leftButtonHeld,
                         inputState.keyPressed(
                                 LegacyKeyboardCodes.W),

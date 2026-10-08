@@ -13,7 +13,20 @@ public final class Minecraft189NearestPlayerTargetState {
             final Minecraft189PlayerPositionState.Snapshot local,
             final Minecraft189WorldEntityPositionState.Snapshot positions,
             final Minecraft189WorldEntityKindState.Snapshot kinds) {
-        if (local == null
+        update(local, positions, kinds, 0.0D, Double.MAX_VALUE);
+    }
+
+    public synchronized void update(
+            final Minecraft189PlayerPositionState.Snapshot local,
+            final Minecraft189WorldEntityPositionState.Snapshot positions,
+            final Minecraft189WorldEntityKindState.Snapshot kinds,
+            final double minimumDistance,
+            final double maximumDistance) {
+        if (!Double.isFinite(minimumDistance)
+                || !Double.isFinite(maximumDistance)
+                || minimumDistance < 0.0D
+                || minimumDistance > maximumDistance
+                || local == null
                 || positions == null
                 || kinds == null
                 || !local.available()
@@ -25,6 +38,10 @@ public final class Minecraft189NearestPlayerTargetState {
             return;
         }
 
+        final double minimumDistanceSquared =
+                minimumDistance * minimumDistance;
+        final double maximumDistanceSquared =
+                maximumDistance * maximumDistance;
         int bestIndex = -1;
         double bestDistanceSquared =
                 Double.POSITIVE_INFINITY;
@@ -57,8 +74,9 @@ public final class Minecraft189NearestPlayerTargetState {
                             + dy * dy
                             + dz * dz;
 
-            if (candidateDistanceSquared
-                    < bestDistanceSquared) {
+            if (candidateDistanceSquared >= minimumDistanceSquared
+                    && candidateDistanceSquared <= maximumDistanceSquared
+                    && candidateDistanceSquared < bestDistanceSquared) {
                 bestIndex = index;
                 bestDistanceSquared =
                         candidateDistanceSquared;
