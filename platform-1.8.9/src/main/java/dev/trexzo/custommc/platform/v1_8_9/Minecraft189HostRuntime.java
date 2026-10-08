@@ -1230,7 +1230,9 @@ public final class Minecraft189HostRuntime
                 featureCatalog.autoClicker()
                         .shouldClick(
                                 inputState.pointerPressed(
-                                        Minecraft189ClickRateTracker.LEFT_BUTTON));
+                                        Minecraft189ClickRateTracker.LEFT_BUTTON),
+                                inputState.keyPressed(
+                                        LegacyKeyboardCodes.W));
         if (click) {
             clickRateTracker.recordPress(
                     Minecraft189ClickRateTracker.LEFT_BUTTON);

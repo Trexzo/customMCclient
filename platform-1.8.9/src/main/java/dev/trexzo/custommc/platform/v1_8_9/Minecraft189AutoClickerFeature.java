@@ -21,12 +21,15 @@ final class Minecraft189AutoClickerFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration minSetting;
     private final SettingRegistry.Registration maxSetting;
+    private final SettingRegistry.Registration requireForwardSetting;
     private final SettingRegistry.Registration requireHoldSetting;
     private final SettingPresentationRegistry.Registration minPresentation;
     private final SettingPresentationRegistry.Registration maxPresentation;
+    private final SettingPresentationRegistry.Registration requireForwardPresentation;
     private final SettingPresentationRegistry.Registration requireHoldPresentation;
     private final ModuleSettingRegistry.Registration minBinding;
     private final ModuleSettingRegistry.Registration maxBinding;
+    private final ModuleSettingRegistry.Registration requireForwardBinding;
     private final ModuleSettingRegistry.Registration requireHoldBinding;
     private boolean closed;
 
@@ -37,12 +40,15 @@ final class Minecraft189AutoClickerFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration minSetting,
             final SettingRegistry.Registration maxSetting,
+            final SettingRegistry.Registration requireForwardSetting,
             final SettingRegistry.Registration requireHoldSetting,
             final SettingPresentationRegistry.Registration minPresentation,
             final SettingPresentationRegistry.Registration maxPresentation,
+            final SettingPresentationRegistry.Registration requireForwardPresentation,
             final SettingPresentationRegistry.Registration requireHoldPresentation,
             final ModuleSettingRegistry.Registration minBinding,
             final ModuleSettingRegistry.Registration maxBinding,
+            final ModuleSettingRegistry.Registration requireForwardBinding,
             final ModuleSettingRegistry.Registration requireHoldBinding) {
         this.controller = controller;
         this.module = module;
@@ -50,12 +56,15 @@ final class Minecraft189AutoClickerFeature
         this.presentation = presentation;
         this.minSetting = minSetting;
         this.maxSetting = maxSetting;
+        this.requireForwardSetting = requireForwardSetting;
         this.requireHoldSetting = requireHoldSetting;
         this.minPresentation = minPresentation;
         this.maxPresentation = maxPresentation;
+        this.requireForwardPresentation = requireForwardPresentation;
         this.requireHoldPresentation = requireHoldPresentation;
         this.minBinding = minBinding;
         this.maxBinding = maxBinding;
+        this.requireForwardBinding = requireForwardBinding;
         this.requireHoldBinding = requireHoldBinding;
     }
 
@@ -73,12 +82,15 @@ final class Minecraft189AutoClickerFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration minSetting = null;
         SettingRegistry.Registration maxSetting = null;
+        SettingRegistry.Registration requireForwardSetting = null;
         SettingRegistry.Registration requireHoldSetting = null;
         SettingPresentationRegistry.Registration minPresentation = null;
         SettingPresentationRegistry.Registration maxPresentation = null;
+        SettingPresentationRegistry.Registration requireForwardPresentation = null;
         SettingPresentationRegistry.Registration requireHoldPresentation = null;
         ModuleSettingRegistry.Registration minBinding = null;
         ModuleSettingRegistry.Registration maxBinding = null;
+        ModuleSettingRegistry.Registration requireForwardBinding = null;
         ModuleSettingRegistry.Registration requireHoldBinding = null;
 
         try {
@@ -100,6 +112,9 @@ final class Minecraft189AutoClickerFeature
             maxSetting =
                     settings.register(
                             module.maxCpsSetting());
+            requireForwardSetting =
+                    settings.register(
+                            module.requireForwardSetting());
             requireHoldSetting =
                     settings.register(
                             module.requireHoldSetting());
@@ -125,6 +140,13 @@ final class Minecraft189AutoClickerFeature
                                             1.0D,
                                             20.0D,
                                             1.0D)));
+            requireForwardPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189AutoClickerModule.REQUIRE_FORWARD_SETTING_ID,
+                                    "Require Forward",
+                                    SettingValueKind.BOOLEAN,
+                                    15));
             requireHoldPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -144,6 +166,12 @@ final class Minecraft189AutoClickerFeature
                                     Minecraft189AutoClickerModule.ID,
                                     Minecraft189AutoClickerModule.MAX_CPS_SETTING_ID,
                                     10));
+            requireForwardBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189AutoClickerModule.ID,
+                                    Minecraft189AutoClickerModule.REQUIRE_FORWARD_SETTING_ID,
+                                    15));
             requireHoldBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -158,18 +186,24 @@ final class Minecraft189AutoClickerFeature
                     presentation,
                     minSetting,
                     maxSetting,
+                    requireForwardSetting,
                     requireHoldSetting,
                     minPresentation,
                     maxPresentation,
+                    requireForwardPresentation,
                     requireHoldPresentation,
                     minBinding,
                     maxBinding,
+                    requireForwardBinding,
                     requireHoldBinding);
         } catch (RuntimeException failure) {
             closeQuietly(
                     requireHoldBinding,
                     failure);
             closeQuietly(
+                    requireForwardBinding,
+                    failure);
+            closeQuietly(
                     maxBinding,
                     failure);
             closeQuietly(
@@ -179,6 +213,9 @@ final class Minecraft189AutoClickerFeature
                     requireHoldPresentation,
                     failure);
             closeQuietly(
+                    requireForwardPresentation,
+                    failure);
+            closeQuietly(
                     maxPresentation,
                     failure);
             closeQuietly(
@@ -186,6 +223,9 @@ final class Minecraft189AutoClickerFeature
                     failure);
             closeQuietly(
                     requireHoldSetting,
+                    failure);
+            closeQuietly(
+                    requireForwardSetting,
                     failure);
             closeQuietly(
                     maxSetting,
@@ -234,6 +274,9 @@ final class Minecraft189AutoClickerFeature
                 requireHoldBinding,
                 failure);
         failure = close(
+                requireForwardBinding,
+                failure);
+        failure = close(
                 maxBinding,
                 failure);
         failure = close(
@@ -243,6 +286,9 @@ final class Minecraft189AutoClickerFeature
                 requireHoldPresentation,
                 failure);
         failure = close(
+                requireForwardPresentation,
+                failure);
+        failure = close(
                 maxPresentation,
                 failure);
         failure = close(
@@ -250,6 +296,9 @@ final class Minecraft189AutoClickerFeature
                 failure);
         failure = close(
                 requireHoldSetting,
+                failure);
+        failure = close(
+                requireForwardSetting,
                 failure);
         failure = close(
                 maxSetting,
