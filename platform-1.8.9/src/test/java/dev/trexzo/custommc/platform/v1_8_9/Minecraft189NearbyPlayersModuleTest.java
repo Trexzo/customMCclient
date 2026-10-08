@@ -138,6 +138,29 @@ final class Minecraft189NearbyPlayersModuleTest {
     }
 
     @Test
+    void northCompassMathUsesBothCertifiedOrientations() {
+        // North-Up never depends on yaw.
+        final float[] fixed = Minecraft189NearbyPlayersModule.northCompassOffset(
+                true, Float.NaN);
+        assertEquals(0.0F, fixed[0], 0.0001F);
+        assertEquals(-36.0F, fixed[1], 0.0001F);
+        final float[] southFacing = Minecraft189NearbyPlayersModule.northCompassOffset(
+                false, 0.0F);
+        assertEquals(0.0F, southFacing[0], 0.0001F);
+        assertEquals(36.0F, southFacing[1], 0.0001F);
+        final float[] westFacing = Minecraft189NearbyPlayersModule.northCompassOffset(
+                false, 90.0F);
+        assertEquals(-36.0F, westFacing[0], 0.0001F);
+        assertEquals(0.0F, westFacing[1], 0.0001F);
+        final float[] northFacing = Minecraft189NearbyPlayersModule.northCompassOffset(
+                false, 180.0F);
+        assertEquals(0.0F, northFacing[0], 0.0001F);
+        assertEquals(-36.0F, northFacing[1], 0.0001F);
+        assertNull(Minecraft189NearbyPlayersModule.northCompassOffset(
+                false, Float.NaN));
+    }
+
+    @Test
     void visualHudReadsMappedSnapshotsAndUnregistersCleanly() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -163,6 +186,7 @@ final class Minecraft189NearbyPlayersModuleTest {
             assertFalse(radar.northUpSetting().get().booleanValue());
             assertFalse(radar.heightColorsSetting().get().booleanValue());
             assertFalse(radar.highlightNearestSetting().get().booleanValue());
+            assertFalse(radar.showNorthSetting().get().booleanValue());
             runtime.renderHud(0L, 0.0F);
             assertTrue(host.texts.isEmpty());
             radar.xSetting().set(25);
@@ -276,6 +300,7 @@ final class Minecraft189NearbyPlayersModuleTest {
         assertNull(settings.find(Minecraft189NearbyPlayersModule.NORTH_UP_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.HEIGHT_COLORS_SETTING_ID));
         assertNull(settings.find(Minecraft189NearbyPlayersModule.HIGHLIGHT_NEAREST_SETTING_ID));
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_NORTH_SETTING_ID));
     }
 
     @Test
@@ -409,6 +434,7 @@ final class Minecraft189NearbyPlayersModuleTest {
             final Minecraft189NearbyPlayersModule radar =
                     runtime.featureCatalog().nearbyPlayers();
             assertFalse(radar.highlightNearestSetting().get().booleanValue());
+            assertFalse(radar.showNorthSetting().get().booleanValue());
             radar.showRadarSetting().set(Boolean.TRUE);
             radar.northUpSetting().set(Boolean.TRUE);
             radar.radiusSetting().set(10);
@@ -466,6 +492,72 @@ final class Minecraft189NearbyPlayersModuleTest {
         assertNull(settings.find(Minecraft189NearbyPlayersModule.HIGHLIGHT_NEAREST_SETTING_ID));
     }
 
+    @Test
+    void northMarkerUsesLiveYawAndFailsClosedWhenMapUnavailable() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189NearbyPlayersModule radar =
+                    runtime.featureCatalog().nearbyPlayers();
+            radar.showRadarSetting().set(Boolean.TRUE);
+            controller.enable(Minecraft189NearbyPlayersModule.ID);
+            runtime.playerPositionState().update(0, 0, 0);
+            runtime.worldEntityPositionState().update(new double[]{
+                    0, 0, 0, 4, 0, 0
+            });
+            runtime.worldEntityKindState().update(new int[]{LOCAL, REMOTE});
+            runtime.playerRotationState().update(0.0F, 0.0F);
+            runtime.renderHud(71L, 0.0F);
+            assertEquals(0, host.northXs.size());
+
+            radar.showNorthSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NearbyPlayersModule.SHOW_NORTH_SETTING_ID));
+            runtime.renderHud(72L, 0.0F);
+            assertEquals(1, host.northXs.size());
+            assertEquals(93.0F, host.northXs.get(0), 0.001F);
+            assertEquals(406.0F, host.northYs.get(0), 0.001F);
+
+            runtime.playerRotationState().update(90.0F, 0.0F);
+            runtime.renderHud(73L, 0.0F);
+            assertEquals(2, host.northXs.size());
+            assertEquals(57.0F, host.northXs.get(1), 0.001F);
+            assertEquals(370.0F, host.northYs.get(1), 0.001F);
+
+            runtime.playerRotationState().clear();
+            runtime.renderHud(74L, 0.0F);
+            assertEquals(2, host.northXs.size());
+            radar.northUpSetting().set(Boolean.TRUE);
+            runtime.renderHud(75L, 0.0F);
+            assertEquals(3, host.northXs.size());
+            assertEquals(93.0F, host.northXs.get(2), 0.001F);
+            assertEquals(334.0F, host.northYs.get(2), 0.001F);
+
+            radar.showRadarSetting().set(Boolean.FALSE);
+            runtime.renderHud(76L, 0.0F);
+            assertEquals(3, host.northXs.size());
+            radar.showRadarSetting().set(Boolean.TRUE);
+            runtime.worldEntityPositionState().clear();
+            runtime.renderHud(77L, 0.0F);
+            assertEquals(3, host.northXs.size());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189NearbyPlayersModule.SHOW_NORTH_SETTING_ID));
+    }
+
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private final java.util.List<String> texts = new java.util.ArrayList<String>();
@@ -477,6 +569,8 @@ final class Minecraft189NearbyPlayersModuleTest {
         private final java.util.List<Float> haloXs = new java.util.ArrayList<Float>();
         private final java.util.List<Float> haloYs = new java.util.ArrayList<Float>();
         private final java.util.List<Integer> haloColors = new java.util.ArrayList<Integer>();
+        private final java.util.List<Float> northXs = new java.util.ArrayList<Float>();
+        private final java.util.List<Float> northYs = new java.util.ArrayList<Float>();
         private float lastCardWidth;
         private float lastCardHeight;
         private int begins;
@@ -570,6 +664,10 @@ final class Minecraft189NearbyPlayersModuleTest {
                 final String text,
                 final int argb) {
             texts.add(text);
+            if ("N".equals(text)) {
+                northXs.add(x);
+                northYs.add(y);
+            }
             lastX = x;
             lastY = y;
         }

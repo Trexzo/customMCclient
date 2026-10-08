@@ -23,6 +23,7 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public static final String NORTH_UP_SETTING_ID = ID + ".northUp";
     public static final String HEIGHT_COLORS_SETTING_ID = ID + ".heightColors";
     public static final String HIGHLIGHT_NEAREST_SETTING_ID = ID + ".highlightNearest";
+    public static final String SHOW_NORTH_SETTING_ID = ID + ".showNorth";
     public static final String RENDER_PASS_ID = "nearby-players";
 
     private final Minecraft189PlayerPositionState local;
@@ -52,6 +53,9 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     private final Setting<Boolean> highlightNearest = new Setting<Boolean>(
             HIGHLIGHT_NEAREST_SETTING_ID, Boolean.FALSE,
             v -> v != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> showNorth = new Setting<Boolean>(
+            SHOW_NORTH_SETTING_ID, Boolean.FALSE,
+            v -> v != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration registration;
 
     public Minecraft189NearbyPlayersModule(
@@ -77,6 +81,7 @@ public final class Minecraft189NearbyPlayersModule implements Module {
     public Setting<Boolean> northUpSetting() { return northUp; }
     public Setting<Boolean> heightColorsSetting() { return heightColors; }
     public Setting<Boolean> highlightNearestSetting() { return highlightNearest; }
+    public Setting<Boolean> showNorthSetting() { return showNorth; }
 
     @Override public synchronized void onEnable() {
         if (registration != null) {
@@ -160,6 +165,17 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                 ? new float[]{px, py} : null;
     }
 
+    /** North indicator 36 pixels from center, using certified world yaw. */
+    static float[] northCompassOffset(
+            final boolean northUpMode, final float yaw) {
+        final float[] projected = northUpMode
+                ? projectNorthUp(0.0D, -1.0D, 1)
+                : projectRadar(0.0D, -1.0D, yaw, 1);
+        if (projected == null) return null;
+        return new float[]{projected[0] * (36.0F / 46.0F),
+                projected[1] * (36.0F / 46.0F)};
+    }
+
     /** Vertical colors use measured relative Y and do not infer visibility. */
     static int radarBlipColor(final double dy, final boolean heightColorsMode) {
         if (!heightColorsMode || !Double.isFinite(dy)) return 0xFFFFB56B;
@@ -197,7 +213,8 @@ public final class Minecraft189NearbyPlayersModule implements Module {
             final float yaw, final boolean northUpMode,
             final boolean heightColorsMode,
             final boolean highlightNearestMode,
-            final int nearestIndex) {
+            final int nearestIndex,
+            final boolean showNorthMode) {
         final float centerX = x + 78.0F;
         final float centerY = y + 96.0F;
         graphics.fillRoundedRect(x + 30, y + 48, 96, 96, 4, 0xFF1B2634);
@@ -225,6 +242,15 @@ public final class Minecraft189NearbyPlayersModule implements Module {
             }
         }
         graphics.fillRoundedRect(centerX - 3, centerY - 3, 6, 6, 3, 0xFF70C9E8);
+        if (showNorthMode) {
+            final float[] north = northCompassOffset(northUpMode, yaw);
+            if (north != null) {
+                graphics.drawText(UiFonts.DEFAULT,
+                        centerX + north[0] - 3.0F,
+                        centerY + north[1] - 4.0F,
+                        "N", 0xFF70C9E8);
+            }
+        }
     }
 
     private final class NearbyPlayersPass implements RenderPass {
@@ -270,7 +296,8 @@ public final class Minecraft189NearbyPlayersModule implements Module {
                         facing.yaw(), northUpMode,
                         heightColors.get().booleanValue(),
                         highlightNearest.get().booleanValue(),
-                        nearby.nearestIndex());
+                        nearby.nearestIndex(),
+                        showNorth.get().booleanValue());
             } catch (RuntimeException renderFailure) {
                 failure = renderFailure;
                 throw renderFailure;
