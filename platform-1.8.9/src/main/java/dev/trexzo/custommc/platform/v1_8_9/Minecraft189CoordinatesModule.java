@@ -22,6 +22,8 @@ public final class Minecraft189CoordinatesModule
             "render.coordinates.x";
     public static final String Y_SETTING_ID =
             "render.coordinates.y";
+    public static final String SHOW_CHUNK_SETTING_ID =
+            "render.coordinates.showChunk";
     public static final String RENDER_PASS_ID =
             "coordinates";
 
@@ -45,6 +47,12 @@ public final class Minecraft189CoordinatesModule
                     value -> value >= 0
                             && value <= 4096,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> showChunk =
+            new Setting<Boolean>(
+                    SHOW_CHUNK_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189CoordinatesModule(
@@ -76,6 +84,14 @@ public final class Minecraft189CoordinatesModule
 
     public Setting<Integer> ySetting() {
         return y;
+    }
+
+    public Setting<Boolean> showChunkSetting() {
+        return showChunk;
+    }
+
+    static long chunkIndex(final double blockPosition) {
+        return (long) Math.floor(blockPosition / 16.0D);
     }
 
     @Override
@@ -152,6 +168,15 @@ public final class Minecraft189CoordinatesModule
                                 position.y(),
                                 position.z()),
                         TEXT_ARGB);
+                if (showChunk.get().booleanValue()) {
+                    hostCallbacks.drawText(
+                            UiFonts.DEFAULT,
+                            x.get().floatValue(),
+                            y.get().floatValue() + 12.0F,
+                            "CHUNK: " + chunkIndex(position.x())
+                                    + " / " + chunkIndex(position.z()),
+                            TEXT_ARGB);
+                }
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
                 throw drawFailure;
