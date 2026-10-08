@@ -14,6 +14,12 @@ public final class Minecraft189VelocityModule
             "combat.velocity.verticalPercent";
     public static final String ONLY_WHILE_SPRINTING_SETTING_ID =
             "combat.velocity.onlyWhileSprinting";
+    public static final String AIRBORNE_OVERRIDE_SETTING_ID =
+            "combat.velocity.airborneOverride";
+    public static final String AIRBORNE_HORIZONTAL_SETTING_ID =
+            "combat.velocity.airborneHorizontalPercent";
+    public static final String AIRBORNE_VERTICAL_SETTING_ID =
+            "combat.velocity.airborneVerticalPercent";
     public static final int DEFAULT_PERCENT = 0;
     public static final int MINIMUM_PERCENT = 0;
     public static final int MAXIMUM_PERCENT = 200;
@@ -40,6 +46,25 @@ public final class Minecraft189VelocityModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> airborneOverride =
+            new Setting<Boolean>(
+                    AIRBORNE_OVERRIDE_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Integer> airborneHorizontalPercent =
+            new Setting<Integer>(
+                    AIRBORNE_HORIZONTAL_SETTING_ID,
+                    DEFAULT_PERCENT,
+                    Minecraft189VelocityModule::validPercent,
+                    SettingCodecs.INTEGER);
+    private final Setting<Integer> airborneVerticalPercent =
+            new Setting<Integer>(
+                    AIRBORNE_VERTICAL_SETTING_ID,
+                    DEFAULT_PERCENT,
+                    Minecraft189VelocityModule::validPercent,
+                    SettingCodecs.INTEGER);
+
     private boolean enabled;
 
     @Override
@@ -57,6 +82,18 @@ public final class Minecraft189VelocityModule
 
     public Setting<Boolean> onlyWhileSprintingSetting() {
         return onlyWhileSprinting;
+    }
+
+    public Setting<Boolean> airborneOverrideSetting() {
+        return airborneOverride;
+    }
+
+    public Setting<Integer> airborneHorizontalPercentSetting() {
+        return airborneHorizontalPercent;
+    }
+
+    public Setting<Integer> airborneVerticalPercentSetting() {
+        return airborneVerticalPercent;
     }
 
     @Override
@@ -83,7 +120,9 @@ public final class Minecraft189VelocityModule
                 before,
                 after,
                 shouldScale(movement)
-                        ? horizontalPercent.get().intValue()
+                        ? (useAirbornePercent(movement)
+                                ? airborneHorizontalPercent.get().intValue()
+                                : horizontalPercent.get().intValue())
                         : 100);
     }
 
@@ -101,7 +140,9 @@ public final class Minecraft189VelocityModule
                 before,
                 after,
                 shouldScale(movement)
-                        ? verticalPercent.get().intValue()
+                        ? (useAirbornePercent(movement)
+                                ? airborneVerticalPercent.get().intValue()
+                                : verticalPercent.get().intValue())
                         : 100);
     }
 
@@ -113,8 +154,22 @@ public final class Minecraft189VelocityModule
                 && movement.sprinting()));
     }
 
+    private boolean useAirbornePercent(
+            final Minecraft189PlayerMovementState.Snapshot movement) {
+        return airborneOverride.get().booleanValue()
+                && movement != null
+                && movement.available()
+                && !movement.onGround();
+    }
+
     synchronized boolean active() {
         return enabled;
+    }
+
+    private static boolean validPercent(final Integer value) {
+        return value != null
+                && value >= MINIMUM_PERCENT
+                && value <= MAXIMUM_PERCENT;
     }
 
     private static double adjust(
