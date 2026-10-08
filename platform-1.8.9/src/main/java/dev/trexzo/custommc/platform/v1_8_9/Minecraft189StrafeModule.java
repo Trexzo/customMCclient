@@ -13,6 +13,11 @@ public final class Minecraft189StrafeModule
             "movement.strafe";
     public static final String SPEED_SETTING_ID =
             "movement.strafe.speed";
+    public static final String SMOOTH_ACCELERATION_SETTING_ID =
+            "movement.strafe.smoothAcceleration";
+    public static final String ACCELERATION_PERCENT_SETTING_ID =
+            "movement.strafe.accelerationPercent";
+    public static final int DEFAULT_ACCELERATION_PERCENT = 50;
     public static final double DEFAULT_SPEED =
             0.30D;
     public static final double MINIMUM_SPEED =
@@ -27,6 +32,18 @@ public final class Minecraft189StrafeModule
                     DEFAULT_SPEED,
                     Minecraft189StrafeModule::validSpeed,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> smoothAcceleration =
+            new Setting<Boolean>(
+                    SMOOTH_ACCELERATION_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Integer> accelerationPercent =
+            new Setting<Integer>(
+                    ACCELERATION_PERCENT_SETTING_ID,
+                    DEFAULT_ACCELERATION_PERCENT,
+                    value -> value != null && value >= 10 && value <= 100,
+                    SettingCodecs.INTEGER);
     private boolean enabled;
 
     Minecraft189StrafeModule(
@@ -44,6 +61,14 @@ public final class Minecraft189StrafeModule
 
     public Setting<Double> speedSetting() {
         return speed;
+    }
+
+    public Setting<Boolean> smoothAccelerationSetting() {
+        return smoothAcceleration;
+    }
+
+    public Setting<Integer> accelerationPercentSetting() {
+        return accelerationPercent;
     }
 
     @Override
@@ -130,22 +155,44 @@ public final class Minecraft189StrafeModule
                                 + sin * strafe)
                                 * configuredSpeed);
 
-        if (Double.compare(
-                player.customMcMotionX(),
-                targetMotionX) != 0) {
-            player.customMcSetMotionX(
-                    targetMotionX);
+        final boolean smooth = smoothAcceleration.get().booleanValue();
+        final double fraction = smooth
+                ? accelerationPercent.get().intValue() / 100.0D
+                : 1.0D;
+        final double currentX = player.customMcMotionX();
+        final double currentZ = player.customMcMotionZ();
+        final double nextX = interpolate(currentX, targetMotionX, fraction);
+        final double nextZ = interpolate(currentZ, targetMotionZ, fraction);
+
+        if (Double.compare(currentX, nextX) != 0) {
+            player.customMcSetMotionX(nextX);
         }
-        if (Double.compare(
-                player.customMcMotionZ(),
-                targetMotionZ) != 0) {
-            player.customMcSetMotionZ(
-                    targetMotionZ);
+        if (Double.compare(currentZ, nextZ) != 0) {
+            player.customMcSetMotionZ(nextZ);
         }
     }
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    static double interpolate(
+            final double current,
+            final double target,
+            final double fraction) {
+        // The original instantaneous path remains bit-for-bit compatible.
+        // Nonfinite mapped motion cannot poison a smoothed target.
+        if (fraction >= 1.0D || !Double.isFinite(current)) {
+            return target;
+        }
+        final double delta = target - current;
+        if (!Double.isFinite(delta)) {
+            return target;
+        }
+        if (Math.abs(delta) <= 0.000001D) {
+            return target;
+        }
+        return cleanZero(current + delta * fraction);
     }
 
     private static boolean validSpeed(
