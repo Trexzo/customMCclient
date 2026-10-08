@@ -71,6 +71,10 @@ final class Minecraft189AimAssistModuleTest {
                             .get()
                             .doubleValue(),
                     0.000001D);
+            assertEquals(
+                    Minecraft189AimAssistModule.DEFAULT_DEAD_ZONE,
+                    module.deadZoneSetting().get().doubleValue(),
+                    0.000001D);
             assertTrue(
                     module.yawEnabledSetting()
                             .get()
@@ -98,6 +102,10 @@ final class Minecraft189AimAssistModuleTest {
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.MAX_FOV_SETTING_ID)
+                            != null);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.DEAD_ZONE_SETTING_ID)
                             != null);
             assertTrue(
                     settings.find(
@@ -387,6 +395,39 @@ final class Minecraft189AimAssistModuleTest {
                     .set(
                             Boolean.TRUE);
 
+            module.deadZoneSetting().set(30.0D);
+            player.yaw = 80.0F;
+            player.pitch = -40.0F;
+            currentRotation.update(player.yaw, player.pitch);
+            final int deadZoneYawWrites = player.yawWrites;
+            final int deadZonePitchWrites = player.pitchWrites;
+            assertFalse(module.apply(player, currentRotation.snapshot(),
+                    targetRotation.snapshot(), true));
+            assertEquals(80.0F, player.yaw, 0.0001F);
+            assertEquals(-40.0F, player.pitch, 0.0001F);
+            assertEquals(deadZoneYawWrites, player.yawWrites);
+            assertEquals(deadZonePitchWrites, player.pitchWrites);
+
+            module.deadZoneSetting().set(15.0D);
+            player.yaw = 80.0F;
+            player.pitch = 0.0F;
+            currentRotation.update(player.yaw, player.pitch);
+            assertTrue(module.apply(player, currentRotation.snapshot(),
+                    targetRotation.snapshot(), true));
+            assertEquals(80.0F, player.yaw, 0.0001F);
+            assertEquals(-5.0F, player.pitch, 0.0001F);
+            assertEquals(deadZoneYawWrites, player.yawWrites);
+            assertEquals(deadZonePitchWrites + 1, player.pitchWrites);
+
+            module.deadZoneSetting().set(0.0D);
+            player.yaw = 80.0F;
+            player.pitch = 0.0F;
+            currentRotation.update(player.yaw, player.pitch);
+            assertTrue(module.apply(player, currentRotation.snapshot(),
+                    targetRotation.snapshot(), true));
+            assertEquals(90.0F, player.yaw, 0.0001F);
+            assertEquals(-5.0F, player.pitch, 0.0001F);
+
             module.requireHoldSetting()
                     .set(
                             Boolean.FALSE);
@@ -447,6 +488,9 @@ final class Minecraft189AimAssistModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189AimAssistModule.MAX_FOV_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AimAssistModule.DEAD_ZONE_SETTING_ID));
         assertNull(
                 settings.find(
                         Minecraft189AimAssistModule.YAW_ENABLED_SETTING_ID));

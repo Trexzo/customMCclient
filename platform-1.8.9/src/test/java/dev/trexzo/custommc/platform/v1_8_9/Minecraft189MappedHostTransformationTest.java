@@ -5133,6 +5133,32 @@ final class Minecraft189MappedHostTransformationTest {
                                     player),
                     0.0001F);
 
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawEnabledSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .pitchEnabledSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .deadZoneSetting().set(5.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-70.0F, playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(11.0F, playerClass.getField("z").getFloat(player), 0.0001F);
+
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .deadZoneSetting().set(25.0D);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 15.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-70.0F, playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(15.0F, playerClass.getField("z").getFloat(player), 0.0001F);
+
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .deadZoneSetting().set(0.0D);
+            runTick.invoke(minecraft);
+            assertEquals(-67.833654F, playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(11.0F, playerClass.getField("z").getFloat(player), 0.0001F);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AimAssistModule.ID);

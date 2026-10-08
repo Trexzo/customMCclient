@@ -1573,3 +1573,9 @@ M214 adds persistent BOOLEAN settings `combat.aimAssist.yawEnabled` and `combat.
 When only Yaw Enabled is active, Aim Assist may adjust horizontal rotation while leaving pitch untouched. When only Pitch Enabled is active, it may adjust vertical rotation while leaving yaw untouched. If both axes are disabled, Aim Assist yields the tick instead of claiming rotation ownership with no possible write, allowing lower-priority Jitter to remain eligible.
 
 Require Hold, Max Distance, Max FOV, yaw/pitch smoothing and Spin > Aim Assist > Jitter precedence are otherwise unchanged. M214 adds no Minecraft mappings or transformer hooks. Focused and transformed-host tests cover default parity, yaw-only, pitch-only and both-disabled behavior.
+
+## Aim Assist dead zone
+
+M215 introduces persistent DOUBLE setting `combat.aimAssist.deadZone`, shown as **Dead Zone** (0–30 degrees, default 0). With a positive dead zone, Aim Assist leaves each enabled axis untouched while its absolute angular error is within the threshold; yaw uses the certified shortest-path ±180-degree wrap, and pitch uses the linear difference. When both eligible axes are within the dead zone, Aim Assist yields rotation ownership to the existing lower-priority policy rather than claiming the tick. An eligible axis beyond the threshold continues to use its existing smoothing speed.
+
+At the default 0, the M214 write and ownership behavior is preserved exactly. Max FOV, max distance, Require Hold, axis toggles and Spin > Aim Assist > Jitter precedence are unchanged. No new game mappings or transformer hooks. Focused and transformed-host tests exercise zero-default parity, single-axis suppression, both-axis yielding, and exact mapped rotation fields.
