@@ -272,14 +272,16 @@ public final class Minecraft189AimAssistModule
                         target,
                         minDistance.get().doubleValue(),
                         maxDistance.get().doubleValue())
-                || !withinFov(
-                        rotation,
-                        target,
-                        maxFov.get().doubleValue())
-                || !withinPitchFov(
-                        rotation,
-                        target,
-                        maxPitchFov.get().doubleValue())
+                || (yawEnabled.get().booleanValue()
+                        && !withinFov(
+                                rotation,
+                                target,
+                                maxFov.get().doubleValue()))
+                || (pitchEnabled.get().booleanValue()
+                        && !withinPitchFov(
+                                rotation,
+                                target,
+                                maxPitchFov.get().doubleValue()))
                 || (requireHold.get().booleanValue()
                         && !leftButtonHeld)
                 || (requireForward.get().booleanValue()
