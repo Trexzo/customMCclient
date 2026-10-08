@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189StrafeModuleTest {
@@ -75,6 +76,14 @@ final class Minecraft189StrafeModuleTest {
             assertNotNull(
                     settings.find(
                             Minecraft189StrafeModule.SPEED_SETTING_ID));
+            assertNotNull(settings.find(
+                    Minecraft189StrafeModule.SMOOTH_ACCELERATION_SETTING_ID));
+            assertNotNull(settings.find(
+                    Minecraft189StrafeModule.ACCELERATION_PERCENT_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189StrafeModule.SMOOTH_ACCELERATION_SETTING_ID));
+            assertEquals("50", settings.snapshotEncoded().get(
+                    Minecraft189StrafeModule.ACCELERATION_PERCENT_SETTING_ID));
             assertEquals(
                     Minecraft189StrafeModule.DEFAULT_SPEED,
                     runtime.featureCatalog()
@@ -260,9 +269,117 @@ final class Minecraft189StrafeModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189StrafeModule.SPEED_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189StrafeModule.SMOOTH_ACCELERATION_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189StrafeModule.ACCELERATION_PERCENT_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
+    }
+
+    @Test
+    void smoothStrafeBlendsLiveHorizontalMotionWithoutChangingInstantDefault() {
+        final Minecraft189InputState input = new Minecraft189InputState();
+        final Minecraft189StrafeModule module = new Minecraft189StrafeModule(input);
+        final Minecraft189PlayerRotationState rotation =
+                new Minecraft189PlayerRotationState();
+        final TestPlayer player = new TestPlayer();
+        rotation.update(0.0F);
+        module.onEnable();
+        input.key(LegacyKeyboardCodes.W, true);
+
+        // Default OFF: previous immediate yaw-relative behavior is preserved.
+        assertFalse(module.smoothAccelerationSetting().get().booleanValue());
+        assertEquals(Integer.valueOf(50), module.accelerationPercentSetting().get());
+        module.apply(player, rotation.snapshot(), false);
+        assertEquals(0.0D, player.motionX, 0.000000001D);
+        assertEquals(0.30D, player.motionZ, 0.000000001D);
+
+        player.motionZ = 0.0D;
+        module.smoothAccelerationSetting().set(Boolean.TRUE);
+        module.apply(player, rotation.snapshot(), false);
+        assertEquals(0.15D, player.motionZ, 0.000000001D);
+        module.apply(player, rotation.snapshot(), false);
+        assertEquals(0.225D, player.motionZ, 0.000000001D);
+
+        module.accelerationPercentSetting().set(100);
+        module.apply(player, rotation.snapshot(), false);
+        assertEquals(0.30D, player.motionZ, 0.000000001D);
+
+        module.speedSetting().set(0.60D);
+        module.accelerationPercentSetting().set(10);
+        module.apply(player, rotation.snapshot(), false);
+        assertEquals(0.33D, player.motionZ, 0.000000001D);
+
+        // The same fraction smooths a rapid direction reversal.
+        module.accelerationPercentSetting().set(50);
+        input.key(LegacyKeyboardCodes.W, false);
+        input.key(LegacyKeyboardCodes.S, true);
+        module.apply(player, rotation.snapshot(), false);
+        assertEquals(-0.135D, player.motionZ, 0.000000001D);
+
+        // When input stops, retain the existing no-write semantics.
+        input.key(LegacyKeyboardCodes.S, false);
+        final int writesAtRelease = player.horizontalSetCalls;
+        module.apply(player, rotation.snapshot(), false);
+        assertEquals(writesAtRelease, player.horizontalSetCalls);
+
+        input.key(LegacyKeyboardCodes.D, true);
+        rotation.update(90.0F);
+        module.apply(player, rotation.snapshot(), false);
+        // D at yaw=90 yields positive Z; X converges toward zero.
+        assertEquals(0.0D, player.motionX, 0.000000001D);
+        assertEquals(0.2325D, player.motionZ, 0.000000001D);
+
+        // Other movement owners suspend Strafe entirely.
+        final int writesBeforeSuspend = player.horizontalSetCalls;
+        module.apply(player, rotation.snapshot(), true);
+        assertEquals(writesBeforeSuspend, player.horizontalSetCalls);
+        module.smoothAccelerationSetting().set(Boolean.FALSE);
+        module.apply(player, rotation.snapshot(), false);
+        assertEquals(0.60D, player.motionZ, 0.000000001D);
+
+        module.onDisable();
+        player.motionZ = 0.17D;
+        module.apply(player, rotation.snapshot(), false);
+        assertEquals(0.17D, player.motionZ, 0.000000001D);
+        assertThrows(IllegalArgumentException.class,
+                () -> module.accelerationPercentSetting().set(9));
+        assertThrows(IllegalArgumentException.class,
+                () -> module.accelerationPercentSetting().set(101));
+    }
+
+    @Test
+    void smoothStrafeRepairsNonfiniteMotionAndConvergesExactly() {
+        assertEquals(0.30D, Minecraft189StrafeModule.interpolate(
+                Double.NaN, 0.30D, 0.50D), 0.000000001D);
+        assertEquals(-0.30D, Minecraft189StrafeModule.interpolate(
+                Double.NEGATIVE_INFINITY, -0.30D, 0.50D), 0.000000001D);
+        assertEquals(0.30D, Minecraft189StrafeModule.interpolate(
+                Double.POSITIVE_INFINITY, 0.30D, 0.50D), 0.000000001D);
+        assertEquals(0.30D, Minecraft189StrafeModule.interpolate(
+                0.10D, 0.30D, 1.0D), 0.000000001D);
+        assertEquals(0.20D, Minecraft189StrafeModule.interpolate(
+                0.10D, 0.30D, 0.50D), 0.000000001D);
+        assertEquals(0.30D, Minecraft189StrafeModule.interpolate(
+                0.2999997D, 0.30D, 0.10D), 0.000000001D);
+
+        final Minecraft189InputState input = new Minecraft189InputState();
+        final Minecraft189StrafeModule module = new Minecraft189StrafeModule(input);
+        final Minecraft189PlayerRotationState rotation =
+                new Minecraft189PlayerRotationState();
+        final TestPlayer player = new TestPlayer();
+        rotation.update(0.0F);
+        module.onEnable();
+        module.smoothAccelerationSetting().set(Boolean.TRUE);
+        player.motionX = Double.NaN;
+        player.motionZ = Double.POSITIVE_INFINITY;
+        input.key(LegacyKeyboardCodes.W, true);
+        module.apply(player, rotation.snapshot(), false);
+        assertEquals(0.0D, player.motionX, 0.000000001D);
+        assertEquals(0.30D, player.motionZ, 0.000000001D);
+        module.onDisable();
     }
 
     private static final class TestPlayer
