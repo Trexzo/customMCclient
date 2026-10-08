@@ -147,6 +147,10 @@ final class Minecraft189TimerSpeedModuleTest {
                 Minecraft189TimerSpeedModule.AIRBORNE_OVERRIDE_SETTING_ID));
         assertNull(settings.find(
                 Minecraft189TimerSpeedModule.AIRBORNE_SPEED_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189TimerSpeedModule.SMOOTH_TRANSITION_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189TimerSpeedModule.TRANSITION_STEP_SETTING_ID));
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.PLAYER_CATEGORY_ID));
@@ -274,6 +278,133 @@ final class Minecraft189TimerSpeedModuleTest {
         module.apply(timer, movement.snapshot());
         assertEquals(1.0F, timer.speed, 0.000001F);
         module.apply(null, movement.snapshot());
+    }
+
+    @Test
+    void smoothTimerRampsToExactTargetsAndRestoresInstantlyOnDisable() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189TimerSpeedModule timerModule =
+                    runtime.featureCatalog().timerSpeed();
+            final TestTimer timer = new TestTimer();
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.SMOOTH_TRANSITION_SETTING_ID));
+            assertEquals("25", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.TRANSITION_STEP_SETTING_ID));
+            controller.enable(Minecraft189TimerSpeedModule.ID);
+            timerModule.speedPercentSetting().set(200);
+            runtime.timerSpeedControl(timer);
+            assertEquals(2.0F, timer.speed, 0.000001F); // Legacy instant.
+
+            timer.speed = 1.0F;
+            timerModule.smoothTransitionSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.SMOOTH_TRANSITION_SETTING_ID));
+            for (int i = 1; i <= 4; i++) {
+                runtime.timerSpeedControl(timer);
+                assertEquals(1.0F + i * 0.25F, timer.speed, 0.000001F);
+            }
+            final int settledWrites = timer.writes;
+            runtime.timerSpeedControl(timer);
+            assertEquals(settledWrites, timer.writes);
+
+            timerModule.speedPercentSetting().set(50);
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.75F, timer.speed, 0.000001F);
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.50F, timer.speed, 0.000001F);
+
+            // Live step edit uses actual timer speed, not accumulated phase.
+            timerModule.transitionStepPercentSetting().set(50);
+            assertEquals("50", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.TRANSITION_STEP_SETTING_ID));
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.0F, timer.speed, 0.000001F);
+            runtime.timerSpeedControl(timer);
+            assertEquals(0.5F, timer.speed, 0.000001F);
+
+            timerModule.speedPercentSetting().set(150);
+            timerModule.airborneOverrideSetting().set(Boolean.TRUE);
+            timerModule.airborneSpeedPercentSetting().set(75);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.timerSpeedControl(timer);
+            assertEquals(0.75F, timer.speed, 0.000001F);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.25F, timer.speed, 0.000001F);
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.5F, timer.speed, 0.000001F);
+            runtime.playerMovementState().clear();
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.5F, timer.speed, 0.000001F);
+
+            // Switching smoothing OFF restores direct writes immediately.
+            timerModule.smoothTransitionSetting().set(Boolean.FALSE);
+            timerModule.speedPercentSetting().set(250);
+            runtime.timerSpeedControl(timer);
+            assertEquals(2.5F, timer.speed, 0.000001F);
+            timerModule.smoothTransitionSetting().set(Boolean.TRUE);
+            timerModule.transitionStepPercentSetting().set(10);
+            timerModule.speedPercentSetting().set(50);
+            runtime.timerSpeedControl(timer);
+            assertEquals(2.4F, timer.speed, 0.000001F);
+
+            controller.disable(Minecraft189TimerSpeedModule.ID);
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.0F, timer.speed, 0.000001F);
+            final int disabledWrites = timer.writes;
+            runtime.timerSpeedControl(timer);
+            assertEquals(disabledWrites, timer.writes);
+            controller.enable(Minecraft189TimerSpeedModule.ID);
+            timer.speed = Float.NaN;
+            runtime.timerSpeedControl(timer);
+            assertEquals(0.5F, timer.speed, 0.000001F);
+            timer.speed = Float.POSITIVE_INFINITY;
+            runtime.timerSpeedControl(timer);
+            assertEquals(0.5F, timer.speed, 0.000001F);
+            assertThrows(IllegalArgumentException.class,
+                    () -> timerModule.transitionStepPercentSetting().set(4));
+            assertThrows(IllegalArgumentException.class,
+                    () -> timerModule.transitionStepPercentSetting().set(101));
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189TimerSpeedModule.SMOOTH_TRANSITION_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189TimerSpeedModule.TRANSITION_STEP_SETTING_ID));
+        assertNull(modules.find(Minecraft189TimerSpeedModule.ID));
+    }
+
+    @Test
+    void timerStepTowardClampsWithoutOvershootOrNonfinitePropagation() {
+        assertEquals(1.25F, Minecraft189TimerSpeedModule.stepToward(
+                1.0F, 2.0F, 25), 0.000001F);
+        assertEquals(0.75F, Minecraft189TimerSpeedModule.stepToward(
+                1.0F, 0.5F, 25), 0.000001F);
+        assertEquals(0.5F, Minecraft189TimerSpeedModule.stepToward(
+                0.6F, 0.5F, 25), 0.000001F);
+        assertEquals(0.5F, Minecraft189TimerSpeedModule.stepToward(
+                Float.NaN, 0.5F, 25), 0.000001F);
+        assertEquals(2.0F, Minecraft189TimerSpeedModule.stepToward(
+                Float.NEGATIVE_INFINITY, 2.0F, 25), 0.000001F);
+        assertEquals(2.0F, Minecraft189TimerSpeedModule.stepToward(
+                1.0F, 2.0F, 0), 0.000001F);
+        assertEquals(2.0F, Minecraft189TimerSpeedModule.stepToward(
+                1.0F, 2.0F, 500), 0.000001F);
     }
 
     private static final class TestTimer
