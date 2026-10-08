@@ -12,6 +12,8 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.yawSpeed";
     public static final String PITCH_SPEED_SETTING_ID =
             "combat.aimAssist.pitchSpeed";
+    public static final String REQUIRE_GROUND_SETTING_ID =
+            "combat.aimAssist.requireGround";
     public static final String REQUIRE_FORWARD_SETTING_ID =
             "combat.aimAssist.requireForward";
     public static final String REQUIRE_HOLD_SETTING_ID =
@@ -88,6 +90,12 @@ public final class Minecraft189AimAssistModule
                     DEFAULT_PITCH_SPEED,
                     Minecraft189AimAssistModule::validSpeed,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> requireGround =
+            new Setting<Boolean>(
+                    REQUIRE_GROUND_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private final Setting<Boolean> requireForward =
             new Setting<Boolean>(
                     REQUIRE_FORWARD_SETTING_ID,
@@ -170,6 +178,10 @@ public final class Minecraft189AimAssistModule
         return pitchSpeed;
     }
 
+    public Setting<Boolean> requireGroundSetting() {
+        return requireGround;
+    }
+
     public Setting<Boolean> requireForwardSetting() {
         return requireForward;
     }
@@ -229,7 +241,7 @@ public final class Minecraft189AimAssistModule
             final Minecraft189PlayerRotationState.Snapshot rotation,
             final Minecraft189TargetRotationState.Snapshot target,
             final boolean leftButtonHeld) {
-        return apply(player, rotation, target, leftButtonHeld, false);
+        return apply(player, rotation, target, leftButtonHeld, false, null);
     }
 
     synchronized boolean apply(
@@ -238,6 +250,16 @@ public final class Minecraft189AimAssistModule
             final Minecraft189TargetRotationState.Snapshot target,
             final boolean leftButtonHeld,
             final boolean forwardHeld) {
+        return apply(player, rotation, target, leftButtonHeld, forwardHeld, null);
+    }
+
+    synchronized boolean apply(
+            final Minecraft189PlayerRotationControl player,
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final Minecraft189TargetRotationState.Snapshot target,
+            final boolean leftButtonHeld,
+            final boolean forwardHeld,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
         if (!enabled
                 || (!yawEnabled.get().booleanValue()
                         && !pitchEnabled.get().booleanValue())
@@ -261,7 +283,11 @@ public final class Minecraft189AimAssistModule
                 || (requireHold.get().booleanValue()
                         && !leftButtonHeld)
                 || (requireForward.get().booleanValue()
-                        && !forwardHeld)) {
+                        && !forwardHeld)
+                || (requireGround.get().booleanValue()
+                        && (movement == null
+                        || !movement.available()
+                        || !movement.onGround()))) {
             return false;
         }
 

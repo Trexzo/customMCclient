@@ -5268,6 +5268,36 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(0.0F,
                     playerClass.getField("z").getFloat(player), 0.0001F);
 
+            // M221: exact transformed pk.C on-ground state controls Aim Assist.
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .requireForwardSetting().set(Boolean.FALSE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .requireGroundSetting().set(Boolean.TRUE);
+            playerClass.getField("C").setBoolean(player, false);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-70.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(0.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            playerClass.getField("C").setBoolean(player, true);
+            runTick.invoke(minecraft);
+            assertEquals(-67.833654F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(-4.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
+            playerClass.getField("C").setBoolean(player, false);
+            playerClass.getField("y").setFloat(player, -70.0F);
+            playerClass.getField("z").setFloat(player, 0.0F);
+            runTick.invoke(minecraft);
+            assertEquals(-70.0F,
+                    playerClass.getField("y").getFloat(player), 0.0001F);
+            assertEquals(0.0F,
+                    playerClass.getField("z").getFloat(player), 0.0001F);
+
             runtime.moduleController()
                     .disable(
                             Minecraft189AimAssistModule.ID);
