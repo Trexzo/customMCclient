@@ -5499,14 +5499,40 @@ final class Minecraft189MappedHostTransformationTest {
                     java.util.Arrays.asList(player, raisedEntity, nearbyEntity));
             playerClass.getField("t").setDouble(player, 64.5D);
             runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .pitchEnabledSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .yawEnabledSetting().set(Boolean.TRUE);
+            runtime.requireHostRuntime().featureCatalog().aimAssist()
                     .maxPitchFovSetting().set(10.0D);
             playerClass.getField("y").setFloat(player, -70.0F);
             playerClass.getField("z").setFloat(player, 0.0F);
             runTick.invoke(minecraft);
             assertEquals(-45.0F, runtime.requireHostRuntime()
                     .targetRotationState().snapshot().pitch(), 0.0001F);
-            assertEquals(-67.833654F,
-                    playerClass.getField("y").getFloat(player), 0.0001F);
+            final Minecraft189PlayerPositionState.Snapshot localM226 =
+                    runtime.requireHostRuntime().playerPositionState().snapshot();
+            final Minecraft189NearestPlayerTargetState fartherM226 =
+                    new Minecraft189NearestPlayerTargetState();
+            fartherM226.update(localM226,
+                    runtime.requireHostRuntime().worldEntityPositionState().snapshot(),
+                    runtime.requireHostRuntime().worldEntityKindState().snapshot(),
+                    5.0D, 20.0D);
+            assertEquals(2, fartherM226.snapshot().entityIndex());
+            final Minecraft189TargetRotationState farRotationM226 =
+                    new Minecraft189TargetRotationState();
+            farRotationM226.update(localM226, fartherM226.snapshot());
+            assertEquals(-5.875010F,
+                    farRotationM226.snapshot().pitch(), 0.0001F);
+            assertTrue(runtime.requireHostRuntime().featureCatalog().aimAssist()
+                    .targetWithinFov(
+                            runtime.requireHostRuntime().playerRotationState().snapshot(),
+                            farRotationM226.snapshot()));
+            final float yawM226 =
+                    playerClass.getField("y").getFloat(player);
+            // Separately classify a wrongly selected nearer player vs no lock.
+            assertFalse(Math.abs(yawM226 + 80.0F) < 0.0001F);
+            assertFalse(Math.abs(yawM226 + 70.0F) < 0.0001F);
+            assertEquals(-67.833654F, yawM226, 0.0001F);
             assertEquals(-4.0F,
                     playerClass.getField("z").getFloat(player), 0.0001F);
 
