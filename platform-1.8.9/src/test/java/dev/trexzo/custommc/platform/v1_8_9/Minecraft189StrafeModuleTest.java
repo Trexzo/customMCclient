@@ -325,10 +325,10 @@ final class Minecraft189StrafeModuleTest {
         module.apply(player, rotation.snapshot(), false);
         assertEquals(writesAtRelease, player.horizontalSetCalls);
 
-        input.key(LegacyKeyboardCodes.D, true);
+        input.key(LegacyKeyboardCodes.A, true);
         rotation.update(90.0F);
         module.apply(player, rotation.snapshot(), false);
-        // D at yaw=90 yields positive Z; X converges toward zero.
+        // A at yaw=90 yields positive Z; X converges toward zero.
         assertEquals(0.0D, player.motionX, 0.000000001D);
         assertEquals(0.2325D, player.motionZ, 0.000000001D);
 
