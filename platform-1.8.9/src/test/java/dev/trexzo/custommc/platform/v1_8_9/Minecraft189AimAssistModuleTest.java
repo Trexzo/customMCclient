@@ -72,6 +72,14 @@ final class Minecraft189AimAssistModuleTest {
                             .doubleValue(),
                     0.000001D);
             assertTrue(
+                    module.yawEnabledSetting()
+                            .get()
+                            .booleanValue());
+            assertTrue(
+                    module.pitchEnabledSetting()
+                            .get()
+                            .booleanValue());
+            assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.YAW_SPEED_SETTING_ID)
                             != null);
@@ -90,6 +98,14 @@ final class Minecraft189AimAssistModuleTest {
             assertTrue(
                     settings.find(
                             Minecraft189AimAssistModule.MAX_FOV_SETTING_ID)
+                            != null);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.YAW_ENABLED_SETTING_ID)
+                            != null);
+            assertTrue(
+                    settings.find(
+                            Minecraft189AimAssistModule.PITCH_ENABLED_SETTING_ID)
                             != null);
             final Minecraft189PlayerPositionState local =
                     new Minecraft189PlayerPositionState();
@@ -292,6 +308,85 @@ final class Minecraft189AimAssistModuleTest {
                     2,
                     player.pitchWrites);
 
+            module.pitchEnabledSetting()
+                    .set(
+                            Boolean.FALSE);
+            player.yaw = 0.0F;
+            player.pitch = 0.0F;
+            currentRotation.update(
+                    player.yaw,
+                    player.pitch);
+            final int pitchWritesBeforeYawOnly =
+                    player.pitchWrites;
+            assertTrue(
+                    module.apply(
+                            player,
+                            currentRotation.snapshot(),
+                            targetRotation.snapshot(),
+                            true));
+            assertEquals(
+                    20.0F,
+                    player.yaw,
+                    0.0001F);
+            assertEquals(
+                    0.0F,
+                    player.pitch,
+                    0.0001F);
+            assertEquals(
+                    pitchWritesBeforeYawOnly,
+                    player.pitchWrites);
+
+            module.yawEnabledSetting()
+                    .set(
+                            Boolean.FALSE);
+            module.pitchEnabledSetting()
+                    .set(
+                            Boolean.TRUE);
+            player.yaw = 0.0F;
+            player.pitch = 0.0F;
+            currentRotation.update(
+                    player.yaw,
+                    player.pitch);
+            final int yawWritesBeforePitchOnly =
+                    player.yawWrites;
+            assertTrue(
+                    module.apply(
+                            player,
+                            currentRotation.snapshot(),
+                            targetRotation.snapshot(),
+                            true));
+            assertEquals(
+                    0.0F,
+                    player.yaw,
+                    0.0001F);
+            assertEquals(
+                    -5.0F,
+                    player.pitch,
+                    0.0001F);
+            assertEquals(
+                    yawWritesBeforePitchOnly,
+                    player.yawWrites);
+
+            module.pitchEnabledSetting()
+                    .set(
+                            Boolean.FALSE);
+            currentRotation.update(
+                    player.yaw,
+                    player.pitch);
+            assertFalse(
+                    module.apply(
+                            player,
+                            currentRotation.snapshot(),
+                            targetRotation.snapshot(),
+                            true));
+
+            module.yawEnabledSetting()
+                    .set(
+                            Boolean.TRUE);
+            module.pitchEnabledSetting()
+                    .set(
+                            Boolean.TRUE);
+
             module.requireHoldSetting()
                     .set(
                             Boolean.FALSE);
@@ -352,6 +447,12 @@ final class Minecraft189AimAssistModuleTest {
         assertNull(
                 settings.find(
                         Minecraft189AimAssistModule.MAX_FOV_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AimAssistModule.YAW_ENABLED_SETTING_ID));
+        assertNull(
+                settings.find(
+                        Minecraft189AimAssistModule.PITCH_ENABLED_SETTING_ID));
     }
 
     private static final class TestPlayer
