@@ -28,6 +28,7 @@ final class Minecraft189NearbyPlayersFeature
     private final SettingRegistry.Registration northUpSetting;
     private final SettingRegistry.Registration heightColorsSetting;
     private final SettingRegistry.Registration highlightNearestSetting;
+    private final SettingRegistry.Registration showNorthSetting;
     private final SettingPresentationRegistry.Registration xPresentation;
     private final SettingPresentationRegistry.Registration yPresentation;
     private final SettingPresentationRegistry.Registration radiusPresentation;
@@ -35,6 +36,7 @@ final class Minecraft189NearbyPlayersFeature
     private final SettingPresentationRegistry.Registration northUpPresentation;
     private final SettingPresentationRegistry.Registration heightColorsPresentation;
     private final SettingPresentationRegistry.Registration highlightNearestPresentation;
+    private final SettingPresentationRegistry.Registration showNorthPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
     private final ModuleSettingRegistry.Registration radiusBinding;
@@ -42,6 +44,7 @@ final class Minecraft189NearbyPlayersFeature
     private final ModuleSettingRegistry.Registration northUpBinding;
     private final ModuleSettingRegistry.Registration heightColorsBinding;
     private final ModuleSettingRegistry.Registration highlightNearestBinding;
+    private final ModuleSettingRegistry.Registration showNorthBinding;
     private boolean closed;
 
     private Minecraft189NearbyPlayersFeature(
@@ -56,6 +59,7 @@ final class Minecraft189NearbyPlayersFeature
             final SettingRegistry.Registration northUpSetting,
             final SettingRegistry.Registration heightColorsSetting,
             final SettingRegistry.Registration highlightNearestSetting,
+            final SettingRegistry.Registration showNorthSetting,
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
             final SettingPresentationRegistry.Registration radiusPresentation,
@@ -63,13 +67,15 @@ final class Minecraft189NearbyPlayersFeature
             final SettingPresentationRegistry.Registration northUpPresentation,
             final SettingPresentationRegistry.Registration heightColorsPresentation,
             final SettingPresentationRegistry.Registration highlightNearestPresentation,
+            final SettingPresentationRegistry.Registration showNorthPresentation,
             final ModuleSettingRegistry.Registration xBinding,
             final ModuleSettingRegistry.Registration yBinding,
             final ModuleSettingRegistry.Registration radiusBinding,
             final ModuleSettingRegistry.Registration showRadarBinding,
             final ModuleSettingRegistry.Registration northUpBinding,
             final ModuleSettingRegistry.Registration heightColorsBinding,
-            final ModuleSettingRegistry.Registration highlightNearestBinding) {
+            final ModuleSettingRegistry.Registration highlightNearestBinding,
+            final ModuleSettingRegistry.Registration showNorthBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -81,6 +87,7 @@ final class Minecraft189NearbyPlayersFeature
         this.northUpSetting = northUpSetting;
         this.heightColorsSetting = heightColorsSetting;
         this.highlightNearestSetting = highlightNearestSetting;
+        this.showNorthSetting = showNorthSetting;
         this.xPresentation = xPresentation;
         this.yPresentation = yPresentation;
         this.radiusPresentation = radiusPresentation;
@@ -88,6 +95,7 @@ final class Minecraft189NearbyPlayersFeature
         this.northUpPresentation = northUpPresentation;
         this.heightColorsPresentation = heightColorsPresentation;
         this.highlightNearestPresentation = highlightNearestPresentation;
+        this.showNorthPresentation = showNorthPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
         this.radiusBinding = radiusBinding;
@@ -95,6 +103,7 @@ final class Minecraft189NearbyPlayersFeature
         this.northUpBinding = northUpBinding;
         this.heightColorsBinding = heightColorsBinding;
         this.highlightNearestBinding = highlightNearestBinding;
+        this.showNorthBinding = showNorthBinding;
     }
 
     static Minecraft189NearbyPlayersFeature install(
@@ -125,6 +134,7 @@ final class Minecraft189NearbyPlayersFeature
         SettingRegistry.Registration northUpSetting = null;
         SettingRegistry.Registration heightColorsSetting = null;
         SettingRegistry.Registration highlightNearestSetting = null;
+        SettingRegistry.Registration showNorthSetting = null;
         SettingPresentationRegistry.Registration xPresentation = null;
         SettingPresentationRegistry.Registration yPresentation = null;
         SettingPresentationRegistry.Registration radiusPresentation = null;
@@ -132,6 +142,7 @@ final class Minecraft189NearbyPlayersFeature
         SettingPresentationRegistry.Registration northUpPresentation = null;
         SettingPresentationRegistry.Registration heightColorsPresentation = null;
         SettingPresentationRegistry.Registration highlightNearestPresentation = null;
+        SettingPresentationRegistry.Registration showNorthPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
         ModuleSettingRegistry.Registration radiusBinding = null;
@@ -139,6 +150,7 @@ final class Minecraft189NearbyPlayersFeature
         ModuleSettingRegistry.Registration northUpBinding = null;
         ModuleSettingRegistry.Registration heightColorsBinding = null;
         ModuleSettingRegistry.Registration highlightNearestBinding = null;
+        ModuleSettingRegistry.Registration showNorthBinding = null;
 
         try {
             moduleRegistration =
@@ -163,6 +175,7 @@ final class Minecraft189NearbyPlayersFeature
             northUpSetting = settings.register(module.northUpSetting());
             heightColorsSetting = settings.register(module.heightColorsSetting());
             highlightNearestSetting = settings.register(module.highlightNearestSetting());
+            showNorthSetting = settings.register(module.showNorthSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -208,6 +221,10 @@ final class Minecraft189NearbyPlayersFeature
                     new SettingDescriptor(
                             Minecraft189NearbyPlayersModule.HIGHLIGHT_NEAREST_SETTING_ID,
                             "Highlight Nearest", SettingValueKind.BOOLEAN, 60));
+            showNorthPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189NearbyPlayersModule.SHOW_NORTH_SETTING_ID,
+                            "Show North", SettingValueKind.BOOLEAN, 70));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -243,6 +260,10 @@ final class Minecraft189NearbyPlayersFeature
                     new ModuleSettingBinding(
                             Minecraft189NearbyPlayersModule.ID,
                             Minecraft189NearbyPlayersModule.HIGHLIGHT_NEAREST_SETTING_ID, 60));
+            showNorthBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189NearbyPlayersModule.ID,
+                            Minecraft189NearbyPlayersModule.SHOW_NORTH_SETTING_ID, 70));
 
             return new Minecraft189NearbyPlayersFeature(
                     controller,
@@ -256,6 +277,7 @@ final class Minecraft189NearbyPlayersFeature
                     northUpSetting,
                     heightColorsSetting,
                     highlightNearestSetting,
+                    showNorthSetting,
                     xPresentation,
                     yPresentation,
                     radiusPresentation,
@@ -263,14 +285,17 @@ final class Minecraft189NearbyPlayersFeature
                     northUpPresentation,
                     heightColorsPresentation,
                     highlightNearestPresentation,
+                    showNorthPresentation,
                     xBinding,
                     yBinding,
                     radiusBinding,
                     showRadarBinding,
                     northUpBinding,
                     heightColorsBinding,
-                    highlightNearestBinding);
+                    highlightNearestBinding,
+                    showNorthBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(showNorthBinding, failure);
             closeQuietly(highlightNearestBinding, failure);
             closeQuietly(heightColorsBinding, failure);
             closeQuietly(northUpBinding, failure);
@@ -278,6 +303,7 @@ final class Minecraft189NearbyPlayersFeature
             closeQuietly(radiusBinding, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
+            closeQuietly(showNorthPresentation, failure);
             closeQuietly(highlightNearestPresentation, failure);
             closeQuietly(heightColorsPresentation, failure);
             closeQuietly(northUpPresentation, failure);
@@ -285,6 +311,7 @@ final class Minecraft189NearbyPlayersFeature
             closeQuietly(radiusPresentation, failure);
             closeQuietly(yPresentation, failure);
             closeQuietly(xPresentation, failure);
+            closeQuietly(showNorthSetting, failure);
             closeQuietly(highlightNearestSetting, failure);
             closeQuietly(heightColorsSetting, failure);
             closeQuietly(northUpSetting, failure);
@@ -325,6 +352,7 @@ final class Minecraft189NearbyPlayersFeature
             failure = closeFailure;
         }
 
+        failure = close(showNorthBinding, failure);
         failure = close(highlightNearestBinding, failure);
         failure = close(heightColorsBinding, failure);
         failure = close(northUpBinding, failure);
@@ -332,6 +360,7 @@ final class Minecraft189NearbyPlayersFeature
         failure = close(radiusBinding, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
+        failure = close(showNorthPresentation, failure);
         failure = close(highlightNearestPresentation, failure);
         failure = close(heightColorsPresentation, failure);
         failure = close(northUpPresentation, failure);
@@ -339,6 +368,7 @@ final class Minecraft189NearbyPlayersFeature
         failure = close(radiusPresentation, failure);
         failure = close(yPresentation, failure);
         failure = close(xPresentation, failure);
+        failure = close(showNorthSetting, failure);
         failure = close(highlightNearestSetting, failure);
         failure = close(heightColorsSetting, failure);
         failure = close(northUpSetting, failure);
