@@ -923,7 +923,8 @@ public final class Minecraft189HostRuntime
                                 || longJumpOwnsHorizontal
                                 || bunnyHopOwnsHorizontal
                                 || movementSpeedOwnsHorizontal
-                                || airSpeedOwnsHorizontal);
+                                || airSpeedOwnsHorizontal,
+                        movement);
         final boolean reverseStepOwnsVertical =
                 featureCatalog.reverseStep()
                         .apply(

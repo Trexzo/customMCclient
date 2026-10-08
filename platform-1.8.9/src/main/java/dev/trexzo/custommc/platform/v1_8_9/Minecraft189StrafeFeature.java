@@ -28,6 +28,12 @@ final class Minecraft189StrafeFeature
     private final ModuleSettingRegistry.Registration speedBinding;
     private final ModuleSettingRegistry.Registration smoothAccelerationBinding;
     private final ModuleSettingRegistry.Registration accelerationPercentBinding;
+    private final SettingRegistry.Registration groundOnlySetting;
+    private final SettingRegistry.Registration pauseWhileSneakingSetting;
+    private final SettingPresentationRegistry.Registration groundOnlyPresentation;
+    private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
+    private final ModuleSettingRegistry.Registration groundOnlyBinding;
+    private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private boolean closed;
 
     private Minecraft189StrafeFeature(
@@ -43,7 +49,13 @@ final class Minecraft189StrafeFeature
             final SettingPresentationRegistry.Registration accelerationPercentPresentation,
             final ModuleSettingRegistry.Registration speedBinding,
             final ModuleSettingRegistry.Registration smoothAccelerationBinding,
-            final ModuleSettingRegistry.Registration accelerationPercentBinding) {
+            final ModuleSettingRegistry.Registration accelerationPercentBinding,
+            final SettingRegistry.Registration groundOnlySetting,
+            final SettingRegistry.Registration pauseWhileSneakingSetting,
+            final SettingPresentationRegistry.Registration groundOnlyPresentation,
+            final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
+            final ModuleSettingRegistry.Registration groundOnlyBinding,
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -57,6 +69,12 @@ final class Minecraft189StrafeFeature
         this.speedBinding = speedBinding;
         this.smoothAccelerationBinding = smoothAccelerationBinding;
         this.accelerationPercentBinding = accelerationPercentBinding;
+        this.groundOnlySetting = groundOnlySetting;
+        this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
+        this.groundOnlyPresentation = groundOnlyPresentation;
+        this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
+        this.groundOnlyBinding = groundOnlyBinding;
+        this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
     }
 
     static Minecraft189StrafeFeature install(
@@ -82,6 +100,12 @@ final class Minecraft189StrafeFeature
         ModuleSettingRegistry.Registration speedBinding = null;
         ModuleSettingRegistry.Registration smoothAccelerationBinding = null;
         ModuleSettingRegistry.Registration accelerationPercentBinding = null;
+        SettingRegistry.Registration groundOnlySetting = null;
+        SettingRegistry.Registration pauseWhileSneakingSetting = null;
+        SettingPresentationRegistry.Registration groundOnlyPresentation = null;
+        SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
+        ModuleSettingRegistry.Registration groundOnlyBinding = null;
+        ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -103,6 +127,9 @@ final class Minecraft189StrafeFeature
                     module.smoothAccelerationSetting());
             accelerationPercentSetting = settings.register(
                     module.accelerationPercentSetting());
+            groundOnlySetting = settings.register(module.groundOnlySetting());
+            pauseWhileSneakingSetting = settings.register(
+                    module.pauseWhileSneakingSetting());
             speedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -123,6 +150,14 @@ final class Minecraft189StrafeFeature
                             Minecraft189StrafeModule.ACCELERATION_PERCENT_SETTING_ID,
                             "Acceleration %", SettingValueKind.INTEGER, 20,
                             new SettingNumericSpec(10.0D, 100.0D, 5.0D)));
+            groundOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189StrafeModule.GROUND_ONLY_SETTING_ID,
+                            "Ground Only", SettingValueKind.BOOLEAN, 30));
+            pauseWhileSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189StrafeModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 40));
             speedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -139,6 +174,15 @@ final class Minecraft189StrafeFeature
                             Minecraft189StrafeModule.ID,
                             Minecraft189StrafeModule.ACCELERATION_PERCENT_SETTING_ID, 20));
 
+            groundOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189StrafeModule.ID,
+                            Minecraft189StrafeModule.GROUND_ONLY_SETTING_ID, 30));
+            pauseWhileSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189StrafeModule.ID,
+                            Minecraft189StrafeModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 40));
+
             return new Minecraft189StrafeFeature(
                     controller,
                     module,
@@ -152,8 +196,20 @@ final class Minecraft189StrafeFeature
                     accelerationPercentPresentation,
                     speedBinding,
                     smoothAccelerationBinding,
-                    accelerationPercentBinding);
+                    accelerationPercentBinding,
+                    groundOnlySetting,
+                    pauseWhileSneakingSetting,
+                    groundOnlyPresentation,
+                    pauseWhileSneakingPresentation,
+                    groundOnlyBinding,
+                    pauseWhileSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseWhileSneakingBinding, failure);
+            closeQuietly(groundOnlyBinding, failure);
+            closeQuietly(pauseWhileSneakingPresentation, failure);
+            closeQuietly(groundOnlyPresentation, failure);
+            closeQuietly(pauseWhileSneakingSetting, failure);
+            closeQuietly(groundOnlySetting, failure);
             closeQuietly(accelerationPercentBinding, failure);
             closeQuietly(smoothAccelerationBinding, failure);
             closeQuietly(accelerationPercentPresentation, failure);
@@ -196,6 +252,12 @@ final class Minecraft189StrafeFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseWhileSneakingBinding, failure);
+        failure = close(groundOnlyBinding, failure);
+        failure = close(pauseWhileSneakingPresentation, failure);
+        failure = close(groundOnlyPresentation, failure);
+        failure = close(pauseWhileSneakingSetting, failure);
+        failure = close(groundOnlySetting, failure);
         failure = close(accelerationPercentBinding, failure);
         failure = close(smoothAccelerationBinding, failure);
         failure = close(accelerationPercentPresentation, failure);

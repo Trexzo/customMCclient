@@ -382,6 +382,126 @@ final class Minecraft189StrafeModuleTest {
         module.onDisable();
     }
 
+    @Test
+    void strafeGroundAndSneakGatesUseLiveMappedMovementFailClosed() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189StrafeModule strafe =
+                    runtime.featureCatalog().strafe();
+            final TestPlayer player = new TestPlayer();
+            runtime.playerRotationState().update(0.0F);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            controller.enable(Minecraft189StrafeModule.ID);
+
+            assertFalse(strafe.groundOnlySetting().get().booleanValue());
+            assertFalse(strafe.pauseWhileSneakingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189StrafeModule.GROUND_ONLY_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189StrafeModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            // Default-off parity does not depend on movement authority.
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionZ, 0.000000001D);
+
+            strafe.groundOnlySetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189StrafeModule.GROUND_ONLY_SETTING_ID));
+            player.motionZ = 0.12D;
+            final int writes = player.horizontalSetCalls;
+            runtime.playerMovementState().clear();
+            runtime.playerMotionControl(player);
+            assertEquals(writes, player.horizontalSetCalls);
+            assertEquals(0.12D, player.motionZ, 0.000000001D);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(writes, player.horizontalSetCalls);
+            // Ground Only does not itself reject sneaking.
+            runtime.playerMovementState().update(true, true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionZ, 0.000000001D);
+            assertEquals(writes + 1, player.horizontalSetCalls);
+
+            strafe.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189StrafeModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            player.motionZ = 0.12D;
+            runtime.playerMotionControl(player);
+            assertEquals(writes + 1, player.horizontalSetCalls);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionZ, 0.000000001D);
+            assertEquals(writes + 2, player.horizontalSetCalls);
+
+            // Sneak gate remains independent when Ground Only is OFF.
+            strafe.groundOnlySetting().set(Boolean.FALSE);
+            runtime.playerMovementState().update(false, true, false);
+            player.motionZ = 0.12D;
+            runtime.playerMotionControl(player);
+            assertEquals(writes + 2, player.horizontalSetCalls);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionZ, 0.000000001D);
+            assertEquals(writes + 3, player.horizontalSetCalls);
+            runtime.playerMovementState().clear();
+            player.motionZ = 0.12D;
+            runtime.playerMotionControl(player);
+            assertEquals(writes + 3, player.horizontalSetCalls);
+
+            // No stored acceleration or catch-up during suspended callbacks.
+            strafe.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            strafe.groundOnlySetting().set(Boolean.TRUE);
+            strafe.smoothAccelerationSetting().set(Boolean.TRUE);
+            strafe.accelerationPercentSetting().set(50);
+            runtime.playerMovementState().update(false, false, false);
+            player.motionZ = 0.0D;
+            runtime.playerMotionControl(player);
+            assertEquals(writes + 3, player.horizontalSetCalls);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.15D, player.motionZ, 0.000000001D);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.15D, player.motionZ, 0.000000001D);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.225D, player.motionZ, 0.000000001D);
+
+            // The legacy overload has no movement authority: fail closed.
+            final int beforeLegacy = player.horizontalSetCalls;
+            strafe.apply(player, runtime.playerRotationState().snapshot(), false);
+            assertEquals(beforeLegacy, player.horizontalSetCalls);
+            strafe.groundOnlySetting().set(Boolean.FALSE);
+            strafe.smoothAccelerationSetting().set(Boolean.FALSE);
+            runtime.playerMovementState().clear();
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionZ, 0.000000001D);
+            controller.disable(Minecraft189StrafeModule.ID);
+            final int beforeDisable = player.horizontalSetCalls;
+            runtime.playerMotionControl(player);
+            assertEquals(beforeDisable, player.horizontalSetCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189StrafeModule.GROUND_ONLY_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189StrafeModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189StrafeModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;
