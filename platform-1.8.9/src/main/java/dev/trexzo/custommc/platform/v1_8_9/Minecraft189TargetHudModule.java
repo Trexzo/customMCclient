@@ -18,6 +18,16 @@ public final class Minecraft189TargetHudModule implements Module {
     public static final String X_SETTING_ID = "render.targetHud.x";
     public static final String Y_SETTING_ID = "render.targetHud.y";
     public static final String COMPACT_SETTING_ID = "render.targetHud.compact";
+    public static final String PROXIMITY_METER_SETTING_ID =
+            "render.targetHud.proximityMeter";
+    public static final String PROXIMITY_RANGE_SETTING_ID =
+            "render.targetHud.proximityRange";
+    public static final int DEFAULT_PROXIMITY_RANGE = 16;
+    public static final int MINIMUM_PROXIMITY_RANGE = 1;
+    public static final int MAXIMUM_PROXIMITY_RANGE = 64;
+    private static final int PROXIMITY_TRACK_ARGB = 0xFF303D4A;
+    private static final int PROXIMITY_FILL_ARGB = 0xFF70C9E8;
+    private static final int PROXIMITY_CLOSE_ARGB = 0xFFFFB65C;
     public static final String RENDER_PASS_ID = "target-hud";
     private final Minecraft189NearestPlayerTargetState nearest;
     private final Minecraft189TargetRotationState direction;
@@ -29,6 +39,14 @@ public final class Minecraft189TargetHudModule implements Module {
             Y_SETTING_ID, 210, v -> v != null && v >= 0 && v <= 4096, SettingCodecs.INTEGER);
     private final Setting<Boolean> compact = new Setting<Boolean>(
             COMPACT_SETTING_ID, Boolean.FALSE, v -> v != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> proximityMeter = new Setting<Boolean>(
+            PROXIMITY_METER_SETTING_ID, Boolean.FALSE,
+            v -> v != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> proximityRange = new Setting<Integer>(
+            PROXIMITY_RANGE_SETTING_ID, DEFAULT_PROXIMITY_RANGE,
+            v -> v != null && v >= MINIMUM_PROXIMITY_RANGE
+                    && v <= MAXIMUM_PROXIMITY_RANGE,
+            SettingCodecs.INTEGER);
     private RenderPipeline.Registration registration;
 
     public Minecraft189TargetHudModule(
@@ -46,6 +64,26 @@ public final class Minecraft189TargetHudModule implements Module {
     public Setting<Integer> xSetting() { return x; }
     public Setting<Integer> ySetting() { return y; }
     public Setting<Boolean> compactSetting() { return compact; }
+    public Setting<Boolean> proximityMeterSetting() { return proximityMeter; }
+    public Setting<Integer> proximityRangeSetting() { return proximityRange; }
+
+    static float proximityFraction(final double distance,
+            final int range) {
+        // A proximity indicator is not a line-of-sight, entity HP,
+        // or combat-reach inference. Reject nonfinite/invalid positions.
+        if (!Double.isFinite(distance) || distance < 0.0D
+                || range < MINIMUM_PROXIMITY_RANGE
+                || range > MAXIMUM_PROXIMITY_RANGE) {
+            return 0.0F;
+        }
+        return (float) Math.max(0.0D,
+                Math.min(1.0D, 1.0D - distance / range));
+    }
+
+    static int proximityFillColor(final float fraction) {
+        return fraction >= 0.75F
+                ? PROXIMITY_CLOSE_ARGB : PROXIMITY_FILL_ARGB;
+    }
 
     @Override public synchronized void onEnable() {
         if (registration != null) {
@@ -107,6 +145,20 @@ public final class Minecraft189TargetHudModule implements Module {
                 if (!small) {
                     graphics.drawText(UiFonts.DEFAULT, left + 12, top + 39,
                             directionText(angle), 0xFF92A8BF);
+                }
+                if (proximityMeter.get().booleanValue()) {
+                    final float trackLeft = left + 12.0F;
+                    final float trackTop = top + height - 5.0F;
+                    final float trackWidth = width - 24.0F;
+                    final float fraction = proximityFraction(
+                            target.distance(), proximityRange.get().intValue());
+                    graphics.fillRect(trackLeft, trackTop,
+                            trackWidth, 2.0F, PROXIMITY_TRACK_ARGB);
+                    if (fraction > 0.0F) {
+                        graphics.fillRect(trackLeft, trackTop,
+                                trackWidth * fraction, 2.0F,
+                                proximityFillColor(fraction));
+                    }
                 }
             } catch (RuntimeException e) {
                 failure = e;
