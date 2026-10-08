@@ -21,14 +21,17 @@ final class Minecraft189AutoClickerFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration minSetting;
     private final SettingRegistry.Registration maxSetting;
+    private final SettingRegistry.Registration pauseWhileRightClickingSetting;
     private final SettingRegistry.Registration requireForwardSetting;
     private final SettingRegistry.Registration requireHoldSetting;
     private final SettingPresentationRegistry.Registration minPresentation;
     private final SettingPresentationRegistry.Registration maxPresentation;
+    private final SettingPresentationRegistry.Registration pauseWhileRightClickingPresentation;
     private final SettingPresentationRegistry.Registration requireForwardPresentation;
     private final SettingPresentationRegistry.Registration requireHoldPresentation;
     private final ModuleSettingRegistry.Registration minBinding;
     private final ModuleSettingRegistry.Registration maxBinding;
+    private final ModuleSettingRegistry.Registration pauseWhileRightClickingBinding;
     private final ModuleSettingRegistry.Registration requireForwardBinding;
     private final ModuleSettingRegistry.Registration requireHoldBinding;
     private boolean closed;
@@ -40,14 +43,17 @@ final class Minecraft189AutoClickerFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration minSetting,
             final SettingRegistry.Registration maxSetting,
+            final SettingRegistry.Registration pauseWhileRightClickingSetting,
             final SettingRegistry.Registration requireForwardSetting,
             final SettingRegistry.Registration requireHoldSetting,
             final SettingPresentationRegistry.Registration minPresentation,
             final SettingPresentationRegistry.Registration maxPresentation,
+            final SettingPresentationRegistry.Registration pauseWhileRightClickingPresentation,
             final SettingPresentationRegistry.Registration requireForwardPresentation,
             final SettingPresentationRegistry.Registration requireHoldPresentation,
             final ModuleSettingRegistry.Registration minBinding,
             final ModuleSettingRegistry.Registration maxBinding,
+            final ModuleSettingRegistry.Registration pauseWhileRightClickingBinding,
             final ModuleSettingRegistry.Registration requireForwardBinding,
             final ModuleSettingRegistry.Registration requireHoldBinding) {
         this.controller = controller;
@@ -56,14 +62,17 @@ final class Minecraft189AutoClickerFeature
         this.presentation = presentation;
         this.minSetting = minSetting;
         this.maxSetting = maxSetting;
+        this.pauseWhileRightClickingSetting = pauseWhileRightClickingSetting;
         this.requireForwardSetting = requireForwardSetting;
         this.requireHoldSetting = requireHoldSetting;
         this.minPresentation = minPresentation;
         this.maxPresentation = maxPresentation;
+        this.pauseWhileRightClickingPresentation = pauseWhileRightClickingPresentation;
         this.requireForwardPresentation = requireForwardPresentation;
         this.requireHoldPresentation = requireHoldPresentation;
         this.minBinding = minBinding;
         this.maxBinding = maxBinding;
+        this.pauseWhileRightClickingBinding = pauseWhileRightClickingBinding;
         this.requireForwardBinding = requireForwardBinding;
         this.requireHoldBinding = requireHoldBinding;
     }
@@ -82,14 +91,17 @@ final class Minecraft189AutoClickerFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration minSetting = null;
         SettingRegistry.Registration maxSetting = null;
+        SettingRegistry.Registration pauseWhileRightClickingSetting = null;
         SettingRegistry.Registration requireForwardSetting = null;
         SettingRegistry.Registration requireHoldSetting = null;
         SettingPresentationRegistry.Registration minPresentation = null;
         SettingPresentationRegistry.Registration maxPresentation = null;
+        SettingPresentationRegistry.Registration pauseWhileRightClickingPresentation = null;
         SettingPresentationRegistry.Registration requireForwardPresentation = null;
         SettingPresentationRegistry.Registration requireHoldPresentation = null;
         ModuleSettingRegistry.Registration minBinding = null;
         ModuleSettingRegistry.Registration maxBinding = null;
+        ModuleSettingRegistry.Registration pauseWhileRightClickingBinding = null;
         ModuleSettingRegistry.Registration requireForwardBinding = null;
         ModuleSettingRegistry.Registration requireHoldBinding = null;
 
@@ -112,6 +124,9 @@ final class Minecraft189AutoClickerFeature
             maxSetting =
                     settings.register(
                             module.maxCpsSetting());
+            pauseWhileRightClickingSetting =
+                    settings.register(
+                            module.pauseWhileRightClickingSetting());
             requireForwardSetting =
                     settings.register(
                             module.requireForwardSetting());
@@ -140,6 +155,13 @@ final class Minecraft189AutoClickerFeature
                                             1.0D,
                                             20.0D,
                                             1.0D)));
+            pauseWhileRightClickingPresentation =
+                    settingPresentations.register(
+                            new SettingDescriptor(
+                                    Minecraft189AutoClickerModule.PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID,
+                                    "Pause While Right Clicking",
+                                    SettingValueKind.BOOLEAN,
+                                    25));
             requireForwardPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -166,6 +188,12 @@ final class Minecraft189AutoClickerFeature
                                     Minecraft189AutoClickerModule.ID,
                                     Minecraft189AutoClickerModule.MAX_CPS_SETTING_ID,
                                     10));
+            pauseWhileRightClickingBinding =
+                    moduleSettings.register(
+                            new ModuleSettingBinding(
+                                    Minecraft189AutoClickerModule.ID,
+                                    Minecraft189AutoClickerModule.PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID,
+                                    25));
             requireForwardBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -186,14 +214,17 @@ final class Minecraft189AutoClickerFeature
                     presentation,
                     minSetting,
                     maxSetting,
+                    pauseWhileRightClickingSetting,
                     requireForwardSetting,
                     requireHoldSetting,
                     minPresentation,
                     maxPresentation,
+                    pauseWhileRightClickingPresentation,
                     requireForwardPresentation,
                     requireHoldPresentation,
                     minBinding,
                     maxBinding,
+                    pauseWhileRightClickingBinding,
                     requireForwardBinding,
                     requireHoldBinding);
         } catch (RuntimeException failure) {
@@ -204,6 +235,9 @@ final class Minecraft189AutoClickerFeature
                     requireForwardBinding,
                     failure);
             closeQuietly(
+                    pauseWhileRightClickingBinding,
+                    failure);
+            closeQuietly(
                     maxBinding,
                     failure);
             closeQuietly(
@@ -216,6 +250,9 @@ final class Minecraft189AutoClickerFeature
                     requireForwardPresentation,
                     failure);
             closeQuietly(
+                    pauseWhileRightClickingPresentation,
+                    failure);
+            closeQuietly(
                     maxPresentation,
                     failure);
             closeQuietly(
@@ -226,6 +263,9 @@ final class Minecraft189AutoClickerFeature
                     failure);
             closeQuietly(
                     requireForwardSetting,
+                    failure);
+            closeQuietly(
+                    pauseWhileRightClickingSetting,
                     failure);
             closeQuietly(
                     maxSetting,
@@ -277,6 +317,9 @@ final class Minecraft189AutoClickerFeature
                 requireForwardBinding,
                 failure);
         failure = close(
+                pauseWhileRightClickingBinding,
+                failure);
+        failure = close(
                 maxBinding,
                 failure);
         failure = close(
@@ -289,6 +332,9 @@ final class Minecraft189AutoClickerFeature
                 requireForwardPresentation,
                 failure);
         failure = close(
+                pauseWhileRightClickingPresentation,
+                failure);
+        failure = close(
                 maxPresentation,
                 failure);
         failure = close(
@@ -299,6 +345,9 @@ final class Minecraft189AutoClickerFeature
                 failure);
         failure = close(
                 requireForwardSetting,
+                failure);
+        failure = close(
+                pauseWhileRightClickingSetting,
                 failure);
         failure = close(
                 maxSetting,

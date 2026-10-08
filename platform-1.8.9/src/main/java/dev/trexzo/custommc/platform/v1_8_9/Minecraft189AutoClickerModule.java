@@ -14,6 +14,8 @@ public final class Minecraft189AutoClickerModule
             "combat.autoClicker.minCps";
     public static final String MAX_CPS_SETTING_ID =
             "combat.autoClicker.maxCps";
+    public static final String PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID =
+            "combat.autoClicker.pauseWhileRightClicking";
     public static final String REQUIRE_FORWARD_SETTING_ID =
             "combat.autoClicker.requireForward";
     public static final String REQUIRE_HOLD_SETTING_ID =
@@ -35,6 +37,12 @@ public final class Minecraft189AutoClickerModule
                     value -> value >= 1
                             && value <= TICKS_PER_SECOND,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> pauseWhileRightClicking =
+            new Setting<Boolean>(
+                    PAUSE_WHILE_RIGHT_CLICKING_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private final Setting<Boolean> requireForward =
             new Setting<Boolean>(
                     REQUIRE_FORWARD_SETTING_ID,
@@ -65,6 +73,10 @@ public final class Minecraft189AutoClickerModule
         return maxCps;
     }
 
+    public Setting<Boolean> pauseWhileRightClickingSetting() {
+        return pauseWhileRightClicking;
+    }
+
     public Setting<Boolean> requireForwardSetting() {
         return requireForward;
     }
@@ -93,11 +105,20 @@ public final class Minecraft189AutoClickerModule
     synchronized boolean shouldClick(
             final boolean leftButtonHeld,
             final boolean forwardHeld) {
+        return shouldClick(leftButtonHeld, forwardHeld, false);
+    }
+
+    synchronized boolean shouldClick(
+            final boolean leftButtonHeld,
+            final boolean forwardHeld,
+            final boolean rightButtonHeld) {
         if (!enabled
                 || (requireHold.get().booleanValue()
                         && !leftButtonHeld)
                 || (requireForward.get().booleanValue()
-                        && !forwardHeld)) {
+                        && !forwardHeld)
+                || (pauseWhileRightClicking.get().booleanValue()
+                        && rightButtonHeld)) {
             resetSchedule();
             return false;
         }
