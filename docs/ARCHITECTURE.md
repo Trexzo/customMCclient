@@ -1585,3 +1585,9 @@ At the default 0, the M214 write and ownership behavior is preserved exactly. Ma
 M216 adds persistent DOUBLE setting `combat.aimAssist.maxPitchFov`, presented as **Max Pitch FOV** (1–180 degrees, default 180). Aim Assist now optionally rejects the target when the absolute difference between the current player pitch and certified target pitch exceeds this limit. This is an independent vertical eligibility gate; existing **Max FOV** remains the shortest-path yaw gate. Defaults preserve all M215 behavior.
 
 Only the already certified rotation snapshots are used. Max Distance, Require Hold, yaw/pitch enable switches, yaw/pitch smoothing, dead zone and Spin > Aim Assist > Jitter ownership are unchanged. Full settings registration/close symmetry, focused rejection/acceptance tests and exact transformed-host field assertions are included; no new Minecraft mappings or transformers.
+
+## Aim Assist pitch offset
+
+M217 adds persistent DOUBLE setting `combat.aimAssist.pitchOffset`, presented as **Pitch Offset** in Combat → Aim Assist (−30° to +30°, default 0°). Positive offsets move desired pitch downward in Minecraft's convention and negative offsets move it upward. Effective pitch is clamped to the legal [−90°, +90°] interval.
+
+The adjusted pitch drives Max Pitch FOV eligibility, the pitch dead zone and existing pitch smoothing consistently. Max Distance, yaw FOV, activation, axis controls and Spin > Aim Assist > Jitter precedence remain unchanged. The zero-degree default preserves M216 behavior. Focused and transformed-host tests verify positive/negative offsets, vertical FOV suppression, dead-zone behavior, zero-default parity and setting lifecycle. No new Minecraft mappings or transformer hooks.

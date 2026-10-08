@@ -20,6 +20,8 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.maxFov";
     public static final String MAX_PITCH_FOV_SETTING_ID =
             "combat.aimAssist.maxPitchFov";
+    public static final String PITCH_OFFSET_SETTING_ID =
+            "combat.aimAssist.pitchOffset";
     public static final String DEAD_ZONE_SETTING_ID =
             "combat.aimAssist.deadZone";
     public static final String YAW_ENABLED_SETTING_ID =
@@ -48,6 +50,9 @@ public final class Minecraft189AimAssistModule
             1.0D;
     public static final double MAXIMUM_MAX_PITCH_FOV =
             180.0D;
+    public static final double DEFAULT_PITCH_OFFSET = 0.0D;
+    public static final double MINIMUM_PITCH_OFFSET = -30.0D;
+    public static final double MAXIMUM_PITCH_OFFSET = 30.0D;
     public static final double DEFAULT_DEAD_ZONE =
             0.0D;
     public static final double MINIMUM_DEAD_ZONE =
@@ -94,6 +99,12 @@ public final class Minecraft189AimAssistModule
                     MAX_PITCH_FOV_SETTING_ID,
                     DEFAULT_MAX_PITCH_FOV,
                     Minecraft189AimAssistModule::validMaxPitchFov,
+                    SettingCodecs.DOUBLE);
+    private final Setting<Double> pitchOffset =
+            new Setting<Double>(
+                    PITCH_OFFSET_SETTING_ID,
+                    DEFAULT_PITCH_OFFSET,
+                    Minecraft189AimAssistModule::validPitchOffset,
                     SettingCodecs.DOUBLE);
     private final Setting<Double> deadZone =
             new Setting<Double>(
@@ -143,6 +154,10 @@ public final class Minecraft189AimAssistModule
 
     public Setting<Double> maxPitchFovSetting() {
         return maxPitchFov;
+    }
+
+    public Setting<Double> pitchOffsetSetting() {
+        return pitchOffset;
     }
 
     public Setting<Double> deadZoneSetting() {
@@ -196,6 +211,7 @@ public final class Minecraft189AimAssistModule
             return false;
         }
 
+        final float desiredPitch = effectivePitch(target.pitch());
         final double deadZoneDegrees =
                 deadZone.get().doubleValue();
         final boolean adjustYaw =
@@ -207,7 +223,7 @@ public final class Minecraft189AimAssistModule
         final boolean adjustPitch =
                 pitchEnabled.get().booleanValue()
                         && (deadZoneDegrees == 0.0D
-                        || Math.abs(target.pitch() - rotation.pitch())
+                        || Math.abs(desiredPitch - rotation.pitch())
                                 > deadZoneDegrees);
         if (!adjustYaw && !adjustPitch) {
             return false;
@@ -221,7 +237,7 @@ public final class Minecraft189AimAssistModule
         final float targetPitch =
                 stepLinear(
                         rotation.pitch(),
-                        target.pitch(),
+                        desiredPitch,
                         pitchSpeed.get().doubleValue());
 
         if (adjustYaw
@@ -244,6 +260,11 @@ public final class Minecraft189AimAssistModule
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    private float effectivePitch(final float rawPitch) {
+        return Math.max(-90.0F, Math.min(90.0F,
+                rawPitch + pitchOffset.get().floatValue()));
     }
 
     private static float stepYaw(
@@ -321,12 +342,20 @@ public final class Minecraft189AimAssistModule
                 <= maximumFov;
     }
 
-    private static boolean withinPitchFov(
+    private boolean withinPitchFov(
             final Minecraft189PlayerRotationState.Snapshot rotation,
             final Minecraft189TargetRotationState.Snapshot target,
             final double maximumPitchFov) {
-        return Math.abs(target.pitch() - rotation.pitch())
+        return Math.abs(effectivePitch(target.pitch()) - rotation.pitch())
                 <= maximumPitchFov;
+    }
+
+    private static boolean validPitchOffset(final Double value) {
+        return value != null
+                && !Double.isNaN(value.doubleValue())
+                && !Double.isInfinite(value.doubleValue())
+                && value.doubleValue() >= MINIMUM_PITCH_OFFSET
+                && value.doubleValue() <= MAXIMUM_PITCH_OFFSET;
     }
 
     private static boolean validMaxPitchFov(
