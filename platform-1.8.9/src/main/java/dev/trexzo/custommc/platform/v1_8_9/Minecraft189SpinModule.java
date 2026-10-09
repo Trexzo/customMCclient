@@ -16,6 +16,10 @@ public final class Minecraft189SpinModule
             "combat.spin.yawSpeed";
     public static final String REVERSE_SETTING_ID =
             "combat.spin.reverse";
+    public static final String GROUND_ONLY_SETTING_ID =
+            "combat.spin.groundOnly";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "combat.spin.pauseWhileSneaking";
     public static final String REQUIRE_HOLD_SETTING_ID =
             "combat.spin.requireHold";
     public static final String INTERVAL_SETTING_ID =
@@ -66,6 +70,13 @@ public final class Minecraft189SpinModule
                             && value <= MAXIMUM_INTERVAL_TICKS,
                     SettingCodecs.INTEGER);
 
+    private final Setting<Boolean> groundOnly =
+            new Setting<Boolean>(GROUND_ONLY_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> pauseWhileSneaking =
+            new Setting<Boolean>(PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+
     private final Setting<Boolean> randomInterval =
             new Setting<Boolean>(
                     RANDOM_INTERVAL_SETTING_ID, Boolean.FALSE,
@@ -113,6 +124,14 @@ public final class Minecraft189SpinModule
         return intervalTicks;
     }
 
+    public Setting<Boolean> groundOnlySetting() {
+        return groundOnly;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
+    }
+
     public Setting<Boolean> randomIntervalSetting() {
         return randomInterval;
     }
@@ -140,12 +159,28 @@ public final class Minecraft189SpinModule
             final Minecraft189PlayerRotationControl player,
             final Minecraft189PlayerRotationState.Snapshot rotation,
             final boolean leftButtonHeld) {
+        // Original callers cannot assert a movement snapshot.
+        return apply(player, rotation, leftButtonHeld, null);
+    }
+
+    synchronized boolean apply(
+            final Minecraft189PlayerRotationControl player,
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final boolean leftButtonHeld,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
         if (!enabled
                 || player == null
                 || rotation == null
                 || !rotation.available()
                 || (requireHold.get().booleanValue()
-                        && !leftButtonHeld)) {
+                        && !leftButtonHeld)
+                || ((groundOnly.get().booleanValue()
+                        || pauseWhileSneaking.get().booleanValue())
+                        && (movement == null || !movement.available()
+                        || (groundOnly.get().booleanValue()
+                                && !movement.onGround())
+                        || (pauseWhileSneaking.get().booleanValue()
+                                && movement.sneaking())))) {
             resetCadence();
             return false;
         }
