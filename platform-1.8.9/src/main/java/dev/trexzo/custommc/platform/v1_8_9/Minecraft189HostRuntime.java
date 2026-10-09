@@ -505,10 +505,8 @@ public final class Minecraft189HostRuntime
                             null,
                             false);
             featureCatalog.jitter()
-                    .apply(
-                            null,
-                            null,
-                            false);
+                    .apply(null, null, false);
+            featureCatalog.killAura().suspend();
             return;
         }
 
@@ -546,6 +544,7 @@ public final class Minecraft189HostRuntime
             featureCatalog.spin().apply(null, null, false);
             featureCatalog.aimAssist().apply(null, null, null, false, false);
             featureCatalog.jitter().apply(null, null, false);
+            featureCatalog.killAura().suspend();
             return;
         }
         if (featureCatalog.spin()
@@ -559,6 +558,15 @@ public final class Minecraft189HostRuntime
                             null,
                             null,
                             false);
+            return;
+        }
+        // Aura exclusively owns the rotation lane when enabled.
+        // Spin retains its established, explicit precedence.
+        final Minecraft189KillAuraModule aura = featureCatalog.killAura();
+        if (aura.active()) {
+            aura.aim(control, rotation, targetRotationState.snapshot(),
+                    leftButtonHeld, playerMovementState.snapshot());
+            featureCatalog.jitter().apply(null, null, false);
             return;
         }
         final Minecraft189AimAssistModule assist =
@@ -1310,6 +1318,7 @@ public final class Minecraft189HostRuntime
         if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
             featureCatalog.autoClicker().suspendForGui();
             featureCatalog.triggerBot().suspend();
+            featureCatalog.killAura().suspend();
             return false;
         }
         final boolean confirmedHit = crosshairPlayerHit;
@@ -1317,21 +1326,31 @@ public final class Minecraft189HostRuntime
         // Dedicated Trigger Bot has precedence; legacy Auto Clicker trigger
         // mode remains for backward-compatible persisted profiles.
         final Minecraft189TriggerBotModule trigger = featureCatalog.triggerBot();
+        final Minecraft189KillAuraModule aura = featureCatalog.killAura();
+        final boolean attackHeld = inputState.pointerPressed(
+                Minecraft189ClickRateTracker.LEFT_BUTTON);
+        final boolean rightHeld = inputState.pointerPressed(
+                Minecraft189ClickRateTracker.RIGHT_BUTTON);
         final boolean click;
-        if (trigger.active()) {
+        if (aura.active()) {
+            trigger.suspend();
+            featureCatalog.autoClicker().suspendForGui();
+            click = aura.shouldClick(
+                    confirmedHit, playerRotationState.snapshot(),
+                    targetRotationState.snapshot(), attackHeld, rightHeld,
+                    playerMovementState.snapshot(), featureCatalog.spin().active());
+        } else if (trigger.active()) {
+            aura.suspend();
             featureCatalog.autoClicker().suspendForGui();
             click = trigger.shouldClick(
-                    confirmedHit,
-                    inputState.pointerPressed(Minecraft189ClickRateTracker.LEFT_BUTTON),
-                    inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                    confirmedHit, attackHeld, rightHeld,
                     playerMovementState.snapshot());
         } else {
+            aura.suspend();
             trigger.suspend();
             click = featureCatalog.autoClicker().shouldClick(
-                    inputState.pointerPressed(Minecraft189ClickRateTracker.LEFT_BUTTON),
-                    inputState.keyPressed(LegacyKeyboardCodes.W),
-                    inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
-                    nearestPlayerTargetState.snapshot(),
+                    attackHeld, inputState.keyPressed(LegacyKeyboardCodes.W),
+                    rightHeld, nearestPlayerTargetState.snapshot(),
                     playerMovementState.snapshot(), confirmedHit);
         }
         if (click) {
