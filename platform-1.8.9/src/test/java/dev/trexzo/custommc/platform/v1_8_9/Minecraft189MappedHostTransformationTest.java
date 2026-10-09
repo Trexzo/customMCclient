@@ -727,10 +727,17 @@ final class Minecraft189MappedHostTransformationTest {
             itemStackClass.getField("sourceItem").set(heldItem,
                     loader.loadClass("aay").getDeclaredConstructor().newInstance());
             assertTrue(sourceItem.customMcIsSword());
+            assertEquals(0.0F, sourceItem.customMcSwordBaseDamage(), 0.001F);
+            final Object mappedSword = itemStackClass.getField("sourceItem")
+                    .get(heldItem);
+            loader.loadClass("aay").getField("baseSwordDamage")
+                    .setFloat(mappedSword, 8.5F);
+            assertEquals(8.5F, sourceItem.customMcSwordBaseDamage(), 0.001F);
             assertFalse(sourceItem.customMcIsFishingRod());
             itemStackClass.getField("sourceItem").set(heldItem,
                     loader.loadClass("zq").getDeclaredConstructor().newInstance());
             assertTrue(sourceItem.customMcIsFishingRod());
+            assertTrue(Float.isNaN(sourceItem.customMcSwordBaseDamage()));
             itemStackClass.getField("sourceItem").set(heldItem,
                     loader.loadClass("aai").getDeclaredConstructor().newInstance());
             assertTrue(sourceItem.customMcIsPotion());
@@ -752,6 +759,15 @@ final class Minecraft189MappedHostTransformationTest {
                     .setInt(
                             heldItem,
                             1561);
+            final Object hotbarItems = java.lang.reflect.Array.newInstance(
+                    itemStackClass, 9);
+            java.lang.reflect.Array.set(hotbarItems, 4, heldItem);
+            inventoryClass.getField("a").set(inventory, hotbarItems);
+            final Minecraft189InventoryHotbarItemsAccess itemSlots =
+                    (Minecraft189InventoryHotbarItemsAccess) inventory;
+            assertSame(sourceItem, itemSlots.customMcHotbarItems()[4]);
+            assertNull(itemSlots.customMcHotbarItems()[0]);
+            assertEquals(9, itemSlots.customMcHotbarItems().length);
             java.lang.reflect.Array.set(
                     equipmentSlots,
                     0,
@@ -6491,6 +6507,18 @@ final class Minecraft189MappedHostTransformationTest {
         constructor.visitInsn(Opcodes.RETURN);
         constructor.visitMaxs(1, 1);
         constructor.visitEnd();
+        if ("aay".equals(name)) {
+            field(writer, "baseSwordDamage", "F");
+            final MethodVisitor getBase = writer.visitMethod(
+                    Opcodes.ACC_PUBLIC, "g", "()F", null, null);
+            getBase.visitCode();
+            getBase.visitVarInsn(Opcodes.ALOAD, 0);
+            getBase.visitFieldInsn(Opcodes.GETFIELD, name,
+                    "baseSwordDamage", "F");
+            getBase.visitInsn(Opcodes.FRETURN);
+            getBase.visitMaxs(1, 1);
+            getBase.visitEnd();
+        }
         writer.visitEnd();
         return writer.toByteArray();
     }
@@ -7573,6 +7601,7 @@ final class Minecraft189MappedHostTransformationTest {
     private static byte[] inventoryPlayerShape() {
         final ClassWriter writer =
                 classWriter("wm");
+        field(writer, "a", "[Lzx;");
         field(
                 writer,
                 "c",

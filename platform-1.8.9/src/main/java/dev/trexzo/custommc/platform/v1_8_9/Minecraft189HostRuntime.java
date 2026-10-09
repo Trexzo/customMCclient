@@ -49,6 +49,7 @@ public final class Minecraft189HostRuntime
     // Per-host-tick reference only; cleared before every new position sample.
     private Minecraft189PlayerSprintControl tickSprintControl;
     private Minecraft189InventoryHotbarControl tickHotbarControl;
+    private boolean autoWeaponOwnedClick;
     private Minecraft189PlayerHeldItemAccess tickHeldItemAccess;
     private final Minecraft189NearestPlayerTargetState nearestPlayerTargetState;
     private final Minecraft189TargetRotationState targetRotationState;
@@ -1481,13 +1482,26 @@ public final class Minecraft189HostRuntime
 
     int selectCombatSlotBeforeSyntheticClick(final boolean playerHit) {
         requireOpen();
+        autoWeaponOwnedClick = featureCatalog.autoWeapon().active();
+        if (autoWeaponOwnedClick) {
+            // Explicit sword-ranking module wins over the fixed-slot setting.
+            // Unknown hotbar content never falls through to blind slot choice.
+            return featureCatalog.autoWeapon().select(tickHotbarControl,
+                    playerHit,
+                    clickGuiRuntime.coreRuntime().model().snapshot().open());
+        }
         return featureCatalog.combatSlot().select(tickHotbarControl, playerHit,
                 clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     void restoreCombatSlotAfterSyntheticClick(final int originalSlot) {
         requireOpen();
-        featureCatalog.combatSlot().restore(tickHotbarControl, originalSlot);
+        if (autoWeaponOwnedClick) {
+            autoWeaponOwnedClick = false;
+            featureCatalog.autoWeapon().restore(tickHotbarControl, originalSlot);
+        } else {
+            featureCatalog.combatSlot().restore(tickHotbarControl, originalSlot);
+        }
     }
 
     boolean shouldKeepSprintAfterSyntheticClick(final boolean playerHit) {

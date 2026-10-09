@@ -283,7 +283,8 @@ public final class Minecraft189ClassShapeVerifier {
                 classBytes,
                 Minecraft189Mappings.INVENTORY_PLAYER,
                 new Minecraft189Mappings.MappedField[]{
-                        Minecraft189Mappings.INVENTORY_PLAYER_CURRENT_ITEM
+                        Minecraft189Mappings.INVENTORY_PLAYER_CURRENT_ITEM,
+                        Minecraft189Mappings.INVENTORY_PLAYER_MAIN_INVENTORY
                 },
                 new Minecraft189Mappings.MappedMethod[0]);
     }
