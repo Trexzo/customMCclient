@@ -14,6 +14,10 @@ public final class Minecraft189StepModule
             "movement.step.groundOnly";
     public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
             "movement.step.pauseWhileSneaking";
+    public static final String AIRBORNE_OVERRIDE_SETTING_ID =
+            "movement.step.airborneOverride";
+    public static final String AIRBORNE_HEIGHT_SETTING_ID =
+            "movement.step.airborneHeightPercent";
     public static final int DEFAULT_HEIGHT_PERCENT = 100;
     public static final float VANILLA_STEP_HEIGHT = 0.6F;
 
@@ -33,6 +37,13 @@ public final class Minecraft189StepModule
             new Setting<Boolean>(
                     PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
                     value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> airborneOverride = new Setting<Boolean>(
+            AIRBORNE_OVERRIDE_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> airborneHeightPercent = new Setting<Integer>(
+            AIRBORNE_HEIGHT_SETTING_ID, DEFAULT_HEIGHT_PERCENT,
+            value -> value != null && value >= 60 && value <= 250,
+            SettingCodecs.INTEGER);
     private boolean enabled;
 
     @Override
@@ -50,6 +61,14 @@ public final class Minecraft189StepModule
 
     public Setting<Boolean> pauseWhileSneakingSetting() {
         return pauseWhileSneaking;
+    }
+
+    public Setting<Boolean> airborneOverrideSetting() {
+        return airborneOverride;
+    }
+
+    public Setting<Integer> airborneHeightPercentSetting() {
+        return airborneHeightPercent;
     }
 
     @Override
@@ -84,8 +103,16 @@ public final class Minecraft189StepModule
         // Restoring vanilla on failed authority is essential: simply
         // skipping writes would retain a stale boosted step height while
         // airborne, sneaking, disconnected or disabled.
+        // Select the opt-in airborne height only when the mapped state
+        // confirms a real airborne condition. Existing permission gates,
+        // particularly Ground Only, retain priority.
+        final boolean airborne = permitted
+                && airborneOverride.get().booleanValue()
+                && movement != null && movement.available()
+                && !movement.onGround();
         final float target = permitted
-                ? heightPercent.get().intValue() / 100.0F
+                ? (airborne ? airborneHeightPercent.get().intValue()
+                        : heightPercent.get().intValue()) / 100.0F
                 : VANILLA_STEP_HEIGHT;
         final float current = player.customMcStepHeight();
         if (!Float.isFinite(current)
