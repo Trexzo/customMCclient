@@ -110,7 +110,9 @@ public final class Minecraft189KillAuraModule implements Module {
                 || target.entityIndex() != lastEntityIndex
                 || Math.abs(wrap(target.yaw() - rotation.yaw())) > MAX_AIM_ERROR
                 || Math.abs(target.pitch() - rotation.pitch()) > MAX_AIM_ERROR) {
-            clear();
+            // Losing a confirmed ray hit drops click credit but does not
+            // forget a still-eligible rotation target in this host tick.
+            resetSchedule();
             return false;
         }
         final int min = minCps.get();
@@ -160,10 +162,14 @@ public final class Minecraft189KillAuraModule implements Module {
     }
 
     private void clear() {
+        resetSchedule();
+        lastEntityIndex = -1;
+    }
+
+    private void resetSchedule() {
         phase = 0;
         sampledCps = 0;
         lastMin = -1;
         lastMax = -1;
-        lastEntityIndex = -1;
     }
 }
