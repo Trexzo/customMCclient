@@ -16,6 +16,7 @@ public final class Minecraft189KillAuraModule implements Module {
     public static final String REQUIRE_HOLD = ID + ".requireAttackHeld";
     public static final String PAUSE_SNEAK = ID + ".pauseWhileSneaking";
     public static final String PAUSE_RIGHT = ID + ".pauseWhileRightClicking";
+    public static final String PRIORITIZE_CROSSHAIR = ID + ".prioritizeCrosshair";
     private static final double MAX_AIM_ERROR = 8.0D;
 
     private final Setting<Integer> minCps = new Setting<Integer>(
@@ -37,6 +38,8 @@ public final class Minecraft189KillAuraModule implements Module {
             PAUSE_SNEAK, Boolean.TRUE, x -> x != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> pauseRight = new Setting<Boolean>(
             PAUSE_RIGHT, Boolean.TRUE, x -> x != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> prioritizeCrosshair = new Setting<Boolean>(
+            PRIORITIZE_CROSSHAIR, Boolean.FALSE, x -> x != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
     private int phase;
     private int sampledCps;
@@ -54,6 +57,7 @@ public final class Minecraft189KillAuraModule implements Module {
     public Setting<Boolean> requireHoldSetting() { return requireHold; }
     public Setting<Boolean> pauseSneakSetting() { return pauseSneak; }
     public Setting<Boolean> pauseRightSetting() { return pauseRight; }
+    public Setting<Boolean> prioritizeCrosshairSetting() { return prioritizeCrosshair; }
     synchronized boolean active() { return enabled; }
 
     @Override
