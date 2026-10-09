@@ -87,6 +87,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189NoClipFeature noClipFeature;
     private final Minecraft189FlightFeature flightFeature;
     private final Minecraft189StrafeFeature strafeFeature;
+    private final Minecraft189TargetStrafeFeature targetStrafeFeature;
     private final Minecraft189GlideFeature glideFeature;
     private final Minecraft189FastFallFeature fastFallFeature;
     private final Minecraft189NoGravityFeature noGravityFeature;
@@ -173,6 +174,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189NoClipFeature noClipFeature,
             final Minecraft189FlightFeature flightFeature,
             final Minecraft189StrafeFeature strafeFeature,
+            final Minecraft189TargetStrafeFeature targetStrafeFeature,
             final Minecraft189GlideFeature glideFeature,
             final Minecraft189FastFallFeature fastFallFeature,
             final Minecraft189NoGravityFeature noGravityFeature,
@@ -253,6 +255,7 @@ public final class Minecraft189FeatureCatalog
         this.noClipFeature = noClipFeature;
         this.flightFeature = flightFeature;
         this.strafeFeature = strafeFeature;
+        this.targetStrafeFeature = targetStrafeFeature;
         this.glideFeature = glideFeature;
         this.fastFallFeature = fastFallFeature;
         this.noGravityFeature = noGravityFeature;
@@ -396,6 +399,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189NoClipFeature noClipFeature = null;
         Minecraft189FlightFeature flightFeature = null;
         Minecraft189StrafeFeature strafeFeature = null;
+        Minecraft189TargetStrafeFeature targetStrafeFeature = null;
         Minecraft189GlideFeature glideFeature = null;
         Minecraft189FastFallFeature fastFallFeature = null;
         Minecraft189NoGravityFeature noGravityFeature = null;
@@ -618,6 +622,9 @@ public final class Minecraft189FeatureCatalog
                             settings,
                             settingPresentations,
                             inputState);
+            targetStrafeFeature = Minecraft189TargetStrafeFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
 
             glideFeature =
                     Minecraft189GlideFeature.install(
@@ -1179,6 +1186,7 @@ public final class Minecraft189FeatureCatalog
                     noClipFeature,
                     flightFeature,
                     strafeFeature,
+                    targetStrafeFeature,
                     glideFeature,
                     fastFallFeature,
                     noGravityFeature,
@@ -1226,6 +1234,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(noGravityFeature, failure);
             closeQuietly(fastFallFeature, failure);
             closeQuietly(glideFeature, failure);
+            closeQuietly(targetStrafeFeature, failure);
             closeQuietly(strafeFeature, failure);
             closeQuietly(flightFeature, failure);
             closeQuietly(noClipFeature, failure);
@@ -1388,6 +1397,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189StrafeModule strafe() {
         requireOpen();
         return strafeFeature.module();
+    }
+
+    public Minecraft189TargetStrafeModule targetStrafe() {
+        requireOpen();
+        return targetStrafeFeature.module();
     }
 
     public Minecraft189GlideModule glide() {
@@ -1898,6 +1912,12 @@ public final class Minecraft189FeatureCatalog
             failure = append(
                     failure,
                     closeFailure);
+        }
+
+        try {
+            targetStrafeFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
         }
 
         try {

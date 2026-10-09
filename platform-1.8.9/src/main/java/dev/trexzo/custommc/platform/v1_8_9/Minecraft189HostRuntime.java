@@ -937,15 +937,17 @@ public final class Minecraft189HostRuntime
                         player,
                         rotation,
                         movement);
+        final boolean horizontalOwnerActive = flightActive
+                || longJumpOwnsHorizontal || bunnyHopOwnsHorizontal
+                || movementSpeedOwnsHorizontal || airSpeedOwnsHorizontal;
+        final boolean targetStrafeOwnsHorizontal = featureCatalog.targetStrafe()
+                .apply(player, playerPositionState.snapshot(),
+                        nearestPlayerTargetState.snapshot(), movement,
+                        inputState.keyPressed(LegacyKeyboardCodes.W),
+                        horizontalOwnerActive);
         featureCatalog.strafe()
-                .apply(
-                        player,
-                        rotation,
-                        flightActive
-                                || longJumpOwnsHorizontal
-                                || bunnyHopOwnsHorizontal
-                                || movementSpeedOwnsHorizontal
-                                || airSpeedOwnsHorizontal,
+                .apply(player, rotation,
+                        horizontalOwnerActive || targetStrafeOwnsHorizontal,
                         movement);
         final boolean reverseStepOwnsVertical =
                 featureCatalog.reverseStep()
