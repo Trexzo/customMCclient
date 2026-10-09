@@ -40,6 +40,9 @@ final class Minecraft189WTapFeature
     private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private final ModuleSettingRegistry.Registration requireNearbyPlayerBinding;
     private final ModuleSettingRegistry.Registration maxPlayerDistanceBinding;
+    private final SettingRegistry.Registration cancelOnReleaseSetting;
+    private final SettingPresentationRegistry.Registration cancelOnReleasePresentation;
+    private final ModuleSettingRegistry.Registration cancelOnReleaseBinding;
     private boolean closed;
 
     private Minecraft189WTapFeature(
@@ -67,7 +70,10 @@ final class Minecraft189WTapFeature
             final ModuleSettingRegistry.Registration requireForwardBinding,
             final ModuleSettingRegistry.Registration pauseWhileSneakingBinding,
             final ModuleSettingRegistry.Registration requireNearbyPlayerBinding,
-            final ModuleSettingRegistry.Registration maxPlayerDistanceBinding) {
+            final ModuleSettingRegistry.Registration maxPlayerDistanceBinding,
+            final SettingRegistry.Registration cancelOnReleaseSetting,
+            final SettingPresentationRegistry.Registration cancelOnReleasePresentation,
+            final ModuleSettingRegistry.Registration cancelOnReleaseBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -93,6 +99,9 @@ final class Minecraft189WTapFeature
         this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
         this.requireNearbyPlayerBinding = requireNearbyPlayerBinding;
         this.maxPlayerDistanceBinding = maxPlayerDistanceBinding;
+        this.cancelOnReleaseSetting = cancelOnReleaseSetting;
+        this.cancelOnReleasePresentation = cancelOnReleasePresentation;
+        this.cancelOnReleaseBinding = cancelOnReleaseBinding;
     }
 
     static Minecraft189WTapFeature install(
@@ -128,6 +137,9 @@ final class Minecraft189WTapFeature
         ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
         ModuleSettingRegistry.Registration requireNearbyPlayerBinding = null;
         ModuleSettingRegistry.Registration maxPlayerDistanceBinding = null;
+        SettingRegistry.Registration cancelOnReleaseSetting = null;
+        SettingPresentationRegistry.Registration cancelOnReleasePresentation = null;
+        ModuleSettingRegistry.Registration cancelOnReleaseBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -158,6 +170,8 @@ final class Minecraft189WTapFeature
                     module.requireNearbyPlayerSetting());
             maxPlayerDistanceSetting = settings.register(
                     module.maxPlayerDistanceSetting());
+            cancelOnReleaseSetting = settings.register(
+                    module.cancelResetOnReleaseSetting());
             requireGroundPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -210,6 +224,10 @@ final class Minecraft189WTapFeature
                                     Minecraft189WTapModule.MINIMUM_MAX_PLAYER_DISTANCE,
                                     Minecraft189WTapModule.MAXIMUM_MAX_PLAYER_DISTANCE,
                                     0.5D)));
+            cancelOnReleasePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189WTapModule.CANCEL_ON_RELEASE_SETTING_ID,
+                            "Cancel Reset On Release", SettingValueKind.BOOLEAN, 70));
             requireGroundBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -249,6 +267,11 @@ final class Minecraft189WTapFeature
                             Minecraft189WTapModule.ID,
                             Minecraft189WTapModule.MAX_PLAYER_DISTANCE_SETTING_ID, 60));
 
+            cancelOnReleaseBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189WTapModule.ID,
+                            Minecraft189WTapModule.CANCEL_ON_RELEASE_SETTING_ID, 70));
+
             return new Minecraft189WTapFeature(
                     controller,
                     module,
@@ -274,8 +297,14 @@ final class Minecraft189WTapFeature
                     requireForwardBinding,
                     pauseWhileSneakingBinding,
                     requireNearbyPlayerBinding,
-                    maxPlayerDistanceBinding);
+                    maxPlayerDistanceBinding,
+                    cancelOnReleaseSetting,
+                    cancelOnReleasePresentation,
+                    cancelOnReleaseBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(cancelOnReleaseBinding, failure);
+            closeQuietly(cancelOnReleasePresentation, failure);
+            closeQuietly(cancelOnReleaseSetting, failure);
             closeQuietly(maxPlayerDistanceBinding, failure);
             closeQuietly(requireNearbyPlayerBinding, failure);
             closeQuietly(maxPlayerDistancePresentation, failure);
@@ -334,6 +363,9 @@ final class Minecraft189WTapFeature
             failure = closeFailure;
         }
 
+        failure = close(cancelOnReleaseBinding, failure);
+        failure = close(cancelOnReleasePresentation, failure);
+        failure = close(cancelOnReleaseSetting, failure);
         failure = close(maxPlayerDistanceBinding, failure);
         failure = close(requireNearbyPlayerBinding, failure);
         failure = close(maxPlayerDistancePresentation, failure);
