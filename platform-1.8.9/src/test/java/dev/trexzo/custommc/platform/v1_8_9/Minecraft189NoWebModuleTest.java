@@ -197,6 +197,84 @@ final class Minecraft189NoWebModuleTest {
         assertNull(modules.find(Minecraft189NoWebModule.ID));
     }
 
+    @Test
+    void airborneOnlyRequiresConfirmedAirAndComposesWithSneakAndGroundVetoes() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules, controller,
+                services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189NoWebModule web = runtime.featureCatalog().noWeb();
+            final TestPlayer player = new TestPlayer();
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189NoWebModule.AIRBORNE_ONLY_SETTING_ID));
+            controller.enable(Minecraft189NoWebModule.ID);
+            runtime.playerMovementState().update(true, false, false);
+            player.inWeb = true;
+            runtime.playerWebControl(player);
+            assertFalse(player.inWeb); // Default legacy behavior.
+            assertEquals(1, player.setCalls);
+
+            web.airborneOnlySetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NoWebModule.AIRBORNE_ONLY_SETTING_ID));
+            player.inWeb = true;
+            runtime.playerWebControl(player);
+            assertTrue(player.inWeb); // Ground veto.
+            assertEquals(1, player.setCalls);
+            runtime.playerMovementState().clear();
+            runtime.playerWebControl(player);
+            assertTrue(player.inWeb); // Unknown state fails closed.
+            web.apply(player);
+            assertTrue(player.inWeb); // Legacy overload has no air authority.
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerWebControl(player);
+            assertFalse(player.inWeb);
+            assertEquals(2, player.setCalls);
+
+            web.requireSneakingSetting().set(Boolean.TRUE);
+            player.inWeb = true;
+            runtime.playerWebControl(player);
+            assertTrue(player.inWeb); // Sneak gate fails.
+            runtime.playerMovementState().update(false, true, false);
+            runtime.playerWebControl(player);
+            assertFalse(player.inWeb); // Both opt-in conditions met.
+            assertEquals(3, player.setCalls);
+            web.groundOnlySetting().set(Boolean.TRUE);
+            player.inWeb = true;
+            runtime.playerWebControl(player);
+            assertTrue(player.inWeb); // Ground + air contradictory.
+            runtime.playerMovementState().update(true, true, false);
+            runtime.playerWebControl(player);
+            assertTrue(player.inWeb); // Never allowed by both.
+            web.groundOnlySetting().set(Boolean.FALSE);
+            web.requireSneakingSetting().set(Boolean.FALSE);
+            web.airborneOnlySetting().set(Boolean.FALSE);
+            runtime.playerWebControl(player);
+            assertFalse(player.inWeb); // Legacy behavior restored.
+            assertEquals(4, player.setCalls);
+            controller.disable(Minecraft189NoWebModule.ID);
+            player.inWeb = true;
+            runtime.playerWebControl(player);
+            assertTrue(player.inWeb);
+            assertEquals(4, player.setCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189NoWebModule.AIRBORNE_ONLY_SETTING_ID));
+        assertNull(modules.find(Minecraft189NoWebModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerWebControl {
         private boolean inWeb;
