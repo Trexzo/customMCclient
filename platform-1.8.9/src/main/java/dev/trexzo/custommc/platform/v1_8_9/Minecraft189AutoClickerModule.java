@@ -283,6 +283,14 @@ public final class Minecraft189AutoClickerModule
         resetSchedule();
     }
 
+    // Opening ClickGUI revokes synthetic-click ownership immediately.
+    // Retain the user's enabled setting, but discard every pending click
+    // credit, start-delay tick, burst phase, and trigger confirmation.
+    synchronized void suspendForGui() {
+        triggerConfirmedFrames = 0;
+        resetSchedule();
+    }
+
     synchronized boolean shouldClick(
             final boolean leftButtonHeld) {
         return shouldClick(leftButtonHeld, false);

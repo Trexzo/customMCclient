@@ -540,6 +540,14 @@ public final class Minecraft189HostRuntime
         final boolean leftButtonHeld =
                 inputState.pointerPressed(
                         Minecraft189ClickRateTracker.LEFT_BUTTON);
+        // The GUI owns pointer/keyboard focus: rotation automation must
+        // release ownership and discard any pending correction cadence.
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            featureCatalog.spin().apply(null, null, false);
+            featureCatalog.aimAssist().apply(null, null, null, false, false);
+            featureCatalog.jitter().apply(null, null, false);
+            return;
+        }
         if (featureCatalog.spin()
                 .apply(
                         control,
@@ -667,15 +675,14 @@ public final class Minecraft189HostRuntime
         }
         final Minecraft189PlayerMovementState.Snapshot movement =
                 playerMovementState.snapshot();
-        if (featureCatalog.wTap()
-                .apply(
-                        player,
-                        movement,
-                        inputState.pointerPressed(
-                                Minecraft189ClickRateTracker.LEFT_BUTTON),
-                        inputState.keyPressed(
-                                LegacyKeyboardCodes.W),
-                        nearestPlayerTargetState.snapshot())) {
+        final boolean attackHeld = inputState.pointerPressed(
+                Minecraft189ClickRateTracker.LEFT_BUTTON);
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            featureCatalog.wTap().suspendForGui(attackHeld);
+        } else if (featureCatalog.wTap().apply(
+                player, movement, attackHeld,
+                inputState.keyPressed(LegacyKeyboardCodes.W),
+                nearestPlayerTargetState.snapshot())) {
             return;
         }
         featureCatalog.autoSprint()
@@ -1267,6 +1274,9 @@ public final class Minecraft189HostRuntime
     int leftClickCounter(
             final int currentCounter) {
         requireOpen();
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            return currentCounter;
+        }
         return featureCatalog.noHitDelay()
                 .apply(
                         currentCounter,
@@ -1281,10 +1291,14 @@ public final class Minecraft189HostRuntime
 
     boolean shouldAutoClick(final boolean crosshairPlayerHit) {
         requireOpen();
-        // Trigger mode must not fire against a stale raycast while the
-        // native ClickGUI owns input. Legacy Auto Clicker stays unchanged.
-        final boolean confirmedHit = crosshairPlayerHit
-                && !clickGuiRuntime.coreRuntime().model().snapshot().open();
+        // No automatic attack may cross the native ClickGUI focus boundary.
+        // The same rule applies to hold and trigger modes; pending phase
+        // is cancelled so closing the GUI cannot replay banked clicks.
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            featureCatalog.autoClicker().suspendForGui();
+            return false;
+        }
+        final boolean confirmedHit = crosshairPlayerHit;
         final boolean click =
                 featureCatalog.autoClicker()
                         .shouldClick(
