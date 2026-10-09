@@ -466,7 +466,7 @@ final class Minecraft189AutoSneakModuleTest {
             runtime.playerMovementState(player);
             runtime.playerSneakControl(player);
             assertEquals(5, player.setCalls); // Live original behavior.
-            assertThrows(IllegalArgumentException.class,
+            assertThrows(NullPointerException.class,
                     () -> sneak.requireForwardSetting().set(null));
             controller.disable(Minecraft189AutoSneakModule.ID);
             player.sneaking = false;
