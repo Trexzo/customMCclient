@@ -622,7 +622,8 @@ public final class Minecraft189HostRuntime
                 .apply(
                         control,
                         rotation,
-                        leftButtonHeld);
+                        leftButtonHeld,
+                        playerMovementState.snapshot());
     }
 
     void playerDimension(

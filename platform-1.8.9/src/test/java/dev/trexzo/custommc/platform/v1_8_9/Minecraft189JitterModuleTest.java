@@ -710,6 +710,100 @@ final class Minecraft189JitterModuleTest {
         invalid.onDisable();
     }
 
+    @Test
+    void movementGuardsRejectUnknownAirAndSneakAndResetJitterCadence() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final SettingPresentationRegistry descriptors =
+                new SettingPresentationRegistry();
+        final Minecraft189JitterFeature feature = Minecraft189JitterFeature.install(
+                modules, controller, new ModulePresentationRegistry(),
+                new ModuleSettingRegistry(modules, settings), settings, descriptors);
+        try {
+            final Minecraft189JitterModule jitter = feature.module();
+            final Minecraft189PlayerRotationState rotation =
+                    new Minecraft189PlayerRotationState();
+            final Minecraft189PlayerMovementState movement =
+                    new Minecraft189PlayerMovementState();
+            final TestPlayer player = new TestPlayer(20.0F, 10.0F);
+            assertFalse(jitter.groundOnlySetting().get().booleanValue());
+            assertFalse(jitter.pauseWhileSneakingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189JitterModule.GROUND_ONLY_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189JitterModule.PAUSE_SNEAKING_SETTING_ID));
+            jitter.pitchEnabledSetting().set(Boolean.FALSE);
+            jitter.yawDegreesSetting().set(2.0D);
+            jitter.intervalTicksSetting().set(3);
+            controller.enable(Minecraft189JitterModule.ID);
+
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(jitter.apply(player, rotation.snapshot(), true));
+            assertEquals(22.0F, player.yaw, 0.00001F);
+            // A configured condition is now fail closed without movement.
+            jitter.groundOnlySetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189JitterModule.GROUND_ONLY_SETTING_ID));
+            rotation.update(player.yaw, player.pitch);
+            assertFalse(jitter.apply(player, rotation.snapshot(), true));
+            assertEquals(22.0F, player.yaw, 0.00001F);
+            movement.update(false, false, false);
+            assertFalse(jitter.apply(player, rotation.snapshot(), true,
+                    movement.snapshot()));
+            movement.update(true, false, false);
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(jitter.apply(player, rotation.snapshot(), true,
+                    movement.snapshot()));
+            assertEquals(24.0F, player.yaw, 0.00001F);
+            // Cadence after this outward stroke must not replay through air.
+            movement.update(false, false, false);
+            assertFalse(jitter.apply(player, rotation.snapshot(), true,
+                    movement.snapshot()));
+            movement.update(true, false, false);
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(jitter.apply(player, rotation.snapshot(), true,
+                    movement.snapshot()));
+            assertEquals(26.0F, player.yaw, 0.00001F);
+
+            jitter.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189JitterModule.PAUSE_SNEAKING_SETTING_ID));
+            movement.update(true, true, false);
+            assertFalse(jitter.apply(player, rotation.snapshot(), true,
+                    movement.snapshot()));
+            movement.update(true, false, false);
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(jitter.apply(player, rotation.snapshot(), true,
+                    movement.snapshot()));
+            assertEquals(28.0F, player.yaw, 0.00001F);
+            jitter.groundOnlySetting().set(Boolean.FALSE);
+            movement.update(false, false, false);
+            rotation.update(player.yaw, player.pitch);
+            assertFalse(jitter.apply(player, rotation.snapshot(), true,
+                    movement.snapshot())); // 3-tick cadence still applies.
+            assertFalse(jitter.apply(player, rotation.snapshot(), true,
+                    movement.snapshot()));
+            assertTrue(jitter.apply(player, rotation.snapshot(), true,
+                    movement.snapshot()));
+            assertEquals(26.0F, player.yaw, 0.00001F); // Paired inward stroke.
+            movement.clear();
+            assertFalse(jitter.apply(player, rotation.snapshot(), true,
+                    movement.snapshot()));
+            jitter.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(jitter.apply(player, rotation.snapshot(), true));
+            assertEquals(28.0F, player.yaw, 0.00001F);
+            controller.disable(Minecraft189JitterModule.ID);
+            assertFalse(jitter.apply(player, rotation.snapshot(), true));
+        } finally {
+            feature.close();
+        }
+        assertNull(settings.find(Minecraft189JitterModule.GROUND_ONLY_SETTING_ID));
+        assertNull(settings.find(Minecraft189JitterModule.PAUSE_SNEAKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189JitterModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerRotationControl {
         private float yaw;

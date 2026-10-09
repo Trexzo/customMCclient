@@ -22,6 +22,10 @@ public final class Minecraft189JitterModule
             "combat.jitter.pitchEnabled";
     public static final String INTERVAL_SETTING_ID =
             "combat.jitter.intervalTicks";
+    public static final String GROUND_ONLY_SETTING_ID =
+            "combat.jitter.groundOnly";
+    public static final String PAUSE_SNEAKING_SETTING_ID =
+            "combat.jitter.pauseWhileSneaking";
     public static final String REQUIRE_HOLD_SETTING_ID =
             "combat.jitter.requireHold";
     public static final String VARIABLE_STRENGTH_SETTING_ID =
@@ -86,6 +90,15 @@ public final class Minecraft189JitterModule
                     Boolean.TRUE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+
+    private final Setting<Boolean> groundOnly =
+            new Setting<Boolean>(
+                    GROUND_ONLY_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> pauseWhileSneaking =
+            new Setting<Boolean>(
+                    PAUSE_SNEAKING_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
 
     private final Setting<Boolean> variableStrength =
             new Setting<Boolean>(
@@ -161,6 +174,14 @@ public final class Minecraft189JitterModule
         return requireHold;
     }
 
+    public Setting<Boolean> groundOnlySetting() {
+        return groundOnly;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
+    }
+
     public Setting<Boolean> variableStrengthSetting() {
         return variableStrength;
     }
@@ -197,6 +218,15 @@ public final class Minecraft189JitterModule
             final Minecraft189PlayerRotationControl player,
             final Minecraft189PlayerRotationState.Snapshot rotation,
             final boolean leftButtonHeld) {
+        // Existing direct callers have no player-movement authority.
+        return apply(player, rotation, leftButtonHeld, null);
+    }
+
+    synchronized boolean apply(
+            final Minecraft189PlayerRotationControl player,
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final boolean leftButtonHeld,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
         final boolean yawAxisEnabled =
                 yawEnabled.get().booleanValue();
         final boolean pitchAxisEnabled =
@@ -222,7 +252,14 @@ public final class Minecraft189JitterModule
                 || (!yawAxisEnabled
                         && !pitchAxisEnabled)
                 || (requireHold.get().booleanValue()
-                        && !leftButtonHeld)) {
+                        && !leftButtonHeld)
+                || ((groundOnly.get().booleanValue()
+                        || pauseWhileSneaking.get().booleanValue())
+                        && (movement == null || !movement.available()
+                                || (groundOnly.get().booleanValue()
+                                        && !movement.onGround())
+                                || (pauseWhileSneaking.get().booleanValue()
+                                        && movement.sneaking())))) {
             resetCadence();
             return false;
         }
