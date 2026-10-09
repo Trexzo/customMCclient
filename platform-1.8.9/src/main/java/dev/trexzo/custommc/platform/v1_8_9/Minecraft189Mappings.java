@@ -91,6 +91,16 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "zx",
                     "net/minecraft/item/ItemStack");
+    // Vanilla MCP 1.8.9 class identities, not display-name heuristics.
+    // The ItemStack-to-Item field is located by its unique verified type.
+    public static final MappedClass ITEM =
+            new MappedClass("zw", "net/minecraft/item/Item");
+    public static final MappedClass ITEM_SWORD =
+            new MappedClass("aay", "net/minecraft/item/ItemSword");
+    public static final MappedClass ITEM_FISHING_ROD =
+            new MappedClass("zq", "net/minecraft/item/ItemFishingRod");
+    public static final MappedClass ITEM_POTION =
+            new MappedClass("aai", "net/minecraft/item/ItemPotion");
     public static final MappedClass FOOD_STATS =
             new MappedClass(
                     "xg",

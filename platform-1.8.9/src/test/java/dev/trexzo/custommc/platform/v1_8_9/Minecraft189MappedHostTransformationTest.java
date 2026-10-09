@@ -286,6 +286,14 @@ final class Minecraft189MappedHostTransformationTest {
                         "pk",
                         entityShape()));
         loader.put(
+                "zw", itemTypeShape("zw", "java/lang/Object"));
+        loader.put(
+                "aay", itemTypeShape("aay", "zw"));
+        loader.put(
+                "zq", itemTypeShape("zq", "zw"));
+        loader.put(
+                "aai", itemTypeShape("aai", "zw"));
+        loader.put(
                 "zx",
                 transformer.transform(
                         "zx",
@@ -708,6 +716,26 @@ final class Minecraft189MappedHostTransformationTest {
             final Object heldItem =
                     itemStackClass.getDeclaredConstructor()
                             .newInstance();
+            final Minecraft189ItemStackAccess sourceItem =
+                    (Minecraft189ItemStackAccess) heldItem;
+            assertFalse(sourceItem.customMcIsSword());
+            assertFalse(sourceItem.customMcIsFishingRod());
+            assertFalse(sourceItem.customMcIsPotion());
+            itemStackClass.getField("sourceItem").set(heldItem,
+                    loader.loadClass("zw").getDeclaredConstructor().newInstance());
+            assertFalse(sourceItem.customMcIsSword());
+            itemStackClass.getField("sourceItem").set(heldItem,
+                    loader.loadClass("aay").getDeclaredConstructor().newInstance());
+            assertTrue(sourceItem.customMcIsSword());
+            assertFalse(sourceItem.customMcIsFishingRod());
+            itemStackClass.getField("sourceItem").set(heldItem,
+                    loader.loadClass("zq").getDeclaredConstructor().newInstance());
+            assertTrue(sourceItem.customMcIsFishingRod());
+            itemStackClass.getField("sourceItem").set(heldItem,
+                    loader.loadClass("aai").getDeclaredConstructor().newInstance());
+            assertTrue(sourceItem.customMcIsPotion());
+            itemStackClass.getField("sourceItem").set(heldItem,
+                    loader.loadClass("aay").getDeclaredConstructor().newInstance());
             itemStackClass.getField("b")
                     .setInt(
                             heldItem,
@@ -6433,6 +6461,24 @@ final class Minecraft189MappedHostTransformationTest {
         return calls[0];
     }
 
+    private static byte[] itemTypeShape(
+            final String name, final String parent) {
+        final ClassWriter writer = new ClassWriter(0);
+        writer.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, name,
+                null, parent, null);
+        final MethodVisitor constructor = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+        constructor.visitCode();
+        constructor.visitVarInsn(Opcodes.ALOAD, 0);
+        constructor.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                parent, "<init>", "()V", false);
+        constructor.visitInsn(Opcodes.RETURN);
+        constructor.visitMaxs(1, 1);
+        constructor.visitEnd();
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
     private static byte[] itemStackShape() {
         final ClassWriter writer =
                 classWriter("zx");
@@ -6444,6 +6490,7 @@ final class Minecraft189MappedHostTransformationTest {
                 writer,
                 "displayName",
                 "Ljava/lang/String;");
+        field(writer, "sourceItem", "Lzw;");
         field(
                 writer,
                 "itemDamage",

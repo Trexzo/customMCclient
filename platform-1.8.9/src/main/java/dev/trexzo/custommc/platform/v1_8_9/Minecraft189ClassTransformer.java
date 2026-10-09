@@ -4,6 +4,7 @@ import dev.trexzo.custommc.bootstrap.BootstrapClassTransformer;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
@@ -2759,6 +2760,26 @@ public final class Minecraft189ClassTransformer
                 new ClassVisitor(
                         Opcodes.ASM9,
                         writer) {
+                    // The exact runtime ItemStack owns one Item-typed field.
+                    // Reject ambiguous bytecode rather than assuming a field name.
+                    private String sourceItemField;
+                    private int itemFieldCount;
+
+                    @Override
+                    public FieldVisitor visitField(
+                            final int access, final String name,
+                            final String descriptor, final String signature,
+                            final Object value) {
+                        if ((access & Opcodes.ACC_STATIC) == 0
+                                && ("L" + Minecraft189Mappings.ITEM
+                                        .obfuscatedInternalName() + ";").equals(descriptor)) {
+                            sourceItemField = name;
+                            itemFieldCount++;
+                        }
+                        return super.visitField(access, name, descriptor,
+                                signature, value);
+                    }
+
                     @Override
                     public void visit(
                             final int version,
@@ -2780,6 +2801,20 @@ public final class Minecraft189ClassTransformer
 
                     @Override
                     public void visitEnd() {
+                        if (itemFieldCount != 1) {
+                            throw new IllegalStateException(
+                                    "expected exactly one source-mapped ItemStack Item field"
+                                            + " but found " + itemFieldCount);
+                        }
+                        addItemStackTypeGetter(cv, "customMcIsSword",
+                                sourceItemField,
+                                Minecraft189Mappings.ITEM_SWORD);
+                        addItemStackTypeGetter(cv, "customMcIsFishingRod",
+                                sourceItemField,
+                                Minecraft189Mappings.ITEM_FISHING_ROD);
+                        addItemStackTypeGetter(cv, "customMcIsPotion",
+                                sourceItemField,
+                                Minecraft189Mappings.ITEM_POTION);
                         addStringMethodDelegate(
                                 cv,
                                 "customMcDisplayName",
@@ -2805,6 +2840,26 @@ public final class Minecraft189ClassTransformer
                 0);
 
         return writer.toByteArray();
+    }
+
+    private static void addItemStackTypeGetter(
+            final ClassVisitor visitor,
+            final String methodName,
+            final String mappedFieldName,
+            final Minecraft189Mappings.MappedClass itemClass) {
+        final MethodVisitor method = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, methodName, "()Z", null, null);
+        method.visitCode();
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                Minecraft189Mappings.ITEM_STACK.obfuscatedInternalName(),
+                mappedFieldName,
+                "L" + Minecraft189Mappings.ITEM.obfuscatedInternalName() + ";");
+        method.visitTypeInsn(Opcodes.INSTANCEOF,
+                itemClass.obfuscatedInternalName());
+        method.visitInsn(Opcodes.IRETURN);
+        method.visitMaxs(0, 0);
+        method.visitEnd();
     }
 
     private static byte[] transformPotionEffect(
