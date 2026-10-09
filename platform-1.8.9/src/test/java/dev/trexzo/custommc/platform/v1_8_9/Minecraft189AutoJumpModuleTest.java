@@ -461,10 +461,134 @@ final class Minecraft189AutoJumpModuleTest {
         module.onDisable();
     }
 
+    @Test
+    void pauseWhileSneakingDisarmsContactAndCancelsLandingDelay() {
+        final Minecraft189AutoJumpModule module = new Minecraft189AutoJumpModule();
+        final Minecraft189PlayerMovementState state =
+                new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer();
+        assertFalse(module.pauseWhileSneakingSetting().get().booleanValue());
+        module.onEnable();
+
+        state.update(true, true, false);
+        module.apply(player, state.snapshot(), false, false);
+        assertEquals(1, player.jumpCalls); // OFF preserves original behavior.
+
+        module.pauseWhileSneakingSetting().set(Boolean.TRUE);
+        state.update(false, false, false);
+        module.apply(player, state.snapshot(), false, false);
+        state.update(true, true, false);
+        module.apply(player, state.snapshot(), false, false);
+        assertEquals(1, player.jumpCalls);
+        state.update(true, false, false);
+        module.apply(player, state.snapshot(), false, false);
+        assertEquals(1, player.jumpCalls); // Releasing sneak cannot trigger jump.
+
+        state.update(false, false, false);
+        module.apply(player, state.snapshot(), false, false);
+        state.update(true, false, false);
+        module.apply(player, state.snapshot(), false, false);
+        assertEquals(2, player.jumpCalls); // Fresh landing re-arms.
+
+        module.landingDelayTicksSetting().set(2);
+        state.update(false, false, false);
+        module.apply(player, state.snapshot(), false, false);
+        state.update(true, true, false);
+        module.apply(player, state.snapshot(), false, false);
+        state.update(true, false, false);
+        module.apply(player, state.snapshot(), false, false);
+        module.apply(player, state.snapshot(), false, false);
+        module.apply(player, state.snapshot(), false, false);
+        assertEquals(2, player.jumpCalls); // Pause cancels landing countdown.
+        state.update(false, false, false);
+        module.apply(player, state.snapshot(), false, false);
+        state.update(true, false, false);
+        module.apply(player, state.snapshot(), false, false);
+        module.apply(player, state.snapshot(), false, false);
+        assertEquals(2, player.jumpCalls);
+        module.apply(player, state.snapshot(), false, false);
+        assertEquals(3, player.jumpCalls);
+
+        module.onDisable();
+        state.update(false, false, false);
+        module.apply(player, state.snapshot(), false, false);
+        module.onEnable();
+        module.landingDelayTicksSetting().set(0);
+        module.pauseWhileSneakingSetting().set(Boolean.FALSE);
+        state.update(true, true, false);
+        module.apply(player, state.snapshot(), false, false);
+        assertEquals(4, player.jumpCalls); // Full default restoration.
+    }
+
+    @Test
+    void pauseWhileSneakingUsesHostMappedStateAndPersists() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189AutoJumpModule module =
+                    runtime.featureCatalog().autoJump();
+            final TestPlayer player = new TestPlayer();
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoJumpModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            module.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoJumpModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            controller.enable(Minecraft189AutoJumpModule.ID);
+            player.sneaking = true;
+            runtime.playerMovementState(player);
+            runtime.playerJumpControl(player);
+            assertEquals(0, player.jumpCalls);
+            player.sneaking = false;
+            runtime.playerMovementState(player);
+            runtime.playerJumpControl(player);
+            assertEquals(0, player.jumpCalls); // Same contact not eligible.
+            player.onGround = false;
+            runtime.playerMovementState(player);
+            runtime.playerJumpControl(player);
+            player.onGround = true;
+            runtime.playerMovementState(player);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+            player.onGround = false;
+            player.sneaking = true;
+            runtime.playerMovementState(player);
+            runtime.playerJumpControl(player);
+            player.onGround = true;
+            runtime.playerMovementState(player);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+            player.sneaking = false;
+            runtime.playerMovementState(player);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+            controller.disable(Minecraft189AutoJumpModule.ID);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189AutoJumpModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189AutoJumpModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMovementStateAccess,
             Minecraft189PlayerJumpControl {
         private boolean onGround = true;
+        private boolean sneaking;
         private int jumpCalls;
 
         @Override
@@ -474,7 +598,7 @@ final class Minecraft189AutoJumpModuleTest {
 
         @Override
         public boolean customMcSneaking() {
-            return false;
+            return sneaking;
         }
 
         @Override

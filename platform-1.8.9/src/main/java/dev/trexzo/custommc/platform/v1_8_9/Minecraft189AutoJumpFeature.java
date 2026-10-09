@@ -28,6 +28,9 @@ final class Minecraft189AutoJumpFeature
     private final SettingRegistry.Registration requireMovementSetting;
     private final SettingPresentationRegistry.Registration requireMovementPresentation;
     private final ModuleSettingRegistry.Registration requireMovementBinding;
+    private final SettingRegistry.Registration pauseWhileSneakingSetting;
+    private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
+    private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private boolean closed;
 
     private Minecraft189AutoJumpFeature(
@@ -43,7 +46,10 @@ final class Minecraft189AutoJumpFeature
             final ModuleSettingRegistry.Registration landingDelayBinding,
             final SettingRegistry.Registration requireMovementSetting,
             final SettingPresentationRegistry.Registration requireMovementPresentation,
-            final ModuleSettingRegistry.Registration requireMovementBinding) {
+            final ModuleSettingRegistry.Registration requireMovementBinding,
+            final SettingRegistry.Registration pauseWhileSneakingSetting,
+            final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -57,6 +63,9 @@ final class Minecraft189AutoJumpFeature
         this.requireMovementSetting = requireMovementSetting;
         this.requireMovementPresentation = requireMovementPresentation;
         this.requireMovementBinding = requireMovementBinding;
+        this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
+        this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
+        this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
     }
 
     static Minecraft189AutoJumpFeature install(
@@ -80,6 +89,9 @@ final class Minecraft189AutoJumpFeature
         SettingRegistry.Registration requireMovementSetting = null;
         SettingPresentationRegistry.Registration requireMovementPresentation = null;
         ModuleSettingRegistry.Registration requireMovementBinding = null;
+        SettingRegistry.Registration pauseWhileSneakingSetting = null;
+        SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
+        ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -99,6 +111,7 @@ final class Minecraft189AutoJumpFeature
             landingDelaySetting = settings.register(
                     module.landingDelayTicksSetting());
             requireMovementSetting = settings.register(module.requireMovementSetting());
+            pauseWhileSneakingSetting = settings.register(module.pauseWhileSneakingSetting());
             requireForwardPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -120,6 +133,10 @@ final class Minecraft189AutoJumpFeature
                     new SettingDescriptor(
                             Minecraft189AutoJumpModule.REQUIRE_MOVEMENT_SETTING_ID,
                             "Require Movement (WASD)", SettingValueKind.BOOLEAN, 20));
+            pauseWhileSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoJumpModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 30));
             requireForwardBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -138,6 +155,11 @@ final class Minecraft189AutoJumpFeature
                             Minecraft189AutoJumpModule.ID,
                             Minecraft189AutoJumpModule.REQUIRE_MOVEMENT_SETTING_ID, 20));
 
+            pauseWhileSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoJumpModule.ID,
+                            Minecraft189AutoJumpModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 30));
+
             return new Minecraft189AutoJumpFeature(
                     controller,
                     module,
@@ -151,8 +173,14 @@ final class Minecraft189AutoJumpFeature
                     landingDelayBinding,
                     requireMovementSetting,
                     requireMovementPresentation,
-                    requireMovementBinding);
+                    requireMovementBinding,
+                    pauseWhileSneakingSetting,
+                    pauseWhileSneakingPresentation,
+                    pauseWhileSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseWhileSneakingBinding, failure);
+            closeQuietly(pauseWhileSneakingPresentation, failure);
+            closeQuietly(pauseWhileSneakingSetting, failure);
             closeQuietly(requireMovementBinding, failure);
             closeQuietly(requireMovementPresentation, failure);
             closeQuietly(requireMovementSetting, failure);
@@ -199,6 +227,9 @@ final class Minecraft189AutoJumpFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseWhileSneakingBinding, failure);
+        failure = close(pauseWhileSneakingPresentation, failure);
+        failure = close(pauseWhileSneakingSetting, failure);
         failure = close(requireMovementBinding, failure);
         failure = close(requireMovementPresentation, failure);
         failure = close(requireMovementSetting, failure);
