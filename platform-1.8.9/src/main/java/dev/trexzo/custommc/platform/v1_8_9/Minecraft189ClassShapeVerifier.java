@@ -28,7 +28,8 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.MINECRAFT_CURRENT_SERVER_DATA,
                         Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_DELAY_TIMER,
                         Minecraft189Mappings.MINECRAFT_LEFT_CLICK_COUNTER,
-                        Minecraft189Mappings.MINECRAFT_TIMER
+                        Minecraft189Mappings.MINECRAFT_TIMER,
+                        Minecraft189Mappings.MINECRAFT_OBJECT_MOUSE_OVER
                 },
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.MINECRAFT_GET_MINECRAFT,
@@ -39,6 +40,21 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.MINECRAFT_MIDDLE_CLICK_MOUSE,
                         Minecraft189Mappings.MINECRAFT_DISPATCH_KEYPRESSES
                 });
+    }
+
+    /**
+     * Fail-closed crosshair hit-result shape. All optional combat ray-hit
+     * consumers must use this source-proven contract, not nearby-player
+     * snapshots or guessed offsets.
+     */
+    public static void verifyMovingObjectPosition(
+            final byte[] classBytes) {
+        verify(classBytes, Minecraft189Mappings.MOVING_OBJECT_POSITION,
+                new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.MOVING_OBJECT_TYPE_OF_HIT,
+                        Minecraft189Mappings.MOVING_OBJECT_ENTITY_HIT
+                },
+                new Minecraft189Mappings.MappedMethod[0]);
     }
 
     public static void verifyPlayerControllerMp(

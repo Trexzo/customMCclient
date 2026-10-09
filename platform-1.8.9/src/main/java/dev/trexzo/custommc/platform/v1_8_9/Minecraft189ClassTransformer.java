@@ -287,6 +287,9 @@ public final class Minecraft189ClassTransformer
                 .equals(binaryClassName)
                 || Minecraft189Mappings.POTION_EFFECT
                 .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.MOVING_OBJECT_POSITION
+                .obfuscatedBinaryName()
                 .equals(binaryClassName);
     }
 
@@ -442,6 +445,13 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyTimer(input);
             return transformTimer(input);
+        }
+        if (Minecraft189Mappings.MOVING_OBJECT_POSITION
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier.verifyMovingObjectPosition(input);
+            // Shape-only authority: no speculative raytrace mutation.
+            return input;
         }
         if (Minecraft189Mappings.POTION_EFFECT
                 .obfuscatedBinaryName()
