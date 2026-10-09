@@ -588,6 +588,110 @@ final class Minecraft189FlightModuleTest {
         assertNull(modules.find(Minecraft189FlightModule.ID));
     }
 
+    @Test
+    void horizontalSmoothingAcceleratesStopsAndTurnsWithoutOvershoot() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189FlightModule flight = runtime.featureCatalog().flight();
+            assertFalse(flight.smoothHorizontalSetting().get().booleanValue());
+            assertEquals(0.10D, flight.horizontalStepSetting().get().doubleValue(),
+                    0.000001D);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FlightModule.SMOOTH_HORIZONTAL_SETTING_ID));
+            controller.enable(Minecraft189FlightModule.ID);
+            final TestPlayer player = new TestPlayer();
+            runtime.playerRotationState().update(0.0F);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionZ, 0.000001D); // Default instant.
+
+            flight.smoothHorizontalSetting().set(Boolean.TRUE);
+            flight.horizontalStepSetting().set(0.10D);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FlightModule.SMOOTH_HORIZONTAL_SETTING_ID));
+            assertEquals("0.1", settings.snapshotEncoded().get(
+                    Minecraft189FlightModule.HORIZONTAL_STEP_SETTING_ID));
+            player.motionZ = 0.0D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.10D, player.motionZ, 0.000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(0.20D, player.motionZ, 0.000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionZ, 0.000001D);
+            final int steadyCalls = player.setCalls;
+            runtime.playerMotionControl(player);
+            assertEquals(steadyCalls, player.setCalls);
+
+            runtime.inputState().key(LegacyKeyboardCodes.W, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.20D, player.motionZ, 0.000001D);
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionZ, 0.000001D);
+
+            runtime.playerRotationState().update(90.0F);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.10D, player.motionX, 0.000001D);
+            assertEquals(0.0D, player.motionZ, 0.000001D);
+            flight.horizontalStepSetting().set(0.20D);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.30D, player.motionX, 0.000001D);
+
+            // Vertical smoothing is independently configurable.
+            assertFalse(flight.smoothVerticalSetting().get().booleanValue());
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionY, 0.000001D);
+
+            flight.smoothHorizontalSetting().set(Boolean.FALSE);
+            runtime.inputState().key(LegacyKeyboardCodes.W, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionX, 0.000001D);
+            assertEquals(0.0D, player.motionZ, 0.000001D);
+            assertThrows(IllegalArgumentException.class,
+                    () -> flight.horizontalStepSetting().set(Double.NaN));
+            assertThrows(IllegalArgumentException.class,
+                    () -> flight.horizontalStepSetting().set(Double.POSITIVE_INFINITY));
+            assertThrows(IllegalArgumentException.class,
+                    () -> flight.horizontalStepSetting().set(0.009D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> flight.horizontalStepSetting().set(1.01D));
+
+            flight.smoothHorizontalSetting().set(Boolean.TRUE);
+            player.motionX = Double.NaN;
+            final int before = player.setCalls;
+            runtime.playerMotionControl(player);
+            assertEquals(before, player.setCalls); // Unknown X: no write.
+            controller.disable(Minecraft189FlightModule.ID);
+            player.motionX = 0.0D;
+            player.motionZ = 0.0D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionX, 0.000001D);
+            assertEquals(0.0D, player.motionZ, 0.000001D);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189FlightModule.SMOOTH_HORIZONTAL_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189FlightModule.HORIZONTAL_STEP_SETTING_ID));
+        assertNull(modules.find(Minecraft189FlightModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;

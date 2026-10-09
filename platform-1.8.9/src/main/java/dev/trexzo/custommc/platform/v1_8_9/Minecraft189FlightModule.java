@@ -23,6 +23,13 @@ public final class Minecraft189FlightModule
             "movement.flight.smoothVertical";
     public static final String VERTICAL_STEP_SETTING_ID =
             "movement.flight.verticalStep";
+    public static final String SMOOTH_HORIZONTAL_SETTING_ID =
+            "movement.flight.smoothHorizontal";
+    public static final String HORIZONTAL_STEP_SETTING_ID =
+            "movement.flight.horizontalStep";
+    public static final double DEFAULT_HORIZONTAL_STEP = 0.10D;
+    public static final double MINIMUM_HORIZONTAL_STEP = 0.01D;
+    public static final double MAXIMUM_HORIZONTAL_STEP = 1.00D;
     public static final double DEFAULT_VERTICAL_STEP = 0.10D;
     public static final double MINIMUM_VERTICAL_STEP = 0.01D;
     public static final double MAXIMUM_VERTICAL_STEP = 0.50D;
@@ -83,6 +90,20 @@ public final class Minecraft189FlightModule
                             && value.doubleValue() >= MINIMUM_VERTICAL_STEP
                             && value.doubleValue() <= MAXIMUM_VERTICAL_STEP,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> smoothHorizontal =
+            new Setting<Boolean>(
+                    SMOOTH_HORIZONTAL_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+    private final Setting<Double> horizontalStep =
+            new Setting<Double>(
+                    HORIZONTAL_STEP_SETTING_ID, DEFAULT_HORIZONTAL_STEP,
+                    value -> value != null
+                            && Double.isFinite(value.doubleValue())
+                            && value.doubleValue() >= MINIMUM_HORIZONTAL_STEP
+                            && value.doubleValue() <= MAXIMUM_HORIZONTAL_STEP,
+                    SettingCodecs.DOUBLE);
     private boolean enabled;
 
     Minecraft189FlightModule(
@@ -120,6 +141,14 @@ public final class Minecraft189FlightModule
 
     public Setting<Double> verticalStepSetting() {
         return verticalStep;
+    }
+
+    public Setting<Boolean> smoothHorizontalSetting() {
+        return smoothHorizontal;
+    }
+
+    public Setting<Double> horizontalStepSetting() {
+        return horizontalStep;
     }
 
     @Override
@@ -263,17 +292,34 @@ public final class Minecraft189FlightModule
                                 + sin * strafe)
                                 * configuredHorizontalSpeed);
 
-        if (Double.compare(
-                player.customMcMotionX(),
-                targetMotionX) != 0) {
-            player.customMcSetMotionX(
-                    targetMotionX);
+        final double currentMotionX = player.customMcMotionX();
+        final double currentMotionZ = player.customMcMotionZ();
+        double nextMotionX = targetMotionX;
+        double nextMotionZ = targetMotionZ;
+        if (smoothHorizontal.get().booleanValue()) {
+            // Failed authority cannot produce a synthetic horizontal write.
+            if (!Double.isFinite(currentMotionX)
+                    || !Double.isFinite(currentMotionZ)) {
+                return;
+            }
+            final double dx = targetMotionX - currentMotionX;
+            final double dz = targetMotionZ - currentMotionZ;
+            final double magnitude = Math.hypot(dx, dz);
+            if (!Double.isFinite(magnitude)) {
+                return;
+            }
+            final double step = horizontalStep.get().doubleValue();
+            if (magnitude > step) {
+                final double ratio = step / magnitude;
+                nextMotionX = cleanZero(currentMotionX + dx * ratio);
+                nextMotionZ = cleanZero(currentMotionZ + dz * ratio);
+            }
         }
-        if (Double.compare(
-                player.customMcMotionZ(),
-                targetMotionZ) != 0) {
-            player.customMcSetMotionZ(
-                    targetMotionZ);
+        if (Double.compare(currentMotionX, nextMotionX) != 0) {
+            player.customMcSetMotionX(nextMotionX);
+        }
+        if (Double.compare(currentMotionZ, nextMotionZ) != 0) {
+            player.customMcSetMotionZ(nextMotionZ);
         }
     }
 

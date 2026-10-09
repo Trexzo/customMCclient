@@ -37,6 +37,12 @@ final class Minecraft189FlightFeature
     private final SettingPresentationRegistry.Registration verticalStepPresentation;
     private final ModuleSettingRegistry.Registration smoothVerticalBinding;
     private final ModuleSettingRegistry.Registration verticalStepBinding;
+    private final SettingRegistry.Registration smoothHorizontalSetting;
+    private final SettingRegistry.Registration horizontalStepSetting;
+    private final SettingPresentationRegistry.Registration smoothHorizontalPresentation;
+    private final SettingPresentationRegistry.Registration horizontalStepPresentation;
+    private final ModuleSettingRegistry.Registration smoothHorizontalBinding;
+    private final ModuleSettingRegistry.Registration horizontalStepBinding;
     private boolean closed;
 
     private Minecraft189FlightFeature(
@@ -61,7 +67,13 @@ final class Minecraft189FlightFeature
             final SettingPresentationRegistry.Registration smoothVerticalPresentation,
             final SettingPresentationRegistry.Registration verticalStepPresentation,
             final ModuleSettingRegistry.Registration smoothVerticalBinding,
-            final ModuleSettingRegistry.Registration verticalStepBinding) {
+            final ModuleSettingRegistry.Registration verticalStepBinding,
+            final SettingRegistry.Registration smoothHorizontalSetting,
+            final SettingRegistry.Registration horizontalStepSetting,
+            final SettingPresentationRegistry.Registration smoothHorizontalPresentation,
+            final SettingPresentationRegistry.Registration horizontalStepPresentation,
+            final ModuleSettingRegistry.Registration smoothHorizontalBinding,
+            final ModuleSettingRegistry.Registration horizontalStepBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -84,6 +96,12 @@ final class Minecraft189FlightFeature
         this.verticalStepPresentation = verticalStepPresentation;
         this.smoothVerticalBinding = smoothVerticalBinding;
         this.verticalStepBinding = verticalStepBinding;
+        this.smoothHorizontalSetting = smoothHorizontalSetting;
+        this.horizontalStepSetting = horizontalStepSetting;
+        this.smoothHorizontalPresentation = smoothHorizontalPresentation;
+        this.horizontalStepPresentation = horizontalStepPresentation;
+        this.smoothHorizontalBinding = smoothHorizontalBinding;
+        this.horizontalStepBinding = horizontalStepBinding;
     }
 
     static Minecraft189FlightFeature install(
@@ -118,6 +136,12 @@ final class Minecraft189FlightFeature
         SettingPresentationRegistry.Registration verticalStepPresentation = null;
         ModuleSettingRegistry.Registration smoothVerticalBinding = null;
         ModuleSettingRegistry.Registration verticalStepBinding = null;
+        SettingRegistry.Registration smoothHorizontalSetting = null;
+        SettingRegistry.Registration horizontalStepSetting = null;
+        SettingPresentationRegistry.Registration smoothHorizontalPresentation = null;
+        SettingPresentationRegistry.Registration horizontalStepPresentation = null;
+        ModuleSettingRegistry.Registration smoothHorizontalBinding = null;
+        ModuleSettingRegistry.Registration horizontalStepBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -142,6 +166,8 @@ final class Minecraft189FlightFeature
             sprintMultiplierSetting = settings.register(module.sprintMultiplierSetting());
             smoothVerticalSetting = settings.register(module.smoothVerticalSetting());
             verticalStepSetting = settings.register(module.verticalStepSetting());
+            smoothHorizontalSetting = settings.register(module.smoothHorizontalSetting());
+            horizontalStepSetting = settings.register(module.horizontalStepSetting());
 
             horizontalSpeedPresentation =
                     settingPresentations.register(
@@ -189,6 +215,18 @@ final class Minecraft189FlightFeature
                             new SettingNumericSpec(
                                     Minecraft189FlightModule.MINIMUM_VERTICAL_STEP,
                                     Minecraft189FlightModule.MAXIMUM_VERTICAL_STEP, 0.01D)));
+            smoothHorizontalPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FlightModule.SMOOTH_HORIZONTAL_SETTING_ID,
+                            "Smooth Horizontal", SettingValueKind.BOOLEAN, 60));
+            horizontalStepPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FlightModule.HORIZONTAL_STEP_SETTING_ID,
+                            "Horizontal Step", SettingValueKind.DOUBLE, 70,
+                            new SettingNumericSpec(
+                                    Minecraft189FlightModule.MINIMUM_HORIZONTAL_STEP,
+                                    Minecraft189FlightModule.MAXIMUM_HORIZONTAL_STEP,
+                                    0.01D)));
             horizontalSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -220,6 +258,15 @@ final class Minecraft189FlightFeature
                             Minecraft189FlightModule.ID,
                             Minecraft189FlightModule.VERTICAL_STEP_SETTING_ID, 50));
 
+            smoothHorizontalBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FlightModule.ID,
+                            Minecraft189FlightModule.SMOOTH_HORIZONTAL_SETTING_ID, 60));
+            horizontalStepBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FlightModule.ID,
+                            Minecraft189FlightModule.HORIZONTAL_STEP_SETTING_ID, 70));
+
             return new Minecraft189FlightFeature(
                     controller,
                     module,
@@ -242,8 +289,20 @@ final class Minecraft189FlightFeature
                     smoothVerticalPresentation,
                     verticalStepPresentation,
                     smoothVerticalBinding,
-                    verticalStepBinding);
+                    verticalStepBinding,
+                    smoothHorizontalSetting,
+                    horizontalStepSetting,
+                    smoothHorizontalPresentation,
+                    horizontalStepPresentation,
+                    smoothHorizontalBinding,
+                    horizontalStepBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(horizontalStepBinding, failure);
+            closeQuietly(smoothHorizontalBinding, failure);
+            closeQuietly(horizontalStepPresentation, failure);
+            closeQuietly(smoothHorizontalPresentation, failure);
+            closeQuietly(horizontalStepSetting, failure);
+            closeQuietly(smoothHorizontalSetting, failure);
             closeQuietly(verticalStepBinding, failure);
             closeQuietly(smoothVerticalBinding, failure);
             closeQuietly(verticalStepPresentation, failure);
@@ -295,6 +354,12 @@ final class Minecraft189FlightFeature
             failure = closeFailure;
         }
 
+        failure = close(horizontalStepBinding, failure);
+        failure = close(smoothHorizontalBinding, failure);
+        failure = close(horizontalStepPresentation, failure);
+        failure = close(smoothHorizontalPresentation, failure);
+        failure = close(horizontalStepSetting, failure);
+        failure = close(smoothHorizontalSetting, failure);
         failure = close(verticalStepBinding, failure);
         failure = close(smoothVerticalBinding, failure);
         failure = close(verticalStepPresentation, failure);
