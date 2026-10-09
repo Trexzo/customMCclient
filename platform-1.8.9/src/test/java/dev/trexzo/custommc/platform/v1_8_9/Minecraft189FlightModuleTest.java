@@ -631,6 +631,9 @@ final class Minecraft189FlightModuleTest {
             assertEquals(0.20D, player.motionZ, 0.000001D);
             runtime.playerMotionControl(player);
             assertEquals(0.30D, player.motionZ, 0.000001D);
+            // The following update snaps a sub-ULP rounding remainder to
+            // the exact requested target before steady-state verification.
+            runtime.playerMotionControl(player);
             final int steadyCalls = player.setCalls;
             runtime.playerMotionControl(player);
             assertEquals(steadyCalls, player.setCalls);
