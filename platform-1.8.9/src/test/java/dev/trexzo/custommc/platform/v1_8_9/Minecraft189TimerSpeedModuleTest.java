@@ -407,6 +407,100 @@ final class Minecraft189TimerSpeedModuleTest {
                 1.0F, 2.0F, 500), 0.000001F);
     }
 
+    @Test
+    void sprintAndSneakTimerGuardsRestoreVanillaAndResumeWithoutStaleSpeed() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(
+                new EventBus(), modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189TimerSpeedModule module =
+                    runtime.featureCatalog().timerSpeed();
+            final TestTimer timer = new TestTimer();
+            assertEquals(Boolean.FALSE, module.sprintOnlySetting().get());
+            assertEquals(Boolean.FALSE, module.pauseWhileSneakingSetting().get());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.SPRINT_ONLY_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            module.speedPercentSetting().set(200);
+            controller.enable(Minecraft189TimerSpeedModule.ID);
+            runtime.timerSpeedControl(timer);
+            assertEquals(2.0F, timer.speed, 0.000001F); // Legacy no-state parity.
+
+            module.sprintOnlySetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.SPRINT_ONLY_SETTING_ID));
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.0F, timer.speed, 0.000001F); // Missing fail closed.
+            runtime.playerMovementState().update(true, false, false);
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.0F, timer.speed, 0.000001F);
+            runtime.playerMovementState().update(true, false, true);
+            runtime.timerSpeedControl(timer);
+            assertEquals(2.0F, timer.speed, 0.000001F);
+
+            module.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            runtime.playerMovementState().update(true, true, true);
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.0F, timer.speed, 0.000001F); // Sneak wins sprint.
+            runtime.playerMovementState().update(true, false, true);
+            runtime.timerSpeedControl(timer);
+            assertEquals(2.0F, timer.speed, 0.000001F);
+
+            module.smoothTransitionSetting().set(Boolean.TRUE);
+            module.transitionStepPercentSetting().set(25);
+            module.airborneOverrideSetting().set(Boolean.TRUE);
+            module.airborneSpeedPercentSetting().set(250);
+            runtime.playerMovementState().update(false, false, true);
+            timer.speed = 1.0F;
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.25F, timer.speed, 0.000001F); // Air + smooth.
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.50F, timer.speed, 0.000001F);
+            runtime.playerMovementState().update(false, true, true);
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.0F, timer.speed, 0.000001F); // Gate = instant vanilla.
+            runtime.playerMovementState().update(false, false, true);
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.25F, timer.speed, 0.000001F); // Starts fresh.
+
+            runtime.playerMovementState().clear();
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.0F, timer.speed, 0.000001F);
+            module.sprintOnlySetting().set(Boolean.FALSE);
+            module.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.25F, timer.speed, 0.000001F); // Base 200, smooth.
+
+            timer.speed = Float.NaN;
+            module.sprintOnlySetting().set(Boolean.TRUE);
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.0F, timer.speed, 0.000001F); // Repairs NaN on gate.
+            controller.disable(Minecraft189TimerSpeedModule.ID);
+            runtime.timerSpeedControl(timer);
+            assertEquals(1.0F, timer.speed, 0.000001F);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189TimerSpeedModule.SPRINT_ONLY_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189TimerSpeedModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189TimerSpeedModule.ID));
+    }
+
     private static final class TestTimer
             implements Minecraft189TimerSpeedControl {
         private float speed = 1.0F;

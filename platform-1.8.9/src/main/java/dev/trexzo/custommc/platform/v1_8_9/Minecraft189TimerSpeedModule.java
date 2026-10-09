@@ -16,6 +16,10 @@ public final class Minecraft189TimerSpeedModule
             "player.timer.airborneSpeedPercent";
     public static final String SMOOTH_TRANSITION_SETTING_ID =
             "player.timer.smoothTransition";
+    public static final String SPRINT_ONLY_SETTING_ID =
+            "player.timer.sprintOnly";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "player.timer.pauseWhileSneaking";
     public static final String TRANSITION_STEP_SETTING_ID =
             "player.timer.transitionStepPercent";
     public static final int DEFAULT_TRANSITION_STEP_PERCENT = 25;
@@ -62,6 +66,12 @@ public final class Minecraft189TimerSpeedModule
                             && value >= MINIMUM_TRANSITION_STEP_PERCENT
                             && value <= MAXIMUM_TRANSITION_STEP_PERCENT,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> sprintOnly = new Setting<Boolean>(
+            SPRINT_ONLY_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> pauseWhileSneaking = new Setting<Boolean>(
+            PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
 
     @Override
@@ -83,6 +93,14 @@ public final class Minecraft189TimerSpeedModule
 
     public Setting<Boolean> smoothTransitionSetting() {
         return smoothTransition;
+    }
+
+    public Setting<Boolean> sprintOnlySetting() {
+        return sprintOnly;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
     }
 
     public Setting<Integer> transitionStepPercentSetting() {
@@ -111,7 +129,14 @@ public final class Minecraft189TimerSpeedModule
             return;
         }
 
-        final boolean airborne = enabled
+        final boolean requireSprint = sprintOnly.get().booleanValue();
+        final boolean pauseSneak = pauseWhileSneaking.get().booleanValue();
+        final boolean permitted = enabled
+                && ((!requireSprint && !pauseSneak)
+                || (movement != null && movement.available()
+                    && (!requireSprint || movement.sprinting())
+                    && (!pauseSneak || !movement.sneaking())));
+        final boolean airborne = permitted
                 && airborneOverride.get().booleanValue()
                 && movement != null
                 && movement.available()
@@ -119,12 +144,14 @@ public final class Minecraft189TimerSpeedModule
         final int configuredPercent = airborne
                 ? airborneSpeedPercent.get().intValue()
                 : speedPercent.get().intValue();
-        final float target = enabled ? configuredPercent / 100.0F : 1.0F;
+        // A failed mapped movement gate must undo an earlier timer boost
+        // immediately, not keep an obsolete accelerated world clock.
+        final float target = permitted ? configuredPercent / 100.0F : 1.0F;
         final float current = timer.customMcTimerSpeed();
         // Disabling Timer must always restore vanilla immediately, even
         // when smoothing was enabled and an earlier transition was active.
         // Nonfinite mapped current state is repaired directly to target.
-        final float next = enabled && smoothTransition.get().booleanValue()
+        final float next = permitted && smoothTransition.get().booleanValue()
                 ? stepToward(current, target,
                         transitionStepPercent.get().intValue())
                 : target;
