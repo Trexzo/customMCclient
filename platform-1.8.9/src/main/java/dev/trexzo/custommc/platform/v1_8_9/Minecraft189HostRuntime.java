@@ -624,7 +624,9 @@ public final class Minecraft189HostRuntime
                         control,
                         rotation,
                         leftButtonHeld,
-                        playerMovementState.snapshot());
+                        playerMovementState.snapshot(),
+                        Boolean.valueOf(inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.RIGHT_BUTTON)));
     }
 
     void playerDimension(
