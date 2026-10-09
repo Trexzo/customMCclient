@@ -27,18 +27,20 @@ final class Minecraft189KillAuraModuleTest {
                     false, movement.snapshot()));
             assertEquals(20.0F, player.yaw, 0.00001F);
             assertEquals(5.0F, player.pitch, 0.00001F);
-            assertFalse(aura.shouldClick(true, angle.snapshot(), target.snapshot(),
+            assertFalse(aura.shouldClick(true, 0, angle.snapshot(), target.snapshot(),
                     false, false, movement.snapshot(), false));
             angle.update(0.0F, 0.0F);
             assertTrue(aura.aim(player, angle.snapshot(), target.snapshot(),
                     false, movement.snapshot()));
-            assertFalse(aura.shouldClick(false, angle.snapshot(), target.snapshot(),
+            assertFalse(aura.shouldClick(false, 0, angle.snapshot(), target.snapshot(),
                     false, false, movement.snapshot(), false));
-            assertTrue(aura.shouldClick(true, angle.snapshot(), target.snapshot(),
+            assertFalse(aura.shouldClick(true, 1, angle.snapshot(), target.snapshot(),
                     false, false, movement.snapshot(), false));
-            assertFalse(aura.shouldClick(true, angle.snapshot(), target.snapshot(),
+            assertTrue(aura.shouldClick(true, 0, angle.snapshot(), target.snapshot(),
+                    false, false, movement.snapshot(), false));
+            assertFalse(aura.shouldClick(true, 0, angle.snapshot(), target.snapshot(),
                     false, true, movement.snapshot(), false));
-            assertTrue(aura.shouldClick(true, angle.snapshot(), target.snapshot(),
+            assertTrue(aura.shouldClick(true, 0, angle.snapshot(), target.snapshot(),
                     false, false, movement.snapshot(), false));
         } finally {
             aura.onDisable();
@@ -64,18 +66,18 @@ final class Minecraft189KillAuraModuleTest {
             aura.rangeSetting().set(3.0D);
             assertTrue(aura.aim(player, angle.snapshot(), target.snapshot(),
                     false, movement.snapshot()));
-            assertFalse(aura.shouldClick(true, angle.snapshot(), target.snapshot(),
+            assertFalse(aura.shouldClick(true, 0, angle.snapshot(), target.snapshot(),
                     false, false, movement.snapshot(), false));
             movement.update(true, true, true);
-            assertFalse(aura.shouldClick(true, angle.snapshot(), target.snapshot(),
+            assertFalse(aura.shouldClick(true, 0, angle.snapshot(), target.snapshot(),
                     false, false, movement.snapshot(), false));
             movement.update(true, false, true);
-            assertFalse(aura.shouldClick(true, angle.snapshot(), target.snapshot(),
+            assertFalse(aura.shouldClick(true, 0, angle.snapshot(), target.snapshot(),
                     false, false, movement.snapshot(), false));
-            assertTrue(aura.shouldClick(true, angle.snapshot(), target.snapshot(),
+            assertTrue(aura.shouldClick(true, 0, angle.snapshot(), target.snapshot(),
                     false, false, movement.snapshot(), false));
             aura.suspend();
-            assertFalse(aura.shouldClick(true, angle.snapshot(), target.snapshot(),
+            assertFalse(aura.shouldClick(true, 0, angle.snapshot(), target.snapshot(),
                     false, false, movement.snapshot(), false));
         } finally {
             aura.onDisable();

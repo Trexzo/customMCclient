@@ -1307,10 +1307,15 @@ public final class Minecraft189HostRuntime
     }
 
     boolean shouldAutoClick() {
-        return shouldAutoClick(false);
+        return shouldAutoClick(false, -1);
     }
 
     boolean shouldAutoClick(final boolean crosshairPlayerHit) {
+        return shouldAutoClick(crosshairPlayerHit, -1);
+    }
+
+    boolean shouldAutoClick(final boolean crosshairPlayerHit,
+            final int crosshairPlayerIndex) {
         requireOpen();
         // No automatic attack may cross the native ClickGUI focus boundary.
         // The same rule applies to hold and trigger modes; pending phase
@@ -1336,7 +1341,8 @@ public final class Minecraft189HostRuntime
             trigger.suspend();
             featureCatalog.autoClicker().suspendForGui();
             click = aura.shouldClick(
-                    confirmedHit, playerRotationState.snapshot(),
+                    confirmedHit, crosshairPlayerIndex,
+                    playerRotationState.snapshot(),
                     targetRotationState.snapshot(), attackHeld, rightHeld,
                     playerMovementState.snapshot(), featureCatalog.spin().active());
         } else if (trigger.active()) {
