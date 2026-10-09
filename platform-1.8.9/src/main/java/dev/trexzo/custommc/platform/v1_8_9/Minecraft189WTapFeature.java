@@ -43,6 +43,9 @@ final class Minecraft189WTapFeature
     private final SettingRegistry.Registration cancelOnReleaseSetting;
     private final SettingPresentationRegistry.Registration cancelOnReleasePresentation;
     private final ModuleSettingRegistry.Registration cancelOnReleaseBinding;
+    private final SettingRegistry.Registration minReleaseSetting;
+    private final SettingPresentationRegistry.Registration minReleasePresentation;
+    private final ModuleSettingRegistry.Registration minReleaseBinding;
     private boolean closed;
 
     private Minecraft189WTapFeature(
@@ -73,7 +76,10 @@ final class Minecraft189WTapFeature
             final ModuleSettingRegistry.Registration maxPlayerDistanceBinding,
             final SettingRegistry.Registration cancelOnReleaseSetting,
             final SettingPresentationRegistry.Registration cancelOnReleasePresentation,
-            final ModuleSettingRegistry.Registration cancelOnReleaseBinding) {
+            final ModuleSettingRegistry.Registration cancelOnReleaseBinding,
+            final SettingRegistry.Registration minReleaseSetting,
+            final SettingPresentationRegistry.Registration minReleasePresentation,
+            final ModuleSettingRegistry.Registration minReleaseBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -102,6 +108,9 @@ final class Minecraft189WTapFeature
         this.cancelOnReleaseSetting = cancelOnReleaseSetting;
         this.cancelOnReleasePresentation = cancelOnReleasePresentation;
         this.cancelOnReleaseBinding = cancelOnReleaseBinding;
+        this.minReleaseSetting = minReleaseSetting;
+        this.minReleasePresentation = minReleasePresentation;
+        this.minReleaseBinding = minReleaseBinding;
     }
 
     static Minecraft189WTapFeature install(
@@ -140,6 +149,9 @@ final class Minecraft189WTapFeature
         SettingRegistry.Registration cancelOnReleaseSetting = null;
         SettingPresentationRegistry.Registration cancelOnReleasePresentation = null;
         ModuleSettingRegistry.Registration cancelOnReleaseBinding = null;
+        SettingRegistry.Registration minReleaseSetting = null;
+        SettingPresentationRegistry.Registration minReleasePresentation = null;
+        ModuleSettingRegistry.Registration minReleaseBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -172,6 +184,7 @@ final class Minecraft189WTapFeature
                     module.maxPlayerDistanceSetting());
             cancelOnReleaseSetting = settings.register(
                     module.cancelResetOnReleaseSetting());
+            minReleaseSetting = settings.register(module.minReleaseTicksSetting());
             requireGroundPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -228,6 +241,13 @@ final class Minecraft189WTapFeature
                     new SettingDescriptor(
                             Minecraft189WTapModule.CANCEL_ON_RELEASE_SETTING_ID,
                             "Cancel Reset On Release", SettingValueKind.BOOLEAN, 70));
+            minReleasePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189WTapModule.MIN_RELEASE_TICKS_SETTING_ID,
+                            "Minimum Release Ticks", SettingValueKind.INTEGER, 80,
+                            new SettingNumericSpec(0.0D,
+                                    Minecraft189WTapModule.MAXIMUM_MIN_RELEASE_TICKS,
+                                    1.0D)));
             requireGroundBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -272,6 +292,12 @@ final class Minecraft189WTapFeature
                             Minecraft189WTapModule.ID,
                             Minecraft189WTapModule.CANCEL_ON_RELEASE_SETTING_ID, 70));
 
+            minReleaseBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189WTapModule.ID,
+                            Minecraft189WTapModule.MIN_RELEASE_TICKS_SETTING_ID,
+                            80));
+
             return new Minecraft189WTapFeature(
                     controller,
                     module,
@@ -300,8 +326,14 @@ final class Minecraft189WTapFeature
                     maxPlayerDistanceBinding,
                     cancelOnReleaseSetting,
                     cancelOnReleasePresentation,
-                    cancelOnReleaseBinding);
+                    cancelOnReleaseBinding,
+                    minReleaseSetting,
+                    minReleasePresentation,
+                    minReleaseBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(minReleaseBinding, failure);
+            closeQuietly(minReleasePresentation, failure);
+            closeQuietly(minReleaseSetting, failure);
             closeQuietly(cancelOnReleaseBinding, failure);
             closeQuietly(cancelOnReleasePresentation, failure);
             closeQuietly(cancelOnReleaseSetting, failure);
@@ -363,6 +395,9 @@ final class Minecraft189WTapFeature
             failure = closeFailure;
         }
 
+        failure = close(minReleaseBinding, failure);
+        failure = close(minReleasePresentation, failure);
+        failure = close(minReleaseSetting, failure);
         failure = close(cancelOnReleaseBinding, failure);
         failure = close(cancelOnReleasePresentation, failure);
         failure = close(cancelOnReleaseSetting, failure);

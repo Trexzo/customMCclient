@@ -763,6 +763,132 @@ final class Minecraft189WTapModuleTest {
         @Override public void endUi() { }
     }
 
+    @Test
+    void minimumReleaseTicksRejectsRapidTapsAndCountsOnlyEligibleRelease() {
+        final Minecraft189WTapModule tap = new Minecraft189WTapModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer();
+        movement.update(true, false, true);
+        assertEquals(0, tap.minReleaseTicksSetting().get().intValue());
+        tap.minReleaseTicksSetting().set(3);
+        tap.onEnable();
+        assertFalse(tap.apply(player, movement.snapshot(), true, true));
+        assertEquals(0, player.setCalls); // No observed prior release.
+
+        assertFalse(tap.apply(player, movement.snapshot(), false, true));
+        assertFalse(tap.apply(player, movement.snapshot(), false, true));
+        assertFalse(tap.apply(player, movement.snapshot(), true, true));
+        assertEquals(0, player.setCalls); // Two released ticks are insufficient.
+        assertFalse(tap.apply(player, movement.snapshot(), true, true));
+
+        for (int i = 0; i < 3; i++) {
+            assertFalse(tap.apply(player, movement.snapshot(), false, true));
+        }
+        assertTrue(tap.apply(player, movement.snapshot(), true, true));
+        assertEquals(1, player.setCalls);
+        player.sprinting = true;
+        assertFalse(tap.apply(player, movement.snapshot(), true, true));
+        assertEquals(1, player.setCalls); // Held press never repeats.
+
+        tap.pauseWhileSneakingSetting().set(Boolean.TRUE);
+        movement.update(true, true, true);
+        assertFalse(tap.apply(player, movement.snapshot(), false, true));
+        assertFalse(tap.apply(player, movement.snapshot(), false, true));
+        movement.update(true, false, true);
+        assertFalse(tap.apply(player, movement.snapshot(), false, true));
+        assertFalse(tap.apply(player, movement.snapshot(), true, true));
+        assertEquals(1, player.setCalls); // Paused samples cannot qualify.
+
+        for (int i = 0; i < 3; i++) {
+            assertFalse(tap.apply(player, movement.snapshot(), false, true));
+        }
+        player.sprinting = true;
+        assertTrue(tap.apply(player, movement.snapshot(), true, true));
+        assertEquals(2, player.setCalls);
+
+        // A live setting edit discards earned release credit, and a
+        // continuously held press cannot replay after changing the slider.
+        tap.minReleaseTicksSetting().set(2);
+        assertFalse(tap.apply(player, movement.snapshot(), true, true));
+        assertEquals(2, player.setCalls);
+        assertFalse(tap.apply(player, movement.snapshot(), false, true));
+        assertFalse(tap.apply(player, movement.snapshot(), true, true));
+        assertEquals(2, player.setCalls);
+        assertFalse(tap.apply(player, movement.snapshot(), false, true));
+        assertFalse(tap.apply(player, movement.snapshot(), false, true));
+        player.sprinting = true;
+        assertTrue(tap.apply(player, movement.snapshot(), true, true));
+        assertEquals(3, player.setCalls);
+
+        tap.onDisable();
+        tap.onEnable();
+        player.sprinting = true;
+        assertFalse(tap.apply(player, movement.snapshot(), true, true));
+        assertEquals(3, player.setCalls); // Disable/enable loses credit.
+        tap.minReleaseTicksSetting().set(0);
+        assertFalse(tap.apply(player, movement.snapshot(), true, true));
+        assertFalse(tap.apply(player, movement.snapshot(), false, true));
+        assertTrue(tap.apply(player, movement.snapshot(), true, true));
+        assertEquals(4, player.setCalls); // Default immediate edge restored.
+        assertThrows(IllegalArgumentException.class,
+                () -> tap.minReleaseTicksSetting().set(-1));
+        assertThrows(IllegalArgumentException.class,
+                () -> tap.minReleaseTicksSetting().set(11));
+        tap.onDisable();
+    }
+
+    @Test
+    void minimumReleasePersistsThroughHostedWtapAndCleansUp() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(
+                new EventBus(), modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189WTapModule tap = runtime.featureCatalog().wTap();
+            assertEquals("0", settings.snapshotEncoded().get(
+                    Minecraft189WTapModule.MIN_RELEASE_TICKS_SETTING_ID));
+            tap.minReleaseTicksSetting().set(2);
+            assertEquals("2", settings.snapshotEncoded().get(
+                    Minecraft189WTapModule.MIN_RELEASE_TICKS_SETTING_ID));
+            final TestPlayer player = new TestPlayer();
+            controller.enable(Minecraft189WTapModule.ID);
+            runtime.playerMovementState().update(true, false, true);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            runtime.playerSprintControl(player);
+            assertEquals(0, player.setCalls);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            runtime.playerSprintControl(player);
+            runtime.playerSprintControl(player);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            runtime.playerSprintControl(player);
+            assertEquals(1, player.setCalls);
+            assertFalse(player.sprinting);
+            controller.disable(Minecraft189WTapModule.ID);
+            player.sprinting = true;
+            runtime.playerSprintControl(player);
+            assertEquals(1, player.setCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189WTapModule.MIN_RELEASE_TICKS_SETTING_ID));
+        assertNull(modules.find(Minecraft189WTapModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerSprintControl {
         private boolean sprinting = true;

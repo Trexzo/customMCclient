@@ -22,6 +22,10 @@ public final class Minecraft189WTapModule
             "combat.wTap.requireNearbyPlayer";
     public static final String CANCEL_ON_RELEASE_SETTING_ID =
             "combat.wTap.cancelResetOnRelease";
+    public static final String MIN_RELEASE_TICKS_SETTING_ID =
+            "combat.wTap.minReleaseTicks";
+    public static final int DEFAULT_MIN_RELEASE_TICKS = 0;
+    public static final int MAXIMUM_MIN_RELEASE_TICKS = 10;
     public static final String MAX_PLAYER_DISTANCE_SETTING_ID =
             "combat.wTap.maxPlayerDistance";
     public static final double DEFAULT_MAX_PLAYER_DISTANCE = 4.0D;
@@ -97,10 +101,19 @@ public final class Minecraft189WTapModule
                     Boolean.FALSE,
                     value -> value != null, SettingCodecs.BOOLEAN);
 
+    private final Setting<Integer> minReleaseTicks = new Setting<Integer>(
+            MIN_RELEASE_TICKS_SETTING_ID,
+            DEFAULT_MIN_RELEASE_TICKS,
+            value -> value != null && value >= 0
+                    && value <= MAXIMUM_MIN_RELEASE_TICKS,
+            SettingCodecs.INTEGER);
+
     private boolean enabled;
     private boolean previousLeftButtonHeld;
     private int cooldownRemaining;
     private int resetTicksRemaining;
+    private int eligibleReleasedTicks;
+    private int scheduledMinReleaseTicks;
 
     @Override
     public String id() {
@@ -137,6 +150,10 @@ public final class Minecraft189WTapModule
 
     public Setting<Boolean> cancelResetOnReleaseSetting() {
         return cancelResetOnRelease;
+    }
+
+    public Setting<Integer> minReleaseTicksSetting() {
+        return minReleaseTicks;
     }
 
     @Override
@@ -197,6 +214,27 @@ public final class Minecraft189WTapModule
             return false;
         }
 
+        final int configuredMinRelease = minReleaseTicks.get().intValue();
+        if (scheduledMinReleaseTicks != configuredMinRelease) {
+            // A live edit cannot reuse an old release interval or replay
+            // the current continuously held attack-button press.
+            scheduledMinReleaseTicks = configuredMinRelease;
+            eligibleReleasedTicks = 0;
+            if (leftButtonHeld) {
+                previousLeftButtonHeld = true;
+            }
+        }
+        if (!leftButtonHeld) {
+            // Count only observed release callbacks after all authority
+            // and optional target/sneak gates have accepted this update.
+            eligibleReleasedTicks = Math.min(
+                    configuredMinRelease, eligibleReleasedTicks + 1);
+        } else if (!previousLeftButtonHeld && resetTicksRemaining > 0) {
+            // An edge swallowed by an ongoing reset cannot be banked for
+            // a later reset once the active window completes.
+            eligibleReleasedTicks = 0;
+        }
+
         if (cancelResetOnRelease.get().booleanValue()
                 && !leftButtonHeld && resetTicksRemaining > 0) {
             // Cancel only the active synthetic sprint reset. Retaining
@@ -233,6 +271,12 @@ public final class Minecraft189WTapModule
             return false;
         }
         previousLeftButtonHeld = true;
+        final boolean releaseQualified =
+                eligibleReleasedTicks >= configuredMinRelease;
+        eligibleReleasedTicks = 0;
+        if (!releaseQualified) {
+            return false;
+        }
 
         if (cooldownActive
                 || (requireGround.get().booleanValue()
@@ -260,5 +304,7 @@ public final class Minecraft189WTapModule
         previousLeftButtonHeld = false;
         cooldownRemaining = 0;
         resetTicksRemaining = 0;
+        eligibleReleasedTicks = 0;
+        scheduledMinReleaseTicks = minReleaseTicks.get().intValue();
     }
 }
