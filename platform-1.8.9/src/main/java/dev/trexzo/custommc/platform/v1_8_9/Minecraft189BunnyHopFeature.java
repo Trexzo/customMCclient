@@ -28,6 +28,9 @@ final class Minecraft189BunnyHopFeature
     private final SettingPresentationRegistry.Registration accelerationPercentPresentation;
     private final ModuleSettingRegistry.Registration smoothAccelerationBinding;
     private final ModuleSettingRegistry.Registration accelerationPercentBinding;
+    private final SettingRegistry.Registration landingDelaySetting;
+    private final SettingPresentationRegistry.Registration landingDelayPresentation;
+    private final ModuleSettingRegistry.Registration landingDelayBinding;
     private boolean closed;
 
     private Minecraft189BunnyHopFeature(
@@ -43,7 +46,10 @@ final class Minecraft189BunnyHopFeature
             final SettingPresentationRegistry.Registration smoothAccelerationPresentation,
             final SettingPresentationRegistry.Registration accelerationPercentPresentation,
             final ModuleSettingRegistry.Registration smoothAccelerationBinding,
-            final ModuleSettingRegistry.Registration accelerationPercentBinding) {
+            final ModuleSettingRegistry.Registration accelerationPercentBinding,
+            final SettingRegistry.Registration landingDelaySetting,
+            final SettingPresentationRegistry.Registration landingDelayPresentation,
+            final ModuleSettingRegistry.Registration landingDelayBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -57,6 +63,9 @@ final class Minecraft189BunnyHopFeature
         this.accelerationPercentPresentation = accelerationPercentPresentation;
         this.smoothAccelerationBinding = smoothAccelerationBinding;
         this.accelerationPercentBinding = accelerationPercentBinding;
+        this.landingDelaySetting = landingDelaySetting;
+        this.landingDelayPresentation = landingDelayPresentation;
+        this.landingDelayBinding = landingDelayBinding;
     }
 
     static Minecraft189BunnyHopFeature install(
@@ -82,6 +91,9 @@ final class Minecraft189BunnyHopFeature
         SettingPresentationRegistry.Registration accelerationPercentPresentation = null;
         ModuleSettingRegistry.Registration smoothAccelerationBinding = null;
         ModuleSettingRegistry.Registration accelerationPercentBinding = null;
+        SettingRegistry.Registration landingDelaySetting = null;
+        SettingPresentationRegistry.Registration landingDelayPresentation = null;
+        ModuleSettingRegistry.Registration landingDelayBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -102,6 +114,7 @@ final class Minecraft189BunnyHopFeature
                     module.smoothAccelerationSetting());
             accelerationPercentSetting = settings.register(
                     module.accelerationPercentSetting());
+            landingDelaySetting = settings.register(module.landingDelayTicksSetting());
             speedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -122,6 +135,13 @@ final class Minecraft189BunnyHopFeature
                             Minecraft189BunnyHopModule.ACCELERATION_PERCENT_SETTING_ID,
                             "Acceleration %", SettingValueKind.INTEGER, 20,
                             new SettingNumericSpec(10.0D, 100.0D, 5.0D)));
+            landingDelayPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189BunnyHopModule.LANDING_DELAY_SETTING_ID,
+                            "Landing Delay Ticks", SettingValueKind.INTEGER, 30,
+                            new SettingNumericSpec(0.0D,
+                                    Minecraft189BunnyHopModule.MAXIMUM_LANDING_DELAY_TICKS,
+                                    1.0D)));
             speedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -138,6 +158,11 @@ final class Minecraft189BunnyHopFeature
                             Minecraft189BunnyHopModule.ID,
                             Minecraft189BunnyHopModule.ACCELERATION_PERCENT_SETTING_ID, 20));
 
+            landingDelayBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189BunnyHopModule.ID,
+                            Minecraft189BunnyHopModule.LANDING_DELAY_SETTING_ID, 30));
+
             return new Minecraft189BunnyHopFeature(
                     controller,
                     module,
@@ -151,8 +176,14 @@ final class Minecraft189BunnyHopFeature
                     smoothAccelerationPresentation,
                     accelerationPercentPresentation,
                     smoothAccelerationBinding,
-                    accelerationPercentBinding);
+                    accelerationPercentBinding,
+                    landingDelaySetting,
+                    landingDelayPresentation,
+                    landingDelayBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(landingDelayBinding, failure);
+            closeQuietly(landingDelayPresentation, failure);
+            closeQuietly(landingDelaySetting, failure);
             closeQuietly(accelerationPercentBinding, failure);
             closeQuietly(smoothAccelerationBinding, failure);
             closeQuietly(accelerationPercentPresentation, failure);
@@ -195,6 +226,9 @@ final class Minecraft189BunnyHopFeature
             failure = closeFailure;
         }
 
+        failure = close(landingDelayBinding, failure);
+        failure = close(landingDelayPresentation, failure);
+        failure = close(landingDelaySetting, failure);
         failure = close(accelerationPercentBinding, failure);
         failure = close(smoothAccelerationBinding, failure);
         failure = close(accelerationPercentPresentation, failure);

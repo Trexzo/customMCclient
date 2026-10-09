@@ -388,6 +388,143 @@ final class Minecraft189BunnyHopModuleTest {
                 () -> module.accelerationPercentSetting().set(101));
     }
 
+    @Test
+    void bunnyHopLandingDelayWaitsOnlyForEligibleGroundCallbacks() {
+        final Minecraft189InputState input = new Minecraft189InputState();
+        final Minecraft189BunnyHopModule bunny = new Minecraft189BunnyHopModule(input);
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer();
+        input.key(LegacyKeyboardCodes.W, true);
+        movement.update(true, false, false);
+        bunny.onEnable();
+        assertEquals(Integer.valueOf(0), bunny.landingDelayTicksSetting().get());
+        bunny.applyJump(player, movement.snapshot(), false);
+        assertEquals(1, player.jumpCalls); // Original immediate jump.
+        bunny.applyJump(player, movement.snapshot(), false);
+        assertEquals(1, player.jumpCalls); // No repeated ground contact.
+
+        bunny.landingDelayTicksSetting().set(2);
+        movement.update(false, false, false);
+        bunny.applyJump(player, movement.snapshot(), false); // Rearm.
+        movement.update(true, false, false);
+        bunny.applyJump(player, movement.snapshot(), false);
+        bunny.applyJump(player, movement.snapshot(), false);
+        assertEquals(1, player.jumpCalls);
+        bunny.applyJump(player, movement.snapshot(), false);
+        assertEquals(2, player.jumpCalls);
+        bunny.applyJump(player, movement.snapshot(), false);
+        assertEquals(2, player.jumpCalls);
+
+        movement.update(false, false, false);
+        bunny.applyJump(player, movement.snapshot(), false);
+        movement.update(true, false, false);
+        bunny.applyJump(player, movement.snapshot(), false); // 1/2.
+        input.key(LegacyKeyboardCodes.W, false);
+        bunny.applyJump(player, movement.snapshot(), false); // Reset.
+        input.key(LegacyKeyboardCodes.W, true);
+        bunny.applyJump(player, movement.snapshot(), false); // 1/2.
+        bunny.applyJump(player, movement.snapshot(), true); // Suspended reset.
+        bunny.applyJump(player, movement.snapshot(), false);
+        bunny.applyJump(player, movement.snapshot(), false);
+        assertEquals(2, player.jumpCalls);
+        bunny.applyJump(player, movement.snapshot(), false);
+        assertEquals(3, player.jumpCalls);
+
+        // Live delay edits lose credit. Unavailable state loses waiting,
+        // while the existing horizontal-speed owner remains untouched.
+        movement.update(false, false, false);
+        bunny.applyJump(player, movement.snapshot(), false);
+        movement.update(true, false, false);
+        bunny.applyJump(player, movement.snapshot(), false); // 1/2.
+        bunny.landingDelayTicksSetting().set(3);
+        for (int i = 0; i < 3; i++) {
+            bunny.applyJump(player, movement.snapshot(), false);
+            assertEquals(3, player.jumpCalls);
+        }
+        bunny.applyJump(player, movement.snapshot(), false);
+        assertEquals(4, player.jumpCalls);
+
+        movement.update(false, false, false);
+        bunny.applyJump(player, movement.snapshot(), false);
+        movement.update(true, false, false);
+        bunny.applyJump(player, movement.snapshot(), false);
+        movement.clear();
+        bunny.applyJump(player, movement.snapshot(), false);
+        movement.update(true, false, false);
+        for (int i = 0; i < 3; i++) {
+            bunny.applyJump(player, movement.snapshot(), false);
+            assertEquals(4, player.jumpCalls);
+        }
+        bunny.applyJump(player, movement.snapshot(), false);
+        assertEquals(5, player.jumpCalls);
+
+        bunny.landingDelayTicksSetting().set(0);
+        movement.update(false, false, false);
+        bunny.applyJump(player, movement.snapshot(), false);
+        movement.update(true, false, false);
+        bunny.applyJump(player, movement.snapshot(), false);
+        assertEquals(6, player.jumpCalls);
+        bunny.onDisable();
+        bunny.applyJump(player, movement.snapshot(), false);
+        assertEquals(6, player.jumpCalls);
+        assertThrows(IllegalArgumentException.class,
+                () -> bunny.landingDelayTicksSetting().set(-1));
+        assertThrows(IllegalArgumentException.class,
+                () -> bunny.landingDelayTicksSetting().set(11));
+    }
+
+    @Test
+    void hostedBunnyHopLandingDelayPersistsAndCleansUp() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189BunnyHopModule bunny = runtime.featureCatalog().bunnyHop();
+            assertEquals("0", settings.snapshotEncoded().get(
+                    Minecraft189BunnyHopModule.LANDING_DELAY_SETTING_ID));
+            bunny.landingDelayTicksSetting().set(2);
+            assertEquals("2", settings.snapshotEncoded().get(
+                    Minecraft189BunnyHopModule.LANDING_DELAY_SETTING_ID));
+            controller.enable(Minecraft189BunnyHopModule.ID);
+            final TestPlayer player = new TestPlayer();
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerJumpControl(player);
+            runtime.playerJumpControl(player);
+            assertEquals(0, player.jumpCalls);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerJumpControl(player);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerJumpControl(player);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+            runtime.playerJumpControl(player);
+            assertEquals(2, player.jumpCalls);
+            controller.disable(Minecraft189BunnyHopModule.ID);
+            runtime.playerJumpControl(player);
+            assertEquals(2, player.jumpCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189BunnyHopModule.LANDING_DELAY_SETTING_ID));
+        assertNull(modules.find(Minecraft189BunnyHopModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerJumpControl,
             Minecraft189PlayerMotionControl {
