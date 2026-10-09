@@ -15,6 +15,10 @@ public final class Minecraft189BunnyHopModule
             "movement.bunnyHop.speed";
     public static final String SMOOTH_ACCELERATION_SETTING_ID =
             "movement.bunnyHop.smoothAcceleration";
+    public static final String LANDING_DELAY_SETTING_ID =
+            "movement.bunnyHop.landingDelayTicks";
+    public static final int DEFAULT_LANDING_DELAY_TICKS = 0;
+    public static final int MAXIMUM_LANDING_DELAY_TICKS = 10;
     public static final String ACCELERATION_PERCENT_SETTING_ID =
             "movement.bunnyHop.accelerationPercent";
     public static final int DEFAULT_ACCELERATION_PERCENT = 50;
@@ -45,8 +49,15 @@ public final class Minecraft189BunnyHopModule
                     value -> value != null && value >= 10
                             && value <= 100,
                     SettingCodecs.INTEGER);
+    private final Setting<Integer> landingDelayTicks = new Setting<Integer>(
+            LANDING_DELAY_SETTING_ID, DEFAULT_LANDING_DELAY_TICKS,
+            value -> value != null && value >= 0
+                    && value <= MAXIMUM_LANDING_DELAY_TICKS,
+            SettingCodecs.INTEGER);
     private boolean enabled;
     private boolean armed = true;
+    private int eligibleLandingCallbacks;
+    private int observedLandingDelay;
 
     Minecraft189BunnyHopModule(
             final Minecraft189InputState inputState) {
@@ -73,16 +84,22 @@ public final class Minecraft189BunnyHopModule
         return accelerationPercent;
     }
 
+    public Setting<Integer> landingDelayTicksSetting() {
+        return landingDelayTicks;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
         armed = true;
+        resetLandingDelay();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
         armed = true;
+        resetLandingDelay();
     }
 
     synchronized void applyJump(
@@ -95,22 +112,36 @@ public final class Minecraft189BunnyHopModule
         if (!enabled
                 || player == null
                 || !movement.available()) {
+            resetLandingDelay();
             return;
         }
 
         if (!movement.onGround()) {
             armed = true;
+            resetLandingDelay();
             return;
         }
 
-        if (suspended
-                || !movementInputHeld()
-                || !armed) {
+        final int configuredDelay = landingDelayTicks.get().intValue();
+        if (configuredDelay != observedLandingDelay) {
+            // A live edit never inherits waiting credit from the previous
+            // configuration, even on a continuously held movement key.
+            resetLandingDelay();
+        }
+        if (suspended || !movementInputHeld() || !armed) {
+            // Waiting is earned only on consecutive eligible grounded
+            // callbacks, never while an owner blocks Bunny Hop.
+            eligibleLandingCallbacks = 0;
+            return;
+        }
+        if (eligibleLandingCallbacks < configuredDelay) {
+            eligibleLandingCallbacks++;
             return;
         }
 
         player.customMcJump();
         armed = false;
+        eligibleLandingCallbacks = 0;
     }
 
     synchronized boolean applyMotion(
@@ -201,6 +232,11 @@ public final class Minecraft189BunnyHopModule
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    private void resetLandingDelay() {
+        eligibleLandingCallbacks = 0;
+        observedLandingDelay = landingDelayTicks.get().intValue();
     }
 
     private boolean movementInputHeld() {
