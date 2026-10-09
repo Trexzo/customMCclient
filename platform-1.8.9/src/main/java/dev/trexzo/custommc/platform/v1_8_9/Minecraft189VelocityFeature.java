@@ -46,6 +46,12 @@ final class Minecraft189VelocityFeature
     private final SettingRegistry.Registration airborneOnlySetting;
     private final SettingPresentationRegistry.Registration airborneOnlyPresentation;
     private final ModuleSettingRegistry.Registration airborneOnlyBinding;
+    private final SettingRegistry.Registration minHorizontalDeltaSetting;
+    private final SettingRegistry.Registration minVerticalDeltaSetting;
+    private final SettingPresentationRegistry.Registration minHorizontalDeltaPresentation;
+    private final SettingPresentationRegistry.Registration minVerticalDeltaPresentation;
+    private final ModuleSettingRegistry.Registration minHorizontalDeltaBinding;
+    private final ModuleSettingRegistry.Registration minVerticalDeltaBinding;
     private boolean closed;
 
     private Minecraft189VelocityFeature(
@@ -79,7 +85,13 @@ final class Minecraft189VelocityFeature
             final ModuleSettingRegistry.Registration pauseWhileSneakingBinding,
             final SettingRegistry.Registration airborneOnlySetting,
             final SettingPresentationRegistry.Registration airborneOnlyPresentation,
-            final ModuleSettingRegistry.Registration airborneOnlyBinding) {
+            final ModuleSettingRegistry.Registration airborneOnlyBinding,
+            final SettingRegistry.Registration minHorizontalDeltaSetting,
+            final SettingRegistry.Registration minVerticalDeltaSetting,
+            final SettingPresentationRegistry.Registration minHorizontalDeltaPresentation,
+            final SettingPresentationRegistry.Registration minVerticalDeltaPresentation,
+            final ModuleSettingRegistry.Registration minHorizontalDeltaBinding,
+            final ModuleSettingRegistry.Registration minVerticalDeltaBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -111,6 +123,12 @@ final class Minecraft189VelocityFeature
         this.airborneOnlySetting = airborneOnlySetting;
         this.airborneOnlyPresentation = airborneOnlyPresentation;
         this.airborneOnlyBinding = airborneOnlyBinding;
+        this.minHorizontalDeltaSetting = minHorizontalDeltaSetting;
+        this.minVerticalDeltaSetting = minVerticalDeltaSetting;
+        this.minHorizontalDeltaPresentation = minHorizontalDeltaPresentation;
+        this.minVerticalDeltaPresentation = minVerticalDeltaPresentation;
+        this.minHorizontalDeltaBinding = minHorizontalDeltaBinding;
+        this.minVerticalDeltaBinding = minVerticalDeltaBinding;
     }
 
     static Minecraft189VelocityFeature install(
@@ -152,6 +170,12 @@ final class Minecraft189VelocityFeature
         SettingRegistry.Registration airborneOnlySetting = null;
         SettingPresentationRegistry.Registration airborneOnlyPresentation = null;
         ModuleSettingRegistry.Registration airborneOnlyBinding = null;
+        SettingRegistry.Registration minHorizontalDeltaSetting = null;
+        SettingRegistry.Registration minVerticalDeltaSetting = null;
+        SettingPresentationRegistry.Registration minHorizontalDeltaPresentation = null;
+        SettingPresentationRegistry.Registration minVerticalDeltaPresentation = null;
+        ModuleSettingRegistry.Registration minHorizontalDeltaBinding = null;
+        ModuleSettingRegistry.Registration minVerticalDeltaBinding = null;
 
         try {
             moduleRegistration =
@@ -183,6 +207,8 @@ final class Minecraft189VelocityFeature
             airborneOnlySetting = settings.register(module.airborneOnlySetting());
             pauseWhileSneakingSetting = settings.register(
                     module.pauseWhileSneakingSetting());
+            minHorizontalDeltaSetting = settings.register(module.minHorizontalDeltaSetting());
+            minVerticalDeltaSetting = settings.register(module.minVerticalDeltaSetting());
 
             horizontalPresentation =
                     settingPresentations.register(
@@ -245,6 +271,20 @@ final class Minecraft189VelocityFeature
                     new SettingDescriptor(
                             Minecraft189VelocityModule.AIRBORNE_ONLY_SETTING_ID,
                             "Airborne Only", SettingValueKind.BOOLEAN, 80));
+            minHorizontalDeltaPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189VelocityModule.MIN_HORIZONTAL_DELTA_SETTING_ID,
+                            "Min Horizontal Delta", SettingValueKind.DOUBLE, 90,
+                            new SettingNumericSpec(0.0D,
+                                    Minecraft189VelocityModule.MAXIMUM_MINIMUM_DELTA,
+                                    0.05D)));
+            minVerticalDeltaPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189VelocityModule.MIN_VERTICAL_DELTA_SETTING_ID,
+                            "Min Vertical Delta", SettingValueKind.DOUBLE, 100,
+                            new SettingNumericSpec(0.0D,
+                                    Minecraft189VelocityModule.MAXIMUM_MINIMUM_DELTA,
+                                    0.05D)));
             horizontalBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -290,6 +330,15 @@ final class Minecraft189VelocityFeature
                             Minecraft189VelocityModule.ID,
                             Minecraft189VelocityModule.AIRBORNE_ONLY_SETTING_ID, 80));
 
+            minHorizontalDeltaBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189VelocityModule.ID,
+                            Minecraft189VelocityModule.MIN_HORIZONTAL_DELTA_SETTING_ID, 90));
+            minVerticalDeltaBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189VelocityModule.ID,
+                            Minecraft189VelocityModule.MIN_VERTICAL_DELTA_SETTING_ID, 100));
+
             return new Minecraft189VelocityFeature(
                     controller,
                     module,
@@ -321,8 +370,20 @@ final class Minecraft189VelocityFeature
                     pauseWhileSneakingBinding,
                     airborneOnlySetting,
                     airborneOnlyPresentation,
-                    airborneOnlyBinding);
+                    airborneOnlyBinding,
+                    minHorizontalDeltaSetting,
+                    minVerticalDeltaSetting,
+                    minHorizontalDeltaPresentation,
+                    minVerticalDeltaPresentation,
+                    minHorizontalDeltaBinding,
+                    minVerticalDeltaBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(minVerticalDeltaBinding, failure);
+            closeQuietly(minHorizontalDeltaBinding, failure);
+            closeQuietly(minVerticalDeltaPresentation, failure);
+            closeQuietly(minHorizontalDeltaPresentation, failure);
+            closeQuietly(minVerticalDeltaSetting, failure);
+            closeQuietly(minHorizontalDeltaSetting, failure);
             closeQuietly(airborneOnlyBinding, failure);
             closeQuietly(airborneOnlyPresentation, failure);
             closeQuietly(airborneOnlySetting, failure);
@@ -383,6 +444,12 @@ final class Minecraft189VelocityFeature
             failure = closeFailure;
         }
 
+        failure = close(minVerticalDeltaBinding, failure);
+        failure = close(minHorizontalDeltaBinding, failure);
+        failure = close(minVerticalDeltaPresentation, failure);
+        failure = close(minHorizontalDeltaPresentation, failure);
+        failure = close(minVerticalDeltaSetting, failure);
+        failure = close(minHorizontalDeltaSetting, failure);
         failure = close(airborneOnlyBinding, failure);
         failure = close(airborneOnlyPresentation, failure);
         failure = close(airborneOnlySetting, failure);
