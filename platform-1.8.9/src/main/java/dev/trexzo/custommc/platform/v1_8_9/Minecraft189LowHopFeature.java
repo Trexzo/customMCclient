@@ -22,6 +22,9 @@ final class Minecraft189LowHopFeature
     private final SettingRegistry.Registration verticalSpeedSetting;
     private final SettingPresentationRegistry.Registration verticalSpeedPresentation;
     private final ModuleSettingRegistry.Registration verticalSpeedBinding;
+    private final SettingRegistry.Registration requireMovementSetting;
+    private final SettingPresentationRegistry.Registration requireMovementPresentation;
+    private final ModuleSettingRegistry.Registration requireMovementBinding;
     private boolean closed;
 
     private Minecraft189LowHopFeature(
@@ -31,7 +34,10 @@ final class Minecraft189LowHopFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration verticalSpeedSetting,
             final SettingPresentationRegistry.Registration verticalSpeedPresentation,
-            final ModuleSettingRegistry.Registration verticalSpeedBinding) {
+            final ModuleSettingRegistry.Registration verticalSpeedBinding,
+            final SettingRegistry.Registration requireMovementSetting,
+            final SettingPresentationRegistry.Registration requireMovementPresentation,
+            final ModuleSettingRegistry.Registration requireMovementBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -39,6 +45,9 @@ final class Minecraft189LowHopFeature
         this.verticalSpeedSetting = verticalSpeedSetting;
         this.verticalSpeedPresentation = verticalSpeedPresentation;
         this.verticalSpeedBinding = verticalSpeedBinding;
+        this.requireMovementSetting = requireMovementSetting;
+        this.requireMovementPresentation = requireMovementPresentation;
+        this.requireMovementBinding = requireMovementBinding;
     }
 
     static Minecraft189LowHopFeature install(
@@ -58,6 +67,9 @@ final class Minecraft189LowHopFeature
         SettingRegistry.Registration verticalSpeedSetting = null;
         SettingPresentationRegistry.Registration verticalSpeedPresentation = null;
         ModuleSettingRegistry.Registration verticalSpeedBinding = null;
+        SettingRegistry.Registration requireMovementSetting = null;
+        SettingPresentationRegistry.Registration requireMovementPresentation = null;
+        ModuleSettingRegistry.Registration requireMovementBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -75,6 +87,8 @@ final class Minecraft189LowHopFeature
             verticalSpeedSetting =
                     settings.register(
                             module.verticalSpeedSetting());
+            requireMovementSetting = settings.register(
+                    module.requireMovementSetting());
             verticalSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -86,6 +100,10 @@ final class Minecraft189LowHopFeature
                                             Minecraft189LowHopModule.MINIMUM_VERTICAL_SPEED,
                                             Minecraft189LowHopModule.MAXIMUM_VERTICAL_SPEED,
                                             0.01D)));
+            requireMovementPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189LowHopModule.REQUIRE_MOVEMENT_SETTING_ID,
+                            "Require Movement (WASD)", SettingValueKind.BOOLEAN, 10));
             verticalSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -93,6 +111,10 @@ final class Minecraft189LowHopFeature
                                     Minecraft189LowHopModule.VERTICAL_SPEED_SETTING_ID,
                                     0));
 
+            requireMovementBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189LowHopModule.ID,
+                            Minecraft189LowHopModule.REQUIRE_MOVEMENT_SETTING_ID, 10));
             return new Minecraft189LowHopFeature(
                     controller,
                     module,
@@ -100,8 +122,14 @@ final class Minecraft189LowHopFeature
                     presentation,
                     verticalSpeedSetting,
                     verticalSpeedPresentation,
-                    verticalSpeedBinding);
+                    verticalSpeedBinding,
+                    requireMovementSetting,
+                    requireMovementPresentation,
+                    requireMovementBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(requireMovementBinding, failure);
+            closeQuietly(requireMovementPresentation, failure);
+            closeQuietly(requireMovementSetting, failure);
             closeQuietly(verticalSpeedBinding, failure);
             closeQuietly(verticalSpeedPresentation, failure);
             closeQuietly(verticalSpeedSetting, failure);
@@ -138,6 +166,9 @@ final class Minecraft189LowHopFeature
             failure = closeFailure;
         }
 
+        failure = close(requireMovementBinding, failure);
+        failure = close(requireMovementPresentation, failure);
+        failure = close(requireMovementSetting, failure);
         failure = close(verticalSpeedBinding, failure);
         failure = close(verticalSpeedPresentation, failure);
         failure = close(verticalSpeedSetting, failure);
