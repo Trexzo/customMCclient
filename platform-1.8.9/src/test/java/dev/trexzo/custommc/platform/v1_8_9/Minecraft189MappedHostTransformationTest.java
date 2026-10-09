@@ -6697,7 +6697,9 @@ final class Minecraft189MappedHostTransformationTest {
 
     private static byte[] movingObjectTypeShape() {
         final ClassWriter writer = classWriter("auh$a");
-        field(writer, "c", "Lauh$a;");
+        // Enum constants are static singleton fields in the real class.
+        writer.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                "c", "Lauh$a;", null, null).visitEnd();
         endDefaultConstructor(writer, "auh$a");
         writer.visitEnd();
         return writer.toByteArray();
