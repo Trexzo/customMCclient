@@ -382,7 +382,11 @@ public final class Minecraft189RuntimeBridge {
                     minecraft instanceof Minecraft189CrosshairHitAccess
                     && ((Minecraft189CrosshairHitAccess) minecraft)
                             .customMcCrosshairPlayerHit();
-            if (host.shouldAutoClick(playerHit)) {
+            final int playerIndex = playerHit
+                    ? ((Minecraft189CrosshairHitAccess) minecraft)
+                            .customMcCrosshairPlayerIndex()
+                    : -1;
+            if (host.shouldAutoClick(playerHit, playerIndex)) {
                 minecraft.customMcClickMouse();
             }
         }

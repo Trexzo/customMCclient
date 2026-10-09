@@ -1535,6 +1535,7 @@ public final class Minecraft189ClassTransformer
                                 Minecraft189Mappings
                                         .MINECRAFT_CLICK_MOUSE);
                         addCrosshairHitAccessor(cv);
+                        addCrosshairPlayerIndexAccessor(cv);
                         super.visitEnd();
                     }
                 },
@@ -3892,6 +3893,91 @@ public final class Minecraft189ClassTransformer
         method.visitInsn(Opcodes.ICONST_0);
         method.visitInsn(Opcodes.IRETURN);
         method.visitMaxs(2, 2);
+        method.visitEnd();
+    }
+
+
+    /**
+     * Resolves the exact player ray-hit object to the same verified
+     * loadedEntityList index used by the position/kind snapshots.
+     * Only existing proven Minecraft, MovingObjectPosition and World
+     * fields are touched. Unknown/stale evidence returns -1.
+     */
+    private static void addCrosshairPlayerIndexAccessor(
+            final ClassVisitor visitor) {
+        final Minecraft189Mappings.MappedField over =
+                Minecraft189Mappings.MINECRAFT_OBJECT_MOUSE_OVER;
+        final Minecraft189Mappings.MappedField kind =
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_OF_HIT;
+        final Minecraft189Mappings.MappedField entity =
+                Minecraft189Mappings.MOVING_OBJECT_ENTITY_HIT;
+        final Minecraft189Mappings.MappedField enumEntity =
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_ENTITY;
+        final Minecraft189Mappings.MappedField world =
+                Minecraft189Mappings.MINECRAFT_WORLD;
+        final Minecraft189Mappings.MappedField list =
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST;
+        final Label reject = new Label();
+        final MethodVisitor method = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcCrosshairPlayerIndex", "()I",
+                null, null);
+        method.visitCode();
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                over.owner().obfuscatedInternalName(),
+                over.obfuscatedName(), over.descriptor());
+        method.visitVarInsn(Opcodes.ASTORE, 1);
+        method.visitVarInsn(Opcodes.ALOAD, 1);
+        method.visitJumpInsn(Opcodes.IFNULL, reject);
+
+        method.visitVarInsn(Opcodes.ALOAD, 1);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                kind.owner().obfuscatedInternalName(),
+                kind.obfuscatedName(), kind.descriptor());
+        method.visitFieldInsn(Opcodes.GETSTATIC,
+                enumEntity.owner().obfuscatedInternalName(),
+                enumEntity.obfuscatedName(), enumEntity.descriptor());
+        method.visitJumpInsn(Opcodes.IF_ACMPNE, reject);
+
+        method.visitVarInsn(Opcodes.ALOAD, 1);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                entity.owner().obfuscatedInternalName(),
+                entity.obfuscatedName(), entity.descriptor());
+        method.visitVarInsn(Opcodes.ASTORE, 2);
+        method.visitVarInsn(Opcodes.ALOAD, 2);
+        method.visitTypeInsn(Opcodes.INSTANCEOF,
+                Minecraft189Mappings.ENTITY_PLAYER.obfuscatedInternalName());
+        method.visitJumpInsn(Opcodes.IFEQ, reject);
+
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                world.owner().obfuscatedInternalName(),
+                world.obfuscatedName(), world.descriptor());
+        method.visitVarInsn(Opcodes.ASTORE, 3);
+        method.visitVarInsn(Opcodes.ALOAD, 3);
+        method.visitJumpInsn(Opcodes.IFNULL, reject);
+        method.visitVarInsn(Opcodes.ALOAD, 3);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                list.owner().obfuscatedInternalName(),
+                list.obfuscatedName(), list.descriptor());
+        method.visitVarInsn(Opcodes.ASTORE, 4);
+        method.visitVarInsn(Opcodes.ALOAD, 4);
+        method.visitJumpInsn(Opcodes.IFNULL, reject);
+
+        method.visitVarInsn(Opcodes.ALOAD, 4);
+        method.visitVarInsn(Opcodes.ALOAD, 2);
+        method.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                "java/util/List", "indexOf", "(Ljava/lang/Object;)I", true);
+        method.visitInsn(Opcodes.IRETURN);
+
+        method.visitLabel(reject);
+        // Merge paths where different temporary locals were populated.
+        method.visitFrame(Opcodes.F_FULL, 1,
+                new Object[]{Minecraft189Mappings.MINECRAFT.obfuscatedInternalName()},
+                0, new Object[0]);
+        method.visitInsn(Opcodes.ICONST_M1);
+        method.visitInsn(Opcodes.IRETURN);
+        method.visitMaxs(2, 5);
         method.visitEnd();
     }
 

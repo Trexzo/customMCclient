@@ -97,6 +97,7 @@ public final class Minecraft189KillAuraModule implements Module {
 
     synchronized boolean shouldClick(
             final boolean verifiedCrosshairPlayer,
+            final int verifiedPlayerIndex,
             final Minecraft189PlayerRotationState.Snapshot rotation,
             final Minecraft189TargetRotationState.Snapshot target,
             final boolean attackHeld,
@@ -108,6 +109,7 @@ public final class Minecraft189KillAuraModule implements Module {
                 || !eligible(target, attackHeld, movement)
                 || rotation == null || !rotation.available()
                 || target.entityIndex() != lastEntityIndex
+                || verifiedPlayerIndex != target.entityIndex()
                 || Math.abs(wrap(target.yaw() - rotation.yaw())) > MAX_AIM_ERROR
                 || Math.abs(target.pitch() - rotation.pitch()) > MAX_AIM_ERROR) {
             // Losing a confirmed ray hit drops click credit but does not

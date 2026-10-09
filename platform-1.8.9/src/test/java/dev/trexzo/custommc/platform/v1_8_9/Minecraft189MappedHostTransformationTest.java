@@ -456,10 +456,25 @@ final class Minecraft189MappedHostTransformationTest {
             minecraftClass.getField("s").set(minecraft, hit);
             org.junit.jupiter.api.Assertions.assertTrue(
                     rayHit.customMcCrosshairPlayerHit());
+            assertEquals(-1, rayHit.customMcCrosshairPlayerIndex());
+            final Object rayWorld = loader.loadClass("bdb")
+                    .getDeclaredConstructor().newInstance();
+            final Object otherRayEntity = loader.loadClass("pk")
+                    .getDeclaredConstructor().newInstance();
+            loader.loadClass("adm").getField("f").set(
+                    rayWorld, java.util.Arrays.asList(otherRayEntity, playerHit));
+            minecraftClass.getField("f").set(minecraft, rayWorld);
+            assertEquals(1, rayHit.customMcCrosshairPlayerIndex());
+            loader.loadClass("adm").getField("f").set(
+                    rayWorld, java.util.Arrays.asList(otherRayEntity));
+            assertEquals(-1, rayHit.customMcCrosshairPlayerIndex());
+            loader.loadClass("adm").getField("f").set(
+                    rayWorld, java.util.Arrays.asList(otherRayEntity, playerHit));
             hitClass.getField("d").set(hit,
                     loader.loadClass("pk").getDeclaredConstructor().newInstance());
             org.junit.jupiter.api.Assertions.assertFalse(
                     rayHit.customMcCrosshairPlayerHit());
+            assertEquals(-1, rayHit.customMcCrosshairPlayerIndex());
             hitClass.getField("d").set(hit, playerHit);
             hitClass.getField("a").set(hit,
                     enumClass.getDeclaredConstructor().newInstance());
