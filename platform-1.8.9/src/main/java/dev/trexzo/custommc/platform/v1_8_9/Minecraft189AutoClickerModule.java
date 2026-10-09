@@ -27,6 +27,8 @@ public final class Minecraft189AutoClickerModule
             "combat.autoClicker.requireForward";
     public static final String REQUIRE_HOLD_SETTING_ID =
             "combat.autoClicker.requireHold";
+    public static final String TRIGGER_MODE_SETTING_ID =
+            "combat.autoClicker.triggerMode";
     public static final String RAMP_UP_SETTING_ID =
             "combat.autoClicker.rampUp";
     public static final String RAMP_UP_TICKS_SETTING_ID =
@@ -102,6 +104,10 @@ public final class Minecraft189AutoClickerModule
                     Boolean.TRUE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+
+    private final Setting<Boolean> triggerMode = new Setting<Boolean>(
+            TRIGGER_MODE_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
 
     private final Setting<Boolean> rampUp = new Setting<Boolean>(
             RAMP_UP_SETTING_ID, Boolean.FALSE,
@@ -206,6 +212,10 @@ public final class Minecraft189AutoClickerModule
         return requireHold;
     }
 
+    public Setting<Boolean> triggerModeSetting() {
+        return triggerMode;
+    }
+
     public Setting<Boolean> rampUpSetting() {
         return rampUp;
     }
@@ -291,8 +301,22 @@ public final class Minecraft189AutoClickerModule
             final boolean rightButtonHeld,
             final Minecraft189NearestPlayerTargetState.Snapshot nearestPlayer,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        // Legacy callers have no confirmed crosshair ray-hit authority.
+        return shouldClick(leftButtonHeld, forwardHeld, rightButtonHeld,
+                nearestPlayer, movement, false);
+    }
+
+    synchronized boolean shouldClick(
+            final boolean leftButtonHeld,
+            final boolean forwardHeld,
+            final boolean rightButtonHeld,
+            final Minecraft189NearestPlayerTargetState.Snapshot nearestPlayer,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean crosshairPlayerHit) {
+        final boolean trigger = triggerMode.get().booleanValue();
         if (!enabled
-                || (requireHold.get().booleanValue()
+                || (trigger && !crosshairPlayerHit)
+                || (!trigger && requireHold.get().booleanValue()
                         && !leftButtonHeld)
                 || (requireForward.get().booleanValue()
                         && !forwardHeld)

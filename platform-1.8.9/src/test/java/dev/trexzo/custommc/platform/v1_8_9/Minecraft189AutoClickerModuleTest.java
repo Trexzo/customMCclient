@@ -1041,6 +1041,62 @@ final class Minecraft189AutoClickerModuleTest {
         assertNull(modules.find(Minecraft189AutoClickerModule.ID));
     }
 
+    @Test
+    void triggerModeDispatchesOnlyConfirmedCrosshairPlayersAtBoundedCps() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(), new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings), null, null,
+                settings, new SettingPresentationRegistry(), new NoOpHost());
+        try {
+            final Minecraft189AutoClickerModule clicks =
+                    runtime.featureCatalog().autoClicker();
+            clicks.minCpsSetting().set(20);
+            clicks.maxCpsSetting().set(20);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.TRIGGER_MODE_SETTING_ID));
+            controller.enable(Minecraft189AutoClickerModule.ID);
+            assertFalse(runtime.shouldAutoClick(true)); // Legacy LMB gate.
+            clicks.triggerModeSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.TRIGGER_MODE_SETTING_ID));
+            assertFalse(runtime.shouldAutoClick()); // Old callers have no evidence.
+            assertFalse(runtime.shouldAutoClick(false)); // No ray hit.
+            assertTrue(runtime.shouldAutoClick(true)); // Player hit, no LMB.
+            assertTrue(runtime.shouldAutoClick(true)); // 20 CPS upper bound.
+
+            runtime.clickGuiRuntime().coreRuntime().model().open();
+            assertFalse(runtime.shouldAutoClick(true)); // GUI owns inputs.
+            runtime.clickGuiRuntime().coreRuntime().model().close();
+            assertTrue(runtime.shouldAutoClick(true)); // Fresh valid hit.
+            clicks.pauseWhileRightClickingSetting().set(Boolean.TRUE);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, true);
+            assertFalse(runtime.shouldAutoClick(true));
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
+            assertTrue(runtime.shouldAutoClick(true));
+            clicks.triggerModeSetting().set(Boolean.FALSE);
+            assertFalse(runtime.shouldAutoClick(true)); // LMB again required.
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            assertTrue(runtime.shouldAutoClick(false)); // Default legacy behavior.
+            controller.disable(Minecraft189AutoClickerModule.ID);
+            assertFalse(runtime.shouldAutoClick(true));
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189AutoClickerModule.TRIGGER_MODE_SETTING_ID));
+        assertNull(modules.find(Minecraft189AutoClickerModule.ID));
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override

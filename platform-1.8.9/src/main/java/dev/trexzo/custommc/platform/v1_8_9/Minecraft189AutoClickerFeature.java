@@ -73,6 +73,9 @@ final class Minecraft189AutoClickerFeature
     private final ModuleSettingRegistry.Registration airborneProfileBinding;
     private final ModuleSettingRegistry.Registration airborneMinCpsBinding;
     private final ModuleSettingRegistry.Registration airborneMaxCpsBinding;
+    private final SettingRegistry.Registration triggerModeSetting;
+    private final SettingPresentationRegistry.Registration triggerModePresentation;
+    private final ModuleSettingRegistry.Registration triggerModeBinding;
     private boolean closed;
 
     private Minecraft189AutoClickerFeature(
@@ -133,7 +136,10 @@ final class Minecraft189AutoClickerFeature
             final SettingPresentationRegistry.Registration airborneMaxCpsPresentation,
             final ModuleSettingRegistry.Registration airborneProfileBinding,
             final ModuleSettingRegistry.Registration airborneMinCpsBinding,
-            final ModuleSettingRegistry.Registration airborneMaxCpsBinding) {
+            final ModuleSettingRegistry.Registration airborneMaxCpsBinding,
+            final SettingRegistry.Registration triggerModeSetting,
+            final SettingPresentationRegistry.Registration triggerModePresentation,
+            final ModuleSettingRegistry.Registration triggerModeBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -192,6 +198,9 @@ final class Minecraft189AutoClickerFeature
         this.airborneProfileBinding = airborneProfileBinding;
         this.airborneMinCpsBinding = airborneMinCpsBinding;
         this.airborneMaxCpsBinding = airborneMaxCpsBinding;
+        this.triggerModeSetting = triggerModeSetting;
+        this.triggerModePresentation = triggerModePresentation;
+        this.triggerModeBinding = triggerModeBinding;
     }
 
     static Minecraft189AutoClickerFeature install(
@@ -260,6 +269,9 @@ final class Minecraft189AutoClickerFeature
         ModuleSettingRegistry.Registration airborneProfileBinding = null;
         ModuleSettingRegistry.Registration airborneMinCpsBinding = null;
         ModuleSettingRegistry.Registration airborneMaxCpsBinding = null;
+        SettingRegistry.Registration triggerModeSetting = null;
+        SettingPresentationRegistry.Registration triggerModePresentation = null;
+        ModuleSettingRegistry.Registration triggerModeBinding = null;
 
         try {
             moduleRegistration =
@@ -304,6 +316,7 @@ final class Minecraft189AutoClickerFeature
             airborneProfileSetting = settings.register(module.airborneProfileSetting());
             airborneMinCpsSetting = settings.register(module.airborneMinCpsSetting());
             airborneMaxCpsSetting = settings.register(module.airborneMaxCpsSetting());
+            triggerModeSetting = settings.register(module.triggerModeSetting());
             minPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -415,6 +428,10 @@ final class Minecraft189AutoClickerFeature
                             Minecraft189AutoClickerModule.AIRBORNE_MAX_CPS_SETTING_ID,
                             "Air Max CPS", SettingValueKind.INTEGER, 140,
                             new SettingNumericSpec(1.0D, 20.0D, 1.0D)));
+            triggerModePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoClickerModule.TRIGGER_MODE_SETTING_ID,
+                            "Trigger Mode (Crosshair)", SettingValueKind.BOOLEAN, 150));
             minBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -503,6 +520,11 @@ final class Minecraft189AutoClickerFeature
                             Minecraft189AutoClickerModule.ID,
                             Minecraft189AutoClickerModule.AIRBORNE_MAX_CPS_SETTING_ID, 140));
 
+            triggerModeBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoClickerModule.ID,
+                            Minecraft189AutoClickerModule.TRIGGER_MODE_SETTING_ID, 150));
+
             return new Minecraft189AutoClickerFeature(
                     controller,
                     module,
@@ -561,8 +583,14 @@ final class Minecraft189AutoClickerFeature
                     airborneMaxCpsPresentation,
                     airborneProfileBinding,
                     airborneMinCpsBinding,
-                    airborneMaxCpsBinding);
+                    airborneMaxCpsBinding,
+                    triggerModeSetting,
+                    triggerModePresentation,
+                    triggerModeBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(triggerModeBinding, failure);
+            closeQuietly(triggerModePresentation, failure);
+            closeQuietly(triggerModeSetting, failure);
             closeQuietly(airborneMaxCpsBinding, failure);
             closeQuietly(airborneMinCpsBinding, failure);
             closeQuietly(airborneProfileBinding, failure);
@@ -690,6 +718,9 @@ final class Minecraft189AutoClickerFeature
             failure = closeFailure;
         }
 
+        failure = close(triggerModeBinding, failure);
+        failure = close(triggerModePresentation, failure);
+        failure = close(triggerModeSetting, failure);
         failure = close(airborneMaxCpsBinding, failure);
         failure = close(airborneMinCpsBinding, failure);
         failure = close(airborneProfileBinding, failure);

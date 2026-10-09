@@ -1276,7 +1276,15 @@ public final class Minecraft189HostRuntime
     }
 
     boolean shouldAutoClick() {
+        return shouldAutoClick(false);
+    }
+
+    boolean shouldAutoClick(final boolean crosshairPlayerHit) {
         requireOpen();
+        // Trigger mode must not fire against a stale raycast while the
+        // native ClickGUI owns input. Legacy Auto Clicker stays unchanged.
+        final boolean confirmedHit = crosshairPlayerHit
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open();
         final boolean click =
                 featureCatalog.autoClicker()
                         .shouldClick(
@@ -1287,7 +1295,8 @@ public final class Minecraft189HostRuntime
                                 inputState.pointerPressed(
                                         Minecraft189ClickRateTracker.RIGHT_BUTTON),
                                 nearestPlayerTargetState.snapshot(),
-                                playerMovementState.snapshot());
+                                playerMovementState.snapshot(),
+                                confirmedHit);
         if (click) {
             clickRateTracker.recordPress(
                     Minecraft189ClickRateTracker.LEFT_BUTTON);
