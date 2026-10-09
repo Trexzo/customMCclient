@@ -1097,6 +1097,60 @@ final class Minecraft189AutoClickerModuleTest {
         assertNull(modules.find(Minecraft189AutoClickerModule.ID));
     }
 
+    @Test
+    void triggerConfirmationRequiresUninterruptedRayHitSequence() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(), new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings), null, null,
+                settings, new SettingPresentationRegistry(), new NoOpHost());
+        try {
+            final Minecraft189AutoClickerModule clicks =
+                    runtime.featureCatalog().autoClicker();
+            assertEquals("1", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.TRIGGER_CONFIRM_TICKS_SETTING_ID));
+            clicks.triggerModeSetting().set(Boolean.TRUE);
+            clicks.triggerConfirmTicksSetting().set(3);
+            clicks.minCpsSetting().set(20);
+            clicks.maxCpsSetting().set(20);
+            controller.enable(Minecraft189AutoClickerModule.ID);
+            assertFalse(runtime.shouldAutoClick(true));
+            assertFalse(runtime.shouldAutoClick(true));
+            assertTrue(runtime.shouldAutoClick(true));
+            assertTrue(runtime.shouldAutoClick(true)); // Confirmation stays armed.
+            assertFalse(runtime.shouldAutoClick(false)); // Ray lost: full reset.
+            assertFalse(runtime.shouldAutoClick(true));
+            assertFalse(runtime.shouldAutoClick(true));
+            assertTrue(runtime.shouldAutoClick(true));
+            clicks.triggerConfirmTicksSetting().set(2);
+            assertFalse(runtime.shouldAutoClick(true)); // Edited live, fresh frame.
+            assertTrue(runtime.shouldAutoClick(true));
+            runtime.clickGuiRuntime().coreRuntime().model().open();
+            assertFalse(runtime.shouldAutoClick(true)); // GUI suppresses evidence.
+            runtime.clickGuiRuntime().coreRuntime().model().close();
+            assertFalse(runtime.shouldAutoClick(true));
+            assertTrue(runtime.shouldAutoClick(true));
+            clicks.triggerModeSetting().set(Boolean.FALSE);
+            assertFalse(runtime.shouldAutoClick(true)); // LMB legacy gate.
+            assertThrows(IllegalArgumentException.class,
+                    () -> clicks.triggerConfirmTicksSetting().set(0));
+            assertThrows(IllegalArgumentException.class,
+                    () -> clicks.triggerConfirmTicksSetting().set(11));
+            controller.disable(Minecraft189AutoClickerModule.ID);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189AutoClickerModule.TRIGGER_CONFIRM_TICKS_SETTING_ID));
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override

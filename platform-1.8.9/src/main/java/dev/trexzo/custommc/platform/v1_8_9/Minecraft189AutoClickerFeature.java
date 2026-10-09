@@ -76,6 +76,9 @@ final class Minecraft189AutoClickerFeature
     private final SettingRegistry.Registration triggerModeSetting;
     private final SettingPresentationRegistry.Registration triggerModePresentation;
     private final ModuleSettingRegistry.Registration triggerModeBinding;
+    private final SettingRegistry.Registration triggerConfirmSetting;
+    private final SettingPresentationRegistry.Registration triggerConfirmPresentation;
+    private final ModuleSettingRegistry.Registration triggerConfirmBinding;
     private boolean closed;
 
     private Minecraft189AutoClickerFeature(
@@ -139,7 +142,10 @@ final class Minecraft189AutoClickerFeature
             final ModuleSettingRegistry.Registration airborneMaxCpsBinding,
             final SettingRegistry.Registration triggerModeSetting,
             final SettingPresentationRegistry.Registration triggerModePresentation,
-            final ModuleSettingRegistry.Registration triggerModeBinding) {
+            final ModuleSettingRegistry.Registration triggerModeBinding,
+            final SettingRegistry.Registration triggerConfirmSetting,
+            final SettingPresentationRegistry.Registration triggerConfirmPresentation,
+            final ModuleSettingRegistry.Registration triggerConfirmBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -201,6 +207,9 @@ final class Minecraft189AutoClickerFeature
         this.triggerModeSetting = triggerModeSetting;
         this.triggerModePresentation = triggerModePresentation;
         this.triggerModeBinding = triggerModeBinding;
+        this.triggerConfirmSetting = triggerConfirmSetting;
+        this.triggerConfirmPresentation = triggerConfirmPresentation;
+        this.triggerConfirmBinding = triggerConfirmBinding;
     }
 
     static Minecraft189AutoClickerFeature install(
@@ -272,6 +281,9 @@ final class Minecraft189AutoClickerFeature
         SettingRegistry.Registration triggerModeSetting = null;
         SettingPresentationRegistry.Registration triggerModePresentation = null;
         ModuleSettingRegistry.Registration triggerModeBinding = null;
+        SettingRegistry.Registration triggerConfirmSetting = null;
+        SettingPresentationRegistry.Registration triggerConfirmPresentation = null;
+        ModuleSettingRegistry.Registration triggerConfirmBinding = null;
 
         try {
             moduleRegistration =
@@ -317,6 +329,7 @@ final class Minecraft189AutoClickerFeature
             airborneMinCpsSetting = settings.register(module.airborneMinCpsSetting());
             airborneMaxCpsSetting = settings.register(module.airborneMaxCpsSetting());
             triggerModeSetting = settings.register(module.triggerModeSetting());
+            triggerConfirmSetting = settings.register(module.triggerConfirmTicksSetting());
             minPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -432,6 +445,11 @@ final class Minecraft189AutoClickerFeature
                     new SettingDescriptor(
                             Minecraft189AutoClickerModule.TRIGGER_MODE_SETTING_ID,
                             "Trigger Mode (Crosshair)", SettingValueKind.BOOLEAN, 150));
+            triggerConfirmPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoClickerModule.TRIGGER_CONFIRM_TICKS_SETTING_ID,
+                            "Trigger Confirm Frames", SettingValueKind.INTEGER, 160,
+                            new SettingNumericSpec(1.0D, 10.0D, 1.0D)));
             minBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -525,6 +543,12 @@ final class Minecraft189AutoClickerFeature
                             Minecraft189AutoClickerModule.ID,
                             Minecraft189AutoClickerModule.TRIGGER_MODE_SETTING_ID, 150));
 
+            triggerConfirmBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoClickerModule.ID,
+                            Minecraft189AutoClickerModule.TRIGGER_CONFIRM_TICKS_SETTING_ID,
+                            160));
+
             return new Minecraft189AutoClickerFeature(
                     controller,
                     module,
@@ -586,8 +610,14 @@ final class Minecraft189AutoClickerFeature
                     airborneMaxCpsBinding,
                     triggerModeSetting,
                     triggerModePresentation,
-                    triggerModeBinding);
+                    triggerModeBinding,
+                    triggerConfirmSetting,
+                    triggerConfirmPresentation,
+                    triggerConfirmBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(triggerConfirmBinding, failure);
+            closeQuietly(triggerConfirmPresentation, failure);
+            closeQuietly(triggerConfirmSetting, failure);
             closeQuietly(triggerModeBinding, failure);
             closeQuietly(triggerModePresentation, failure);
             closeQuietly(triggerModeSetting, failure);
@@ -718,6 +748,9 @@ final class Minecraft189AutoClickerFeature
             failure = closeFailure;
         }
 
+        failure = close(triggerConfirmBinding, failure);
+        failure = close(triggerConfirmPresentation, failure);
+        failure = close(triggerConfirmSetting, failure);
         failure = close(triggerModeBinding, failure);
         failure = close(triggerModePresentation, failure);
         failure = close(triggerModeSetting, failure);

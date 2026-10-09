@@ -29,6 +29,8 @@ public final class Minecraft189AutoClickerModule
             "combat.autoClicker.requireHold";
     public static final String TRIGGER_MODE_SETTING_ID =
             "combat.autoClicker.triggerMode";
+    public static final String TRIGGER_CONFIRM_TICKS_SETTING_ID =
+            "combat.autoClicker.triggerConfirmTicks";
     public static final String RAMP_UP_SETTING_ID =
             "combat.autoClicker.rampUp";
     public static final String RAMP_UP_TICKS_SETTING_ID =
@@ -108,6 +110,10 @@ public final class Minecraft189AutoClickerModule
     private final Setting<Boolean> triggerMode = new Setting<Boolean>(
             TRIGGER_MODE_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> triggerConfirmTicks = new Setting<Integer>(
+            TRIGGER_CONFIRM_TICKS_SETTING_ID, 1,
+            value -> value != null && value >= 1 && value <= 10,
+            SettingCodecs.INTEGER);
 
     private final Setting<Boolean> rampUp = new Setting<Boolean>(
             RAMP_UP_SETTING_ID, Boolean.FALSE,
@@ -156,6 +162,9 @@ public final class Minecraft189AutoClickerModule
             AIRBORNE_MAX_CPS_SETTING_ID, 12,
             value -> value != null && value >= 1 && value <= TICKS_PER_SECOND,
             SettingCodecs.INTEGER);
+    private int triggerConfirmedFrames;
+    private int scheduledTriggerConfirmTicks = 1;
+    private boolean scheduledTriggerMode;
     private boolean enabled;
     private boolean startDelayPrimed;
     private int startDelayRemaining;
@@ -216,6 +225,10 @@ public final class Minecraft189AutoClickerModule
         return triggerMode;
     }
 
+    public Setting<Integer> triggerConfirmTicksSetting() {
+        return triggerConfirmTicks;
+    }
+
     public Setting<Boolean> rampUpSetting() {
         return rampUp;
     }
@@ -259,12 +272,14 @@ public final class Minecraft189AutoClickerModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        triggerConfirmedFrames = 0;
         resetSchedule();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        triggerConfirmedFrames = 0;
         resetSchedule();
     }
 
@@ -314,6 +329,13 @@ public final class Minecraft189AutoClickerModule
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean crosshairPlayerHit) {
         final boolean trigger = triggerMode.get().booleanValue();
+        final int requiredFrames = triggerConfirmTicks.get().intValue();
+        if (scheduledTriggerConfirmTicks != requiredFrames
+                || scheduledTriggerMode != trigger) {
+            triggerConfirmedFrames = 0;
+            scheduledTriggerConfirmTicks = requiredFrames;
+            scheduledTriggerMode = trigger;
+        }
         if (!enabled
                 || (trigger && !crosshairPlayerHit)
                 || (!trigger && requireHold.get().booleanValue()
@@ -335,7 +357,18 @@ public final class Minecraft189AutoClickerModule
                         || !Double.isFinite(nearestPlayer.distance())
                         || nearestPlayer.distance() > maxPlayerDistance.get().doubleValue()))) {
             resetSchedule();
+            triggerConfirmedFrames = 0;
             return false;
+        }
+        // Require a consecutive sequence of confirmed crosshair player hits
+        // before entering the existing 20-tick CPS scheduler. Interrupted
+        // evidence resets both confirmation and click-phase authority.
+        if (trigger && triggerConfirmedFrames < requiredFrames) {
+            triggerConfirmedFrames++;
+            if (triggerConfirmedFrames < requiredFrames) {
+                resetSchedule();
+                return false;
+            }
         }
 
         // A live CPS edit must not inherit phase credit or a sampled
