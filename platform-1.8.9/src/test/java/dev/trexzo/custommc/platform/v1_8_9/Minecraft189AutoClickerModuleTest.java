@@ -703,6 +703,92 @@ final class Minecraft189AutoClickerModuleTest {
         assertNull(modules.find(Minecraft189AutoClickerModule.ID));
     }
 
+    @Test
+    void groundOnlyClickerRejectsAirborneTicksAndResetsWarmupAndCpsCredit() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189AutoClickerModule clicker =
+                    runtime.featureCatalog().autoClicker();
+            assertFalse(clicker.groundOnlySetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.GROUND_ONLY_SETTING_ID));
+            clicker.minCpsSetting().set(20);
+            clicker.maxCpsSetting().set(20);
+            clicker.startDelayTicksSetting().set(2);
+            controller.enable(Minecraft189AutoClickerModule.ID);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+
+            // Default OFF needs no movement snapshot at all.
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+            clicker.groundOnlySetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.GROUND_ONLY_SETTING_ID));
+            runtime.playerMovementState().clear();
+            assertFalse(runtime.shouldAutoClick()); // Missing mapped authority.
+            assertFalse(runtime.shouldAutoClick());
+
+            runtime.playerMovementState().update(true, false, false);
+            assertFalse(runtime.shouldAutoClick()); // First eligible delay tick.
+            runtime.playerMovementState().update(false, false, false);
+            assertFalse(runtime.shouldAutoClick()); // Air resets the countdown.
+            assertFalse(runtime.shouldAutoClick());
+            runtime.playerMovementState().update(true, false, false);
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick()); // No stored airborne credit.
+
+            // Even a near-complete 10 CPS click phase is discarded on air.
+            clicker.minCpsSetting().set(10);
+            clicker.maxCpsSetting().set(10);
+            clicker.startDelayTicksSetting().set(0);
+            assertFalse(runtime.shouldAutoClick()); // Half of a 10 CPS interval.
+            runtime.playerMovementState().update(false, false, false);
+            assertFalse(runtime.shouldAutoClick());
+            runtime.playerMovementState().update(true, false, false);
+            assertFalse(runtime.shouldAutoClick()); // Fresh phase, no early click.
+            assertTrue(runtime.shouldAutoClick());
+
+            // Existing sneaking gate composes independently with Ground Only.
+            clicker.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(true, true, false);
+            assertFalse(runtime.shouldAutoClick());
+            runtime.playerMovementState().update(true, false, false);
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+
+            // The older null-snapshot overload fails closed when gated.
+            assertFalse(clicker.shouldClick(true, false, false));
+            clicker.groundOnlySetting().set(Boolean.FALSE);
+            clicker.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            runtime.playerMovementState().clear();
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick()); // Original no-state behavior.
+            controller.disable(Minecraft189AutoClickerModule.ID);
+            assertFalse(runtime.shouldAutoClick());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189AutoClickerModule.GROUND_ONLY_SETTING_ID));
+        assertNull(modules.find(Minecraft189AutoClickerModule.ID));
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override
