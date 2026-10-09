@@ -28,6 +28,9 @@ final class Minecraft189NoHitDelayFeature
     private final SettingPresentationRegistry.Registration pauseSneakingPresentation;
     private final ModuleSettingRegistry.Registration groundOnlyBinding;
     private final ModuleSettingRegistry.Registration pauseSneakingBinding;
+    private final SettingRegistry.Registration requireAttackHeldSetting;
+    private final SettingPresentationRegistry.Registration requireAttackHeldPresentation;
+    private final ModuleSettingRegistry.Registration requireAttackHeldBinding;
     private boolean closed;
 
     private Minecraft189NoHitDelayFeature(
@@ -43,7 +46,10 @@ final class Minecraft189NoHitDelayFeature
             final SettingPresentationRegistry.Registration groundOnlyPresentation,
             final SettingPresentationRegistry.Registration pauseSneakingPresentation,
             final ModuleSettingRegistry.Registration groundOnlyBinding,
-            final ModuleSettingRegistry.Registration pauseSneakingBinding) {
+            final ModuleSettingRegistry.Registration pauseSneakingBinding,
+            final SettingRegistry.Registration requireAttackHeldSetting,
+            final SettingPresentationRegistry.Registration requireAttackHeldPresentation,
+            final ModuleSettingRegistry.Registration requireAttackHeldBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -57,6 +63,9 @@ final class Minecraft189NoHitDelayFeature
         this.pauseSneakingPresentation = pauseSneakingPresentation;
         this.groundOnlyBinding = groundOnlyBinding;
         this.pauseSneakingBinding = pauseSneakingBinding;
+        this.requireAttackHeldSetting = requireAttackHeldSetting;
+        this.requireAttackHeldPresentation = requireAttackHeldPresentation;
+        this.requireAttackHeldBinding = requireAttackHeldBinding;
     }
 
     static Minecraft189NoHitDelayFeature install(
@@ -80,6 +89,9 @@ final class Minecraft189NoHitDelayFeature
         SettingPresentationRegistry.Registration pauseSneakingPresentation = null;
         ModuleSettingRegistry.Registration groundOnlyBinding = null;
         ModuleSettingRegistry.Registration pauseSneakingBinding = null;
+        SettingRegistry.Registration requireAttackHeldSetting = null;
+        SettingPresentationRegistry.Registration requireAttackHeldPresentation = null;
+        ModuleSettingRegistry.Registration requireAttackHeldBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -98,6 +110,8 @@ final class Minecraft189NoHitDelayFeature
             groundOnlySetting = settings.register(module.groundOnlySetting());
             pauseSneakingSetting = settings.register(
                     module.pauseWhileSneakingSetting());
+            requireAttackHeldSetting = settings.register(
+                    module.requireAttackHeldSetting());
             delayPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -117,6 +131,10 @@ final class Minecraft189NoHitDelayFeature
                     new SettingDescriptor(
                             Minecraft189NoHitDelayModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
                             "Pause While Sneaking", SettingValueKind.BOOLEAN, 20));
+            requireAttackHeldPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189NoHitDelayModule.REQUIRE_ATTACK_HELD_SETTING_ID,
+                            "Require Attack Held", SettingValueKind.BOOLEAN, 30));
             delayBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -133,6 +151,11 @@ final class Minecraft189NoHitDelayFeature
                             Minecraft189NoHitDelayModule.ID,
                             Minecraft189NoHitDelayModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 20));
 
+            requireAttackHeldBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189NoHitDelayModule.ID,
+                            Minecraft189NoHitDelayModule.REQUIRE_ATTACK_HELD_SETTING_ID, 30));
+
             return new Minecraft189NoHitDelayFeature(
                     controller,
                     module,
@@ -146,8 +169,14 @@ final class Minecraft189NoHitDelayFeature
                     groundOnlyPresentation,
                     pauseSneakingPresentation,
                     groundOnlyBinding,
-                    pauseSneakingBinding);
+                    pauseSneakingBinding,
+                    requireAttackHeldSetting,
+                    requireAttackHeldPresentation,
+                    requireAttackHeldBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(requireAttackHeldBinding, failure);
+            closeQuietly(requireAttackHeldPresentation, failure);
+            closeQuietly(requireAttackHeldSetting, failure);
             closeQuietly(pauseSneakingBinding, failure);
             closeQuietly(groundOnlyBinding, failure);
             closeQuietly(delayBinding, failure);
@@ -190,6 +219,9 @@ final class Minecraft189NoHitDelayFeature
             failure = closeFailure;
         }
 
+        failure = close(requireAttackHeldBinding, failure);
+        failure = close(requireAttackHeldPresentation, failure);
+        failure = close(requireAttackHeldSetting, failure);
         failure = close(pauseSneakingBinding, failure);
         failure = close(groundOnlyBinding, failure);
         failure = close(delayBinding, failure);

@@ -1256,7 +1256,9 @@ public final class Minecraft189HostRuntime
         return featureCatalog.noHitDelay()
                 .apply(
                         currentCounter,
-                        playerMovementState.snapshot());
+                        playerMovementState.snapshot(),
+                        inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.LEFT_BUTTON));
     }
 
     boolean shouldAutoClick() {
