@@ -272,12 +272,14 @@ public final class Minecraft189AutoClickerModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        triggerConfirmedFrames = 0;
         resetSchedule();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        triggerConfirmedFrames = 0;
         resetSchedule();
     }
 
