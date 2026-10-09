@@ -695,7 +695,11 @@ public final class Minecraft189HostRuntime
         featureCatalog.autoSneak()
                 .apply(
                         player,
-                        playerMovementState.snapshot());
+                        playerMovementState.snapshot(),
+                        inputState.keyPressed(LegacyKeyboardCodes.W)
+                                || inputState.keyPressed(LegacyKeyboardCodes.A)
+                                || inputState.keyPressed(LegacyKeyboardCodes.S)
+                                || inputState.keyPressed(LegacyKeyboardCodes.D));
     }
 
     float adjustNoSlowMovement(
