@@ -27,6 +27,8 @@ public final class Minecraft189ArmorModule
             "render.armor.warningPercent";
     public static final String RENDER_PASS_ID =
             "armor";
+    public static final String COMPACT_SETTING_ID =
+            "render.armor.compact";
 
     private static final int PRIORITY = 129;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
@@ -62,6 +64,11 @@ public final class Minecraft189ArmorModule
                     20,
                     value -> value != null && value >= 1 && value <= 100,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> compact =
+            new Setting<Boolean>(
+                    COMPACT_SETTING_ID, Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189ArmorModule(
@@ -101,6 +108,10 @@ public final class Minecraft189ArmorModule
 
     public Setting<Integer> warningPercentSetting() {
         return warningPercent;
+    }
+
+    public Setting<Boolean> compactSetting() {
+        return compact;
     }
 
     @Override
@@ -177,6 +188,37 @@ public final class Minecraft189ArmorModule
                         "B",
                         armor.bootsDurability())
                 + "]";
+    }
+
+    static String compactTextFor(
+            final Minecraft189PlayerArmorState.Snapshot armor) {
+        Objects.requireNonNull(armor, "armor");
+        return "ARMOR " + armor.equippedCount() + "/4  "
+                + compactSlot(armor.helmet(), "H", armor.helmetDurability())
+                + " " + compactSlot(armor.chestplate(), "C",
+                        armor.chestplateDurability())
+                + " " + compactSlot(armor.leggings(), "L",
+                        armor.leggingsDurability())
+                + " " + compactSlot(armor.boots(), "B",
+                        armor.bootsDurability());
+    }
+
+    private static String compactSlot(
+            final boolean equipped,
+            final String label,
+            final Minecraft189PlayerArmorState.SlotDurability durability) {
+        if (!equipped) {
+            return label + "-";
+        }
+        if (!durability.available()) {
+            return label + "?";
+        }
+        if (!durability.damageable()) {
+            return label + "n/a";
+        }
+        final long remaining = durability.durabilityRemaining();
+        final long total = durability.maxDamage();
+        return label + (remaining * 100L / total) + "%";
     }
 
     static String lowDurabilityTextFor(
@@ -290,8 +332,9 @@ public final class Minecraft189ArmorModule
                         UiFonts.DEFAULT,
                         x.get().floatValue(),
                         y.get().floatValue(),
-                        textFor(
-                                armor),
+                        compact.get().booleanValue()
+                                ? compactTextFor(armor)
+                                : textFor(armor),
                         TEXT_ARGB);
                 if (lowDurabilityWarning.get().booleanValue()) {
                     final String warning = lowDurabilityTextFor(
