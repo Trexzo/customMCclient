@@ -492,6 +492,123 @@ final class Minecraft189FastFallModuleTest {
         fall.onDisable();
     }
 
+    @Test
+    void fastFallSneakPausePreservesMotionAndResetsActivationDelay() {
+        final Minecraft189FastFallModule fall = new Minecraft189FastFallModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer();
+        fall.activationDelayTicksSetting().set(2);
+        fall.onEnable();
+        assertFalse(fall.pauseWhileSneakingSetting().get().booleanValue());
+        movement.update(false, true, false);
+        player.motionY = -0.05D;
+        fall.apply(player, movement.snapshot(), false);
+        fall.apply(player, movement.snapshot(), false);
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(-0.30D, player.motionY, 0.000000001D);
+        assertEquals(1, player.verticalSetCalls); // Opt-in OFF parity.
+
+        fall.pauseWhileSneakingSetting().set(Boolean.TRUE);
+        player.motionY = -0.05D;
+        fall.apply(player, movement.snapshot(), false);
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(-0.05D, player.motionY, 0.000000001D);
+        assertEquals(1, player.verticalSetCalls); // No synthetic pause writes.
+        movement.update(false, false, false);
+        fall.apply(player, movement.snapshot(), false); // Eligible 1/2.
+        movement.update(false, true, false);
+        fall.apply(player, movement.snapshot(), false); // Reset 0/2.
+        movement.update(false, false, false);
+        fall.apply(player, movement.snapshot(), false);
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(-0.05D, player.motionY, 0.000000001D);
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(-0.30D, player.motionY, 0.000000001D);
+        assertEquals(2, player.verticalSetCalls);
+
+        // Progressive acceleration also honors the live guard. Suspension
+        // and missing state never allow delayed acceleration credit.
+        fall.progressiveSetting().set(Boolean.TRUE);
+        fall.rampStepSetting().set(0.05D);
+        // A new descent starts only after an observed eligibility boundary.
+        // Rewinding the test player's Y motion alone is not a landing.
+        movement.update(true, false, false);
+        fall.apply(player, movement.snapshot(), false);
+        movement.update(false, false, false);
+        player.motionY = -0.05D;
+        fall.apply(player, movement.snapshot(), false); // 1/2.
+        movement.clear();
+        fall.apply(player, movement.snapshot(), false); // Reset.
+        movement.update(false, false, false);
+        fall.apply(player, movement.snapshot(), false);
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(-0.05D, player.motionY, 0.000000001D);
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(-0.10D, player.motionY, 0.000000001D);
+        player.motionY = -0.05D;
+        fall.apply(player, movement.snapshot(), true); // Priority reset.
+        movement.update(false, true, false);
+        fall.apply(player, movement.snapshot(), false); // Sneak reset.
+        movement.update(false, false, false);
+        fall.apply(player, movement.snapshot(), false);
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(-0.05D, player.motionY, 0.000000001D);
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(-0.10D, player.motionY, 0.000000001D);
+        fall.onDisable();
+        player.motionY = -0.05D;
+        int prior = player.verticalSetCalls;
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(prior, player.verticalSetCalls);
+    }
+
+    @Test
+    void fastFallSneakPauseSettingsPersistAndCleanlyUnregister() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189FastFallModule fall = runtime.featureCatalog().fastFall();
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FastFallModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            controller.enable(Minecraft189FastFallModule.ID);
+            fall.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FastFallModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            final TestPlayer player = new TestPlayer();
+            runtime.playerMovementState().update(false, true, false);
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.05D, player.motionY, 0.000000001D);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.30D, player.motionY, 0.000000001D);
+            fall.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            runtime.playerMovementState().update(false, true, false);
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.30D, player.motionY, 0.000000001D);
+            controller.disable(Minecraft189FastFallModule.ID);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189FastFallModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189FastFallModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;
