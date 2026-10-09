@@ -193,6 +193,93 @@ final class Minecraft189NoFallModuleTest {
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
     }
 
+    @Test
+    void optionalAirborneAndSneakGuardsPreserveFallDistanceWhenUnqualified() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189NoFallModule noFall = runtime.featureCatalog().noFall();
+            final TestPlayer player = new TestPlayer();
+            assertFalse(noFall.airborneOnlySetting().get().booleanValue());
+            assertFalse(noFall.pauseWhileSneakingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189NoFallModule.AIRBORNE_ONLY_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189NoFallModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            controller.enable(Minecraft189NoFallModule.ID);
+            noFall.thresholdSetting().set(2.0D);
+            player.distance = 3.0F;
+            runtime.playerFallDistanceControl(player);
+            assertEquals(0.0F, player.distance, 0.000001F); // Legacy default.
+
+            noFall.airborneOnlySetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NoFallModule.AIRBORNE_ONLY_SETTING_ID));
+            player.distance = 3.0F;
+            runtime.playerFallDistanceControl(player); // Missing mapped authority.
+            assertEquals(3.0F, player.distance, 0.000001F);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerFallDistanceControl(player);
+            assertEquals(3.0F, player.distance, 0.000001F); // Grounded.
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerFallDistanceControl(player);
+            assertEquals(0.0F, player.distance, 0.000001F);
+            player.distance = 2.0F;
+            runtime.playerFallDistanceControl(player);
+            assertEquals(2.0F, player.distance, 0.000001F); // Threshold unchanged.
+
+            noFall.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NoFallModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            player.distance = 3.0F;
+            runtime.playerMovementState().update(false, true, false);
+            runtime.playerFallDistanceControl(player);
+            assertEquals(3.0F, player.distance, 0.000001F);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerFallDistanceControl(player);
+            assertEquals(0.0F, player.distance, 0.000001F);
+
+            noFall.airborneOnlySetting().set(Boolean.FALSE);
+            runtime.playerMovementState().update(true, false, false);
+            player.distance = 3.0F;
+            runtime.playerFallDistanceControl(player);
+            assertEquals(0.0F, player.distance, 0.000001F); // Independent gate.
+            runtime.playerMovementState().update(true, true, false);
+            player.distance = 3.0F;
+            runtime.playerFallDistanceControl(player);
+            assertEquals(3.0F, player.distance, 0.000001F);
+
+            runtime.playerMovementState().clear();
+            noFall.apply(player); // Legacy one-arg overload fails closed.
+            assertEquals(3.0F, player.distance, 0.000001F);
+            noFall.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            noFall.apply(player); // Old direct API and baseline restored.
+            assertEquals(0.0F, player.distance, 0.000001F);
+            controller.disable(Minecraft189NoFallModule.ID);
+            player.distance = 4.0F;
+            runtime.playerFallDistanceControl(player);
+            assertEquals(4.0F, player.distance, 0.000001F);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189NoFallModule.AIRBORNE_ONLY_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189NoFallModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189NoFallModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerFallDistanceControl {
         private float distance;
