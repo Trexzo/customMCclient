@@ -16,6 +16,8 @@ public final class Minecraft189VelocityModule
             "combat.velocity.onlyWhileSprinting";
     public static final String GROUND_ONLY_SETTING_ID =
             "combat.velocity.groundOnly";
+    public static final String AIRBORNE_ONLY_SETTING_ID =
+            "combat.velocity.airborneOnly";
     public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
             "combat.velocity.pauseWhileSneaking";
     public static final String AIRBORNE_OVERRIDE_SETTING_ID =
@@ -50,6 +52,9 @@ public final class Minecraft189VelocityModule
 
     private final Setting<Boolean> groundOnly = new Setting<Boolean>(
             GROUND_ONLY_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> airborneOnly = new Setting<Boolean>(
+            AIRBORNE_ONLY_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> pauseWhileSneaking = new Setting<Boolean>(
             PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
@@ -95,6 +100,10 @@ public final class Minecraft189VelocityModule
 
     public Setting<Boolean> groundOnlySetting() {
         return groundOnly;
+    }
+
+    public Setting<Boolean> airborneOnlySetting() {
+        return airborneOnly;
     }
 
     public Setting<Boolean> pauseWhileSneakingSetting() {
@@ -171,15 +180,22 @@ public final class Minecraft189VelocityModule
         // Opt-in movement authority guards both knockback axes. Missing
         // or stale state returns vanilla delta, never a scaled guess.
         final boolean ground = groundOnly.get().booleanValue();
+        final boolean airborne = airborneOnly.get().booleanValue();
         final boolean pauseSneak = pauseWhileSneaking.get().booleanValue();
         final boolean sprint = onlyWhileSprinting.get().booleanValue();
-        if (!ground && !pauseSneak && !sprint) {
+        // Contradictory Ground Only + Airborne Only settings cannot qualify.
+        // Neither setting silently overrides the other.
+        if (ground && airborne) {
+            return false;
+        }
+        if (!ground && !airborne && !pauseSneak && !sprint) {
             return true;
         }
         if (movement == null || !movement.available()) {
             return false;
         }
         return (!ground || movement.onGround())
+                && (!airborne || !movement.onGround())
                 && (!pauseSneak || !movement.sneaking())
                 && (!sprint || movement.sprinting());
     }

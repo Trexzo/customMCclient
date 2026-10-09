@@ -497,6 +497,113 @@ final class Minecraft189VelocityModuleTest {
                 Double.MAX_VALUE, -Double.MAX_VALUE), 0.0D);
     }
 
+    @Test
+    void airborneOnlyScalesOnConfirmedAirAndHonorsExistingGates() {
+        final Minecraft189VelocityModule velocity = new Minecraft189VelocityModule();
+        final Minecraft189PlayerMovementState state =
+                new Minecraft189PlayerMovementState();
+        assertFalse(velocity.airborneOnlySetting().get().booleanValue());
+        velocity.onEnable();
+        velocity.horizontalPercentSetting().set(0);
+        velocity.verticalPercentSetting().set(50);
+        state.update(true, false, true);
+        assertEquals(2.0D, velocity.adjustHorizontal(2.0D, 5.0D,
+                state.snapshot()), 0.0D);
+        assertEquals(5.0D, velocity.adjustVertical(4.0D, 6.0D,
+                state.snapshot()), 0.0D);
+
+        velocity.airborneOnlySetting().set(Boolean.TRUE);
+        assertEquals(5.0D, velocity.adjustHorizontal(2.0D, 5.0D,
+                state.snapshot()), 0.0D); // Grounded: vanilla.
+        assertEquals(6.0D, velocity.adjustVertical(4.0D, 6.0D,
+                state.snapshot()), 0.0D);
+        state.clear();
+        assertEquals(5.0D, velocity.adjustHorizontal(2.0D, 5.0D,
+                state.snapshot()), 0.0D); // Missing state: vanilla.
+        assertEquals(6.0D, velocity.adjustVertical(4.0D, 6.0D), 0.0D);
+        state.update(false, false, false);
+        assertEquals(2.0D, velocity.adjustHorizontal(2.0D, 5.0D,
+                state.snapshot()), 0.0D); // Airborne: 0%.
+        assertEquals(5.0D, velocity.adjustVertical(4.0D, 6.0D,
+                state.snapshot()), 0.0D); // Airborne: 50%.
+
+        velocity.airborneOverrideSetting().set(Boolean.TRUE);
+        velocity.airborneHorizontalPercentSetting().set(50);
+        velocity.airborneVerticalPercentSetting().set(200);
+        assertEquals(3.5D, velocity.adjustHorizontal(2.0D, 5.0D,
+                state.snapshot()), 0.0D);
+        assertEquals(8.0D, velocity.adjustVertical(4.0D, 6.0D,
+                state.snapshot()), 0.0D);
+        velocity.pauseWhileSneakingSetting().set(Boolean.TRUE);
+        state.update(false, true, false);
+        assertEquals(5.0D, velocity.adjustHorizontal(2.0D, 5.0D,
+                state.snapshot()), 0.0D); // Sneak wins.
+        velocity.pauseWhileSneakingSetting().set(Boolean.FALSE);
+        velocity.onlyWhileSprintingSetting().set(Boolean.TRUE);
+        assertEquals(6.0D, velocity.adjustVertical(4.0D, 6.0D,
+                state.snapshot()), 0.0D); // Sprint gate wins.
+        state.update(false, false, true);
+        assertEquals(3.5D, velocity.adjustHorizontal(2.0D, 5.0D,
+                state.snapshot()), 0.0D);
+        velocity.onlyWhileSprintingSetting().set(Boolean.FALSE);
+        velocity.groundOnlySetting().set(Boolean.TRUE);
+        assertEquals(5.0D, velocity.adjustHorizontal(2.0D, 5.0D,
+                state.snapshot()), 0.0D); // Conflicting authority gates.
+        state.update(true, false, false);
+        assertEquals(5.0D, velocity.adjustHorizontal(2.0D, 5.0D,
+                state.snapshot()), 0.0D);
+        velocity.groundOnlySetting().set(Boolean.FALSE);
+        velocity.airborneOnlySetting().set(Boolean.FALSE);
+        velocity.airborneOverrideSetting().set(Boolean.FALSE);
+        state.update(true, false, false);
+        assertEquals(2.0D, velocity.adjustHorizontal(2.0D, 5.0D,
+                state.snapshot()), 0.0D); // Legacy behavior returns.
+        velocity.onDisable();
+        assertEquals(5.0D, velocity.adjustHorizontal(2.0D, 5.0D,
+                state.snapshot()), 0.0D);
+    }
+
+    @Test
+    void airborneOnlySettingPersistsAndUnregistersOnFeatureClose() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189VelocityModule velocity =
+                    runtime.featureCatalog().velocity();
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.AIRBORNE_ONLY_SETTING_ID));
+            velocity.airborneOnlySetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.AIRBORNE_ONLY_SETTING_ID));
+            controller.enable(Minecraft189VelocityModule.ID);
+            velocity.horizontalPercentSetting().set(0);
+            runtime.playerMovementState().update(true, false, false);
+            assertEquals(5.0D, velocity.adjustHorizontal(2.0D, 5.0D,
+                    runtime.playerMovementState().snapshot()), 0.0D);
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(2.0D, velocity.adjustHorizontal(2.0D, 5.0D,
+                    runtime.playerMovementState().snapshot()), 0.0D);
+            controller.disable(Minecraft189VelocityModule.ID);
+        } finally {
+            runtime.close();
+        }
+        assertTrue(settings.find(
+                Minecraft189VelocityModule.AIRBORNE_ONLY_SETTING_ID) == null);
+        assertTrue(modules.find(Minecraft189VelocityModule.ID) == null);
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override
