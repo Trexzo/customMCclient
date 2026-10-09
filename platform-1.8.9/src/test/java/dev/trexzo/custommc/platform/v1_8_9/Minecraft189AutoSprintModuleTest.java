@@ -342,6 +342,10 @@ final class Minecraft189AutoSprintModuleTest {
                 runtime.playerSprintControl(player);
                 assertEquals(i + 1, player.setCalls);
                 assertTrue(player.sprinting);
+                // Each real client tick refreshes the mapped sprint snapshot.
+                // Without this update, the previous 'not sprinting' snapshot
+                // would cause another write in a synthetic double callback.
+                runtime.playerMovementState(player);
                 runtime.playerSprintControl(player);
                 assertEquals(i + 1, player.setCalls); // No redundant writes.
                 runtime.inputState().key(keys[i], false);
