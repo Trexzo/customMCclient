@@ -20,6 +20,8 @@ public final class Minecraft189WTapModule
             "combat.wTap.pauseWhileSneaking";
     public static final String REQUIRE_NEARBY_PLAYER_SETTING_ID =
             "combat.wTap.requireNearbyPlayer";
+    public static final String CANCEL_ON_RELEASE_SETTING_ID =
+            "combat.wTap.cancelResetOnRelease";
     public static final String MAX_PLAYER_DISTANCE_SETTING_ID =
             "combat.wTap.maxPlayerDistance";
     public static final double DEFAULT_MAX_PLAYER_DISTANCE = 4.0D;
@@ -89,6 +91,12 @@ public final class Minecraft189WTapModule
                             && value <= MAXIMUM_MAX_PLAYER_DISTANCE,
                     SettingCodecs.DOUBLE);
 
+    private final Setting<Boolean> cancelResetOnRelease =
+            new Setting<Boolean>(
+                    CANCEL_ON_RELEASE_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+
     private boolean enabled;
     private boolean previousLeftButtonHeld;
     private int cooldownRemaining;
@@ -125,6 +133,10 @@ public final class Minecraft189WTapModule
 
     public Setting<Double> maxPlayerDistanceSetting() {
         return maxPlayerDistance;
+    }
+
+    public Setting<Boolean> cancelResetOnReleaseSetting() {
+        return cancelResetOnRelease;
     }
 
     @Override
@@ -182,6 +194,19 @@ public final class Minecraft189WTapModule
             // A held attack cannot retrigger when a target reappears.
             resetState();
             previousLeftButtonHeld = leftButtonHeld;
+            return false;
+        }
+
+        if (cancelResetOnRelease.get().booleanValue()
+                && !leftButtonHeld && resetTicksRemaining > 0) {
+            // Cancel only the active synthetic sprint reset. Retaining
+            // cooldown prevents a release/repress from bypassing the
+            // configured post-hit interval.
+            resetTicksRemaining = 0;
+            previousLeftButtonHeld = false;
+            if (cooldownRemaining > 0) {
+                cooldownRemaining--;
+            }
             return false;
         }
 
