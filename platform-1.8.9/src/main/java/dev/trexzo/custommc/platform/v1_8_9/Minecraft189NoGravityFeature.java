@@ -5,6 +5,13 @@ import dev.trexzo.custommc.core.module.ModuleDescriptor;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.module.ModuleState;
+import dev.trexzo.custommc.core.module.ModuleSettingBinding;
+import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
+import dev.trexzo.custommc.core.setting.SettingDescriptor;
+import dev.trexzo.custommc.core.setting.SettingNumericSpec;
+import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
+import dev.trexzo.custommc.core.setting.SettingRegistry;
+import dev.trexzo.custommc.core.setting.SettingValueKind;
 
 final class Minecraft189NoGravityFeature
         implements AutoCloseable {
@@ -12,28 +19,43 @@ final class Minecraft189NoGravityFeature
     private final Minecraft189NoGravityModule module;
     private final ModuleRegistry.Registration moduleRegistration;
     private final ModulePresentationRegistry.Registration presentation;
+    private final SettingRegistry.Registration liftSpeedSetting;
+    private final SettingPresentationRegistry.Registration liftSpeedPresentation;
+    private final ModuleSettingRegistry.Registration liftSpeedBinding;
     private boolean closed;
 
     private Minecraft189NoGravityFeature(
             final ModuleController controller,
             final Minecraft189NoGravityModule module,
             final ModuleRegistry.Registration moduleRegistration,
-            final ModulePresentationRegistry.Registration presentation) {
+            final ModulePresentationRegistry.Registration presentation,
+            final SettingRegistry.Registration liftSpeedSetting,
+            final SettingPresentationRegistry.Registration liftSpeedPresentation,
+            final ModuleSettingRegistry.Registration liftSpeedBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
+        this.liftSpeedSetting = liftSpeedSetting;
+        this.liftSpeedPresentation = liftSpeedPresentation;
+        this.liftSpeedBinding = liftSpeedBinding;
     }
 
     static Minecraft189NoGravityFeature install(
             final ModuleRegistry modules,
             final ModuleController controller,
-            final ModulePresentationRegistry presentations) {
+            final ModulePresentationRegistry presentations,
+            final ModuleSettingRegistry moduleSettings,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations) {
         final Minecraft189NoGravityModule module =
                 new Minecraft189NoGravityModule();
 
         ModuleRegistry.Registration moduleRegistration = null;
         ModulePresentationRegistry.Registration presentation = null;
+        SettingRegistry.Registration liftSpeedSetting = null;
+        SettingPresentationRegistry.Registration liftSpeedPresentation = null;
+        ModuleSettingRegistry.Registration liftSpeedBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -47,12 +69,31 @@ final class Minecraft189NoGravityFeature
                                     Minecraft189FeatureCatalog
                                             .MOVEMENT_CATEGORY_ID,
                                     180));
+            liftSpeedSetting = settings.register(module.liftSpeedSetting());
+            liftSpeedPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189NoGravityModule.LIFT_SPEED_SETTING_ID,
+                            "Lift Speed", SettingValueKind.DOUBLE, 10,
+                            new SettingNumericSpec(
+                                    0.0D,
+                                    Minecraft189NoGravityModule.MAXIMUM_LIFT_SPEED,
+                                    0.01D)));
+            liftSpeedBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189NoGravityModule.ID,
+                            Minecraft189NoGravityModule.LIFT_SPEED_SETTING_ID, 10));
             return new Minecraft189NoGravityFeature(
                     controller,
                     module,
                     moduleRegistration,
-                    presentation);
+                    presentation,
+                    liftSpeedSetting,
+                    liftSpeedPresentation,
+                    liftSpeedBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(liftSpeedBinding, failure);
+            closeQuietly(liftSpeedPresentation, failure);
+            closeQuietly(liftSpeedSetting, failure);
             if (presentation != null) {
                 presentation.close();
             }
@@ -90,6 +131,10 @@ final class Minecraft189NoGravityFeature
             failure = closeFailure;
         }
 
+        failure = close(liftSpeedBinding, failure);
+        failure = close(liftSpeedPresentation, failure);
+        failure = close(liftSpeedSetting, failure);
+
         try {
             presentation.close();
         } catch (RuntimeException closeFailure) {
@@ -107,6 +152,36 @@ final class Minecraft189NoGravityFeature
 
         if (failure != null) {
             throw failure;
+        }
+    }
+
+    private static RuntimeException close(
+            final AutoCloseable registration,
+            final RuntimeException primary) {
+        if (registration == null) {
+            return primary;
+        }
+        try {
+            registration.close();
+            return primary;
+        } catch (RuntimeException failure) {
+            return append(primary, failure);
+        } catch (Exception failure) {
+            return append(primary, new IllegalStateException(
+                    "no-gravity setting close failed", failure));
+        }
+    }
+
+    private static void closeQuietly(
+            final AutoCloseable registration,
+            final RuntimeException primary) {
+        if (registration == null) {
+            return;
+        }
+        try {
+            registration.close();
+        } catch (Exception cleanupFailure) {
+            primary.addSuppressed(cleanupFailure);
         }
     }
 
