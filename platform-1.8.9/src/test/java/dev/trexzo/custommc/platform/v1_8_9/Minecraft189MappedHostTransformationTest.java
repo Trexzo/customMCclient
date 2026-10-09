@@ -912,6 +912,21 @@ final class Minecraft189MappedHostTransformationTest {
                     .getInt(playerController));
             minecraftClass.getField("h").set(minecraft, player);
 
+            // Source-mapped same-team relation from live Minecraft.thePlayer.
+            minecraftClass.getField("instance").set(null, minecraft);
+            loader.loadClass("pr").getField("teamGroup").setInt(player, 17);
+            loader.loadClass("pr").getField("teamGroup").setInt(playerHit, 17);
+            assertArrayEquals(new int[]{-1, 2048 | 1024 | 15},
+                    combat.customMcLoadedEntityCombatStates());
+            loader.loadClass("pr").getField("teamGroup").setInt(playerHit, 18);
+            assertArrayEquals(new int[]{-1, 2048 | 15},
+                    combat.customMcLoadedEntityCombatStates());
+            minecraftClass.getField("h").set(minecraft, null);
+            assertArrayEquals(new int[]{-1, 15},
+                    combat.customMcLoadedEntityCombatStates());
+            minecraftClass.getField("h").set(minecraft, player);
+            minecraftClass.getField("instance").set(null, null);
+
             final Class<?> worldClass =
                     loader.loadClass("bdb");
             final Object world =
@@ -6894,6 +6909,8 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "Y", "Lavl;");
         field(writer, "s", "Lauh;");
         field(writer, "clickMouseCalls", "I");
+        writer.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                "instance", "Lave;", null, null).visitEnd();
         endDefaultConstructor(writer, "ave");
 
         final MethodVisitor getMinecraft =
@@ -6905,10 +6922,9 @@ final class Minecraft189MappedHostTransformationTest {
                         null,
                         null);
         getMinecraft.visitCode();
-        getMinecraft.visitInsn(
-                Opcodes.ACONST_NULL);
-        getMinecraft.visitInsn(
-                Opcodes.ARETURN);
+        getMinecraft.visitFieldInsn(Opcodes.GETSTATIC, "ave",
+                "instance", "Lave;");
+        getMinecraft.visitInsn(Opcodes.ARETURN);
         getMinecraft.visitMaxs(1, 0);
         getMinecraft.visitEnd();
 
@@ -7092,6 +7108,7 @@ final class Minecraft189MappedHostTransformationTest {
                 null);
         field(writer, "au", "I");
         field(writer, "health", "F");
+        field(writer, "teamGroup", "I");
         field(writer, "maxHealth", "F");
         field(writer, "equipmentSlots", "[Lzx;");
         field(writer, "activePotionEffects", "Ljava/util/Collection;");
@@ -7166,6 +7183,27 @@ final class Minecraft189MappedHostTransformationTest {
                 1,
                 1);
         getMaxHealth.visitEnd();
+
+        final MethodVisitor isTeammate = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "c", "(Lpr;)Z", null, null);
+        final org.objectweb.asm.Label notSameTeam = new org.objectweb.asm.Label();
+        isTeammate.visitCode();
+        isTeammate.visitVarInsn(Opcodes.ALOAD, 0);
+        isTeammate.visitFieldInsn(Opcodes.GETFIELD, "pr", "teamGroup", "I");
+        isTeammate.visitJumpInsn(Opcodes.IFEQ, notSameTeam);
+        isTeammate.visitVarInsn(Opcodes.ALOAD, 0);
+        isTeammate.visitFieldInsn(Opcodes.GETFIELD, "pr", "teamGroup", "I");
+        isTeammate.visitVarInsn(Opcodes.ALOAD, 1);
+        isTeammate.visitFieldInsn(Opcodes.GETFIELD, "pr", "teamGroup", "I");
+        isTeammate.visitJumpInsn(Opcodes.IF_ICMPNE, notSameTeam);
+        isTeammate.visitInsn(Opcodes.ICONST_1);
+        isTeammate.visitInsn(Opcodes.IRETURN);
+        isTeammate.visitLabel(notSameTeam);
+        isTeammate.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+        isTeammate.visitInsn(Opcodes.ICONST_0);
+        isTeammate.visitInsn(Opcodes.IRETURN);
+        isTeammate.visitMaxs(2, 2);
+        isTeammate.visitEnd();
 
         final MethodVisitor getEquipmentInSlot =
                 writer.visitMethod(
