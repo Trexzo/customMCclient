@@ -33,6 +33,9 @@ final class Minecraft189ArmorFeature
     private final ModuleSettingRegistry.Registration yBinding;
     private final ModuleSettingRegistry.Registration lowDurabilityWarningBinding;
     private final ModuleSettingRegistry.Registration warningPercentBinding;
+    private final SettingRegistry.Registration compactSetting;
+    private final SettingPresentationRegistry.Registration compactPresentation;
+    private final ModuleSettingRegistry.Registration compactBinding;
     private boolean closed;
 
     private Minecraft189ArmorFeature(
@@ -51,7 +54,10 @@ final class Minecraft189ArmorFeature
             final ModuleSettingRegistry.Registration xBinding,
             final ModuleSettingRegistry.Registration yBinding,
             final ModuleSettingRegistry.Registration lowDurabilityWarningBinding,
-            final ModuleSettingRegistry.Registration warningPercentBinding) {
+            final ModuleSettingRegistry.Registration warningPercentBinding,
+            final SettingRegistry.Registration compactSetting,
+            final SettingPresentationRegistry.Registration compactPresentation,
+            final ModuleSettingRegistry.Registration compactBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -68,6 +74,9 @@ final class Minecraft189ArmorFeature
         this.yBinding = yBinding;
         this.lowDurabilityWarningBinding = lowDurabilityWarningBinding;
         this.warningPercentBinding = warningPercentBinding;
+        this.compactSetting = compactSetting;
+        this.compactPresentation = compactPresentation;
+        this.compactBinding = compactBinding;
     }
 
     static Minecraft189ArmorFeature install(
@@ -100,6 +109,9 @@ final class Minecraft189ArmorFeature
         ModuleSettingRegistry.Registration yBinding = null;
         ModuleSettingRegistry.Registration lowDurabilityWarningBinding = null;
         ModuleSettingRegistry.Registration warningPercentBinding = null;
+        SettingRegistry.Registration compactSetting = null;
+        SettingPresentationRegistry.Registration compactPresentation = null;
+        ModuleSettingRegistry.Registration compactBinding = null;
 
         try {
             moduleRegistration =
@@ -123,6 +135,7 @@ final class Minecraft189ArmorFeature
                     module.lowDurabilityWarningSetting());
             warningPercentSetting = settings.register(
                     module.warningPercentSetting());
+            compactSetting = settings.register(module.compactSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -154,6 +167,10 @@ final class Minecraft189ArmorFeature
                             Minecraft189ArmorModule.WARNING_PERCENT_SETTING_ID,
                             "Warning Below %", SettingValueKind.INTEGER, 30,
                             new SettingNumericSpec(1.0D, 100.0D, 1.0D)));
+            compactPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189ArmorModule.COMPACT_SETTING_ID,
+                            "Compact Durability", SettingValueKind.BOOLEAN, 40));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -176,6 +193,11 @@ final class Minecraft189ArmorFeature
                             Minecraft189ArmorModule.ID,
                             Minecraft189ArmorModule.WARNING_PERCENT_SETTING_ID, 30));
 
+            compactBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189ArmorModule.ID,
+                            Minecraft189ArmorModule.COMPACT_SETTING_ID, 40));
+
             return new Minecraft189ArmorFeature(
                     controller,
                     module,
@@ -192,8 +214,14 @@ final class Minecraft189ArmorFeature
                     xBinding,
                     yBinding,
                     lowDurabilityWarningBinding,
-                    warningPercentBinding);
+                    warningPercentBinding,
+                    compactSetting,
+                    compactPresentation,
+                    compactBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(compactBinding, failure);
+            closeQuietly(compactPresentation, failure);
+            closeQuietly(compactSetting, failure);
             closeQuietly(warningPercentBinding, failure);
             closeQuietly(lowDurabilityWarningBinding, failure);
             closeQuietly(warningPercentPresentation, failure);
@@ -239,6 +267,9 @@ final class Minecraft189ArmorFeature
             failure = closeFailure;
         }
 
+        failure = close(compactBinding, failure);
+        failure = close(compactPresentation, failure);
+        failure = close(compactSetting, failure);
         failure = close(warningPercentBinding, failure);
         failure = close(lowDurabilityWarningBinding, failure);
         failure = close(warningPercentPresentation, failure);

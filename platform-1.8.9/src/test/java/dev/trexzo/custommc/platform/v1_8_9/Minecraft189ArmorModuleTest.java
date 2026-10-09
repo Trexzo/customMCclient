@@ -346,6 +346,68 @@ final class Minecraft189ArmorModuleTest {
         };
     }
 
+    @Test
+    void compactArmorShowsPercentagesAndKeepsUnknownItemsExplicit() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189ArmorModule armor = runtime.featureCatalog().armor();
+            assertFalse(armor.compactSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189ArmorModule.COMPACT_SETTING_ID));
+            runtime.playerArmorState().update(true, false, true, true,
+                    armorItem(15, 195), null, armorItem(28, 528),
+                    armorItem(10, 363));
+            controller.enable(Minecraft189ArmorModule.ID);
+            runtime.renderHud(0L, 0.0F);
+            assertEquals("Armor: 3/4 [H 353/363 | C 500/528 | L - | B 180/195]",
+                    host.lastText); // Default full text is unchanged.
+
+            armor.compactSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189ArmorModule.COMPACT_SETTING_ID));
+            runtime.renderHud(1L, 0.0F);
+            assertEquals("ARMOR 3/4  H97% C94% L- B92%", host.lastText);
+
+            runtime.playerArmorState().update(false, true, false, true);
+            runtime.renderHud(2L, 0.0F);
+            assertEquals("ARMOR 2/4  H? C- L? B-", host.lastText);
+            runtime.playerArmorState().update(true, false, false, false,
+                    armorItem(0, 0), null, null, null);
+            runtime.renderHud(3L, 0.0F);
+            assertEquals("ARMOR 1/4  H- C- L- Bn/a", host.lastText);
+
+            // Invalid item damage must never be silently converted to a
+            // fabricated percentage; the existing authority throws.
+            assertThrows(IllegalArgumentException.class,
+                    () -> runtime.playerArmorState().update(
+                            true, false, false, false,
+                            armorItem(-1, 100), null, null, null));
+            armor.compactSetting().set(Boolean.FALSE);
+            runtime.playerArmorState().update(false, false, false, false);
+            runtime.renderHud(4L, 0.0F);
+            assertEquals("Armor: 0/4 [- - - -]", host.lastText);
+            controller.disable(Minecraft189ArmorModule.ID);
+            assertFalse(armor.renderPassInstalled());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189ArmorModule.COMPACT_SETTING_ID));
+        assertNull(modules.find(Minecraft189ArmorModule.ID));
+    }
+
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private String lastText;
