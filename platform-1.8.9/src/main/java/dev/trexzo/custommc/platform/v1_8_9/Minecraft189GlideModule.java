@@ -19,6 +19,10 @@ public final class Minecraft189GlideModule
     public static final double MAXIMUM_DECELERATION_STEP = 0.50D;
     public static final String REQUIRE_SNEAKING_SETTING_ID =
             "movement.glide.requireSneaking";
+    public static final String ACTIVATION_DELAY_SETTING_ID =
+            "movement.glide.activationDelayTicks";
+    public static final int DEFAULT_ACTIVATION_DELAY_TICKS = 0;
+    public static final int MAXIMUM_ACTIVATION_DELAY_TICKS = 10;
     public static final double DEFAULT_FALL_SPEED =
             0.08D;
     public static final double MINIMUM_FALL_SPEED =
@@ -50,7 +54,14 @@ public final class Minecraft189GlideModule
                             && value >= MINIMUM_DECELERATION_STEP
                             && value <= MAXIMUM_DECELERATION_STEP,
                     SettingCodecs.DOUBLE);
+    private final Setting<Integer> activationDelayTicks = new Setting<Integer>(
+            ACTIVATION_DELAY_SETTING_ID, DEFAULT_ACTIVATION_DELAY_TICKS,
+            value -> value != null && value >= 0
+                    && value <= MAXIMUM_ACTIVATION_DELAY_TICKS,
+            SettingCodecs.INTEGER);
     private boolean enabled;
+    private int eligibleDescentCallbacks;
+    private int observedActivationDelay;
 
     @Override
     public String id() {
@@ -73,14 +84,20 @@ public final class Minecraft189GlideModule
         return decelerationStep;
     }
 
+    public Setting<Integer> activationDelayTicksSetting() {
+        return activationDelayTicks;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        resetActivationDelay();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        resetActivationDelay();
     }
 
     synchronized void apply(
@@ -95,14 +112,32 @@ public final class Minecraft189GlideModule
                 || movement.onGround()
                 || (requireSneaking.get().booleanValue()
                         && !movement.sneaking())) {
+            resetActivationDelay();
             return;
         }
 
         final double targetMotionY =
                 -fallSpeed.get().doubleValue();
         final double currentMotionY = player.customMcMotionY();
-        if (Double.isFinite(currentMotionY)
-                && currentMotionY < targetMotionY) {
+        if (!Double.isFinite(currentMotionY)
+                || currentMotionY >= targetMotionY) {
+            // No eligible descent (or invalid mapped motion): accumulated
+            // waiting is never carried into a later drop.
+            resetActivationDelay();
+            return;
+        }
+
+        final int delay = activationDelayTicks.get().intValue();
+        if (delay != observedActivationDelay) {
+            eligibleDescentCallbacks = 0;
+            observedActivationDelay = delay;
+        }
+        if (eligibleDescentCallbacks < delay) {
+            eligibleDescentCallbacks++;
+            return;
+        }
+
+        {
             // An optional per-callback deceleration step avoids a
             // sudden jump from fast descent to the Glide cap. The next
             // value always derives from current mapped motion, never
@@ -119,6 +154,11 @@ public final class Minecraft189GlideModule
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    private void resetActivationDelay() {
+        eligibleDescentCallbacks = 0;
+        observedActivationDelay = activationDelayTicks.get().intValue();
     }
 
     private static boolean validFallSpeed(
