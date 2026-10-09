@@ -635,7 +635,10 @@ public final class Minecraft189FeatureCatalog
                     Minecraft189NoGravityFeature.install(
                             modules,
                             moduleController,
-                            presentations);
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             reverseStepFeature =
                     Minecraft189ReverseStepFeature.install(

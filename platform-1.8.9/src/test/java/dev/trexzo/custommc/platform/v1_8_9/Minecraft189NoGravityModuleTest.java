@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189NoGravityModuleTest {
     @Test
@@ -185,6 +186,93 @@ final class Minecraft189NoGravityModuleTest {
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
+    }
+
+    @Test
+    void noGravityLiftSpeedRetainsOriginalZeroGravityAndRespectsPriority() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189NoGravityModule gravity =
+                    runtime.featureCatalog().noGravity();
+            final TestPlayer player = new TestPlayer();
+            assertEquals(0.0D, gravity.liftSpeedSetting().get(), 0.000000001D);
+            assertEquals("0.0", settings.snapshotEncoded().get(
+                    Minecraft189NoGravityModule.LIFT_SPEED_SETTING_ID));
+            controller.enable(Minecraft189NoGravityModule.ID);
+            runtime.playerMovementState().update(false, false, false);
+            player.motionY = -0.20D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionY, 0.000000001D);
+
+            gravity.liftSpeedSetting().set(0.12D);
+            assertEquals("0.12", settings.snapshotEncoded().get(
+                    Minecraft189NoGravityModule.LIFT_SPEED_SETTING_ID));
+            player.motionY = -0.20D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.12D, player.motionY, 0.000000001D);
+            player.motionY = 0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.12D, player.motionY, 0.000000001D);
+            player.motionY = 0.25D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.25D, player.motionY, 0.000000001D);
+
+            // Ground or missing mapped authority always suspends lift.
+            runtime.playerMovementState().update(true, false, false);
+            player.motionY = -0.20D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.20D, player.motionY, 0.000000001D);
+            runtime.playerMovementState().clear();
+            runtime.playerMotionControl(player);
+            assertEquals(-0.20D, player.motionY, 0.000000001D);
+
+            runtime.playerMovementState().update(false, false, false);
+            controller.enable(Minecraft189FlightModule.ID);
+            runtime.playerMotionControl(player);
+            assertEquals(Minecraft189FlightModule.HOVER_MOTION_Y,
+                    player.motionY, 0.000000001D);
+            controller.disable(Minecraft189FlightModule.ID);
+            controller.enable(Minecraft189FastFallModule.ID);
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.12D, player.motionY, 0.000000001D);
+
+            // Runtime edits restore the exact default hovering cap.
+            gravity.liftSpeedSetting().set(0.0D);
+            player.motionY = -0.18D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionY, 0.000000001D);
+            controller.disable(Minecraft189NoGravityModule.ID);
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(-Minecraft189FastFallModule.DEFAULT_FALL_SPEED,
+                    player.motionY, 0.000000001D);
+            assertThrows(IllegalArgumentException.class,
+                    () -> gravity.liftSpeedSetting().set(-0.01D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> gravity.liftSpeedSetting().set(0.31D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> gravity.liftSpeedSetting().set(Double.NaN));
+            assertThrows(IllegalArgumentException.class,
+                    () -> gravity.liftSpeedSetting().set(Double.POSITIVE_INFINITY));
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189NoGravityModule.LIFT_SPEED_SETTING_ID));
+        assertNull(modules.find(Minecraft189NoGravityModule.ID));
     }
 
     private static final class TestPlayer
