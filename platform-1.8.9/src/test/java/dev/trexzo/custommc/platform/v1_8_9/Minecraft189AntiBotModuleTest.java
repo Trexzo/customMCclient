@@ -34,6 +34,23 @@ final class Minecraft189AntiBotModuleTest {
         assertTrue(module.permits(2, state.snapshot()));
     }
 
+    @Test void rejectsVerifiedFriendlyAndUnknownWhenProtectionEnabled() {
+        final Minecraft189AntiBotModule module = new Minecraft189AntiBotModule();
+        final Minecraft189WorldEntityCombatState state = new Minecraft189WorldEntityCombatState();
+        state.update(new int[]{1 | 512 | 256 | 2048 | 1024,
+                1 | 512 | 256 | 2048, 1 | 512 | 256});
+        module.onEnable();
+        try {
+            assertTrue(module.permits(0, state.snapshot()));
+            module.rejectSameTeamSetting().set(true);
+            assertFalse(module.permits(0, state.snapshot()));
+            assertTrue(module.permits(1, state.snapshot()));
+            assertFalse(module.permits(2, state.snapshot()));
+            module.rejectSameTeamSetting().set(false);
+            assertTrue(module.permits(0, state.snapshot()));
+        } finally { module.onDisable(); }
+    }
+
     @Test void registrationLifecyclePersistsAndCloses() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -48,6 +65,9 @@ final class Minecraft189AntiBotModuleTest {
             feature.module().allowUnknownSetting().set(true);
             assertEquals("true", settings.snapshotEncoded().get(
                     Minecraft189AntiBotModule.ALLOW_UNKNOWN));
+            feature.module().rejectSameTeamSetting().set(true);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AntiBotModule.REJECT_SAME_TEAM));
             controller.enable(Minecraft189AntiBotModule.ID);
         } finally { feature.close(); feature.close(); }
         assertNull(modules.find(Minecraft189AntiBotModule.ID));

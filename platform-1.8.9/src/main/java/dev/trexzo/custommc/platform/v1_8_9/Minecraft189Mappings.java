@@ -647,6 +647,10 @@ public final class Minecraft189Mappings {
                     "()F",
                     "func_110138_aP",
                     "getMaxHealth");
+    // Pinned vanilla 1.8.9 joined.srg pr.c(Lpr;)Z.
+    public static final MappedMethod ENTITY_LIVING_BASE_IS_ON_SAME_TEAM =
+            new MappedMethod(ENTITY_LIVING_BASE, "c", "(Lpr;)Z",
+                    "func_142014_c", "isOnSameTeam");
     public static final MappedMethod ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT =
             new MappedMethod(
                     ENTITY_LIVING_BASE,

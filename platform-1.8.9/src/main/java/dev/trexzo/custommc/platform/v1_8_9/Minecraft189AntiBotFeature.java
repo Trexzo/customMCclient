@@ -43,6 +43,13 @@ final class Minecraft189AntiBotFeature implements AutoCloseable {
                     SettingValueKind.BOOLEAN, 0)));
             feature.owned.add(moduleSettings.register(new ModuleSettingBinding(
                     Minecraft189AntiBotModule.ID, Minecraft189AntiBotModule.ALLOW_UNKNOWN, 0)));
+            feature.owned.add(settings.register(feature.module.rejectSameTeamSetting()));
+            feature.owned.add(settingPresentations.register(new SettingDescriptor(
+                    Minecraft189AntiBotModule.REJECT_SAME_TEAM, "Reject Same Team",
+                    SettingValueKind.BOOLEAN, 10)));
+            feature.owned.add(moduleSettings.register(new ModuleSettingBinding(
+                    Minecraft189AntiBotModule.ID,
+                    Minecraft189AntiBotModule.REJECT_SAME_TEAM, 10)));
             return feature;
         } catch (RuntimeException error) {
             try { feature.close(); } catch (RuntimeException clean) { error.addSuppressed(clean); }

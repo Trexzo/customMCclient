@@ -4051,6 +4051,10 @@ public final class Minecraft189ClassTransformer
         final Label loopEnd = new Label();
         final Label nonLiving = new Label();
         final Label noTabInfo = new Label();
+        final Label noMinecraftForTeam = new Label();
+        final Label wrongWorldForTeam = new Label();
+        final Label noLocalPlayerForTeam = new Label();
+        final Label teamComplete = new Label();
         final Label store = new Label();
         final String world = Minecraft189Mappings.WORLD.obfuscatedInternalName();
 
@@ -4139,6 +4143,84 @@ public final class Minecraft189ClassTransformer
         method.visitIntInsn(Opcodes.SIPUSH, 256);
         method.visitInsn(Opcodes.IOR);
         method.visitLabel(noTabInfo);
+        method.visitFrame(Opcodes.F_FULL, 6,
+                new Object[]{world, "java/util/List", Opcodes.INTEGER,
+                        "[I", Opcodes.INTEGER, "java/lang/Object"},
+                1, new Object[]{Opcodes.INTEGER});
+        // Native vanilla EntityLivingBase.isOnSameTeam(anotherLivingBase).
+        // Only source-confirmed EntityPlayer candidates are eligible, and
+        // team evidence is unknown if the local Minecraft player is absent.
+        // This preserves all existing lower 10-bit combat evidence.
+        method.visitVarInsn(Opcodes.ALOAD, 5);
+        method.visitTypeInsn(Opcodes.INSTANCEOF,
+                Minecraft189Mappings.ENTITY_PLAYER.obfuscatedInternalName());
+        method.visitJumpInsn(Opcodes.IFEQ, teamComplete);
+        method.visitMethodInsn(Opcodes.INVOKESTATIC,
+                Minecraft189Mappings.MINECRAFT_GET_MINECRAFT.owner()
+                        .obfuscatedInternalName(),
+                Minecraft189Mappings.MINECRAFT_GET_MINECRAFT.obfuscatedName(),
+                Minecraft189Mappings.MINECRAFT_GET_MINECRAFT.descriptor(), false);
+        method.visitInsn(Opcodes.DUP);
+        method.visitJumpInsn(Opcodes.IFNULL, noMinecraftForTeam);
+        // Refuse team evidence from a world other than active Minecraft.world.
+        method.visitInsn(Opcodes.DUP);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                Minecraft189Mappings.MINECRAFT.obfuscatedInternalName(),
+                Minecraft189Mappings.MINECRAFT_WORLD.obfuscatedName(),
+                Minecraft189Mappings.MINECRAFT_WORLD.descriptor());
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitJumpInsn(Opcodes.IF_ACMPNE, wrongWorldForTeam);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                Minecraft189Mappings.MINECRAFT.obfuscatedInternalName(),
+                Minecraft189Mappings.MINECRAFT_PLAYER.obfuscatedName(),
+                Minecraft189Mappings.MINECRAFT_PLAYER.descriptor());
+        method.visitInsn(Opcodes.DUP);
+        method.visitJumpInsn(Opcodes.IFNULL, noLocalPlayerForTeam);
+        method.visitVarInsn(Opcodes.ALOAD, 5);
+        method.visitTypeInsn(Opcodes.CHECKCAST,
+                Minecraft189Mappings.ENTITY_LIVING_BASE.obfuscatedInternalName());
+        method.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM.owner()
+                        .obfuscatedInternalName(),
+                Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM
+                        .obfuscatedName(),
+                Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM
+                        .descriptor(), false);
+        method.visitIntInsn(Opcodes.SIPUSH, 1024);
+        method.visitInsn(Opcodes.IMUL);
+        method.visitIntInsn(Opcodes.SIPUSH, 2048);
+        method.visitInsn(Opcodes.IOR);
+        method.visitInsn(Opcodes.IOR);
+        method.visitJumpInsn(Opcodes.GOTO, teamComplete);
+
+        method.visitLabel(noMinecraftForTeam);
+        method.visitFrame(Opcodes.F_FULL, 6,
+                new Object[]{world, "java/util/List", Opcodes.INTEGER,
+                        "[I", Opcodes.INTEGER, "java/lang/Object"},
+                2, new Object[]{Opcodes.INTEGER,
+                        Minecraft189Mappings.MINECRAFT.obfuscatedInternalName()});
+        method.visitInsn(Opcodes.POP);
+        method.visitJumpInsn(Opcodes.GOTO, teamComplete);
+
+        method.visitLabel(wrongWorldForTeam);
+        method.visitFrame(Opcodes.F_FULL, 6,
+                new Object[]{world, "java/util/List", Opcodes.INTEGER,
+                        "[I", Opcodes.INTEGER, "java/lang/Object"},
+                2, new Object[]{Opcodes.INTEGER,
+                        Minecraft189Mappings.MINECRAFT.obfuscatedInternalName()});
+        method.visitInsn(Opcodes.POP);
+        method.visitJumpInsn(Opcodes.GOTO, teamComplete);
+
+        method.visitLabel(noLocalPlayerForTeam);
+        method.visitFrame(Opcodes.F_FULL, 6,
+                new Object[]{world, "java/util/List", Opcodes.INTEGER,
+                        "[I", Opcodes.INTEGER, "java/lang/Object"},
+                2, new Object[]{Opcodes.INTEGER,
+                        Minecraft189Mappings.ENTITY_PLAYER_SP
+                                .obfuscatedInternalName()});
+        method.visitInsn(Opcodes.POP);
+
+        method.visitLabel(teamComplete);
         method.visitFrame(Opcodes.F_FULL, 6,
                 new Object[]{world, "java/util/List", Opcodes.INTEGER,
                         "[I", Opcodes.INTEGER, "java/lang/Object"},

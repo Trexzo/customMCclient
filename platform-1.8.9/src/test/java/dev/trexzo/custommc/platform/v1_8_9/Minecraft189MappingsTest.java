@@ -631,6 +631,10 @@ final class Minecraft189MappingsTest {
                 "func_110138_aP",
                 "getMaxHealth");
         assertMethod(
+                Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM,
+                Minecraft189Mappings.ENTITY_LIVING_BASE,
+                "c", "(Lpr;)Z", "func_142014_c", "isOnSameTeam");
+        assertMethod(
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT,
                 Minecraft189Mappings.ENTITY_LIVING_BASE,
                 "p",
@@ -1843,6 +1847,8 @@ final class Minecraft189MappingsTest {
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH);
 
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM);
+
         final IllegalStateException failure =
                 assertThrows(
                         IllegalStateException.class,
@@ -1875,6 +1881,8 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS);
+
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM);
 
         final IllegalStateException failure =
                 assertThrows(
@@ -1968,6 +1976,8 @@ final class Minecraft189MappingsTest {
         addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT);
         addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS);
         addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_JUMP);
+
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM);
 
         final IllegalStateException failure =
                 assertThrows(
@@ -2300,6 +2310,7 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH);
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM);
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT);

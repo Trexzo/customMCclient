@@ -12,6 +12,8 @@ public final class Minecraft189WorldEntityCombatState {
     public static final int MAX_HURT_TIME = 127;
     public static final int NETWORK_INFO_PRESENT = 1 << 8;
     public static final int NETWORK_INFO_KNOWN = 1 << 9;
+    public static final int SAME_TEAM = 1 << 10;
+    public static final int TEAM_KNOWN = 1 << 11;
     private static final int COMBAT_BITS = 255;
     private boolean available;
     private int[] packed = new int[0];
@@ -21,7 +23,11 @@ public final class Minecraft189WorldEntityCombatState {
         final int[] copy = Arrays.copyOf(next, next.length);
         for (int i = 0; i < copy.length; i++) {
             if (copy[i] < UNKNOWN || copy[i] > (MAX_HURT_TIME * 2 + 1
-                    + NETWORK_INFO_PRESENT + NETWORK_INFO_KNOWN)
+                    + NETWORK_INFO_PRESENT + NETWORK_INFO_KNOWN
+                    + SAME_TEAM + TEAM_KNOWN)
+                    || (copy[i] >= 0
+                        && (copy[i] & SAME_TEAM) != 0
+                        && (copy[i] & TEAM_KNOWN) == 0)
                     || (copy[i] >= 0
                         && (copy[i] & NETWORK_INFO_PRESENT) != 0
                         && (copy[i] & NETWORK_INFO_KNOWN) == 0)) {
@@ -70,6 +76,12 @@ public final class Minecraft189WorldEntityCombatState {
         public boolean networkInfoPresent(final int index) {
             return networkInfoKnown(index)
                     && (packed[index] & NETWORK_INFO_PRESENT) != 0;
+        }
+        public boolean teamKnown(final int index) {
+            return known(index) && (packed[index] & TEAM_KNOWN) != 0;
+        }
+        public boolean sameTeam(final int index) {
+            return teamKnown(index) && (packed[index] & SAME_TEAM) != 0;
         }
         public int raw(final int index) {
             return known(index) ? packed[index] : UNKNOWN;
