@@ -64,6 +64,15 @@ final class Minecraft189AutoClickerFeature
     private final ModuleSettingRegistry.Registration burstModeBinding;
     private final ModuleSettingRegistry.Registration burstClicksBinding;
     private final ModuleSettingRegistry.Registration burstRestTicksBinding;
+    private final SettingRegistry.Registration airborneProfileSetting;
+    private final SettingRegistry.Registration airborneMinCpsSetting;
+    private final SettingRegistry.Registration airborneMaxCpsSetting;
+    private final SettingPresentationRegistry.Registration airborneProfilePresentation;
+    private final SettingPresentationRegistry.Registration airborneMinCpsPresentation;
+    private final SettingPresentationRegistry.Registration airborneMaxCpsPresentation;
+    private final ModuleSettingRegistry.Registration airborneProfileBinding;
+    private final ModuleSettingRegistry.Registration airborneMinCpsBinding;
+    private final ModuleSettingRegistry.Registration airborneMaxCpsBinding;
     private boolean closed;
 
     private Minecraft189AutoClickerFeature(
@@ -115,7 +124,16 @@ final class Minecraft189AutoClickerFeature
             final SettingPresentationRegistry.Registration burstRestTicksPresentation,
             final ModuleSettingRegistry.Registration burstModeBinding,
             final ModuleSettingRegistry.Registration burstClicksBinding,
-            final ModuleSettingRegistry.Registration burstRestTicksBinding) {
+            final ModuleSettingRegistry.Registration burstRestTicksBinding,
+            final SettingRegistry.Registration airborneProfileSetting,
+            final SettingRegistry.Registration airborneMinCpsSetting,
+            final SettingRegistry.Registration airborneMaxCpsSetting,
+            final SettingPresentationRegistry.Registration airborneProfilePresentation,
+            final SettingPresentationRegistry.Registration airborneMinCpsPresentation,
+            final SettingPresentationRegistry.Registration airborneMaxCpsPresentation,
+            final ModuleSettingRegistry.Registration airborneProfileBinding,
+            final ModuleSettingRegistry.Registration airborneMinCpsBinding,
+            final ModuleSettingRegistry.Registration airborneMaxCpsBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -165,6 +183,15 @@ final class Minecraft189AutoClickerFeature
         this.burstModeBinding = burstModeBinding;
         this.burstClicksBinding = burstClicksBinding;
         this.burstRestTicksBinding = burstRestTicksBinding;
+        this.airborneProfileSetting = airborneProfileSetting;
+        this.airborneMinCpsSetting = airborneMinCpsSetting;
+        this.airborneMaxCpsSetting = airborneMaxCpsSetting;
+        this.airborneProfilePresentation = airborneProfilePresentation;
+        this.airborneMinCpsPresentation = airborneMinCpsPresentation;
+        this.airborneMaxCpsPresentation = airborneMaxCpsPresentation;
+        this.airborneProfileBinding = airborneProfileBinding;
+        this.airborneMinCpsBinding = airborneMinCpsBinding;
+        this.airborneMaxCpsBinding = airborneMaxCpsBinding;
     }
 
     static Minecraft189AutoClickerFeature install(
@@ -224,6 +251,15 @@ final class Minecraft189AutoClickerFeature
         ModuleSettingRegistry.Registration burstModeBinding = null;
         ModuleSettingRegistry.Registration burstClicksBinding = null;
         ModuleSettingRegistry.Registration burstRestTicksBinding = null;
+        SettingRegistry.Registration airborneProfileSetting = null;
+        SettingRegistry.Registration airborneMinCpsSetting = null;
+        SettingRegistry.Registration airborneMaxCpsSetting = null;
+        SettingPresentationRegistry.Registration airborneProfilePresentation = null;
+        SettingPresentationRegistry.Registration airborneMinCpsPresentation = null;
+        SettingPresentationRegistry.Registration airborneMaxCpsPresentation = null;
+        ModuleSettingRegistry.Registration airborneProfileBinding = null;
+        ModuleSettingRegistry.Registration airborneMinCpsBinding = null;
+        ModuleSettingRegistry.Registration airborneMaxCpsBinding = null;
 
         try {
             moduleRegistration =
@@ -265,6 +301,9 @@ final class Minecraft189AutoClickerFeature
             burstModeSetting = settings.register(module.burstModeSetting());
             burstClicksSetting = settings.register(module.burstClicksSetting());
             burstRestTicksSetting = settings.register(module.burstRestTicksSetting());
+            airborneProfileSetting = settings.register(module.airborneProfileSetting());
+            airborneMinCpsSetting = settings.register(module.airborneMinCpsSetting());
+            airborneMaxCpsSetting = settings.register(module.airborneMaxCpsSetting());
             minPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -362,6 +401,20 @@ final class Minecraft189AutoClickerFeature
                             new SettingNumericSpec(1.0D,
                                     Minecraft189AutoClickerModule.MAXIMUM_BURST_REST_TICKS,
                                     1.0D)));
+            airborneProfilePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoClickerModule.AIRBORNE_PROFILE_SETTING_ID,
+                            "Airborne CPS Profile", SettingValueKind.BOOLEAN, 120));
+            airborneMinCpsPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoClickerModule.AIRBORNE_MIN_CPS_SETTING_ID,
+                            "Air Min CPS", SettingValueKind.INTEGER, 130,
+                            new SettingNumericSpec(1.0D, 20.0D, 1.0D)));
+            airborneMaxCpsPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoClickerModule.AIRBORNE_MAX_CPS_SETTING_ID,
+                            "Air Max CPS", SettingValueKind.INTEGER, 140,
+                            new SettingNumericSpec(1.0D, 20.0D, 1.0D)));
             minBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -437,6 +490,19 @@ final class Minecraft189AutoClickerFeature
                             Minecraft189AutoClickerModule.ID,
                             Minecraft189AutoClickerModule.BURST_REST_TICKS_SETTING_ID, 110));
 
+            airborneProfileBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoClickerModule.ID,
+                            Minecraft189AutoClickerModule.AIRBORNE_PROFILE_SETTING_ID, 120));
+            airborneMinCpsBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoClickerModule.ID,
+                            Minecraft189AutoClickerModule.AIRBORNE_MIN_CPS_SETTING_ID, 130));
+            airborneMaxCpsBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoClickerModule.ID,
+                            Minecraft189AutoClickerModule.AIRBORNE_MAX_CPS_SETTING_ID, 140));
+
             return new Minecraft189AutoClickerFeature(
                     controller,
                     module,
@@ -486,8 +552,26 @@ final class Minecraft189AutoClickerFeature
                     burstRestTicksPresentation,
                     burstModeBinding,
                     burstClicksBinding,
-                    burstRestTicksBinding);
+                    burstRestTicksBinding,
+                    airborneProfileSetting,
+                    airborneMinCpsSetting,
+                    airborneMaxCpsSetting,
+                    airborneProfilePresentation,
+                    airborneMinCpsPresentation,
+                    airborneMaxCpsPresentation,
+                    airborneProfileBinding,
+                    airborneMinCpsBinding,
+                    airborneMaxCpsBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(airborneMaxCpsBinding, failure);
+            closeQuietly(airborneMinCpsBinding, failure);
+            closeQuietly(airborneProfileBinding, failure);
+            closeQuietly(airborneMaxCpsPresentation, failure);
+            closeQuietly(airborneMinCpsPresentation, failure);
+            closeQuietly(airborneProfilePresentation, failure);
+            closeQuietly(airborneMaxCpsSetting, failure);
+            closeQuietly(airborneMinCpsSetting, failure);
+            closeQuietly(airborneProfileSetting, failure);
             closeQuietly(burstRestTicksBinding, failure);
             closeQuietly(burstClicksBinding, failure);
             closeQuietly(burstModeBinding, failure);
@@ -606,6 +690,15 @@ final class Minecraft189AutoClickerFeature
             failure = closeFailure;
         }
 
+        failure = close(airborneMaxCpsBinding, failure);
+        failure = close(airborneMinCpsBinding, failure);
+        failure = close(airborneProfileBinding, failure);
+        failure = close(airborneMaxCpsPresentation, failure);
+        failure = close(airborneMinCpsPresentation, failure);
+        failure = close(airborneProfilePresentation, failure);
+        failure = close(airborneMaxCpsSetting, failure);
+        failure = close(airborneMinCpsSetting, failure);
+        failure = close(airborneProfileSetting, failure);
         failure = close(burstRestTicksBinding, failure);
         failure = close(burstClicksBinding, failure);
         failure = close(burstModeBinding, failure);
