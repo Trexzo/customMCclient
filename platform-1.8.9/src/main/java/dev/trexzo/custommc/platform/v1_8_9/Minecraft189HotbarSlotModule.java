@@ -21,11 +21,18 @@ public final class Minecraft189HotbarSlotModule
             "render.hotbarSlot.x";
     public static final String Y_SETTING_ID =
             "render.hotbarSlot.y";
+    public static final String SHOW_STRIP_SETTING_ID =
+            "render.hotbarSlot.showStrip";
     public static final String RENDER_PASS_ID =
             "hotbar-slot";
 
     private static final int PRIORITY = 138;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
+    private static final int STRIP_IDLE_ARGB = 0xBB202833;
+    private static final int STRIP_ACTIVE_ARGB = 0xFF70C9E8;
+    private static final int STRIP_ACTIVE_TEXT_ARGB = 0xFF10212A;
+    private static final float STRIP_SLOT_SIZE = 18.0F;
+    private static final float STRIP_SLOT_SPACING = 20.0F;
 
     private final Minecraft189HotbarSlotState hotbarSlotState;
     private final RenderPipeline renderPipeline;
@@ -44,6 +51,9 @@ public final class Minecraft189HotbarSlotModule
                     value -> value >= 0
                             && value <= 4096,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> showStrip = new Setting<Boolean>(
+            SHOW_STRIP_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189HotbarSlotModule(
@@ -75,6 +85,10 @@ public final class Minecraft189HotbarSlotModule
 
     public Setting<Integer> ySetting() {
         return y;
+    }
+
+    public Setting<Boolean> showStripSetting() {
+        return showStrip;
     }
 
     @Override
@@ -151,13 +165,33 @@ public final class Minecraft189HotbarSlotModule
             hostCallbacks.beginUi(viewport);
             RuntimeException failure = null;
             try {
-                hostCallbacks.drawText(
-                        UiFonts.DEFAULT,
-                        x.get().floatValue(),
-                        y.get().floatValue(),
-                        textFor(
-                                slot),
-                        TEXT_ARGB);
+                final float left = x.get().floatValue();
+                final float top = y.get().floatValue();
+                if (showStrip.get().booleanValue()) {
+                    // Nine lightweight rectangles are drawn only from
+                    // the certified selected-slot snapshot. The bar
+                    // never assumes or renders item identities.
+                    for (int index = 0;
+                            index < Minecraft189HotbarSlotState.SLOT_COUNT;
+                            index++) {
+                        final boolean selected = index == slot.zeroBasedSlot();
+                        final float cellX = left + index * STRIP_SLOT_SPACING;
+                        hostCallbacks.fillRoundedRect(
+                                cellX, top, STRIP_SLOT_SIZE, STRIP_SLOT_SIZE,
+                                3.0F,
+                                selected ? STRIP_ACTIVE_ARGB : STRIP_IDLE_ARGB);
+                        hostCallbacks.drawText(
+                                UiFonts.DEFAULT,
+                                cellX + 6.0F, top + 5.0F,
+                                Integer.toString(index + 1),
+                                selected ? STRIP_ACTIVE_TEXT_ARGB : TEXT_ARGB);
+                    }
+                } else {
+                    hostCallbacks.drawText(
+                            UiFonts.DEFAULT,
+                            left, top,
+                            textFor(slot), TEXT_ARGB);
+                }
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
                 throw drawFailure;
