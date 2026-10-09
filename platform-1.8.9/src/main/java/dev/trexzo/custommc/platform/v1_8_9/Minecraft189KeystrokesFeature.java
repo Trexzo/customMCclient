@@ -27,6 +27,12 @@ final class Minecraft189KeystrokesFeature
     private final SettingPresentationRegistry.Registration yPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final SettingRegistry.Registration showSpaceSetting;
+    private final SettingRegistry.Registration showShiftSetting;
+    private final SettingPresentationRegistry.Registration showSpacePresentation;
+    private final SettingPresentationRegistry.Registration showShiftPresentation;
+    private final ModuleSettingRegistry.Registration showSpaceBinding;
+    private final ModuleSettingRegistry.Registration showShiftBinding;
     private boolean closed;
 
     private Minecraft189KeystrokesFeature(
@@ -39,7 +45,13 @@ final class Minecraft189KeystrokesFeature
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
             final ModuleSettingRegistry.Registration xBinding,
-            final ModuleSettingRegistry.Registration yBinding) {
+            final ModuleSettingRegistry.Registration yBinding,
+            final SettingRegistry.Registration showSpaceSetting,
+            final SettingRegistry.Registration showShiftSetting,
+            final SettingPresentationRegistry.Registration showSpacePresentation,
+            final SettingPresentationRegistry.Registration showShiftPresentation,
+            final ModuleSettingRegistry.Registration showSpaceBinding,
+            final ModuleSettingRegistry.Registration showShiftBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -50,6 +62,12 @@ final class Minecraft189KeystrokesFeature
         this.yPresentation = yPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.showSpaceSetting = showSpaceSetting;
+        this.showShiftSetting = showShiftSetting;
+        this.showSpacePresentation = showSpacePresentation;
+        this.showShiftPresentation = showShiftPresentation;
+        this.showSpaceBinding = showSpaceBinding;
+        this.showShiftBinding = showShiftBinding;
     }
 
     static Minecraft189KeystrokesFeature install(
@@ -76,6 +94,12 @@ final class Minecraft189KeystrokesFeature
         SettingPresentationRegistry.Registration yPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        SettingRegistry.Registration showSpaceSetting = null;
+        SettingRegistry.Registration showShiftSetting = null;
+        SettingPresentationRegistry.Registration showSpacePresentation = null;
+        SettingPresentationRegistry.Registration showShiftPresentation = null;
+        ModuleSettingRegistry.Registration showSpaceBinding = null;
+        ModuleSettingRegistry.Registration showShiftBinding = null;
 
         try {
             moduleRegistration =
@@ -95,6 +119,8 @@ final class Minecraft189KeystrokesFeature
             ySetting =
                     settings.register(
                             module.ySetting());
+            showSpaceSetting = settings.register(module.showSpaceSetting());
+            showShiftSetting = settings.register(module.showShiftSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -117,6 +143,14 @@ final class Minecraft189KeystrokesFeature
                                             0.0D,
                                             4096.0D,
                                             1.0D)));
+            showSpacePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189KeystrokesModule.SHOW_SPACE_SETTING_ID,
+                            "Show Space", SettingValueKind.BOOLEAN, 20));
+            showShiftPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189KeystrokesModule.SHOW_SHIFT_SETTING_ID,
+                            "Show Shift", SettingValueKind.BOOLEAN, 30));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -130,6 +164,14 @@ final class Minecraft189KeystrokesFeature
                                     Minecraft189KeystrokesModule.Y_SETTING_ID,
                                     10));
 
+            showSpaceBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189KeystrokesModule.ID,
+                            Minecraft189KeystrokesModule.SHOW_SPACE_SETTING_ID, 20));
+            showShiftBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189KeystrokesModule.ID,
+                            Minecraft189KeystrokesModule.SHOW_SHIFT_SETTING_ID, 30));
             return new Minecraft189KeystrokesFeature(
                     controller,
                     module,
@@ -140,8 +182,20 @@ final class Minecraft189KeystrokesFeature
                     xPresentation,
                     yPresentation,
                     xBinding,
-                    yBinding);
+                    yBinding,
+                    showSpaceSetting,
+                    showShiftSetting,
+                    showSpacePresentation,
+                    showShiftPresentation,
+                    showSpaceBinding,
+                    showShiftBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(showShiftBinding, failure);
+            closeQuietly(showSpaceBinding, failure);
+            closeQuietly(showShiftPresentation, failure);
+            closeQuietly(showSpacePresentation, failure);
+            closeQuietly(showShiftSetting, failure);
+            closeQuietly(showSpaceSetting, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
             closeQuietly(yPresentation, failure);
@@ -181,6 +235,12 @@ final class Minecraft189KeystrokesFeature
             failure = closeFailure;
         }
 
+        failure = close(showShiftBinding, failure);
+        failure = close(showSpaceBinding, failure);
+        failure = close(showShiftPresentation, failure);
+        failure = close(showSpacePresentation, failure);
+        failure = close(showShiftSetting, failure);
+        failure = close(showSpaceSetting, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
         failure = close(yPresentation, failure);
