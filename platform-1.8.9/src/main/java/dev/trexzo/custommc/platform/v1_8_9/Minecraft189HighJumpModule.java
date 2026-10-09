@@ -11,6 +11,8 @@ public final class Minecraft189HighJumpModule
         implements Module {
     public static final String ID =
             "movement.highJump";
+    public static final String REQUIRE_MOVEMENT_SETTING_ID =
+            "movement.highJump.requireMovement";
     public static final String VERTICAL_SPEED_SETTING_ID =
             "movement.highJump.verticalSpeed";
     public static final double DEFAULT_VERTICAL_SPEED =
@@ -27,6 +29,10 @@ public final class Minecraft189HighJumpModule
                     DEFAULT_VERTICAL_SPEED,
                     Minecraft189HighJumpModule::validVerticalSpeed,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> requireMovement =
+            new Setting<Boolean>(
+                    REQUIRE_MOVEMENT_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
     private boolean spaceWasPressed;
     private boolean boostPending;
@@ -49,6 +55,10 @@ public final class Minecraft189HighJumpModule
 
     public Setting<Double> verticalSpeedSetting() {
         return verticalSpeed;
+    }
+
+    public Setting<Boolean> requireMovementSetting() {
+        return requireMovement;
     }
 
     @Override
@@ -86,7 +96,9 @@ public final class Minecraft189HighJumpModule
                     || !movement.available()
                     || !movement.onGround()
                     || !spacePressed
-                    || spaceWasPressed) {
+                    || spaceWasPressed
+                    || (requireMovement.get().booleanValue()
+                            && !movementInputHeld())) {
                 return false;
             }
 
@@ -120,6 +132,13 @@ public final class Minecraft189HighJumpModule
                     targetMotionY);
         }
         return true;
+    }
+
+    private boolean movementInputHeld() {
+        return inputState.keyPressed(LegacyKeyboardCodes.W)
+                || inputState.keyPressed(LegacyKeyboardCodes.A)
+                || inputState.keyPressed(LegacyKeyboardCodes.S)
+                || inputState.keyPressed(LegacyKeyboardCodes.D);
     }
 
     synchronized boolean active() {
