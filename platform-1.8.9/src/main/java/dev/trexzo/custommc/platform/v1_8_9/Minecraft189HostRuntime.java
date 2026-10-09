@@ -1309,21 +1309,31 @@ public final class Minecraft189HostRuntime
         // is cancelled so closing the GUI cannot replay banked clicks.
         if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
             featureCatalog.autoClicker().suspendForGui();
+            featureCatalog.triggerBot().suspend();
             return false;
         }
         final boolean confirmedHit = crosshairPlayerHit;
-        final boolean click =
-                featureCatalog.autoClicker()
-                        .shouldClick(
-                                inputState.pointerPressed(
-                                        Minecraft189ClickRateTracker.LEFT_BUTTON),
-                                inputState.keyPressed(
-                                        LegacyKeyboardCodes.W),
-                                inputState.pointerPressed(
-                                        Minecraft189ClickRateTracker.RIGHT_BUTTON),
-                                nearestPlayerTargetState.snapshot(),
-                                playerMovementState.snapshot(),
-                                confirmedHit);
+        // Exactly one Combat module can own an automatic attack callback.
+        // Dedicated Trigger Bot has precedence; legacy Auto Clicker trigger
+        // mode remains for backward-compatible persisted profiles.
+        final Minecraft189TriggerBotModule trigger = featureCatalog.triggerBot();
+        final boolean click;
+        if (trigger.active()) {
+            featureCatalog.autoClicker().suspendForGui();
+            click = trigger.shouldClick(
+                    confirmedHit,
+                    inputState.pointerPressed(Minecraft189ClickRateTracker.LEFT_BUTTON),
+                    inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                    playerMovementState.snapshot());
+        } else {
+            trigger.suspend();
+            click = featureCatalog.autoClicker().shouldClick(
+                    inputState.pointerPressed(Minecraft189ClickRateTracker.LEFT_BUTTON),
+                    inputState.keyPressed(LegacyKeyboardCodes.W),
+                    inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                    nearestPlayerTargetState.snapshot(),
+                    playerMovementState.snapshot(), confirmedHit);
+        }
         if (click) {
             clickRateTracker.recordPress(
                     Minecraft189ClickRateTracker.LEFT_BUTTON);
