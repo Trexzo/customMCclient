@@ -604,6 +604,95 @@ final class Minecraft189VelocityModuleTest {
         assertTrue(modules.find(Minecraft189VelocityModule.ID) == null);
     }
 
+    @Test
+    void minimumVelocityImpulseThresholdsPreserveMinorMotionPerAxis() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189VelocityModule velocity =
+                    runtime.featureCatalog().velocity();
+            assertEquals("0.0", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.MIN_HORIZONTAL_DELTA_SETTING_ID));
+            assertEquals("0.0", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.MIN_VERTICAL_DELTA_SETTING_ID));
+            controller.enable(Minecraft189VelocityModule.ID);
+            velocity.horizontalPercentSetting().set(50);
+            velocity.verticalPercentSetting().set(50);
+            assertEquals(1.0625D, velocity.adjustHorizontal(1.0D, 1.125D), 0.0D);
+            assertEquals(-0.2625D, velocity.adjustVertical(-0.2D, -0.325D),
+                    0.00000001D); // Existing scaling with thresholds OFF.
+
+            velocity.minHorizontalDeltaSetting().set(0.25D);
+            velocity.minVerticalDeltaSetting().set(0.25D);
+            assertEquals("0.25", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.MIN_HORIZONTAL_DELTA_SETTING_ID));
+            assertEquals("0.25", settings.snapshotEncoded().get(
+                    Minecraft189VelocityModule.MIN_VERTICAL_DELTA_SETTING_ID));
+            assertEquals(1.125D, velocity.adjustHorizontal(1.0D, 1.125D), 0.0D);
+            assertEquals(-0.325D, velocity.adjustVertical(-0.2D, -0.325D),
+                    0.0D);
+            assertEquals(1.125D, velocity.adjustHorizontal(1.0D, 1.25D),
+                    0.0D); // Exactly threshold must be scaled.
+            assertEquals(1.5D, velocity.adjustHorizontal(1.0D, 2.0D), 0.0D);
+            assertEquals(-0.45D, velocity.adjustVertical(-0.2D, -0.7D),
+                    0.00000001D); // Large impulse scaled.
+
+            velocity.airborneOverrideSetting().set(Boolean.TRUE);
+            velocity.airborneHorizontalPercentSetting().set(0);
+            velocity.airborneVerticalPercentSetting().set(0);
+            runtime.playerMovementState().update(false, false, false);
+            final Minecraft189PlayerMovementState.Snapshot air =
+                    runtime.playerMovementState().snapshot();
+            assertEquals(1.125D, velocity.adjustHorizontal(1.0D, 1.125D, air),
+                    0.0D); // Threshold wins for small air impulse.
+            assertEquals(1.0D, velocity.adjustHorizontal(1.0D, 2.0D, air),
+                    0.0D); // Air profile still used above threshold.
+            velocity.groundOnlySetting().set(Boolean.TRUE);
+            assertEquals(2.0D, velocity.adjustHorizontal(1.0D, 2.0D, air),
+                    0.0D); // Preexisting ground veto wins.
+
+            velocity.minHorizontalDeltaSetting().set(0.0D);
+            velocity.minVerticalDeltaSetting().set(0.0D);
+            velocity.groundOnlySetting().set(Boolean.FALSE);
+            velocity.airborneOverrideSetting().set(Boolean.FALSE);
+            assertEquals(1.0625D, velocity.adjustHorizontal(1.0D, 1.125D), 0.0D);
+            assertEquals(-0.2625D, velocity.adjustVertical(-0.2D, -0.325D),
+                    0.00000001D);
+            assertEquals(Double.POSITIVE_INFINITY,
+                    velocity.adjustHorizontal(1.0D, Double.POSITIVE_INFINITY),
+                    0.0D);
+            assertThrows(IllegalArgumentException.class,
+                    () -> velocity.minHorizontalDeltaSetting().set(-0.01D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> velocity.minVerticalDeltaSetting().set(2.01D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> velocity.minHorizontalDeltaSetting().set(Double.NaN));
+            assertThrows(IllegalArgumentException.class,
+                    () -> velocity.minVerticalDeltaSetting().set(
+                            Double.POSITIVE_INFINITY));
+            controller.disable(Minecraft189VelocityModule.ID);
+        } finally {
+            runtime.close();
+        }
+        assertTrue(settings.find(
+                Minecraft189VelocityModule.MIN_HORIZONTAL_DELTA_SETTING_ID) == null);
+        assertTrue(settings.find(
+                Minecraft189VelocityModule.MIN_VERTICAL_DELTA_SETTING_ID) == null);
+        assertTrue(modules.find(Minecraft189VelocityModule.ID) == null);
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override

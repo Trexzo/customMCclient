@@ -26,6 +26,12 @@ public final class Minecraft189VelocityModule
             "combat.velocity.airborneHorizontalPercent";
     public static final String AIRBORNE_VERTICAL_SETTING_ID =
             "combat.velocity.airborneVerticalPercent";
+    public static final String MIN_HORIZONTAL_DELTA_SETTING_ID =
+            "combat.velocity.minHorizontalDelta";
+    public static final String MIN_VERTICAL_DELTA_SETTING_ID =
+            "combat.velocity.minVerticalDelta";
+    public static final double DEFAULT_MINIMUM_DELTA = 0.0D;
+    public static final double MAXIMUM_MINIMUM_DELTA = 2.0D;
     public static final int DEFAULT_PERCENT = 0;
     public static final int MINIMUM_PERCENT = 0;
     public static final int MAXIMUM_PERCENT = 200;
@@ -79,6 +85,12 @@ public final class Minecraft189VelocityModule
                     Minecraft189VelocityModule::validPercent,
                     SettingCodecs.INTEGER);
 
+    private final Setting<Double> minHorizontalDelta = new Setting<Double>(
+            MIN_HORIZONTAL_DELTA_SETTING_ID, DEFAULT_MINIMUM_DELTA,
+            Minecraft189VelocityModule::validMinimumDelta, SettingCodecs.DOUBLE);
+    private final Setting<Double> minVerticalDelta = new Setting<Double>(
+            MIN_VERTICAL_DELTA_SETTING_ID, DEFAULT_MINIMUM_DELTA,
+            Minecraft189VelocityModule::validMinimumDelta, SettingCodecs.DOUBLE);
     private boolean enabled;
 
     @Override
@@ -122,6 +134,14 @@ public final class Minecraft189VelocityModule
         return airborneVerticalPercent;
     }
 
+    public Setting<Double> minHorizontalDeltaSetting() {
+        return minHorizontalDelta;
+    }
+
+    public Setting<Double> minVerticalDeltaSetting() {
+        return minVerticalDelta;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -142,6 +162,10 @@ public final class Minecraft189VelocityModule
             final double before,
             final double after,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        if (belowMinimumDelta(before, after,
+                minHorizontalDelta.get().doubleValue())) {
+            return after;
+        }
         return adjust(
                 before,
                 after,
@@ -162,6 +186,10 @@ public final class Minecraft189VelocityModule
             final double before,
             final double after,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        if (belowMinimumDelta(before, after,
+                minVerticalDelta.get().doubleValue())) {
+            return after;
+        }
         return adjust(
                 before,
                 after,
@@ -210,6 +238,22 @@ public final class Minecraft189VelocityModule
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    private static boolean validMinimumDelta(final Double value) {
+        return value != null && Double.isFinite(value)
+                && value >= 0.0D && value <= MAXIMUM_MINIMUM_DELTA;
+    }
+
+    private static boolean belowMinimumDelta(final double before,
+            final double after, final double threshold) {
+        // An OFF (zero) threshold exactly preserves the certified existing
+        // scaling path, including signed zeros and nonfinite inputs.
+        // Invalid / extreme motion must never be interpreted as a small
+        // impulse: the existing finite-safe scaler retains authority.
+        return threshold > 0.0D && Double.isFinite(before)
+                && Double.isFinite(after)
+                && Math.abs(after - before) < threshold;
     }
 
     private static boolean validPercent(final Integer value) {
