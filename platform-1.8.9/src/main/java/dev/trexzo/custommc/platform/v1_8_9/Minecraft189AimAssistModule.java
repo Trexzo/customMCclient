@@ -46,6 +46,11 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.angularEasing";
     public static final String EASING_STRENGTH_SETTING_ID =
             "combat.aimAssist.easingStrengthPercent";
+    public static final String COMBINED_STEP_SETTING_ID =
+            "combat.aimAssist.combinedStep";
+    public static final String MAX_COMBINED_STEP_SETTING_ID =
+            "combat.aimAssist.maxCombinedStep";
+    public static final double DEFAULT_MAX_COMBINED_STEP = 10.0D;
     public static final int DEFAULT_EASING_STRENGTH = 50;
     public static final int MINIMUM_EASING_STRENGTH = 10;
     public static final int MAXIMUM_EASING_STRENGTH = 90;
@@ -209,6 +214,12 @@ public final class Minecraft189AimAssistModule
                             && value <= MAXIMUM_EASING_STRENGTH,
                     SettingCodecs.INTEGER);
 
+    private final Setting<Boolean> combinedStep = new Setting<Boolean>(
+            COMBINED_STEP_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Double> maxCombinedStep = new Setting<Double>(
+            MAX_COMBINED_STEP_SETTING_ID, DEFAULT_MAX_COMBINED_STEP,
+            Minecraft189AimAssistModule::validSpeed, SettingCodecs.DOUBLE);
     private boolean enabled;
 
     @Override
@@ -290,6 +301,14 @@ public final class Minecraft189AimAssistModule
 
     public Setting<Integer> easingStrengthSetting() {
         return easingStrength;
+    }
+
+    public Setting<Boolean> combinedStepSetting() {
+        return combinedStep;
+    }
+
+    public Setting<Double> maxCombinedStepSetting() {
+        return maxCombinedStep;
     }
 
     @Override
@@ -396,19 +415,39 @@ public final class Minecraft189AimAssistModule
                                 pitchSpeed.get().doubleValue(), strength)
                                 : pitchSpeed.get().doubleValue());
 
+        float nextYaw = targetYaw;
+        float nextPitch = targetPitch;
+        if (combinedStep.get().booleanValue()) {
+            // A yaw/pitch diagonal otherwise exceeds either independent
+            // axis cap. Scale the already-eligible bounded corrections as
+            // a vector; wrapped yaw follows its certified shortest arc.
+            final float yawDelta = adjustYaw
+                    ? wrapYaw(targetYaw - rotation.yaw()) : 0.0F;
+            final float pitchDelta = adjustPitch
+                    ? targetPitch - rotation.pitch() : 0.0F;
+            final double length = Math.hypot(yawDelta, pitchDelta);
+            if (!Double.isFinite(length)) {
+                return false;
+            }
+            final double cap = maxCombinedStep.get().doubleValue();
+            if (length > cap) {
+                final float scale = (float) (cap / length);
+                if (adjustYaw) {
+                    nextYaw = wrapYaw(rotation.yaw() + yawDelta * scale);
+                }
+                if (adjustPitch) {
+                    nextPitch = rotation.pitch() + pitchDelta * scale;
+                }
+            }
+        }
+
         if (adjustYaw
-                && Float.compare(
-                        rotation.yaw(),
-                        targetYaw) != 0) {
-            player.customMcSetRotationYaw(
-                    targetYaw);
+                && Float.compare(rotation.yaw(), nextYaw) != 0) {
+            player.customMcSetRotationYaw(nextYaw);
         }
         if (adjustPitch
-                && Float.compare(
-                        rotation.pitch(),
-                        targetPitch) != 0) {
-            player.customMcSetRotationPitch(
-                    targetPitch);
+                && Float.compare(rotation.pitch(), nextPitch) != 0) {
+            player.customMcSetRotationPitch(nextPitch);
         }
 
         return true;
