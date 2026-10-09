@@ -408,34 +408,38 @@ public final class Minecraft189RuntimeBridge {
             // Healing item has priority over Rod and synthetic attacks.
             // Each winning action owns the full native right-click lane.
             if (host.shouldAutoPot(playerHit, playerIndex)) {
-                if (swordBlock != null && host.releaseAutoBlockBeforeAction()
-                        && swordBlock.customMcIsUsingItem())
-                    swordBlock.customMcStopUsingItem();
+                // Only an actual potion takes the combat action lane.
                 final int originalPotionSlot = host.selectAutoPotSlot();
                 if (originalPotionSlot >= 0) {
                     try {
+                        if (swordBlock != null && host.releaseAutoBlockBeforeAction()
+                                && swordBlock.customMcIsUsingItem())
+                            swordBlock.customMcStopUsingItem();
                         minecraft.customMcRightClickMouse();
                     } finally {
                         host.restoreAutoPotSlot(originalPotionSlot);
                     }
+                    return;
                 }
-                return;
+                // Incorrect or unknown item type: the slot is already
+                // restored. Rod or ordinary click can still run.
             }
             // Rod consumes one synthetic combat action on its own tick.
             // Normal clicks are not double-issued on the same tick.
             if (host.shouldAutoRod(playerHit, playerIndex)) {
-                if (swordBlock != null && host.releaseAutoBlockBeforeAction()
-                        && swordBlock.customMcIsUsingItem())
-                    swordBlock.customMcStopUsingItem();
                 final int originalRodSlot = host.selectAutoRodSlot();
                 if (originalRodSlot >= 0) {
                     try {
+                        if (swordBlock != null && host.releaseAutoBlockBeforeAction()
+                                && swordBlock.customMcIsUsingItem())
+                            swordBlock.customMcStopUsingItem();
                         minecraft.customMcRightClickMouse();
                     } finally {
                         host.restoreAutoRodSlot(originalRodSlot);
                     }
+                    return;
                 }
-                return;
+                // No verified rod in the configured slot: fall through.
             }
             if (host.shouldAutoClick(playerHit, playerIndex)) {
                 if (swordBlock != null && host.releaseAutoBlockBeforeAction()
