@@ -54,6 +54,9 @@ final class Minecraft189CrosshairFeature
     private final ModuleSettingRegistry.Registration redBinding;
     private final ModuleSettingRegistry.Registration greenBinding;
     private final ModuleSettingRegistry.Registration blueBinding;
+    private final SettingRegistry.Registration opacitySetting;
+    private final SettingPresentationRegistry.Registration opacityPresentation;
+    private final ModuleSettingRegistry.Registration opacityBinding;
     private boolean closed;
 
     private Minecraft189CrosshairFeature(
@@ -93,7 +96,10 @@ final class Minecraft189CrosshairFeature
             final SettingPresentationRegistry.Registration bluePresentation,
             final ModuleSettingRegistry.Registration redBinding,
             final ModuleSettingRegistry.Registration greenBinding,
-            final ModuleSettingRegistry.Registration blueBinding) {
+            final ModuleSettingRegistry.Registration blueBinding,
+            final SettingRegistry.Registration opacitySetting,
+            final SettingPresentationRegistry.Registration opacityPresentation,
+            final ModuleSettingRegistry.Registration opacityBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -131,6 +137,9 @@ final class Minecraft189CrosshairFeature
         this.redBinding = redBinding;
         this.greenBinding = greenBinding;
         this.blueBinding = blueBinding;
+        this.opacitySetting = opacitySetting;
+        this.opacityPresentation = opacityPresentation;
+        this.opacityBinding = opacityBinding;
     }
 
     static Minecraft189CrosshairFeature install(
@@ -184,6 +193,9 @@ final class Minecraft189CrosshairFeature
         ModuleSettingRegistry.Registration redBinding = null;
         ModuleSettingRegistry.Registration greenBinding = null;
         ModuleSettingRegistry.Registration blueBinding = null;
+        SettingRegistry.Registration opacitySetting = null;
+        SettingPresentationRegistry.Registration opacityPresentation = null;
+        ModuleSettingRegistry.Registration opacityBinding = null;
 
         try {
             moduleRegistration =
@@ -217,6 +229,7 @@ final class Minecraft189CrosshairFeature
             redSetting = settings.register(module.redSetting());
             greenSetting = settings.register(module.greenSetting());
             blueSetting = settings.register(module.blueSetting());
+            opacitySetting = settings.register(module.opacitySetting());
 
             lengthPresentation =
                     settingPresentations.register(
@@ -291,6 +304,11 @@ final class Minecraft189CrosshairFeature
                     new SettingDescriptor(Minecraft189CrosshairModule.BLUE_SETTING_ID,
                             "Blue", SettingValueKind.INTEGER, 100,
                             new SettingNumericSpec(0.0D, 255.0D, 1.0D)));
+            opacityPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189CrosshairModule.OPACITY_SETTING_ID,
+                            "Opacity", SettingValueKind.INTEGER, 110,
+                            new SettingNumericSpec(0.0D, 255.0D, 1.0D)));
             lengthBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -344,6 +362,11 @@ final class Minecraft189CrosshairFeature
                     Minecraft189CrosshairModule.ID,
                     Minecraft189CrosshairModule.BLUE_SETTING_ID, 100));
 
+            opacityBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189CrosshairModule.ID,
+                            Minecraft189CrosshairModule.OPACITY_SETTING_ID, 110));
+
             return new Minecraft189CrosshairFeature(
                     controller,
                     module,
@@ -375,8 +398,12 @@ final class Minecraft189CrosshairFeature
                     outlineSizeBinding,
                     redSetting, greenSetting, blueSetting,
                     redPresentation, greenPresentation, bluePresentation,
-                    redBinding, greenBinding, blueBinding);
+                    redBinding, greenBinding, blueBinding,
+                    opacitySetting, opacityPresentation, opacityBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(opacityBinding, failure);
+            closeQuietly(opacityPresentation, failure);
+            closeQuietly(opacitySetting, failure);
             closeQuietly(blueBinding, failure);
             closeQuietly(greenBinding, failure);
             closeQuietly(redBinding, failure);
@@ -443,6 +470,9 @@ final class Minecraft189CrosshairFeature
             failure = closeFailure;
         }
 
+        failure = close(opacityBinding, failure);
+        failure = close(opacityPresentation, failure);
+        failure = close(opacitySetting, failure);
         failure = close(blueBinding, failure);
         failure = close(greenBinding, failure);
         failure = close(redBinding, failure);

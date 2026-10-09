@@ -31,6 +31,8 @@ public final class Minecraft189CrosshairModule
     public static final String RED_SETTING_ID = "render.crosshair.red";
     public static final String GREEN_SETTING_ID = "render.crosshair.green";
     public static final String BLUE_SETTING_ID = "render.crosshair.blue";
+    public static final String OPACITY_SETTING_ID = "render.crosshair.opacity";
+    public static final int DEFAULT_OPACITY = 255;
     public static final String OUTLINE_SETTING_ID =
             "render.crosshair.outline";
     public static final String OUTLINE_SIZE_SETTING_ID =
@@ -90,6 +92,10 @@ public final class Minecraft189CrosshairModule
     private final Setting<Integer> blue = new Setting<Integer>(
             BLUE_SETTING_ID, DEFAULT_COLOR_CHANNEL,
             Minecraft189CrosshairModule::validChannel, SettingCodecs.INTEGER);
+    private final Setting<Integer> opacity = new Setting<Integer>(
+            OPACITY_SETTING_ID, DEFAULT_OPACITY,
+            Minecraft189CrosshairModule::validChannel,
+            SettingCodecs.INTEGER);
     private final Setting<Boolean> outline =
             new Setting<Boolean>(
                     OUTLINE_SETTING_ID, Boolean.FALSE,
@@ -154,13 +160,19 @@ public final class Minecraft189CrosshairModule
     public Setting<Integer> redSetting() { return red; }
     public Setting<Integer> greenSetting() { return green; }
     public Setting<Integer> blueSetting() { return blue; }
+    public Setting<Integer> opacitySetting() { return opacity; }
 
     static boolean validChannel(final Integer v) {
         return v != null && v >= 0 && v <= 255;
     }
 
     static int rgbArgb(final int red, final int green, final int blue) {
-        return 0xFF000000 | (red << 16) | (green << 8) | blue;
+        return rgbaArgb(255, red, green, blue);
+    }
+
+    static int rgbaArgb(final int alpha, final int red,
+            final int green, final int blue) {
+        return (alpha << 24) | (red << 16) | (green << 8) | blue;
     }
 
     public Setting<Boolean> outlineSetting() {
@@ -251,10 +263,16 @@ public final class Minecraft189CrosshairModule
                     thickness.get().floatValue();
             final float halfThickness =
                     lineThickness / 2.0F;
-            final int strokeColor = rgbArgb(
+            final int currentOpacity = opacity.get().intValue();
+            final int strokeColor = rgbaArgb(
+                    currentOpacity,
                     red.get().intValue(),
                     green.get().intValue(),
                     blue.get().intValue());
+            // Outline and arms share alpha; opacity 0 must not leave an
+            // opaque black silhouette behind the transparent foreground.
+            final int outlineColor = (currentOpacity << 24)
+                    | (OUTLINE_ARGB & 0x00FFFFFF);
 
             hostCallbacks.beginUi(viewport);
             RuntimeException failure = null;
@@ -270,32 +288,32 @@ public final class Minecraft189CrosshairModule
                             centerY - halfThickness - pad,
                             lineLength + twicePad,
                             lineThickness + twicePad,
-                            OUTLINE_ARGB);
+                            outlineColor);
                     hostCallbacks.fillRect(
                             centerX + lineGap - pad,
                             centerY - halfThickness - pad,
                             lineLength + twicePad,
                             lineThickness + twicePad,
-                            OUTLINE_ARGB);
+                            outlineColor);
                     hostCallbacks.fillRect(
                             centerX - halfThickness - pad,
                             centerY - lineGap - lineLength - pad,
                             lineThickness + twicePad,
                             lineLength + twicePad,
-                            OUTLINE_ARGB);
+                            outlineColor);
                     hostCallbacks.fillRect(
                             centerX - halfThickness - pad,
                             centerY + lineGap - pad,
                             lineThickness + twicePad,
                             lineLength + twicePad,
-                            OUTLINE_ARGB);
+                            outlineColor);
                     if (dot.get().booleanValue()) {
                         hostCallbacks.fillRect(
                                 centerX - halfThickness - pad,
                                 centerY - halfThickness - pad,
                                 lineThickness + twicePad,
                                 lineThickness + twicePad,
-                                OUTLINE_ARGB);
+                                outlineColor);
                     }
                 }
                 hostCallbacks.fillRect(
