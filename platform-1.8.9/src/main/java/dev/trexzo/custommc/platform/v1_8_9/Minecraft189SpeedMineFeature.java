@@ -37,6 +37,12 @@ final class Minecraft189SpeedMineFeature
     private final SettingRegistry.Registration groundOnlySetting;
     private final SettingPresentationRegistry.Registration groundOnlyPresentation;
     private final ModuleSettingRegistry.Registration groundOnlyBinding;
+    private final SettingRegistry.Registration airborneOverrideSetting;
+    private final SettingRegistry.Registration airborneProgressSetting;
+    private final SettingPresentationRegistry.Registration airborneOverridePresentation;
+    private final SettingPresentationRegistry.Registration airborneProgressPresentation;
+    private final ModuleSettingRegistry.Registration airborneOverrideBinding;
+    private final ModuleSettingRegistry.Registration airborneProgressBinding;
     private boolean closed;
 
     private Minecraft189SpeedMineFeature(
@@ -61,7 +67,13 @@ final class Minecraft189SpeedMineFeature
             final ModuleSettingRegistry.Registration pauseWhileSneakingBinding,
             final SettingRegistry.Registration groundOnlySetting,
             final SettingPresentationRegistry.Registration groundOnlyPresentation,
-            final ModuleSettingRegistry.Registration groundOnlyBinding) {
+            final ModuleSettingRegistry.Registration groundOnlyBinding,
+            final SettingRegistry.Registration airborneOverrideSetting,
+            final SettingRegistry.Registration airborneProgressSetting,
+            final SettingPresentationRegistry.Registration airborneOverridePresentation,
+            final SettingPresentationRegistry.Registration airborneProgressPresentation,
+            final ModuleSettingRegistry.Registration airborneOverrideBinding,
+            final ModuleSettingRegistry.Registration airborneProgressBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -84,6 +96,12 @@ final class Minecraft189SpeedMineFeature
         this.groundOnlySetting = groundOnlySetting;
         this.groundOnlyPresentation = groundOnlyPresentation;
         this.groundOnlyBinding = groundOnlyBinding;
+        this.airborneOverrideSetting = airborneOverrideSetting;
+        this.airborneProgressSetting = airborneProgressSetting;
+        this.airborneOverridePresentation = airborneOverridePresentation;
+        this.airborneProgressPresentation = airborneProgressPresentation;
+        this.airborneOverrideBinding = airborneOverrideBinding;
+        this.airborneProgressBinding = airborneProgressBinding;
     }
 
     static Minecraft189SpeedMineFeature install(
@@ -116,6 +134,12 @@ final class Minecraft189SpeedMineFeature
         SettingRegistry.Registration groundOnlySetting = null;
         SettingPresentationRegistry.Registration groundOnlyPresentation = null;
         ModuleSettingRegistry.Registration groundOnlyBinding = null;
+        SettingRegistry.Registration airborneOverrideSetting = null;
+        SettingRegistry.Registration airborneProgressSetting = null;
+        SettingPresentationRegistry.Registration airborneOverridePresentation = null;
+        SettingPresentationRegistry.Registration airborneProgressPresentation = null;
+        ModuleSettingRegistry.Registration airborneOverrideBinding = null;
+        ModuleSettingRegistry.Registration airborneProgressBinding = null;
 
         try {
             moduleRegistration =
@@ -138,6 +162,9 @@ final class Minecraft189SpeedMineFeature
             requireAttackHeldSetting = settings.register(module.requireAttackHeldSetting());
             pauseWhileSneakingSetting = settings.register(module.pauseWhileSneakingSetting());
             groundOnlySetting = settings.register(module.groundOnlySetting());
+            airborneOverrideSetting = settings.register(module.airborneOverrideSetting());
+            airborneProgressSetting = settings.register(
+                    module.airborneProgressPercentSetting());
             progressPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -170,6 +197,15 @@ final class Minecraft189SpeedMineFeature
                     new SettingDescriptor(
                             Minecraft189SpeedMineModule.GROUND_ONLY_SETTING_ID,
                             "Ground Only", SettingValueKind.BOOLEAN, 50));
+            airborneOverridePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189SpeedMineModule.AIRBORNE_OVERRIDE_SETTING_ID,
+                            "Airborne Override", SettingValueKind.BOOLEAN, 60));
+            airborneProgressPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189SpeedMineModule.AIRBORNE_PROGRESS_SETTING_ID,
+                            "Air Minimum Progress", SettingValueKind.INTEGER, 70,
+                            new SettingNumericSpec(0.0D, 100.0D, 1.0D)));
             progressBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -200,6 +236,15 @@ final class Minecraft189SpeedMineFeature
                             Minecraft189SpeedMineModule.ID,
                             Minecraft189SpeedMineModule.GROUND_ONLY_SETTING_ID, 50));
 
+            airborneOverrideBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189SpeedMineModule.ID,
+                            Minecraft189SpeedMineModule.AIRBORNE_OVERRIDE_SETTING_ID, 60));
+            airborneProgressBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189SpeedMineModule.ID,
+                            Minecraft189SpeedMineModule.AIRBORNE_PROGRESS_SETTING_ID, 70));
+
             return new Minecraft189SpeedMineFeature(
                     controller,
                     module,
@@ -222,8 +267,20 @@ final class Minecraft189SpeedMineFeature
                     pauseWhileSneakingBinding,
                     groundOnlySetting,
                     groundOnlyPresentation,
-                    groundOnlyBinding);
+                    groundOnlyBinding,
+                    airborneOverrideSetting,
+                    airborneProgressSetting,
+                    airborneOverridePresentation,
+                    airborneProgressPresentation,
+                    airborneOverrideBinding,
+                    airborneProgressBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(airborneProgressBinding, failure);
+            closeQuietly(airborneOverrideBinding, failure);
+            closeQuietly(airborneProgressPresentation, failure);
+            closeQuietly(airborneOverridePresentation, failure);
+            closeQuietly(airborneProgressSetting, failure);
+            closeQuietly(airborneOverrideSetting, failure);
             closeQuietly(groundOnlyBinding, failure);
             closeQuietly(groundOnlyPresentation, failure);
             closeQuietly(groundOnlySetting, failure);
@@ -285,6 +342,12 @@ final class Minecraft189SpeedMineFeature
             failure = closeFailure;
         }
 
+        failure = close(airborneProgressBinding, failure);
+        failure = close(airborneOverrideBinding, failure);
+        failure = close(airborneProgressPresentation, failure);
+        failure = close(airborneOverridePresentation, failure);
+        failure = close(airborneProgressSetting, failure);
+        failure = close(airborneOverrideSetting, failure);
         failure = close(groundOnlyBinding, failure);
         failure = close(groundOnlyPresentation, failure);
         failure = close(groundOnlySetting, failure);

@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189SpeedMineModuleTest {
@@ -520,6 +521,137 @@ final class Minecraft189SpeedMineModuleTest {
         }
         assertNull(settings.find(
                 Minecraft189SpeedMineModule.GROUND_ONLY_SETTING_ID));
+        assertNull(modules.find(Minecraft189SpeedMineModule.ID));
+    }
+
+    @Test
+    void airborneOverrideUsesIndependentMiningMinimumWithoutBreakingRamp() {
+        final Minecraft189SpeedMineModule mine = new Minecraft189SpeedMineModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        final TestController live = new TestController();
+        live.hitting = true;
+        mine.onEnable();
+        assertFalse(mine.airborneOverrideSetting().get().booleanValue());
+        assertEquals(Integer.valueOf(70), mine.airborneProgressPercentSetting().get());
+        movement.update(false, false, false);
+        live.progress = 0.20F;
+        mine.apply(live, false, movement.snapshot());
+        assertEquals(0.70F, live.progress, 0.000001F); // Original OFF parity.
+
+        mine.airborneOverrideSetting().set(Boolean.TRUE);
+        mine.airborneProgressPercentSetting().set(40);
+        live.progress = 0.20F;
+        mine.apply(live, false, movement.snapshot());
+        assertEquals(0.40F, live.progress, 0.000001F);
+        movement.update(true, false, false);
+        live.progress = 0.20F;
+        mine.apply(live, false, movement.snapshot());
+        assertEquals(0.70F, live.progress, 0.000001F);
+        movement.clear();
+        live.progress = 0.20F;
+        mine.apply(live, false, movement.snapshot());
+        assertEquals(0.70F, live.progress, 0.000001F); // Missing state uses base.
+        live.progress = 0.20F;
+        mine.apply(live);
+        assertEquals(0.70F, live.progress, 0.000001F);
+
+        mine.progressiveSetting().set(Boolean.TRUE);
+        mine.stepPercentSetting().set(10);
+        movement.update(false, false, false);
+        live.progress = 0.20F;
+        mine.apply(live, false, movement.snapshot());
+        assertEquals(0.30F, live.progress, 0.000001F);
+        mine.apply(live, false, movement.snapshot());
+        assertEquals(0.40F, live.progress, 0.000001F);
+        final int atCap = live.setCalls;
+        mine.apply(live, false, movement.snapshot());
+        assertEquals(atCap, live.setCalls);
+
+        mine.groundOnlySetting().set(Boolean.TRUE);
+        live.progress = 0.20F;
+        mine.apply(live, false, movement.snapshot());
+        assertEquals(0.20F, live.progress, 0.000001F); // Ground Only wins.
+        mine.groundOnlySetting().set(Boolean.FALSE);
+        mine.pauseWhileSneakingSetting().set(Boolean.TRUE);
+        movement.update(false, true, false);
+        mine.apply(live, false, movement.snapshot());
+        assertEquals(0.20F, live.progress, 0.000001F); // Sneaking wins.
+        mine.pauseWhileSneakingSetting().set(Boolean.FALSE);
+        mine.requireAttackHeldSetting().set(Boolean.TRUE);
+        movement.update(false, false, false);
+        mine.apply(live, false, movement.snapshot());
+        assertEquals(0.20F, live.progress, 0.000001F); // Attack gate wins.
+        mine.apply(live, true, movement.snapshot());
+        assertEquals(0.30F, live.progress, 0.000001F);
+
+        mine.airborneOverrideSetting().set(Boolean.FALSE);
+        mine.progressiveSetting().set(Boolean.FALSE);
+        mine.requireAttackHeldSetting().set(Boolean.FALSE);
+        live.progress = 0.20F;
+        mine.apply(live);
+        assertEquals(0.70F, live.progress, 0.000001F);
+        live.hitting = false;
+        final int beforeDisabled = live.setCalls;
+        mine.apply(live);
+        assertEquals(beforeDisabled, live.setCalls);
+        assertThrows(IllegalArgumentException.class,
+                () -> mine.airborneProgressPercentSetting().set(-1));
+        assertThrows(IllegalArgumentException.class,
+                () -> mine.airborneProgressPercentSetting().set(101));
+        mine.onDisable();
+        live.hitting = true;
+        mine.apply(live);
+        assertEquals(beforeDisabled, live.setCalls);
+    }
+
+    @Test
+    void airborneMinimumProgressPersistsAndUnregistersAfterHostedClose() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189SpeedMineModule mine = runtime.featureCatalog().speedMine();
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.AIRBORNE_OVERRIDE_SETTING_ID));
+            assertEquals("70", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.AIRBORNE_PROGRESS_SETTING_ID));
+            mine.airborneOverrideSetting().set(Boolean.TRUE);
+            mine.airborneProgressPercentSetting().set(35);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.AIRBORNE_OVERRIDE_SETTING_ID));
+            assertEquals("35", settings.snapshotEncoded().get(
+                    Minecraft189SpeedMineModule.AIRBORNE_PROGRESS_SETTING_ID));
+            final TestController live = new TestController();
+            live.hitting = true;
+            controller.enable(Minecraft189SpeedMineModule.ID);
+            runtime.playerMovementState().update(false, false, false);
+            live.progress = 0.10F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.35F, live.progress, 0.000001F);
+            runtime.playerMovementState().update(true, false, false);
+            live.progress = 0.10F;
+            runtime.playerControllerMiningControl(live);
+            assertEquals(0.70F, live.progress, 0.000001F);
+            controller.disable(Minecraft189SpeedMineModule.ID);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189SpeedMineModule.AIRBORNE_OVERRIDE_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189SpeedMineModule.AIRBORNE_PROGRESS_SETTING_ID));
         assertNull(modules.find(Minecraft189SpeedMineModule.ID));
     }
 
