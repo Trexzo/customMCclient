@@ -789,6 +789,140 @@ final class Minecraft189AutoClickerModuleTest {
         assertNull(modules.find(Minecraft189AutoClickerModule.ID));
     }
 
+    @Test
+    void burstModeCreatesClickGroupsWithoutStoringCreditInRest() {
+        final Minecraft189AutoClickerModule module = new Minecraft189AutoClickerModule();
+        module.minCpsSetting().set(20);
+        module.maxCpsSetting().set(20);
+        assertFalse(module.burstModeSetting().get().booleanValue());
+        assertEquals(4, module.burstClicksSetting().get().intValue());
+        assertEquals(6, module.burstRestTicksSetting().get().intValue());
+        module.onEnable();
+        for (int i = 0; i < 9; i++) {
+            assertTrue(module.shouldClick(true)); // Default unchanged.
+        }
+
+        module.burstModeSetting().set(Boolean.TRUE);
+        module.burstClicksSetting().set(3);
+        module.burstRestTicksSetting().set(2);
+        assertTrue(module.shouldClick(true));
+        assertTrue(module.shouldClick(true));
+        assertTrue(module.shouldClick(true));
+        assertFalse(module.shouldClick(true)); // First rest callback.
+        assertFalse(module.shouldClick(true)); // Second rest callback.
+        assertTrue(module.shouldClick(true)); // New burst starts fresh.
+
+        // Live configuration changes cancel the old burst and rest.
+        module.burstClicksSetting().set(1);
+        assertTrue(module.shouldClick(true));
+        assertFalse(module.shouldClick(true));
+        module.burstRestTicksSetting().set(3);
+        assertTrue(module.shouldClick(true)); // Old rest discarded.
+        assertFalse(module.shouldClick(true));
+        assertFalse(module.shouldClick(true));
+        assertFalse(module.shouldClick(true));
+        assertTrue(module.shouldClick(true));
+
+        // Losing eligibility restarts the burst rather than resuming it.
+        assertFalse(module.shouldClick(false));
+        assertTrue(module.shouldClick(true));
+        assertFalse(module.shouldClick(true));
+        module.burstModeSetting().set(Boolean.FALSE);
+        assertTrue(module.shouldClick(true)); // Instant default restoration.
+        assertTrue(module.shouldClick(true));
+
+        module.onDisable();
+        assertFalse(module.shouldClick(true));
+        module.onEnable();
+        assertTrue(module.shouldClick(true));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> module.burstClicksSetting().set(0));
+        assertThrows(IllegalArgumentException.class,
+                () -> module.burstClicksSetting().set(21));
+        assertThrows(IllegalArgumentException.class,
+                () -> module.burstRestTicksSetting().set(0));
+        assertThrows(IllegalArgumentException.class,
+                () -> module.burstRestTicksSetting().set(41));
+    }
+
+    @Test
+    void burstRestDoesNotAccruePartialCpsOrWarmupTicks() {
+        final Minecraft189AutoClickerModule module = new Minecraft189AutoClickerModule();
+        module.minCpsSetting().set(10);
+        module.maxCpsSetting().set(10);
+        module.burstModeSetting().set(Boolean.TRUE);
+        module.burstClicksSetting().set(1);
+        module.burstRestTicksSetting().set(2);
+        module.rampUpSetting().set(Boolean.FALSE);
+        module.onEnable();
+        assertFalse(module.shouldClick(true)); // 10 CPS first half.
+        assertTrue(module.shouldClick(true)); // Click and start rest.
+        assertFalse(module.shouldClick(true)); // Rest tick 1.
+        assertFalse(module.shouldClick(true)); // Rest tick 2.
+        assertFalse(module.shouldClick(true)); // Fresh 10 CPS phase.
+        assertTrue(module.shouldClick(true)); // Second click.
+        module.startDelayTicksSetting().set(2);
+        assertFalse(module.shouldClick(true));
+        assertFalse(module.shouldClick(true));
+        assertFalse(module.shouldClick(true)); // CPS first half after delay.
+        assertTrue(module.shouldClick(true));
+    }
+
+    @Test
+    void hostedBurstSettingsPersistAndUnregisterCleanly() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189AutoClickerModule module =
+                    runtime.featureCatalog().autoClicker();
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.BURST_MODE_SETTING_ID));
+            assertEquals("4", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.BURST_CLICKS_SETTING_ID));
+            assertEquals("6", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.BURST_REST_TICKS_SETTING_ID));
+            module.minCpsSetting().set(20);
+            module.maxCpsSetting().set(20);
+            module.burstModeSetting().set(Boolean.TRUE);
+            module.burstClicksSetting().set(2);
+            module.burstRestTicksSetting().set(2);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.BURST_MODE_SETTING_ID));
+            assertEquals("2", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.BURST_CLICKS_SETTING_ID));
+            assertEquals("2", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.BURST_REST_TICKS_SETTING_ID));
+            controller.enable(Minecraft189AutoClickerModule.ID);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            assertTrue(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+            controller.disable(Minecraft189AutoClickerModule.ID);
+            assertFalse(runtime.shouldAutoClick());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189AutoClickerModule.BURST_MODE_SETTING_ID));
+        assertNull(settings.find(Minecraft189AutoClickerModule.BURST_CLICKS_SETTING_ID));
+        assertNull(settings.find(Minecraft189AutoClickerModule.BURST_REST_TICKS_SETTING_ID));
+        assertNull(modules.find(Minecraft189AutoClickerModule.ID));
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override
