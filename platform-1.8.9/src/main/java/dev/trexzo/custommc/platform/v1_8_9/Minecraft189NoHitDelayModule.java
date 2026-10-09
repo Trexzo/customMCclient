@@ -16,6 +16,10 @@ public final class Minecraft189NoHitDelayModule
             "combat.noHitDelay.groundOnly";
     public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
             "combat.noHitDelay.pauseWhileSneaking";
+    public static final String AIRBORNE_OVERRIDE_SETTING_ID =
+            "combat.noHitDelay.airborneOverride";
+    public static final String AIRBORNE_DELAY_SETTING_ID =
+            "combat.noHitDelay.airborneDelay";
     public static final int DEFAULT_DELAY = 0;
     public static final int MINIMUM_DELAY = 0;
     public static final int MAXIMUM_DELAY = 10;
@@ -46,6 +50,14 @@ public final class Minecraft189NoHitDelayModule
             new Setting<Boolean>(
                     REQUIRE_ATTACK_HELD_SETTING_ID, Boolean.FALSE,
                     value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> airborneOverride = new Setting<Boolean>(
+            AIRBORNE_OVERRIDE_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> airborneDelay = new Setting<Integer>(
+            AIRBORNE_DELAY_SETTING_ID, DEFAULT_DELAY,
+            value -> value != null && value >= MINIMUM_DELAY
+                    && value <= MAXIMUM_DELAY,
+            SettingCodecs.INTEGER);
     private boolean enabled;
 
     @Override
@@ -67,6 +79,14 @@ public final class Minecraft189NoHitDelayModule
 
     public Setting<Boolean> requireAttackHeldSetting() {
         return requireAttackHeld;
+    }
+
+    public Setting<Boolean> airborneOverrideSetting() {
+        return airborneOverride;
+    }
+
+    public Setting<Integer> airborneDelaySetting() {
+        return airborneDelay;
     }
 
     @Override
@@ -112,8 +132,14 @@ public final class Minecraft189NoHitDelayModule
                 return currentCounter;
             }
         }
-        final int configured =
-                delay.get().intValue();
+        // Separate airborne cooldown only when existing mapped movement
+        // confirms the player is in air. Missing/stale state retains the
+        // original cooldown; no inferred movement authority is introduced.
+        final boolean airborne = airborneOverride.get().booleanValue()
+                && movement != null && movement.available()
+                && !movement.onGround();
+        final int configured = airborne
+                ? airborneDelay.get().intValue() : delay.get().intValue();
         return currentCounter > configured
                 ? configured
                 : currentCounter;

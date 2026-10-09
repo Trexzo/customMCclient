@@ -31,6 +31,12 @@ final class Minecraft189NoHitDelayFeature
     private final SettingRegistry.Registration requireAttackHeldSetting;
     private final SettingPresentationRegistry.Registration requireAttackHeldPresentation;
     private final ModuleSettingRegistry.Registration requireAttackHeldBinding;
+    private final SettingRegistry.Registration airborneOverrideSetting;
+    private final SettingRegistry.Registration airborneDelaySetting;
+    private final SettingPresentationRegistry.Registration airborneOverridePresentation;
+    private final SettingPresentationRegistry.Registration airborneDelayPresentation;
+    private final ModuleSettingRegistry.Registration airborneOverrideBinding;
+    private final ModuleSettingRegistry.Registration airborneDelayBinding;
     private boolean closed;
 
     private Minecraft189NoHitDelayFeature(
@@ -49,7 +55,13 @@ final class Minecraft189NoHitDelayFeature
             final ModuleSettingRegistry.Registration pauseSneakingBinding,
             final SettingRegistry.Registration requireAttackHeldSetting,
             final SettingPresentationRegistry.Registration requireAttackHeldPresentation,
-            final ModuleSettingRegistry.Registration requireAttackHeldBinding) {
+            final ModuleSettingRegistry.Registration requireAttackHeldBinding,
+            final SettingRegistry.Registration airborneOverrideSetting,
+            final SettingRegistry.Registration airborneDelaySetting,
+            final SettingPresentationRegistry.Registration airborneOverridePresentation,
+            final SettingPresentationRegistry.Registration airborneDelayPresentation,
+            final ModuleSettingRegistry.Registration airborneOverrideBinding,
+            final ModuleSettingRegistry.Registration airborneDelayBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -66,6 +78,12 @@ final class Minecraft189NoHitDelayFeature
         this.requireAttackHeldSetting = requireAttackHeldSetting;
         this.requireAttackHeldPresentation = requireAttackHeldPresentation;
         this.requireAttackHeldBinding = requireAttackHeldBinding;
+        this.airborneOverrideSetting = airborneOverrideSetting;
+        this.airborneDelaySetting = airborneDelaySetting;
+        this.airborneOverridePresentation = airborneOverridePresentation;
+        this.airborneDelayPresentation = airborneDelayPresentation;
+        this.airborneOverrideBinding = airborneOverrideBinding;
+        this.airborneDelayBinding = airborneDelayBinding;
     }
 
     static Minecraft189NoHitDelayFeature install(
@@ -92,6 +110,12 @@ final class Minecraft189NoHitDelayFeature
         SettingRegistry.Registration requireAttackHeldSetting = null;
         SettingPresentationRegistry.Registration requireAttackHeldPresentation = null;
         ModuleSettingRegistry.Registration requireAttackHeldBinding = null;
+        SettingRegistry.Registration airborneOverrideSetting = null;
+        SettingRegistry.Registration airborneDelaySetting = null;
+        SettingPresentationRegistry.Registration airborneOverridePresentation = null;
+        SettingPresentationRegistry.Registration airborneDelayPresentation = null;
+        ModuleSettingRegistry.Registration airborneOverrideBinding = null;
+        ModuleSettingRegistry.Registration airborneDelayBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -112,6 +136,9 @@ final class Minecraft189NoHitDelayFeature
                     module.pauseWhileSneakingSetting());
             requireAttackHeldSetting = settings.register(
                     module.requireAttackHeldSetting());
+            airborneOverrideSetting = settings.register(
+                    module.airborneOverrideSetting());
+            airborneDelaySetting = settings.register(module.airborneDelaySetting());
             delayPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -135,6 +162,17 @@ final class Minecraft189NoHitDelayFeature
                     new SettingDescriptor(
                             Minecraft189NoHitDelayModule.REQUIRE_ATTACK_HELD_SETTING_ID,
                             "Require Attack Held", SettingValueKind.BOOLEAN, 30));
+            airborneOverridePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189NoHitDelayModule.AIRBORNE_OVERRIDE_SETTING_ID,
+                            "Airborne Override", SettingValueKind.BOOLEAN, 40));
+            airborneDelayPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189NoHitDelayModule.AIRBORNE_DELAY_SETTING_ID,
+                            "Airborne Delay", SettingValueKind.INTEGER, 50,
+                            new SettingNumericSpec(
+                                    Minecraft189NoHitDelayModule.MINIMUM_DELAY,
+                                    Minecraft189NoHitDelayModule.MAXIMUM_DELAY, 1.0D)));
             delayBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -156,6 +194,15 @@ final class Minecraft189NoHitDelayFeature
                             Minecraft189NoHitDelayModule.ID,
                             Minecraft189NoHitDelayModule.REQUIRE_ATTACK_HELD_SETTING_ID, 30));
 
+            airborneOverrideBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189NoHitDelayModule.ID,
+                            Minecraft189NoHitDelayModule.AIRBORNE_OVERRIDE_SETTING_ID, 40));
+            airborneDelayBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189NoHitDelayModule.ID,
+                            Minecraft189NoHitDelayModule.AIRBORNE_DELAY_SETTING_ID, 50));
+
             return new Minecraft189NoHitDelayFeature(
                     controller,
                     module,
@@ -172,8 +219,20 @@ final class Minecraft189NoHitDelayFeature
                     pauseSneakingBinding,
                     requireAttackHeldSetting,
                     requireAttackHeldPresentation,
-                    requireAttackHeldBinding);
+                    requireAttackHeldBinding,
+                    airborneOverrideSetting,
+                    airborneDelaySetting,
+                    airborneOverridePresentation,
+                    airborneDelayPresentation,
+                    airborneOverrideBinding,
+                    airborneDelayBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(airborneDelayBinding, failure);
+            closeQuietly(airborneOverrideBinding, failure);
+            closeQuietly(airborneDelayPresentation, failure);
+            closeQuietly(airborneOverridePresentation, failure);
+            closeQuietly(airborneDelaySetting, failure);
+            closeQuietly(airborneOverrideSetting, failure);
             closeQuietly(requireAttackHeldBinding, failure);
             closeQuietly(requireAttackHeldPresentation, failure);
             closeQuietly(requireAttackHeldSetting, failure);
@@ -219,6 +278,12 @@ final class Minecraft189NoHitDelayFeature
             failure = closeFailure;
         }
 
+        failure = close(airborneDelayBinding, failure);
+        failure = close(airborneOverrideBinding, failure);
+        failure = close(airborneDelayPresentation, failure);
+        failure = close(airborneOverridePresentation, failure);
+        failure = close(airborneDelaySetting, failure);
+        failure = close(airborneOverrideSetting, failure);
         failure = close(requireAttackHeldBinding, failure);
         failure = close(requireAttackHeldPresentation, failure);
         failure = close(requireAttackHeldSetting, failure);
