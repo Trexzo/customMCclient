@@ -121,6 +121,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189AntiBotFeature antiBotFeature;
     private final Minecraft189AutoRodFeature autoRodFeature;
     private final Minecraft189AutoPotFeature autoPotFeature;
+    private final Minecraft189AutoBlockFeature autoBlockFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
     private Minecraft189FovFeature fovFeature;
     private Minecraft189NoBobbingFeature noBobbingFeature;
@@ -217,7 +218,8 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189CombatSlotFeature combatSlotFeature,
             final Minecraft189AntiBotFeature antiBotFeature,
             final Minecraft189AutoRodFeature autoRodFeature,
-            final Minecraft189AutoPotFeature autoPotFeature) {
+            final Minecraft189AutoPotFeature autoPotFeature,
+            final Minecraft189AutoBlockFeature autoBlockFeature) {
         this.modules = modules;
         this.moduleController = moduleController;
         this.modulePresentations = modulePresentations;
@@ -309,6 +311,7 @@ public final class Minecraft189FeatureCatalog
         this.antiBotFeature = antiBotFeature;
         this.autoRodFeature = autoRodFeature;
         this.autoPotFeature = autoPotFeature;
+        this.autoBlockFeature = autoBlockFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -463,6 +466,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189AntiBotFeature antiBotFeature = null;
         Minecraft189AutoRodFeature autoRodFeature = null;
         Minecraft189AutoPotFeature autoPotFeature = null;
+        Minecraft189AutoBlockFeature autoBlockFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -919,6 +923,10 @@ public final class Minecraft189FeatureCatalog
                     modules, moduleController, presentations, moduleSettings,
                     settings, settingPresentations);
 
+            autoBlockFeature = Minecraft189AutoBlockFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
             arrayListFeature =
                     Minecraft189ArrayListFeature.install(
                             modules,
@@ -1299,8 +1307,10 @@ public final class Minecraft189FeatureCatalog
                     combatSlotFeature,
                     antiBotFeature,
                     autoRodFeature,
-                    autoPotFeature);
+                    autoPotFeature,
+                    autoBlockFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(autoBlockFeature, failure);
             closeQuietly(autoPotFeature, failure);
             closeQuietly(autoRodFeature, failure);
             closeQuietly(antiBotFeature, failure);
@@ -1614,6 +1624,11 @@ public final class Minecraft189FeatureCatalog
         return spinFeature.module();
     }
 
+    public Minecraft189AutoBlockModule autoBlock() {
+        requireOpen();
+        return autoBlockFeature.module();
+    }
+
     public Minecraft189AutoPotModule autoPot() {
         requireOpen();
         return autoPotFeature.module();
@@ -1878,6 +1893,12 @@ public final class Minecraft189FeatureCatalog
                         failure,
                         closeFailure);
             }
+        }
+
+        try {
+            autoBlockFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
         }
 
         try {

@@ -75,7 +75,9 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.PLAYER_CONTROLLER_CUR_BLOCK_DAMAGE,
                         Minecraft189Mappings.PLAYER_CONTROLLER_IS_HITTING_BLOCK
                 },
-                new Minecraft189Mappings.MappedMethod[0]);
+                new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.PLAYER_CONTROLLER_STOP_USING_ITEM
+                });
     }
 
     public static void verifyTimer(
@@ -270,7 +272,8 @@ public final class Minecraft189ClassShapeVerifier {
                 },
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS,
-                        Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP
+                        Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP,
+                        Minecraft189Mappings.ENTITY_PLAYER_IS_USING_ITEM
                 });
     }
 

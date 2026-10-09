@@ -1186,6 +1186,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.PLAYER_CONTROLLER_IS_HITTING_BLOCK);
+        addMethod(
+                writer,
+                Minecraft189Mappings.PLAYER_CONTROLLER_STOP_USING_ITEM);
         return finish(writer);
     }
 
@@ -2696,6 +2699,9 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_IS_USING_ITEM);
         return finish(writer);
     }
 
