@@ -31,6 +31,9 @@ final class Minecraft189FastFallFeature
     private final SettingRegistry.Registration activationDelaySetting;
     private final SettingPresentationRegistry.Registration activationDelayPresentation;
     private final ModuleSettingRegistry.Registration activationDelayBinding;
+    private final SettingRegistry.Registration pauseWhileSneakingSetting;
+    private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
+    private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private boolean closed;
 
     private Minecraft189FastFallFeature(
@@ -49,7 +52,10 @@ final class Minecraft189FastFallFeature
             final ModuleSettingRegistry.Registration rampStepBinding,
             final SettingRegistry.Registration activationDelaySetting,
             final SettingPresentationRegistry.Registration activationDelayPresentation,
-            final ModuleSettingRegistry.Registration activationDelayBinding) {
+            final ModuleSettingRegistry.Registration activationDelayBinding,
+            final SettingRegistry.Registration pauseWhileSneakingSetting,
+            final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -66,6 +72,9 @@ final class Minecraft189FastFallFeature
         this.activationDelaySetting = activationDelaySetting;
         this.activationDelayPresentation = activationDelayPresentation;
         this.activationDelayBinding = activationDelayBinding;
+        this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
+        this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
+        this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
     }
 
     static Minecraft189FastFallFeature install(
@@ -92,6 +101,9 @@ final class Minecraft189FastFallFeature
         SettingRegistry.Registration activationDelaySetting = null;
         SettingPresentationRegistry.Registration activationDelayPresentation = null;
         ModuleSettingRegistry.Registration activationDelayBinding = null;
+        SettingRegistry.Registration pauseWhileSneakingSetting = null;
+        SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
+        ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -112,6 +124,8 @@ final class Minecraft189FastFallFeature
             rampStepSetting = settings.register(module.rampStepSetting());
             activationDelaySetting = settings.register(
                     module.activationDelayTicksSetting());
+            pauseWhileSneakingSetting = settings.register(
+                    module.pauseWhileSneakingSetting());
             fallSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -142,6 +156,10 @@ final class Minecraft189FastFallFeature
                             new SettingNumericSpec(0.0D,
                                     Minecraft189FastFallModule.MAXIMUM_ACTIVATION_DELAY_TICKS,
                                     1.0D)));
+            pauseWhileSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FastFallModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 40));
             fallSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -163,6 +181,11 @@ final class Minecraft189FastFallFeature
                             Minecraft189FastFallModule.ID,
                             Minecraft189FastFallModule.ACTIVATION_DELAY_SETTING_ID, 30));
 
+            pauseWhileSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FastFallModule.ID,
+                            Minecraft189FastFallModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 40));
+
             return new Minecraft189FastFallFeature(
                     controller,
                     module,
@@ -179,8 +202,14 @@ final class Minecraft189FastFallFeature
                     rampStepBinding,
                     activationDelaySetting,
                     activationDelayPresentation,
-                    activationDelayBinding);
+                    activationDelayBinding,
+                    pauseWhileSneakingSetting,
+                    pauseWhileSneakingPresentation,
+                    pauseWhileSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseWhileSneakingBinding, failure);
+            closeQuietly(pauseWhileSneakingPresentation, failure);
+            closeQuietly(pauseWhileSneakingSetting, failure);
             closeQuietly(activationDelayBinding, failure);
             closeQuietly(activationDelayPresentation, failure);
             closeQuietly(activationDelaySetting, failure);
@@ -226,6 +255,9 @@ final class Minecraft189FastFallFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseWhileSneakingBinding, failure);
+        failure = close(pauseWhileSneakingPresentation, failure);
+        failure = close(pauseWhileSneakingSetting, failure);
         failure = close(activationDelayBinding, failure);
         failure = close(activationDelayPresentation, failure);
         failure = close(activationDelaySetting, failure);

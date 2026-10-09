@@ -14,6 +14,8 @@ public final class Minecraft189FastFallModule
             "movement.fastFall.progressive";
     public static final String ACTIVATION_DELAY_SETTING_ID =
             "movement.fastFall.activationDelayTicks";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "movement.fastFall.pauseWhileSneaking";
     public static final int DEFAULT_ACTIVATION_DELAY_TICKS = 0;
     public static final int MAXIMUM_ACTIVATION_DELAY_TICKS = 10;
     public static final String RAMP_STEP_SETTING_ID =
@@ -56,6 +58,9 @@ public final class Minecraft189FastFallModule
                     value -> value != null && value >= 0
                             && value <= MAXIMUM_ACTIVATION_DELAY_TICKS,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> pauseWhileSneaking = new Setting<Boolean>(
+            PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
     private int eligibleDescentCallbacks;
     private int observedActivationDelay;
@@ -81,6 +86,10 @@ public final class Minecraft189FastFallModule
         return activationDelayTicks;
     }
 
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -102,7 +111,9 @@ public final class Minecraft189FastFallModule
                 || player == null
                 || movement == null
                 || !movement.available()
-                || movement.onGround()) {
+                || movement.onGround()
+                || (pauseWhileSneaking.get().booleanValue()
+                        && movement.sneaking())) {
             resetActivationDelay();
             return;
         }
