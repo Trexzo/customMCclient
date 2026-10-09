@@ -8,4 +8,10 @@ public interface Minecraft189ItemStackAccess {
     int customMcItemDamage();
 
     int customMcMaxDamage();
+
+    default boolean customMcIsSword() { return false; }
+
+    default boolean customMcIsFishingRod() { return false; }
+
+    default boolean customMcIsPotion() { return false; }
 }
