@@ -45,6 +45,12 @@ public final class Minecraft189AutoClickerModule
     public static final int MAXIMUM_BURST_REST_TICKS = 40;
     public static final String START_DELAY_SETTING_ID =
             "combat.autoClicker.startDelayTicks";
+    public static final String AIRBORNE_PROFILE_SETTING_ID =
+            "combat.autoClicker.airborneProfile";
+    public static final String AIRBORNE_MIN_CPS_SETTING_ID =
+            "combat.autoClicker.airborneMinCps";
+    public static final String AIRBORNE_MAX_CPS_SETTING_ID =
+            "combat.autoClicker.airborneMaxCps";
     public static final int DEFAULT_START_DELAY_TICKS = 0;
     public static final int MAXIMUM_START_DELAY_TICKS = 40;
     public static final int DEFAULT_RAMP_UP_TICKS = 20;
@@ -133,6 +139,17 @@ public final class Minecraft189AutoClickerModule
                     && value <= MAXIMUM_BURST_REST_TICKS,
             SettingCodecs.INTEGER);
 
+    private final Setting<Boolean> airborneProfile = new Setting<Boolean>(
+            AIRBORNE_PROFILE_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> airborneMinCps = new Setting<Integer>(
+            AIRBORNE_MIN_CPS_SETTING_ID, 8,
+            value -> value != null && value >= 1 && value <= TICKS_PER_SECOND,
+            SettingCodecs.INTEGER);
+    private final Setting<Integer> airborneMaxCps = new Setting<Integer>(
+            AIRBORNE_MAX_CPS_SETTING_ID, 12,
+            value -> value != null && value >= 1 && value <= TICKS_PER_SECOND,
+            SettingCodecs.INTEGER);
     private boolean enabled;
     private boolean startDelayPrimed;
     private int startDelayRemaining;
@@ -144,6 +161,8 @@ public final class Minecraft189AutoClickerModule
     private int targetCps;
     private int scheduledMinimumCps;
     private int scheduledMaximumCps;
+    private boolean scheduledAirborneProfile;
+    private boolean scheduledAirborneActive;
     private boolean scheduledBurstMode;
     private int scheduledBurstClicks;
     private int scheduledBurstRestTicks;
@@ -213,6 +232,18 @@ public final class Minecraft189AutoClickerModule
 
     public Setting<Integer> burstRestTicksSetting() {
         return burstRestTicks;
+    }
+
+    public Setting<Boolean> airborneProfileSetting() {
+        return airborneProfile;
+    }
+
+    public Setting<Integer> airborneMinCpsSetting() {
+        return airborneMinCps;
+    }
+
+    public Setting<Integer> airborneMaxCpsSetting() {
+        return airborneMaxCps;
     }
 
     @Override
@@ -286,8 +317,15 @@ public final class Minecraft189AutoClickerModule
         // A live CPS edit must not inherit phase credit or a sampled
         // click target from the previous configuration. Compare BOTH
         // bounds so editing either Min or Max resets the cadence.
-        final int currentMinimumCps = minCps.get().intValue();
-        final int currentMaximumCps = maxCps.get().intValue();
+        // Both CPS bounds come from a single qualified movement snapshot.
+        // Grounded or unknown state uses the original base profile.
+        final boolean profileEnabled = airborneProfile.get().booleanValue();
+        final boolean airborneActive = profileEnabled && movement != null
+                && movement.available() && !movement.onGround();
+        final int currentMinimumCps = airborneActive
+                ? airborneMinCps.get().intValue() : minCps.get().intValue();
+        final int currentMaximumCps = airborneActive
+                ? airborneMaxCps.get().intValue() : maxCps.get().intValue();
         final boolean currentRampUp = rampUp.get().booleanValue();
         final int currentRampUpTicks = rampUpTicks.get().intValue();
         final int currentStartDelayTicks = startDelayTicks.get().intValue();
@@ -296,6 +334,8 @@ public final class Minecraft189AutoClickerModule
         final int currentBurstRestTicks = burstRestTicks.get().intValue();
         if (scheduledMinimumCps != currentMinimumCps
                 || scheduledMaximumCps != currentMaximumCps
+                || scheduledAirborneProfile != profileEnabled
+                || scheduledAirborneActive != airborneActive
                 || scheduledRampUp != currentRampUp
                 || scheduledRampUpTicks != currentRampUpTicks
                 || scheduledStartDelayTicks != currentStartDelayTicks
@@ -305,6 +345,8 @@ public final class Minecraft189AutoClickerModule
             resetSchedule();
             scheduledMinimumCps = currentMinimumCps;
             scheduledMaximumCps = currentMaximumCps;
+            scheduledAirborneProfile = profileEnabled;
+            scheduledAirborneActive = airborneActive;
             scheduledRampUp = currentRampUp;
             scheduledRampUpTicks = currentRampUpTicks;
             scheduledStartDelayTicks = currentStartDelayTicks;
@@ -332,7 +374,8 @@ public final class Minecraft189AutoClickerModule
         }
 
         if (targetCps <= 0) {
-            targetCps = nextTargetCps();
+            targetCps = nextTargetCps(
+                    currentMinimumCps, currentMaximumCps);
         }
 
         // Progress only while all existing click gates pass. The effective
@@ -356,7 +399,8 @@ public final class Minecraft189AutoClickerModule
         }
 
         phaseCredit -= TICKS_PER_SECOND;
-        targetCps = nextTargetCps();
+        targetCps = nextTargetCps(
+                currentMinimumCps, currentMaximumCps);
         if (currentBurstMode && ++clicksInBurst >= currentBurstClicks) {
             clicksInBurst = 0;
             restTicksRemaining = currentBurstRestTicks;
@@ -371,11 +415,8 @@ public final class Minecraft189AutoClickerModule
         return enabled;
     }
 
-    private int nextTargetCps() {
-        final int first =
-                minCps.get().intValue();
-        final int second =
-                maxCps.get().intValue();
+    private int nextTargetCps(
+            final int first, final int second) {
         final int low =
                 Math.min(
                         first,
@@ -401,6 +442,8 @@ public final class Minecraft189AutoClickerModule
         targetCps = 0;
         scheduledMinimumCps = 0;
         scheduledMaximumCps = 0;
+        scheduledAirborneProfile = false;
+        scheduledAirborneActive = false;
         scheduledRampUp = false;
         scheduledRampUpTicks = 0;
         elapsedEligibleTicks = 0;

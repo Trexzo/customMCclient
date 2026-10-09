@@ -923,6 +923,124 @@ final class Minecraft189AutoClickerModuleTest {
         assertNull(modules.find(Minecraft189AutoClickerModule.ID));
     }
 
+    @Test
+    void airborneCpsProfileSwitchesWithoutReusingPendingClickCredit() {
+        final Minecraft189AutoClickerModule clicks = new Minecraft189AutoClickerModule();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        clicks.minCpsSetting().set(20);
+        clicks.maxCpsSetting().set(20);
+        clicks.airborneMinCpsSetting().set(5);
+        clicks.airborneMaxCpsSetting().set(5);
+        clicks.onEnable();
+        movement.update(true, false, false);
+        assertFalse(clicks.airborneProfileSetting().get().booleanValue());
+        assertTrue(clicks.shouldClick(true, false, false, null, movement.snapshot()));
+
+        clicks.airborneProfileSetting().set(Boolean.TRUE);
+        movement.update(false, false, false);
+        for (int i = 0; i < 3; i++) {
+            assertFalse(clicks.shouldClick(true, false, false, null, movement.snapshot()));
+        }
+        assertTrue(clicks.shouldClick(true, false, false, null, movement.snapshot()));
+        // Twenty eligible ticks in one deterministic air profile = five clicks.
+        int count = 0;
+        for (int i = 0; i < 20; i++) {
+            if (clicks.shouldClick(true, false, false, null, movement.snapshot())) {
+                count++;
+            }
+        }
+        assertEquals(5, count);
+
+        // Swapping actual movement profile does not consume leftover air phase.
+        movement.update(true, false, false);
+        assertTrue(clicks.shouldClick(true, false, false, null, movement.snapshot()));
+        movement.update(false, false, false);
+        assertFalse(clicks.shouldClick(true, false, false, null, movement.snapshot()));
+        // Edit both airborne bounds live: no old phase or cached CPS target.
+        clicks.airborneMinCpsSetting().set(10);
+        clicks.airborneMaxCpsSetting().set(10);
+        assertFalse(clicks.shouldClick(true, false, false, null, movement.snapshot()));
+        assertTrue(clicks.shouldClick(true, false, false, null, movement.snapshot()));
+
+        // Ground Only and other existing gates always veto and reset.
+        clicks.groundOnlySetting().set(Boolean.TRUE);
+        assertFalse(clicks.shouldClick(true, false, false, null, movement.snapshot()));
+        clicks.groundOnlySetting().set(Boolean.FALSE);
+        movement.clear();
+        assertTrue(clicks.shouldClick(true, false, false, null, movement.snapshot()));
+        clicks.pauseWhileSneakingSetting().set(Boolean.TRUE);
+        assertFalse(clicks.shouldClick(true, false, false, null, movement.snapshot()));
+        movement.update(false, true, false);
+        assertFalse(clicks.shouldClick(true, false, false, null, movement.snapshot()));
+        clicks.pauseWhileSneakingSetting().set(Boolean.FALSE);
+        clicks.airborneProfileSetting().set(Boolean.FALSE);
+        assertTrue(clicks.shouldClick(true, false, false, null, movement.snapshot()));
+        assertThrows(IllegalArgumentException.class,
+                () -> clicks.airborneMinCpsSetting().set(0));
+        assertThrows(IllegalArgumentException.class,
+                () -> clicks.airborneMaxCpsSetting().set(21));
+        clicks.onDisable();
+        assertFalse(clicks.shouldClick(true, false, false, null, movement.snapshot()));
+    }
+
+    @Test
+    void hostedAirborneCpsIsLivePersistedAndUnregistered() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(
+                new EventBus(), modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189AutoClickerModule clicks = runtime.featureCatalog().autoClicker();
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.AIRBORNE_PROFILE_SETTING_ID));
+            assertEquals("8", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.AIRBORNE_MIN_CPS_SETTING_ID));
+            assertEquals("12", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.AIRBORNE_MAX_CPS_SETTING_ID));
+            clicks.minCpsSetting().set(20);
+            clicks.maxCpsSetting().set(20);
+            clicks.airborneMinCpsSetting().set(5);
+            clicks.airborneMaxCpsSetting().set(5);
+            clicks.airborneProfileSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.AIRBORNE_PROFILE_SETTING_ID));
+            assertEquals("5", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.AIRBORNE_MIN_CPS_SETTING_ID));
+            assertEquals("5", settings.snapshotEncoded().get(
+                    Minecraft189AutoClickerModule.AIRBORNE_MAX_CPS_SETTING_ID));
+            controller.enable(Minecraft189AutoClickerModule.ID);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            runtime.playerMovementState().update(true, false, false);
+            assertTrue(runtime.shouldAutoClick());
+            runtime.playerMovementState().update(false, false, false);
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            assertFalse(runtime.shouldAutoClick());
+            assertTrue(runtime.shouldAutoClick());
+            runtime.playerMovementState().clear();
+            assertTrue(runtime.shouldAutoClick()); // Base rate on unknown.
+            controller.disable(Minecraft189AutoClickerModule.ID);
+            assertFalse(runtime.shouldAutoClick());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189AutoClickerModule.AIRBORNE_PROFILE_SETTING_ID));
+        assertNull(settings.find(Minecraft189AutoClickerModule.AIRBORNE_MIN_CPS_SETTING_ID));
+        assertNull(settings.find(Minecraft189AutoClickerModule.AIRBORNE_MAX_CPS_SETTING_ID));
+        assertNull(modules.find(Minecraft189AutoClickerModule.ID));
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override
