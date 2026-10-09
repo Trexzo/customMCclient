@@ -12,12 +12,17 @@ public final class Minecraft189NoWebModule
             "movement.noWeb.groundOnly";
     public static final String REQUIRE_SNEAKING_SETTING_ID =
             "movement.noWeb.requireSneaking";
+    public static final String AIRBORNE_ONLY_SETTING_ID =
+            "movement.noWeb.airborneOnly";
 
     private final Setting<Boolean> groundOnly = new Setting<Boolean>(
             GROUND_ONLY_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> requireSneaking = new Setting<Boolean>(
             REQUIRE_SNEAKING_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> airborneOnly = new Setting<Boolean>(
+            AIRBORNE_ONLY_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
 
     public Setting<Boolean> groundOnlySetting() {
@@ -26,6 +31,10 @@ public final class Minecraft189NoWebModule
 
     public Setting<Boolean> requireSneakingSetting() {
         return requireSneaking;
+    }
+
+    public Setting<Boolean> airborneOnlySetting() {
+        return airborneOnly;
     }
 
     private boolean enabled;
@@ -58,10 +67,16 @@ public final class Minecraft189NoWebModule
         }
         final boolean ground = groundOnly.get().booleanValue();
         final boolean sneak = requireSneaking.get().booleanValue();
-        if ((ground || sneak)
+        final boolean airborne = airborneOnly.get().booleanValue();
+        // Contradictory ground/air conditions never silently override one
+        // another. Without confirmed movement, opted-in state gates cannot
+        // clear the local web flag or synthesize a new flag value.
+        if ((ground && airborne)
+                || ((ground || sneak || airborne)
                 && (movement == null || !movement.available()
                         || (ground && !movement.onGround())
-                        || (sneak && !movement.sneaking()))) {
+                        || (airborne && movement.onGround())
+                        || (sneak && !movement.sneaking())))) {
             // Existing local web flag is left intact when a configured
             // mapped-state condition is not confirmed.
             return;

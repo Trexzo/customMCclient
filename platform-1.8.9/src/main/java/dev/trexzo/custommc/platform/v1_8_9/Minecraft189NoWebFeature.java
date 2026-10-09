@@ -24,6 +24,9 @@ final class Minecraft189NoWebFeature
     private final SettingPresentationRegistry.Registration requireSneakingPresentation;
     private final ModuleSettingRegistry.Registration groundOnlyBinding;
     private final ModuleSettingRegistry.Registration requireSneakingBinding;
+    private final SettingRegistry.Registration airborneOnlySetting;
+    private final SettingPresentationRegistry.Registration airborneOnlyPresentation;
+    private final ModuleSettingRegistry.Registration airborneOnlyBinding;
     private boolean closed;
 
     private Minecraft189NoWebFeature(
@@ -36,7 +39,10 @@ final class Minecraft189NoWebFeature
             final SettingPresentationRegistry.Registration groundOnlyPresentation,
             final SettingPresentationRegistry.Registration requireSneakingPresentation,
             final ModuleSettingRegistry.Registration groundOnlyBinding,
-            final ModuleSettingRegistry.Registration requireSneakingBinding) {
+            final ModuleSettingRegistry.Registration requireSneakingBinding,
+            final SettingRegistry.Registration airborneOnlySetting,
+            final SettingPresentationRegistry.Registration airborneOnlyPresentation,
+            final ModuleSettingRegistry.Registration airborneOnlyBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -47,6 +53,9 @@ final class Minecraft189NoWebFeature
         this.requireSneakingPresentation = requireSneakingPresentation;
         this.groundOnlyBinding = groundOnlyBinding;
         this.requireSneakingBinding = requireSneakingBinding;
+        this.airborneOnlySetting = airborneOnlySetting;
+        this.airborneOnlyPresentation = airborneOnlyPresentation;
+        this.airborneOnlyBinding = airborneOnlyBinding;
     }
 
     static Minecraft189NoWebFeature install(
@@ -67,6 +76,9 @@ final class Minecraft189NoWebFeature
         SettingPresentationRegistry.Registration requireSneakingPresentation = null;
         ModuleSettingRegistry.Registration groundOnlyBinding = null;
         ModuleSettingRegistry.Registration requireSneakingBinding = null;
+        SettingRegistry.Registration airborneOnlySetting = null;
+        SettingPresentationRegistry.Registration airborneOnlyPresentation = null;
+        ModuleSettingRegistry.Registration airborneOnlyBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -82,6 +94,7 @@ final class Minecraft189NoWebFeature
             groundOnlySetting = settings.register(module.groundOnlySetting());
             requireSneakingSetting = settings.register(
                     module.requireSneakingSetting());
+            airborneOnlySetting = settings.register(module.airborneOnlySetting());
             groundOnlyPresentation = settingPresentations.register(
                     new SettingDescriptor(
                             Minecraft189NoWebModule.GROUND_ONLY_SETTING_ID,
@@ -90,6 +103,10 @@ final class Minecraft189NoWebFeature
                     new SettingDescriptor(
                             Minecraft189NoWebModule.REQUIRE_SNEAKING_SETTING_ID,
                             "Require Sneaking", SettingValueKind.BOOLEAN, 20));
+            airborneOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189NoWebModule.AIRBORNE_ONLY_SETTING_ID,
+                            "Airborne Only", SettingValueKind.BOOLEAN, 30));
             groundOnlyBinding = moduleSettings.register(
                     new ModuleSettingBinding(
                             Minecraft189NoWebModule.ID,
@@ -98,6 +115,11 @@ final class Minecraft189NoWebFeature
                     new ModuleSettingBinding(
                             Minecraft189NoWebModule.ID,
                             Minecraft189NoWebModule.REQUIRE_SNEAKING_SETTING_ID, 20));
+            airborneOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189NoWebModule.ID,
+                            Minecraft189NoWebModule.AIRBORNE_ONLY_SETTING_ID, 30));
+
             return new Minecraft189NoWebFeature(
                     controller,
                     module,
@@ -108,8 +130,14 @@ final class Minecraft189NoWebFeature
                     groundOnlyPresentation,
                     requireSneakingPresentation,
                     groundOnlyBinding,
-                    requireSneakingBinding);
+                    requireSneakingBinding,
+                    airborneOnlySetting,
+                    airborneOnlyPresentation,
+                    airborneOnlyBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(airborneOnlyBinding, failure);
+            closeQuietly(airborneOnlyPresentation, failure);
+            closeQuietly(airborneOnlySetting, failure);
             closeQuietly(requireSneakingBinding, failure);
             closeQuietly(groundOnlyBinding, failure);
             closeQuietly(requireSneakingPresentation, failure);
@@ -153,6 +181,9 @@ final class Minecraft189NoWebFeature
             failure = closeFailure;
         }
 
+        failure = close(airborneOnlyBinding, failure);
+        failure = close(airborneOnlyPresentation, failure);
+        failure = close(airborneOnlySetting, failure);
         failure = close(requireSneakingBinding, failure);
         failure = close(groundOnlyBinding, failure);
         failure = close(requireSneakingPresentation, failure);
