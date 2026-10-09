@@ -55,6 +55,9 @@ final class Minecraft189JitterFeature
     private final SettingPresentationRegistry.Registration pauseSneakingPresentation;
     private final ModuleSettingRegistry.Registration groundOnlyBinding;
     private final ModuleSettingRegistry.Registration pauseSneakingBinding;
+    private final SettingRegistry.Registration pauseRightSetting;
+    private final SettingPresentationRegistry.Registration pauseRightPresentation;
+    private final ModuleSettingRegistry.Registration pauseRightBinding;
     private boolean closed;
 
     private Minecraft189JitterFeature(
@@ -97,7 +100,10 @@ final class Minecraft189JitterFeature
             final SettingPresentationRegistry.Registration groundOnlyPresentation,
             final SettingPresentationRegistry.Registration pauseSneakingPresentation,
             final ModuleSettingRegistry.Registration groundOnlyBinding,
-            final ModuleSettingRegistry.Registration pauseSneakingBinding) {
+            final ModuleSettingRegistry.Registration pauseSneakingBinding,
+            final SettingRegistry.Registration pauseRightSetting,
+            final SettingPresentationRegistry.Registration pauseRightPresentation,
+            final ModuleSettingRegistry.Registration pauseRightBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -138,6 +144,9 @@ final class Minecraft189JitterFeature
         this.pauseSneakingPresentation = pauseSneakingPresentation;
         this.groundOnlyBinding = groundOnlyBinding;
         this.pauseSneakingBinding = pauseSneakingBinding;
+        this.pauseRightSetting = pauseRightSetting;
+        this.pauseRightPresentation = pauseRightPresentation;
+        this.pauseRightBinding = pauseRightBinding;
     }
 
     static Minecraft189JitterFeature install(
@@ -188,6 +197,9 @@ final class Minecraft189JitterFeature
         SettingPresentationRegistry.Registration pauseSneakingPresentation = null;
         ModuleSettingRegistry.Registration groundOnlyBinding = null;
         ModuleSettingRegistry.Registration pauseSneakingBinding = null;
+        SettingRegistry.Registration pauseRightSetting = null;
+        SettingPresentationRegistry.Registration pauseRightPresentation = null;
+        ModuleSettingRegistry.Registration pauseRightBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -228,6 +240,8 @@ final class Minecraft189JitterFeature
             groundOnlySetting = settings.register(module.groundOnlySetting());
             pauseSneakingSetting = settings.register(
                     module.pauseWhileSneakingSetting());
+            pauseRightSetting = settings.register(
+                    module.pauseWhileRightClickingSetting());
             yawPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -310,6 +324,10 @@ final class Minecraft189JitterFeature
                     new SettingDescriptor(
                             Minecraft189JitterModule.PAUSE_SNEAKING_SETTING_ID,
                             "Pause While Sneaking", SettingValueKind.BOOLEAN, 90));
+            pauseRightPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189JitterModule.PAUSE_RIGHT_CLICKING_SETTING_ID,
+                            "Pause While Right Clicking", SettingValueKind.BOOLEAN, 100));
             yawBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -373,6 +391,12 @@ final class Minecraft189JitterFeature
                     new ModuleSettingBinding(
                             Minecraft189JitterModule.ID,
                             Minecraft189JitterModule.PAUSE_SNEAKING_SETTING_ID, 90));
+            pauseRightBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189JitterModule.ID,
+                            Minecraft189JitterModule.PAUSE_RIGHT_CLICKING_SETTING_ID,
+                            100));
+
             return new Minecraft189JitterFeature(
                     controller,
                     module,
@@ -413,8 +437,14 @@ final class Minecraft189JitterFeature
                     groundOnlyPresentation,
                     pauseSneakingPresentation,
                     groundOnlyBinding,
-                    pauseSneakingBinding);
+                    pauseSneakingBinding,
+                    pauseRightSetting,
+                    pauseRightPresentation,
+                    pauseRightBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseRightBinding, failure);
+            closeQuietly(pauseRightPresentation, failure);
+            closeQuietly(pauseRightSetting, failure);
             closeQuietly(pauseSneakingBinding, failure);
             closeQuietly(groundOnlyBinding, failure);
             closeQuietly(pauseSneakingPresentation, failure);
@@ -484,6 +514,9 @@ final class Minecraft189JitterFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseRightBinding, failure);
+        failure = close(pauseRightPresentation, failure);
+        failure = close(pauseRightSetting, failure);
         failure = close(pauseSneakingBinding, failure);
         failure = close(groundOnlyBinding, failure);
         failure = close(pauseSneakingPresentation, failure);

@@ -28,6 +28,8 @@ public final class Minecraft189JitterModule
             "combat.jitter.pauseWhileSneaking";
     public static final String REQUIRE_HOLD_SETTING_ID =
             "combat.jitter.requireHold";
+    public static final String PAUSE_RIGHT_CLICKING_SETTING_ID =
+            "combat.jitter.pauseWhileRightClicking";
     public static final String VARIABLE_STRENGTH_SETTING_ID =
             "combat.jitter.variableStrength";
     public static final String STRENGTH_VARIATION_SETTING_ID =
@@ -90,6 +92,11 @@ public final class Minecraft189JitterModule
                     Boolean.TRUE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+
+    private final Setting<Boolean> pauseWhileRightClicking =
+            new Setting<Boolean>(
+                    PAUSE_RIGHT_CLICKING_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
 
     private final Setting<Boolean> groundOnly =
             new Setting<Boolean>(
@@ -178,6 +185,10 @@ public final class Minecraft189JitterModule
         return groundOnly;
     }
 
+    public Setting<Boolean> pauseWhileRightClickingSetting() {
+        return pauseWhileRightClicking;
+    }
+
     public Setting<Boolean> pauseWhileSneakingSetting() {
         return pauseWhileSneaking;
     }
@@ -227,6 +238,17 @@ public final class Minecraft189JitterModule
             final Minecraft189PlayerRotationState.Snapshot rotation,
             final boolean leftButtonHeld,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        // Older callers do not supply a physical right-button snapshot,
+        // and therefore fail closed when the optional guard is enabled.
+        return apply(player, rotation, leftButtonHeld, movement, null);
+    }
+
+    synchronized boolean apply(
+            final Minecraft189PlayerRotationControl player,
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final boolean leftButtonHeld,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final Boolean rightButtonHeld) {
         final boolean yawAxisEnabled =
                 yawEnabled.get().booleanValue();
         final boolean pitchAxisEnabled =
@@ -253,6 +275,9 @@ public final class Minecraft189JitterModule
                         && !pitchAxisEnabled)
                 || (requireHold.get().booleanValue()
                         && !leftButtonHeld)
+                || (pauseWhileRightClicking.get().booleanValue()
+                        && (rightButtonHeld == null
+                                || rightButtonHeld.booleanValue()))
                 || ((groundOnly.get().booleanValue()
                         || pauseWhileSneaking.get().booleanValue())
                         && (movement == null || !movement.available()

@@ -1,11 +1,19 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
+import dev.trexzo.custommc.core.event.EventBus;
+import dev.trexzo.custommc.core.module.ModuleCategoryRegistry;
 import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
+import dev.trexzo.custommc.core.render.RenderPipeline;
+import dev.trexzo.custommc.core.service.ServiceRegistry;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
+import dev.trexzo.custommc.core.ui.UiFontHandle;
+import dev.trexzo.custommc.core.ui.UiViewport;
+import dev.trexzo.custommc.platform.PlatformContext;
+import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -802,6 +810,144 @@ final class Minecraft189JitterModuleTest {
         assertNull(settings.find(Minecraft189JitterModule.GROUND_ONLY_SETTING_ID));
         assertNull(settings.find(Minecraft189JitterModule.PAUSE_SNEAKING_SETTING_ID));
         assertNull(modules.find(Minecraft189JitterModule.ID));
+    }
+
+    @Test
+    void pauseOnPhysicalRightButtonRejectsCachedStrokeAndRequiresMappedInput() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final Minecraft189JitterFeature feature = Minecraft189JitterFeature.install(
+                modules, controller, new ModulePresentationRegistry(),
+                new ModuleSettingRegistry(modules, settings), settings,
+                new SettingPresentationRegistry());
+        try {
+            final Minecraft189JitterModule jitter = feature.module();
+            final Minecraft189PlayerRotationState rotation =
+                    new Minecraft189PlayerRotationState();
+            final TestPlayer player = new TestPlayer(20.0F, 10.0F);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189JitterModule.PAUSE_RIGHT_CLICKING_SETTING_ID));
+            jitter.pitchEnabledSetting().set(Boolean.FALSE);
+            jitter.yawDegreesSetting().set(2.0D);
+            jitter.intervalTicksSetting().set(3);
+            controller.enable(Minecraft189JitterModule.ID);
+
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(jitter.apply(player, rotation.snapshot(), true));
+            assertEquals(22.0F, player.yaw, 0.000001F);
+            jitter.pauseWhileRightClickingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189JitterModule.PAUSE_RIGHT_CLICKING_SETTING_ID));
+            rotation.update(player.yaw, player.pitch);
+            assertFalse(jitter.apply(player, rotation.snapshot(), true,
+                    null, Boolean.TRUE)); // Paused, cadence cleared.
+            assertFalse(jitter.apply(player, rotation.snapshot(), true,
+                    null, Boolean.TRUE));
+            assertFalse(jitter.apply(player, rotation.snapshot(), true));
+            assertFalse(jitter.apply(player, rotation.snapshot(), true, null));
+            assertEquals(22.0F, player.yaw, 0.000001F);
+            assertTrue(jitter.apply(player, rotation.snapshot(), true,
+                    null, Boolean.FALSE));
+            assertEquals(24.0F, player.yaw, 0.000001F); // Fresh outward stroke.
+            rotation.update(player.yaw, player.pitch);
+            assertFalse(jitter.apply(player, rotation.snapshot(), true,
+                    null, Boolean.FALSE)); // Interval tick.
+            assertFalse(jitter.apply(player, rotation.snapshot(), true,
+                    null, Boolean.TRUE)); // Pause clears pending 2nd stroke.
+            assertTrue(jitter.apply(player, rotation.snapshot(), true,
+                    null, Boolean.FALSE));
+            assertEquals(26.0F, player.yaw, 0.000001F);
+
+            // Live OFF returns to original legacy behavior and does not
+            // reintroduce a buffered or synthetic physical button state.
+            jitter.pauseWhileRightClickingSetting().set(Boolean.FALSE);
+            rotation.update(player.yaw, player.pitch);
+            assertFalse(jitter.apply(player, rotation.snapshot(), true));
+            assertFalse(jitter.apply(player, rotation.snapshot(), true));
+            assertTrue(jitter.apply(player, rotation.snapshot(), true));
+            assertEquals(24.0F, player.yaw, 0.000001F);
+            controller.disable(Minecraft189JitterModule.ID);
+        } finally {
+            feature.close();
+        }
+        assertNull(settings.find(
+                Minecraft189JitterModule.PAUSE_RIGHT_CLICKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189JitterModule.ID));
+    }
+
+    @Test
+    void hostRoutesRealRightButtonToJitterAndRestoresCadenceOnRelease() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(
+                new EventBus(), modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189JitterModule jitter = runtime.featureCatalog().jitter();
+            final TestPlayer player = new TestPlayer(0.0F, 0.0F);
+            jitter.pitchEnabledSetting().set(Boolean.FALSE);
+            jitter.yawDegreesSetting().set(2.0D);
+            jitter.pauseWhileRightClickingSetting().set(Boolean.TRUE);
+            controller.enable(Minecraft189JitterModule.ID);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, true);
+            runtime.playerRotation(player);
+            runtime.playerRotation(player);
+            assertEquals(0.0F, player.yaw, 0.000001F);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
+            runtime.playerRotation(player);
+            assertEquals(2.0F, player.yaw, 0.000001F);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, true);
+            runtime.playerRotation(player);
+            assertEquals(2.0F, player.yaw, 0.000001F);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
+            runtime.playerRotation(player);
+            assertEquals(4.0F, player.yaw, 0.000001F);
+            controller.disable(Minecraft189JitterModule.ID);
+            runtime.playerRotation(player);
+            assertEquals(4.0F, player.yaw, 0.000001F);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189JitterModule.PAUSE_RIGHT_CLICKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189JitterModule.ID));
+    }
+
+    private static final class NoOpHost implements LegacyUiHostCallbacks {
+        @Override public int framebufferWidth() { return 1280; }
+        @Override public int framebufferHeight() { return 720; }
+        @Override public float uiScale() { return 1.0F; }
+        @Override public void beginUi(final UiViewport viewport) { }
+        @Override public void fillRect(final float x, final float y,
+                final float width, final float height, final int argb) { }
+        @Override public void fillRoundedRect(final float x, final float y,
+                final float width, final float height, final float radius,
+                final int argb) { }
+        @Override public void strokeRect(final float x, final float y,
+                final float width, final float height, final float thickness,
+                final int argb) { }
+        @Override public void pushClip(final float x, final float y,
+                final float width, final float height) { }
+        @Override public void popClip() { }
+        @Override public void drawText(final UiFontHandle font, final float x,
+                final float y, final String text, final int argb) { }
+        @Override public void endUi() { }
     }
 
     private static final class TestPlayer
