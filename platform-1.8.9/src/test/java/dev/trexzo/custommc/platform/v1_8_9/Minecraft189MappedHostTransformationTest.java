@@ -6674,6 +6674,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "ap", "I");
         field(writer, "ag", "I");
         field(writer, "Y", "Lavl;");
+        field(writer, "s", "Lauh;");
         field(writer, "clickMouseCalls", "I");
         endDefaultConstructor(writer, "ave");
 
