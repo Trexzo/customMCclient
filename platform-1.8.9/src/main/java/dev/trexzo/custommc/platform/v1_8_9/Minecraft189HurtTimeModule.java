@@ -23,9 +23,18 @@ public final class Minecraft189HurtTimeModule
             "render.hurtTime.y";
     public static final String RENDER_PASS_ID =
             "hurtTime";
+    public static final String SHOW_METER_SETTING_ID =
+            "render.hurtTime.showMeter";
+    public static final String METER_MAX_SETTING_ID =
+            "render.hurtTime.meterMax";
+    public static final int DEFAULT_METER_MAX = 10;
+    public static final int MAXIMUM_METER_MAX = 40;
 
     private static final int PRIORITY = 129;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
+    private static final int METER_TRACK_ARGB = 0xFF303D4A;
+    private static final int METER_FILL_ARGB = 0xFFFFB65C;
+    private static final float METER_WIDTH = 84.0F;
 
     private final Minecraft189PlayerHurtTimeState hurtTimeState;
     private final RenderPipeline renderPipeline;
@@ -44,6 +53,14 @@ public final class Minecraft189HurtTimeModule
                     value -> value >= 0
                             && value <= 4096,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> showMeter = new Setting<Boolean>(
+            SHOW_METER_SETTING_ID, Boolean.FALSE, value -> value != null,
+            SettingCodecs.BOOLEAN);
+    private final Setting<Integer> meterMax = new Setting<Integer>(
+            METER_MAX_SETTING_ID, DEFAULT_METER_MAX,
+            value -> value != null && value >= 1
+                    && value <= MAXIMUM_METER_MAX,
+            SettingCodecs.INTEGER);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189HurtTimeModule(
@@ -75,6 +92,24 @@ public final class Minecraft189HurtTimeModule
 
     public Setting<Integer> ySetting() {
         return y;
+    }
+
+    public Setting<Boolean> showMeterSetting() {
+        return showMeter;
+    }
+
+    public Setting<Integer> meterMaxSetting() {
+        return meterMax;
+    }
+
+    static float meterWidthFor(final int hurtTime, final int maximum) {
+        if (maximum < 1 || maximum > MAXIMUM_METER_MAX) {
+            return 0.0F;
+        }
+        // Display only the mapped local-player counter, not presumed
+        // damage immunity, server tick timing, or a predicted hit.
+        return (float) (METER_WIDTH * Math.min(1.0D,
+                Math.max(0.0D, (double) hurtTime / maximum)));
     }
 
     @Override
@@ -146,6 +181,18 @@ public final class Minecraft189HurtTimeModule
                         y.get().floatValue(),
                         "Hurt Time: " + hurtTime.hurtTime(),
                         TEXT_ARGB);
+                if (showMeter.get().booleanValue()) {
+                    final float left = x.get().floatValue();
+                    final float top = y.get().floatValue() + 12.0F;
+                    final float fill = meterWidthFor(hurtTime.hurtTime(),
+                            meterMax.get().intValue());
+                    hostCallbacks.fillRect(left, top, METER_WIDTH, 4.0F,
+                            METER_TRACK_ARGB);
+                    if (fill > 0.0F) {
+                        hostCallbacks.fillRect(left, top, fill, 4.0F,
+                                METER_FILL_ARGB);
+                    }
+                }
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
                 throw drawFailure;

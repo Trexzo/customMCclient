@@ -27,6 +27,12 @@ final class Minecraft189HurtTimeFeature
     private final SettingPresentationRegistry.Registration yPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final SettingRegistry.Registration showMeterSetting;
+    private final SettingRegistry.Registration meterMaxSetting;
+    private final SettingPresentationRegistry.Registration showMeterPresentation;
+    private final SettingPresentationRegistry.Registration meterMaxPresentation;
+    private final ModuleSettingRegistry.Registration showMeterBinding;
+    private final ModuleSettingRegistry.Registration meterMaxBinding;
     private boolean closed;
 
     private Minecraft189HurtTimeFeature(
@@ -39,7 +45,13 @@ final class Minecraft189HurtTimeFeature
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
             final ModuleSettingRegistry.Registration xBinding,
-            final ModuleSettingRegistry.Registration yBinding) {
+            final ModuleSettingRegistry.Registration yBinding,
+            final SettingRegistry.Registration showMeterSetting,
+            final SettingRegistry.Registration meterMaxSetting,
+            final SettingPresentationRegistry.Registration showMeterPresentation,
+            final SettingPresentationRegistry.Registration meterMaxPresentation,
+            final ModuleSettingRegistry.Registration showMeterBinding,
+            final ModuleSettingRegistry.Registration meterMaxBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -50,6 +62,12 @@ final class Minecraft189HurtTimeFeature
         this.yPresentation = yPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.showMeterSetting = showMeterSetting;
+        this.meterMaxSetting = meterMaxSetting;
+        this.showMeterPresentation = showMeterPresentation;
+        this.meterMaxPresentation = meterMaxPresentation;
+        this.showMeterBinding = showMeterBinding;
+        this.meterMaxBinding = meterMaxBinding;
     }
 
     static Minecraft189HurtTimeFeature install(
@@ -76,6 +94,12 @@ final class Minecraft189HurtTimeFeature
         SettingPresentationRegistry.Registration yPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        SettingRegistry.Registration showMeterSetting = null;
+        SettingRegistry.Registration meterMaxSetting = null;
+        SettingPresentationRegistry.Registration showMeterPresentation = null;
+        SettingPresentationRegistry.Registration meterMaxPresentation = null;
+        ModuleSettingRegistry.Registration showMeterBinding = null;
+        ModuleSettingRegistry.Registration meterMaxBinding = null;
 
         try {
             moduleRegistration =
@@ -95,6 +119,8 @@ final class Minecraft189HurtTimeFeature
             ySetting =
                     settings.register(
                             module.ySetting());
+            showMeterSetting = settings.register(module.showMeterSetting());
+            meterMaxSetting = settings.register(module.meterMaxSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -117,6 +143,17 @@ final class Minecraft189HurtTimeFeature
                                             0.0D,
                                             4096.0D,
                                             1.0D)));
+            showMeterPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189HurtTimeModule.SHOW_METER_SETTING_ID,
+                            "Show Meter", SettingValueKind.BOOLEAN, 20));
+            meterMaxPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189HurtTimeModule.METER_MAX_SETTING_ID,
+                            "Meter Maximum", SettingValueKind.INTEGER, 30,
+                            new SettingNumericSpec(1.0D,
+                                    Minecraft189HurtTimeModule.MAXIMUM_METER_MAX,
+                                    1.0D)));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -130,6 +167,15 @@ final class Minecraft189HurtTimeFeature
                                     Minecraft189HurtTimeModule.Y_SETTING_ID,
                                     10));
 
+            showMeterBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189HurtTimeModule.ID,
+                            Minecraft189HurtTimeModule.SHOW_METER_SETTING_ID, 20));
+            meterMaxBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189HurtTimeModule.ID,
+                            Minecraft189HurtTimeModule.METER_MAX_SETTING_ID, 30));
+
             return new Minecraft189HurtTimeFeature(
                     controller,
                     module,
@@ -140,8 +186,20 @@ final class Minecraft189HurtTimeFeature
                     xPresentation,
                     yPresentation,
                     xBinding,
-                    yBinding);
+                    yBinding,
+                    showMeterSetting,
+                    meterMaxSetting,
+                    showMeterPresentation,
+                    meterMaxPresentation,
+                    showMeterBinding,
+                    meterMaxBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(meterMaxBinding, failure);
+            closeQuietly(showMeterBinding, failure);
+            closeQuietly(meterMaxPresentation, failure);
+            closeQuietly(showMeterPresentation, failure);
+            closeQuietly(meterMaxSetting, failure);
+            closeQuietly(showMeterSetting, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
             closeQuietly(yPresentation, failure);
@@ -181,6 +239,12 @@ final class Minecraft189HurtTimeFeature
             failure = closeFailure;
         }
 
+        failure = close(meterMaxBinding, failure);
+        failure = close(showMeterBinding, failure);
+        failure = close(meterMaxPresentation, failure);
+        failure = close(showMeterPresentation, failure);
+        failure = close(meterMaxSetting, failure);
+        failure = close(showMeterSetting, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
         failure = close(yPresentation, failure);
