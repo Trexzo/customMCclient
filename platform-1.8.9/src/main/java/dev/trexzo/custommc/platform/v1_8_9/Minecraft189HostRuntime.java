@@ -1260,6 +1260,7 @@ public final class Minecraft189HostRuntime
                     worldEntityPositionState.snapshot(),
                     worldEntityKindState.snapshot(),
                     worldEntityCombatState.snapshot(),
+                    featureCatalog.antiBot(),
                     nearestPlayerTargetState);
             targetRotationState.update(
                     playerPositionState.snapshot(),
@@ -1476,6 +1477,11 @@ public final class Minecraft189HostRuntime
                     || !combat.alive(selected.entityIndex())) {
                 return false;
             }
+        }
+        // A verified tab-list miss is a veto for every synthetic click
+        // owner. A real manually-triggered vanilla click remains untouched.
+        if (!featureCatalog.antiBot().permits(crosshairPlayerIndex, combat)) {
+            return false;
         }
         if (!featureCatalog.hitSelect().permits(
                 crosshairPlayerIndex, combat)) {

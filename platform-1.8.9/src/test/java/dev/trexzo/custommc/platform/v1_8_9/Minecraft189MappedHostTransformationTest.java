@@ -472,6 +472,26 @@ final class Minecraft189MappedHostTransformationTest {
             loader.loadClass("pr").getField("au").setInt(playerHit, 7);
             assertArrayEquals(new int[]{-1, 15},
                     combat.customMcLoadedEntityCombatStates());
+            final Object clientPlayer = loader.loadClass("bet")
+                    .getDeclaredConstructor().newInstance();
+            loader.loadClass("pr").getField("health").setFloat(clientPlayer, 16.0F);
+            loader.loadClass("pr").getField("au").setInt(clientPlayer, 3);
+            final Minecraft189PlayerTabInfoAccess tabAccessor =
+                    (Minecraft189PlayerTabInfoAccess) clientPlayer;
+            assertFalse(tabAccessor.customMcHasNetworkPlayerInfo());
+            loader.loadClass("adm").getField("f").set(
+                    rayWorld, java.util.Arrays.asList(otherRayEntity, clientPlayer));
+            assertArrayEquals(new int[]{-1, 512 | (3 << 1) | 1},
+                    combat.customMcLoadedEntityCombatStates());
+            final Object playerInfo = loader.loadClass("bdc")
+                    .getDeclaredConstructor().newInstance();
+            loader.loadClass("bet").getField("playerInfo")
+                    .set(clientPlayer, playerInfo);
+            assertTrue(tabAccessor.customMcHasNetworkPlayerInfo());
+            assertArrayEquals(new int[]{-1, 512 | 256 | (3 << 1) | 1},
+                    combat.customMcLoadedEntityCombatStates());
+            loader.loadClass("adm").getField("f").set(
+                    rayWorld, java.util.Arrays.asList(otherRayEntity, playerHit));
             loader.loadClass("pr").getField("health").setFloat(playerHit, 0.0F);
             assertArrayEquals(new int[]{-1, 14},
                     combat.customMcLoadedEntityCombatStates());
