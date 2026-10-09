@@ -26,6 +26,12 @@ public final class Minecraft189KeystrokesModule
             "render.keystrokes.showSpace";
     public static final String SHOW_SHIFT_SETTING_ID =
             "render.keystrokes.showShift";
+    public static final String IDLE_OPACITY_SETTING_ID =
+            "render.keystrokes.idleOpacity";
+    public static final String PRESSED_OPACITY_SETTING_ID =
+            "render.keystrokes.pressedOpacity";
+    public static final int DEFAULT_IDLE_OPACITY = 0x90;
+    public static final int DEFAULT_PRESSED_OPACITY = 0xD0;
     public static final String RENDER_PASS_ID =
             "keystrokes";
 
@@ -61,6 +67,14 @@ public final class Minecraft189KeystrokesModule
     private final Setting<Boolean> showShift = new Setting<Boolean>(
             SHOW_SHIFT_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> idleOpacity = new Setting<Integer>(
+            IDLE_OPACITY_SETTING_ID, DEFAULT_IDLE_OPACITY,
+            value -> value != null && value >= 0 && value <= 255,
+            SettingCodecs.INTEGER);
+    private final Setting<Integer> pressedOpacity = new Setting<Integer>(
+            PRESSED_OPACITY_SETTING_ID, DEFAULT_PRESSED_OPACITY,
+            value -> value != null && value >= 0 && value <= 255,
+            SettingCodecs.INTEGER);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189KeystrokesModule(
@@ -100,6 +114,25 @@ public final class Minecraft189KeystrokesModule
 
     public Setting<Boolean> showShiftSetting() {
         return showShift;
+    }
+
+    public Setting<Integer> idleOpacitySetting() {
+        return idleOpacity;
+    }
+
+    public Setting<Integer> pressedOpacitySetting() {
+        return pressedOpacity;
+    }
+
+    static int backgroundArgb(final boolean pressed,
+            final int idleAlpha, final int pressedAlpha) {
+        if (idleAlpha < 0 || idleAlpha > 255
+                || pressedAlpha < 0 || pressedAlpha > 255) {
+            throw new IllegalArgumentException("key opacity must be 0..255");
+        }
+        final int rgb = pressed ? PRESSED_ARGB : IDLE_ARGB;
+        final int alpha = pressed ? pressedAlpha : idleAlpha;
+        return (alpha << 24) | (rgb & 0x00FFFFFF);
     }
 
     @Override
@@ -260,9 +293,9 @@ public final class Minecraft189KeystrokesModule
                     width,
                     height,
                     3.0F,
-                    pressed
-                            ? PRESSED_ARGB
-                            : IDLE_ARGB);
+                    backgroundArgb(pressed,
+                            idleOpacity.get().intValue(),
+                            pressedOpacity.get().intValue()));
             hostCallbacks.drawText(
                     UiFonts.DEFAULT,
                     left + 4.0F,

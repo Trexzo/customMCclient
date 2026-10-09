@@ -33,6 +33,12 @@ final class Minecraft189KeystrokesFeature
     private final SettingPresentationRegistry.Registration showShiftPresentation;
     private final ModuleSettingRegistry.Registration showSpaceBinding;
     private final ModuleSettingRegistry.Registration showShiftBinding;
+    private final SettingRegistry.Registration idleOpacitySetting;
+    private final SettingRegistry.Registration pressedOpacitySetting;
+    private final SettingPresentationRegistry.Registration idleOpacityPresentation;
+    private final SettingPresentationRegistry.Registration pressedOpacityPresentation;
+    private final ModuleSettingRegistry.Registration idleOpacityBinding;
+    private final ModuleSettingRegistry.Registration pressedOpacityBinding;
     private boolean closed;
 
     private Minecraft189KeystrokesFeature(
@@ -51,7 +57,13 @@ final class Minecraft189KeystrokesFeature
             final SettingPresentationRegistry.Registration showSpacePresentation,
             final SettingPresentationRegistry.Registration showShiftPresentation,
             final ModuleSettingRegistry.Registration showSpaceBinding,
-            final ModuleSettingRegistry.Registration showShiftBinding) {
+            final ModuleSettingRegistry.Registration showShiftBinding,
+            final SettingRegistry.Registration idleOpacitySetting,
+            final SettingRegistry.Registration pressedOpacitySetting,
+            final SettingPresentationRegistry.Registration idleOpacityPresentation,
+            final SettingPresentationRegistry.Registration pressedOpacityPresentation,
+            final ModuleSettingRegistry.Registration idleOpacityBinding,
+            final ModuleSettingRegistry.Registration pressedOpacityBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -68,6 +80,12 @@ final class Minecraft189KeystrokesFeature
         this.showShiftPresentation = showShiftPresentation;
         this.showSpaceBinding = showSpaceBinding;
         this.showShiftBinding = showShiftBinding;
+        this.idleOpacitySetting = idleOpacitySetting;
+        this.pressedOpacitySetting = pressedOpacitySetting;
+        this.idleOpacityPresentation = idleOpacityPresentation;
+        this.pressedOpacityPresentation = pressedOpacityPresentation;
+        this.idleOpacityBinding = idleOpacityBinding;
+        this.pressedOpacityBinding = pressedOpacityBinding;
     }
 
     static Minecraft189KeystrokesFeature install(
@@ -100,6 +118,12 @@ final class Minecraft189KeystrokesFeature
         SettingPresentationRegistry.Registration showShiftPresentation = null;
         ModuleSettingRegistry.Registration showSpaceBinding = null;
         ModuleSettingRegistry.Registration showShiftBinding = null;
+        SettingRegistry.Registration idleOpacitySetting = null;
+        SettingRegistry.Registration pressedOpacitySetting = null;
+        SettingPresentationRegistry.Registration idleOpacityPresentation = null;
+        SettingPresentationRegistry.Registration pressedOpacityPresentation = null;
+        ModuleSettingRegistry.Registration idleOpacityBinding = null;
+        ModuleSettingRegistry.Registration pressedOpacityBinding = null;
 
         try {
             moduleRegistration =
@@ -121,6 +145,8 @@ final class Minecraft189KeystrokesFeature
                             module.ySetting());
             showSpaceSetting = settings.register(module.showSpaceSetting());
             showShiftSetting = settings.register(module.showShiftSetting());
+            idleOpacitySetting = settings.register(module.idleOpacitySetting());
+            pressedOpacitySetting = settings.register(module.pressedOpacitySetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -151,6 +177,16 @@ final class Minecraft189KeystrokesFeature
                     new SettingDescriptor(
                             Minecraft189KeystrokesModule.SHOW_SHIFT_SETTING_ID,
                             "Show Shift", SettingValueKind.BOOLEAN, 30));
+            idleOpacityPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189KeystrokesModule.IDLE_OPACITY_SETTING_ID,
+                            "Idle Opacity", SettingValueKind.INTEGER, 40,
+                            new SettingNumericSpec(0.0D, 255.0D, 1.0D)));
+            pressedOpacityPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189KeystrokesModule.PRESSED_OPACITY_SETTING_ID,
+                            "Pressed Opacity", SettingValueKind.INTEGER, 50,
+                            new SettingNumericSpec(0.0D, 255.0D, 1.0D)));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -172,6 +208,14 @@ final class Minecraft189KeystrokesFeature
                     new ModuleSettingBinding(
                             Minecraft189KeystrokesModule.ID,
                             Minecraft189KeystrokesModule.SHOW_SHIFT_SETTING_ID, 30));
+            idleOpacityBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189KeystrokesModule.ID,
+                            Minecraft189KeystrokesModule.IDLE_OPACITY_SETTING_ID, 40));
+            pressedOpacityBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189KeystrokesModule.ID,
+                            Minecraft189KeystrokesModule.PRESSED_OPACITY_SETTING_ID, 50));
             return new Minecraft189KeystrokesFeature(
                     controller,
                     module,
@@ -188,8 +232,20 @@ final class Minecraft189KeystrokesFeature
                     showSpacePresentation,
                     showShiftPresentation,
                     showSpaceBinding,
-                    showShiftBinding);
+                    showShiftBinding,
+                    idleOpacitySetting,
+                    pressedOpacitySetting,
+                    idleOpacityPresentation,
+                    pressedOpacityPresentation,
+                    idleOpacityBinding,
+                    pressedOpacityBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pressedOpacityBinding, failure);
+            closeQuietly(idleOpacityBinding, failure);
+            closeQuietly(pressedOpacityPresentation, failure);
+            closeQuietly(idleOpacityPresentation, failure);
+            closeQuietly(pressedOpacitySetting, failure);
+            closeQuietly(idleOpacitySetting, failure);
             closeQuietly(showShiftBinding, failure);
             closeQuietly(showSpaceBinding, failure);
             closeQuietly(showShiftPresentation, failure);
@@ -235,6 +291,12 @@ final class Minecraft189KeystrokesFeature
             failure = closeFailure;
         }
 
+        failure = close(pressedOpacityBinding, failure);
+        failure = close(idleOpacityBinding, failure);
+        failure = close(pressedOpacityPresentation, failure);
+        failure = close(idleOpacityPresentation, failure);
+        failure = close(pressedOpacitySetting, failure);
+        failure = close(idleOpacitySetting, failure);
         failure = close(showShiftBinding, failure);
         failure = close(showSpaceBinding, failure);
         failure = close(showShiftPresentation, failure);

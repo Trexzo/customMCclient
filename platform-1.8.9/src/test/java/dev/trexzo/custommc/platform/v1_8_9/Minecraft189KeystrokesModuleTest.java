@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189KeystrokesModuleTest {
     @Test
@@ -308,6 +309,83 @@ final class Minecraft189KeystrokesModuleTest {
         }
         assertNull(settings.find(Minecraft189KeystrokesModule.SHOW_SPACE_SETTING_ID));
         assertNull(settings.find(Minecraft189KeystrokesModule.SHOW_SHIFT_SETTING_ID));
+        assertNull(modules.find(Minecraft189KeystrokesModule.ID));
+    }
+
+    @Test
+    void configurableKeystrokesOpacityChangesOnlyLiveKeyBackgrounds() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189KeystrokesModule keys = runtime.featureCatalog().keystrokes();
+            assertEquals(Integer.valueOf(144), keys.idleOpacitySetting().get());
+            assertEquals(Integer.valueOf(208), keys.pressedOpacitySetting().get());
+            assertEquals("144", settings.snapshotEncoded().get(
+                    Minecraft189KeystrokesModule.IDLE_OPACITY_SETTING_ID));
+            assertEquals("208", settings.snapshotEncoded().get(
+                    Minecraft189KeystrokesModule.PRESSED_OPACITY_SETTING_ID));
+            controller.enable(Minecraft189KeystrokesModule.ID);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.renderHud(0L, 0.0F);
+            assertEquals(Integer.valueOf(0xD0FFFFFF), host.rectColors.get(0));
+            assertEquals(Integer.valueOf(0x90000000), host.rectColors.get(1));
+
+            keys.idleOpacitySetting().set(32);
+            keys.pressedOpacitySetting().set(255);
+            assertEquals("32", settings.snapshotEncoded().get(
+                    Minecraft189KeystrokesModule.IDLE_OPACITY_SETTING_ID));
+            assertEquals("255", settings.snapshotEncoded().get(
+                    Minecraft189KeystrokesModule.PRESSED_OPACITY_SETTING_ID));
+            host.clear();
+            runtime.renderHud(1L, 0.0F);
+            assertEquals(Integer.valueOf(0xFFFFFFFF), host.rectColors.get(0));
+            assertEquals(Integer.valueOf(0x20000000), host.rectColors.get(1));
+            assertEquals(Arrays.asList("W", "A", "S", "D", "LMB", "RMB"),
+                    host.labels);
+
+            keys.idleOpacitySetting().set(0);
+            keys.pressedOpacitySetting().set(0);
+            host.clear();
+            runtime.renderHud(2L, 0.0F);
+            assertEquals(Integer.valueOf(0x00FFFFFF), host.rectColors.get(0));
+            assertEquals(Integer.valueOf(0x00000000), host.rectColors.get(1));
+            keys.idleOpacitySetting().set(255);
+            keys.pressedOpacitySetting().set(1);
+            host.clear();
+            runtime.renderHud(3L, 0.0F);
+            assertEquals(Integer.valueOf(0x01FFFFFF), host.rectColors.get(0));
+            assertEquals(Integer.valueOf(0xFF000000), host.rectColors.get(1));
+            assertThrows(IllegalArgumentException.class,
+                    () -> keys.idleOpacitySetting().set(-1));
+            assertThrows(IllegalArgumentException.class,
+                    () -> keys.idleOpacitySetting().set(256));
+            assertThrows(IllegalArgumentException.class,
+                    () -> keys.pressedOpacitySetting().set(-1));
+            assertThrows(IllegalArgumentException.class,
+                    () -> keys.pressedOpacitySetting().set(256));
+            controller.disable(Minecraft189KeystrokesModule.ID);
+            host.clear();
+            runtime.renderHud(4L, 0.0F);
+            assertTrue(host.rectColors.isEmpty());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189KeystrokesModule.IDLE_OPACITY_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189KeystrokesModule.PRESSED_OPACITY_SETTING_ID));
         assertNull(modules.find(Minecraft189KeystrokesModule.ID));
     }
 
