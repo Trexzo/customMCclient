@@ -418,6 +418,87 @@ final class Minecraft189CrosshairModuleTest {
         assertNull(settings.find(Minecraft189CrosshairModule.BLUE_SETTING_ID));
     }
 
+    @Test
+    void opacityAffectsArmsAndOutlineTogetherWithDefaultLegacyParity() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules, controller,
+                services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189CrosshairModule cross = runtime.featureCatalog().crosshair();
+            assertEquals("255", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.OPACITY_SETTING_ID));
+            assertEquals(Integer.valueOf(255), cross.opacitySetting().get());
+            cross.redSetting().set(32);
+            cross.greenSetting().set(150);
+            cross.blueSetting().set(240);
+            cross.dotSetting().set(Boolean.TRUE);
+            cross.outlineSetting().set(Boolean.TRUE);
+            controller.enable(Minecraft189CrosshairModule.ID);
+            runtime.renderHud(0L, 0.0F);
+            assertEquals(10, host.rectangleColors.size());
+            assertEquals(Integer.valueOf(0xFF000000),
+                    host.rectangleColors.get(0)); // Legacy outline.
+            assertEquals(Integer.valueOf(0xFF2096F0),
+                    host.rectangleColors.get(5)); // Legacy RGB.
+
+            host.rectangleColors.clear();
+            cross.opacitySetting().set(128);
+            assertEquals("128", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.OPACITY_SETTING_ID));
+            runtime.renderHud(1L, 0.0F);
+            assertEquals(10, host.rectangleColors.size());
+            for (int i = 0; i < 5; i++) {
+                assertEquals(Integer.valueOf(0x80000000),
+                        host.rectangleColors.get(i));
+                assertEquals(Integer.valueOf(0x802096F0),
+                        host.rectangleColors.get(i + 5));
+            }
+            host.rectangleColors.clear();
+            cross.opacitySetting().set(0);
+            runtime.renderHud(2L, 0.0F);
+            for (int i = 0; i < 5; i++) {
+                assertEquals(Integer.valueOf(0x00000000),
+                        host.rectangleColors.get(i));
+                assertEquals(Integer.valueOf(0x002096F0),
+                        host.rectangleColors.get(i + 5));
+            }
+            assertEquals(0xFF2096F0, Minecraft189CrosshairModule.rgbArgb(
+                    32, 150, 240));
+            assertEquals(0x002096F0, Minecraft189CrosshairModule.rgbaArgb(
+                    0, 32, 150, 240));
+            cross.opacitySetting().set(255);
+            host.rectangleColors.clear();
+            runtime.renderHud(3L, 0.0F);
+            assertEquals(Integer.valueOf(0xFF000000),
+                    host.rectangleColors.get(0));
+            assertEquals(Integer.valueOf(0xFF2096F0),
+                    host.rectangleColors.get(5));
+            assertThrows(IllegalArgumentException.class,
+                    () -> cross.opacitySetting().set(-1));
+            assertThrows(IllegalArgumentException.class,
+                    () -> cross.opacitySetting().set(256));
+            controller.disable(Minecraft189CrosshairModule.ID);
+            host.rectangleColors.clear();
+            runtime.renderHud(4L, 0.0F);
+            assertTrue(host.rectangleColors.isEmpty());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189CrosshairModule.OPACITY_SETTING_ID));
+        assertNull(modules.find(Minecraft189CrosshairModule.ID));
+    }
+
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private final List<String> rectangles =
