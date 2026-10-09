@@ -460,6 +460,112 @@ final class Minecraft189ReverseStepModuleTest {
         assertNull(settings.find(Minecraft189ReverseStepModule.REQUIRE_SNEAK_SETTING_ID));
     }
 
+    @Test
+    void reverseStepRequirePhysicalMovementUsesFreshDepartureAndCancelOnRelease() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189ReverseStepModule step =
+                    runtime.featureCatalog().reverseStep();
+            final TestPlayer player = new TestPlayer();
+            assertFalse(step.requireMovementSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189ReverseStepModule.REQUIRE_MOVEMENT_SETTING_ID));
+            controller.enable(Minecraft189ReverseStepModule.ID);
+            step.requireMovementSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189ReverseStepModule.REQUIRE_MOVEMENT_SETTING_ID));
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerMotionControl(player);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerMotionControl(player); // Stationary drop rejected.
+            assertEquals(0, player.verticalSetCalls);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerMotionControl(player); // Movement acquired mid-air.
+            assertEquals(0, player.verticalSetCalls);
+            runtime.inputState().key(LegacyKeyboardCodes.W, false);
+
+            final int[] keys = {
+                    LegacyKeyboardCodes.W, LegacyKeyboardCodes.A,
+                    LegacyKeyboardCodes.S, LegacyKeyboardCodes.D};
+            for (int i = 0; i < keys.length; i++) {
+                runtime.playerMovementState().update(true, false, false);
+                runtime.playerMotionControl(player);
+                runtime.inputState().key(keys[i], true);
+                runtime.playerMovementState().update(false, false, false);
+                player.motionY = 0.0D;
+                runtime.playerMotionControl(player);
+                assertEquals(i + 1, player.verticalSetCalls);
+                assertEquals(-Minecraft189ReverseStepModule.DEFAULT_SPEED,
+                        player.motionY, 0.000000001D);
+                player.motionY = 0.0D;
+                runtime.playerMotionControl(player); // No extra edge.
+                assertEquals(i + 1, player.verticalSetCalls);
+                runtime.inputState().key(keys[i], false);
+            }
+
+            // A delayed drop loses eligibility when movement is released.
+            step.delayTicksSetting().set(2);
+            runtime.inputState().key(LegacyKeyboardCodes.A, true);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerMotionControl(player);
+            runtime.playerMovementState().update(false, false, false);
+            player.motionY = 0.0D;
+            runtime.playerMotionControl(player); // Pending first tick.
+            runtime.inputState().key(LegacyKeyboardCodes.A, false);
+            runtime.playerMotionControl(player); // Cancel pending.
+            runtime.inputState().key(LegacyKeyboardCodes.A, true);
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(4, player.verticalSetCalls); // No replay.
+            runtime.inputState().key(LegacyKeyboardCodes.A, false);
+
+            // Turning the gate off restores the original stationary drop.
+            step.requireMovementSetting().set(Boolean.FALSE);
+            step.delayTicksSetting().set(0);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerMotionControl(player);
+            runtime.playerMovementState().update(false, false, false);
+            player.motionY = 0.0D;
+            runtime.playerMotionControl(player);
+            assertEquals(5, player.verticalSetCalls);
+
+            controller.disable(Minecraft189ReverseStepModule.ID);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerMotionControl(player);
+            runtime.playerMovementState().update(false, false, false);
+            player.motionY = 0.0D;
+            runtime.playerMotionControl(player);
+            assertEquals(5, player.verticalSetCalls);
+            step.requireMovementSetting().set(Boolean.TRUE);
+            final Minecraft189PlayerMovementState state =
+                    new Minecraft189PlayerMovementState();
+            state.update(true, false, false);
+            step.onEnable();
+            assertFalse(step.apply(player, state.snapshot(), false));
+            state.update(false, false, false);
+            assertFalse(step.apply(player, state.snapshot(), false));
+            step.onDisable();
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189ReverseStepModule.REQUIRE_MOVEMENT_SETTING_ID));
+        assertNull(modules.find(Minecraft189ReverseStepModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;
