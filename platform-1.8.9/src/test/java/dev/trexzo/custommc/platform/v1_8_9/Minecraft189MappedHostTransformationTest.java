@@ -765,8 +765,8 @@ final class Minecraft189MappedHostTransformationTest {
             inventoryClass.getField("a").set(inventory, hotbarItems);
             final Minecraft189InventoryHotbarItemsAccess itemSlots =
                     (Minecraft189InventoryHotbarItemsAccess) inventory;
-            assertSame(sourceItem, itemSlots.customMcHotbarItems()[4]);
-            assertNull(itemSlots.customMcHotbarItems()[0]);
+            org.junit.jupiter.api.Assertions.assertSame(sourceItem, itemSlots.customMcHotbarItems()[4]);
+            org.junit.jupiter.api.Assertions.assertNull(itemSlots.customMcHotbarItems()[0]);
             assertEquals(9, itemSlots.customMcHotbarItems().length);
             java.lang.reflect.Array.set(
                     equipmentSlots,
