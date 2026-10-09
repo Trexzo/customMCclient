@@ -419,6 +419,9 @@ final class Minecraft189GlideModuleTest {
         assertEquals(-0.40D, player.motionY, 0.000001D);
         glide.apply(player, state.snapshot(), false);
         assertEquals(-0.08D, player.motionY, 0.000001D);
+        // Observe the completed capped motion before starting a fresh fall.
+        // A successful write alone is not evidence of a new landing.
+        glide.apply(player, state.snapshot(), false);
 
         // Grounded, unavailable, sneaking and suspended inputs all reset.
         player.motionY = -0.40D;
