@@ -36,6 +36,11 @@ public final class Minecraft189ArrayListModule
             "render.array-list.groupCategories";
     public static final String RENDER_PASS_ID =
             "array-list";
+    public static final String MAX_VISIBLE_SETTING_ID =
+            "render.array-list.maxVisible";
+    public static final String SHOW_OVERFLOW_SETTING_ID =
+            "render.array-list.showOverflow";
+    public static final int DEFAULT_MAX_VISIBLE = 128;
 
     private static final int PRIORITY = 110;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
@@ -66,6 +71,13 @@ public final class Minecraft189ArrayListModule
     private final Setting<Boolean> groupCategories =
             new Setting<Boolean>(GROUP_CATEGORIES_SETTING_ID, Boolean.FALSE,
                     value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> maxVisible = new Setting<Integer>(
+            MAX_VISIBLE_SETTING_ID, DEFAULT_MAX_VISIBLE,
+            value -> value != null && value >= 1 && value <= 128,
+            SettingCodecs.INTEGER);
+    private final Setting<Boolean> showOverflow = new Setting<Boolean>(
+            SHOW_OVERFLOW_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189ArrayListModule(
@@ -106,6 +118,8 @@ public final class Minecraft189ArrayListModule
 
     public Setting<Boolean> showCategoriesSetting() { return showCategories; }
     public Setting<Boolean> groupCategoriesSetting() { return groupCategories; }
+    public Setting<Integer> maxVisibleSetting() { return maxVisible; }
+    public Setting<Boolean> showOverflowSetting() { return showOverflow; }
 
     static int categoryOrder(final ModuleDescriptor descriptor) {
         final String id = descriptor == null
@@ -203,12 +217,21 @@ public final class Minecraft189ArrayListModule
                     });
                 }
                 final boolean withCategory = showCategories.get().booleanValue();
-                for (Module module : enabled) {
+                final int displayed = Math.min(enabled.size(), maxVisible.get().intValue());
+                for (int index = 0; index < displayed; index++) {
+                    final Module module = enabled.get(index);
                     final ModuleDescriptor descriptor = presentations.find(module.id());
                     hostCallbacks.drawText(UiFonts.DEFAULT, x.get().floatValue(),
                             currentY, moduleLabel(module.id(), descriptor, withCategory),
                             TEXT_ARGB);
                     currentY += LINE_HEIGHT;
+                }
+                // No fabricated modules: the overflow count is computed
+                // solely from the enabled module registry snapshot.
+                if (showOverflow.get().booleanValue() && enabled.size() > displayed) {
+                    hostCallbacks.drawText(UiFonts.DEFAULT, x.get().floatValue(),
+                            currentY, "+ " + (enabled.size() - displayed) + " more",
+                            TEXT_ARGB);
                 }
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
