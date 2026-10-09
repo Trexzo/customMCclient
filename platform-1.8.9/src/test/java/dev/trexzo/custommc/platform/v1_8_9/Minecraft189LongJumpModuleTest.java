@@ -279,6 +279,114 @@ final class Minecraft189LongJumpModuleTest {
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
     }
 
+    @Test
+    void longJumpPreserveMomentumRespectsRealExistingHorizontalVector() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189LongJumpModule longJump =
+                    runtime.featureCatalog().longJump();
+            final TestPlayer player = new TestPlayer();
+            assertFalse(longJump.preserveHigherMomentumSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189LongJumpModule.PRESERVE_MOMENTUM_SETTING_ID));
+            controller.enable(Minecraft189LongJumpModule.ID);
+            longJump.speedSetting().set(0.65D);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerRotationState().update(0.0F);
+            runtime.playerMovementState().update(true, false, false);
+            // Default mode sets the target even when momentum is faster.
+            player.motionX = 1.0D;
+            player.motionZ = 0.0D;
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(1, player.jumpCalls);
+            assertEquals(0.0D, player.motionX, 0.000000001D);
+            assertEquals(0.65D, player.motionZ, 0.000000001D);
+
+            longJump.preserveHigherMomentumSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189LongJumpModule.PRESERVE_MOMENTUM_SETTING_ID));
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            runtime.playerJumpControl(player);
+            player.motionX = 0.8D;
+            player.motionZ = 0.6D; // Length = 1.0 > 0.65
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(2, player.jumpCalls);
+            assertEquals(0.8D, player.motionX, 0.000000001D);
+            assertEquals(0.6D, player.motionZ, 0.000000001D);
+
+            // Below threshold still receives the normal yaw-relative boost.
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            runtime.playerJumpControl(player);
+            player.motionX = 0.12D;
+            player.motionZ = 0.16D;
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(3, player.jumpCalls);
+            assertEquals(0.0D, player.motionX, 0.000000001D);
+            assertEquals(0.65D, player.motionZ, 0.000000001D);
+
+            // Exactly matching threshold is preserved without rounding.
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            runtime.playerJumpControl(player);
+            player.motionX = 0.0D;
+            player.motionZ = 0.65D;
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(4, player.jumpCalls);
+            assertEquals(0.65D, player.motionZ, 0.000000001D);
+
+            // Nonfinite source velocity must not be overwritten in
+            // opt-in preserve mode, or spuriously transferred to X/Z.
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            runtime.playerJumpControl(player);
+            player.motionX = Double.NaN;
+            player.motionZ = 0.2D;
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(5, player.jumpCalls);
+            assertTrue(Double.isNaN(player.motionX));
+            assertEquals(0.2D, player.motionZ, 0.000000001D);
+
+            longJump.preserveHigherMomentumSetting().set(Boolean.FALSE);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            runtime.playerJumpControl(player);
+            player.motionX = 1.0D;
+            player.motionZ = 0.0D;
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(6, player.jumpCalls);
+            assertEquals(0.0D, player.motionX, 0.000000001D);
+            assertEquals(0.65D, player.motionZ, 0.000000001D);
+            controller.disable(Minecraft189LongJumpModule.ID);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189LongJumpModule.PRESERVE_MOMENTUM_SETTING_ID));
+        assertNull(modules.find(Minecraft189LongJumpModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerJumpControl,
             Minecraft189PlayerMotionControl {
