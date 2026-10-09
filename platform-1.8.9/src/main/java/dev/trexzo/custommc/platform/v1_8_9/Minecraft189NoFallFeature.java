@@ -22,6 +22,12 @@ final class Minecraft189NoFallFeature
     private final SettingRegistry.Registration thresholdSetting;
     private final SettingPresentationRegistry.Registration thresholdPresentation;
     private final ModuleSettingRegistry.Registration thresholdBinding;
+    private final SettingRegistry.Registration airborneOnlySetting;
+    private final SettingRegistry.Registration pauseWhileSneakingSetting;
+    private final SettingPresentationRegistry.Registration airborneOnlyPresentation;
+    private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
+    private final ModuleSettingRegistry.Registration airborneOnlyBinding;
+    private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private boolean closed;
 
     private Minecraft189NoFallFeature(
@@ -31,7 +37,13 @@ final class Minecraft189NoFallFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration thresholdSetting,
             final SettingPresentationRegistry.Registration thresholdPresentation,
-            final ModuleSettingRegistry.Registration thresholdBinding) {
+            final ModuleSettingRegistry.Registration thresholdBinding,
+            final SettingRegistry.Registration airborneOnlySetting,
+            final SettingRegistry.Registration pauseWhileSneakingSetting,
+            final SettingPresentationRegistry.Registration airborneOnlyPresentation,
+            final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
+            final ModuleSettingRegistry.Registration airborneOnlyBinding,
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -39,6 +51,12 @@ final class Minecraft189NoFallFeature
         this.thresholdSetting = thresholdSetting;
         this.thresholdPresentation = thresholdPresentation;
         this.thresholdBinding = thresholdBinding;
+        this.airborneOnlySetting = airborneOnlySetting;
+        this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
+        this.airborneOnlyPresentation = airborneOnlyPresentation;
+        this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
+        this.airborneOnlyBinding = airborneOnlyBinding;
+        this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
     }
 
     static Minecraft189NoFallFeature install(
@@ -56,6 +74,12 @@ final class Minecraft189NoFallFeature
         SettingRegistry.Registration thresholdSetting = null;
         SettingPresentationRegistry.Registration thresholdPresentation = null;
         ModuleSettingRegistry.Registration thresholdBinding = null;
+        SettingRegistry.Registration airborneOnlySetting = null;
+        SettingRegistry.Registration pauseWhileSneakingSetting = null;
+        SettingPresentationRegistry.Registration airborneOnlyPresentation = null;
+        SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
+        ModuleSettingRegistry.Registration airborneOnlyBinding = null;
+        ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -70,6 +94,9 @@ final class Minecraft189NoFallFeature
             thresholdSetting =
                     settings.register(
                             module.thresholdSetting());
+            airborneOnlySetting = settings.register(module.airborneOnlySetting());
+            pauseWhileSneakingSetting = settings.register(
+                    module.pauseWhileSneakingSetting());
             thresholdPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -81,12 +108,29 @@ final class Minecraft189NoFallFeature
                                             Minecraft189NoFallModule.MINIMUM_THRESHOLD,
                                             Minecraft189NoFallModule.MAXIMUM_THRESHOLD,
                                             0.5D)));
+            airborneOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189NoFallModule.AIRBORNE_ONLY_SETTING_ID,
+                            "Airborne Only", SettingValueKind.BOOLEAN, 10));
+            pauseWhileSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189NoFallModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 20));
             thresholdBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
                                     Minecraft189NoFallModule.ID,
                                     Minecraft189NoFallModule.THRESHOLD_SETTING_ID,
                                     0));
+
+            airborneOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189NoFallModule.ID,
+                            Minecraft189NoFallModule.AIRBORNE_ONLY_SETTING_ID, 10));
+            pauseWhileSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189NoFallModule.ID,
+                            Minecraft189NoFallModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 20));
 
             return new Minecraft189NoFallFeature(
                     controller,
@@ -95,8 +139,20 @@ final class Minecraft189NoFallFeature
                     presentation,
                     thresholdSetting,
                     thresholdPresentation,
-                    thresholdBinding);
+                    thresholdBinding,
+                    airborneOnlySetting,
+                    pauseWhileSneakingSetting,
+                    airborneOnlyPresentation,
+                    pauseWhileSneakingPresentation,
+                    airborneOnlyBinding,
+                    pauseWhileSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseWhileSneakingBinding, failure);
+            closeQuietly(airborneOnlyBinding, failure);
+            closeQuietly(pauseWhileSneakingPresentation, failure);
+            closeQuietly(airborneOnlyPresentation, failure);
+            closeQuietly(pauseWhileSneakingSetting, failure);
+            closeQuietly(airborneOnlySetting, failure);
             closeQuietly(thresholdBinding, failure);
             closeQuietly(thresholdPresentation, failure);
             closeQuietly(thresholdSetting, failure);
@@ -133,6 +189,12 @@ final class Minecraft189NoFallFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseWhileSneakingBinding, failure);
+        failure = close(airborneOnlyBinding, failure);
+        failure = close(pauseWhileSneakingPresentation, failure);
+        failure = close(airborneOnlyPresentation, failure);
+        failure = close(pauseWhileSneakingSetting, failure);
+        failure = close(airborneOnlySetting, failure);
         failure = close(thresholdBinding, failure);
         failure = close(thresholdPresentation, failure);
         failure = close(thresholdSetting, failure);
