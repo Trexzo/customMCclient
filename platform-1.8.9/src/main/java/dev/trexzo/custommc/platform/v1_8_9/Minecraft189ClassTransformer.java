@@ -3883,6 +3883,12 @@ public final class Minecraft189ClassTransformer
                 Minecraft189Mappings.ENTITY_PLAYER.obfuscatedInternalName());
         method.visitInsn(Opcodes.IRETURN);
         method.visitLabel(reject);
+        // Newly introduced Java 8 branch target must carry its own
+        // stack-map frame; COMPUTE_MAXS alone does not generate frames.
+        method.visitFrame(Opcodes.F_FULL, 2,
+                new Object[]{Minecraft189Mappings.MINECRAFT.obfuscatedInternalName(),
+                        Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedInternalName()},
+                0, new Object[0]);
         method.visitInsn(Opcodes.ICONST_0);
         method.visitInsn(Opcodes.IRETURN);
         method.visitMaxs(2, 2);
