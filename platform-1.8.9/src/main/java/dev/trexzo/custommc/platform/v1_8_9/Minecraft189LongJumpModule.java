@@ -11,6 +11,8 @@ public final class Minecraft189LongJumpModule
         implements Module {
     public static final String ID =
             "movement.longJump";
+    public static final String PRESERVE_MOMENTUM_SETTING_ID =
+            "movement.longJump.preserveHigherMomentum";
     public static final String SPEED_SETTING_ID =
             "movement.longJump.speed";
     public static final double DEFAULT_SPEED =
@@ -27,6 +29,10 @@ public final class Minecraft189LongJumpModule
                     DEFAULT_SPEED,
                     Minecraft189LongJumpModule::validSpeed,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> preserveHigherMomentum =
+            new Setting<Boolean>(
+                    PRESERVE_MOMENTUM_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
     private boolean spaceWasPressed;
     private boolean boostPending;
@@ -49,6 +55,10 @@ public final class Minecraft189LongJumpModule
 
     public Setting<Double> speedSetting() {
         return speed;
+    }
+
+    public Setting<Boolean> preserveHigherMomentumSetting() {
+        return preserveHigherMomentum;
     }
 
     @Override
@@ -159,6 +169,21 @@ public final class Minecraft189LongJumpModule
                         yawRadians);
         final double configuredSpeed =
                 speed.get().doubleValue();
+
+        if (preserveHigherMomentum.get().booleanValue()) {
+            final double existingX = player.customMcMotionX();
+            final double existingZ = player.customMcMotionZ();
+            final double existingMagnitude = Math.hypot(existingX, existingZ);
+            // Preserve the full existing horizontal vector if its real
+            // magnitude already exceeds the configured Long Jump boost.
+            // A fresh jump still owns this callback, preventing lower
+            // priority movement modules from overwriting the preserved
+            // momentum. Invalid mapped velocity fails closed.
+            if (!Double.isFinite(existingMagnitude)
+                    || existingMagnitude + 0.000000001D >= configuredSpeed) {
+                return true;
+            }
+        }
 
         final double targetMotionX =
                 cleanZero(
