@@ -12,12 +12,21 @@ public final class Minecraft189AutoSprintModule
             "movement.autoSprint";
     public static final String REQUIRE_FORWARD_SETTING_ID =
             "movement.autoSprint.requireForward";
+    public static final String REQUIRE_MOVEMENT_SETTING_ID =
+            "movement.autoSprint.requireMovement";
     public static final String GROUND_ONLY_SETTING_ID =
             "movement.autoSprint.groundOnly";
 
     private final Setting<Boolean> requireForward =
             new Setting<Boolean>(
                     REQUIRE_FORWARD_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+
+    private final Setting<Boolean> requireMovement =
+            new Setting<Boolean>(
+                    REQUIRE_MOVEMENT_SETTING_ID,
                     Boolean.FALSE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
@@ -40,6 +49,10 @@ public final class Minecraft189AutoSprintModule
         return requireForward;
     }
 
+    public Setting<Boolean> requireMovementSetting() {
+        return requireMovement;
+    }
+
     public Setting<Boolean> groundOnlySetting() {
         return groundOnly;
     }
@@ -58,6 +71,16 @@ public final class Minecraft189AutoSprintModule
             final Minecraft189PlayerSprintControl player,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean forwardHeld) {
+        // Original callers know the state of W, not A/S/D. Treat W as
+        // the only confirmed motion input in the compatibility overload.
+        apply(player, movement, forwardHeld, forwardHeld);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerSprintControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean forwardHeld,
+            final boolean anyMovementHeld) {
         Objects.requireNonNull(
                 movement,
                 "movement");
@@ -66,6 +89,8 @@ public final class Minecraft189AutoSprintModule
                 || !movement.available()
                 || (requireForward.get().booleanValue()
                         && !forwardHeld)
+                || (requireMovement.get().booleanValue()
+                        && !anyMovementHeld)
                 || (groundOnly.get().booleanValue()
                         && !movement.onGround())
                 || movement.sneaking()
