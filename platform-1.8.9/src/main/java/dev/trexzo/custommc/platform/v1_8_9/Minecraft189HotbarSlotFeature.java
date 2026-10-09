@@ -27,6 +27,9 @@ final class Minecraft189HotbarSlotFeature
     private final SettingPresentationRegistry.Registration yPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final SettingRegistry.Registration showStripSetting;
+    private final SettingPresentationRegistry.Registration showStripPresentation;
+    private final ModuleSettingRegistry.Registration showStripBinding;
     private boolean closed;
 
     private Minecraft189HotbarSlotFeature(
@@ -39,7 +42,10 @@ final class Minecraft189HotbarSlotFeature
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
             final ModuleSettingRegistry.Registration xBinding,
-            final ModuleSettingRegistry.Registration yBinding) {
+            final ModuleSettingRegistry.Registration yBinding,
+            final SettingRegistry.Registration showStripSetting,
+            final SettingPresentationRegistry.Registration showStripPresentation,
+            final ModuleSettingRegistry.Registration showStripBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -50,6 +56,9 @@ final class Minecraft189HotbarSlotFeature
         this.yPresentation = yPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.showStripSetting = showStripSetting;
+        this.showStripPresentation = showStripPresentation;
+        this.showStripBinding = showStripBinding;
     }
 
     static Minecraft189HotbarSlotFeature install(
@@ -76,6 +85,9 @@ final class Minecraft189HotbarSlotFeature
         SettingPresentationRegistry.Registration yPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        SettingRegistry.Registration showStripSetting = null;
+        SettingPresentationRegistry.Registration showStripPresentation = null;
+        ModuleSettingRegistry.Registration showStripBinding = null;
 
         try {
             moduleRegistration =
@@ -95,6 +107,7 @@ final class Minecraft189HotbarSlotFeature
             ySetting =
                     settings.register(
                             module.ySetting());
+            showStripSetting = settings.register(module.showStripSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -117,6 +130,10 @@ final class Minecraft189HotbarSlotFeature
                                             0.0D,
                                             4096.0D,
                                             1.0D)));
+            showStripPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189HotbarSlotModule.SHOW_STRIP_SETTING_ID,
+                            "Show Slot Strip", SettingValueKind.BOOLEAN, 20));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -130,6 +147,10 @@ final class Minecraft189HotbarSlotFeature
                                     Minecraft189HotbarSlotModule.Y_SETTING_ID,
                                     10));
 
+            showStripBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189HotbarSlotModule.ID,
+                            Minecraft189HotbarSlotModule.SHOW_STRIP_SETTING_ID, 20));
             return new Minecraft189HotbarSlotFeature(
                     controller,
                     module,
@@ -140,8 +161,14 @@ final class Minecraft189HotbarSlotFeature
                     xPresentation,
                     yPresentation,
                     xBinding,
-                    yBinding);
+                    yBinding,
+                    showStripSetting,
+                    showStripPresentation,
+                    showStripBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(showStripBinding, failure);
+            closeQuietly(showStripPresentation, failure);
+            closeQuietly(showStripSetting, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
             closeQuietly(yPresentation, failure);
@@ -181,6 +208,9 @@ final class Minecraft189HotbarSlotFeature
             failure = closeFailure;
         }
 
+        failure = close(showStripBinding, failure);
+        failure = close(showStripPresentation, failure);
+        failure = close(showStripSetting, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
         failure = close(yPresentation, failure);
