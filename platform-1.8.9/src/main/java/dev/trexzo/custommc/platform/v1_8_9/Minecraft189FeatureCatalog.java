@@ -585,7 +585,10 @@ public final class Minecraft189FeatureCatalog
                     Minecraft189NoWebFeature.install(
                             modules,
                             moduleController,
-                            presentations);
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             noClipFeature =
                     Minecraft189NoClipFeature.install(
