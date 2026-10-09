@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189FastBreakModuleTest {
     @Test
@@ -365,6 +366,91 @@ final class Minecraft189FastBreakModuleTest {
         }
         assertNull(settings.find(
                 Minecraft189FastBreakModule.GROUND_ONLY_SETTING_ID));
+        assertNull(modules.find(Minecraft189FastBreakModule.ID));
+    }
+
+    @Test
+    void airborneDelayOverrideUsesOnlyConfirmedAirborneMovement() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(
+                new EventBus(), modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189FastBreakModule module =
+                    runtime.featureCatalog().fastBreak();
+            final TestController live = new TestController();
+            assertFalse(module.airborneOverrideSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FastBreakModule.AIRBORNE_OVERRIDE_SETTING_ID));
+            assertEquals("0", settings.snapshotEncoded().get(
+                    Minecraft189FastBreakModule.AIRBORNE_DELAY_SETTING_ID));
+            controller.enable(Minecraft189FastBreakModule.ID);
+            module.delaySetting().set(2);
+            module.airborneDelaySetting().set(4);
+
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerControllerBreakControl(live);
+            assertEquals(2, live.delay); // Original setting while override OFF.
+
+            module.airborneOverrideSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FastBreakModule.AIRBORNE_OVERRIDE_SETTING_ID));
+            assertEquals("4", settings.snapshotEncoded().get(
+                    Minecraft189FastBreakModule.AIRBORNE_DELAY_SETTING_ID));
+            runtime.playerControllerBreakControl(live);
+            assertEquals(4, live.delay); // Confirmed airborne uses air delay.
+
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerControllerBreakControl(live);
+            assertEquals(2, live.delay); // Grounded retains base delay.
+            runtime.playerMovementState().clear();
+            runtime.playerControllerBreakControl(live);
+            assertEquals(2, live.delay); // Missing snapshot retains base delay.
+            module.apply(live);
+            assertEquals(2, live.delay); // Legacy overload cannot infer air.
+
+            module.groundOnlySetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(false, false, false);
+            final int prior = live.setCalls;
+            runtime.playerControllerBreakControl(live);
+            assertEquals(prior, live.setCalls); // Ground Only wins.
+            module.groundOnlySetting().set(Boolean.FALSE);
+            module.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(false, true, false);
+            runtime.playerControllerBreakControl(live);
+            assertEquals(prior, live.setCalls); // Sneak gate wins.
+            module.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            runtime.playerControllerBreakControl(live);
+            assertEquals(4, live.delay); // Composes with original gates.
+
+            module.airborneOverrideSetting().set(Boolean.FALSE);
+            runtime.playerControllerBreakControl(live);
+            assertEquals(2, live.delay); // Live OFF restores old behavior.
+            controller.disable(Minecraft189FastBreakModule.ID);
+            final int stoppedCalls = live.setCalls;
+            runtime.playerControllerBreakControl(live);
+            assertEquals(stoppedCalls, live.setCalls);
+            assertThrows(IllegalArgumentException.class,
+                    () -> module.airborneDelaySetting().set(-1));
+            assertThrows(IllegalArgumentException.class,
+                    () -> module.airborneDelaySetting().set(6));
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189FastBreakModule.AIRBORNE_OVERRIDE_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189FastBreakModule.AIRBORNE_DELAY_SETTING_ID));
         assertNull(modules.find(Minecraft189FastBreakModule.ID));
     }
 
