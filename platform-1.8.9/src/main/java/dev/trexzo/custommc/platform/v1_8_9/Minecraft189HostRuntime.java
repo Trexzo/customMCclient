@@ -813,7 +813,8 @@ public final class Minecraft189HostRuntime
         requireOpen();
         featureCatalog.noFall()
                 .apply(
-                        player);
+                        player,
+                        playerMovementState.snapshot());
     }
 
     void playerWebControl(

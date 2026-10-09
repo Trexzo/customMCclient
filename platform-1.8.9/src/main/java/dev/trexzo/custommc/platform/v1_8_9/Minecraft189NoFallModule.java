@@ -8,6 +8,10 @@ public final class Minecraft189NoFallModule
         implements Module {
     public static final String ID =
             "movement.noFall";
+    public static final String AIRBORNE_ONLY_SETTING_ID =
+            "movement.noFall.airborneOnly";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "movement.noFall.pauseWhileSneaking";
     public static final String THRESHOLD_SETTING_ID =
             "movement.noFall.threshold";
     public static final double DEFAULT_THRESHOLD = 0.0D;
@@ -25,6 +29,15 @@ public final class Minecraft189NoFallModule
                             && value.doubleValue() <= MAXIMUM_THRESHOLD,
                     SettingCodecs.DOUBLE);
 
+    private final Setting<Boolean> airborneOnly =
+            new Setting<Boolean>(
+                    AIRBORNE_ONLY_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> pauseWhileSneaking =
+            new Setting<Boolean>(
+                    PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+
     private boolean enabled;
 
     @Override
@@ -34,6 +47,14 @@ public final class Minecraft189NoFallModule
 
     public Setting<Double> thresholdSetting() {
         return threshold;
+    }
+
+    public Setting<Boolean> airborneOnlySetting() {
+        return airborneOnly;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
     }
 
     @Override
@@ -48,7 +69,23 @@ public final class Minecraft189NoFallModule
 
     synchronized void apply(
             final Minecraft189PlayerFallDistanceControl player) {
+        apply(player, null);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerFallDistanceControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
         if (!enabled || player == null) {
+            return;
+        }
+        final boolean requireAirborne = airborneOnly.get().booleanValue();
+        final boolean pauseSneak = pauseWhileSneaking.get().booleanValue();
+        if ((requireAirborne || pauseSneak)
+                && (movement == null || !movement.available()
+                || (requireAirborne && movement.onGround())
+                || (pauseSneak && movement.sneaking()))) {
+            // Opt-in restrictions require mapped state. No fabricated
+            // airborne or sneak state, and no write on failed authority.
             return;
         }
 
