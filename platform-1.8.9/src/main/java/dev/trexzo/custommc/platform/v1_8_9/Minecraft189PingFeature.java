@@ -27,6 +27,9 @@ final class Minecraft189PingFeature
     private final SettingPresentationRegistry.Registration yPresentation;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final SettingRegistry.Registration colorByLatencySetting;
+    private final SettingPresentationRegistry.Registration colorByLatencyPresentation;
+    private final ModuleSettingRegistry.Registration colorByLatencyBinding;
     private boolean closed;
 
     private Minecraft189PingFeature(
@@ -39,7 +42,10 @@ final class Minecraft189PingFeature
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
             final ModuleSettingRegistry.Registration xBinding,
-            final ModuleSettingRegistry.Registration yBinding) {
+            final ModuleSettingRegistry.Registration yBinding,
+            final SettingRegistry.Registration colorByLatencySetting,
+            final SettingPresentationRegistry.Registration colorByLatencyPresentation,
+            final ModuleSettingRegistry.Registration colorByLatencyBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -50,6 +56,9 @@ final class Minecraft189PingFeature
         this.yPresentation = yPresentation;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.colorByLatencySetting = colorByLatencySetting;
+        this.colorByLatencyPresentation = colorByLatencyPresentation;
+        this.colorByLatencyBinding = colorByLatencyBinding;
     }
 
     static Minecraft189PingFeature install(
@@ -76,6 +85,9 @@ final class Minecraft189PingFeature
         SettingPresentationRegistry.Registration yPresentation = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        SettingRegistry.Registration colorByLatencySetting = null;
+        SettingPresentationRegistry.Registration colorByLatencyPresentation = null;
+        ModuleSettingRegistry.Registration colorByLatencyBinding = null;
 
         try {
             moduleRegistration =
@@ -95,6 +107,8 @@ final class Minecraft189PingFeature
             ySetting =
                     settings.register(
                             module.ySetting());
+            colorByLatencySetting = settings.register(
+                    module.colorByLatencySetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -117,6 +131,10 @@ final class Minecraft189PingFeature
                                             0.0D,
                                             4096.0D,
                                             1.0D)));
+            colorByLatencyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189PingModule.COLOR_BY_LATENCY_SETTING_ID,
+                            "Color by Latency", SettingValueKind.BOOLEAN, 20));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -130,6 +148,11 @@ final class Minecraft189PingFeature
                                     Minecraft189PingModule.Y_SETTING_ID,
                                     10));
 
+            colorByLatencyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189PingModule.ID,
+                            Minecraft189PingModule.COLOR_BY_LATENCY_SETTING_ID, 20));
+
             return new Minecraft189PingFeature(
                     controller,
                     module,
@@ -140,8 +163,14 @@ final class Minecraft189PingFeature
                     xPresentation,
                     yPresentation,
                     xBinding,
-                    yBinding);
+                    yBinding,
+                    colorByLatencySetting,
+                    colorByLatencyPresentation,
+                    colorByLatencyBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(colorByLatencyBinding, failure);
+            closeQuietly(colorByLatencyPresentation, failure);
+            closeQuietly(colorByLatencySetting, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
             closeQuietly(yPresentation, failure);
@@ -181,6 +210,9 @@ final class Minecraft189PingFeature
             failure = closeFailure;
         }
 
+        failure = close(colorByLatencyBinding, failure);
+        failure = close(colorByLatencyPresentation, failure);
+        failure = close(colorByLatencySetting, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
         failure = close(yPresentation, failure);
