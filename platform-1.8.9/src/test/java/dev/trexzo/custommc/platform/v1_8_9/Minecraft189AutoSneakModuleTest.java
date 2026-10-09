@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189AutoSneakModuleTest {
     @Test
@@ -357,6 +358,126 @@ final class Minecraft189AutoSneakModuleTest {
         }
         assertNull(settings.find(
                 Minecraft189AutoSneakModule.REQUIRE_MOVEMENT_SETTING_ID));
+        assertNull(modules.find(Minecraft189AutoSneakModule.ID));
+    }
+
+    @Test
+    void requireForwardUsesPhysicalWAndNeverWritesUnsneak() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189AutoSneakModule sneak =
+                    runtime.featureCatalog().autoSneak();
+            final TestPlayer player = new TestPlayer();
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoSneakModule.REQUIRE_FORWARD_SETTING_ID));
+            controller.enable(Minecraft189AutoSneakModule.ID);
+
+            // Default OFF retains original unconditional sneak behavior.
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertEquals(1, player.setCalls);
+            assertTrue(player.sneaking);
+
+            player.sneaking = false;
+            sneak.requireForwardSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoSneakModule.REQUIRE_FORWARD_SETTING_ID));
+            final int[] nonForwardKeys = {
+                    LegacyKeyboardCodes.A,
+                    LegacyKeyboardCodes.S,
+                    LegacyKeyboardCodes.D};
+            for (int key : nonForwardKeys) {
+                runtime.inputState().key(key, true);
+                runtime.playerMovementState(player);
+                runtime.playerSneakControl(player);
+                assertFalse(player.sneaking);
+                assertEquals(1, player.setCalls);
+                runtime.inputState().key(key, false);
+            }
+            // The legacy any-movement overload must not reinterpret A/S/D
+            // as an observed forward key.
+            final Minecraft189PlayerMovementState.Snapshot current =
+                    runtime.playerMovementState().snapshot();
+            sneak.apply(player, current, true);
+            assertFalse(player.sneaking);
+            assertEquals(1, player.setCalls);
+            sneak.apply(player, current);
+            assertFalse(player.sneaking);
+
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertTrue(player.sneaking);
+            assertEquals(2, player.setCalls);
+            runtime.inputState().key(LegacyKeyboardCodes.W, false);
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertTrue(player.sneaking); // Never forcibly unsneak.
+            assertEquals(2, player.setCalls);
+            player.sneaking = false; // Simulate external release.
+
+            sneak.requireMovementSetting().set(Boolean.TRUE);
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertFalse(player.sneaking);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertTrue(player.sneaking); // Both gates qualified.
+            assertEquals(3, player.setCalls);
+            player.sneaking = false;
+            sneak.groundOnlySetting().set(Boolean.TRUE);
+            player.onGround = false;
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertEquals(3, player.setCalls);
+            player.onGround = true;
+            player.sprinting = true;
+            sneak.pauseSprintingSetting().set(Boolean.TRUE);
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertEquals(3, player.setCalls);
+            player.sprinting = false;
+            runtime.playerMovementState().clear();
+            runtime.playerSneakControl(player);
+            assertEquals(3, player.setCalls); // Unavailable state veto.
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertEquals(4, player.setCalls);
+            sneak.requireForwardSetting().set(Boolean.FALSE);
+            sneak.requireMovementSetting().set(Boolean.FALSE);
+            sneak.groundOnlySetting().set(Boolean.FALSE);
+            sneak.pauseSprintingSetting().set(Boolean.FALSE);
+            runtime.inputState().key(LegacyKeyboardCodes.W, false);
+            player.sneaking = false;
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertEquals(5, player.setCalls); // Live original behavior.
+            assertThrows(IllegalArgumentException.class,
+                    () -> sneak.requireForwardSetting().set(null));
+            controller.disable(Minecraft189AutoSneakModule.ID);
+            player.sneaking = false;
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertEquals(5, player.setCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189AutoSneakModule.REQUIRE_FORWARD_SETTING_ID));
         assertNull(modules.find(Minecraft189AutoSneakModule.ID));
     }
 

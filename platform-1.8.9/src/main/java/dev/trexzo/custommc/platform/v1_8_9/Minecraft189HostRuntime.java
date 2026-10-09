@@ -699,6 +699,7 @@ public final class Minecraft189HostRuntime
                 .apply(
                         player,
                         playerMovementState.snapshot(),
+                        inputState.keyPressed(LegacyKeyboardCodes.W),
                         inputState.keyPressed(LegacyKeyboardCodes.W)
                                 || inputState.keyPressed(LegacyKeyboardCodes.A)
                                 || inputState.keyPressed(LegacyKeyboardCodes.S)
