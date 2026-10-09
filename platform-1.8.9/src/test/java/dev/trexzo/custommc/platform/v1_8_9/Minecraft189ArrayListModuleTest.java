@@ -22,6 +22,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189ArrayListModuleTest {
     @Test
@@ -239,6 +240,91 @@ final class Minecraft189ArrayListModuleTest {
         }
         assertNull(settings.find(Minecraft189ArrayListModule.SHOW_CATEGORIES_SETTING_ID));
         assertNull(settings.find(Minecraft189ArrayListModule.GROUP_CATEGORIES_SETTING_ID));
+    }
+
+    @Test
+    void maxRowsAndOverflowOnlyShowActualEnabledModules() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(
+                new EventBus(), modules, controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                host);
+        try {
+            final Minecraft189ArrayListModule list = runtime.featureCatalog().arrayList();
+            assertEquals(Integer.valueOf(128), list.maxVisibleSetting().get());
+            assertEquals(Boolean.FALSE, list.showOverflowSetting().get());
+            assertEquals("128", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.MAX_VISIBLE_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.SHOW_OVERFLOW_SETTING_ID));
+            controller.enable(Minecraft189WatermarkModule.ID);
+            controller.enable(Minecraft189ArrayListModule.ID);
+            controller.enable(Minecraft189AutoSprintModule.ID);
+            controller.enable(Minecraft189FastPlaceModule.ID);
+            controller.enable(Minecraft189NoHitDelayModule.ID);
+            runtime.renderHud(0L, 0.0F);
+            assertEquals(6, host.text.size()); // Default full list.
+            host.clear();
+
+            list.maxVisibleSetting().set(2);
+            runtime.renderHud(1L, 0.0F);
+            assertEquals(Arrays.asList("CustomMC", "Watermark", "Auto Sprint"),
+                    host.text);
+            host.clear();
+            list.showOverflowSetting().set(Boolean.TRUE);
+            assertEquals("2", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.MAX_VISIBLE_SETTING_ID));
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.SHOW_OVERFLOW_SETTING_ID));
+            runtime.renderHud(2L, 0.0F);
+            assertEquals(Arrays.asList(
+                    "CustomMC", "Watermark", "Auto Sprint", "+ 3 more"), host.text);
+            assertEquals("8.0,48.0", host.positions.get(3));
+            host.clear();
+
+            list.groupCategoriesSetting().set(Boolean.TRUE);
+            list.showCategoriesSetting().set(Boolean.TRUE);
+            runtime.renderHud(3L, 0.0F);
+            assertEquals(Arrays.asList("CustomMC",
+                    "[Combat] No Hit Delay", "[Movement] Auto Sprint",
+                    "+ 3 more"), host.text);
+            host.clear();
+            list.maxVisibleSetting().set(1);
+            controller.disable(Minecraft189NoHitDelayModule.ID);
+            runtime.renderHud(4L, 0.0F);
+            assertEquals(Arrays.asList(
+                    "CustomMC", "[Movement] Auto Sprint", "+ 3 more"), host.text);
+            host.clear();
+            list.maxVisibleSetting().set(128);
+            runtime.renderHud(5L, 0.0F);
+            assertEquals(5, host.text.size());
+            assertEquals(0, java.util.Collections.frequency(
+                    host.text, "+ 3 more"));
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> list.maxVisibleSetting().set(0));
+            assertThrows(IllegalArgumentException.class,
+                    () -> list.maxVisibleSetting().set(129));
+            controller.disable(Minecraft189ArrayListModule.ID);
+            host.clear();
+            runtime.renderHud(6L, 0.0F);
+            assertEquals(Arrays.asList("CustomMC"), host.text);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189ArrayListModule.MAX_VISIBLE_SETTING_ID));
+        assertNull(settings.find(Minecraft189ArrayListModule.SHOW_OVERFLOW_SETTING_ID));
+        assertNull(modules.find(Minecraft189ArrayListModule.ID));
     }
 
     private static final class RecordingHost

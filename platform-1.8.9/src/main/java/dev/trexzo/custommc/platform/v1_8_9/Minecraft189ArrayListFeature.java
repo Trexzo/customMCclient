@@ -35,6 +35,12 @@ final class Minecraft189ArrayListFeature
     private final ModuleSettingRegistry.Registration yBinding;
     private final ModuleSettingRegistry.Registration showCategoriesBinding;
     private final ModuleSettingRegistry.Registration groupCategoriesBinding;
+    private final SettingRegistry.Registration maxVisibleSetting;
+    private final SettingRegistry.Registration showOverflowSetting;
+    private final SettingPresentationRegistry.Registration maxVisiblePresentation;
+    private final SettingPresentationRegistry.Registration showOverflowPresentation;
+    private final ModuleSettingRegistry.Registration maxVisibleBinding;
+    private final ModuleSettingRegistry.Registration showOverflowBinding;
     private boolean closed;
 
     private Minecraft189ArrayListFeature(
@@ -53,7 +59,13 @@ final class Minecraft189ArrayListFeature
             final ModuleSettingRegistry.Registration xBinding,
             final ModuleSettingRegistry.Registration yBinding,
             final ModuleSettingRegistry.Registration showCategoriesBinding,
-            final ModuleSettingRegistry.Registration groupCategoriesBinding) {
+            final ModuleSettingRegistry.Registration groupCategoriesBinding,
+            final SettingRegistry.Registration maxVisibleSetting,
+            final SettingRegistry.Registration showOverflowSetting,
+            final SettingPresentationRegistry.Registration maxVisiblePresentation,
+            final SettingPresentationRegistry.Registration showOverflowPresentation,
+            final ModuleSettingRegistry.Registration maxVisibleBinding,
+            final ModuleSettingRegistry.Registration showOverflowBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -70,6 +82,12 @@ final class Minecraft189ArrayListFeature
         this.yBinding = yBinding;
         this.showCategoriesBinding = showCategoriesBinding;
         this.groupCategoriesBinding = groupCategoriesBinding;
+        this.maxVisibleSetting = maxVisibleSetting;
+        this.showOverflowSetting = showOverflowSetting;
+        this.maxVisiblePresentation = maxVisiblePresentation;
+        this.showOverflowPresentation = showOverflowPresentation;
+        this.maxVisibleBinding = maxVisibleBinding;
+        this.showOverflowBinding = showOverflowBinding;
     }
 
     static Minecraft189ArrayListFeature install(
@@ -110,6 +128,12 @@ final class Minecraft189ArrayListFeature
         ModuleSettingRegistry.Registration yBinding = null;
         ModuleSettingRegistry.Registration showCategoriesBinding = null;
         ModuleSettingRegistry.Registration groupCategoriesBinding = null;
+        SettingRegistry.Registration maxVisibleSetting = null;
+        SettingRegistry.Registration showOverflowSetting = null;
+        SettingPresentationRegistry.Registration maxVisiblePresentation = null;
+        SettingPresentationRegistry.Registration showOverflowPresentation = null;
+        ModuleSettingRegistry.Registration maxVisibleBinding = null;
+        ModuleSettingRegistry.Registration showOverflowBinding = null;
 
         try {
             moduleRegistration =
@@ -132,6 +156,8 @@ final class Minecraft189ArrayListFeature
                             module.ySetting());
             showCategoriesSetting = settings.register(module.showCategoriesSetting());
             groupCategoriesSetting = settings.register(module.groupCategoriesSetting());
+            maxVisibleSetting = settings.register(module.maxVisibleSetting());
+            showOverflowSetting = settings.register(module.showOverflowSetting());
 
             xPresentation =
                     settingPresentations.register(
@@ -165,6 +191,16 @@ final class Minecraft189ArrayListFeature
                             Minecraft189ArrayListModule.GROUP_CATEGORIES_SETTING_ID,
                             "Group by Category", SettingValueKind.BOOLEAN, 30));
 
+            maxVisiblePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189ArrayListModule.MAX_VISIBLE_SETTING_ID,
+                            "Maximum Rows", SettingValueKind.INTEGER, 40,
+                            new SettingNumericSpec(1.0D, 128.0D, 1.0D)));
+            showOverflowPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189ArrayListModule.SHOW_OVERFLOW_SETTING_ID,
+                            "Show Overflow Count", SettingValueKind.BOOLEAN, 50));
+
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -187,6 +223,15 @@ final class Minecraft189ArrayListFeature
                             Minecraft189ArrayListModule.ID,
                             Minecraft189ArrayListModule.GROUP_CATEGORIES_SETTING_ID, 30));
 
+            maxVisibleBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189ArrayListModule.ID,
+                            Minecraft189ArrayListModule.MAX_VISIBLE_SETTING_ID, 40));
+            showOverflowBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189ArrayListModule.ID,
+                            Minecraft189ArrayListModule.SHOW_OVERFLOW_SETTING_ID, 50));
+
             return new Minecraft189ArrayListFeature(
                     controller,
                     module,
@@ -203,8 +248,20 @@ final class Minecraft189ArrayListFeature
                     xBinding,
                     yBinding,
                     showCategoriesBinding,
-                    groupCategoriesBinding);
+                    groupCategoriesBinding,
+                    maxVisibleSetting,
+                    showOverflowSetting,
+                    maxVisiblePresentation,
+                    showOverflowPresentation,
+                    maxVisibleBinding,
+                    showOverflowBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(showOverflowBinding, failure);
+            closeQuietly(maxVisibleBinding, failure);
+            closeQuietly(showOverflowPresentation, failure);
+            closeQuietly(maxVisiblePresentation, failure);
+            closeQuietly(showOverflowSetting, failure);
+            closeQuietly(maxVisibleSetting, failure);
             closeQuietly(groupCategoriesBinding, failure);
             closeQuietly(showCategoriesBinding, failure);
             closeQuietly(yBinding, failure);
@@ -250,6 +307,12 @@ final class Minecraft189ArrayListFeature
             failure = closeFailure;
         }
 
+        failure = close(showOverflowBinding, failure);
+        failure = close(maxVisibleBinding, failure);
+        failure = close(showOverflowPresentation, failure);
+        failure = close(maxVisiblePresentation, failure);
+        failure = close(showOverflowSetting, failure);
+        failure = close(maxVisibleSetting, failure);
         failure = close(groupCategoriesBinding, failure);
         failure = close(showCategoriesBinding, failure);
         failure = close(yBinding, failure);
