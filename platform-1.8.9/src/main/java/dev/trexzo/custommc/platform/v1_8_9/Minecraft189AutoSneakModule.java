@@ -12,6 +12,8 @@ public final class Minecraft189AutoSneakModule
             "movement.autoSneak";
     public static final String GROUND_ONLY_SETTING_ID =
             "movement.autoSneak.groundOnly";
+    public static final String REQUIRE_MOVEMENT_SETTING_ID =
+            "movement.autoSneak.requireMovement";
     public static final String PAUSE_SPRINTING_SETTING_ID =
             "movement.autoSneak.pauseSprinting";
 
@@ -22,6 +24,9 @@ public final class Minecraft189AutoSneakModule
             PAUSE_SPRINTING_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> requireMovement = new Setting<Boolean>(
+            REQUIRE_MOVEMENT_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
 
     public Setting<Boolean> groundOnlySetting() {
@@ -30,6 +35,10 @@ public final class Minecraft189AutoSneakModule
 
     public Setting<Boolean> pauseSprintingSetting() {
         return pauseSprinting;
+    }
+
+    public Setting<Boolean> requireMovementSetting() {
+        return requireMovement;
     }
 
     @Override
@@ -50,6 +59,14 @@ public final class Minecraft189AutoSneakModule
     synchronized void apply(
             final Minecraft189PlayerSneakControl player,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        // Old callers cannot confirm any physical WASD input.
+        apply(player, movement, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerSneakControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean anyMovementHeld) {
         Objects.requireNonNull(
                 movement,
                 "movement");
@@ -58,7 +75,8 @@ public final class Minecraft189AutoSneakModule
                 || !movement.available()
                 || movement.sneaking()
                 || (groundOnly.get().booleanValue() && !movement.onGround())
-                || (pauseSprinting.get().booleanValue() && movement.sprinting())) {
+                || (pauseSprinting.get().booleanValue() && movement.sprinting())
+                || (requireMovement.get().booleanValue() && !anyMovementHeld)) {
             return;
         }
         player.customMcSetSneaking(

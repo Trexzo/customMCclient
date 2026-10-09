@@ -14,6 +14,7 @@ import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.ui.UiFontHandle;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.platform.PlatformContext;
+import dev.trexzo.custommc.platform.v1_8_9.input.LegacyKeyboardCodes;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import org.junit.jupiter.api.Test;
 
@@ -255,6 +256,107 @@ final class Minecraft189AutoSneakModuleTest {
         }
         assertNull(settings.find(Minecraft189AutoSneakModule.GROUND_ONLY_SETTING_ID));
         assertNull(settings.find(Minecraft189AutoSneakModule.PAUSE_SPRINTING_SETTING_ID));
+        assertNull(modules.find(Minecraft189AutoSneakModule.ID));
+    }
+
+    @Test
+    void requireMovementGatesNewSneakWritesButNeverForcesUnsneakOnRelease() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189AutoSneakModule sneak =
+                    runtime.featureCatalog().autoSneak();
+            final TestPlayer player = new TestPlayer();
+            assertFalse(sneak.requireMovementSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoSneakModule.REQUIRE_MOVEMENT_SETTING_ID));
+            controller.enable(Minecraft189AutoSneakModule.ID);
+            sneak.requireMovementSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoSneakModule.REQUIRE_MOVEMENT_SETTING_ID));
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertFalse(player.sneaking);
+            assertEquals(0, player.setCalls);
+            final int[] keys = {
+                    LegacyKeyboardCodes.W, LegacyKeyboardCodes.A,
+                    LegacyKeyboardCodes.S, LegacyKeyboardCodes.D};
+            for (int i = 0; i < keys.length; i++) {
+                runtime.inputState().key(keys[i], true);
+                runtime.playerMovementState(player);
+                runtime.playerSneakControl(player);
+                assertEquals(i + 1, player.setCalls);
+                assertTrue(player.sneaking);
+                runtime.inputState().key(keys[i], false);
+                runtime.playerMovementState(player);
+                runtime.playerSneakControl(player);
+                assertEquals(i + 1, player.setCalls);
+                assertTrue(player.sneaking); // Never owns un-sneak writes.
+                player.sneaking = false; // Simulate external release.
+            }
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertEquals(4, player.setCalls);
+
+            // Ground Only and Sprint Pause remain independent.
+            sneak.groundOnlySetting().set(Boolean.TRUE);
+            player.onGround = false;
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertEquals(4, player.setCalls);
+            player.onGround = true;
+            player.sprinting = true;
+            sneak.pauseSprintingSetting().set(Boolean.TRUE);
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertEquals(4, player.setCalls);
+            player.sprinting = false;
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertEquals(5, player.setCalls);
+            runtime.inputState().key(LegacyKeyboardCodes.W, false);
+            player.sneaking = false;
+
+            // Old two-argument API cannot invent a movement key.
+            runtime.playerMovementState(player);
+            sneak.apply(player, runtime.playerMovementState().snapshot());
+            assertEquals(5, player.setCalls);
+            runtime.playerMovementState().clear();
+            runtime.inputState().key(LegacyKeyboardCodes.A, true);
+            runtime.playerSneakControl(player);
+            assertEquals(5, player.setCalls);
+            runtime.inputState().key(LegacyKeyboardCodes.A, false);
+
+            // Setting OFF recovers the exact stationary default behavior.
+            sneak.requireMovementSetting().set(Boolean.FALSE);
+            sneak.groundOnlySetting().set(Boolean.FALSE);
+            sneak.pauseSprintingSetting().set(Boolean.FALSE);
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertEquals(6, player.setCalls);
+            controller.disable(Minecraft189AutoSneakModule.ID);
+            player.sneaking = false;
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertEquals(6, player.setCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189AutoSneakModule.REQUIRE_MOVEMENT_SETTING_ID));
         assertNull(modules.find(Minecraft189AutoSneakModule.ID));
     }
 
