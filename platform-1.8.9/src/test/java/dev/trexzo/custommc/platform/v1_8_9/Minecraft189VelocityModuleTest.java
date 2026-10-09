@@ -448,6 +448,55 @@ final class Minecraft189VelocityModuleTest {
         assertEquals(null, modules.find(Minecraft189VelocityModule.ID));
     }
 
+    @Test
+    void finiteSafeKnockbackKeepsExactEndpointsAndNeverFabricatesOverflow() {
+        final Minecraft189VelocityModule velocity = new Minecraft189VelocityModule();
+        velocity.onEnable();
+        assertEquals(Double.doubleToRawLongBits(-0.0D),
+                Double.doubleToRawLongBits(velocity.adjustHorizontal(-0.0D, 0.0D)));
+        assertEquals(Double.MAX_VALUE,
+                velocity.adjustHorizontal(Double.MAX_VALUE, -Double.MAX_VALUE), 0.0D);
+        assertEquals(-Double.MAX_VALUE,
+                velocity.adjustVertical(-Double.MAX_VALUE, Double.MAX_VALUE), 0.0D);
+
+        velocity.horizontalPercentSetting().set(100);
+        velocity.verticalPercentSetting().set(100);
+        assertEquals(Double.doubleToRawLongBits(-0.0D),
+                Double.doubleToRawLongBits(velocity.adjustHorizontal(0.0D, -0.0D)));
+        assertEquals(-Double.MAX_VALUE,
+                velocity.adjustHorizontal(Double.MAX_VALUE, -Double.MAX_VALUE), 0.0D);
+        assertTrue(Double.isNaN(velocity.adjustVertical(1.0D, Double.NaN)));
+
+        velocity.horizontalPercentSetting().set(50);
+        velocity.verticalPercentSetting().set(50);
+        assertEquals(0.0D, velocity.adjustHorizontal(
+                Double.MAX_VALUE, -Double.MAX_VALUE), 0.0D);
+        assertEquals(0.0D, velocity.adjustVertical(
+                -Double.MAX_VALUE, Double.MAX_VALUE), 0.0D);
+        assertEquals(3.5D, velocity.adjustHorizontal(2.0D, 5.0D), 0.0D);
+        assertEquals(5.0D, velocity.adjustHorizontal(Double.NaN, 5.0D), 0.0D);
+        assertTrue(Double.isNaN(velocity.adjustVertical(4.0D, Double.NaN)));
+
+        velocity.horizontalPercentSetting().set(200);
+        velocity.verticalPercentSetting().set(200);
+        assertEquals(-Double.MAX_VALUE, velocity.adjustHorizontal(
+                Double.MAX_VALUE, -Double.MAX_VALUE), 0.0D);
+        assertEquals(Double.MAX_VALUE, velocity.adjustVertical(
+                -Double.MAX_VALUE, Double.MAX_VALUE), 0.0D);
+        assertEquals(8.0D, velocity.adjustVertical(4.0D, 6.0D), 0.0D);
+
+        velocity.horizontalPercentSetting().set(0);
+        assertEquals(5.0D, velocity.adjustHorizontal(Double.NaN, 5.0D), 0.0D);
+        // Core Setting#set rejects null before its validator runs.
+        assertThrows(NullPointerException.class,
+                () -> velocity.horizontalPercentSetting().set(null));
+        assertThrows(NullPointerException.class,
+                () -> velocity.verticalPercentSetting().set(null));
+        velocity.onDisable();
+        assertEquals(-Double.MAX_VALUE, velocity.adjustHorizontal(
+                Double.MAX_VALUE, -Double.MAX_VALUE), 0.0D);
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override
