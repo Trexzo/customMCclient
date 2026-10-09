@@ -394,6 +394,19 @@ public final class Minecraft189RuntimeBridge {
                     ? ((Minecraft189CrosshairHitAccess) minecraft)
                             .customMcCrosshairPlayerIndex()
                     : -1;
+            // Rod consumes one synthetic combat action on its own tick.
+            // Normal clicks are not double-issued on the same tick.
+            if (host.shouldAutoRod(playerHit, playerIndex)) {
+                final int originalRodSlot = host.selectAutoRodSlot();
+                if (originalRodSlot >= 0) {
+                    try {
+                        minecraft.customMcRightClickMouse();
+                    } finally {
+                        host.restoreAutoRodSlot(originalRodSlot);
+                    }
+                }
+                return;
+            }
             if (host.shouldAutoClick(playerHit, playerIndex)) {
                 final boolean restoreSprint =
                         host.shouldKeepSprintAfterSyntheticClick(playerHit);
