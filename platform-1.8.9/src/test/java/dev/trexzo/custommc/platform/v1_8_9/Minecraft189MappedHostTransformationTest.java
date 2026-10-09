@@ -914,6 +914,7 @@ final class Minecraft189MappedHostTransformationTest {
 
             // Source-mapped same-team relation from live Minecraft.thePlayer.
             minecraftClass.getField("instance").set(null, minecraft);
+            minecraftClass.getField("f").set(minecraft, rayWorld);
             loader.loadClass("pr").getField("teamGroup").setInt(player, 17);
             loader.loadClass("pr").getField("teamGroup").setInt(playerHit, 17);
             assertArrayEquals(new int[]{-1, 2048 | 1024 | 15},
@@ -921,6 +922,11 @@ final class Minecraft189MappedHostTransformationTest {
             loader.loadClass("pr").getField("teamGroup").setInt(playerHit, 18);
             assertArrayEquals(new int[]{-1, 2048 | 15},
                     combat.customMcLoadedEntityCombatStates());
+            minecraftClass.getField("f").set(minecraft,
+                    loader.loadClass("bdb").getDeclaredConstructor().newInstance());
+            assertArrayEquals(new int[]{-1, 15},
+                    combat.customMcLoadedEntityCombatStates());
+            minecraftClass.getField("f").set(minecraft, rayWorld);
             minecraftClass.getField("h").set(minecraft, null);
             assertArrayEquals(new int[]{-1, 15},
                     combat.customMcLoadedEntityCombatStates());
