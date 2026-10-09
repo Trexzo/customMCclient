@@ -19,6 +19,13 @@ public final class Minecraft189FlightModule
             "movement.flight.sprintBoost";
     public static final String SPRINT_MULTIPLIER_SETTING_ID =
             "movement.flight.sprintMultiplier";
+    public static final String SMOOTH_VERTICAL_SETTING_ID =
+            "movement.flight.smoothVertical";
+    public static final String VERTICAL_STEP_SETTING_ID =
+            "movement.flight.verticalStep";
+    public static final double DEFAULT_VERTICAL_STEP = 0.10D;
+    public static final double MINIMUM_VERTICAL_STEP = 0.01D;
+    public static final double MAXIMUM_VERTICAL_STEP = 0.50D;
     public static final double DEFAULT_SPRINT_MULTIPLIER = 1.50D;
     public static final double MINIMUM_SPRINT_MULTIPLIER = 1.00D;
     public static final double MAXIMUM_SPRINT_MULTIPLIER = 3.00D;
@@ -64,6 +71,18 @@ public final class Minecraft189FlightModule
                     DEFAULT_SPRINT_MULTIPLIER,
                     Minecraft189FlightModule::validSprintMultiplier,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> smoothVertical =
+            new Setting<Boolean>(
+                    SMOOTH_VERTICAL_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Double> verticalStep =
+            new Setting<Double>(
+                    VERTICAL_STEP_SETTING_ID, DEFAULT_VERTICAL_STEP,
+                    value -> value != null
+                            && Double.isFinite(value.doubleValue())
+                            && value.doubleValue() >= MINIMUM_VERTICAL_STEP
+                            && value.doubleValue() <= MAXIMUM_VERTICAL_STEP,
+                    SettingCodecs.DOUBLE);
     private boolean enabled;
 
     Minecraft189FlightModule(
@@ -93,6 +112,14 @@ public final class Minecraft189FlightModule
 
     public Setting<Double> sprintMultiplierSetting() {
         return sprintMultiplier;
+    }
+
+    public Setting<Boolean> smoothVerticalSetting() {
+        return smoothVertical;
+    }
+
+    public Setting<Double> verticalStepSetting() {
+        return verticalStep;
     }
 
     @Override
@@ -151,11 +178,23 @@ public final class Minecraft189FlightModule
                     -configuredVerticalSpeed;
         }
 
-        if (Double.compare(
-                player.customMcMotionY(),
-                targetMotionY) != 0) {
-            player.customMcSetMotionY(
-                    targetMotionY);
+        final double currentMotionY = player.customMcMotionY();
+        double nextMotionY = targetMotionY;
+        if (smoothVertical.get().booleanValue()) {
+            // Fail closed when the mapped motion source is not finite.
+            // No synthetic motion writes should be derived from NaN/Infinity.
+            if (!Double.isFinite(currentMotionY)) {
+                return;
+            }
+            final double delta = targetMotionY - currentMotionY;
+            final double maxStep = verticalStep.get().doubleValue();
+            if (Math.abs(delta) > maxStep) {
+                nextMotionY = currentMotionY
+                        + Math.copySign(maxStep, delta);
+            }
+        }
+        if (Double.compare(currentMotionY, nextMotionY) != 0) {
+            player.customMcSetMotionY(nextMotionY);
         }
     }
 
