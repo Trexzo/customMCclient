@@ -942,7 +942,11 @@ public final class Minecraft189HostRuntime
                                 player,
                                 movement,
                                 flightActive
-                                        || noGravityActive);
+                                        || noGravityActive,
+                                inputState.keyPressed(LegacyKeyboardCodes.W)
+                                        || inputState.keyPressed(LegacyKeyboardCodes.A)
+                                        || inputState.keyPressed(LegacyKeyboardCodes.S)
+                                        || inputState.keyPressed(LegacyKeyboardCodes.D));
         featureCatalog.noGravity()
                 .apply(
                         player,
