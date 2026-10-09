@@ -309,6 +309,89 @@ final class Minecraft189FastPlaceModuleTest {
         assertNull(modules.find(Minecraft189FastPlaceModule.ID));
     }
 
+    @Test
+    void fastPlacePauseWhileSprintingComposesWithAirborneAndSneakConditions() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189FastPlaceModule place = runtime.featureCatalog().fastPlace();
+            assertFalse(place.pauseWhileSprintingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FastPlaceModule.PAUSE_WHILE_SPRINTING_SETTING_ID));
+            controller.enable(Minecraft189FastPlaceModule.ID);
+            place.delayTicksSetting().set(2);
+            // Default OFF permits the original fast-place without snapshots.
+            assertEquals(2, runtime.rightClickDelay(4));
+            runtime.playerMovementState().update(true, false, true);
+            assertEquals(2, runtime.rightClickDelay(4));
+
+            place.pauseWhileSprintingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FastPlaceModule.PAUSE_WHILE_SPRINTING_SETTING_ID));
+            assertEquals(4, runtime.rightClickDelay(4));
+            runtime.playerMovementState().update(true, false, false);
+            assertEquals(2, runtime.rightClickDelay(4));
+            runtime.playerMovementState().update(false, false, true);
+            assertEquals(4, runtime.rightClickDelay(4));
+
+            // Sprint pause wins over the independently selected airborne delay.
+            place.airborneOverrideSetting().set(Boolean.TRUE);
+            place.airborneDelaySetting().set(0);
+            assertEquals(4, runtime.rightClickDelay(4));
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(0, runtime.rightClickDelay(4));
+            assertEquals(-1, runtime.rightClickDelay(-1));
+            runtime.playerMovementState().update(true, false, false);
+            assertEquals(2, runtime.rightClickDelay(4));
+
+            place.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(false, true, false);
+            assertEquals(4, runtime.rightClickDelay(4));
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(0, runtime.rightClickDelay(4));
+
+            place.requireUseHeldSetting().set(Boolean.TRUE);
+            assertEquals(4, runtime.rightClickDelay(4));
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, true);
+            assertEquals(0, runtime.rightClickDelay(4));
+            runtime.playerMovementState().update(false, false, true);
+            assertEquals(4, runtime.rightClickDelay(4));
+            runtime.playerMovementState().clear();
+            assertEquals(4, runtime.rightClickDelay(4)); // Missing evidence.
+            place.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            assertEquals(4, runtime.rightClickDelay(4)); // Sprint gate also fail-closed.
+            place.pauseWhileSprintingSetting().set(Boolean.FALSE);
+            assertEquals(2, runtime.rightClickDelay(4)); // Default unknown-state base.
+            place.requireUseHeldSetting().set(Boolean.FALSE);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.RIGHT_BUTTON, false);
+            assertEquals(2, place.apply(4)); // Legacy overload restored.
+
+            place.pauseWhileSprintingSetting().set(Boolean.TRUE);
+            assertEquals(4, place.apply(4)); // No assumed sprint state.
+            controller.disable(Minecraft189FastPlaceModule.ID);
+            assertEquals(4, runtime.rightClickDelay(4));
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189FastPlaceModule.PAUSE_WHILE_SPRINTING_SETTING_ID));
+        assertNull(modules.find(Minecraft189FastPlaceModule.ID));
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override

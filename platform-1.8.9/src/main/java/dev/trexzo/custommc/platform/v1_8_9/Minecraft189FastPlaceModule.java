@@ -16,6 +16,8 @@ public final class Minecraft189FastPlaceModule
             "player.fastPlace.airborneDelay";
     public static final String REQUIRE_USE_HELD_SETTING_ID =
             "player.fastPlace.requireUseHeld";
+    public static final String PAUSE_WHILE_SPRINTING_SETTING_ID =
+            "player.fastPlace.pauseWhileSprinting";
     public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
             "player.fastPlace.pauseWhileSneaking";
 
@@ -34,6 +36,11 @@ public final class Minecraft189FastPlaceModule
     private final Setting<Boolean> pauseWhileSneaking =
             new Setting<Boolean>(
                     PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+
+    private final Setting<Boolean> pauseWhileSprinting =
+            new Setting<Boolean>(
+                    PAUSE_WHILE_SPRINTING_SETTING_ID, Boolean.FALSE,
                     value -> value != null, SettingCodecs.BOOLEAN);
 
     private final Setting<Boolean> airborneOverride =
@@ -62,6 +69,10 @@ public final class Minecraft189FastPlaceModule
 
     public Setting<Boolean> pauseWhileSneakingSetting() {
         return pauseWhileSneaking;
+    }
+
+    public Setting<Boolean> pauseWhileSprintingSetting() {
+        return pauseWhileSprinting;
     }
 
     public Setting<Boolean> airborneOverrideSetting() {
@@ -95,7 +106,10 @@ public final class Minecraft189FastPlaceModule
                 || (requireUseHeld.get().booleanValue() && !useHeld)
                 || (pauseWhileSneaking.get().booleanValue()
                         && (movement == null || !movement.available()
-                        || movement.sneaking()))) {
+                        || movement.sneaking()))
+                || (pauseWhileSprinting.get().booleanValue()
+                        && (movement == null || !movement.available()
+                        || movement.sprinting()))) {
             return currentDelay;
         }
         // Optional airborne delay is selected only from real available
