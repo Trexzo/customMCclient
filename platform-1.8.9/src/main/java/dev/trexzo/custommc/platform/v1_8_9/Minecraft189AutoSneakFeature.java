@@ -27,6 +27,9 @@ final class Minecraft189AutoSneakFeature
     private final SettingRegistry.Registration requireMovementSetting;
     private final SettingPresentationRegistry.Registration requireMovementPresentation;
     private final ModuleSettingRegistry.Registration requireMovementBinding;
+    private final SettingRegistry.Registration requireForwardSetting;
+    private final SettingPresentationRegistry.Registration requireForwardPresentation;
+    private final ModuleSettingRegistry.Registration requireForwardBinding;
     private boolean closed;
 
     private Minecraft189AutoSneakFeature(
@@ -42,7 +45,10 @@ final class Minecraft189AutoSneakFeature
             final ModuleSettingRegistry.Registration pauseSprintingBinding,
             final SettingRegistry.Registration requireMovementSetting,
             final SettingPresentationRegistry.Registration requireMovementPresentation,
-            final ModuleSettingRegistry.Registration requireMovementBinding) {
+            final ModuleSettingRegistry.Registration requireMovementBinding,
+            final SettingRegistry.Registration requireForwardSetting,
+            final SettingPresentationRegistry.Registration requireForwardPresentation,
+            final ModuleSettingRegistry.Registration requireForwardBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -56,6 +62,9 @@ final class Minecraft189AutoSneakFeature
         this.requireMovementSetting = requireMovementSetting;
         this.requireMovementPresentation = requireMovementPresentation;
         this.requireMovementBinding = requireMovementBinding;
+        this.requireForwardSetting = requireForwardSetting;
+        this.requireForwardPresentation = requireForwardPresentation;
+        this.requireForwardBinding = requireForwardBinding;
     }
 
     static Minecraft189AutoSneakFeature install(
@@ -79,6 +88,9 @@ final class Minecraft189AutoSneakFeature
         SettingRegistry.Registration requireMovementSetting = null;
         SettingPresentationRegistry.Registration requireMovementPresentation = null;
         ModuleSettingRegistry.Registration requireMovementBinding = null;
+        SettingRegistry.Registration requireForwardSetting = null;
+        SettingPresentationRegistry.Registration requireForwardPresentation = null;
+        ModuleSettingRegistry.Registration requireForwardBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -95,6 +107,7 @@ final class Minecraft189AutoSneakFeature
             groundOnlySetting = settings.register(module.groundOnlySetting());
             pauseSprintingSetting = settings.register(module.pauseSprintingSetting());
             requireMovementSetting = settings.register(module.requireMovementSetting());
+            requireForwardSetting = settings.register(module.requireForwardSetting());
             groundOnlyPresentation = settingPresentations.register(
                     new SettingDescriptor(
                             Minecraft189AutoSneakModule.GROUND_ONLY_SETTING_ID,
@@ -107,6 +120,10 @@ final class Minecraft189AutoSneakFeature
                     new SettingDescriptor(
                             Minecraft189AutoSneakModule.REQUIRE_MOVEMENT_SETTING_ID,
                             "Require Movement (WASD)", SettingValueKind.BOOLEAN, 20));
+            requireForwardPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoSneakModule.REQUIRE_FORWARD_SETTING_ID,
+                            "Require Forward (W)", SettingValueKind.BOOLEAN, 30));
             groundOnlyBinding = moduleSettings.register(new ModuleSettingBinding(
                     Minecraft189AutoSneakModule.ID,
                     Minecraft189AutoSneakModule.GROUND_ONLY_SETTING_ID, 0));
@@ -118,6 +135,11 @@ final class Minecraft189AutoSneakFeature
                     new ModuleSettingBinding(
                             Minecraft189AutoSneakModule.ID,
                             Minecraft189AutoSneakModule.REQUIRE_MOVEMENT_SETTING_ID, 20));
+            requireForwardBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoSneakModule.ID,
+                            Minecraft189AutoSneakModule.REQUIRE_FORWARD_SETTING_ID, 30));
+
             return new Minecraft189AutoSneakFeature(
                     controller,
                     module,
@@ -131,8 +153,14 @@ final class Minecraft189AutoSneakFeature
                     pauseSprintingBinding,
                     requireMovementSetting,
                     requireMovementPresentation,
-                    requireMovementBinding);
+                    requireMovementBinding,
+                    requireForwardSetting,
+                    requireForwardPresentation,
+                    requireForwardBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(requireForwardBinding, failure);
+            closeQuietly(requireForwardPresentation, failure);
+            closeQuietly(requireForwardSetting, failure);
             closeQuietly(requireMovementBinding, failure);
             closeQuietly(requireMovementPresentation, failure);
             closeQuietly(requireMovementSetting, failure);
@@ -175,6 +203,9 @@ final class Minecraft189AutoSneakFeature
             failure = closeFailure;
         }
 
+        failure = close(requireForwardBinding, failure);
+        failure = close(requireForwardPresentation, failure);
+        failure = close(requireForwardSetting, failure);
         failure = close(requireMovementBinding, failure);
         failure = close(requireMovementPresentation, failure);
         failure = close(requireMovementSetting, failure);
