@@ -37,6 +37,12 @@ final class Minecraft189SpinFeature
     private final SettingPresentationRegistry.Registration intervalVariationPresentation;
     private final ModuleSettingRegistry.Registration randomIntervalBinding;
     private final ModuleSettingRegistry.Registration intervalVariationBinding;
+    private final SettingRegistry.Registration groundOnlySetting;
+    private final SettingRegistry.Registration pauseSneakSetting;
+    private final SettingPresentationRegistry.Registration groundOnlyPresentation;
+    private final SettingPresentationRegistry.Registration pauseSneakPresentation;
+    private final ModuleSettingRegistry.Registration groundOnlyBinding;
+    private final ModuleSettingRegistry.Registration pauseSneakBinding;
     private boolean closed;
 
     private Minecraft189SpinFeature(
@@ -61,7 +67,13 @@ final class Minecraft189SpinFeature
             final SettingPresentationRegistry.Registration randomIntervalPresentation,
             final SettingPresentationRegistry.Registration intervalVariationPresentation,
             final ModuleSettingRegistry.Registration randomIntervalBinding,
-            final ModuleSettingRegistry.Registration intervalVariationBinding) {
+            final ModuleSettingRegistry.Registration intervalVariationBinding,
+            final SettingRegistry.Registration groundOnlySetting,
+            final SettingRegistry.Registration pauseSneakSetting,
+            final SettingPresentationRegistry.Registration groundOnlyPresentation,
+            final SettingPresentationRegistry.Registration pauseSneakPresentation,
+            final ModuleSettingRegistry.Registration groundOnlyBinding,
+            final ModuleSettingRegistry.Registration pauseSneakBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -84,6 +96,12 @@ final class Minecraft189SpinFeature
         this.intervalVariationPresentation = intervalVariationPresentation;
         this.randomIntervalBinding = randomIntervalBinding;
         this.intervalVariationBinding = intervalVariationBinding;
+        this.groundOnlySetting = groundOnlySetting;
+        this.pauseSneakSetting = pauseSneakSetting;
+        this.groundOnlyPresentation = groundOnlyPresentation;
+        this.pauseSneakPresentation = pauseSneakPresentation;
+        this.groundOnlyBinding = groundOnlyBinding;
+        this.pauseSneakBinding = pauseSneakBinding;
     }
 
     static Minecraft189SpinFeature install(
@@ -116,6 +134,12 @@ final class Minecraft189SpinFeature
         SettingPresentationRegistry.Registration intervalVariationPresentation = null;
         ModuleSettingRegistry.Registration randomIntervalBinding = null;
         ModuleSettingRegistry.Registration intervalVariationBinding = null;
+        SettingRegistry.Registration groundOnlySetting = null;
+        SettingRegistry.Registration pauseSneakSetting = null;
+        SettingPresentationRegistry.Registration groundOnlyPresentation = null;
+        SettingPresentationRegistry.Registration pauseSneakPresentation = null;
+        ModuleSettingRegistry.Registration groundOnlyBinding = null;
+        ModuleSettingRegistry.Registration pauseSneakBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -142,6 +166,9 @@ final class Minecraft189SpinFeature
             randomIntervalSetting = settings.register(module.randomIntervalSetting());
             intervalVariationSetting = settings.register(
                     module.intervalVariationTicksSetting());
+            groundOnlySetting = settings.register(module.groundOnlySetting());
+            pauseSneakSetting = settings.register(
+                    module.pauseWhileSneakingSetting());
             yawSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -189,6 +216,13 @@ final class Minecraft189SpinFeature
                             new SettingNumericSpec(0.0D,
                                     Minecraft189SpinModule.MAXIMUM_INTERVAL_VARIATION_TICKS,
                                     1.0D)));
+            groundOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(Minecraft189SpinModule.GROUND_ONLY_SETTING_ID,
+                            "Ground Only", SettingValueKind.BOOLEAN, 60));
+            pauseSneakPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189SpinModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 70));
             yawSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -223,6 +257,14 @@ final class Minecraft189SpinFeature
                             Minecraft189SpinModule.ID,
                             Minecraft189SpinModule.INTERVAL_VARIATION_SETTING_ID, 50));
 
+            groundOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189SpinModule.ID,
+                            Minecraft189SpinModule.GROUND_ONLY_SETTING_ID, 60));
+            pauseSneakBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189SpinModule.ID,
+                            Minecraft189SpinModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 70));
             return new Minecraft189SpinFeature(
                     controller,
                     module,
@@ -245,8 +287,20 @@ final class Minecraft189SpinFeature
                     randomIntervalPresentation,
                     intervalVariationPresentation,
                     randomIntervalBinding,
-                    intervalVariationBinding);
+                    intervalVariationBinding,
+                    groundOnlySetting,
+                    pauseSneakSetting,
+                    groundOnlyPresentation,
+                    pauseSneakPresentation,
+                    groundOnlyBinding,
+                    pauseSneakBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseSneakBinding, failure);
+            closeQuietly(groundOnlyBinding, failure);
+            closeQuietly(pauseSneakPresentation, failure);
+            closeQuietly(groundOnlyPresentation, failure);
+            closeQuietly(pauseSneakSetting, failure);
+            closeQuietly(groundOnlySetting, failure);
             closeQuietly(intervalVariationBinding, failure);
             closeQuietly(randomIntervalBinding, failure);
             closeQuietly(intervalVariationPresentation, failure);
@@ -298,6 +352,12 @@ final class Minecraft189SpinFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseSneakBinding, failure);
+        failure = close(groundOnlyBinding, failure);
+        failure = close(pauseSneakPresentation, failure);
+        failure = close(groundOnlyPresentation, failure);
+        failure = close(pauseSneakSetting, failure);
+        failure = close(groundOnlySetting, failure);
         failure = close(intervalVariationBinding, failure);
         failure = close(randomIntervalBinding, failure);
         failure = close(intervalVariationPresentation, failure);
