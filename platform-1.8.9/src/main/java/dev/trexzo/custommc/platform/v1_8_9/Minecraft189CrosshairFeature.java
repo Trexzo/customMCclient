@@ -45,6 +45,15 @@ final class Minecraft189CrosshairFeature
     private final SettingPresentationRegistry.Registration outlineSizePresentation;
     private final ModuleSettingRegistry.Registration outlineBinding;
     private final ModuleSettingRegistry.Registration outlineSizeBinding;
+    private final SettingRegistry.Registration redSetting;
+    private final SettingRegistry.Registration greenSetting;
+    private final SettingRegistry.Registration blueSetting;
+    private final SettingPresentationRegistry.Registration redPresentation;
+    private final SettingPresentationRegistry.Registration greenPresentation;
+    private final SettingPresentationRegistry.Registration bluePresentation;
+    private final ModuleSettingRegistry.Registration redBinding;
+    private final ModuleSettingRegistry.Registration greenBinding;
+    private final ModuleSettingRegistry.Registration blueBinding;
     private boolean closed;
 
     private Minecraft189CrosshairFeature(
@@ -75,7 +84,16 @@ final class Minecraft189CrosshairFeature
             final SettingPresentationRegistry.Registration outlinePresentation,
             final SettingPresentationRegistry.Registration outlineSizePresentation,
             final ModuleSettingRegistry.Registration outlineBinding,
-            final ModuleSettingRegistry.Registration outlineSizeBinding) {
+            final ModuleSettingRegistry.Registration outlineSizeBinding,
+            final SettingRegistry.Registration redSetting,
+            final SettingRegistry.Registration greenSetting,
+            final SettingRegistry.Registration blueSetting,
+            final SettingPresentationRegistry.Registration redPresentation,
+            final SettingPresentationRegistry.Registration greenPresentation,
+            final SettingPresentationRegistry.Registration bluePresentation,
+            final ModuleSettingRegistry.Registration redBinding,
+            final ModuleSettingRegistry.Registration greenBinding,
+            final ModuleSettingRegistry.Registration blueBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -104,6 +122,15 @@ final class Minecraft189CrosshairFeature
         this.outlineSizePresentation = outlineSizePresentation;
         this.outlineBinding = outlineBinding;
         this.outlineSizeBinding = outlineSizeBinding;
+        this.redSetting = redSetting;
+        this.greenSetting = greenSetting;
+        this.blueSetting = blueSetting;
+        this.redPresentation = redPresentation;
+        this.greenPresentation = greenPresentation;
+        this.bluePresentation = bluePresentation;
+        this.redBinding = redBinding;
+        this.greenBinding = greenBinding;
+        this.blueBinding = blueBinding;
     }
 
     static Minecraft189CrosshairFeature install(
@@ -148,6 +175,15 @@ final class Minecraft189CrosshairFeature
         SettingPresentationRegistry.Registration outlineSizePresentation = null;
         ModuleSettingRegistry.Registration outlineBinding = null;
         ModuleSettingRegistry.Registration outlineSizeBinding = null;
+        SettingRegistry.Registration redSetting = null;
+        SettingRegistry.Registration greenSetting = null;
+        SettingRegistry.Registration blueSetting = null;
+        SettingPresentationRegistry.Registration redPresentation = null;
+        SettingPresentationRegistry.Registration greenPresentation = null;
+        SettingPresentationRegistry.Registration bluePresentation = null;
+        ModuleSettingRegistry.Registration redBinding = null;
+        ModuleSettingRegistry.Registration greenBinding = null;
+        ModuleSettingRegistry.Registration blueBinding = null;
 
         try {
             moduleRegistration =
@@ -178,6 +214,9 @@ final class Minecraft189CrosshairFeature
             sprintGapBonusSetting = settings.register(module.sprintGapBonusSetting());
             outlineSetting = settings.register(module.outlineSetting());
             outlineSizeSetting = settings.register(module.outlineSizeSetting());
+            redSetting = settings.register(module.redSetting());
+            greenSetting = settings.register(module.greenSetting());
+            blueSetting = settings.register(module.blueSetting());
 
             lengthPresentation =
                     settingPresentations.register(
@@ -240,6 +279,18 @@ final class Minecraft189CrosshairFeature
                             "Outline Size", SettingValueKind.INTEGER, 70,
                             new SettingNumericSpec(1.0D, 3.0D, 1.0D)));
 
+            redPresentation = settingPresentations.register(
+                    new SettingDescriptor(Minecraft189CrosshairModule.RED_SETTING_ID,
+                            "Red", SettingValueKind.INTEGER, 80,
+                            new SettingNumericSpec(0.0D, 255.0D, 1.0D)));
+            greenPresentation = settingPresentations.register(
+                    new SettingDescriptor(Minecraft189CrosshairModule.GREEN_SETTING_ID,
+                            "Green", SettingValueKind.INTEGER, 90,
+                            new SettingNumericSpec(0.0D, 255.0D, 1.0D)));
+            bluePresentation = settingPresentations.register(
+                    new SettingDescriptor(Minecraft189CrosshairModule.BLUE_SETTING_ID,
+                            "Blue", SettingValueKind.INTEGER, 100,
+                            new SettingNumericSpec(0.0D, 255.0D, 1.0D)));
             lengthBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -283,6 +334,16 @@ final class Minecraft189CrosshairFeature
                             Minecraft189CrosshairModule.ID,
                             Minecraft189CrosshairModule.OUTLINE_SIZE_SETTING_ID, 70));
 
+            redBinding = moduleSettings.register(new ModuleSettingBinding(
+                    Minecraft189CrosshairModule.ID,
+                    Minecraft189CrosshairModule.RED_SETTING_ID, 80));
+            greenBinding = moduleSettings.register(new ModuleSettingBinding(
+                    Minecraft189CrosshairModule.ID,
+                    Minecraft189CrosshairModule.GREEN_SETTING_ID, 90));
+            blueBinding = moduleSettings.register(new ModuleSettingBinding(
+                    Minecraft189CrosshairModule.ID,
+                    Minecraft189CrosshairModule.BLUE_SETTING_ID, 100));
+
             return new Minecraft189CrosshairFeature(
                     controller,
                     module,
@@ -311,8 +372,20 @@ final class Minecraft189CrosshairFeature
                     outlinePresentation,
                     outlineSizePresentation,
                     outlineBinding,
-                    outlineSizeBinding);
+                    outlineSizeBinding,
+                    redSetting, greenSetting, blueSetting,
+                    redPresentation, greenPresentation, bluePresentation,
+                    redBinding, greenBinding, blueBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(blueBinding, failure);
+            closeQuietly(greenBinding, failure);
+            closeQuietly(redBinding, failure);
+            closeQuietly(bluePresentation, failure);
+            closeQuietly(greenPresentation, failure);
+            closeQuietly(redPresentation, failure);
+            closeQuietly(blueSetting, failure);
+            closeQuietly(greenSetting, failure);
+            closeQuietly(redSetting, failure);
             closeQuietly(outlineSizeBinding, failure);
             closeQuietly(outlineBinding, failure);
             closeQuietly(outlineSizePresentation, failure);
@@ -370,6 +443,15 @@ final class Minecraft189CrosshairFeature
             failure = closeFailure;
         }
 
+        failure = close(blueBinding, failure);
+        failure = close(greenBinding, failure);
+        failure = close(redBinding, failure);
+        failure = close(bluePresentation, failure);
+        failure = close(greenPresentation, failure);
+        failure = close(redPresentation, failure);
+        failure = close(blueSetting, failure);
+        failure = close(greenSetting, failure);
+        failure = close(redSetting, failure);
         failure = close(outlineSizeBinding, failure);
         failure = close(outlineBinding, failure);
         failure = close(outlineSizePresentation, failure);

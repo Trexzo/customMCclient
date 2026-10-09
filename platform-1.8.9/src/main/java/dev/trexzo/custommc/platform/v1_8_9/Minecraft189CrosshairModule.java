@@ -28,6 +28,9 @@ public final class Minecraft189CrosshairModule
             "render.crosshair.sprintExpansion";
     public static final String SPRINT_GAP_BONUS_SETTING_ID =
             "render.crosshair.sprintGapBonus";
+    public static final String RED_SETTING_ID = "render.crosshair.red";
+    public static final String GREEN_SETTING_ID = "render.crosshair.green";
+    public static final String BLUE_SETTING_ID = "render.crosshair.blue";
     public static final String OUTLINE_SETTING_ID =
             "render.crosshair.outline";
     public static final String OUTLINE_SIZE_SETTING_ID =
@@ -36,7 +39,7 @@ public final class Minecraft189CrosshairModule
             "crosshair";
 
     private static final int PRIORITY = 130;
-    private static final int COLOR_ARGB = 0xFFFFFFFF;
+    public static final int DEFAULT_COLOR_CHANNEL = 255;
     private static final int OUTLINE_ARGB = 0xFF000000;
 
     private final RenderPipeline renderPipeline;
@@ -78,6 +81,15 @@ public final class Minecraft189CrosshairModule
                     SPRINT_GAP_BONUS_SETTING_ID, 4,
                     value -> value != null && value >= 1 && value <= 12,
                     SettingCodecs.INTEGER);
+    private final Setting<Integer> red = new Setting<Integer>(
+            RED_SETTING_ID, DEFAULT_COLOR_CHANNEL,
+            Minecraft189CrosshairModule::validChannel, SettingCodecs.INTEGER);
+    private final Setting<Integer> green = new Setting<Integer>(
+            GREEN_SETTING_ID, DEFAULT_COLOR_CHANNEL,
+            Minecraft189CrosshairModule::validChannel, SettingCodecs.INTEGER);
+    private final Setting<Integer> blue = new Setting<Integer>(
+            BLUE_SETTING_ID, DEFAULT_COLOR_CHANNEL,
+            Minecraft189CrosshairModule::validChannel, SettingCodecs.INTEGER);
     private final Setting<Boolean> outline =
             new Setting<Boolean>(
                     OUTLINE_SETTING_ID, Boolean.FALSE,
@@ -137,6 +149,18 @@ public final class Minecraft189CrosshairModule
 
     public Setting<Integer> sprintGapBonusSetting() {
         return sprintGapBonus;
+    }
+
+    public Setting<Integer> redSetting() { return red; }
+    public Setting<Integer> greenSetting() { return green; }
+    public Setting<Integer> blueSetting() { return blue; }
+
+    static boolean validChannel(final Integer v) {
+        return v != null && v >= 0 && v <= 255;
+    }
+
+    static int rgbArgb(final int red, final int green, final int blue) {
+        return 0xFF000000 | (red << 16) | (green << 8) | blue;
     }
 
     public Setting<Boolean> outlineSetting() {
@@ -227,6 +251,10 @@ public final class Minecraft189CrosshairModule
                     thickness.get().floatValue();
             final float halfThickness =
                     lineThickness / 2.0F;
+            final int strokeColor = rgbArgb(
+                    red.get().intValue(),
+                    green.get().intValue(),
+                    blue.get().intValue());
 
             hostCallbacks.beginUi(viewport);
             RuntimeException failure = null;
@@ -275,25 +303,25 @@ public final class Minecraft189CrosshairModule
                         centerY - halfThickness,
                         lineLength,
                         lineThickness,
-                        COLOR_ARGB);
+                        strokeColor);
                 hostCallbacks.fillRect(
                         centerX + lineGap,
                         centerY - halfThickness,
                         lineLength,
                         lineThickness,
-                        COLOR_ARGB);
+                        strokeColor);
                 hostCallbacks.fillRect(
                         centerX - halfThickness,
                         centerY - lineGap - lineLength,
                         lineThickness,
                         lineLength,
-                        COLOR_ARGB);
+                        strokeColor);
                 hostCallbacks.fillRect(
                         centerX - halfThickness,
                         centerY + lineGap,
                         lineThickness,
                         lineLength,
-                        COLOR_ARGB);
+                        strokeColor);
 
                 if (dot.get().booleanValue()) {
                     hostCallbacks.fillRect(
@@ -301,7 +329,7 @@ public final class Minecraft189CrosshairModule
                             centerY - halfThickness,
                             lineThickness,
                             lineThickness,
-                            COLOR_ARGB);
+                            strokeColor);
                 }
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
