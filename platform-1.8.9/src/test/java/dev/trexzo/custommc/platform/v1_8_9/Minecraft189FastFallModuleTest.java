@@ -371,6 +371,127 @@ final class Minecraft189FastFallModuleTest {
         assertEquals(1, player.verticalSetCalls);
     }
 
+    @Test
+    void fastFallActivationDelayRequiresConsecutiveDescendingCallbacks() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189FastFallModule fall = runtime.featureCatalog().fastFall();
+            final TestPlayer player = new TestPlayer();
+            assertEquals(0, fall.activationDelayTicksSetting().get().intValue());
+            assertEquals("0", settings.snapshotEncoded().get(
+                    Minecraft189FastFallModule.ACTIVATION_DELAY_SETTING_ID));
+            controller.enable(Minecraft189FastFallModule.ID);
+            runtime.playerMovementState().update(false, false, false);
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.30D, player.motionY, 0.000000001D); // Default instant.
+
+            fall.activationDelayTicksSetting().set(2);
+            assertEquals("2", settings.snapshotEncoded().get(
+                    Minecraft189FastFallModule.ACTIVATION_DELAY_SETTING_ID));
+            player.motionY = -0.05D;
+            final int initialWrites = player.verticalSetCalls;
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(initialWrites, player.verticalSetCalls);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.30D, player.motionY, 0.000000001D);
+            assertEquals(initialWrites + 1, player.verticalSetCalls);
+
+            // Ground contact cancels the countdown without writing.
+            runtime.playerMovementState().update(true, false, false);
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.05D, player.motionY, 0.000000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.05D, player.motionY, 0.000000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.30D, player.motionY, 0.000000001D);
+
+            // Rising, zero and malformed velocity each restart delay.
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player); // Prior descent was eligible.
+            player.motionY = 0.10D;
+            runtime.playerMotionControl(player); // Reset.
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.05D, player.motionY, 0.000000001D);
+            player.motionY = Double.NaN;
+            runtime.playerMotionControl(player); // Reset without write.
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.05D, player.motionY, 0.000000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.30D, player.motionY, 0.000000001D);
+
+            // Live delay edit restarts, and progressive ramp remains independent.
+            fall.progressiveSetting().set(Boolean.TRUE);
+            fall.rampStepSetting().set(0.10D);
+            fall.activationDelayTicksSetting().set(1);
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.05D, player.motionY, 0.000000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.15D, player.motionY, 0.000000001D);
+
+            fall.activationDelayTicksSetting().set(0);
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.15D, player.motionY, 0.000000001D);
+            controller.disable(Minecraft189FastFallModule.ID);
+            player.motionY = -0.05D;
+            final int beforeDisable = player.verticalSetCalls;
+            runtime.playerMotionControl(player);
+            assertEquals(beforeDisable, player.verticalSetCalls);
+            assertThrows(IllegalArgumentException.class,
+                    () -> fall.activationDelayTicksSetting().set(-1));
+            assertThrows(IllegalArgumentException.class,
+                    () -> fall.activationDelayTicksSetting().set(11));
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189FastFallModule.ACTIVATION_DELAY_SETTING_ID));
+        assertNull(modules.find(Minecraft189FastFallModule.ID));
+    }
+
+    @Test
+    void suspendedFastFallResetsPendingActivationDelay() {
+        final Minecraft189FastFallModule fall = new Minecraft189FastFallModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer();
+        fall.activationDelayTicksSetting().set(2);
+        fall.onEnable();
+        movement.update(false, false, false);
+        player.motionY = -0.05D;
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(0, player.verticalSetCalls);
+        fall.apply(player, movement.snapshot(), true); // Reset countdown.
+        fall.apply(player, movement.snapshot(), false);
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(0, player.verticalSetCalls);
+        fall.apply(player, movement.snapshot(), false);
+        assertEquals(-0.30D, player.motionY, 0.000000001D);
+        assertEquals(1, player.verticalSetCalls);
+        fall.onDisable();
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;

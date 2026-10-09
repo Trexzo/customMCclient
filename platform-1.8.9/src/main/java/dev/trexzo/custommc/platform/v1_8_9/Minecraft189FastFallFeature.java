@@ -28,6 +28,9 @@ final class Minecraft189FastFallFeature
     private final ModuleSettingRegistry.Registration fallSpeedBinding;
     private final ModuleSettingRegistry.Registration progressiveBinding;
     private final ModuleSettingRegistry.Registration rampStepBinding;
+    private final SettingRegistry.Registration activationDelaySetting;
+    private final SettingPresentationRegistry.Registration activationDelayPresentation;
+    private final ModuleSettingRegistry.Registration activationDelayBinding;
     private boolean closed;
 
     private Minecraft189FastFallFeature(
@@ -43,7 +46,10 @@ final class Minecraft189FastFallFeature
             final SettingPresentationRegistry.Registration rampStepPresentation,
             final ModuleSettingRegistry.Registration fallSpeedBinding,
             final ModuleSettingRegistry.Registration progressiveBinding,
-            final ModuleSettingRegistry.Registration rampStepBinding) {
+            final ModuleSettingRegistry.Registration rampStepBinding,
+            final SettingRegistry.Registration activationDelaySetting,
+            final SettingPresentationRegistry.Registration activationDelayPresentation,
+            final ModuleSettingRegistry.Registration activationDelayBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -57,6 +63,9 @@ final class Minecraft189FastFallFeature
         this.fallSpeedBinding = fallSpeedBinding;
         this.progressiveBinding = progressiveBinding;
         this.rampStepBinding = rampStepBinding;
+        this.activationDelaySetting = activationDelaySetting;
+        this.activationDelayPresentation = activationDelayPresentation;
+        this.activationDelayBinding = activationDelayBinding;
     }
 
     static Minecraft189FastFallFeature install(
@@ -80,6 +89,9 @@ final class Minecraft189FastFallFeature
         ModuleSettingRegistry.Registration fallSpeedBinding = null;
         ModuleSettingRegistry.Registration progressiveBinding = null;
         ModuleSettingRegistry.Registration rampStepBinding = null;
+        SettingRegistry.Registration activationDelaySetting = null;
+        SettingPresentationRegistry.Registration activationDelayPresentation = null;
+        ModuleSettingRegistry.Registration activationDelayBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -98,6 +110,8 @@ final class Minecraft189FastFallFeature
                             module.fallSpeedSetting());
             progressiveSetting = settings.register(module.progressiveSetting());
             rampStepSetting = settings.register(module.rampStepSetting());
+            activationDelaySetting = settings.register(
+                    module.activationDelayTicksSetting());
             fallSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -121,6 +135,13 @@ final class Minecraft189FastFallFeature
                                     Minecraft189FastFallModule.MINIMUM_RAMP_STEP,
                                     Minecraft189FastFallModule.MAXIMUM_RAMP_STEP,
                                     0.01D)));
+            activationDelayPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FastFallModule.ACTIVATION_DELAY_SETTING_ID,
+                            "Delay Ticks", SettingValueKind.INTEGER, 30,
+                            new SettingNumericSpec(0.0D,
+                                    Minecraft189FastFallModule.MAXIMUM_ACTIVATION_DELAY_TICKS,
+                                    1.0D)));
             fallSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -137,6 +158,11 @@ final class Minecraft189FastFallFeature
                             Minecraft189FastFallModule.ID,
                             Minecraft189FastFallModule.RAMP_STEP_SETTING_ID, 20));
 
+            activationDelayBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FastFallModule.ID,
+                            Minecraft189FastFallModule.ACTIVATION_DELAY_SETTING_ID, 30));
+
             return new Minecraft189FastFallFeature(
                     controller,
                     module,
@@ -150,8 +176,14 @@ final class Minecraft189FastFallFeature
                     rampStepPresentation,
                     fallSpeedBinding,
                     progressiveBinding,
-                    rampStepBinding);
+                    rampStepBinding,
+                    activationDelaySetting,
+                    activationDelayPresentation,
+                    activationDelayBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(activationDelayBinding, failure);
+            closeQuietly(activationDelayPresentation, failure);
+            closeQuietly(activationDelaySetting, failure);
             closeQuietly(rampStepBinding, failure);
             closeQuietly(progressiveBinding, failure);
             closeQuietly(rampStepPresentation, failure);
@@ -194,6 +226,9 @@ final class Minecraft189FastFallFeature
             failure = closeFailure;
         }
 
+        failure = close(activationDelayBinding, failure);
+        failure = close(activationDelayPresentation, failure);
+        failure = close(activationDelaySetting, failure);
         failure = close(rampStepBinding, failure);
         failure = close(progressiveBinding, failure);
         failure = close(rampStepPresentation, failure);
