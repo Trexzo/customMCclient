@@ -17,6 +17,8 @@ public final class Minecraft189KillAuraModule implements Module {
     public static final String PAUSE_SNEAK = ID + ".pauseWhileSneaking";
     public static final String PAUSE_RIGHT = ID + ".pauseWhileRightClicking";
     public static final String PRIORITIZE_CROSSHAIR = ID + ".prioritizeCrosshair";
+    public static final String SWITCH_HURT_TARGETS = ID + ".switchHurtTargets";
+    public static final String MAX_SWITCH_HURT_TICKS = ID + ".maxSwitchHurtTicks";
     private static final double MAX_AIM_ERROR = 8.0D;
 
     private final Setting<Integer> minCps = new Setting<Integer>(
@@ -40,6 +42,13 @@ public final class Minecraft189KillAuraModule implements Module {
             PAUSE_RIGHT, Boolean.TRUE, x -> x != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> prioritizeCrosshair = new Setting<Boolean>(
             PRIORITIZE_CROSSHAIR, Boolean.FALSE, x -> x != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> switchHurt = new Setting<Boolean>(
+            SWITCH_HURT_TARGETS, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> maxSwitchHurtTicks = new Setting<Integer>(
+            MAX_SWITCH_HURT_TICKS, 1,
+            value -> value != null && value >= 0 && value <= 20,
+            SettingCodecs.INTEGER);
     private boolean enabled;
     private int phase;
     private int sampledCps;
@@ -58,6 +67,8 @@ public final class Minecraft189KillAuraModule implements Module {
     public Setting<Boolean> pauseSneakSetting() { return pauseSneak; }
     public Setting<Boolean> pauseRightSetting() { return pauseRight; }
     public Setting<Boolean> prioritizeCrosshairSetting() { return prioritizeCrosshair; }
+    public Setting<Boolean> switchHurtTargetsSetting() { return switchHurt; }
+    public Setting<Integer> maxSwitchHurtTicksSetting() { return maxSwitchHurtTicks; }
     synchronized boolean active() { return enabled; }
 
     @Override
