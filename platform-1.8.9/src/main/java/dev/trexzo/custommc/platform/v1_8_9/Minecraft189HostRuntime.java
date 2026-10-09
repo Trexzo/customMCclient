@@ -540,6 +540,14 @@ public final class Minecraft189HostRuntime
         final boolean leftButtonHeld =
                 inputState.pointerPressed(
                         Minecraft189ClickRateTracker.LEFT_BUTTON);
+        // The GUI owns pointer/keyboard focus: rotation automation must
+        // release ownership and discard any pending correction cadence.
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            featureCatalog.spin().apply(null, null, false);
+            featureCatalog.aimAssist().apply(null, null, null, false, false);
+            featureCatalog.jitter().apply(null, null, false);
+            return;
+        }
         if (featureCatalog.spin()
                 .apply(
                         control,
@@ -667,15 +675,14 @@ public final class Minecraft189HostRuntime
         }
         final Minecraft189PlayerMovementState.Snapshot movement =
                 playerMovementState.snapshot();
-        if (featureCatalog.wTap()
-                .apply(
-                        player,
-                        movement,
-                        inputState.pointerPressed(
-                                Minecraft189ClickRateTracker.LEFT_BUTTON),
-                        inputState.keyPressed(
-                                LegacyKeyboardCodes.W),
-                        nearestPlayerTargetState.snapshot())) {
+        final boolean attackHeld = inputState.pointerPressed(
+                Minecraft189ClickRateTracker.LEFT_BUTTON);
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            featureCatalog.wTap().suspendForGui(attackHeld);
+        } else if (featureCatalog.wTap().apply(
+                player, movement, attackHeld,
+                inputState.keyPressed(LegacyKeyboardCodes.W),
+                nearestPlayerTargetState.snapshot())) {
             return;
         }
         featureCatalog.autoSprint()

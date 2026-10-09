@@ -889,6 +889,31 @@ final class Minecraft189WTapModuleTest {
         assertNull(modules.find(Minecraft189WTapModule.ID));
     }
 
+
+    @Test
+    void guiFocusSuspensionDiscardsWtapResetAndHeldAttackEdge() {
+        final Minecraft189WTapModule tap = new Minecraft189WTapModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer();
+        movement.update(true, false, true);
+        tap.onEnable();
+        try {
+            tap.suspendForGui(true);
+            assertFalse(tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(0, player.setCalls);
+            assertFalse(tap.apply(player, movement.snapshot(), false, true));
+            assertTrue(tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(1, player.setCalls);
+            tap.suspendForGui(true);
+            player.sprinting = true;
+            assertFalse(tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(1, player.setCalls);
+        } finally {
+            tap.onDisable();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerSprintControl {
         private boolean sprinting = true;
