@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189AirSpeedModuleTest {
     @Test
@@ -293,6 +294,108 @@ final class Minecraft189AirSpeedModuleTest {
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
+    }
+
+    @Test
+    void airSpeedSmoothAccelerationUsesActualVelocityAndRespectsOwnership() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189AirSpeedModule air =
+                    runtime.featureCatalog().airSpeed();
+            final TestPlayer player = new TestPlayer();
+            assertFalse(air.smoothAccelerationSetting().get().booleanValue());
+            assertEquals(50, air.accelerationPercentSetting().get().intValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AirSpeedModule.SMOOTH_ACCELERATION_SETTING_ID));
+            assertEquals("50", settings.snapshotEncoded().get(
+                    Minecraft189AirSpeedModule.ACCELERATION_PERCENT_SETTING_ID));
+            air.speedSetting().set(0.60D);
+            controller.enable(Minecraft189AirSpeedModule.ID);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerRotationState().update(0.0F);
+            runtime.playerMovementState().update(false, false, false);
+
+            // Legacy instant target, even when current speed is faster.
+            runtime.playerMotionControl(player);
+            assertEquals(0.60D, player.motionZ, 0.000000001D);
+            player.motionZ = 0.0D;
+            air.smoothAccelerationSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AirSpeedModule.SMOOTH_ACCELERATION_SETTING_ID));
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionZ, 0.000000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(0.45D, player.motionZ, 0.000000001D);
+            air.accelerationPercentSetting().set(25);
+            assertEquals("25", settings.snapshotEncoded().get(
+                    Minecraft189AirSpeedModule.ACCELERATION_PERCENT_SETTING_ID));
+            runtime.playerMotionControl(player);
+            assertEquals(0.4875D, player.motionZ, 0.000000001D);
+
+            // Ground and unknown authority suspend horizontal changes,
+            // without storing interpolation credit.
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.4875D, player.motionZ, 0.000000001D);
+            runtime.playerMovementState().clear();
+            runtime.playerMotionControl(player);
+            assertEquals(0.4875D, player.motionZ, 0.000000001D);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.515625D, player.motionZ, 0.000000001D);
+
+            runtime.inputState().key(LegacyKeyboardCodes.W, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.515625D, player.motionZ, 0.000000001D);
+            runtime.inputState().key(LegacyKeyboardCodes.S, true);
+            runtime.playerMotionControl(player);
+            assertEquals(0.23671875D, player.motionZ, 0.000000001D);
+            air.accelerationPercentSetting().set(100);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.60D, player.motionZ, 0.000000001D);
+
+            player.motionX = Double.NaN;
+            player.motionZ = Double.POSITIVE_INFINITY;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionX, 0.000000001D);
+            assertEquals(-0.60D, player.motionZ, 0.000000001D);
+            air.smoothAccelerationSetting().set(Boolean.FALSE);
+            runtime.inputState().key(LegacyKeyboardCodes.S, false);
+            runtime.inputState().key(LegacyKeyboardCodes.A, true);
+            runtime.playerRotationState().update(0.0F);
+            runtime.playerMotionControl(player);
+            assertEquals(0.60D, player.motionX, 0.000000001D);
+            assertEquals(0.0D, player.motionZ, 0.000000001D);
+
+            controller.disable(Minecraft189AirSpeedModule.ID);
+            player.motionX = 0.20D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.20D, player.motionX, 0.000000001D);
+            assertThrows(IllegalArgumentException.class,
+                    () -> air.accelerationPercentSetting().set(9));
+            assertThrows(IllegalArgumentException.class,
+                    () -> air.accelerationPercentSetting().set(101));
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189AirSpeedModule.SMOOTH_ACCELERATION_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189AirSpeedModule.ACCELERATION_PERCENT_SETTING_ID));
+        assertNull(modules.find(Minecraft189AirSpeedModule.ID));
     }
 
     private static final class TestPlayer
