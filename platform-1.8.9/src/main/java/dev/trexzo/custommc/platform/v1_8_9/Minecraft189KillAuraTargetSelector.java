@@ -15,6 +15,18 @@ final class Minecraft189KillAuraTargetSelector {
             final Minecraft189WorldEntityKindState.Snapshot kinds,
             final Minecraft189WorldEntityCombatState.Snapshot combat,
             final Minecraft189NearestPlayerTargetState target) {
+        select(aura, local, rotation, positions, kinds, combat, null, target);
+    }
+
+    static void select(
+            final Minecraft189KillAuraModule aura,
+            final Minecraft189PlayerPositionState.Snapshot local,
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final Minecraft189WorldEntityPositionState.Snapshot positions,
+            final Minecraft189WorldEntityKindState.Snapshot kinds,
+            final Minecraft189WorldEntityCombatState.Snapshot combat,
+            final Minecraft189AntiBotModule antiBot,
+            final Minecraft189NearestPlayerTargetState target) {
         if (target == null) return;
         if (aura == null || local == null || rotation == null
                 || positions == null || kinds == null || combat == null
@@ -32,6 +44,8 @@ final class Minecraft189KillAuraTargetSelector {
         final boolean crosshair = aura.prioritizeCrosshairSetting().get();
         target.update(local, positions, kinds, 0.0D, range,
                 candidate -> combat.alive(candidate.entityIndex())
+                        && (antiBot == null
+                                || antiBot.permits(candidate.entityIndex(), combat))
                         && Double.isFinite(
                             angularScore(local, rotation, candidate, fov)),
                 candidate -> crosshair

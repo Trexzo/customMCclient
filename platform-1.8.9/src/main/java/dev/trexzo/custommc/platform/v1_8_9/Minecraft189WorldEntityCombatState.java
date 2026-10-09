@@ -10,6 +10,9 @@ import java.util.Objects;
 public final class Minecraft189WorldEntityCombatState {
     public static final int UNKNOWN = -1;
     public static final int MAX_HURT_TIME = 127;
+    public static final int NETWORK_INFO_PRESENT = 1 << 8;
+    public static final int NETWORK_INFO_KNOWN = 1 << 9;
+    private static final int COMBAT_BITS = 255;
     private boolean available;
     private int[] packed = new int[0];
 
@@ -17,7 +20,11 @@ public final class Minecraft189WorldEntityCombatState {
         Objects.requireNonNull(next, "next");
         final int[] copy = Arrays.copyOf(next, next.length);
         for (int i = 0; i < copy.length; i++) {
-            if (copy[i] < UNKNOWN || copy[i] > (MAX_HURT_TIME * 2 + 1)) {
+            if (copy[i] < UNKNOWN || copy[i] > (MAX_HURT_TIME * 2 + 1
+                    + NETWORK_INFO_PRESENT + NETWORK_INFO_KNOWN)
+                    || (copy[i] >= 0
+                        && (copy[i] & NETWORK_INFO_PRESENT) != 0
+                        && (copy[i] & NETWORK_INFO_KNOWN) == 0)) {
                 throw new IllegalArgumentException(
                         "invalid combat state at entity index " + i);
             }
@@ -55,7 +62,14 @@ public final class Minecraft189WorldEntityCombatState {
         }
         /** Returns -1 when the entity is unknown or not in this snapshot. */
         public int hurtTime(final int index) {
-            return known(index) ? packed[index] >>> 1 : UNKNOWN;
+            return known(index) ? (packed[index] & COMBAT_BITS) >>> 1 : UNKNOWN;
+        }
+        public boolean networkInfoKnown(final int index) {
+            return known(index) && (packed[index] & NETWORK_INFO_KNOWN) != 0;
+        }
+        public boolean networkInfoPresent(final int index) {
+            return networkInfoKnown(index)
+                    && (packed[index] & NETWORK_INFO_PRESENT) != 0;
         }
         public int raw(final int index) {
             return known(index) ? packed[index] : UNKNOWN;

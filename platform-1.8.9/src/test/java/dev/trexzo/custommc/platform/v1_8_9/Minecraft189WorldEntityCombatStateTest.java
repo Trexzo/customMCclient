@@ -39,9 +39,19 @@ final class Minecraft189WorldEntityCombatStateTest {
         assertThrows(IllegalArgumentException.class,
                 () -> state.update(new int[] {-2}));
         assertThrows(IllegalArgumentException.class,
-                () -> state.update(new int[] {256}));
+                () -> state.update(new int[] {1024}));
         assertThrows(NullPointerException.class,
                 () -> state.update(null));
         assertEquals(1, state.snapshot().raw(0));
+        state.update(new int[]{1 | 512 | 256, 1 | 512, 1});
+        final Minecraft189WorldEntityCombatState.Snapshot evidence = state.snapshot();
+        assertEquals(0, evidence.hurtTime(0));
+        assertTrue(evidence.networkInfoKnown(0));
+        assertTrue(evidence.networkInfoPresent(0));
+        assertTrue(evidence.networkInfoKnown(1));
+        assertFalse(evidence.networkInfoPresent(1));
+        assertFalse(evidence.networkInfoKnown(2));
+        state.update(new int[]{(7 << 1) | 1 | 512 | 256});
+        assertEquals(7, state.snapshot().hurtTime(0));
     }
 }

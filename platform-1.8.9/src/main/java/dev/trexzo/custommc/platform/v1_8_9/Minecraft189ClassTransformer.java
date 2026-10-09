@@ -154,6 +154,9 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerPingAccess";
     private static final String PLAYER_PING_ACCESS_DESCRIPTOR =
             "L" + PLAYER_PING_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_TAB_INFO_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerTabInfoAccess";
     private static final String INVENTORY_HOTBAR_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189InventoryHotbarAccess";
@@ -3003,8 +3006,10 @@ public final class Minecraft189ClassTransformer
                                 signature,
                                 superName,
                                 withInterface(
-                                        interfaces,
-                                        PLAYER_PING_ACCESS_INTERNAL_NAME));
+                                        withInterface(
+                                                interfaces,
+                                                PLAYER_PING_ACCESS_INTERNAL_NAME),
+                                        PLAYER_TAB_INFO_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -3012,6 +3017,7 @@ public final class Minecraft189ClassTransformer
                         addPingGetter(
                                 cv,
                                 "customMcPingMilliseconds");
+                        addHasNetworkPlayerInfoGetter(cv);
                         super.visitEnd();
                     }
                 },
@@ -3174,6 +3180,32 @@ public final class Minecraft189ClassTransformer
         method.visitMaxs(
                 0,
                 0);
+        method.visitEnd();
+    }
+
+    /** Call the existing shape-verified AbstractClientPlayer#getPlayerInfo. */
+    private static void addHasNetworkPlayerInfoGetter(
+            final ClassVisitor visitor) {
+        final Minecraft189Mappings.MappedMethod playerInfo =
+                Minecraft189Mappings.ABSTRACT_CLIENT_PLAYER_GET_PLAYER_INFO;
+        final MethodVisitor method = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcHasNetworkPlayerInfo",
+                "()Z", null, null);
+        final Label missing = new Label();
+        method.visitCode();
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                playerInfo.owner().obfuscatedInternalName(),
+                playerInfo.obfuscatedName(),
+                playerInfo.descriptor(), false);
+        method.visitJumpInsn(Opcodes.IFNULL, missing);
+        method.visitInsn(Opcodes.ICONST_1);
+        method.visitInsn(Opcodes.IRETURN);
+        method.visitLabel(missing);
+        method.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+        method.visitInsn(Opcodes.ICONST_0);
+        method.visitInsn(Opcodes.IRETURN);
+        method.visitMaxs(0, 0);
         method.visitEnd();
     }
 
@@ -3892,6 +3924,7 @@ public final class Minecraft189ClassTransformer
         final Label loopCheck = new Label();
         final Label loopEnd = new Label();
         final Label nonLiving = new Label();
+        final Label noTabInfo = new Label();
         final Label store = new Label();
         final String world = Minecraft189Mappings.WORLD.obfuscatedInternalName();
 
@@ -3962,6 +3995,28 @@ public final class Minecraft189ClassTransformer
         method.visitInsn(Opcodes.ICONST_1);
         method.visitInsn(Opcodes.ISHL);
         method.visitInsn(Opcodes.IOR);
+        // Preserve the original low 8-bit health/hurt format. Bits 9/8
+        // carry verified NetworkPlayerInfo queryability and presence.
+        method.visitVarInsn(Opcodes.ALOAD, 5);
+        method.visitTypeInsn(Opcodes.INSTANCEOF,
+                PLAYER_TAB_INFO_ACCESS_INTERNAL_NAME);
+        method.visitJumpInsn(Opcodes.IFEQ, noTabInfo);
+        method.visitIntInsn(Opcodes.SIPUSH, 512);
+        method.visitInsn(Opcodes.IOR);
+        method.visitVarInsn(Opcodes.ALOAD, 5);
+        method.visitTypeInsn(Opcodes.CHECKCAST,
+                PLAYER_TAB_INFO_ACCESS_INTERNAL_NAME);
+        method.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                PLAYER_TAB_INFO_ACCESS_INTERNAL_NAME,
+                "customMcHasNetworkPlayerInfo", "()Z", true);
+        method.visitJumpInsn(Opcodes.IFEQ, noTabInfo);
+        method.visitIntInsn(Opcodes.SIPUSH, 256);
+        method.visitInsn(Opcodes.IOR);
+        method.visitLabel(noTabInfo);
+        method.visitFrame(Opcodes.F_FULL, 6,
+                new Object[]{world, "java/util/List", Opcodes.INTEGER,
+                        "[I", Opcodes.INTEGER, "java/lang/Object"},
+                1, new Object[]{Opcodes.INTEGER});
         method.visitVarInsn(Opcodes.ISTORE, 6);
         method.visitJumpInsn(Opcodes.GOTO, store);
 
