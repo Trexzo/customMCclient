@@ -1436,7 +1436,8 @@ public final class Minecraft189HostRuntime
 
     int selectAutoPotSlot() {
         requireOpen();
-        return featureCatalog.autoPot().selectSlot(tickHotbarControl);
+        return Minecraft189VerifiedCombatItemSlot.selectPotion(
+                featureCatalog.autoPot(), tickHotbarControl, tickHeldItemAccess);
     }
 
     void restoreAutoPotSlot(final int originalSlot) {
@@ -1469,7 +1470,8 @@ public final class Minecraft189HostRuntime
 
     int selectAutoRodSlot() {
         requireOpen();
-        return featureCatalog.autoRod().selectSlot(tickHotbarControl);
+        return Minecraft189VerifiedCombatItemSlot.selectRod(
+                featureCatalog.autoRod(), tickHotbarControl, tickHeldItemAccess);
     }
 
     void restoreAutoRodSlot(final int originalSlot) {
