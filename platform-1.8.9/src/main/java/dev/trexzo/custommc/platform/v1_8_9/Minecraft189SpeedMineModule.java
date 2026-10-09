@@ -21,6 +21,10 @@ public final class Minecraft189SpeedMineModule
 
     public static final String GROUND_ONLY_SETTING_ID =
             "player.speedMine.groundOnly";
+    public static final String AIRBORNE_OVERRIDE_SETTING_ID =
+            "player.speedMine.airborneOverride";
+    public static final String AIRBORNE_PROGRESS_SETTING_ID =
+            "player.speedMine.airborneProgressPercent";
 
     private final Setting<Integer> progressPercent =
             new Setting<Integer>(
@@ -63,6 +67,13 @@ public final class Minecraft189SpeedMineModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> airborneOverride = new Setting<Boolean>(
+            AIRBORNE_OVERRIDE_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> airborneProgressPercent = new Setting<Integer>(
+            AIRBORNE_PROGRESS_SETTING_ID, 70,
+            value -> value != null && value >= 0 && value <= 100,
+            SettingCodecs.INTEGER);
     private boolean enabled;
 
     @Override
@@ -92,6 +103,14 @@ public final class Minecraft189SpeedMineModule
 
     public Setting<Boolean> groundOnlySetting() {
         return groundOnly;
+    }
+
+    public Setting<Boolean> airborneOverrideSetting() {
+        return airborneOverride;
+    }
+
+    public Setting<Integer> airborneProgressPercentSetting() {
+        return airborneProgressPercent;
     }
 
     @Override
@@ -131,9 +150,15 @@ public final class Minecraft189SpeedMineModule
 
         final float current =
                 controller.customMcBlockDamageProgress();
+        // Select the alternate cap only from confirmed mapped airborne
+        // movement. Missing movement falls back to the original minimum.
+        // Ground Only has already vetoed all airborne writes above.
+        final boolean airborne = airborneOverride.get().booleanValue()
+                && movement != null && movement.available()
+                && !movement.onGround();
         final float minimum =
-                progressPercent.get().intValue()
-                        / 100.0F;
+                (airborne ? airborneProgressPercent.get().intValue()
+                        : progressPercent.get().intValue()) / 100.0F;
         if (!Float.isFinite(current) || current < 0.0F
                 || current >= minimum) {
             return;
