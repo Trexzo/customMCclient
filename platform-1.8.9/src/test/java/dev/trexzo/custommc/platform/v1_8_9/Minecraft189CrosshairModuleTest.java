@@ -323,6 +323,101 @@ final class Minecraft189CrosshairModuleTest {
                 3.0F, true, 4, movement.snapshot()));
     }
 
+    @Test
+    void rgbChannelsUpdateLiveCrosshairWithoutChangingOutlineOrDefaultWhite() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189CrosshairModule cross =
+                    runtime.featureCatalog().crosshair();
+            assertEquals(Integer.valueOf(255), cross.redSetting().get());
+            assertEquals(Integer.valueOf(255), cross.greenSetting().get());
+            assertEquals(Integer.valueOf(255), cross.blueSetting().get());
+            assertEquals("255", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.RED_SETTING_ID));
+            assertEquals("255", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.GREEN_SETTING_ID));
+            assertEquals("255", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.BLUE_SETTING_ID));
+            controller.enable(Minecraft189CrosshairModule.ID);
+            runtime.renderHud(0L, 0.0F);
+            assertEquals(4, host.rectangleColors.size());
+            for (Integer color : host.rectangleColors) {
+                assertEquals(Integer.valueOf(0xFFFFFFFF), color);
+            }
+
+            cross.redSetting().set(32);
+            cross.greenSetting().set(150);
+            cross.blueSetting().set(240);
+            assertEquals("32", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.RED_SETTING_ID));
+            assertEquals("150", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.GREEN_SETTING_ID));
+            assertEquals("240", settings.snapshotEncoded().get(
+                    Minecraft189CrosshairModule.BLUE_SETTING_ID));
+            host.rectangleColors.clear();
+            runtime.renderHud(1L, 0.0F);
+            assertEquals(4, host.rectangleColors.size());
+            for (Integer color : host.rectangleColors) {
+                assertEquals(Integer.valueOf(0xFF2096F0), color);
+            }
+
+            cross.outlineSetting().set(Boolean.TRUE);
+            cross.dotSetting().set(Boolean.TRUE);
+            host.rectangleColors.clear();
+            runtime.renderHud(2L, 0.0F);
+            assertEquals(10, host.rectangleColors.size());
+            for (int index = 0; index < 5; index++) {
+                assertEquals(Integer.valueOf(0xFF000000),
+                        host.rectangleColors.get(index));
+                assertEquals(Integer.valueOf(0xFF2096F0),
+                        host.rectangleColors.get(index + 5));
+            }
+            cross.redSetting().set(0);
+            cross.greenSetting().set(0);
+            cross.blueSetting().set(0);
+            host.rectangleColors.clear();
+            runtime.renderHud(3L, 0.0F);
+            assertEquals(Integer.valueOf(0xFF000000), host.rectangleColors.get(5));
+            cross.redSetting().set(255);
+            cross.greenSetting().set(255);
+            cross.blueSetting().set(255);
+            cross.outlineSetting().set(Boolean.FALSE);
+            cross.dotSetting().set(Boolean.FALSE);
+            host.rectangleColors.clear();
+            runtime.renderHud(4L, 0.0F);
+            assertEquals(Integer.valueOf(0xFFFFFFFF), host.rectangleColors.get(0));
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> cross.redSetting().set(-1));
+            assertThrows(IllegalArgumentException.class,
+                    () -> cross.greenSetting().set(256));
+            assertThrows(IllegalArgumentException.class,
+                    () -> cross.blueSetting().set(-1));
+            controller.disable(Minecraft189CrosshairModule.ID);
+            host.rectangleColors.clear();
+            runtime.renderHud(5L, 0.0F);
+            assertTrue(host.rectangleColors.isEmpty());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189CrosshairModule.RED_SETTING_ID));
+        assertNull(settings.find(Minecraft189CrosshairModule.GREEN_SETTING_ID));
+        assertNull(settings.find(Minecraft189CrosshairModule.BLUE_SETTING_ID));
+    }
+
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private final List<String> rectangles =
