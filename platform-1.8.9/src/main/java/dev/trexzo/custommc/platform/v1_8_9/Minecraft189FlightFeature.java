@@ -31,6 +31,12 @@ final class Minecraft189FlightFeature
     private final ModuleSettingRegistry.Registration verticalSpeedBinding;
     private final ModuleSettingRegistry.Registration sprintBoostBinding;
     private final ModuleSettingRegistry.Registration sprintMultiplierBinding;
+    private final SettingRegistry.Registration smoothVerticalSetting;
+    private final SettingRegistry.Registration verticalStepSetting;
+    private final SettingPresentationRegistry.Registration smoothVerticalPresentation;
+    private final SettingPresentationRegistry.Registration verticalStepPresentation;
+    private final ModuleSettingRegistry.Registration smoothVerticalBinding;
+    private final ModuleSettingRegistry.Registration verticalStepBinding;
     private boolean closed;
 
     private Minecraft189FlightFeature(
@@ -49,7 +55,13 @@ final class Minecraft189FlightFeature
             final ModuleSettingRegistry.Registration horizontalSpeedBinding,
             final ModuleSettingRegistry.Registration verticalSpeedBinding,
             final ModuleSettingRegistry.Registration sprintBoostBinding,
-            final ModuleSettingRegistry.Registration sprintMultiplierBinding) {
+            final ModuleSettingRegistry.Registration sprintMultiplierBinding,
+            final SettingRegistry.Registration smoothVerticalSetting,
+            final SettingRegistry.Registration verticalStepSetting,
+            final SettingPresentationRegistry.Registration smoothVerticalPresentation,
+            final SettingPresentationRegistry.Registration verticalStepPresentation,
+            final ModuleSettingRegistry.Registration smoothVerticalBinding,
+            final ModuleSettingRegistry.Registration verticalStepBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -66,6 +78,12 @@ final class Minecraft189FlightFeature
         this.verticalSpeedBinding = verticalSpeedBinding;
         this.sprintBoostBinding = sprintBoostBinding;
         this.sprintMultiplierBinding = sprintMultiplierBinding;
+        this.smoothVerticalSetting = smoothVerticalSetting;
+        this.verticalStepSetting = verticalStepSetting;
+        this.smoothVerticalPresentation = smoothVerticalPresentation;
+        this.verticalStepPresentation = verticalStepPresentation;
+        this.smoothVerticalBinding = smoothVerticalBinding;
+        this.verticalStepBinding = verticalStepBinding;
     }
 
     static Minecraft189FlightFeature install(
@@ -94,6 +112,12 @@ final class Minecraft189FlightFeature
         ModuleSettingRegistry.Registration verticalSpeedBinding = null;
         ModuleSettingRegistry.Registration sprintBoostBinding = null;
         ModuleSettingRegistry.Registration sprintMultiplierBinding = null;
+        SettingRegistry.Registration smoothVerticalSetting = null;
+        SettingRegistry.Registration verticalStepSetting = null;
+        SettingPresentationRegistry.Registration smoothVerticalPresentation = null;
+        SettingPresentationRegistry.Registration verticalStepPresentation = null;
+        ModuleSettingRegistry.Registration smoothVerticalBinding = null;
+        ModuleSettingRegistry.Registration verticalStepBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -116,6 +140,8 @@ final class Minecraft189FlightFeature
                             module.verticalSpeedSetting());
             sprintBoostSetting = settings.register(module.sprintBoostSetting());
             sprintMultiplierSetting = settings.register(module.sprintMultiplierSetting());
+            smoothVerticalSetting = settings.register(module.smoothVerticalSetting());
+            verticalStepSetting = settings.register(module.verticalStepSetting());
 
             horizontalSpeedPresentation =
                     settingPresentations.register(
@@ -152,6 +178,17 @@ final class Minecraft189FlightFeature
                                     Minecraft189FlightModule.MINIMUM_SPRINT_MULTIPLIER,
                                     Minecraft189FlightModule.MAXIMUM_SPRINT_MULTIPLIER,
                                     0.10D)));
+            smoothVerticalPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FlightModule.SMOOTH_VERTICAL_SETTING_ID,
+                            "Smooth Vertical", SettingValueKind.BOOLEAN, 40));
+            verticalStepPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FlightModule.VERTICAL_STEP_SETTING_ID,
+                            "Vertical Step", SettingValueKind.DOUBLE, 50,
+                            new SettingNumericSpec(
+                                    Minecraft189FlightModule.MINIMUM_VERTICAL_STEP,
+                                    Minecraft189FlightModule.MAXIMUM_VERTICAL_STEP, 0.01D)));
             horizontalSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -174,6 +211,15 @@ final class Minecraft189FlightFeature
                             Minecraft189FlightModule.ID,
                             Minecraft189FlightModule.SPRINT_MULTIPLIER_SETTING_ID, 30));
 
+            smoothVerticalBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FlightModule.ID,
+                            Minecraft189FlightModule.SMOOTH_VERTICAL_SETTING_ID, 40));
+            verticalStepBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FlightModule.ID,
+                            Minecraft189FlightModule.VERTICAL_STEP_SETTING_ID, 50));
+
             return new Minecraft189FlightFeature(
                     controller,
                     module,
@@ -190,8 +236,20 @@ final class Minecraft189FlightFeature
                     horizontalSpeedBinding,
                     verticalSpeedBinding,
                     sprintBoostBinding,
-                    sprintMultiplierBinding);
+                    sprintMultiplierBinding,
+                    smoothVerticalSetting,
+                    verticalStepSetting,
+                    smoothVerticalPresentation,
+                    verticalStepPresentation,
+                    smoothVerticalBinding,
+                    verticalStepBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(verticalStepBinding, failure);
+            closeQuietly(smoothVerticalBinding, failure);
+            closeQuietly(verticalStepPresentation, failure);
+            closeQuietly(smoothVerticalPresentation, failure);
+            closeQuietly(verticalStepSetting, failure);
+            closeQuietly(smoothVerticalSetting, failure);
             closeQuietly(sprintMultiplierBinding, failure);
             closeQuietly(sprintBoostBinding, failure);
             closeQuietly(sprintMultiplierPresentation, failure);
@@ -237,6 +295,12 @@ final class Minecraft189FlightFeature
             failure = closeFailure;
         }
 
+        failure = close(verticalStepBinding, failure);
+        failure = close(smoothVerticalBinding, failure);
+        failure = close(verticalStepPresentation, failure);
+        failure = close(smoothVerticalPresentation, failure);
+        failure = close(verticalStepSetting, failure);
+        failure = close(smoothVerticalSetting, failure);
         failure = close(sprintMultiplierBinding, failure);
         failure = close(sprintBoostBinding, failure);
         failure = close(sprintMultiplierPresentation, failure);

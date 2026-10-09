@@ -491,6 +491,103 @@ final class Minecraft189FlightModuleTest {
         assertEquals(0.20D, player.motionZ, 0.000000001D);
     }
 
+    @Test
+    void optionalVerticalSmoothingConvergesWithoutOvershoot() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189FlightModule flight = runtime.featureCatalog().flight();
+            assertFalse(flight.smoothVerticalSetting().get().booleanValue());
+            assertEquals(Minecraft189FlightModule.DEFAULT_VERTICAL_STEP,
+                    flight.verticalStepSetting().get().doubleValue(), 0.000001D);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FlightModule.SMOOTH_VERTICAL_SETTING_ID));
+            controller.enable(Minecraft189FlightModule.ID);
+            final TestPlayer player = new TestPlayer();
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionY, 0.000001D); // Default instant.
+
+            flight.smoothVerticalSetting().set(Boolean.TRUE);
+            flight.verticalStepSetting().set(0.10D);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FlightModule.SMOOTH_VERTICAL_SETTING_ID));
+            assertEquals("0.1", settings.snapshotEncoded().get(
+                    Minecraft189FlightModule.VERTICAL_STEP_SETTING_ID));
+            player.motionY = 0.0D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.10D, player.motionY, 0.000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(0.20D, player.motionY, 0.000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionY, 0.000001D);
+            final int steadyCalls = player.setCalls;
+            runtime.playerMotionControl(player);
+            assertEquals(steadyCalls, player.setCalls); // No steady-state writes.
+
+            runtime.inputState().key(LegacyKeyboardCodes.LEFT_SHIFT, true);
+            runtime.playerMotionControl(player);
+            assertEquals(0.20D, player.motionY, 0.000001D);
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionY, 0.000001D); // Hover convergence.
+
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.10D, player.motionY, 0.000001D);
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.30D, player.motionY, 0.000001D);
+
+            flight.verticalStepSetting().set(0.20D); // Live change.
+            runtime.inputState().key(LegacyKeyboardCodes.LEFT_SHIFT, false);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.10D, player.motionY, 0.000001D);
+            flight.smoothVerticalSetting().set(Boolean.FALSE);
+            runtime.playerMotionControl(player);
+            assertEquals(0.30D, player.motionY, 0.000001D); // Instant restored.
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> flight.verticalStepSetting().set(Double.NaN));
+            assertThrows(IllegalArgumentException.class,
+                    () -> flight.verticalStepSetting().set(Double.POSITIVE_INFINITY));
+            assertThrows(IllegalArgumentException.class,
+                    () -> flight.verticalStepSetting().set(0.009D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> flight.verticalStepSetting().set(0.501D));
+
+            flight.smoothVerticalSetting().set(Boolean.TRUE);
+            player.motionY = Double.NaN;
+            final int before = player.setCalls;
+            runtime.playerMotionControl(player);
+            assertEquals(before, player.setCalls); // Unknown source: no write.
+            controller.disable(Minecraft189FlightModule.ID);
+            player.motionY = 0.0D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionY, 0.000001D);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189FlightModule.SMOOTH_VERTICAL_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189FlightModule.VERTICAL_STEP_SETTING_ID));
+        assertNull(modules.find(Minecraft189FlightModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;
