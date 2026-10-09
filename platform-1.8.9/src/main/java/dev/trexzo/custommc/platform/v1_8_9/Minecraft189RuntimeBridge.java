@@ -397,9 +397,17 @@ public final class Minecraft189RuntimeBridge {
             if (host.shouldAutoClick(playerHit, playerIndex)) {
                 final boolean restoreSprint =
                         host.shouldKeepSprintAfterSyntheticClick(playerHit);
-                minecraft.customMcClickMouse();
-                if (restoreSprint) {
-                    host.restoreSprintAfterSyntheticClick();
+                final int originalSlot =
+                        host.selectCombatSlotBeforeSyntheticClick(playerHit);
+                try {
+                    minecraft.customMcClickMouse();
+                    if (restoreSprint) {
+                        host.restoreSprintAfterSyntheticClick();
+                    }
+                } finally {
+                    // Never strand the player on a synthetic combat slot if
+                    // vanilla clickMouse() throws during invocation.
+                    host.restoreCombatSlotAfterSyntheticClick(originalSlot);
                 }
             }
         }

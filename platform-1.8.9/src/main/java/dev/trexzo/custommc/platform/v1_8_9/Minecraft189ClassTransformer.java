@@ -159,6 +159,9 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189InventoryHotbarAccess";
     private static final String INVENTORY_HOTBAR_ACCESS_DESCRIPTOR =
             "L" + INVENTORY_HOTBAR_ACCESS_INTERNAL_NAME + ";";
+    private static final String INVENTORY_HOTBAR_CONTROL_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189InventoryHotbarControl";
     private static final String PLAYER_INVENTORY_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189PlayerInventoryAccess";
@@ -3121,7 +3124,7 @@ public final class Minecraft189ClassTransformer
                                 superName,
                                 withInterface(
                                         interfaces,
-                                        INVENTORY_HOTBAR_ACCESS_INTERNAL_NAME));
+                                        INVENTORY_HOTBAR_CONTROL_INTERNAL_NAME));
                     }
 
                     @Override
@@ -3131,6 +3134,9 @@ public final class Minecraft189ClassTransformer
                                 "customMcSelectedHotbarSlot",
                                 Minecraft189Mappings
                                         .INVENTORY_PLAYER_CURRENT_ITEM);
+                        addIntFieldSetter(cv,
+                                "customMcSetSelectedHotbarSlot",
+                                Minecraft189Mappings.INVENTORY_PLAYER_CURRENT_ITEM);
                         super.visitEnd();
                     }
                 },

@@ -48,6 +48,7 @@ public final class Minecraft189HostRuntime
             new Minecraft189CriticalsEvidence();
     // Per-host-tick reference only; cleared before every new position sample.
     private Minecraft189PlayerSprintControl tickSprintControl;
+    private Minecraft189InventoryHotbarControl tickHotbarControl;
     private final Minecraft189NearestPlayerTargetState nearestPlayerTargetState;
     private final Minecraft189TargetRotationState targetRotationState;
     // Range-only Aim Assist targeting does not replace general nearest-player state.
@@ -484,6 +485,7 @@ public final class Minecraft189HostRuntime
         // evidence can authorize an automatic attack after world changes.
         criticalsEvidence.reset();
         tickSprintControl = null;
+        tickHotbarControl = null;
         nearestPlayerTargetState.clear();
         if (player == null) {
             targetRotationState.clear();
@@ -1129,12 +1131,16 @@ public final class Minecraft189HostRuntime
     void playerHotbarSlot(
             final Minecraft189PlayerInventoryAccess player) {
         requireOpen();
+        tickHotbarControl = null;
         if (player == null) {
             hotbarSlotState.clear();
             return;
         }
         final Minecraft189InventoryHotbarAccess inventory =
                 player.customMcInventory();
+        if (inventory instanceof Minecraft189InventoryHotbarControl) {
+            tickHotbarControl = (Minecraft189InventoryHotbarControl) inventory;
+        }
         if (inventory == null) {
             hotbarSlotState.clear();
             return;
@@ -1363,6 +1369,17 @@ public final class Minecraft189HostRuntime
     }
 
     /** Eligibility captured immediately before the native synthetic click. */
+    int selectCombatSlotBeforeSyntheticClick(final boolean playerHit) {
+        requireOpen();
+        return featureCatalog.combatSlot().select(tickHotbarControl, playerHit,
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
+    }
+
+    void restoreCombatSlotAfterSyntheticClick(final int originalSlot) {
+        requireOpen();
+        featureCatalog.combatSlot().restore(tickHotbarControl, originalSlot);
+    }
+
     boolean shouldKeepSprintAfterSyntheticClick(final boolean playerHit) {
         requireOpen();
         final Minecraft189PlayerSprintControl current = tickSprintControl;
@@ -1618,6 +1635,7 @@ public final class Minecraft189HostRuntime
         worldEntityPositionState.clear();
         criticalsEvidence.reset();
         tickSprintControl = null;
+        tickHotbarControl = null;
         worldEntityKindState.clear();
         worldEntityCombatState.clear();
         nearestPlayerTargetState.clear();

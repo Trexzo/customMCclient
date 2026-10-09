@@ -651,6 +651,12 @@ final class Minecraft189MappedHostTransformationTest {
                     .setInt(
                             inventory,
                             4);
+            final Minecraft189InventoryHotbarControl control =
+                    (Minecraft189InventoryHotbarControl) inventory;
+            assertEquals(4, control.customMcSelectedHotbarSlot());
+            control.customMcSetSelectedHotbarSlot(8);
+            assertEquals(8, inventoryClass.getField("c").getInt(inventory));
+            control.customMcSetSelectedHotbarSlot(4);
             playerClass.getField("bi")
                     .set(
                             player,
