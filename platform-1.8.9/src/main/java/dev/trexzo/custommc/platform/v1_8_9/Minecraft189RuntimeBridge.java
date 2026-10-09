@@ -395,7 +395,12 @@ public final class Minecraft189RuntimeBridge {
                             .customMcCrosshairPlayerIndex()
                     : -1;
             if (host.shouldAutoClick(playerHit, playerIndex)) {
+                final boolean restoreSprint =
+                        host.shouldKeepSprintAfterSyntheticClick(playerHit);
                 minecraft.customMcClickMouse();
+                if (restoreSprint) {
+                    host.restoreSprintAfterSyntheticClick();
+                }
             }
         }
     }

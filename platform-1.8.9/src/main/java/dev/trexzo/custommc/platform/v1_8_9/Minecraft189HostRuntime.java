@@ -46,6 +46,8 @@ public final class Minecraft189HostRuntime
             new Minecraft189WorldEntityCombatState();
     private final Minecraft189CriticalsEvidence criticalsEvidence =
             new Minecraft189CriticalsEvidence();
+    // Per-host-tick reference only; cleared before every new position sample.
+    private Minecraft189PlayerSprintControl tickSprintControl;
     private final Minecraft189NearestPlayerTargetState nearestPlayerTargetState;
     private final Minecraft189TargetRotationState targetRotationState;
     // Range-only Aim Assist targeting does not replace general nearest-player state.
@@ -481,6 +483,7 @@ public final class Minecraft189HostRuntime
         // Clear both halves on every host tick. No stale fall/motion
         // evidence can authorize an automatic attack after world changes.
         criticalsEvidence.reset();
+        tickSprintControl = null;
         nearestPlayerTargetState.clear();
         if (player == null) {
             targetRotationState.clear();
@@ -684,6 +687,7 @@ public final class Minecraft189HostRuntime
     void playerSprintControl(
             final Minecraft189PlayerSprintControl player) {
         requireOpen();
+        tickSprintControl = player;
         if (player == null) {
             featureCatalog.wTap()
                     .apply(
@@ -1358,6 +1362,37 @@ public final class Minecraft189HostRuntime
                                 Minecraft189ClickRateTracker.LEFT_BUTTON));
     }
 
+    /** Eligibility captured immediately before the native synthetic click. */
+    boolean shouldKeepSprintAfterSyntheticClick(final boolean playerHit) {
+        requireOpen();
+        final Minecraft189PlayerSprintControl current = tickSprintControl;
+        if (!(current instanceof Minecraft189PlayerMovementStateAccess)) {
+            return false;
+        }
+        final Minecraft189PlayerMovementStateAccess state =
+                (Minecraft189PlayerMovementStateAccess) current;
+        final Minecraft189PlayerMovementState measured =
+                new Minecraft189PlayerMovementState();
+        measured.update(state.customMcOnGround(), state.customMcSneaking(),
+                state.customMcSprinting());
+        return featureCatalog.keepSprint().shouldRestore(
+                measured.snapshot(), state.customMcSprinting(),
+                inputState.keyPressed(LegacyKeyboardCodes.W), playerHit,
+                featureCatalog.wTap().active(),
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
+    }
+
+    void restoreSprintAfterSyntheticClick() {
+        requireOpen();
+        // Called synchronously after the mapped vanilla click. Preserve
+        // WTap's higher-priority sprint-reset behavior if it is active.
+        if (tickSprintControl != null && featureCatalog.keepSprint().active()
+                && !featureCatalog.wTap().active()
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            tickSprintControl.customMcSetSprinting(true);
+        }
+    }
+
     boolean shouldAutoClick() {
         return shouldAutoClick(false, -1);
     }
@@ -1582,6 +1617,7 @@ public final class Minecraft189HostRuntime
         worldWeatherState.clear();
         worldEntityPositionState.clear();
         criticalsEvidence.reset();
+        tickSprintControl = null;
         worldEntityKindState.clear();
         worldEntityCombatState.clear();
         nearestPlayerTargetState.clear();
