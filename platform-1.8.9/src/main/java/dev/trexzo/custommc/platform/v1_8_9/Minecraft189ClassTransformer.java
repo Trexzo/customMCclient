@@ -4052,6 +4052,7 @@ public final class Minecraft189ClassTransformer
         final Label nonLiving = new Label();
         final Label noTabInfo = new Label();
         final Label noMinecraftForTeam = new Label();
+        final Label wrongWorldForTeam = new Label();
         final Label noLocalPlayerForTeam = new Label();
         final Label teamComplete = new Label();
         final Label store = new Label();
@@ -4161,6 +4162,14 @@ public final class Minecraft189ClassTransformer
                 Minecraft189Mappings.MINECRAFT_GET_MINECRAFT.descriptor(), false);
         method.visitInsn(Opcodes.DUP);
         method.visitJumpInsn(Opcodes.IFNULL, noMinecraftForTeam);
+        // Refuse team evidence from a world other than active Minecraft.world.
+        method.visitInsn(Opcodes.DUP);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                Minecraft189Mappings.MINECRAFT.obfuscatedInternalName(),
+                Minecraft189Mappings.MINECRAFT_WORLD.obfuscatedName(),
+                Minecraft189Mappings.MINECRAFT_WORLD.descriptor());
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitJumpInsn(Opcodes.IF_ACMPNE, wrongWorldForTeam);
         method.visitFieldInsn(Opcodes.GETFIELD,
                 Minecraft189Mappings.MINECRAFT.obfuscatedInternalName(),
                 Minecraft189Mappings.MINECRAFT_PLAYER.obfuscatedName(),
@@ -4185,6 +4194,15 @@ public final class Minecraft189ClassTransformer
         method.visitJumpInsn(Opcodes.GOTO, teamComplete);
 
         method.visitLabel(noMinecraftForTeam);
+        method.visitFrame(Opcodes.F_FULL, 6,
+                new Object[]{world, "java/util/List", Opcodes.INTEGER,
+                        "[I", Opcodes.INTEGER, "java/lang/Object"},
+                2, new Object[]{Opcodes.INTEGER,
+                        Minecraft189Mappings.MINECRAFT.obfuscatedInternalName()});
+        method.visitInsn(Opcodes.POP);
+        method.visitJumpInsn(Opcodes.GOTO, teamComplete);
+
+        method.visitLabel(wrongWorldForTeam);
         method.visitFrame(Opcodes.F_FULL, 6,
                 new Object[]{world, "java/util/List", Opcodes.INTEGER,
                         "[I", Opcodes.INTEGER, "java/lang/Object"},
