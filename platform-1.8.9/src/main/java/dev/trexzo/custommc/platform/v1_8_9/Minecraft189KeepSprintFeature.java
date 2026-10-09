@@ -7,6 +7,7 @@ import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.module.ModuleSettingBinding;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
 import dev.trexzo.custommc.core.module.ModuleState;
+import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingDescriptor;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
