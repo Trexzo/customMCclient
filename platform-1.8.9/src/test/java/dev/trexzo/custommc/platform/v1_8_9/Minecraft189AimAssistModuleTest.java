@@ -1448,6 +1448,110 @@ final class Minecraft189AimAssistModuleTest {
         assertNull(modules.find(Minecraft189AimAssistModule.ID));
     }
 
+    @Test
+    void correctionIntervalReservesAimOwnershipButNeverBuffersRotations() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final ModulePresentationRegistry presentations = new ModulePresentationRegistry();
+        final SettingRegistry settings = new SettingRegistry();
+        final SettingPresentationRegistry settingPresentations =
+                new SettingPresentationRegistry();
+        final ModuleSettingRegistry moduleSettings =
+                new ModuleSettingRegistry(modules, settings);
+        final Minecraft189AimAssistFeature feature = Minecraft189AimAssistFeature.install(
+                modules, controller, presentations, moduleSettings,
+                settings, settingPresentations);
+        try {
+            final Minecraft189AimAssistModule aim = feature.module();
+            final Minecraft189PlayerPositionState local =
+                    new Minecraft189PlayerPositionState();
+            final Minecraft189WorldEntityPositionState positions =
+                    new Minecraft189WorldEntityPositionState();
+            final Minecraft189WorldEntityKindState kinds =
+                    new Minecraft189WorldEntityKindState();
+            final Minecraft189NearestPlayerTargetState nearest =
+                    new Minecraft189NearestPlayerTargetState();
+            final Minecraft189TargetRotationState target =
+                    new Minecraft189TargetRotationState();
+            final Minecraft189PlayerRotationState rotation =
+                    new Minecraft189PlayerRotationState();
+            local.update(0.0D, 0.0D, 0.0D);
+            positions.update(new double[]{0.0D, 0.0D, 10.0D});
+            kinds.update(new int[]{
+                    Minecraft189WorldEntityKindState.LIVING
+                            | Minecraft189WorldEntityKindState.PLAYER});
+            nearest.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+            target.update(local.snapshot(), nearest.snapshot());
+            final TestPlayer player = new TestPlayer(40.0F, 0.0F);
+            aim.yawSpeedSetting().set(5.0D);
+            aim.pitchEnabledSetting().set(Boolean.FALSE);
+            controller.enable(Minecraft189AimAssistModule.ID);
+            assertEquals("1", settings.snapshotEncoded().get(
+                    Minecraft189AimAssistModule.CORRECTION_INTERVAL_SETTING_ID));
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(35.0F, player.yaw, 0.00001F); // Default every update.
+
+            aim.correctionIntervalTicksSetting().set(3);
+            assertEquals("3", settings.snapshotEncoded().get(
+                    Minecraft189AimAssistModule.CORRECTION_INTERVAL_SETTING_ID));
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(30.0F, player.yaw, 0.00001F); // Fresh immediate.
+            final int firstWrites = player.yawWrites;
+            for (int i = 0; i < 2; i++) {
+                rotation.update(player.yaw, player.pitch);
+                assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+                assertEquals(firstWrites, player.yawWrites);
+            }
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(25.0F, player.yaw, 0.00001F);
+
+            // Attack release drops old waiting time: next hold starts
+            // immediately rather than waiting or banking a correction.
+            aim.requireHoldSetting().set(Boolean.TRUE);
+            rotation.update(player.yaw, player.pitch);
+            assertFalse(aim.apply(player, rotation.snapshot(), target.snapshot(), false));
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(20.0F, player.yaw, 0.00001F);
+
+            aim.correctionIntervalTicksSetting().set(2);
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(15.0F, player.yaw, 0.00001F); // Live reset.
+            final int writesAfterEdit = player.yawWrites;
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(writesAfterEdit, player.yawWrites);
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(10.0F, player.yaw, 0.00001F);
+
+            // Dead zone and absent target data disarm the cadence.
+            aim.deadZoneSetting().set(20.0D);
+            rotation.update(player.yaw, player.pitch);
+            assertFalse(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            aim.deadZoneSetting().set(0.0D);
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(5.0F, player.yaw, 0.00001F);
+            target.clear();
+            rotation.update(player.yaw, player.pitch);
+            assertFalse(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertFalse(aim.apply(player, rotation.snapshot(), null, true));
+            assertThrows(IllegalArgumentException.class,
+                    () -> aim.correctionIntervalTicksSetting().set(0));
+            assertThrows(IllegalArgumentException.class,
+                    () -> aim.correctionIntervalTicksSetting().set(11));
+            controller.disable(Minecraft189AimAssistModule.ID);
+        } finally {
+            feature.close();
+        }
+        assertNull(settings.find(
+                Minecraft189AimAssistModule.CORRECTION_INTERVAL_SETTING_ID));
+        assertNull(modules.find(Minecraft189AimAssistModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerRotationControl {
         private float yaw;

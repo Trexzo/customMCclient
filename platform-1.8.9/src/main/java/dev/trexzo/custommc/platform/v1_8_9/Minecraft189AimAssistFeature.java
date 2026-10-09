@@ -82,6 +82,9 @@ final class Minecraft189AimAssistFeature
     private final SettingPresentationRegistry.Registration maxCombinedStepPresentation;
     private final ModuleSettingRegistry.Registration combinedStepBinding;
     private final ModuleSettingRegistry.Registration maxCombinedStepBinding;
+    private final SettingRegistry.Registration correctionIntervalSetting;
+    private final SettingPresentationRegistry.Registration correctionIntervalPresentation;
+    private final ModuleSettingRegistry.Registration correctionIntervalBinding;
     private boolean closed;
 
     private Minecraft189AimAssistFeature(
@@ -151,7 +154,10 @@ final class Minecraft189AimAssistFeature
             final SettingPresentationRegistry.Registration combinedStepPresentation,
             final SettingPresentationRegistry.Registration maxCombinedStepPresentation,
             final ModuleSettingRegistry.Registration combinedStepBinding,
-            final ModuleSettingRegistry.Registration maxCombinedStepBinding) {
+            final ModuleSettingRegistry.Registration maxCombinedStepBinding,
+            final SettingRegistry.Registration correctionIntervalSetting,
+            final SettingPresentationRegistry.Registration correctionIntervalPresentation,
+            final ModuleSettingRegistry.Registration correctionIntervalBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -219,6 +225,9 @@ final class Minecraft189AimAssistFeature
         this.maxCombinedStepPresentation = maxCombinedStepPresentation;
         this.combinedStepBinding = combinedStepBinding;
         this.maxCombinedStepBinding = maxCombinedStepBinding;
+        this.correctionIntervalSetting = correctionIntervalSetting;
+        this.correctionIntervalPresentation = correctionIntervalPresentation;
+        this.correctionIntervalBinding = correctionIntervalBinding;
     }
 
     static Minecraft189AimAssistFeature install(
@@ -296,6 +305,9 @@ final class Minecraft189AimAssistFeature
         SettingPresentationRegistry.Registration maxCombinedStepPresentation = null;
         ModuleSettingRegistry.Registration combinedStepBinding = null;
         ModuleSettingRegistry.Registration maxCombinedStepBinding = null;
+        SettingRegistry.Registration correctionIntervalSetting = null;
+        SettingPresentationRegistry.Registration correctionIntervalPresentation = null;
+        ModuleSettingRegistry.Registration correctionIntervalBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -364,6 +376,8 @@ final class Minecraft189AimAssistFeature
             easingStrengthSetting = settings.register(module.easingStrengthSetting());
             combinedStepSetting = settings.register(module.combinedStepSetting());
             maxCombinedStepSetting = settings.register(module.maxCombinedStepSetting());
+            correctionIntervalSetting = settings.register(
+                    module.correctionIntervalTicksSetting());
             yawSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -543,6 +557,15 @@ final class Minecraft189AimAssistFeature
                                     Minecraft189AimAssistModule.MINIMUM_SPEED,
                                     Minecraft189AimAssistModule.MAXIMUM_SPEED,
                                     0.1D)));
+            correctionIntervalPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AimAssistModule.CORRECTION_INTERVAL_SETTING_ID,
+                            "Correction Interval Ticks", SettingValueKind.INTEGER, 110,
+                            new SettingNumericSpec(
+                                    1.0D,
+                                    Minecraft189AimAssistModule.MAXIMUM_CORRECTION_INTERVAL,
+                                    1.0D)));
+
             yawSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -664,6 +687,12 @@ final class Minecraft189AimAssistFeature
                             Minecraft189AimAssistModule.ID,
                             Minecraft189AimAssistModule.MAX_COMBINED_STEP_SETTING_ID, 100));
 
+            correctionIntervalBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AimAssistModule.ID,
+                            Minecraft189AimAssistModule.CORRECTION_INTERVAL_SETTING_ID,
+                            110));
+
             return new Minecraft189AimAssistFeature(
                     controller,
                     module,
@@ -731,8 +760,14 @@ final class Minecraft189AimAssistFeature
                     combinedStepPresentation,
                     maxCombinedStepPresentation,
                     combinedStepBinding,
-                    maxCombinedStepBinding);
+                    maxCombinedStepBinding,
+                    correctionIntervalSetting,
+                    correctionIntervalPresentation,
+                    correctionIntervalBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(correctionIntervalBinding, failure);
+            closeQuietly(correctionIntervalPresentation, failure);
+            closeQuietly(correctionIntervalSetting, failure);
             closeQuietly(maxCombinedStepBinding, failure);
             closeQuietly(combinedStepBinding, failure);
             closeQuietly(maxCombinedStepPresentation, failure);
@@ -829,6 +864,9 @@ final class Minecraft189AimAssistFeature
             failure = closeFailure;
         }
 
+        failure = close(correctionIntervalBinding, failure);
+        failure = close(correctionIntervalPresentation, failure);
+        failure = close(correctionIntervalSetting, failure);
         failure = close(maxCombinedStepBinding, failure);
         failure = close(combinedStepBinding, failure);
         failure = close(maxCombinedStepPresentation, failure);
