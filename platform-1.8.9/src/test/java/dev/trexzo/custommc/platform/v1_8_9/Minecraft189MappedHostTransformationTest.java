@@ -263,7 +263,7 @@ final class Minecraft189MappedHostTransformationTest {
                 transformer.transform("auh", movingObjectShape()));
         loader.put(
                 "auh$a",
-                emptyClass("auh$a"));
+                transformer.transform("auh$a", movingObjectTypeShape()));
         loader.put(
                 "bda",
                 transformer.transform(
@@ -439,6 +439,35 @@ final class Minecraft189MappedHostTransformationTest {
             final Object minecraft =
                     minecraftClass.getDeclaredConstructor()
                             .newInstance();
+            final Minecraft189CrosshairHitAccess rayHit =
+                    (Minecraft189CrosshairHitAccess) minecraft;
+            org.junit.jupiter.api.Assertions.assertFalse(
+                    rayHit.customMcCrosshairPlayerHit());
+            final Class<?> enumClass = loader.loadClass("auh$a");
+            final Object entityType = enumClass.getDeclaredConstructor()
+                    .newInstance();
+            enumClass.getField("c").set(null, entityType);
+            final Class<?> hitClass = loader.loadClass("auh");
+            final Object hit = hitClass.getDeclaredConstructor().newInstance();
+            final Object playerHit = loader.loadClass("wn")
+                    .getDeclaredConstructor().newInstance();
+            hitClass.getField("a").set(hit, entityType);
+            hitClass.getField("d").set(hit, playerHit);
+            minecraftClass.getField("s").set(minecraft, hit);
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    rayHit.customMcCrosshairPlayerHit());
+            hitClass.getField("d").set(hit,
+                    loader.loadClass("pk").getDeclaredConstructor().newInstance());
+            org.junit.jupiter.api.Assertions.assertFalse(
+                    rayHit.customMcCrosshairPlayerHit());
+            hitClass.getField("d").set(hit, playerHit);
+            hitClass.getField("a").set(hit,
+                    enumClass.getDeclaredConstructor().newInstance());
+            org.junit.jupiter.api.Assertions.assertFalse(
+                    rayHit.customMcCrosshairPlayerHit());
+            minecraftClass.getField("s").set(minecraft, null);
+            org.junit.jupiter.api.Assertions.assertFalse(
+                    rayHit.customMcCrosshairPlayerHit());
             minecraftClass.getField("ap")
                     .setInt(
                             minecraft,
@@ -6662,6 +6691,14 @@ final class Minecraft189MappedHostTransformationTest {
         endDefaultConstructor(
                 writer,
                 "bda");
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    private static byte[] movingObjectTypeShape() {
+        final ClassWriter writer = classWriter("auh$a");
+        field(writer, "c", "Lauh$a;");
+        endDefaultConstructor(writer, "auh$a");
         writer.visitEnd();
         return writer.toByteArray();
     }

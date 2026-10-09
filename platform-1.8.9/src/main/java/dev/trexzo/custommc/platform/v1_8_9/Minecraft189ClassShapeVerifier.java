@@ -57,6 +57,14 @@ public final class Minecraft189ClassShapeVerifier {
                 new Minecraft189Mappings.MappedMethod[0]);
     }
 
+    public static void verifyMovingObjectType(
+            final byte[] classBytes) {
+        verify(classBytes, Minecraft189Mappings.MOVING_OBJECT_TYPE,
+                new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.MOVING_OBJECT_TYPE_ENTITY
+                }, new Minecraft189Mappings.MappedMethod[0]);
+    }
+
     public static void verifyPlayerControllerMp(
             final byte[] classBytes) {
         verify(

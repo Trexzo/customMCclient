@@ -219,6 +219,10 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.MOVING_OBJECT_POSITION,
                 "d", "Lpk;", "field_72308_g", "entityHit");
         assertField(
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_ENTITY,
+                Minecraft189Mappings.MOVING_OBJECT_TYPE,
+                "c", "Lauh$a;", "ENTITY", "ENTITY");
+        assertField(
                 Minecraft189Mappings.MINECRAFT_LEFT_CLICK_COUNTER,
                 Minecraft189Mappings.MINECRAFT,
                 "ag",
@@ -2035,6 +2039,23 @@ final class Minecraft189MappingsTest {
                         Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedBinaryName(),
                         finish(wrongDescriptor)));
         // A proximity-only target is NOT a validated ray-trace hit.
+    }
+
+    @Test
+    void hitEntityEnumShapeFailsClosed() {
+        final ClassWriter valid = writer(
+                Minecraft189Mappings.MOVING_OBJECT_TYPE.obfuscatedInternalName());
+        addField(valid, Minecraft189Mappings.MOVING_OBJECT_TYPE_ENTITY);
+        Minecraft189ClassShapeVerifier.verifyMovingObjectType(finish(valid));
+        final ClassWriter invalid = writer(
+                Minecraft189Mappings.MOVING_OBJECT_TYPE.obfuscatedInternalName());
+        final IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> Minecraft189ClassShapeVerifier.verifyMovingObjectType(
+                        finish(invalid)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: auh$a.c Lauh$a; (ENTITY)",
+                ex.getMessage());
     }
 
     @Test
