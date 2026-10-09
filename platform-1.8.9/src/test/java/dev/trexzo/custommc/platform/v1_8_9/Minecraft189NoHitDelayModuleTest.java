@@ -199,6 +199,81 @@ final class Minecraft189NoHitDelayModuleTest {
                         Minecraft189FeatureCatalog.COMBAT_CATEGORY_ID));
     }
 
+    @Test
+    void optionalAttackHeldGateUsesRealMouseStateWithIndependentMovementGuards() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189NoHitDelayModule delay =
+                    runtime.featureCatalog().noHitDelay();
+            assertFalse(delay.requireAttackHeldSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189NoHitDelayModule.REQUIRE_ATTACK_HELD_SETTING_ID));
+            controller.enable(Minecraft189NoHitDelayModule.ID);
+            assertEquals(0, runtime.leftClickCounter(7)); // Legacy default.
+
+            delay.requireAttackHeldSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NoHitDelayModule.REQUIRE_ATTACK_HELD_SETTING_ID));
+            assertEquals(7, runtime.leftClickCounter(7));
+            assertEquals(7, delay.apply(7)); // Legacy API fails closed.
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            assertEquals(0, runtime.leftClickCounter(7));
+            assertEquals(-1, runtime.leftClickCounter(-1));
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            assertEquals(7, runtime.leftClickCounter(7));
+
+            delay.groundOnlySetting().set(Boolean.TRUE);
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            assertEquals(7, runtime.leftClickCounter(7)); // Missing state.
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(7, runtime.leftClickCounter(7)); // Airborne.
+            runtime.playerMovementState().update(true, false, false);
+            assertEquals(0, runtime.leftClickCounter(7)); // Grounded.
+
+            delay.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(true, true, false);
+            assertEquals(7, runtime.leftClickCounter(7)); // Sneak overrides hold.
+            delay.groundOnlySetting().set(Boolean.FALSE);
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(0, runtime.leftClickCounter(7)); // Air okay.
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            assertEquals(7, runtime.leftClickCounter(7));
+
+            delay.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            delay.requireAttackHeldSetting().set(Boolean.FALSE);
+            runtime.playerMovementState().clear();
+            assertEquals(0, runtime.leftClickCounter(7)); // Original default.
+
+            delay.delaySetting().set(3);
+            assertEquals(3, runtime.leftClickCounter(7));
+            assertEquals(2, runtime.leftClickCounter(2));
+            controller.disable(Minecraft189NoHitDelayModule.ID);
+            assertEquals(7, runtime.leftClickCounter(7));
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189NoHitDelayModule.REQUIRE_ATTACK_HELD_SETTING_ID));
+        assertNull(modules.find(Minecraft189NoHitDelayModule.ID));
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override
