@@ -2887,8 +2887,9 @@ public final class Minecraft189ClassTransformer
                                         withInterface(
                                                 withInterface(
                                                         withInterface(
-                                                                interfaces,
-                                                                WORLD_TIME_ACCESS_INTERNAL_NAME),
+                                                                withInterface(
+                                                                        interfaces,
+                                                                        WORLD_TIME_ACCESS_INTERNAL_NAME),
                                                         WORLD_WEATHER_ACCESS_INTERNAL_NAME),
                                                 WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME),
                                         WORLD_ENTITY_KINDS_ACCESS_INTERNAL_NAME),
