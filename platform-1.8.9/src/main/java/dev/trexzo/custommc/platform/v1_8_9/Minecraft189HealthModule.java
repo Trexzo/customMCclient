@@ -26,6 +26,11 @@ public final class Minecraft189HealthModule
             "render.health.showPercent";
     public static final String SHOW_BAR_SETTING_ID =
             "render.health.showBar";
+    public static final String BAR_WIDTH_SETTING_ID =
+            "render.health.barWidth";
+    public static final int DEFAULT_BAR_WIDTH = 120;
+    public static final int MINIMUM_BAR_WIDTH = 40;
+    public static final int MAXIMUM_BAR_WIDTH = 240;
     public static final String LOW_HEALTH_ALERT_SETTING_ID =
             "render.health.lowHealthAlert";
     public static final String LOW_HEALTH_THRESHOLD_SETTING_ID =
@@ -38,7 +43,6 @@ public final class Minecraft189HealthModule
     private static final int LOW_HEALTH_ARGB = 0xFFFF6969;
     private static final int BAR_TRACK_ARGB = 0xBB26303A;
     private static final int BAR_FILL_ARGB = 0xFF70C9E8;
-    private static final float BAR_WIDTH = 120.0F;
     private static final float BAR_HEIGHT = 4.0F;
 
     private final Minecraft189PlayerHealthState healthState;
@@ -68,6 +72,11 @@ public final class Minecraft189HealthModule
             new Setting<Boolean>(
                     SHOW_BAR_SETTING_ID, Boolean.FALSE,
                     value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> barWidth = new Setting<Integer>(
+            BAR_WIDTH_SETTING_ID, DEFAULT_BAR_WIDTH,
+            value -> value != null && value >= MINIMUM_BAR_WIDTH
+                    && value <= MAXIMUM_BAR_WIDTH,
+            SettingCodecs.INTEGER);
     private final Setting<Boolean> lowHealthAlert =
             new Setting<Boolean>(
                     LOW_HEALTH_ALERT_SETTING_ID,
@@ -119,6 +128,10 @@ public final class Minecraft189HealthModule
 
     public Setting<Boolean> showBarSetting() {
         return showBar;
+    }
+
+    public Setting<Integer> barWidthSetting() {
+        return barWidth;
     }
 
     public Setting<Boolean> lowHealthAlertSetting() {
@@ -244,11 +257,12 @@ public final class Minecraft189HealthModule
                 if (showBar.get().booleanValue()) {
                     final float barY = top + 12.0F;
                     final float fraction = healthBarFraction(health);
+                    final float width = barWidth.get().floatValue();
                     hostCallbacks.fillRect(left, barY,
-                            BAR_WIDTH, BAR_HEIGHT, BAR_TRACK_ARGB);
+                            width, BAR_HEIGHT, BAR_TRACK_ARGB);
                     if (fraction > 0.0F) {
                         hostCallbacks.fillRect(left, barY,
-                                BAR_WIDTH * fraction, BAR_HEIGHT,
+                                width * fraction, BAR_HEIGHT,
                                 warn ? LOW_HEALTH_ARGB : BAR_FILL_ARGB);
                     }
                 }

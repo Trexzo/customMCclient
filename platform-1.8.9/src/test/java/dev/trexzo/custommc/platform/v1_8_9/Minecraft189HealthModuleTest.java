@@ -306,6 +306,81 @@ final class Minecraft189HealthModuleTest {
         assertNull(modules.find(Minecraft189HealthModule.ID));
     }
 
+    @Test
+    void healthBarWidthAdjustsTrackAndFillWithLivePersistence() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                host);
+        try {
+            final Minecraft189HealthModule hud = runtime.featureCatalog().health();
+            assertEquals(Integer.valueOf(120), hud.barWidthSetting().get());
+            assertEquals("120", settings.snapshotEncoded().get(
+                    Minecraft189HealthModule.BAR_WIDTH_SETTING_ID));
+            controller.enable(Minecraft189HealthModule.ID);
+            runtime.playerHealth(healthAccess(15.0F, 20.0F));
+            runtime.renderHud(0L, 0.0F);
+            assertEquals(0, host.healthBarTracks); // Default text-only parity.
+
+            hud.showBarSetting().set(Boolean.TRUE);
+            runtime.renderHud(1L, 0.0F);
+            assertEquals(120.0F, host.lastBarTrackWidth, 0.00001F);
+            assertEquals(90.0F, host.lastBarFillWidth, 0.00001F);
+
+            hud.barWidthSetting().set(200);
+            assertEquals("200", settings.snapshotEncoded().get(
+                    Minecraft189HealthModule.BAR_WIDTH_SETTING_ID));
+            runtime.renderHud(2L, 0.0F);
+            assertEquals(200.0F, host.lastBarTrackWidth, 0.00001F);
+            assertEquals(150.0F, host.lastBarFillWidth, 0.00001F);
+            assertEquals("Health: 15.0 / 20.0", host.lastText);
+
+            hud.lowHealthAlertSetting().set(Boolean.TRUE);
+            runtime.playerHealth(healthAccess(4.0F, 20.0F));
+            runtime.renderHud(3L, 0.0F);
+            assertEquals(200.0F, host.lastBarTrackWidth, 0.00001F);
+            assertEquals(40.0F, host.lastBarFillWidth, 0.00001F);
+            assertEquals(0xFFFF6969, host.lastBarColor);
+
+            hud.barWidthSetting().set(40);
+            runtime.playerHealth(healthAccess(30.0F, 20.0F));
+            runtime.renderHud(4L, 0.0F);
+            assertEquals(40.0F, host.lastBarTrackWidth, 0.00001F);
+            assertEquals(40.0F, host.lastBarFillWidth, 0.00001F);
+            hud.barWidthSetting().set(240);
+            runtime.playerHealth(healthAccess(10.0F, 20.0F));
+            runtime.renderHud(5L, 0.0F);
+            assertEquals(240.0F, host.lastBarTrackWidth, 0.00001F);
+            assertEquals(120.0F, host.lastBarFillWidth, 0.00001F);
+            assertThrows(IllegalArgumentException.class,
+                    () -> hud.barWidthSetting().set(39));
+            assertThrows(IllegalArgumentException.class,
+                    () -> hud.barWidthSetting().set(241));
+            hud.showBarSetting().set(Boolean.FALSE);
+            final int tracks = host.healthBarTracks;
+            runtime.renderHud(6L, 0.0F);
+            assertEquals(tracks, host.healthBarTracks);
+            controller.disable(Minecraft189HealthModule.ID);
+            runtime.renderHud(7L, 0.0F);
+            assertEquals(tracks, host.healthBarTracks);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189HealthModule.BAR_WIDTH_SETTING_ID));
+        assertNull(modules.find(Minecraft189HealthModule.ID));
+    }
+
     private static Minecraft189PlayerHealthAccess healthAccess(
             final float health, final float maxHealth) {
         return new Minecraft189PlayerHealthAccess() {
@@ -328,6 +403,7 @@ final class Minecraft189HealthModuleTest {
         private float lastX;
         private float lastY;
         private int healthBarTracks;
+        private float lastBarTrackWidth;
         private int healthBarFills;
         private float lastBarFillWidth;
         private float lastBarY;
@@ -362,6 +438,7 @@ final class Minecraft189HealthModuleTest {
                 final int argb) {
             if (argb == 0xBB26303A) {
                 healthBarTracks++;
+                lastBarTrackWidth = width;
             }
             if (argb == 0xFF70C9E8 || argb == 0xFFFF6969) {
                 healthBarFills++;
