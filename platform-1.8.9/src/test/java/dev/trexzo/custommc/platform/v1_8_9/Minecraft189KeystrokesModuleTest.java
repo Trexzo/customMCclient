@@ -221,6 +221,96 @@ final class Minecraft189KeystrokesModuleTest {
                         Minecraft189KeystrokesModule.Y_SETTING_ID));
     }
 
+    @Test
+    void optionalSpaceAndShiftKeysRenderIndependentLiveRows() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189KeystrokesModule keys =
+                    runtime.featureCatalog().keystrokes();
+            assertFalse(keys.showSpaceSetting().get().booleanValue());
+            assertFalse(keys.showShiftSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189KeystrokesModule.SHOW_SPACE_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189KeystrokesModule.SHOW_SHIFT_SETTING_ID));
+            keys.xSetting().set(100);
+            keys.ySetting().set(200);
+            controller.enable(Minecraft189KeystrokesModule.ID);
+            runtime.renderHud(0L, 0.0F);
+            assertEquals(Arrays.asList("W", "A", "S", "D", "LMB", "RMB"),
+                    host.labels);
+
+            keys.showSpaceSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189KeystrokesModule.SHOW_SPACE_SETTING_ID));
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            host.clear();
+            runtime.renderHud(1L, 0.0F);
+            assertEquals(Arrays.asList(
+                    "W", "A", "S", "D", "LMB", "RMB", "SPACE"),
+                    host.labels);
+            assertEquals("100.0,266.0", host.rectPositions.get(6));
+            assertEquals(Integer.valueOf(0xD0FFFFFF), host.rectColors.get(6));
+
+            keys.showShiftSetting().set(Boolean.TRUE);
+            runtime.inputState().key(LegacyKeyboardCodes.RIGHT_SHIFT, true);
+            host.clear();
+            runtime.renderHud(2L, 0.0F);
+            assertEquals(Arrays.asList(
+                    "W", "A", "S", "D", "LMB", "RMB", "SPACE", "SHIFT"),
+                    host.labels);
+            assertEquals("100.0,288.0", host.rectPositions.get(7));
+            assertEquals(Integer.valueOf(0xD0FFFFFF), host.rectColors.get(7));
+
+            runtime.inputState().key(LegacyKeyboardCodes.RIGHT_SHIFT, false);
+            runtime.inputState().key(LegacyKeyboardCodes.LEFT_SHIFT, true);
+            host.clear();
+            runtime.renderHud(3L, 0.0F);
+            assertEquals(Integer.valueOf(0xD0FFFFFF), host.rectColors.get(7));
+            runtime.inputState().key(LegacyKeyboardCodes.LEFT_SHIFT, false);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            host.clear();
+            runtime.renderHud(4L, 0.0F);
+            assertEquals(Integer.valueOf(0x90000000), host.rectColors.get(6));
+            assertEquals(Integer.valueOf(0x90000000), host.rectColors.get(7));
+
+            // SHIFT alone occupies the first extension row.
+            keys.showSpaceSetting().set(Boolean.FALSE);
+            host.clear();
+            runtime.renderHud(5L, 0.0F);
+            assertEquals(Arrays.asList(
+                    "W", "A", "S", "D", "LMB", "RMB", "SHIFT"),
+                    host.labels);
+            assertEquals("100.0,266.0", host.rectPositions.get(6));
+            keys.showShiftSetting().set(Boolean.FALSE);
+            host.clear();
+            runtime.renderHud(6L, 0.0F);
+            assertEquals(6, host.labels.size());
+            controller.disable(Minecraft189KeystrokesModule.ID);
+            host.clear();
+            runtime.renderHud(7L, 0.0F);
+            assertTrue(host.labels.isEmpty());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189KeystrokesModule.SHOW_SPACE_SETTING_ID));
+        assertNull(settings.find(Minecraft189KeystrokesModule.SHOW_SHIFT_SETTING_ID));
+        assertNull(modules.find(Minecraft189KeystrokesModule.ID));
+    }
+
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private final List<String> labels =

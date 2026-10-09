@@ -22,6 +22,10 @@ public final class Minecraft189KeystrokesModule
             "render.keystrokes.x";
     public static final String Y_SETTING_ID =
             "render.keystrokes.y";
+    public static final String SHOW_SPACE_SETTING_ID =
+            "render.keystrokes.showSpace";
+    public static final String SHOW_SHIFT_SETTING_ID =
+            "render.keystrokes.showShift";
     public static final String RENDER_PASS_ID =
             "keystrokes";
 
@@ -51,6 +55,12 @@ public final class Minecraft189KeystrokesModule
                     value -> value >= 0
                             && value <= 4096,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> showSpace = new Setting<Boolean>(
+            SHOW_SPACE_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> showShift = new Setting<Boolean>(
+            SHOW_SHIFT_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189KeystrokesModule(
@@ -82,6 +92,14 @@ public final class Minecraft189KeystrokesModule
 
     public Setting<Integer> ySetting() {
         return y;
+    }
+
+    public Setting<Boolean> showSpaceSetting() {
+        return showSpace;
+    }
+
+    public Setting<Boolean> showShiftSetting() {
+        return showShift;
     }
 
     @Override
@@ -192,6 +210,26 @@ public final class Minecraft189KeystrokesModule
                         KEY,
                         "RMB",
                         inputState.pointerPressed(1));
+                if (showSpace.get().booleanValue()) {
+                    drawKey(
+                            left,
+                            top + (KEY + GAP) * 3.0F,
+                            MOUSE_WIDTH * 2.0F + GAP,
+                            KEY,
+                            "SPACE",
+                            inputState.keyPressed(LegacyKeyboardCodes.SPACE));
+                }
+                if (showShift.get().booleanValue()) {
+                    drawKey(
+                            left,
+                            top + (KEY + GAP)
+                                    * (showSpace.get().booleanValue() ? 4.0F : 3.0F),
+                            MOUSE_WIDTH * 2.0F + GAP,
+                            KEY,
+                            "SHIFT",
+                            inputState.keyPressed(LegacyKeyboardCodes.LEFT_SHIFT)
+                                    || inputState.keyPressed(LegacyKeyboardCodes.RIGHT_SHIFT));
+                }
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
                 throw drawFailure;
