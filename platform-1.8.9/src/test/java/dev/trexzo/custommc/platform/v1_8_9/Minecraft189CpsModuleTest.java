@@ -15,11 +15,14 @@ import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import org.junit.jupiter.api.Test;
 
 import java.util.function.LongSupplier;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189CpsModuleTest {
     @Test
@@ -160,6 +163,87 @@ final class Minecraft189CpsModuleTest {
                 Minecraft189CpsModule.textFor(2, 1, false, false));
     }
 
+    @Test
+    void cpsBarsVisualizeMeasuredRollingRatesAndLiveScale() {
+        final MutableClock clock = new MutableClock();
+        final Minecraft189ClickRateTracker tracker =
+                new Minecraft189ClickRateTracker(clock);
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final RenderPipeline pipeline = new RenderPipeline();
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189CpsFeature feature = Minecraft189CpsFeature.install(
+                modules, controller, new ModulePresentationRegistry(),
+                new ModuleSettingRegistry(modules, settings), settings,
+                new SettingPresentationRegistry(), tracker, pipeline, host);
+        try {
+            final Minecraft189CpsModule cps = feature.module();
+            assertFalse(cps.showBarsSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189CpsModule.SHOW_BARS_SETTING_ID));
+            assertEquals("20", settings.snapshotEncoded().get(
+                    Minecraft189CpsModule.BAR_SCALE_SETTING_ID));
+            controller.enable(Minecraft189CpsModule.ID);
+            clock.now = 0L;
+            for (int i = 0; i < 5; i++) {
+                tracker.recordPress(Minecraft189ClickRateTracker.LEFT_BUTTON);
+            }
+            for (int i = 0; i < 2; i++) {
+                tracker.recordPress(Minecraft189ClickRateTracker.RIGHT_BUTTON);
+            }
+            pipeline.render(RenderStage.HUD, new RenderFrame(0L, 0.0F));
+            assertEquals("CPS: L 5 | R 2", host.lastText);
+            assertEquals(0, host.rectWidths.size()); // OFF: legacy text-only.
+
+            cps.showBarsSetting().set(Boolean.TRUE);
+            cps.barScaleSetting().set(10);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189CpsModule.SHOW_BARS_SETTING_ID));
+            assertEquals("10", settings.snapshotEncoded().get(
+                    Minecraft189CpsModule.BAR_SCALE_SETTING_ID));
+            host.rectWidths.clear();
+            pipeline.render(RenderStage.HUD, new RenderFrame(1L, 0.0F));
+            assertEquals(4, host.rectWidths.size()); // Track/fill for L and R.
+            assertEquals(84.0F, host.rectWidths.get(0), 0.0001F);
+            assertEquals(42.0F, host.rectWidths.get(1), 0.0001F);
+            assertEquals(84.0F, host.rectWidths.get(2), 0.0001F);
+            assertEquals(16.8F, host.rectWidths.get(3), 0.0001F);
+            assertEquals(Integer.valueOf(0xFF70C9E8), host.rectColors.get(1));
+            assertEquals(Integer.valueOf(0xFFFFB65C), host.rectColors.get(3));
+            assertEquals("R", host.lastText); // Bar row labels are drawn.
+
+            cps.barScaleSetting().set(1);
+            host.rectWidths.clear();
+            pipeline.render(RenderStage.HUD, new RenderFrame(2L, 0.0F));
+            assertEquals(84.0F, host.rectWidths.get(1), 0.0001F);
+            assertEquals(84.0F, host.rectWidths.get(3), 0.0001F);
+            cps.showBarsSetting().set(Boolean.FALSE);
+            host.rectWidths.clear();
+            pipeline.render(RenderStage.HUD, new RenderFrame(3L, 0.0F));
+            assertEquals(0, host.rectWidths.size());
+            assertEquals("CPS: L 5 | R 2", host.lastText);
+            assertEquals(0.0F, Minecraft189CpsModule.barWidthFor(-10, 20), 0.0F);
+            assertEquals(0.0F, Minecraft189CpsModule.barWidthFor(10, 0), 0.0F);
+            assertEquals(84.0F,
+                    Minecraft189CpsModule.barWidthFor(Integer.MAX_VALUE, 20),
+                    0.0F);
+            assertThrows(IllegalArgumentException.class,
+                    () -> cps.barScaleSetting().set(0));
+            assertThrows(IllegalArgumentException.class,
+                    () -> cps.barScaleSetting().set(41));
+            controller.disable(Minecraft189CpsModule.ID);
+            host.rectWidths.clear();
+            pipeline.render(RenderStage.HUD, new RenderFrame(4L, 0.0F));
+            assertEquals(0, host.rectWidths.size());
+        } finally {
+            feature.close();
+        }
+        assertNull(settings.find(Minecraft189CpsModule.SHOW_BARS_SETTING_ID));
+        assertNull(settings.find(Minecraft189CpsModule.BAR_SCALE_SETTING_ID));
+        assertNull(modules.find(Minecraft189CpsModule.ID));
+    }
+
     private static final class MutableClock
             implements LongSupplier {
         private long now;
@@ -175,6 +259,8 @@ final class Minecraft189CpsModuleTest {
         private String lastText;
         private float lastX;
         private float lastY;
+        private final List<Float> rectWidths = new ArrayList<Float>();
+        private final List<Integer> rectColors = new ArrayList<Integer>();
 
         @Override
         public int framebufferWidth() {
@@ -203,6 +289,8 @@ final class Minecraft189CpsModuleTest {
                 final float width,
                 final float height,
                 final int argb) {
+            rectWidths.add(width);
+            rectColors.add(argb);
         }
 
         @Override

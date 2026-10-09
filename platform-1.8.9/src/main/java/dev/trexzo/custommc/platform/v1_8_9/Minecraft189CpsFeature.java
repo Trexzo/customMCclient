@@ -33,6 +33,12 @@ final class Minecraft189CpsFeature
     private final SettingPresentationRegistry.Registration showTotalPresentation;
     private final ModuleSettingRegistry.Registration compactBinding;
     private final ModuleSettingRegistry.Registration showTotalBinding;
+    private final SettingRegistry.Registration showBarsSetting;
+    private final SettingRegistry.Registration barScaleSetting;
+    private final SettingPresentationRegistry.Registration showBarsPresentation;
+    private final SettingPresentationRegistry.Registration barScalePresentation;
+    private final ModuleSettingRegistry.Registration showBarsBinding;
+    private final ModuleSettingRegistry.Registration barScaleBinding;
     private boolean closed;
 
     private Minecraft189CpsFeature(
@@ -51,7 +57,13 @@ final class Minecraft189CpsFeature
             final SettingPresentationRegistry.Registration compactPresentation,
             final SettingPresentationRegistry.Registration showTotalPresentation,
             final ModuleSettingRegistry.Registration compactBinding,
-            final ModuleSettingRegistry.Registration showTotalBinding) {
+            final ModuleSettingRegistry.Registration showTotalBinding,
+            final SettingRegistry.Registration showBarsSetting,
+            final SettingRegistry.Registration barScaleSetting,
+            final SettingPresentationRegistry.Registration showBarsPresentation,
+            final SettingPresentationRegistry.Registration barScalePresentation,
+            final ModuleSettingRegistry.Registration showBarsBinding,
+            final ModuleSettingRegistry.Registration barScaleBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -68,6 +80,12 @@ final class Minecraft189CpsFeature
         this.showTotalPresentation = showTotalPresentation;
         this.compactBinding = compactBinding;
         this.showTotalBinding = showTotalBinding;
+        this.showBarsSetting = showBarsSetting;
+        this.barScaleSetting = barScaleSetting;
+        this.showBarsPresentation = showBarsPresentation;
+        this.barScalePresentation = barScalePresentation;
+        this.showBarsBinding = showBarsBinding;
+        this.barScaleBinding = barScaleBinding;
     }
 
     static Minecraft189CpsFeature install(
@@ -100,6 +118,12 @@ final class Minecraft189CpsFeature
         SettingPresentationRegistry.Registration showTotalPresentation = null;
         ModuleSettingRegistry.Registration compactBinding = null;
         ModuleSettingRegistry.Registration showTotalBinding = null;
+        SettingRegistry.Registration showBarsSetting = null;
+        SettingRegistry.Registration barScaleSetting = null;
+        SettingPresentationRegistry.Registration showBarsPresentation = null;
+        SettingPresentationRegistry.Registration barScalePresentation = null;
+        ModuleSettingRegistry.Registration showBarsBinding = null;
+        ModuleSettingRegistry.Registration barScaleBinding = null;
 
         try {
             moduleRegistration =
@@ -121,6 +145,8 @@ final class Minecraft189CpsFeature
                             module.ySetting());
             compactSetting = settings.register(module.compactSetting());
             showTotalSetting = settings.register(module.showTotalSetting());
+            showBarsSetting = settings.register(module.showBarsSetting());
+            barScaleSetting = settings.register(module.barScaleSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -151,6 +177,16 @@ final class Minecraft189CpsFeature
                     new SettingDescriptor(
                             Minecraft189CpsModule.SHOW_TOTAL_SETTING_ID,
                             "Show Total", SettingValueKind.BOOLEAN, 30));
+            showBarsPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189CpsModule.SHOW_BARS_SETTING_ID,
+                            "Show CPS Bars", SettingValueKind.BOOLEAN, 40));
+            barScalePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189CpsModule.BAR_SCALE_SETTING_ID,
+                            "Bar Scale CPS", SettingValueKind.INTEGER, 50,
+                            new SettingNumericSpec(1.0D,
+                                    Minecraft189CpsModule.MAX_BAR_SCALE, 1.0D)));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -173,6 +209,15 @@ final class Minecraft189CpsFeature
                             Minecraft189CpsModule.ID,
                             Minecraft189CpsModule.SHOW_TOTAL_SETTING_ID, 30));
 
+            showBarsBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189CpsModule.ID,
+                            Minecraft189CpsModule.SHOW_BARS_SETTING_ID, 40));
+            barScaleBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189CpsModule.ID,
+                            Minecraft189CpsModule.BAR_SCALE_SETTING_ID, 50));
+
             return new Minecraft189CpsFeature(
                     controller,
                     module,
@@ -189,8 +234,20 @@ final class Minecraft189CpsFeature
                     compactPresentation,
                     showTotalPresentation,
                     compactBinding,
-                    showTotalBinding);
+                    showTotalBinding,
+                    showBarsSetting,
+                    barScaleSetting,
+                    showBarsPresentation,
+                    barScalePresentation,
+                    showBarsBinding,
+                    barScaleBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(barScaleBinding, failure);
+            closeQuietly(showBarsBinding, failure);
+            closeQuietly(barScalePresentation, failure);
+            closeQuietly(showBarsPresentation, failure);
+            closeQuietly(barScaleSetting, failure);
+            closeQuietly(showBarsSetting, failure);
             closeQuietly(showTotalBinding, failure);
             closeQuietly(compactBinding, failure);
             closeQuietly(showTotalPresentation, failure);
@@ -236,6 +293,12 @@ final class Minecraft189CpsFeature
             failure = closeFailure;
         }
 
+        failure = close(barScaleBinding, failure);
+        failure = close(showBarsBinding, failure);
+        failure = close(barScalePresentation, failure);
+        failure = close(showBarsPresentation, failure);
+        failure = close(barScaleSetting, failure);
+        failure = close(showBarsSetting, failure);
         failure = close(showTotalBinding, failure);
         failure = close(compactBinding, failure);
         failure = close(showTotalPresentation, failure);
