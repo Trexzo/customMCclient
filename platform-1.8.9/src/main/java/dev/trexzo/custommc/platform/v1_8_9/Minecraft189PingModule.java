@@ -24,6 +24,8 @@ public final class Minecraft189PingModule
             "render.ping.y";
     public static final String RENDER_PASS_ID =
             "ping";
+    public static final String COLOR_BY_LATENCY_SETTING_ID =
+            "render.ping.colorByLatency";
 
     private static final int PRIORITY = 133;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
@@ -45,6 +47,12 @@ public final class Minecraft189PingModule
                     value -> value >= 0
                             && value <= 4096,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> colorByLatency =
+            new Setting<Boolean>(
+                    COLOR_BY_LATENCY_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
 
     public Minecraft189PingModule(
@@ -76,6 +84,10 @@ public final class Minecraft189PingModule
 
     public Setting<Integer> ySetting() {
         return y;
+    }
+
+    public Setting<Boolean> colorByLatencySetting() {
+        return colorByLatency;
     }
 
     @Override
@@ -112,6 +124,19 @@ public final class Minecraft189PingModule
                 Locale.ROOT,
                 "Ping: %d ms",
                 ping.milliseconds());
+    }
+
+    static int colorFor(final int milliseconds, final boolean enabled) {
+        if (!enabled) {
+            return TEXT_ARGB;
+        }
+        if (milliseconds < 100) {
+            return 0xFF55FF55;
+        }
+        if (milliseconds < 200) {
+            return 0xFFFFAA00;
+        }
+        return 0xFFFF5555;
     }
 
     private final class PingRenderPass
@@ -158,7 +183,8 @@ public final class Minecraft189PingModule
                         y.get().floatValue(),
                         textFor(
                                 ping),
-                        TEXT_ARGB);
+                        colorFor(ping.milliseconds(),
+                                colorByLatency.get().booleanValue()));
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
                 throw drawFailure;
