@@ -659,7 +659,10 @@ public final class Minecraft189FeatureCatalog
                     Minecraft189FreezeFeature.install(
                             modules,
                             moduleController,
-                            presentations);
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             longJumpFeature =
                     Minecraft189LongJumpFeature.install(

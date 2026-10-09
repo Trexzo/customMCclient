@@ -198,6 +198,96 @@ final class Minecraft189FreezeModuleTest {
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
     }
 
+    @Test
+    void freezeIndependentAxesRetainDefaultsAndRelinquishWhenBothOff() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189FreezeModule freeze = runtime.featureCatalog().freeze();
+            final TestPlayer player = new TestPlayer();
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FreezeModule.FREEZE_HORIZONTAL_SETTING_ID));
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189FreezeModule.FREEZE_VERTICAL_SETTING_ID));
+            controller.enable(Minecraft189FreezeModule.ID);
+            player.motionX = 0.22D; player.motionY = -0.44D; player.motionZ = -0.33D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionX, 1.0E-9D);
+            assertEquals(0.0D, player.motionY, 1.0E-9D);
+            assertEquals(0.0D, player.motionZ, 1.0E-9D);
+            assertEquals(3, player.setCalls);
+
+            freeze.freezeVerticalSetting().set(Boolean.FALSE);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FreezeModule.FREEZE_VERTICAL_SETTING_ID));
+            player.motionX = 0.22D; player.motionY = -0.44D; player.motionZ = -0.33D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionX, 1.0E-9D);
+            assertEquals(-0.44D, player.motionY, 1.0E-9D); // Vertical untouched.
+            assertEquals(0.0D, player.motionZ, 1.0E-9D);
+            assertEquals(5, player.setCalls);
+
+            freeze.freezeVerticalSetting().set(Boolean.TRUE);
+            freeze.freezeHorizontalSetting().set(Boolean.FALSE);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189FreezeModule.FREEZE_HORIZONTAL_SETTING_ID));
+            player.motionX = 0.22D; player.motionY = -0.44D; player.motionZ = -0.33D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.22D, player.motionX, 1.0E-9D);
+            assertEquals(0.0D, player.motionY, 1.0E-9D);
+            assertEquals(-0.33D, player.motionZ, 1.0E-9D);
+            assertEquals(6, player.setCalls);
+
+            freeze.freezeVerticalSetting().set(Boolean.FALSE);
+            assertFalse(freeze.active()); // Inert Freeze yields ownership.
+            player.motionX = 0.22D; player.motionY = -0.44D; player.motionZ = -0.33D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.22D, player.motionX, 1.0E-9D);
+            assertEquals(-0.44D, player.motionY, 1.0E-9D);
+            assertEquals(-0.33D, player.motionZ, 1.0E-9D);
+            assertEquals(6, player.setCalls);
+
+            // Other movement owners are no longer suppressed if both axes OFF.
+            runtime.playerMovementState().update(false, false, false);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            controller.enable(Minecraft189FlightModule.ID);
+            runtime.playerMotionControl(player);
+            assertEquals(Minecraft189FlightModule.ASCEND_MOTION_Y,
+                    player.motionY, 1.0E-9D);
+            controller.disable(Minecraft189FlightModule.ID);
+            freeze.freezeHorizontalSetting().set(Boolean.TRUE);
+            assertTrue(freeze.active());
+            player.motionX = 0.1D; player.motionY = -0.2D; player.motionZ = 0.3D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionX, 1.0E-9D);
+            assertEquals(-0.2D, player.motionY, 1.0E-9D);
+            assertEquals(0.0D, player.motionZ, 1.0E-9D);
+            controller.disable(Minecraft189FreezeModule.ID);
+            player.motionX = 0.1D; player.motionY = -0.2D; player.motionZ = 0.3D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.1D, player.motionX, 1.0E-9D);
+            assertEquals(-0.2D, player.motionY, 1.0E-9D);
+            assertEquals(0.3D, player.motionZ, 1.0E-9D);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189FreezeModule.FREEZE_HORIZONTAL_SETTING_ID));
+        assertNull(settings.find(Minecraft189FreezeModule.FREEZE_VERTICAL_SETTING_ID));
+        assertNull(modules.find(Minecraft189FreezeModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;
