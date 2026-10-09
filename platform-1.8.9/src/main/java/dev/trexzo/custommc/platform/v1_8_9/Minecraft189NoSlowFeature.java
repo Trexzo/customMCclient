@@ -28,6 +28,9 @@ final class Minecraft189NoSlowFeature
     private final SettingPresentationRegistry.Registration airborneSpeedPresentation;
     private final ModuleSettingRegistry.Registration airborneOverrideBinding;
     private final ModuleSettingRegistry.Registration airborneSpeedBinding;
+    private final SettingRegistry.Registration pauseWhileSneakingSetting;
+    private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
+    private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private boolean closed;
 
     private Minecraft189NoSlowFeature(
@@ -43,7 +46,10 @@ final class Minecraft189NoSlowFeature
             final SettingPresentationRegistry.Registration airborneOverridePresentation,
             final SettingPresentationRegistry.Registration airborneSpeedPresentation,
             final ModuleSettingRegistry.Registration airborneOverrideBinding,
-            final ModuleSettingRegistry.Registration airborneSpeedBinding) {
+            final ModuleSettingRegistry.Registration airborneSpeedBinding,
+            final SettingRegistry.Registration pauseWhileSneakingSetting,
+            final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -57,6 +63,9 @@ final class Minecraft189NoSlowFeature
         this.airborneSpeedPresentation = airborneSpeedPresentation;
         this.airborneOverrideBinding = airborneOverrideBinding;
         this.airborneSpeedBinding = airborneSpeedBinding;
+        this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
+        this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
+        this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
     }
 
     static Minecraft189NoSlowFeature install(
@@ -80,6 +89,9 @@ final class Minecraft189NoSlowFeature
         SettingPresentationRegistry.Registration airborneSpeedPresentation = null;
         ModuleSettingRegistry.Registration airborneOverrideBinding = null;
         ModuleSettingRegistry.Registration airborneSpeedBinding = null;
+        SettingRegistry.Registration pauseWhileSneakingSetting = null;
+        SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
+        ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -99,6 +111,8 @@ final class Minecraft189NoSlowFeature
                     module.airborneOverrideSetting());
             airborneSpeedSetting = settings.register(
                     module.airborneSpeedPercentSetting());
+            pauseWhileSneakingSetting = settings.register(
+                    module.pauseWhileSneakingSetting());
             speedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -121,6 +135,10 @@ final class Minecraft189NoSlowFeature
                             new SettingNumericSpec(
                                     Minecraft189NoSlowModule.MINIMUM_SPEED_PERCENT,
                                     Minecraft189NoSlowModule.MAXIMUM_SPEED_PERCENT, 5.0D)));
+            pauseWhileSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189NoSlowModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 30));
             speedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -137,6 +155,11 @@ final class Minecraft189NoSlowFeature
                             Minecraft189NoSlowModule.ID,
                             Minecraft189NoSlowModule.AIRBORNE_SPEED_SETTING_ID, 20));
 
+            pauseWhileSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189NoSlowModule.ID,
+                            Minecraft189NoSlowModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 30));
+
             return new Minecraft189NoSlowFeature(
                     controller,
                     module,
@@ -150,8 +173,14 @@ final class Minecraft189NoSlowFeature
                     airborneOverridePresentation,
                     airborneSpeedPresentation,
                     airborneOverrideBinding,
-                    airborneSpeedBinding);
+                    airborneSpeedBinding,
+                    pauseWhileSneakingSetting,
+                    pauseWhileSneakingPresentation,
+                    pauseWhileSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseWhileSneakingBinding, failure);
+            closeQuietly(pauseWhileSneakingPresentation, failure);
+            closeQuietly(pauseWhileSneakingSetting, failure);
             closeQuietly(airborneSpeedBinding, failure);
             closeQuietly(airborneOverrideBinding, failure);
             closeQuietly(airborneSpeedPresentation, failure);
@@ -194,6 +223,9 @@ final class Minecraft189NoSlowFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseWhileSneakingBinding, failure);
+        failure = close(pauseWhileSneakingPresentation, failure);
+        failure = close(pauseWhileSneakingSetting, failure);
         failure = close(airborneSpeedBinding, failure);
         failure = close(airborneOverrideBinding, failure);
         failure = close(airborneSpeedPresentation, failure);
