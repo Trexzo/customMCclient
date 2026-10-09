@@ -34,6 +34,12 @@ final class Minecraft189TimerSpeedFeature
     private final SettingPresentationRegistry.Registration transitionStepPresentation;
     private final ModuleSettingRegistry.Registration smoothTransitionBinding;
     private final ModuleSettingRegistry.Registration transitionStepBinding;
+    private final SettingRegistry.Registration sprintOnlySetting;
+    private final SettingRegistry.Registration pauseSneakingSetting;
+    private final SettingPresentationRegistry.Registration sprintOnlyPresentation;
+    private final SettingPresentationRegistry.Registration pauseSneakingPresentation;
+    private final ModuleSettingRegistry.Registration sprintOnlyBinding;
+    private final ModuleSettingRegistry.Registration pauseSneakingBinding;
     private boolean closed;
 
     private Minecraft189TimerSpeedFeature(
@@ -55,7 +61,13 @@ final class Minecraft189TimerSpeedFeature
             final SettingPresentationRegistry.Registration smoothTransitionPresentation,
             final SettingPresentationRegistry.Registration transitionStepPresentation,
             final ModuleSettingRegistry.Registration smoothTransitionBinding,
-            final ModuleSettingRegistry.Registration transitionStepBinding) {
+            final ModuleSettingRegistry.Registration transitionStepBinding,
+            final SettingRegistry.Registration sprintOnlySetting,
+            final SettingRegistry.Registration pauseSneakingSetting,
+            final SettingPresentationRegistry.Registration sprintOnlyPresentation,
+            final SettingPresentationRegistry.Registration pauseSneakingPresentation,
+            final ModuleSettingRegistry.Registration sprintOnlyBinding,
+            final ModuleSettingRegistry.Registration pauseSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -75,6 +87,12 @@ final class Minecraft189TimerSpeedFeature
         this.transitionStepPresentation = transitionStepPresentation;
         this.smoothTransitionBinding = smoothTransitionBinding;
         this.transitionStepBinding = transitionStepBinding;
+        this.sprintOnlySetting = sprintOnlySetting;
+        this.pauseSneakingSetting = pauseSneakingSetting;
+        this.sprintOnlyPresentation = sprintOnlyPresentation;
+        this.pauseSneakingPresentation = pauseSneakingPresentation;
+        this.sprintOnlyBinding = sprintOnlyBinding;
+        this.pauseSneakingBinding = pauseSneakingBinding;
     }
 
     static Minecraft189TimerSpeedFeature install(
@@ -104,6 +122,12 @@ final class Minecraft189TimerSpeedFeature
         SettingPresentationRegistry.Registration transitionStepPresentation = null;
         ModuleSettingRegistry.Registration smoothTransitionBinding = null;
         ModuleSettingRegistry.Registration transitionStepBinding = null;
+        SettingRegistry.Registration sprintOnlySetting = null;
+        SettingRegistry.Registration pauseSneakingSetting = null;
+        SettingPresentationRegistry.Registration sprintOnlyPresentation = null;
+        SettingPresentationRegistry.Registration pauseSneakingPresentation = null;
+        ModuleSettingRegistry.Registration sprintOnlyBinding = null;
+        ModuleSettingRegistry.Registration pauseSneakingBinding = null;
 
         try {
             moduleRegistration =
@@ -125,6 +149,8 @@ final class Minecraft189TimerSpeedFeature
                     module.airborneSpeedPercentSetting());
             smoothTransitionSetting = settings.register(module.smoothTransitionSetting());
             transitionStepSetting = settings.register(module.transitionStepPercentSetting());
+            sprintOnlySetting = settings.register(module.sprintOnlySetting());
+            pauseSneakingSetting = settings.register(module.pauseWhileSneakingSetting());
             speedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -160,6 +186,14 @@ final class Minecraft189TimerSpeedFeature
                                     Minecraft189TimerSpeedModule.MINIMUM_TRANSITION_STEP_PERCENT,
                                     Minecraft189TimerSpeedModule.MAXIMUM_TRANSITION_STEP_PERCENT,
                                     5.0D)));
+            sprintOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189TimerSpeedModule.SPRINT_ONLY_SETTING_ID,
+                            "Sprint Only", SettingValueKind.BOOLEAN, 50));
+            pauseSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189TimerSpeedModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 60));
             speedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -185,6 +219,15 @@ final class Minecraft189TimerSpeedFeature
                             Minecraft189TimerSpeedModule.ID,
                             Minecraft189TimerSpeedModule.TRANSITION_STEP_SETTING_ID, 40));
 
+            sprintOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189TimerSpeedModule.ID,
+                            Minecraft189TimerSpeedModule.SPRINT_ONLY_SETTING_ID, 50));
+            pauseSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189TimerSpeedModule.ID,
+                            Minecraft189TimerSpeedModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 60));
+
             return new Minecraft189TimerSpeedFeature(
                     controller,
                     module,
@@ -204,8 +247,20 @@ final class Minecraft189TimerSpeedFeature
                     smoothTransitionPresentation,
                     transitionStepPresentation,
                     smoothTransitionBinding,
-                    transitionStepBinding);
+                    transitionStepBinding,
+                    sprintOnlySetting,
+                    pauseSneakingSetting,
+                    sprintOnlyPresentation,
+                    pauseSneakingPresentation,
+                    sprintOnlyBinding,
+                    pauseSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseSneakingBinding, failure);
+            closeQuietly(sprintOnlyBinding, failure);
+            closeQuietly(pauseSneakingPresentation, failure);
+            closeQuietly(sprintOnlyPresentation, failure);
+            closeQuietly(pauseSneakingSetting, failure);
+            closeQuietly(sprintOnlySetting, failure);
             closeQuietly(transitionStepBinding, failure);
             closeQuietly(smoothTransitionBinding, failure);
             closeQuietly(transitionStepPresentation, failure);
@@ -254,6 +309,12 @@ final class Minecraft189TimerSpeedFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseSneakingBinding, failure);
+        failure = close(sprintOnlyBinding, failure);
+        failure = close(pauseSneakingPresentation, failure);
+        failure = close(sprintOnlyPresentation, failure);
+        failure = close(pauseSneakingSetting, failure);
+        failure = close(sprintOnlySetting, failure);
         failure = close(transitionStepBinding, failure);
         failure = close(smoothTransitionBinding, failure);
         failure = close(transitionStepPresentation, failure);
