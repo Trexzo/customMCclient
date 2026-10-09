@@ -376,10 +376,15 @@ public final class Minecraft189RuntimeBridge {
             final Minecraft189ClickMouseControl minecraft) {
         final Minecraft189HostRuntime host =
                 activeHost();
-        if (host != null
-                && minecraft != null
-                && host.shouldAutoClick()) {
-            minecraft.customMcClickMouse();
+        if (host != null && minecraft != null) {
+            // M351 verified the exact live vanilla hit-result fields.
+            final boolean playerHit =
+                    minecraft instanceof Minecraft189CrosshairHitAccess
+                    && ((Minecraft189CrosshairHitAccess) minecraft)
+                            .customMcCrosshairPlayerHit();
+            if (host.shouldAutoClick(playerHit)) {
+                minecraft.customMcClickMouse();
+            }
         }
     }
 

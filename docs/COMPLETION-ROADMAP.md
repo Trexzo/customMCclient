@@ -49,7 +49,16 @@ verified player raycast. M351 adds a read-only
 only non-null `objectMouseOver` with exact `MovingObjectType.ENTITY`
 identity and an `EntityPlayer` instance returns true. Synthetic runtime
 tests distinguish null, nonplayer, mismatched type, and player hits.
-No automatic attacks are dispatched, and real-game acceptance is unverified.
+M352 wires the verified accessor through the existing runTick
+`Minecraft189RuntimeBridge.autoClick` dispatch into an opt-in
+Combat → Auto Clicker → Trigger Mode setting. When ON, the existing
+20-tick bounded CPS scheduler emits vanilla `clickMouse` only for a
+confirmed player ray hit; it no longer requires physical left-button
+hold. No hit, missing accessor, or an open ClickGUI fail closed and
+reset click scheduling. When OFF, the original hold-dependent Auto
+Clicker path remains unchanged. Real-game and server acceptance are
+still unverified; a standalone TriggerBot module and targeting filters
+remain future milestones.
 
 ## M349 Target Strafe behavior
 
