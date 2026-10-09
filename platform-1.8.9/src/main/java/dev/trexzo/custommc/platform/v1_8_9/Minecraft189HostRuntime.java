@@ -874,9 +874,11 @@ public final class Minecraft189HostRuntime
         final boolean fastFallActive =
                 featureCatalog.fastFall()
                         .active();
+        final boolean jumpHeld =
+                inputState.keyPressed(LegacyKeyboardCodes.SPACE);
         final boolean noGravityActive =
                 featureCatalog.noGravity()
-                        .active();
+                        .ownsVertical(jumpHeld);
         final boolean longJumpActive =
                 featureCatalog.longJump()
                         .active();
@@ -960,7 +962,8 @@ public final class Minecraft189HostRuntime
                 .apply(
                         player,
                         movement,
-                        flightActive);
+                        flightActive,
+                        jumpHeld);
         featureCatalog.fastFall()
                 .apply(
                         player,

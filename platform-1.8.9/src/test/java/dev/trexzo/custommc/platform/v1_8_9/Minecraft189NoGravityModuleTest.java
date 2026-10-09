@@ -380,6 +380,104 @@ final class Minecraft189NoGravityModuleTest {
         assertNull(modules.find(Minecraft189NoGravityModule.ID));
     }
 
+    @Test
+    void requirePhysicalSpaceGatesNoGravityAndYieldsToOtherMovementOwners() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189NoGravityModule gravity =
+                    runtime.featureCatalog().noGravity();
+            final TestPlayer player = new TestPlayer();
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189NoGravityModule.REQUIRE_JUMP_HELD_SETTING_ID));
+            controller.enable(Minecraft189NoGravityModule.ID);
+            controller.enable(Minecraft189FastFallModule.ID);
+            runtime.playerMovementState().update(false, false, false);
+
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionY, 0.000000001D); // Default owner.
+
+            gravity.requireJumpHeldSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NoGravityModule.REQUIRE_JUMP_HELD_SETTING_ID));
+            assertFalse(gravity.ownsVertical(false));
+            assertTrue(gravity.ownsVertical(true));
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(-Minecraft189FastFallModule.DEFAULT_FALL_SPEED,
+                    player.motionY, 0.000000001D); // Fast Fall regains authority.
+
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionY, 0.000000001D); // Held Space owns.
+
+            // No hold evidence in older overloads: no synthetic hover write.
+            player.motionY = -0.06D;
+            gravity.apply(player, runtime.playerMovementState().snapshot(), false);
+            assertEquals(-0.06D, player.motionY, 0.000000001D);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(-Minecraft189FastFallModule.DEFAULT_FALL_SPEED,
+                    player.motionY, 0.000000001D); // Release yields same update.
+
+            controller.disable(Minecraft189FastFallModule.ID);
+            controller.enable(Minecraft189GlideModule.ID);
+            player.motionY = -0.40D;
+            runtime.playerMotionControl(player);
+            assertEquals(-Minecraft189GlideModule.DEFAULT_FALL_SPEED,
+                    player.motionY, 0.000000001D);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            player.motionY = -0.40D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionY, 0.000000001D); // No Gravity resumes.
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            player.motionY = -0.40D;
+            runtime.playerMotionControl(player);
+            assertEquals(-Minecraft189GlideModule.DEFAULT_FALL_SPEED,
+                    player.motionY, 0.000000001D);
+
+            controller.disable(Minecraft189GlideModule.ID);
+            runtime.playerMovementState().clear();
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            player.motionY = -0.25D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.25D, player.motionY, 0.000000001D); // Unknown movement.
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.25D, player.motionY, 0.000000001D); // Grounded.
+            runtime.playerMovementState().update(false, false, false);
+            gravity.requireJumpHeldSetting().set(Boolean.FALSE);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            player.motionY = -0.25D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionY, 0.000000001D); // Live OFF parity.
+            controller.disable(Minecraft189NoGravityModule.ID);
+            player.motionY = -0.25D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.25D, player.motionY, 0.000000001D);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189NoGravityModule.REQUIRE_JUMP_HELD_SETTING_ID));
+        assertNull(modules.find(Minecraft189NoGravityModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;
