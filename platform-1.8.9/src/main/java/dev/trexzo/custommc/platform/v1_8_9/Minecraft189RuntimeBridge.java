@@ -416,6 +416,7 @@ public final class Minecraft189RuntimeBridge {
                                 && swordBlock.customMcIsUsingItem())
                             swordBlock.customMcStopUsingItem();
                         minecraft.customMcRightClickMouse();
+                        host.commitAutoPotUseAttempt();
                     } finally {
                         host.restoreAutoPotSlot(originalPotionSlot);
                     }
@@ -434,6 +435,7 @@ public final class Minecraft189RuntimeBridge {
                                 && swordBlock.customMcIsUsingItem())
                             swordBlock.customMcStopUsingItem();
                         minecraft.customMcRightClickMouse();
+                        host.commitAutoRodUseAttempt();
                     } finally {
                         host.restoreAutoRodSlot(originalRodSlot);
                     }

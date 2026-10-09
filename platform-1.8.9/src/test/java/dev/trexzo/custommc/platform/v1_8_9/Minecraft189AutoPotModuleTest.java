@@ -21,6 +21,9 @@ final class Minecraft189AutoPotModuleTest {
         assertFalse(mod.shouldUse(health.snapshot(), false, false, false, true));
         health.update(7, 20);
         assertTrue(mod.shouldUse(health.snapshot(), false, false, false, true));
+        // Missing/wrong selected potion must not spend scheduler cooldown.
+        assertTrue(mod.shouldUse(health.snapshot(), false, false, false, true));
+        mod.commitUseAttempt();
         assertFalse(mod.shouldUse(health.snapshot(), false, false, false, true));
         assertFalse(mod.shouldUse(health.snapshot(), false, false, false, true));
         assertTrue(mod.shouldUse(health.snapshot(), false, false, false, true));

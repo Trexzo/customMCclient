@@ -73,8 +73,16 @@ public final class Minecraft189AutoPotModule implements Module {
             remaining--;
             return false;
         }
-        remaining = cooldown.get();
+        // A real mapped use-item attempt is required to begin cooldown.
+        // Unknown/wrong item evidence must never spend cooldown credit.
         return true;
+    }
+
+    synchronized void commitUseAttempt() {
+        if (enabled) {
+            remaining = cooldown.get();
+            knownCooldown = cooldown.get();
+        }
     }
 
     synchronized int selectSlot(final Minecraft189InventoryHotbarControl inventory) {

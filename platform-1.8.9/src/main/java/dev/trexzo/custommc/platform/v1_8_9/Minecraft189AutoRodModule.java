@@ -63,8 +63,16 @@ public final class Minecraft189AutoRodModule implements Module {
             remaining--;
             return false;
         }
-        remaining = cooldown.get();
+        // Admission does not commit cooldown: item verification may still
+        // reject the configured slot, or native use could throw.
         return true;
+    }
+
+    synchronized void commitUseAttempt() {
+        if (enabled) {
+            remaining = cooldown.get();
+            activeCooldown = cooldown.get();
+        }
     }
 
     /** Selects the user-configured slot for one synchronous native right click. */

@@ -1446,6 +1446,11 @@ public final class Minecraft189HostRuntime
         featureCatalog.autoPot().restoreSlot(tickHotbarControl, originalSlot);
     }
 
+    void commitAutoPotUseAttempt() {
+        requireOpen();
+        featureCatalog.autoPot().commitUseAttempt();
+    }
+
     boolean shouldAutoRod(final boolean confirmedPlayer,
             final int verifiedPlayerIndex) {
         requireOpen();
@@ -1478,6 +1483,11 @@ public final class Minecraft189HostRuntime
     void restoreAutoRodSlot(final int originalSlot) {
         requireOpen();
         featureCatalog.autoRod().restoreSlot(tickHotbarControl, originalSlot);
+    }
+
+    void commitAutoRodUseAttempt() {
+        requireOpen();
+        featureCatalog.autoRod().commitUseAttempt();
     }
 
     int selectCombatSlotBeforeSyntheticClick(final boolean playerHit) {

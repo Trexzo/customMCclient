@@ -21,9 +21,13 @@ final class Minecraft189AutoRodModuleTest {
         assertFalse(mod.shouldUse(true, true, false, true, true));
         assertFalse(mod.shouldUse(true, true, false, false, false));
         assertTrue(mod.shouldUse(true, true, false, false, true));
+        // Item verification failed: another eligible attempt is immediate.
+        assertTrue(mod.shouldUse(true, true, false, false, true));
+        mod.commitUseAttempt(); // only after verified native use-item
         assertFalse(mod.shouldUse(true, true, false, false, true));
         assertFalse(mod.shouldUse(true, true, false, false, true));
         assertTrue(mod.shouldUse(true, true, false, false, true));
+        mod.commitUseAttempt();
         assertFalse(mod.shouldUse(false, true, false, false, true));
         assertTrue(mod.shouldUse(true, true, false, false, true));
         mod.onDisable();
