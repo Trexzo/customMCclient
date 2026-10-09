@@ -1328,6 +1328,126 @@ final class Minecraft189AimAssistModuleTest {
         assertEquals(Integer.valueOf(90), module.easingStrengthSetting().get());
     }
 
+    @Test
+    void combinedStepCapsDiagonalAimAndRespectsAxisIsolationAndEasing() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final Minecraft189AimAssistFeature feature = Minecraft189AimAssistFeature.install(
+                modules, controller, new ModulePresentationRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                settings, new SettingPresentationRegistry());
+        try {
+            final Minecraft189AimAssistModule aim = feature.module();
+            assertFalse(aim.combinedStepSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AimAssistModule.COMBINED_STEP_SETTING_ID));
+            assertEquals("10.0", settings.snapshotEncoded().get(
+                    Minecraft189AimAssistModule.MAX_COMBINED_STEP_SETTING_ID));
+            final Minecraft189PlayerPositionState local =
+                    new Minecraft189PlayerPositionState();
+            final Minecraft189WorldEntityPositionState positions =
+                    new Minecraft189WorldEntityPositionState();
+            final Minecraft189WorldEntityKindState kinds =
+                    new Minecraft189WorldEntityKindState();
+            final Minecraft189NearestPlayerTargetState nearest =
+                    new Minecraft189NearestPlayerTargetState();
+            final Minecraft189TargetRotationState target =
+                    new Minecraft189TargetRotationState();
+            final Minecraft189PlayerRotationState rotation =
+                    new Minecraft189PlayerRotationState();
+            local.update(0.0D, 0.0D, 0.0D);
+            positions.update(new double[]{0.0D, 0.0D, 10.0D});
+            kinds.update(new int[]{
+                    Minecraft189WorldEntityKindState.LIVING
+                            | Minecraft189WorldEntityKindState.PLAYER});
+            nearest.update(local.snapshot(), positions.snapshot(), kinds.snapshot());
+            target.update(local.snapshot(), nearest.snapshot());
+            final TestPlayer player = new TestPlayer(40.0F, 20.0F);
+            controller.enable(Minecraft189AimAssistModule.ID);
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(0.0F, player.yaw, 0.0001F); // Original OFF parity.
+            assertEquals(0.0F, player.pitch, 0.0001F);
+
+            player.yaw = 40.0F;
+            player.pitch = 20.0F;
+            rotation.update(player.yaw, player.pitch);
+            aim.combinedStepSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AimAssistModule.COMBINED_STEP_SETTING_ID));
+            aim.maxCombinedStepSetting().set(10.0D);
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(31.0557F, player.yaw, 0.001F);
+            assertEquals(15.5279F, player.pitch, 0.001F);
+            assertEquals(10.0D, Math.hypot(40.0F - player.yaw,
+                    20.0F - player.pitch), 0.0001D);
+            for (int i = 0; i < 4; i++) {
+                rotation.update(player.yaw, player.pitch);
+                aim.apply(player, rotation.snapshot(), target.snapshot(), true);
+            }
+            assertEquals(0.0F, player.yaw, 0.001F); // No overshoot.
+            assertEquals(0.0F, player.pitch, 0.001F);
+
+            aim.pitchEnabledSetting().set(Boolean.FALSE);
+            player.yaw = 40.0F;
+            player.pitch = 20.0F;
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(30.0F, player.yaw, 0.001F);
+            assertEquals(20.0F, player.pitch, 0.001F);
+            aim.pitchEnabledSetting().set(Boolean.TRUE);
+            aim.yawEnabledSetting().set(Boolean.FALSE);
+            player.yaw = 40.0F;
+            player.pitch = 20.0F;
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(40.0F, player.yaw, 0.001F);
+            assertEquals(10.0F, player.pitch, 0.001F);
+
+            aim.yawEnabledSetting().set(Boolean.TRUE);
+            aim.angularEasingSetting().set(Boolean.TRUE);
+            player.yaw = 40.0F;
+            player.pitch = 20.0F;
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(10.0D, Math.hypot(40.0F - player.yaw,
+                    20.0F - player.pitch), 0.0001D);
+            aim.maxCombinedStepSetting().set(4.0D);
+            assertEquals("4.0", settings.snapshotEncoded().get(
+                    Minecraft189AimAssistModule.MAX_COMBINED_STEP_SETTING_ID));
+            player.yaw = 40.0F;
+            player.pitch = 20.0F;
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(4.0D, Math.hypot(40.0F - player.yaw,
+                    20.0F - player.pitch), 0.0001D);
+            aim.combinedStepSetting().set(Boolean.FALSE);
+            aim.angularEasingSetting().set(Boolean.FALSE);
+            player.yaw = 40.0F;
+            player.pitch = 20.0F;
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(aim.apply(player, rotation.snapshot(), target.snapshot(), true));
+            assertEquals(0.0F, player.yaw, 0.0001F);
+            assertEquals(0.0F, player.pitch, 0.0001F);
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> aim.maxCombinedStepSetting().set(Double.NaN));
+            assertThrows(IllegalArgumentException.class,
+                    () -> aim.maxCombinedStepSetting().set(Double.POSITIVE_INFINITY));
+            assertThrows(IllegalArgumentException.class,
+                    () -> aim.maxCombinedStepSetting().set(0.09D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> aim.maxCombinedStepSetting().set(180.1D));
+            controller.disable(Minecraft189AimAssistModule.ID);
+        } finally {
+            feature.close();
+        }
+        assertNull(settings.find(Minecraft189AimAssistModule.COMBINED_STEP_SETTING_ID));
+        assertNull(settings.find(Minecraft189AimAssistModule.MAX_COMBINED_STEP_SETTING_ID));
+        assertNull(modules.find(Minecraft189AimAssistModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerRotationControl {
         private float yaw;

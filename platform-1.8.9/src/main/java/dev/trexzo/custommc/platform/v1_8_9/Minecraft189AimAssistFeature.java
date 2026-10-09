@@ -76,6 +76,12 @@ final class Minecraft189AimAssistFeature
     private final ModuleSettingRegistry.Registration pitchEnabledBinding;
     private final ModuleSettingRegistry.Registration angularEasingBinding;
     private final ModuleSettingRegistry.Registration easingStrengthBinding;
+    private final SettingRegistry.Registration combinedStepSetting;
+    private final SettingRegistry.Registration maxCombinedStepSetting;
+    private final SettingPresentationRegistry.Registration combinedStepPresentation;
+    private final SettingPresentationRegistry.Registration maxCombinedStepPresentation;
+    private final ModuleSettingRegistry.Registration combinedStepBinding;
+    private final ModuleSettingRegistry.Registration maxCombinedStepBinding;
     private boolean closed;
 
     private Minecraft189AimAssistFeature(
@@ -139,7 +145,13 @@ final class Minecraft189AimAssistFeature
             final ModuleSettingRegistry.Registration yawEnabledBinding,
             final ModuleSettingRegistry.Registration pitchEnabledBinding,
             final ModuleSettingRegistry.Registration angularEasingBinding,
-            final ModuleSettingRegistry.Registration easingStrengthBinding) {
+            final ModuleSettingRegistry.Registration easingStrengthBinding,
+            final SettingRegistry.Registration combinedStepSetting,
+            final SettingRegistry.Registration maxCombinedStepSetting,
+            final SettingPresentationRegistry.Registration combinedStepPresentation,
+            final SettingPresentationRegistry.Registration maxCombinedStepPresentation,
+            final ModuleSettingRegistry.Registration combinedStepBinding,
+            final ModuleSettingRegistry.Registration maxCombinedStepBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -201,6 +213,12 @@ final class Minecraft189AimAssistFeature
         this.pitchEnabledBinding = pitchEnabledBinding;
         this.angularEasingBinding = angularEasingBinding;
         this.easingStrengthBinding = easingStrengthBinding;
+        this.combinedStepSetting = combinedStepSetting;
+        this.maxCombinedStepSetting = maxCombinedStepSetting;
+        this.combinedStepPresentation = combinedStepPresentation;
+        this.maxCombinedStepPresentation = maxCombinedStepPresentation;
+        this.combinedStepBinding = combinedStepBinding;
+        this.maxCombinedStepBinding = maxCombinedStepBinding;
     }
 
     static Minecraft189AimAssistFeature install(
@@ -272,6 +290,12 @@ final class Minecraft189AimAssistFeature
         ModuleSettingRegistry.Registration pitchEnabledBinding = null;
         ModuleSettingRegistry.Registration angularEasingBinding = null;
         ModuleSettingRegistry.Registration easingStrengthBinding = null;
+        SettingRegistry.Registration combinedStepSetting = null;
+        SettingRegistry.Registration maxCombinedStepSetting = null;
+        SettingPresentationRegistry.Registration combinedStepPresentation = null;
+        SettingPresentationRegistry.Registration maxCombinedStepPresentation = null;
+        ModuleSettingRegistry.Registration combinedStepBinding = null;
+        ModuleSettingRegistry.Registration maxCombinedStepBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -338,6 +362,8 @@ final class Minecraft189AimAssistFeature
                             module.pitchEnabledSetting());
             angularEasingSetting = settings.register(module.angularEasingSetting());
             easingStrengthSetting = settings.register(module.easingStrengthSetting());
+            combinedStepSetting = settings.register(module.combinedStepSetting());
+            maxCombinedStepSetting = settings.register(module.maxCombinedStepSetting());
             yawSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -505,6 +531,18 @@ final class Minecraft189AimAssistFeature
                                     Minecraft189AimAssistModule.MINIMUM_EASING_STRENGTH,
                                     Minecraft189AimAssistModule.MAXIMUM_EASING_STRENGTH,
                                     5.0D)));
+            combinedStepPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AimAssistModule.COMBINED_STEP_SETTING_ID,
+                            "Combined Step Cap", SettingValueKind.BOOLEAN, 90));
+            maxCombinedStepPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AimAssistModule.MAX_COMBINED_STEP_SETTING_ID,
+                            "Max Combined Step", SettingValueKind.DOUBLE, 100,
+                            new SettingNumericSpec(
+                                    Minecraft189AimAssistModule.MINIMUM_SPEED,
+                                    Minecraft189AimAssistModule.MAXIMUM_SPEED,
+                                    0.1D)));
             yawSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -617,6 +655,15 @@ final class Minecraft189AimAssistFeature
                             Minecraft189AimAssistModule.ID,
                             Minecraft189AimAssistModule.EASING_STRENGTH_SETTING_ID, 80));
 
+            combinedStepBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AimAssistModule.ID,
+                            Minecraft189AimAssistModule.COMBINED_STEP_SETTING_ID, 90));
+            maxCombinedStepBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AimAssistModule.ID,
+                            Minecraft189AimAssistModule.MAX_COMBINED_STEP_SETTING_ID, 100));
+
             return new Minecraft189AimAssistFeature(
                     controller,
                     module,
@@ -678,8 +725,20 @@ final class Minecraft189AimAssistFeature
                     yawEnabledBinding,
                     pitchEnabledBinding,
                     angularEasingBinding,
-                    easingStrengthBinding);
+                    easingStrengthBinding,
+                    combinedStepSetting,
+                    maxCombinedStepSetting,
+                    combinedStepPresentation,
+                    maxCombinedStepPresentation,
+                    combinedStepBinding,
+                    maxCombinedStepBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(maxCombinedStepBinding, failure);
+            closeQuietly(combinedStepBinding, failure);
+            closeQuietly(maxCombinedStepPresentation, failure);
+            closeQuietly(combinedStepPresentation, failure);
+            closeQuietly(maxCombinedStepSetting, failure);
+            closeQuietly(combinedStepSetting, failure);
             closeQuietly(easingStrengthBinding, failure);
             closeQuietly(angularEasingBinding, failure);
             closeQuietly(easingStrengthPresentation, failure);
@@ -770,6 +829,12 @@ final class Minecraft189AimAssistFeature
             failure = closeFailure;
         }
 
+        failure = close(maxCombinedStepBinding, failure);
+        failure = close(combinedStepBinding, failure);
+        failure = close(maxCombinedStepPresentation, failure);
+        failure = close(combinedStepPresentation, failure);
+        failure = close(maxCombinedStepSetting, failure);
+        failure = close(combinedStepSetting, failure);
         failure = close(easingStrengthBinding, failure);
         failure = close(angularEasingBinding, failure);
         failure = close(easingStrengthPresentation, failure);
