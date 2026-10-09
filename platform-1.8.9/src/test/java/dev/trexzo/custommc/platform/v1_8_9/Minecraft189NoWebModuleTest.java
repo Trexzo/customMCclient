@@ -102,6 +102,101 @@ final class Minecraft189NoWebModuleTest {
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
     }
 
+    @Test
+    void noWebOptionalGroundAndSneakGatesFailClosedAndComposeIndependently() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189NoWebModule web = runtime.featureCatalog().noWeb();
+            final TestPlayer player = new TestPlayer();
+            assertFalse(web.groundOnlySetting().get().booleanValue());
+            assertFalse(web.requireSneakingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189NoWebModule.GROUND_ONLY_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189NoWebModule.REQUIRE_SNEAKING_SETTING_ID));
+            controller.enable(Minecraft189NoWebModule.ID);
+
+            player.inWeb = true;
+            runtime.playerWebControl(player); // Default no state, clears.
+            assertFalse(player.inWeb);
+            assertEquals(1, player.setCalls);
+
+            web.groundOnlySetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NoWebModule.GROUND_ONLY_SETTING_ID));
+            player.inWeb = true;
+            runtime.playerWebControl(player); // Unknown, no clear.
+            assertTrue(player.inWeb);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerWebControl(player); // Airborne, no clear.
+            assertTrue(player.inWeb);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerWebControl(player); // Grounded, clear.
+            assertFalse(player.inWeb);
+            assertEquals(2, player.setCalls);
+
+            // Require Sneaking independently blocks the grounded case.
+            web.requireSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NoWebModule.REQUIRE_SNEAKING_SETTING_ID));
+            player.inWeb = true;
+            runtime.playerWebControl(player);
+            assertTrue(player.inWeb);
+            runtime.playerMovementState().update(true, true, false);
+            runtime.playerWebControl(player);
+            assertFalse(player.inWeb);
+            assertEquals(3, player.setCalls);
+
+            // Disabling Ground Only allows airborne sneak to qualify.
+            web.groundOnlySetting().set(Boolean.FALSE);
+            player.inWeb = true;
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerWebControl(player);
+            assertTrue(player.inWeb);
+            runtime.playerMovementState().update(false, true, false);
+            runtime.playerWebControl(player);
+            assertFalse(player.inWeb);
+            assertEquals(4, player.setCalls);
+
+            // Legacy API remains conservative with a configured gate.
+            player.inWeb = true;
+            web.apply(player);
+            assertTrue(player.inWeb);
+            runtime.playerMovementState().clear();
+            runtime.playerWebControl(player);
+            assertTrue(player.inWeb);
+
+            web.requireSneakingSetting().set(Boolean.FALSE);
+            web.apply(player); // Original direct no-state API.
+            assertFalse(player.inWeb);
+            assertEquals(5, player.setCalls);
+            controller.disable(Minecraft189NoWebModule.ID);
+            player.inWeb = true;
+            runtime.playerWebControl(player);
+            assertTrue(player.inWeb);
+            assertEquals(5, player.setCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189NoWebModule.GROUND_ONLY_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189NoWebModule.REQUIRE_SNEAKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189NoWebModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerWebControl {
         private boolean inWeb;
