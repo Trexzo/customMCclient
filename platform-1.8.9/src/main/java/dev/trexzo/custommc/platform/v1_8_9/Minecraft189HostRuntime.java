@@ -1370,6 +1370,39 @@ public final class Minecraft189HostRuntime
     }
 
     /** Eligibility captured immediately before the native synthetic click. */
+    boolean shouldAutoRod(final boolean confirmedPlayer,
+            final int verifiedPlayerIndex) {
+        requireOpen();
+        final Minecraft189AutoRodModule rod = featureCatalog.autoRod();
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()
+                || tickHotbarControl == null || !confirmedPlayer
+                || verifiedPlayerIndex < 0
+                || !worldEntityCombatState.snapshot().alive(verifiedPlayerIndex)
+                || !featureCatalog.antiBot().permits(
+                        verifiedPlayerIndex, worldEntityCombatState.snapshot())
+                || (featureCatalog.killAura().active()
+                    && (!targetRotationState.snapshot().available()
+                        || targetRotationState.snapshot().entityIndex()
+                                != verifiedPlayerIndex))) {
+            rod.suspend();
+            return false;
+        }
+        return rod.shouldUse(true,
+                inputState.pointerPressed(Minecraft189ClickRateTracker.LEFT_BUTTON),
+                inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                false, true);
+    }
+
+    int selectAutoRodSlot() {
+        requireOpen();
+        return featureCatalog.autoRod().selectSlot(tickHotbarControl);
+    }
+
+    void restoreAutoRodSlot(final int originalSlot) {
+        requireOpen();
+        featureCatalog.autoRod().restoreSlot(tickHotbarControl, originalSlot);
+    }
+
     int selectCombatSlotBeforeSyntheticClick(final boolean playerHit) {
         requireOpen();
         return featureCatalog.combatSlot().select(tickHotbarControl, playerHit,

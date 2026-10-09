@@ -119,6 +119,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189KeepSprintFeature keepSprintFeature;
     private final Minecraft189CombatSlotFeature combatSlotFeature;
     private final Minecraft189AntiBotFeature antiBotFeature;
+    private final Minecraft189AutoRodFeature autoRodFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
     private Minecraft189FovFeature fovFeature;
     private Minecraft189NoBobbingFeature noBobbingFeature;
@@ -213,7 +214,8 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189CriticalsFeature criticalsFeature,
             final Minecraft189KeepSprintFeature keepSprintFeature,
             final Minecraft189CombatSlotFeature combatSlotFeature,
-            final Minecraft189AntiBotFeature antiBotFeature) {
+            final Minecraft189AntiBotFeature antiBotFeature,
+            final Minecraft189AutoRodFeature autoRodFeature) {
         this.modules = modules;
         this.moduleController = moduleController;
         this.modulePresentations = modulePresentations;
@@ -303,6 +305,7 @@ public final class Minecraft189FeatureCatalog
         this.keepSprintFeature = keepSprintFeature;
         this.combatSlotFeature = combatSlotFeature;
         this.antiBotFeature = antiBotFeature;
+        this.autoRodFeature = autoRodFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -455,6 +458,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189KeepSprintFeature keepSprintFeature = null;
         Minecraft189CombatSlotFeature combatSlotFeature = null;
         Minecraft189AntiBotFeature antiBotFeature = null;
+        Minecraft189AutoRodFeature autoRodFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -903,6 +907,10 @@ public final class Minecraft189FeatureCatalog
                     modules, moduleController, presentations, moduleSettings,
                     settings, settingPresentations);
 
+            autoRodFeature = Minecraft189AutoRodFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
             arrayListFeature =
                     Minecraft189ArrayListFeature.install(
                             modules,
@@ -1281,8 +1289,10 @@ public final class Minecraft189FeatureCatalog
                     criticalsFeature,
                     keepSprintFeature,
                     combatSlotFeature,
-                    antiBotFeature);
+                    antiBotFeature,
+                    autoRodFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(autoRodFeature, failure);
             closeQuietly(antiBotFeature, failure);
             closeQuietly(combatSlotFeature, failure);
             closeQuietly(keepSprintFeature, failure);
@@ -1594,6 +1604,11 @@ public final class Minecraft189FeatureCatalog
         return spinFeature.module();
     }
 
+    public Minecraft189AutoRodModule autoRod() {
+        requireOpen();
+        return autoRodFeature.module();
+    }
+
     public Minecraft189AntiBotModule antiBot() {
         requireOpen();
         return antiBotFeature.module();
@@ -1848,6 +1863,12 @@ public final class Minecraft189FeatureCatalog
                         failure,
                         closeFailure);
             }
+        }
+
+        try {
+            autoRodFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
         }
 
         try {

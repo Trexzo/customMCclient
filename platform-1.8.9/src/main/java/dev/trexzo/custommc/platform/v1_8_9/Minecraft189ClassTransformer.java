@@ -1562,6 +1562,9 @@ public final class Minecraft189ClassTransformer
                                 "customMcClickMouse",
                                 Minecraft189Mappings
                                         .MINECRAFT_CLICK_MOUSE);
+                        addVoidMethodDelegate(cv,
+                                "customMcRightClickMouse",
+                                Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_MOUSE);
                         addCrosshairHitAccessor(cv);
                         addCrosshairPlayerIndexAccessor(cv);
                         super.visitEnd();

@@ -440,6 +440,9 @@ final class Minecraft189MappedHostTransformationTest {
             final Object minecraft =
                     minecraftClass.getDeclaredConstructor()
                             .newInstance();
+            // Exact 1.8.9 rightClickMouse() delegate must link on the
+            // transformed Minecraft owner, even if no AutoRod is enabled.
+            ((Minecraft189ClickMouseControl) minecraft).customMcRightClickMouse();
             final Minecraft189CrosshairHitAccess rayHit =
                     (Minecraft189CrosshairHitAccess) minecraft;
             org.junit.jupiter.api.Assertions.assertFalse(
