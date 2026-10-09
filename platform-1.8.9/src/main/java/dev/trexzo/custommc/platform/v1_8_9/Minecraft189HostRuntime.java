@@ -1267,6 +1267,9 @@ public final class Minecraft189HostRuntime
     int leftClickCounter(
             final int currentCounter) {
         requireOpen();
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            return currentCounter;
+        }
         return featureCatalog.noHitDelay()
                 .apply(
                         currentCounter,
@@ -1281,10 +1284,14 @@ public final class Minecraft189HostRuntime
 
     boolean shouldAutoClick(final boolean crosshairPlayerHit) {
         requireOpen();
-        // Trigger mode must not fire against a stale raycast while the
-        // native ClickGUI owns input. Legacy Auto Clicker stays unchanged.
-        final boolean confirmedHit = crosshairPlayerHit
-                && !clickGuiRuntime.coreRuntime().model().snapshot().open();
+        // No automatic attack may cross the native ClickGUI focus boundary.
+        // The same rule applies to hold and trigger modes; pending phase
+        // is cancelled so closing the GUI cannot replay banked clicks.
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            featureCatalog.autoClicker().suspendForGui();
+            return false;
+        }
+        final boolean confirmedHit = crosshairPlayerHit;
         final boolean click =
                 featureCatalog.autoClicker()
                         .shouldClick(

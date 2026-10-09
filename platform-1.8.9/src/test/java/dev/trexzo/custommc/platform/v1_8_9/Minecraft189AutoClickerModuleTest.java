@@ -1227,4 +1227,26 @@ final class Minecraft189AutoClickerModuleTest {
         public void endUi() {
         }
     }
+
+    @Test
+    void guiFocusSuspensionClearsScheduledClicksWithoutDisablingTheModule() {
+        final Minecraft189AutoClickerModule clicker =
+                new Minecraft189AutoClickerModule();
+        clicker.minCpsSetting().set(10);
+        clicker.maxCpsSetting().set(10);
+        clicker.requireHoldSetting().set(Boolean.FALSE);
+        clicker.onEnable();
+        try {
+            assertFalse(clicker.shouldClick(false));
+            clicker.suspendForGui();
+            assertTrue(clicker.active());
+            assertFalse(clicker.shouldClick(false));
+            assertTrue(clicker.shouldClick(false));
+            clicker.suspendForGui();
+            assertFalse(clicker.shouldClick(false));
+        } finally {
+            clicker.onDisable();
+        }
+    }
+
 }
