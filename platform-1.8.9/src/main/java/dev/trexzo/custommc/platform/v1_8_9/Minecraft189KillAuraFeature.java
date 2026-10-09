@@ -68,6 +68,12 @@ final class Minecraft189KillAuraFeature implements AutoCloseable {
             f.bind(moduleSettings, settings, settingPresentations,
                     f.module.prioritizeCrosshairSetting(), "Prioritize Crosshair",
                     SettingValueKind.BOOLEAN, 80, null);
+            f.bind(moduleSettings, settings, settingPresentations,
+                    f.module.switchHurtTargetsSetting(), "Switch Hurt Targets",
+                    SettingValueKind.BOOLEAN, 90, null);
+            f.bind(moduleSettings, settings, settingPresentations,
+                    f.module.maxSwitchHurtTicksSetting(), "Max Target Hurt Ticks",
+                    SettingValueKind.INTEGER, 100, new SettingNumericSpec(0, 20, 1));
             return f;
         } catch (RuntimeException ex) {
             try { f.close(); }

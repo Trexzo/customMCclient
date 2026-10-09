@@ -42,8 +42,12 @@ final class Minecraft189KillAuraTargetSelector {
         final double range = aura.rangeSetting().get();
         final double fov = aura.fovSetting().get();
         final boolean crosshair = aura.prioritizeCrosshairSetting().get();
+        final boolean skipHurt = aura.switchHurtTargetsSetting().get();
+        final int acceptedHurtTime = aura.maxSwitchHurtTicksSetting().get();
         target.update(local, positions, kinds, 0.0D, range,
                 candidate -> combat.alive(candidate.entityIndex())
+                        && (!skipHurt
+                                || combat.hurtTime(candidate.entityIndex()) <= acceptedHurtTime)
                         && (antiBot == null
                                 || antiBot.permits(candidate.entityIndex(), combat))
                         && Double.isFinite(
