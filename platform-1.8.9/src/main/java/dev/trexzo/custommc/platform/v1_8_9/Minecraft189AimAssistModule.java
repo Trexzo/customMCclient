@@ -50,6 +50,10 @@ public final class Minecraft189AimAssistModule
             "combat.aimAssist.combinedStep";
     public static final String MAX_COMBINED_STEP_SETTING_ID =
             "combat.aimAssist.maxCombinedStep";
+    public static final String CORRECTION_INTERVAL_SETTING_ID =
+            "combat.aimAssist.correctionIntervalTicks";
+    public static final int DEFAULT_CORRECTION_INTERVAL = 1;
+    public static final int MAXIMUM_CORRECTION_INTERVAL = 10;
     public static final double DEFAULT_MAX_COMBINED_STEP = 10.0D;
     public static final int DEFAULT_EASING_STRENGTH = 50;
     public static final int MINIMUM_EASING_STRENGTH = 10;
@@ -220,7 +224,14 @@ public final class Minecraft189AimAssistModule
     private final Setting<Double> maxCombinedStep = new Setting<Double>(
             MAX_COMBINED_STEP_SETTING_ID, DEFAULT_MAX_COMBINED_STEP,
             Minecraft189AimAssistModule::validSpeed, SettingCodecs.DOUBLE);
+    private final Setting<Integer> correctionIntervalTicks = new Setting<Integer>(
+            CORRECTION_INTERVAL_SETTING_ID, DEFAULT_CORRECTION_INTERVAL,
+            value -> value != null && value >= 1
+                    && value <= MAXIMUM_CORRECTION_INTERVAL,
+            SettingCodecs.INTEGER);
     private boolean enabled;
+    private int correctionsUntilEligible;
+    private int scheduledCorrectionInterval = DEFAULT_CORRECTION_INTERVAL;
 
     @Override
     public String id() {
@@ -311,14 +322,20 @@ public final class Minecraft189AimAssistModule
         return maxCombinedStep;
     }
 
+    public Setting<Integer> correctionIntervalTicksSetting() {
+        return correctionIntervalTicks;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        resetCorrectionInterval();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        resetCorrectionInterval();
     }
 
     synchronized boolean apply(
@@ -374,6 +391,7 @@ public final class Minecraft189AimAssistModule
                         && (movement == null
                         || !movement.available()
                         || !movement.sprinting()))) {
+            resetCorrectionInterval();
             return false;
         }
 
@@ -393,6 +411,7 @@ public final class Minecraft189AimAssistModule
                         || Math.abs(desiredPitch - rotation.pitch())
                                 > deadZoneDegrees);
         if (!adjustYaw && !adjustPitch) {
+            resetCorrectionInterval();
             return false;
         }
 
@@ -427,6 +446,7 @@ public final class Minecraft189AimAssistModule
                     ? targetPitch - rotation.pitch() : 0.0F;
             final double length = Math.hypot(yawDelta, pitchDelta);
             if (!Double.isFinite(length)) {
+                resetCorrectionInterval();
                 return false;
             }
             final double cap = maxCombinedStep.get().doubleValue();
@@ -439,6 +459,30 @@ public final class Minecraft189AimAssistModule
                     nextPitch = rotation.pitch() + pitchDelta * scale;
                 }
             }
+        }
+
+        // Cadence is measured in eligible host updates, never wall-clock
+        // time. Only real candidate corrections are counted. Intermediate
+        // eligible frames keep Aim Assist's rotation ownership so Jitter
+        // cannot inject a competing rotation on a skipped correction.
+        final int interval = correctionIntervalTicks.get().intValue();
+        if (scheduledCorrectionInterval != interval) {
+            resetCorrectionInterval();
+        }
+        if (interval > 1) {
+            final boolean canWriteYaw = adjustYaw
+                    && Float.compare(rotation.yaw(), nextYaw) != 0;
+            final boolean canWritePitch = adjustPitch
+                    && Float.compare(rotation.pitch(), nextPitch) != 0;
+            if (!canWriteYaw && !canWritePitch) {
+                resetCorrectionInterval();
+                return false;
+            }
+            if (correctionsUntilEligible > 0) {
+                correctionsUntilEligible--;
+                return true;
+            }
+            correctionsUntilEligible = interval - 1;
         }
 
         if (adjustYaw
@@ -455,6 +499,11 @@ public final class Minecraft189AimAssistModule
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    private void resetCorrectionInterval() {
+        correctionsUntilEligible = 0;
+        scheduledCorrectionInterval = correctionIntervalTicks.get().intValue();
     }
 
     // Single FOV authority shared by final rotation eligibility and
