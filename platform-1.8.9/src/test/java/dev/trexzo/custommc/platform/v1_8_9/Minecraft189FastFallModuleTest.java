@@ -531,6 +531,11 @@ final class Minecraft189FastFallModuleTest {
         // and missing state never allow delayed acceleration credit.
         fall.progressiveSetting().set(Boolean.TRUE);
         fall.rampStepSetting().set(0.05D);
+        // A new descent starts only after an observed eligibility boundary.
+        // Rewinding the test player's Y motion alone is not a landing.
+        movement.update(true, false, false);
+        fall.apply(player, movement.snapshot(), false);
+        movement.update(false, false, false);
         player.motionY = -0.05D;
         fall.apply(player, movement.snapshot(), false); // 1/2.
         movement.clear();
