@@ -2007,7 +2007,7 @@ final class Minecraft189MappingsTest {
         Minecraft189ClassShapeVerifier.verifyMovingObjectPosition(correct);
         final Minecraft189ClassTransformer transformer =
                 new Minecraft189ClassTransformer();
-        assertEquals(true, transformer.supports(
+        assertEquals(true, transformer.handles(
                 Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedBinaryName()));
         org.junit.jupiter.api.Assertions.assertArrayEquals(correct, transformer.transform(
                 Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedBinaryName(),
