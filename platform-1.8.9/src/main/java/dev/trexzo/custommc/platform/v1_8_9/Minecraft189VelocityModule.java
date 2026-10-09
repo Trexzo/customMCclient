@@ -32,15 +32,13 @@ public final class Minecraft189VelocityModule
             new Setting<Integer>(
                     HORIZONTAL_SETTING_ID,
                     DEFAULT_PERCENT,
-                    value -> value >= MINIMUM_PERCENT
-                            && value <= MAXIMUM_PERCENT,
+                    Minecraft189VelocityModule::validPercent,
                     SettingCodecs.INTEGER);
     private final Setting<Integer> verticalPercent =
             new Setting<Integer>(
                     VERTICAL_SETTING_ID,
                     DEFAULT_PERCENT,
-                    value -> value >= MINIMUM_PERCENT
-                            && value <= MAXIMUM_PERCENT,
+                    Minecraft189VelocityModule::validPercent,
                     SettingCodecs.INTEGER);
 
     private final Setting<Boolean> onlyWhileSprinting =
@@ -208,8 +206,27 @@ public final class Minecraft189VelocityModule
             final double before,
             final double after,
             final int percent) {
-        return before
-                + (after - before)
-                * (percent / 100.0D);
+        // Exact endpoints preserve signed zero, vanilla 100%, and avoid
+        // zero times an overflowing motion delta.
+        if (percent == 100) {
+            return after;
+        }
+        if (percent == 0) {
+            return Double.isFinite(before) ? before : after;
+        }
+        if (!Double.isFinite(before) || !Double.isFinite(after)) {
+            // The incoming update is authoritative when motion is invalid.
+            return after;
+        }
+        final double fraction = percent / 100.0D;
+        double scaled = before + (after - before) * fraction;
+        if (!Double.isFinite(scaled) && percent < 100) {
+            // A finite weighted interpolation can remain representable
+            // even when the raw difference overflows.
+            scaled = before * (1.0D - fraction) + after * fraction;
+        }
+        // Never fabricate NaN/Infinity when amplifying extreme finite
+        // input. Retain incoming vanilla motion if scaling overflows.
+        return Double.isFinite(scaled) ? scaled : after;
     }
 }
