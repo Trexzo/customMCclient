@@ -24,6 +24,8 @@ public final class Minecraft189HealthModule
             "render.health.y";
     public static final String SHOW_PERCENT_SETTING_ID =
             "render.health.showPercent";
+    public static final String SHOW_BAR_SETTING_ID =
+            "render.health.showBar";
     public static final String LOW_HEALTH_ALERT_SETTING_ID =
             "render.health.lowHealthAlert";
     public static final String LOW_HEALTH_THRESHOLD_SETTING_ID =
@@ -34,6 +36,10 @@ public final class Minecraft189HealthModule
     private static final int PRIORITY = 128;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
     private static final int LOW_HEALTH_ARGB = 0xFFFF6969;
+    private static final int BAR_TRACK_ARGB = 0xBB26303A;
+    private static final int BAR_FILL_ARGB = 0xFF70C9E8;
+    private static final float BAR_WIDTH = 120.0F;
+    private static final float BAR_HEIGHT = 4.0F;
 
     private final Minecraft189PlayerHealthState healthState;
     private final RenderPipeline renderPipeline;
@@ -58,6 +64,10 @@ public final class Minecraft189HealthModule
                     Boolean.FALSE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> showBar =
+            new Setting<Boolean>(
+                    SHOW_BAR_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> lowHealthAlert =
             new Setting<Boolean>(
                     LOW_HEALTH_ALERT_SETTING_ID,
@@ -107,6 +117,10 @@ public final class Minecraft189HealthModule
         return showPercent;
     }
 
+    public Setting<Boolean> showBarSetting() {
+        return showBar;
+    }
+
     public Setting<Boolean> lowHealthAlertSetting() {
         return lowHealthAlert;
     }
@@ -129,6 +143,20 @@ public final class Minecraft189HealthModule
                         Locale.ROOT, " (%.0f%%)",
                         (double) health.health() * 100.0D / health.maxHealth())
                 : value;
+    }
+
+    static float healthBarFraction(
+            final Minecraft189PlayerHealthState.Snapshot health) {
+        if (health == null || !health.available()
+                || !Float.isFinite(health.health())
+                || !Float.isFinite(health.maxHealth())
+                || health.maxHealth() <= 0.0F) {
+            return 0.0F;
+        }
+        // Source health is finite, but may be outside [0, max] during
+        // client transitions. Avoid oversized or negative rectangles.
+        return (float) Math.max(0.0D, Math.min(1.0D,
+                (double) health.health() / health.maxHealth()));
     }
 
     static boolean lowHealth(
@@ -203,19 +231,27 @@ public final class Minecraft189HealthModule
             hostCallbacks.beginUi(viewport);
             RuntimeException failure = null;
             try {
+                final float left = x.get().floatValue();
+                final float top = y.get().floatValue();
+                final boolean warn = lowHealthAlert.get().booleanValue()
+                        && lowHealth(health,
+                                lowHealthThreshold.get().intValue());
                 hostCallbacks.drawText(
                         UiFonts.DEFAULT,
-                        x.get().floatValue(),
-                        y.get().floatValue(),
-                        textFor(
-                                health,
-                                showPercent.get().booleanValue()),
-                        lowHealthAlert.get().booleanValue()
-                                && lowHealth(
-                                        health,
-                                        lowHealthThreshold.get().intValue())
-                                ? LOW_HEALTH_ARGB
-                                : TEXT_ARGB);
+                        left, top,
+                        textFor(health, showPercent.get().booleanValue()),
+                        warn ? LOW_HEALTH_ARGB : TEXT_ARGB);
+                if (showBar.get().booleanValue()) {
+                    final float barY = top + 12.0F;
+                    final float fraction = healthBarFraction(health);
+                    hostCallbacks.fillRect(left, barY,
+                            BAR_WIDTH, BAR_HEIGHT, BAR_TRACK_ARGB);
+                    if (fraction > 0.0F) {
+                        hostCallbacks.fillRect(left, barY,
+                                BAR_WIDTH * fraction, BAR_HEIGHT,
+                                warn ? LOW_HEALTH_ARGB : BAR_FILL_ARGB);
+                    }
+                }
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
                 throw drawFailure;

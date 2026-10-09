@@ -221,6 +221,91 @@ final class Minecraft189HealthModuleTest {
                         0.0F));
     }
 
+    @Test
+    void healthBarDisplaysClampedLiveFractionAndUsesLowHealthWarningColor() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189HealthModule hud = runtime.featureCatalog().health();
+            assertFalse(hud.showBarSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189HealthModule.SHOW_BAR_SETTING_ID));
+            hud.xSetting().set(40);
+            hud.ySetting().set(210);
+            controller.enable(Minecraft189HealthModule.ID);
+            runtime.playerHealth(healthAccess(15.0F, 20.0F));
+            runtime.renderHud(0L, 0.0F);
+            assertEquals("Health: 15.0 / 20.0", host.lastText);
+            assertEquals(0, host.healthBarTracks);
+            assertEquals(0, host.healthBarFills);
+
+            hud.showBarSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189HealthModule.SHOW_BAR_SETTING_ID));
+            runtime.renderHud(1L, 0.0F);
+            assertEquals(1, host.healthBarTracks);
+            assertEquals(1, host.healthBarFills);
+            assertEquals(90.0F, host.lastBarFillWidth, 0.00001F);
+            assertEquals(222.0F, host.lastBarY, 0.00001F);
+            assertEquals(0xFF70C9E8, host.lastBarColor);
+            assertEquals("Health: 15.0 / 20.0", host.lastText);
+            assertEquals(40.0F, host.lastX, 0.00001F);
+
+            hud.lowHealthAlertSetting().set(Boolean.TRUE);
+            runtime.playerHealth(healthAccess(6.0F, 20.0F));
+            runtime.renderHud(2L, 0.0F);
+            assertEquals(36.0F, host.lastBarFillWidth, 0.00001F);
+            assertEquals(0xFFFF6969, host.lastBarColor);
+            assertEquals(0xFFFF6969, host.lastArgb);
+            runtime.playerHealth(healthAccess(6.01F, 20.0F));
+            runtime.renderHud(3L, 0.0F);
+            assertEquals(0xFF70C9E8, host.lastBarColor);
+            assertEquals(0xFFFFFFFF, host.lastArgb);
+
+            runtime.playerHealth(healthAccess(30.0F, 20.0F));
+            runtime.renderHud(4L, 0.0F);
+            assertEquals(120.0F, host.lastBarFillWidth, 0.00001F);
+            runtime.playerHealth(healthAccess(0.0F, 20.0F));
+            final int fillsBeforeZero = host.healthBarFills;
+            runtime.renderHud(5L, 0.0F);
+            assertEquals(fillsBeforeZero, host.healthBarFills);
+            assertEquals(5, host.healthBarTracks);
+            runtime.playerHealth(healthAccess(-5.0F, 20.0F));
+            runtime.renderHud(6L, 0.0F);
+            assertEquals(fillsBeforeZero, host.healthBarFills);
+            assertEquals(6, host.healthBarTracks);
+
+            hud.showBarSetting().set(Boolean.FALSE);
+            runtime.playerHealth(healthAccess(10.0F, 20.0F));
+            runtime.renderHud(7L, 0.0F);
+            assertEquals(6, host.healthBarTracks);
+            assertEquals("Health: 10.0 / 20.0", host.lastText);
+            runtime.playerHealth(null);
+            runtime.renderHud(8L, 0.0F);
+            assertEquals(6, host.healthBarTracks);
+            controller.disable(Minecraft189HealthModule.ID);
+            runtime.playerHealth(healthAccess(10.0F, 20.0F));
+            runtime.renderHud(9L, 0.0F);
+            assertEquals(6, host.healthBarTracks);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189HealthModule.SHOW_BAR_SETTING_ID));
+        assertNull(modules.find(Minecraft189HealthModule.ID));
+    }
+
     private static Minecraft189PlayerHealthAccess healthAccess(
             final float health, final float maxHealth) {
         return new Minecraft189PlayerHealthAccess() {
@@ -242,6 +327,11 @@ final class Minecraft189HealthModuleTest {
         private int lastArgb;
         private float lastX;
         private float lastY;
+        private int healthBarTracks;
+        private int healthBarFills;
+        private float lastBarFillWidth;
+        private float lastBarY;
+        private int lastBarColor;
 
         @Override
         public int framebufferWidth() {
@@ -270,6 +360,15 @@ final class Minecraft189HealthModuleTest {
                 final float width,
                 final float height,
                 final int argb) {
+            if (argb == 0xBB26303A) {
+                healthBarTracks++;
+            }
+            if (argb == 0xFF70C9E8 || argb == 0xFFFF6969) {
+                healthBarFills++;
+                lastBarFillWidth = width;
+                lastBarY = y;
+                lastBarColor = argb;
+            }
         }
 
         @Override
