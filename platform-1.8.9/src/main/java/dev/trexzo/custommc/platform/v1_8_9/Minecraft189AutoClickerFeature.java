@@ -55,6 +55,15 @@ final class Minecraft189AutoClickerFeature
     private final SettingRegistry.Registration groundOnlySetting;
     private final SettingPresentationRegistry.Registration groundOnlyPresentation;
     private final ModuleSettingRegistry.Registration groundOnlyBinding;
+    private final SettingRegistry.Registration burstModeSetting;
+    private final SettingRegistry.Registration burstClicksSetting;
+    private final SettingRegistry.Registration burstRestTicksSetting;
+    private final SettingPresentationRegistry.Registration burstModePresentation;
+    private final SettingPresentationRegistry.Registration burstClicksPresentation;
+    private final SettingPresentationRegistry.Registration burstRestTicksPresentation;
+    private final ModuleSettingRegistry.Registration burstModeBinding;
+    private final ModuleSettingRegistry.Registration burstClicksBinding;
+    private final ModuleSettingRegistry.Registration burstRestTicksBinding;
     private boolean closed;
 
     private Minecraft189AutoClickerFeature(
@@ -97,7 +106,16 @@ final class Minecraft189AutoClickerFeature
             final ModuleSettingRegistry.Registration startDelayBinding,
             final SettingRegistry.Registration groundOnlySetting,
             final SettingPresentationRegistry.Registration groundOnlyPresentation,
-            final ModuleSettingRegistry.Registration groundOnlyBinding) {
+            final ModuleSettingRegistry.Registration groundOnlyBinding,
+            final SettingRegistry.Registration burstModeSetting,
+            final SettingRegistry.Registration burstClicksSetting,
+            final SettingRegistry.Registration burstRestTicksSetting,
+            final SettingPresentationRegistry.Registration burstModePresentation,
+            final SettingPresentationRegistry.Registration burstClicksPresentation,
+            final SettingPresentationRegistry.Registration burstRestTicksPresentation,
+            final ModuleSettingRegistry.Registration burstModeBinding,
+            final ModuleSettingRegistry.Registration burstClicksBinding,
+            final ModuleSettingRegistry.Registration burstRestTicksBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -138,6 +156,15 @@ final class Minecraft189AutoClickerFeature
         this.groundOnlySetting = groundOnlySetting;
         this.groundOnlyPresentation = groundOnlyPresentation;
         this.groundOnlyBinding = groundOnlyBinding;
+        this.burstModeSetting = burstModeSetting;
+        this.burstClicksSetting = burstClicksSetting;
+        this.burstRestTicksSetting = burstRestTicksSetting;
+        this.burstModePresentation = burstModePresentation;
+        this.burstClicksPresentation = burstClicksPresentation;
+        this.burstRestTicksPresentation = burstRestTicksPresentation;
+        this.burstModeBinding = burstModeBinding;
+        this.burstClicksBinding = burstClicksBinding;
+        this.burstRestTicksBinding = burstRestTicksBinding;
     }
 
     static Minecraft189AutoClickerFeature install(
@@ -188,6 +215,15 @@ final class Minecraft189AutoClickerFeature
         SettingRegistry.Registration groundOnlySetting = null;
         SettingPresentationRegistry.Registration groundOnlyPresentation = null;
         ModuleSettingRegistry.Registration groundOnlyBinding = null;
+        SettingRegistry.Registration burstModeSetting = null;
+        SettingRegistry.Registration burstClicksSetting = null;
+        SettingRegistry.Registration burstRestTicksSetting = null;
+        SettingPresentationRegistry.Registration burstModePresentation = null;
+        SettingPresentationRegistry.Registration burstClicksPresentation = null;
+        SettingPresentationRegistry.Registration burstRestTicksPresentation = null;
+        ModuleSettingRegistry.Registration burstModeBinding = null;
+        ModuleSettingRegistry.Registration burstClicksBinding = null;
+        ModuleSettingRegistry.Registration burstRestTicksBinding = null;
 
         try {
             moduleRegistration =
@@ -226,6 +262,9 @@ final class Minecraft189AutoClickerFeature
             rampUpTicksSetting = settings.register(module.rampUpTicksSetting());
             startDelaySetting = settings.register(module.startDelayTicksSetting());
             groundOnlySetting = settings.register(module.groundOnlySetting());
+            burstModeSetting = settings.register(module.burstModeSetting());
+            burstClicksSetting = settings.register(module.burstClicksSetting());
+            burstRestTicksSetting = settings.register(module.burstRestTicksSetting());
             minPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -305,6 +344,24 @@ final class Minecraft189AutoClickerFeature
                     new SettingDescriptor(
                             Minecraft189AutoClickerModule.GROUND_ONLY_SETTING_ID,
                             "Ground Only", SettingValueKind.BOOLEAN, 80));
+            burstModePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoClickerModule.BURST_MODE_SETTING_ID,
+                            "Burst Mode", SettingValueKind.BOOLEAN, 90));
+            burstClicksPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoClickerModule.BURST_CLICKS_SETTING_ID,
+                            "Burst Clicks", SettingValueKind.INTEGER, 100,
+                            new SettingNumericSpec(1.0D,
+                                    Minecraft189AutoClickerModule.MAXIMUM_BURST_CLICKS,
+                                    1.0D)));
+            burstRestTicksPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoClickerModule.BURST_REST_TICKS_SETTING_ID,
+                            "Burst Rest Ticks", SettingValueKind.INTEGER, 110,
+                            new SettingNumericSpec(1.0D,
+                                    Minecraft189AutoClickerModule.MAXIMUM_BURST_REST_TICKS,
+                                    1.0D)));
             minBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -367,6 +424,19 @@ final class Minecraft189AutoClickerFeature
                             Minecraft189AutoClickerModule.ID,
                             Minecraft189AutoClickerModule.GROUND_ONLY_SETTING_ID, 80));
 
+            burstModeBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoClickerModule.ID,
+                            Minecraft189AutoClickerModule.BURST_MODE_SETTING_ID, 90));
+            burstClicksBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoClickerModule.ID,
+                            Minecraft189AutoClickerModule.BURST_CLICKS_SETTING_ID, 100));
+            burstRestTicksBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoClickerModule.ID,
+                            Minecraft189AutoClickerModule.BURST_REST_TICKS_SETTING_ID, 110));
+
             return new Minecraft189AutoClickerFeature(
                     controller,
                     module,
@@ -407,8 +477,26 @@ final class Minecraft189AutoClickerFeature
                     startDelayBinding,
                     groundOnlySetting,
                     groundOnlyPresentation,
-                    groundOnlyBinding);
+                    groundOnlyBinding,
+                    burstModeSetting,
+                    burstClicksSetting,
+                    burstRestTicksSetting,
+                    burstModePresentation,
+                    burstClicksPresentation,
+                    burstRestTicksPresentation,
+                    burstModeBinding,
+                    burstClicksBinding,
+                    burstRestTicksBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(burstRestTicksBinding, failure);
+            closeQuietly(burstClicksBinding, failure);
+            closeQuietly(burstModeBinding, failure);
+            closeQuietly(burstRestTicksPresentation, failure);
+            closeQuietly(burstClicksPresentation, failure);
+            closeQuietly(burstModePresentation, failure);
+            closeQuietly(burstRestTicksSetting, failure);
+            closeQuietly(burstClicksSetting, failure);
+            closeQuietly(burstModeSetting, failure);
             closeQuietly(groundOnlyBinding, failure);
             closeQuietly(groundOnlyPresentation, failure);
             closeQuietly(groundOnlySetting, failure);
@@ -518,6 +606,15 @@ final class Minecraft189AutoClickerFeature
             failure = closeFailure;
         }
 
+        failure = close(burstRestTicksBinding, failure);
+        failure = close(burstClicksBinding, failure);
+        failure = close(burstModeBinding, failure);
+        failure = close(burstRestTicksPresentation, failure);
+        failure = close(burstClicksPresentation, failure);
+        failure = close(burstModePresentation, failure);
+        failure = close(burstRestTicksSetting, failure);
+        failure = close(burstClicksSetting, failure);
+        failure = close(burstModeSetting, failure);
         failure = close(groundOnlyBinding, failure);
         failure = close(groundOnlyPresentation, failure);
         failure = close(groundOnlySetting, failure);

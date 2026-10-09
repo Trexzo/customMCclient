@@ -33,6 +33,16 @@ public final class Minecraft189AutoClickerModule
             "combat.autoClicker.rampUpTicks";
     public static final String GROUND_ONLY_SETTING_ID =
             "combat.autoClicker.groundOnly";
+    public static final String BURST_MODE_SETTING_ID =
+            "combat.autoClicker.burstMode";
+    public static final String BURST_CLICKS_SETTING_ID =
+            "combat.autoClicker.burstClicks";
+    public static final String BURST_REST_TICKS_SETTING_ID =
+            "combat.autoClicker.burstRestTicks";
+    public static final int DEFAULT_BURST_CLICKS = 4;
+    public static final int DEFAULT_BURST_REST_TICKS = 6;
+    public static final int MAXIMUM_BURST_CLICKS = 20;
+    public static final int MAXIMUM_BURST_REST_TICKS = 40;
     public static final String START_DELAY_SETTING_ID =
             "combat.autoClicker.startDelayTicks";
     public static final int DEFAULT_START_DELAY_TICKS = 0;
@@ -109,6 +119,20 @@ public final class Minecraft189AutoClickerModule
             GROUND_ONLY_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> burstMode = new Setting<Boolean>(
+            BURST_MODE_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> burstClicks = new Setting<Integer>(
+            BURST_CLICKS_SETTING_ID, DEFAULT_BURST_CLICKS,
+            value -> value != null && value >= 1
+                    && value <= MAXIMUM_BURST_CLICKS,
+            SettingCodecs.INTEGER);
+    private final Setting<Integer> burstRestTicks = new Setting<Integer>(
+            BURST_REST_TICKS_SETTING_ID, DEFAULT_BURST_REST_TICKS,
+            value -> value != null && value >= 1
+                    && value <= MAXIMUM_BURST_REST_TICKS,
+            SettingCodecs.INTEGER);
+
     private boolean enabled;
     private boolean startDelayPrimed;
     private int startDelayRemaining;
@@ -120,6 +144,11 @@ public final class Minecraft189AutoClickerModule
     private int targetCps;
     private int scheduledMinimumCps;
     private int scheduledMaximumCps;
+    private boolean scheduledBurstMode;
+    private int scheduledBurstClicks;
+    private int scheduledBurstRestTicks;
+    private int clicksInBurst;
+    private int restTicksRemaining;
 
     @Override
     public String id() {
@@ -172,6 +201,18 @@ public final class Minecraft189AutoClickerModule
 
     public Setting<Integer> startDelayTicksSetting() {
         return startDelayTicks;
+    }
+
+    public Setting<Boolean> burstModeSetting() {
+        return burstMode;
+    }
+
+    public Setting<Integer> burstClicksSetting() {
+        return burstClicks;
+    }
+
+    public Setting<Integer> burstRestTicksSetting() {
+        return burstRestTicks;
     }
 
     @Override
@@ -250,17 +291,26 @@ public final class Minecraft189AutoClickerModule
         final boolean currentRampUp = rampUp.get().booleanValue();
         final int currentRampUpTicks = rampUpTicks.get().intValue();
         final int currentStartDelayTicks = startDelayTicks.get().intValue();
+        final boolean currentBurstMode = burstMode.get().booleanValue();
+        final int currentBurstClicks = burstClicks.get().intValue();
+        final int currentBurstRestTicks = burstRestTicks.get().intValue();
         if (scheduledMinimumCps != currentMinimumCps
                 || scheduledMaximumCps != currentMaximumCps
                 || scheduledRampUp != currentRampUp
                 || scheduledRampUpTicks != currentRampUpTicks
-                || scheduledStartDelayTicks != currentStartDelayTicks) {
+                || scheduledStartDelayTicks != currentStartDelayTicks
+                || scheduledBurstMode != currentBurstMode
+                || scheduledBurstClicks != currentBurstClicks
+                || scheduledBurstRestTicks != currentBurstRestTicks) {
             resetSchedule();
             scheduledMinimumCps = currentMinimumCps;
             scheduledMaximumCps = currentMaximumCps;
             scheduledRampUp = currentRampUp;
             scheduledRampUpTicks = currentRampUpTicks;
             scheduledStartDelayTicks = currentStartDelayTicks;
+            scheduledBurstMode = currentBurstMode;
+            scheduledBurstClicks = currentBurstClicks;
+            scheduledBurstRestTicks = currentBurstRestTicks;
         }
 
         // Start delay consumes eligible callbacks, never scheduler phase
@@ -271,6 +321,13 @@ public final class Minecraft189AutoClickerModule
         }
         if (startDelayRemaining > 0) {
             startDelayRemaining--;
+            return false;
+        }
+
+        // Rest counts only eligible scheduler callbacks and never banks CPS
+        // phase, click target, or ramp-up ticks during intentional pauses.
+        if (currentBurstMode && restTicksRemaining > 0) {
+            restTicksRemaining--;
             return false;
         }
 
@@ -300,6 +357,13 @@ public final class Minecraft189AutoClickerModule
 
         phaseCredit -= TICKS_PER_SECOND;
         targetCps = nextTargetCps();
+        if (currentBurstMode && ++clicksInBurst >= currentBurstClicks) {
+            clicksInBurst = 0;
+            restTicksRemaining = currentBurstRestTicks;
+            // Do not bank a fractional scheduler phase across the rest.
+            phaseCredit = 0;
+            targetCps = 0;
+        }
         return true;
     }
 
@@ -340,5 +404,10 @@ public final class Minecraft189AutoClickerModule
         scheduledRampUp = false;
         scheduledRampUpTicks = 0;
         elapsedEligibleTicks = 0;
+        scheduledBurstMode = false;
+        scheduledBurstClicks = 0;
+        scheduledBurstRestTicks = 0;
+        clicksInBurst = 0;
+        restTicksRemaining = 0;
     }
 }
