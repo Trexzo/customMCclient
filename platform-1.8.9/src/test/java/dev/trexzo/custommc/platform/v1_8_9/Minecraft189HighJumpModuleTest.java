@@ -264,6 +264,85 @@ final class Minecraft189HighJumpModuleTest {
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
     }
 
+    @Test
+    void highJumpOptionalWASDGateRequiresFreshSpaceWithMovement() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189HighJumpModule jump = runtime.featureCatalog().highJump();
+            final TestPlayer player = new TestPlayer();
+            assertFalse(jump.requireMovementSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189HighJumpModule.REQUIRE_MOVEMENT_SETTING_ID));
+            controller.enable(Minecraft189HighJumpModule.ID);
+            jump.requireMovementSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189HighJumpModule.REQUIRE_MOVEMENT_SETTING_ID));
+            runtime.playerMovementState().update(true, false, false);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            assertEquals(0, player.jumpCalls); // No movement.
+
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerJumpControl(player);
+            assertEquals(0, player.jumpCalls); // Holding Space cannot queue boost.
+            runtime.inputState().key(LegacyKeyboardCodes.W, false);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            runtime.playerJumpControl(player);
+
+            final int[] keys = {
+                    LegacyKeyboardCodes.A, LegacyKeyboardCodes.S,
+                    LegacyKeyboardCodes.D, LegacyKeyboardCodes.W};
+            for (int i = 0; i < keys.length; i++) {
+                runtime.inputState().key(keys[i], true);
+                runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+                runtime.playerJumpControl(player);
+                assertEquals(i + 1, player.jumpCalls);
+                runtime.playerMotionControl(player);
+                assertEquals(Minecraft189HighJumpModule.DEFAULT_VERTICAL_SPEED,
+                        player.motionY, 0.000000001D);
+                runtime.playerJumpControl(player);
+                assertEquals(i + 1, player.jumpCalls);
+                runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+                runtime.playerJumpControl(player);
+                runtime.inputState().key(keys[i], false);
+            }
+
+            // Turning OFF the optional requirement restores stationary boost.
+            jump.requireMovementSetting().set(Boolean.FALSE);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            assertEquals(5, player.jumpCalls);
+            runtime.playerMotionControl(player);
+            assertEquals(Minecraft189HighJumpModule.DEFAULT_VERTICAL_SPEED,
+                    player.motionY, 0.000000001D);
+
+            controller.disable(Minecraft189HighJumpModule.ID);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            runtime.playerJumpControl(player);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            assertEquals(5, player.jumpCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189HighJumpModule.REQUIRE_MOVEMENT_SETTING_ID));
+        assertNull(modules.find(Minecraft189HighJumpModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerJumpControl,
             Minecraft189PlayerMotionControl {
