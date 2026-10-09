@@ -10,6 +10,8 @@ public final class Minecraft189NoHitDelayModule
             "combat.noHitDelay";
     public static final String DELAY_SETTING_ID =
             "combat.noHitDelay.delay";
+    public static final String REQUIRE_ATTACK_HELD_SETTING_ID =
+            "combat.noHitDelay.requireAttackHeld";
     public static final String GROUND_ONLY_SETTING_ID =
             "combat.noHitDelay.groundOnly";
     public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
@@ -40,6 +42,10 @@ public final class Minecraft189NoHitDelayModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> requireAttackHeld =
+            new Setting<Boolean>(
+                    REQUIRE_ATTACK_HELD_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
 
     @Override
@@ -57,6 +63,10 @@ public final class Minecraft189NoHitDelayModule
 
     public Setting<Boolean> pauseWhileSneakingSetting() {
         return pauseWhileSneaking;
+    }
+
+    public Setting<Boolean> requireAttackHeldSetting() {
+        return requireAttackHeld;
     }
 
     @Override
@@ -77,7 +87,16 @@ public final class Minecraft189NoHitDelayModule
     synchronized int apply(
             final int currentCounter,
             final Minecraft189PlayerMovementState.Snapshot movement) {
-        if (!enabled) {
+        // Older callers cannot confirm a physical mouse hold.
+        return apply(currentCounter, movement, false);
+    }
+
+    synchronized int apply(
+            final int currentCounter,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean attackHeld) {
+        if (!enabled
+                || (requireAttackHeld.get().booleanValue() && !attackHeld)) {
             return currentCounter;
         }
         if (groundOnly.get().booleanValue()
