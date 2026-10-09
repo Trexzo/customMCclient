@@ -14,6 +14,8 @@ public final class Minecraft189NoSlowModule
             "movement.noSlow.airborneOverride";
     public static final String AIRBORNE_SPEED_SETTING_ID =
             "movement.noSlow.airborneSpeedPercent";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "movement.noSlow.pauseWhileSneaking";
     public static final int DEFAULT_SPEED_PERCENT = 100;
     public static final int MINIMUM_SPEED_PERCENT = 20;
     public static final int MAXIMUM_SPEED_PERCENT = 100;
@@ -41,6 +43,12 @@ public final class Minecraft189NoSlowModule
                             && value >= MINIMUM_SPEED_PERCENT
                             && value <= MAXIMUM_SPEED_PERCENT,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> pauseWhileSneaking =
+            new Setting<Boolean>(
+                    PAUSE_WHILE_SNEAKING_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
     private boolean enabled;
 
     @Override
@@ -58,6 +66,10 @@ public final class Minecraft189NoSlowModule
 
     public Setting<Integer> airborneSpeedPercentSetting() {
         return airborneSpeedPercent;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
     }
 
     @Override
@@ -79,6 +91,14 @@ public final class Minecraft189NoSlowModule
             final float slowedValue,
             final Minecraft189PlayerMovementState.Snapshot movement) {
         if (!enabled) {
+            return slowedValue;
+        }
+        // Never use stale or missing movement evidence to bypass an
+        // explicitly enabled sneaking guard.
+        if (pauseWhileSneaking.get().booleanValue()
+                && (movement == null
+                    || !movement.available()
+                    || movement.sneaking())) {
             return slowedValue;
         }
         // The legacy hook and unknown movement authority always use

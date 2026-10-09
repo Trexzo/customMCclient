@@ -229,6 +229,73 @@ final class Minecraft189NoSlowModuleTest {
         assertNull(modules.find(Minecraft189NoSlowModule.ID));
     }
 
+    @Test
+    void pauseWhileSneakingRestoresOriginalSlowdownAndRejectsUnknownMovement() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189NoSlowModule module = runtime.featureCatalog().noSlow();
+            assertFalse(module.pauseWhileSneakingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189NoSlowModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            controller.enable(Minecraft189NoSlowModule.ID);
+            module.speedPercentSetting().set(80);
+            runtime.playerMovementState().update(true, true, false);
+            assertEquals(0.80F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F); // Default disabled preserves original override.
+
+            module.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NoSlowModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            assertEquals(0.20F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F); // Sneaking preserves vanilla slowdown.
+            assertEquals(-0.15F, runtime.adjustNoSlowMovement(-0.15F),
+                    0.000001F);
+            runtime.playerMovementState().update(true, false, false);
+            assertEquals(0.80F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F); // Confirmed non-sneaking still uses No Slow.
+
+            module.airborneOverrideSetting().set(Boolean.TRUE);
+            module.airborneSpeedPercentSetting().set(40);
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(0.40F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F); // Air override works when not sneaking.
+            runtime.playerMovementState().update(false, true, false);
+            assertEquals(0.20F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F); // Sneak wins over air override.
+
+            runtime.playerMovementState().clear();
+            assertEquals(0.20F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F); // Unknown movement fails closed.
+            assertEquals(0.20F, module.adjustSlowedMovement(0.20F),
+                    0.000001F); // Legacy no-snapshot entry fails closed.
+            module.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            assertEquals(0.80F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F); // Live toggle restores old behavior.
+
+            controller.disable(Minecraft189NoSlowModule.ID);
+            assertEquals(0.20F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189NoSlowModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189NoSlowModule.ID));
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override
