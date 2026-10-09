@@ -445,6 +445,7 @@ final class Minecraft189GlideModuleTest {
         assertEquals(-0.40D, player.motionY, 0.000001D);
         glide.apply(player, state.snapshot(), false);
         assertEquals(-0.08D, player.motionY, 0.000001D);
+        glide.apply(player, state.snapshot(), false); // Finished descent clears credit.
 
         // Live edits reset waiting, and progress is not buffered.
         player.motionY = -0.40D;
