@@ -583,6 +583,10 @@ public final class Minecraft189Mappings {
                     "()V",
                     "func_147121_ag",
                     "rightClickMouse");
+    // Pinned Minecraft 1.8.9 joined.srg source mapping.
+    public static final MappedMethod PLAYER_CONTROLLER_STOP_USING_ITEM =
+            new MappedMethod(PLAYER_CONTROLLER_MP, "c", "(Lwn;)V",
+                    "func_78766_c", "onStoppedUsingItem");
     public static final MappedMethod MINECRAFT_MIDDLE_CLICK_MOUSE =
             new MappedMethod(
                     MINECRAFT,
@@ -653,6 +657,9 @@ public final class Minecraft189Mappings {
                     "()V",
                     "func_70664_aZ",
                     "jump");
+    public static final MappedMethod ENTITY_PLAYER_IS_USING_ITEM =
+            new MappedMethod(ENTITY_PLAYER, "bS", "()Z",
+                    "func_71039_bw", "isUsingItem");
     public static final MappedMethod ENTITY_PLAYER_GET_FOOD_STATS =
             new MappedMethod(
                     ENTITY_PLAYER,

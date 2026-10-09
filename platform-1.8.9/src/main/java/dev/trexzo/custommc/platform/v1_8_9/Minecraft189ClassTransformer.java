@@ -216,6 +216,9 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189ClickMouseControl";
     private static final String CLICK_MOUSE_CONTROL_DESCRIPTOR =
             "L" + CLICK_MOUSE_CONTROL_INTERNAL_NAME + ";";
+    private static final String SWORD_BLOCK_CONTROL_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189SwordBlockControl";
     private static final String CROSSHAIR_HIT_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189CrosshairHitAccess";
@@ -670,8 +673,10 @@ public final class Minecraft189ClassTransformer
                                 signature,
                                 superName,
                                 withInterface(
-                                        withInterface(interfaces,
-                                                CLICK_MOUSE_CONTROL_INTERNAL_NAME),
+                                        withInterface(
+                                                withInterface(interfaces,
+                                                        CLICK_MOUSE_CONTROL_INTERNAL_NAME),
+                                                SWORD_BLOCK_CONTROL_INTERNAL_NAME),
                                         CROSSHAIR_HIT_ACCESS_INTERNAL_NAME));
                     }
 
@@ -1566,6 +1571,8 @@ public final class Minecraft189ClassTransformer
                         addVoidMethodDelegate(cv,
                                 "customMcRightClickMouse",
                                 Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_MOUSE);
+                        addMappedIsUsingItemGetter(cv);
+                        addMappedStopUsingItem(cv);
                         addCrosshairHitAccessor(cv);
                         addCrosshairPlayerIndexAccessor(cv);
                         super.visitEnd();
@@ -4105,6 +4112,78 @@ public final class Minecraft189ClassTransformer
                 0, new Object[0]);
         method.visitVarInsn(Opcodes.ALOAD, 3);
         method.visitInsn(Opcodes.ARETURN);
+        method.visitMaxs(0, 0);
+        method.visitEnd();
+    }
+
+    /** Native EntityPlayer.isUsingItem() (wn.bS). */
+    private static void addMappedIsUsingItemGetter(final ClassVisitor visitor) {
+        final Minecraft189Mappings.MappedField player =
+                Minecraft189Mappings.MINECRAFT_PLAYER;
+        final Minecraft189Mappings.MappedMethod using =
+                Minecraft189Mappings.ENTITY_PLAYER_IS_USING_ITEM;
+        final MethodVisitor method = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcIsUsingItem", "()Z", null, null);
+        final Label missing = new Label();
+        method.visitCode();
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                player.owner().obfuscatedInternalName(),
+                player.obfuscatedName(), player.descriptor());
+        method.visitInsn(Opcodes.DUP);
+        method.visitJumpInsn(Opcodes.IFNULL, missing);
+        method.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                using.owner().obfuscatedInternalName(),
+                using.obfuscatedName(), using.descriptor(), false);
+        method.visitInsn(Opcodes.IRETURN);
+        method.visitLabel(missing);
+        method.visitFrame(Opcodes.F_SAME1, 0, null, 1,
+                new Object[]{Minecraft189Mappings.ENTITY_PLAYER_SP.obfuscatedInternalName()});
+        method.visitInsn(Opcodes.POP);
+        method.visitInsn(Opcodes.ICONST_0);
+        method.visitInsn(Opcodes.IRETURN);
+        method.visitMaxs(0, 0);
+        method.visitEnd();
+    }
+
+    /** Source-verified PlayerControllerMP.onStoppedUsingItem(thePlayer). */
+    private static void addMappedStopUsingItem(final ClassVisitor visitor) {
+        final Minecraft189Mappings.MappedField controller =
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER;
+        final Minecraft189Mappings.MappedField player =
+                Minecraft189Mappings.MINECRAFT_PLAYER;
+        final Minecraft189Mappings.MappedMethod stop =
+                Minecraft189Mappings.PLAYER_CONTROLLER_STOP_USING_ITEM;
+        final MethodVisitor method = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcStopUsingItem", "()V", null, null);
+        final Label done = new Label();
+        method.visitCode();
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                controller.owner().obfuscatedInternalName(),
+                controller.obfuscatedName(), controller.descriptor());
+        method.visitVarInsn(Opcodes.ASTORE, 1);
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                player.owner().obfuscatedInternalName(),
+                player.obfuscatedName(), player.descriptor());
+        method.visitVarInsn(Opcodes.ASTORE, 2);
+        method.visitVarInsn(Opcodes.ALOAD, 1);
+        method.visitJumpInsn(Opcodes.IFNULL, done);
+        method.visitVarInsn(Opcodes.ALOAD, 2);
+        method.visitJumpInsn(Opcodes.IFNULL, done);
+        method.visitVarInsn(Opcodes.ALOAD, 1);
+        method.visitVarInsn(Opcodes.ALOAD, 2);
+        method.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                stop.owner().obfuscatedInternalName(),
+                stop.obfuscatedName(), stop.descriptor(), false);
+        method.visitLabel(done);
+        method.visitFrame(Opcodes.F_FULL, 3,
+                new Object[]{Minecraft189Mappings.MINECRAFT.obfuscatedInternalName(),
+                        Minecraft189Mappings.PLAYER_CONTROLLER_MP.obfuscatedInternalName(),
+                        Minecraft189Mappings.ENTITY_PLAYER_SP.obfuscatedInternalName()},
+                0, new Object[0]);
+        method.visitInsn(Opcodes.RETURN);
         method.visitMaxs(0, 0);
         method.visitEnd();
     }

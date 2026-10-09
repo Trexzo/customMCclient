@@ -49,6 +49,7 @@ public final class Minecraft189HostRuntime
     // Per-host-tick reference only; cleared before every new position sample.
     private Minecraft189PlayerSprintControl tickSprintControl;
     private Minecraft189InventoryHotbarControl tickHotbarControl;
+    private Minecraft189PlayerHeldItemAccess tickHeldItemAccess;
     private final Minecraft189NearestPlayerTargetState nearestPlayerTargetState;
     private final Minecraft189TargetRotationState targetRotationState;
     // Range-only Aim Assist targeting does not replace general nearest-player state.
@@ -486,6 +487,7 @@ public final class Minecraft189HostRuntime
         criticalsEvidence.reset();
         tickSprintControl = null;
         tickHotbarControl = null;
+        tickHeldItemAccess = null;
         nearestPlayerTargetState.clear();
         if (player == null) {
             targetRotationState.clear();
@@ -1289,6 +1291,7 @@ public final class Minecraft189HostRuntime
     void playerHeldItem(
             final Minecraft189PlayerHeldItemAccess player) {
         requireOpen();
+        tickHeldItemAccess = player;
         if (player == null) {
             heldItemState.clear();
             return;
@@ -1367,6 +1370,47 @@ public final class Minecraft189HostRuntime
                         playerMovementState.snapshot(),
                         inputState.pointerPressed(
                                 Minecraft189ClickRateTracker.LEFT_BUTTON));
+    }
+
+    /** Source-mapped held item identity; no display-name matching. */
+    private boolean holdingVerifiedSword() {
+        final Minecraft189PlayerHeldItemAccess player = tickHeldItemAccess;
+        if (player == null) return false;
+        final Minecraft189ItemStackAccess held = player.customMcHeldItem();
+        return held != null && held.customMcIsSword();
+    }
+
+    boolean shouldReleaseAutoBlock(final boolean playerHit,
+            final int hitIndex) {
+        requireOpen();
+        return featureCatalog.autoBlock().shouldStop(
+                clickGuiRuntime.coreRuntime().model().snapshot().open(),
+                inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                holdingVerifiedSword(),
+                playerHit && worldEntityCombatState.snapshot().alive(hitIndex));
+    }
+
+    boolean releaseAutoBlockBeforeAction() {
+        requireOpen();
+        return featureCatalog.autoBlock().releaseForAction(
+                inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON));
+    }
+
+    boolean mayStartAutoBlock(final boolean playerHit, final int hitIndex,
+            final int previousCombatSlot, final boolean itemAlreadyInUse) {
+        requireOpen();
+        return featureCatalog.autoBlock().mayStart(
+                holdingVerifiedSword(),
+                playerHit && worldEntityCombatState.snapshot().alive(hitIndex),
+                clickGuiRuntime.coreRuntime().model().snapshot().open(),
+                inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                previousCombatSlot >= 0,
+                itemAlreadyInUse);
+    }
+
+    void recordAutoBlockStart() {
+        requireOpen();
+        featureCatalog.autoBlock().started();
     }
 
     /** Eligibility captured immediately before the native synthetic click. */
@@ -1705,6 +1749,8 @@ public final class Minecraft189HostRuntime
         criticalsEvidence.reset();
         tickSprintControl = null;
         tickHotbarControl = null;
+        tickHeldItemAccess = null;
+        featureCatalog.autoBlock().forgetForShutdown();
         worldEntityKindState.clear();
         worldEntityCombatState.clear();
         nearestPlayerTargetState.clear();

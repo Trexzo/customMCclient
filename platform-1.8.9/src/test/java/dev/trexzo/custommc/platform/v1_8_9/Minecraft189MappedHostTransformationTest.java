@@ -879,6 +879,22 @@ final class Minecraft189MappedHostTransformationTest {
                     .set(
                             minecraft,
                             player);
+            // Pinned native EntityPlayer.isUsingItem + controller stop-use.
+            final Minecraft189SwordBlockControl swordBlock =
+                    (Minecraft189SwordBlockControl) minecraft;
+            assertFalse(swordBlock.customMcIsUsingItem());
+            playerClass.getField("usingItem").setBoolean(player, true);
+            assertTrue(swordBlock.customMcIsUsingItem());
+            swordBlock.customMcStopUsingItem();
+            assertFalse(swordBlock.customMcIsUsingItem());
+            assertEquals(1, playerControllerClass.getField("stopUsingCalls")
+                    .getInt(playerController));
+            minecraftClass.getField("h").set(minecraft, null);
+            assertFalse(swordBlock.customMcIsUsingItem());
+            swordBlock.customMcStopUsingItem();
+            assertEquals(1, playerControllerClass.getField("stopUsingCalls")
+                    .getInt(playerController));
+            minecraftClass.getField("h").set(minecraft, player);
 
             final Class<?> worldClass =
                     loader.loadClass("bdb");
@@ -6780,6 +6796,7 @@ final class Minecraft189MappedHostTransformationTest {
     private static byte[] playerControllerShape() {
         final ClassWriter writer =
                 classWriter("bda");
+        field(writer, "stopUsingCalls", "I");
         field(
                 writer,
                 "g",
@@ -6795,6 +6812,21 @@ final class Minecraft189MappedHostTransformationTest {
         endDefaultConstructor(
                 writer,
                 "bda");
+        final MethodVisitor stopUse = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "c", "(Lwn;)V", null, null);
+        stopUse.visitCode();
+        stopUse.visitVarInsn(Opcodes.ALOAD, 0);
+        stopUse.visitInsn(Opcodes.DUP);
+        stopUse.visitFieldInsn(Opcodes.GETFIELD, "bda", "stopUsingCalls", "I");
+        stopUse.visitInsn(Opcodes.ICONST_1);
+        stopUse.visitInsn(Opcodes.IADD);
+        stopUse.visitFieldInsn(Opcodes.PUTFIELD, "bda", "stopUsingCalls", "I");
+        stopUse.visitVarInsn(Opcodes.ALOAD, 1);
+        stopUse.visitInsn(Opcodes.ICONST_0);
+        stopUse.visitFieldInsn(Opcodes.PUTFIELD, "wn", "usingItem", "Z");
+        stopUse.visitInsn(Opcodes.RETURN);
+        stopUse.visitMaxs(3, 2);
+        stopUse.visitEnd();
         writer.visitEnd();
         return writer.toByteArray();
     }
@@ -7454,6 +7486,7 @@ final class Minecraft189MappedHostTransformationTest {
                 "pr",
                 null);
         field(writer, "foodStats", "Lxg;");
+        field(writer, "usingItem", "Z");
         field(writer, "bi", "Lwm;");
         field(writer, "bB", "I");
         field(writer, "bC", "I");
@@ -7523,6 +7556,15 @@ final class Minecraft189MappedHostTransformationTest {
                 1,
                 1);
         xpBarCap.visitEnd();
+
+        final MethodVisitor isUsingItem = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "bS", "()Z", null, null);
+        isUsingItem.visitCode();
+        isUsingItem.visitVarInsn(Opcodes.ALOAD, 0);
+        isUsingItem.visitFieldInsn(Opcodes.GETFIELD, "wn", "usingItem", "Z");
+        isUsingItem.visitInsn(Opcodes.IRETURN);
+        isUsingItem.visitMaxs(1, 1);
+        isUsingItem.visitEnd();
 
         writer.visitEnd();
         return writer.toByteArray();

@@ -385,6 +385,9 @@ public final class Minecraft189RuntimeBridge {
         final Minecraft189HostRuntime host =
                 activeHost();
         if (host != null && minecraft != null) {
+            final Minecraft189SwordBlockControl swordBlock =
+                    minecraft instanceof Minecraft189SwordBlockControl
+                    ? (Minecraft189SwordBlockControl) minecraft : null;
             // M351 verified the exact live vanilla hit-result fields.
             final boolean playerHit =
                     minecraft instanceof Minecraft189CrosshairHitAccess
@@ -394,9 +397,20 @@ public final class Minecraft189RuntimeBridge {
                     ? ((Minecraft189CrosshairHitAccess) minecraft)
                             .customMcCrosshairPlayerIndex()
                     : -1;
+            // Expire an owned use-item latch even when no attack is due.
+            // A real manual right-click takes ownership and is never released
+            // by this synthetic module.
+            if (swordBlock != null
+                    && host.shouldReleaseAutoBlock(playerHit, playerIndex)
+                    && swordBlock.customMcIsUsingItem()) {
+                swordBlock.customMcStopUsingItem();
+            }
             // Healing item has priority over Rod and synthetic attacks.
             // Each winning action owns the full native right-click lane.
             if (host.shouldAutoPot(playerHit, playerIndex)) {
+                if (swordBlock != null && host.releaseAutoBlockBeforeAction()
+                        && swordBlock.customMcIsUsingItem())
+                    swordBlock.customMcStopUsingItem();
                 final int originalPotionSlot = host.selectAutoPotSlot();
                 if (originalPotionSlot >= 0) {
                     try {
@@ -410,6 +424,9 @@ public final class Minecraft189RuntimeBridge {
             // Rod consumes one synthetic combat action on its own tick.
             // Normal clicks are not double-issued on the same tick.
             if (host.shouldAutoRod(playerHit, playerIndex)) {
+                if (swordBlock != null && host.releaseAutoBlockBeforeAction()
+                        && swordBlock.customMcIsUsingItem())
+                    swordBlock.customMcStopUsingItem();
                 final int originalRodSlot = host.selectAutoRodSlot();
                 if (originalRodSlot >= 0) {
                     try {
@@ -421,6 +438,11 @@ public final class Minecraft189RuntimeBridge {
                 return;
             }
             if (host.shouldAutoClick(playerHit, playerIndex)) {
+                if (swordBlock != null && host.releaseAutoBlockBeforeAction()
+                        && swordBlock.customMcIsUsingItem())
+                    swordBlock.customMcStopUsingItem();
+                final boolean alreadyUsingItem = swordBlock != null
+                        && swordBlock.customMcIsUsingItem();
                 final boolean restoreSprint =
                         host.shouldKeepSprintAfterSyntheticClick(playerHit);
                 final int originalSlot =
@@ -434,6 +456,15 @@ public final class Minecraft189RuntimeBridge {
                     // Never strand the player on a synthetic combat slot if
                     // vanilla clickMouse() throws during invocation.
                     host.restoreCombatSlotAfterSyntheticClick(originalSlot);
+                }
+                if (swordBlock != null && host.mayStartAutoBlock(
+                        playerHit, playerIndex, originalSlot, alreadyUsingItem)) {
+                    // Source-mapped rightClickMouse is the only way to begin
+                    // vanilla sword use. Verify it actually started before
+                    // tracking ownership (cooldown/no-item may refuse it).
+                    minecraft.customMcRightClickMouse();
+                    if (swordBlock.customMcIsUsingItem())
+                        host.recordAutoBlockStart();
                 }
             }
         }
