@@ -456,6 +456,99 @@ final class Minecraft189SpinModuleTest {
         assertNull(modules.find(Minecraft189SpinModule.ID));
     }
 
+    @Test
+    void spinMovementGuardsResetRotationCadenceAndFailClosedWithoutAuthority() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final Minecraft189SpinFeature feature = Minecraft189SpinFeature.install(
+                modules, controller, new ModulePresentationRegistry(),
+                new ModuleSettingRegistry(modules, settings), settings,
+                new SettingPresentationRegistry());
+        try {
+            final Minecraft189SpinModule spin = feature.module();
+            final Minecraft189PlayerMovementState movement =
+                    new Minecraft189PlayerMovementState();
+            final Minecraft189PlayerRotationState rotation =
+                    new Minecraft189PlayerRotationState();
+            final TestPlayer player = new TestPlayer(10.0F, 2.0F);
+            assertFalse(spin.groundOnlySetting().get().booleanValue());
+            assertFalse(spin.pauseWhileSneakingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189SpinModule.GROUND_ONLY_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189SpinModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            spin.yawSpeedSetting().set(20.0D);
+            spin.intervalTicksSetting().set(3);
+            controller.enable(Minecraft189SpinModule.ID);
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(spin.apply(player, rotation.snapshot(), false));
+            assertEquals(30.0F, player.yaw, 0.00001F);
+
+            spin.groundOnlySetting().set(Boolean.TRUE);
+            rotation.update(player.yaw, player.pitch);
+            assertFalse(spin.apply(player, rotation.snapshot(), false));
+            movement.update(false, false, false);
+            assertFalse(spin.apply(player, rotation.snapshot(), false,
+                    movement.snapshot()));
+            movement.update(true, false, false);
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(spin.apply(player, rotation.snapshot(), false,
+                    movement.snapshot()));
+            assertEquals(50.0F, player.yaw, 0.00001F);
+            assertFalse(spin.apply(player, rotation.snapshot(), false,
+                    movement.snapshot()));
+            movement.update(false, false, false);
+            assertFalse(spin.apply(player, rotation.snapshot(), false,
+                    movement.snapshot()));
+            movement.update(true, false, false);
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(spin.apply(player, rotation.snapshot(), false,
+                    movement.snapshot())); // Discarded old countdown.
+            assertEquals(70.0F, player.yaw, 0.00001F);
+
+            spin.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            movement.update(true, true, false);
+            assertFalse(spin.apply(player, rotation.snapshot(), false,
+                    movement.snapshot()));
+            movement.update(true, false, false);
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(spin.apply(player, rotation.snapshot(), false,
+                    movement.snapshot()));
+            assertEquals(90.0F, player.yaw, 0.00001F);
+            spin.groundOnlySetting().set(Boolean.FALSE);
+            movement.update(false, false, false);
+            rotation.update(player.yaw, player.pitch);
+            assertFalse(spin.apply(player, rotation.snapshot(), false,
+                    movement.snapshot()));
+            assertFalse(spin.apply(player, rotation.snapshot(), false,
+                    movement.snapshot()));
+            assertTrue(spin.apply(player, rotation.snapshot(), false,
+                    movement.snapshot()));
+            assertEquals(110.0F, player.yaw, 0.00001F);
+            movement.clear();
+            assertFalse(spin.apply(player, rotation.snapshot(), false,
+                    movement.snapshot()));
+            spin.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            rotation.update(player.yaw, player.pitch);
+            assertTrue(spin.apply(player, rotation.snapshot(), false));
+            assertEquals(130.0F, player.yaw, 0.00001F);
+
+            spin.requireHoldSetting().set(Boolean.TRUE);
+            rotation.update(player.yaw, player.pitch);
+            assertFalse(spin.apply(player, rotation.snapshot(), false));
+            assertTrue(spin.apply(player, rotation.snapshot(), true));
+            assertEquals(150.0F, player.yaw, 0.00001F);
+            controller.disable(Minecraft189SpinModule.ID);
+            assertFalse(spin.apply(player, rotation.snapshot(), true));
+        } finally {
+            feature.close();
+        }
+        assertNull(settings.find(Minecraft189SpinModule.GROUND_ONLY_SETTING_ID));
+        assertNull(settings.find(Minecraft189SpinModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189SpinModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerRotationControl {
         private float yaw;

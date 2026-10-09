@@ -544,7 +544,8 @@ public final class Minecraft189HostRuntime
                 .apply(
                         control,
                         rotation,
-                        leftButtonHeld)) {
+                        leftButtonHeld,
+                        playerMovementState.snapshot())) {
             featureCatalog.jitter()
                     .apply(
                             null,
