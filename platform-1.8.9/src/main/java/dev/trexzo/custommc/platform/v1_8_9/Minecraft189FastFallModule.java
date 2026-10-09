@@ -12,6 +12,10 @@ public final class Minecraft189FastFallModule
             "movement.fastFall.fallSpeed";
     public static final String PROGRESSIVE_SETTING_ID =
             "movement.fastFall.progressive";
+    public static final String ACTIVATION_DELAY_SETTING_ID =
+            "movement.fastFall.activationDelayTicks";
+    public static final int DEFAULT_ACTIVATION_DELAY_TICKS = 0;
+    public static final int MAXIMUM_ACTIVATION_DELAY_TICKS = 10;
     public static final String RAMP_STEP_SETTING_ID =
             "movement.fastFall.rampStep";
     public static final double DEFAULT_FALL_SPEED =
@@ -45,7 +49,16 @@ public final class Minecraft189FastFallModule
                             && value.doubleValue() >= MINIMUM_RAMP_STEP
                             && value.doubleValue() <= MAXIMUM_RAMP_STEP,
                     SettingCodecs.DOUBLE);
+    private final Setting<Integer> activationDelayTicks =
+            new Setting<Integer>(
+                    ACTIVATION_DELAY_SETTING_ID,
+                    DEFAULT_ACTIVATION_DELAY_TICKS,
+                    value -> value != null && value >= 0
+                            && value <= MAXIMUM_ACTIVATION_DELAY_TICKS,
+                    SettingCodecs.INTEGER);
     private boolean enabled;
+    private int eligibleDescentCallbacks;
+    private int observedActivationDelay;
 
     @Override
     public String id() {
@@ -64,14 +77,20 @@ public final class Minecraft189FastFallModule
         return rampStep;
     }
 
+    public Setting<Integer> activationDelayTicksSetting() {
+        return activationDelayTicks;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        resetActivationDelay();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        resetActivationDelay();
     }
 
     synchronized void apply(
@@ -84,6 +103,7 @@ public final class Minecraft189FastFallModule
                 || movement == null
                 || !movement.available()
                 || movement.onGround()) {
+            resetActivationDelay();
             return;
         }
 
@@ -93,6 +113,17 @@ public final class Minecraft189FastFallModule
         // Preserve the existing no-write behavior for upward and stationary
         // motion, and for descent already at or faster than the target.
         if (!Double.isFinite(currentMotionY) || currentMotionY >= 0.0D) {
+            resetActivationDelay();
+            return;
+        }
+
+        final int delay = activationDelayTicks.get().intValue();
+        if (delay != observedActivationDelay) {
+            eligibleDescentCallbacks = 0;
+            observedActivationDelay = delay;
+        }
+        if (eligibleDescentCallbacks < delay) {
+            eligibleDescentCallbacks++;
             return;
         }
 
@@ -107,6 +138,11 @@ public final class Minecraft189FastFallModule
                 player.customMcSetMotionY(nextMotionY);
             }
         }
+    }
+
+    private void resetActivationDelay() {
+        eligibleDescentCallbacks = 0;
+        observedActivationDelay = activationDelayTicks.get().intValue();
     }
 
     synchronized boolean active() {
