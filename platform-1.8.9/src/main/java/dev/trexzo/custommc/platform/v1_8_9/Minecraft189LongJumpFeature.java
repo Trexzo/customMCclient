@@ -22,6 +22,9 @@ final class Minecraft189LongJumpFeature
     private final SettingRegistry.Registration speedSetting;
     private final SettingPresentationRegistry.Registration speedPresentation;
     private final ModuleSettingRegistry.Registration speedBinding;
+    private final SettingRegistry.Registration preserveMomentumSetting;
+    private final SettingPresentationRegistry.Registration preserveMomentumPresentation;
+    private final ModuleSettingRegistry.Registration preserveMomentumBinding;
     private boolean closed;
 
     private Minecraft189LongJumpFeature(
@@ -31,7 +34,10 @@ final class Minecraft189LongJumpFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration speedSetting,
             final SettingPresentationRegistry.Registration speedPresentation,
-            final ModuleSettingRegistry.Registration speedBinding) {
+            final ModuleSettingRegistry.Registration speedBinding,
+            final SettingRegistry.Registration preserveMomentumSetting,
+            final SettingPresentationRegistry.Registration preserveMomentumPresentation,
+            final ModuleSettingRegistry.Registration preserveMomentumBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -39,6 +45,9 @@ final class Minecraft189LongJumpFeature
         this.speedSetting = speedSetting;
         this.speedPresentation = speedPresentation;
         this.speedBinding = speedBinding;
+        this.preserveMomentumSetting = preserveMomentumSetting;
+        this.preserveMomentumPresentation = preserveMomentumPresentation;
+        this.preserveMomentumBinding = preserveMomentumBinding;
     }
 
     static Minecraft189LongJumpFeature install(
@@ -58,6 +67,9 @@ final class Minecraft189LongJumpFeature
         SettingRegistry.Registration speedSetting = null;
         SettingPresentationRegistry.Registration speedPresentation = null;
         ModuleSettingRegistry.Registration speedBinding = null;
+        SettingRegistry.Registration preserveMomentumSetting = null;
+        SettingPresentationRegistry.Registration preserveMomentumPresentation = null;
+        ModuleSettingRegistry.Registration preserveMomentumBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -73,6 +85,8 @@ final class Minecraft189LongJumpFeature
             speedSetting =
                     settings.register(
                             module.speedSetting());
+            preserveMomentumSetting = settings.register(
+                    module.preserveHigherMomentumSetting());
             speedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -84,12 +98,21 @@ final class Minecraft189LongJumpFeature
                                             Minecraft189LongJumpModule.MINIMUM_SPEED,
                                             Minecraft189LongJumpModule.MAXIMUM_SPEED,
                                             0.05D)));
+            preserveMomentumPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189LongJumpModule.PRESERVE_MOMENTUM_SETTING_ID,
+                            "Preserve Higher Momentum", SettingValueKind.BOOLEAN, 10));
             speedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
                                     Minecraft189LongJumpModule.ID,
                                     Minecraft189LongJumpModule.SPEED_SETTING_ID,
                                     0));
+
+            preserveMomentumBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189LongJumpModule.ID,
+                            Minecraft189LongJumpModule.PRESERVE_MOMENTUM_SETTING_ID, 10));
 
             return new Minecraft189LongJumpFeature(
                     controller,
@@ -98,8 +121,14 @@ final class Minecraft189LongJumpFeature
                     presentation,
                     speedSetting,
                     speedPresentation,
-                    speedBinding);
+                    speedBinding,
+                    preserveMomentumSetting,
+                    preserveMomentumPresentation,
+                    preserveMomentumBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(preserveMomentumBinding, failure);
+            closeQuietly(preserveMomentumPresentation, failure);
+            closeQuietly(preserveMomentumSetting, failure);
             closeQuietly(speedBinding, failure);
             closeQuietly(speedPresentation, failure);
             closeQuietly(speedSetting, failure);
@@ -136,6 +165,9 @@ final class Minecraft189LongJumpFeature
             failure = closeFailure;
         }
 
+        failure = close(preserveMomentumBinding, failure);
+        failure = close(preserveMomentumPresentation, failure);
+        failure = close(preserveMomentumSetting, failure);
         failure = close(speedBinding, failure);
         failure = close(speedPresentation, failure);
         failure = close(speedSetting, failure);
