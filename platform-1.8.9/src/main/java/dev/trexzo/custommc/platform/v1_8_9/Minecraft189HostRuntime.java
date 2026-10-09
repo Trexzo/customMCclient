@@ -822,7 +822,8 @@ public final class Minecraft189HostRuntime
         requireOpen();
         featureCatalog.noWeb()
                 .apply(
-                        player);
+                        player,
+                        playerMovementState.snapshot());
     }
 
     void playerNoClipControl(
