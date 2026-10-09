@@ -12,6 +12,8 @@ public final class Minecraft189ReverseStepModule
             "movement.reverseStep.speed";
     public static final String DELAY_TICKS_SETTING_ID =
             "movement.reverseStep.delayTicks";
+    public static final String REQUIRE_MOVEMENT_SETTING_ID =
+            "movement.reverseStep.requireMovement";
     public static final String REQUIRE_SNEAK_SETTING_ID =
             "movement.reverseStep.requireSneaking";
     public static final int MINIMUM_DELAY_TICKS = 0;
@@ -43,6 +45,10 @@ public final class Minecraft189ReverseStepModule
                     Boolean.FALSE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> requireMovement =
+            new Setting<Boolean>(
+                    REQUIRE_MOVEMENT_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
     private boolean previousAvailable;
     private boolean previousOnGround;
@@ -68,6 +74,10 @@ public final class Minecraft189ReverseStepModule
         return requireSneaking;
     }
 
+    public Setting<Boolean> requireMovementSetting() {
+        return requireMovement;
+    }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -84,6 +94,16 @@ public final class Minecraft189ReverseStepModule
             final Minecraft189PlayerMotionControl player,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean suspended) {
+        // Older callers have no input authority. Under the opt-in
+        // movement gate they conservatively reject the transition.
+        return apply(player, movement, suspended, false);
+    }
+
+    synchronized boolean apply(
+            final Minecraft189PlayerMotionControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean suspended,
+            final boolean movementHeld) {
         if (movement == null || !movement.available()) {
             resetTransition();
             return false;
@@ -102,7 +122,9 @@ public final class Minecraft189ReverseStepModule
         }
         if (!enabled || suspended || player == null
                 || (requireSneaking.get().booleanValue()
-                        && !movement.sneaking())) {
+                        && !movement.sneaking())
+                || (requireMovement.get().booleanValue()
+                        && !movementHeld)) {
             // No catch-up after higher-priority ownership, state loss or
             // releasing sneak during a pending delayed departure.
             pendingDelay = -1;
