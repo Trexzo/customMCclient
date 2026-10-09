@@ -10,6 +10,13 @@ public final class Minecraft189GlideModule
             "movement.glide";
     public static final String FALL_SPEED_SETTING_ID =
             "movement.glide.fallSpeed";
+    public static final String PROGRESSIVE_SETTING_ID =
+            "movement.glide.progressiveDeceleration";
+    public static final String DECELERATION_STEP_SETTING_ID =
+            "movement.glide.decelerationStep";
+    public static final double DEFAULT_DECELERATION_STEP = 0.10D;
+    public static final double MINIMUM_DECELERATION_STEP = 0.01D;
+    public static final double MAXIMUM_DECELERATION_STEP = 0.50D;
     public static final String REQUIRE_SNEAKING_SETTING_ID =
             "movement.glide.requireSneaking";
     public static final double DEFAULT_FALL_SPEED =
@@ -31,6 +38,18 @@ public final class Minecraft189GlideModule
                     Boolean.FALSE,
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> progressiveDeceleration =
+            new Setting<Boolean>(
+                    PROGRESSIVE_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Double> decelerationStep =
+            new Setting<Double>(
+                    DECELERATION_STEP_SETTING_ID,
+                    DEFAULT_DECELERATION_STEP,
+                    value -> value != null && Double.isFinite(value.doubleValue())
+                            && value >= MINIMUM_DECELERATION_STEP
+                            && value <= MAXIMUM_DECELERATION_STEP,
+                    SettingCodecs.DOUBLE);
     private boolean enabled;
 
     @Override
@@ -44,6 +63,14 @@ public final class Minecraft189GlideModule
 
     public Setting<Boolean> requireSneakingSetting() {
         return requireSneaking;
+    }
+
+    public Setting<Boolean> progressiveDecelerationSetting() {
+        return progressiveDeceleration;
+    }
+
+    public Setting<Double> decelerationStepSetting() {
+        return decelerationStep;
     }
 
     @Override
@@ -76,8 +103,17 @@ public final class Minecraft189GlideModule
         final double currentMotionY = player.customMcMotionY();
         if (Double.isFinite(currentMotionY)
                 && currentMotionY < targetMotionY) {
-            player.customMcSetMotionY(
-                    targetMotionY);
+            // An optional per-callback deceleration step avoids a
+            // sudden jump from fast descent to the Glide cap. The next
+            // value always derives from current mapped motion, never
+            // from accumulated credit or a hidden scheduler.
+            final double nextMotionY = progressiveDeceleration.get().booleanValue()
+                    ? Math.min(targetMotionY,
+                            currentMotionY + decelerationStep.get().doubleValue())
+                    : targetMotionY;
+            if (nextMotionY > currentMotionY) {
+                player.customMcSetMotionY(nextMotionY);
+            }
         }
     }
 
