@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189GlideModuleTest {
     @Test
@@ -278,6 +279,115 @@ final class Minecraft189GlideModuleTest {
         assertNull(
                 categories.find(
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
+    }
+
+    @Test
+    void optionalProgressiveGlideDeceleratesWithoutOvershootOrBufferedCredit() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189GlideModule glide = runtime.featureCatalog().glide();
+            final TestPlayer player = new TestPlayer();
+            assertFalse(glide.progressiveDecelerationSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189GlideModule.PROGRESSIVE_SETTING_ID));
+            assertEquals("0.1", settings.snapshotEncoded().get(
+                    Minecraft189GlideModule.DECELERATION_STEP_SETTING_ID));
+            controller.enable(Minecraft189GlideModule.ID);
+            runtime.playerMovementState().update(false, false, false);
+            player.motionY = -0.40D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.08D, player.motionY, 0.000000001D); // Original instant.
+
+            glide.progressiveDecelerationSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189GlideModule.PROGRESSIVE_SETTING_ID));
+            player.motionY = -0.40D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.30D, player.motionY, 0.000000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.20D, player.motionY, 0.000000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.10D, player.motionY, 0.000000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.08D, player.motionY, 0.000000001D);
+            final int writesAtCap = player.verticalSetCalls;
+            runtime.playerMotionControl(player);
+            assertEquals(writesAtCap, player.verticalSetCalls);
+
+            glide.decelerationStepSetting().set(0.05D);
+            assertEquals("0.05", settings.snapshotEncoded().get(
+                    Minecraft189GlideModule.DECELERATION_STEP_SETTING_ID));
+            player.motionY = -0.30D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.25D, player.motionY, 0.000000001D);
+            // Ground and unavailable movement suspend without catch-up.
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.25D, player.motionY, 0.000000001D);
+            runtime.playerMovementState().clear();
+            runtime.playerMotionControl(player);
+            assertEquals(-0.25D, player.motionY, 0.000000001D);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.20D, player.motionY, 0.000000001D);
+
+            // Sneak-only gating and Flight priority remain authoritative.
+            glide.requireSneakingSetting().set(Boolean.TRUE);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.20D, player.motionY, 0.000000001D);
+            runtime.playerMovementState().update(false, true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.15D, player.motionY, 0.000000001D);
+            controller.enable(Minecraft189FlightModule.ID);
+            runtime.playerMotionControl(player);
+            assertEquals(Minecraft189FlightModule.HOVER_MOTION_Y,
+                    player.motionY, 0.000000001D);
+            controller.disable(Minecraft189FlightModule.ID);
+
+            player.motionY = Double.NEGATIVE_INFINITY;
+            final int beforeInvalid = player.verticalSetCalls;
+            runtime.playerMotionControl(player);
+            assertEquals(beforeInvalid, player.verticalSetCalls);
+            player.motionY = -0.03D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.03D, player.motionY, 0.000000001D);
+
+            glide.requireSneakingSetting().set(Boolean.FALSE);
+            glide.progressiveDecelerationSetting().set(Boolean.FALSE);
+            player.motionY = -0.40D;
+            runtime.playerMotionControl(player);
+            assertEquals(-0.08D, player.motionY, 0.000000001D);
+            controller.disable(Minecraft189GlideModule.ID);
+            player.motionY = -0.40D;
+            final int writesBeforeDisabled = player.verticalSetCalls;
+            runtime.playerMotionControl(player);
+            assertEquals(writesBeforeDisabled, player.verticalSetCalls);
+            assertThrows(IllegalArgumentException.class,
+                    () -> glide.decelerationStepSetting().set(0.009D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> glide.decelerationStepSetting().set(0.501D));
+            assertThrows(IllegalArgumentException.class,
+                    () -> glide.decelerationStepSetting().set(Double.NaN));
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189GlideModule.PROGRESSIVE_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189GlideModule.DECELERATION_STEP_SETTING_ID));
+        assertNull(modules.find(Minecraft189GlideModule.ID));
     }
 
     private static final class TestPlayer
