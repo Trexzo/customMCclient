@@ -465,9 +465,21 @@ final class Minecraft189MappedHostTransformationTest {
                     rayWorld, java.util.Arrays.asList(otherRayEntity, playerHit));
             minecraftClass.getField("f").set(minecraft, rayWorld);
             assertEquals(1, rayHit.customMcCrosshairPlayerIndex());
+            final Minecraft189WorldEntityCombatAccess combat =
+                    (Minecraft189WorldEntityCombatAccess) rayWorld;
+            loader.loadClass("pr").getField("health").setFloat(playerHit, 12.0F);
+            loader.loadClass("pr").getField("au").setInt(playerHit, 7);
+            assertArrayEquals(new int[]{-1, 15},
+                    combat.customMcLoadedEntityCombatStates());
+            loader.loadClass("pr").getField("health").setFloat(playerHit, 0.0F);
+            assertArrayEquals(new int[]{-1, 14},
+                    combat.customMcLoadedEntityCombatStates());
+            loader.loadClass("pr").getField("health").setFloat(playerHit, 12.0F);
             loader.loadClass("adm").getField("f").set(
                     rayWorld, java.util.Arrays.asList(otherRayEntity));
             assertEquals(-1, rayHit.customMcCrosshairPlayerIndex());
+            assertArrayEquals(new int[]{-1},
+                    combat.customMcLoadedEntityCombatStates());
             loader.loadClass("adm").getField("f").set(
                     rayWorld, java.util.Arrays.asList(otherRayEntity, playerHit));
             hitClass.getField("d").set(hit,

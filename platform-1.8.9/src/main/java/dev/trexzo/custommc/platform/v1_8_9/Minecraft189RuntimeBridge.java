@@ -304,6 +304,14 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void worldEntityCombat(
+            final Minecraft189WorldEntityCombatAccess world) {
+        final Minecraft189HostRuntime host = activeHost();
+        if (host != null) {
+            host.worldEntityCombat(world);
+        }
+    }
+
     public static synchronized void serverAddress(
             final Minecraft189ServerDataAccess serverData) {
         final Minecraft189HostRuntime host =
