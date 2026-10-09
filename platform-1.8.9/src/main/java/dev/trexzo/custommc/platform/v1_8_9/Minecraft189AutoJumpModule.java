@@ -16,6 +16,8 @@ public final class Minecraft189AutoJumpModule
             "movement.autoJump.requireMovement";
     public static final String LANDING_DELAY_SETTING_ID =
             "movement.autoJump.landingDelayTicks";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "movement.autoJump.pauseWhileSneaking";
     public static final int MAXIMUM_LANDING_DELAY_TICKS = 10;
 
     private final Setting<Boolean> requireForward =
@@ -37,6 +39,13 @@ public final class Minecraft189AutoJumpModule
                             && value <= MAXIMUM_LANDING_DELAY_TICKS,
                     SettingCodecs.INTEGER);
 
+    private final Setting<Boolean> pauseWhileSneaking =
+            new Setting<Boolean>(
+                    PAUSE_WHILE_SNEAKING_SETTING_ID,
+                    Boolean.FALSE,
+                    value -> value != null,
+                    SettingCodecs.BOOLEAN);
+
     private boolean enabled;
     private boolean armed = true;
     private boolean airborneObserved;
@@ -57,6 +66,10 @@ public final class Minecraft189AutoJumpModule
 
     public Setting<Integer> landingDelayTicksSetting() {
         return landingDelayTicks;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
     }
 
     @Override
@@ -93,6 +106,18 @@ public final class Minecraft189AutoJumpModule
             if (enabled) {
                 resetCadence();
             }
+            return;
+        }
+
+        if (pauseWhileSneaking.get().booleanValue()
+                && movement.sneaking()) {
+            // Cancels a pending landing and disarms this ground contact.
+            // Releasing Sneak while still standing on the same tile must
+            // not trigger a delayed synthetic jump. A fresh airborne
+            // observation is required to arm the next landing.
+            armed = false;
+            airborneObserved = false;
+            groundedUpdatesRemaining = 0;
             return;
         }
 
