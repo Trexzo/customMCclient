@@ -483,10 +483,10 @@ final class Minecraft189MappedHostTransformationTest {
                     rayWorld, java.util.Arrays.asList(otherRayEntity, clientPlayer));
             assertArrayEquals(new int[]{-1, 512 | (3 << 1) | 1},
                     combat.customMcLoadedEntityCombatStates());
-            final Object playerInfo = loader.loadClass("bdc")
+            final Object tabNetworkInfo = loader.loadClass("bdc")
                     .getDeclaredConstructor().newInstance();
             loader.loadClass("bet").getField("playerInfo")
-                    .set(clientPlayer, playerInfo);
+                    .set(clientPlayer, tabNetworkInfo);
             assertTrue(tabAccessor.customMcHasNetworkPlayerInfo());
             assertArrayEquals(new int[]{-1, 512 | 256 | (3 << 1) | 1},
                     combat.customMcLoadedEntityCombatStates());
