@@ -44,6 +44,8 @@ public final class Minecraft189HostRuntime
     private final Minecraft189WorldEntityKindState worldEntityKindState;
     private final Minecraft189WorldEntityCombatState worldEntityCombatState =
             new Minecraft189WorldEntityCombatState();
+    private final Minecraft189CriticalsEvidence criticalsEvidence =
+            new Minecraft189CriticalsEvidence();
     private final Minecraft189NearestPlayerTargetState nearestPlayerTargetState;
     private final Minecraft189TargetRotationState targetRotationState;
     // Range-only Aim Assist targeting does not replace general nearest-player state.
@@ -476,6 +478,9 @@ public final class Minecraft189HostRuntime
     void playerPosition(
             final Minecraft189PlayerPositionAccess player) {
         requireOpen();
+        // Clear both halves on every host tick. No stale fall/motion
+        // evidence can authorize an automatic attack after world changes.
+        criticalsEvidence.reset();
         nearestPlayerTargetState.clear();
         if (player == null) {
             targetRotationState.clear();
@@ -856,9 +861,10 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerFallDistanceControl player) {
         requireOpen();
         featureCatalog.noFall()
-                .apply(
-                        player,
-                        playerMovementState.snapshot());
+                .apply(player, playerMovementState.snapshot());
+        if (player != null) {
+            criticalsEvidence.fall(player.customMcFallDistance());
+        }
     }
 
     void playerWebControl(
@@ -892,10 +898,7 @@ public final class Minecraft189HostRuntime
                         player);
         if (freezeActive) {
             featureCatalog.damageBoost()
-                    .apply(
-                            player,
-                            hurtTime,
-                            true);
+                    .apply(player, hurtTime, true);
             return;
         }
 
@@ -1017,10 +1020,11 @@ public final class Minecraft189HostRuntime
                                 || reverseStepOwnsVertical
                                 || fastFallActive);
         featureCatalog.damageBoost()
-                .apply(
-                        player,
-                        hurtTime,
-                        flightActive);
+                .apply(player, hurtTime, flightActive);
+        if (player != null) {
+            // Read the final mapped motion after movement policies apply.
+            criticalsEvidence.motion(player.customMcMotionY());
+        }
     }
 
     void playerHealth(
@@ -1425,6 +1429,15 @@ public final class Minecraft189HostRuntime
                 crosshairPlayerIndex, combat)) {
             return false;
         }
+        if (!featureCatalog.criticals().permits(
+                playerMovementState.snapshot(), criticalsEvidence.snapshot(),
+                featureCatalog.flight().active()
+                        || featureCatalog.freeze().active()
+                        || featureCatalog.noFall().active()
+                        || featureCatalog.noGravity().active()
+                        || featureCatalog.noClip().active())) {
+            return false;
+        }
         clickRateTracker.recordPress(
                 Minecraft189ClickRateTracker.LEFT_BUTTON);
         return true;
@@ -1568,6 +1581,7 @@ public final class Minecraft189HostRuntime
         worldTimeState.clear();
         worldWeatherState.clear();
         worldEntityPositionState.clear();
+        criticalsEvidence.reset();
         worldEntityKindState.clear();
         worldEntityCombatState.clear();
         nearestPlayerTargetState.clear();

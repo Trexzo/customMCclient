@@ -115,6 +115,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189TriggerBotFeature triggerBotFeature;
     private final Minecraft189KillAuraFeature killAuraFeature;
     private final Minecraft189HitSelectFeature hitSelectFeature;
+    private final Minecraft189CriticalsFeature criticalsFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
     private Minecraft189FovFeature fovFeature;
     private Minecraft189NoBobbingFeature noBobbingFeature;
@@ -205,7 +206,8 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189JumpResetFeature jumpResetFeature,
             final Minecraft189TriggerBotFeature triggerBotFeature,
             final Minecraft189KillAuraFeature killAuraFeature,
-            final Minecraft189HitSelectFeature hitSelectFeature) {
+            final Minecraft189HitSelectFeature hitSelectFeature,
+            final Minecraft189CriticalsFeature criticalsFeature) {
         this.modules = modules;
         this.moduleController = moduleController;
         this.modulePresentations = modulePresentations;
@@ -291,6 +293,7 @@ public final class Minecraft189FeatureCatalog
         this.triggerBotFeature = triggerBotFeature;
         this.killAuraFeature = killAuraFeature;
         this.hitSelectFeature = hitSelectFeature;
+        this.criticalsFeature = criticalsFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -439,6 +442,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189TriggerBotFeature triggerBotFeature = null;
         Minecraft189KillAuraFeature killAuraFeature = null;
         Minecraft189HitSelectFeature hitSelectFeature = null;
+        Minecraft189CriticalsFeature criticalsFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -871,6 +875,10 @@ public final class Minecraft189FeatureCatalog
                     modules, moduleController, presentations, moduleSettings,
                     settings, settingPresentations);
 
+            criticalsFeature = Minecraft189CriticalsFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
             arrayListFeature =
                     Minecraft189ArrayListFeature.install(
                             modules,
@@ -1245,8 +1253,10 @@ public final class Minecraft189FeatureCatalog
                     jumpResetFeature,
                     triggerBotFeature,
                     killAuraFeature,
-                    hitSelectFeature);
+                    hitSelectFeature,
+                    criticalsFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(criticalsFeature, failure);
             closeQuietly(hitSelectFeature, failure);
             closeQuietly(killAuraFeature, failure);
             closeQuietly(triggerBotFeature, failure);
@@ -1554,6 +1564,11 @@ public final class Minecraft189FeatureCatalog
         return spinFeature.module();
     }
 
+    public Minecraft189CriticalsModule criticals() {
+        requireOpen();
+        return criticalsFeature.module();
+    }
+
     public Minecraft189HitSelectModule hitSelect() {
         requireOpen();
         return hitSelectFeature.module();
@@ -1788,6 +1803,12 @@ public final class Minecraft189FeatureCatalog
                         failure,
                         closeFailure);
             }
+        }
+
+        try {
+            criticalsFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
         }
 
         try {
