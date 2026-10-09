@@ -390,6 +390,138 @@ final class Minecraft189GlideModuleTest {
         assertNull(modules.find(Minecraft189GlideModule.ID));
     }
 
+    @Test
+    void glideActivationDelayRequiresFreshEligibleDescentCallbacks() {
+        final Minecraft189GlideModule glide = new Minecraft189GlideModule();
+        final Minecraft189PlayerMovementState state = new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer();
+        state.update(false, false, false);
+        glide.onEnable();
+        assertEquals(Integer.valueOf(0), glide.activationDelayTicksSetting().get());
+        player.motionY = -0.40D;
+        glide.apply(player, state.snapshot(), false);
+        assertEquals(-0.08D, player.motionY, 0.000001D); // Default instant.
+
+        glide.activationDelayTicksSetting().set(2);
+        player.motionY = -0.40D;
+        glide.apply(player, state.snapshot(), false);
+        glide.apply(player, state.snapshot(), false);
+        assertEquals(-0.40D, player.motionY, 0.000001D);
+        glide.apply(player, state.snapshot(), false);
+        assertEquals(-0.08D, player.motionY, 0.000001D);
+
+        // At-cap input resets the accumulated qualifying callbacks.
+        player.motionY = -0.05D;
+        glide.apply(player, state.snapshot(), false);
+        player.motionY = -0.40D;
+        glide.apply(player, state.snapshot(), false);
+        glide.apply(player, state.snapshot(), false);
+        assertEquals(-0.40D, player.motionY, 0.000001D);
+        glide.apply(player, state.snapshot(), false);
+        assertEquals(-0.08D, player.motionY, 0.000001D);
+        // Observe the completed capped motion before starting a fresh fall.
+        // A successful write alone is not evidence of a new landing.
+        glide.apply(player, state.snapshot(), false);
+
+        // Grounded, unavailable, sneaking and suspended inputs all reset.
+        player.motionY = -0.40D;
+        glide.apply(player, state.snapshot(), false); // 1/2
+        state.update(true, false, false);
+        glide.apply(player, state.snapshot(), false);
+        state.update(false, false, false);
+        glide.apply(player, state.snapshot(), false);
+        assertEquals(-0.40D, player.motionY, 0.000001D);
+        state.clear();
+        glide.apply(player, state.snapshot(), false);
+        state.update(false, false, false);
+        glide.apply(player, state.snapshot(), false); // 1/2
+        glide.requireSneakingSetting().set(Boolean.TRUE);
+        glide.apply(player, state.snapshot(), false);
+        state.update(false, true, false);
+        glide.apply(player, state.snapshot(), false); // 1/2
+        glide.apply(player, state.snapshot(), true); // Flight suspension.
+        glide.apply(player, state.snapshot(), false); // 1/2
+        glide.apply(player, state.snapshot(), false); // 2/2
+        assertEquals(-0.40D, player.motionY, 0.000001D);
+        glide.apply(player, state.snapshot(), false);
+        assertEquals(-0.08D, player.motionY, 0.000001D);
+        glide.apply(player, state.snapshot(), false); // Finished descent clears credit.
+
+        // Live edits reset waiting, and progress is not buffered.
+        player.motionY = -0.40D;
+        glide.apply(player, state.snapshot(), false); // 1/2
+        glide.activationDelayTicksSetting().set(3);
+        for (int i = 0; i < 3; i++) {
+            glide.apply(player, state.snapshot(), false);
+            assertEquals(-0.40D, player.motionY, 0.000001D);
+        }
+        glide.apply(player, state.snapshot(), false);
+        assertEquals(-0.08D, player.motionY, 0.000001D);
+
+        // Progressive mode still performs its original limited correction
+        // after the wait without storing extra synthetic motion credit.
+        glide.activationDelayTicksSetting().set(1);
+        glide.progressiveDecelerationSetting().set(Boolean.TRUE);
+        glide.decelerationStepSetting().set(0.10D);
+        player.motionY = -0.40D;
+        glide.apply(player, state.snapshot(), false);
+        assertEquals(-0.40D, player.motionY, 0.000001D);
+        glide.apply(player, state.snapshot(), false);
+        assertEquals(-0.30D, player.motionY, 0.000001D);
+        glide.onDisable();
+        final int writes = player.verticalSetCalls;
+        glide.apply(player, state.snapshot(), false);
+        assertEquals(writes, player.verticalSetCalls);
+        glide.onEnable();
+        glide.apply(player, state.snapshot(), false);
+        assertEquals(-0.30D, player.motionY, 0.000001D);
+        assertThrows(IllegalArgumentException.class,
+                () -> glide.activationDelayTicksSetting().set(-1));
+        assertThrows(IllegalArgumentException.class,
+                () -> glide.activationDelayTicksSetting().set(11));
+        glide.onDisable();
+    }
+
+    @Test
+    void glideActivationDelayIsPersistedAndUnregistered() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189GlideModule glide = runtime.featureCatalog().glide();
+            assertEquals("0", settings.snapshotEncoded().get(
+                    Minecraft189GlideModule.ACTIVATION_DELAY_SETTING_ID));
+            glide.activationDelayTicksSetting().set(2);
+            assertEquals("2", settings.snapshotEncoded().get(
+                    Minecraft189GlideModule.ACTIVATION_DELAY_SETTING_ID));
+            controller.enable(Minecraft189GlideModule.ID);
+            final TestPlayer player = new TestPlayer();
+            runtime.playerMovementState().update(false, false, false);
+            player.motionY = -0.40D;
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.40D, player.motionY, 0.000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.08D, player.motionY, 0.000001D);
+            controller.disable(Minecraft189GlideModule.ID);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189GlideModule.ACTIVATION_DELAY_SETTING_ID));
+        assertNull(modules.find(Minecraft189GlideModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;

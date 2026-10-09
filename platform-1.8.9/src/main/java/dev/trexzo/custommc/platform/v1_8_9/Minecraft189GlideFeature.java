@@ -31,6 +31,9 @@ final class Minecraft189GlideFeature
     private final SettingPresentationRegistry.Registration decelerationStepPresentation;
     private final ModuleSettingRegistry.Registration progressiveBinding;
     private final ModuleSettingRegistry.Registration decelerationStepBinding;
+    private final SettingRegistry.Registration activationDelaySetting;
+    private final SettingPresentationRegistry.Registration activationDelayPresentation;
+    private final ModuleSettingRegistry.Registration activationDelayBinding;
     private boolean closed;
 
     private Minecraft189GlideFeature(
@@ -49,7 +52,10 @@ final class Minecraft189GlideFeature
             final SettingPresentationRegistry.Registration progressivePresentation,
             final SettingPresentationRegistry.Registration decelerationStepPresentation,
             final ModuleSettingRegistry.Registration progressiveBinding,
-            final ModuleSettingRegistry.Registration decelerationStepBinding) {
+            final ModuleSettingRegistry.Registration decelerationStepBinding,
+            final SettingRegistry.Registration activationDelaySetting,
+            final SettingPresentationRegistry.Registration activationDelayPresentation,
+            final ModuleSettingRegistry.Registration activationDelayBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -66,6 +72,9 @@ final class Minecraft189GlideFeature
         this.decelerationStepPresentation = decelerationStepPresentation;
         this.progressiveBinding = progressiveBinding;
         this.decelerationStepBinding = decelerationStepBinding;
+        this.activationDelaySetting = activationDelaySetting;
+        this.activationDelayPresentation = activationDelayPresentation;
+        this.activationDelayBinding = activationDelayBinding;
     }
 
     static Minecraft189GlideFeature install(
@@ -92,6 +101,9 @@ final class Minecraft189GlideFeature
         SettingPresentationRegistry.Registration decelerationStepPresentation = null;
         ModuleSettingRegistry.Registration progressiveBinding = null;
         ModuleSettingRegistry.Registration decelerationStepBinding = null;
+        SettingRegistry.Registration activationDelaySetting = null;
+        SettingPresentationRegistry.Registration activationDelayPresentation = null;
+        ModuleSettingRegistry.Registration activationDelayBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -114,6 +126,8 @@ final class Minecraft189GlideFeature
                     module.progressiveDecelerationSetting());
             decelerationStepSetting = settings.register(
                     module.decelerationStepSetting());
+            activationDelaySetting = settings.register(
+                    module.activationDelayTicksSetting());
             fallSpeedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -141,6 +155,13 @@ final class Minecraft189GlideFeature
                                     Minecraft189GlideModule.MINIMUM_DECELERATION_STEP,
                                     Minecraft189GlideModule.MAXIMUM_DECELERATION_STEP,
                                     0.01D)));
+            activationDelayPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189GlideModule.ACTIVATION_DELAY_SETTING_ID,
+                            "Activation Delay Ticks", SettingValueKind.INTEGER, 40,
+                            new SettingNumericSpec(0.0D,
+                                    Minecraft189GlideModule.MAXIMUM_ACTIVATION_DELAY_TICKS,
+                                    1.0D)));
             fallSpeedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -162,6 +183,11 @@ final class Minecraft189GlideFeature
                             Minecraft189GlideModule.ID,
                             Minecraft189GlideModule.DECELERATION_STEP_SETTING_ID, 30));
 
+            activationDelayBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189GlideModule.ID,
+                            Minecraft189GlideModule.ACTIVATION_DELAY_SETTING_ID, 40));
+
             return new Minecraft189GlideFeature(
                     controller,
                     module,
@@ -178,8 +204,14 @@ final class Minecraft189GlideFeature
                     progressivePresentation,
                     decelerationStepPresentation,
                     progressiveBinding,
-                    decelerationStepBinding);
+                    decelerationStepBinding,
+                    activationDelaySetting,
+                    activationDelayPresentation,
+                    activationDelayBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(activationDelayBinding, failure);
+            closeQuietly(activationDelayPresentation, failure);
+            closeQuietly(activationDelaySetting, failure);
             closeQuietly(decelerationStepBinding, failure);
             closeQuietly(progressiveBinding, failure);
             closeQuietly(decelerationStepPresentation, failure);
@@ -225,6 +257,9 @@ final class Minecraft189GlideFeature
             failure = closeFailure;
         }
 
+        failure = close(activationDelayBinding, failure);
+        failure = close(activationDelayPresentation, failure);
+        failure = close(activationDelaySetting, failure);
         failure = close(decelerationStepBinding, failure);
         failure = close(progressiveBinding, failure);
         failure = close(decelerationStepPresentation, failure);
