@@ -140,6 +140,104 @@ final class Minecraft189NoClipModuleTest {
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
     }
 
+    @Test
+    void noClipHoldSneakRestoresOriginalCollisionStateOnReleaseAndStateLoss() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189NoClipModule clip = runtime.featureCatalog().noClip();
+            final TestPlayer player = new TestPlayer();
+            assertFalse(clip.requireSneakingSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189NoClipModule.REQUIRE_SNEAK_SETTING_ID));
+            controller.enable(Minecraft189NoClipModule.ID);
+            clip.requireSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NoClipModule.REQUIRE_SNEAK_SETTING_ID));
+
+            runtime.playerNoClipControl(player); // Absent state: fail closed.
+            assertFalse(player.noClip);
+            assertEquals(0, player.setCalls);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerNoClipControl(player); // Sneak not held.
+            assertFalse(player.noClip);
+
+            runtime.playerMovementState().update(false, true, false);
+            runtime.playerNoClipControl(player);
+            assertTrue(player.noClip);
+            assertEquals(1, player.setCalls);
+            runtime.playerNoClipControl(player);
+            assertEquals(1, player.setCalls);
+
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerNoClipControl(player); // Live release restores baseline.
+            assertFalse(player.noClip);
+            assertEquals(2, player.setCalls);
+            runtime.playerNoClipControl(player);
+            assertEquals(2, player.setCalls); // No redundant restore.
+
+            runtime.playerMovementState().update(false, true, false);
+            runtime.playerNoClipControl(player);
+            assertTrue(player.noClip);
+            assertEquals(3, player.setCalls);
+            runtime.playerMovementState().clear();
+            runtime.playerNoClipControl(player); // Authority loss restores.
+            assertFalse(player.noClip);
+            assertEquals(4, player.setCalls);
+
+            // New activation recaptures a fresh original true baseline.
+            player.noClip = true;
+            runtime.playerMovementState().update(false, true, false);
+            runtime.playerNoClipControl(player);
+            assertTrue(player.noClip);
+            assertEquals(4, player.setCalls);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerNoClipControl(player);
+            assertTrue(player.noClip); // Restore original true.
+            assertEquals(4, player.setCalls);
+
+            player.noClip = false;
+            runtime.playerMovementState().update(false, true, false);
+            runtime.playerNoClipControl(player);
+            assertTrue(player.noClip);
+            assertEquals(5, player.setCalls);
+            controller.disable(Minecraft189NoClipModule.ID);
+            assertTrue(clip.restorePending());
+            runtime.playerNoClipControl(player);
+            assertFalse(player.noClip);
+            assertEquals(6, player.setCalls);
+            assertFalse(clip.restorePending());
+
+            // Default option OFF retains legacy unconditional No Clip.
+            clip.requireSneakingSetting().set(Boolean.FALSE);
+            controller.enable(Minecraft189NoClipModule.ID);
+            runtime.playerMovementState().clear();
+            runtime.playerNoClipControl(player);
+            assertTrue(player.noClip);
+            assertEquals(7, player.setCalls);
+            controller.disable(Minecraft189NoClipModule.ID);
+            runtime.playerNoClipControl(player);
+            assertFalse(player.noClip);
+            assertEquals(8, player.setCalls);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189NoClipModule.REQUIRE_SNEAK_SETTING_ID));
+        assertNull(modules.find(Minecraft189NoClipModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerNoClipControl {
         private boolean noClip;

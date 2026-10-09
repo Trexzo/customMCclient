@@ -591,7 +591,10 @@ public final class Minecraft189FeatureCatalog
                     Minecraft189NoClipFeature.install(
                             modules,
                             moduleController,
-                            presentations);
+                            presentations,
+                            moduleSettings,
+                            settings,
+                            settingPresentations);
 
             flightFeature =
                     Minecraft189FlightFeature.install(
