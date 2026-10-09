@@ -109,6 +109,14 @@ final class Minecraft189MappingsTest {
                 "xg",
                 "net/minecraft/util/FoodStats");
         assertClass(
+                Minecraft189Mappings.MOVING_OBJECT_POSITION,
+                "auh",
+                "net/minecraft/util/MovingObjectPosition");
+        assertClass(
+                Minecraft189Mappings.MOVING_OBJECT_TYPE,
+                "auh$a",
+                "net/minecraft/util/MovingObjectPosition$MovingObjectType");
+        assertClass(
                 Minecraft189Mappings.MOVEMENT_INPUT,
                 "beu",
                 "net/minecraft/util/MovementInput");
@@ -198,6 +206,18 @@ final class Minecraft189MappingsTest {
                 "I",
                 "field_71467_ac",
                 "rightClickDelayTimer");
+        assertField(
+                Minecraft189Mappings.MINECRAFT_OBJECT_MOUSE_OVER,
+                Minecraft189Mappings.MINECRAFT,
+                "s", "Lauh;", "field_71476_x", "objectMouseOver");
+        assertField(
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_OF_HIT,
+                Minecraft189Mappings.MOVING_OBJECT_POSITION,
+                "a", "Lauh$a;", "field_72313_a", "typeOfHit");
+        assertField(
+                Minecraft189Mappings.MOVING_OBJECT_ENTITY_HIT,
+                Minecraft189Mappings.MOVING_OBJECT_POSITION,
+                "d", "Lpk;", "field_72308_g", "entityHit");
         assertField(
                 Minecraft189Mappings.MINECRAFT_LEFT_CLICK_COUNTER,
                 Minecraft189Mappings.MINECRAFT,
@@ -1977,6 +1997,75 @@ final class Minecraft189MappingsTest {
         return finish(writer);
     }
 
+    @Test
+    void crosshairHitShapeGateRejectsUnknownFieldOffsetsAndPreservesKnownBytes() {
+        final ClassWriter good = writer(
+                Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedInternalName());
+        addField(good, Minecraft189Mappings.MOVING_OBJECT_TYPE_OF_HIT);
+        addField(good, Minecraft189Mappings.MOVING_OBJECT_ENTITY_HIT);
+        final byte[] correct = finish(good);
+        Minecraft189ClassShapeVerifier.verifyMovingObjectPosition(correct);
+        final Minecraft189ClassTransformer transformer =
+                new Minecraft189ClassTransformer();
+        assertEquals(true, transformer.handles(
+                Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedBinaryName()));
+        org.junit.jupiter.api.Assertions.assertArrayEquals(correct, transformer.transform(
+                Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedBinaryName(),
+                correct));
+
+        final ClassWriter missing = writer(
+                Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedInternalName());
+        addField(missing, Minecraft189Mappings.MOVING_OBJECT_TYPE_OF_HIT);
+        final IllegalStateException absent = assertThrows(
+                IllegalStateException.class,
+                () -> Minecraft189ClassShapeVerifier.verifyMovingObjectPosition(
+                        finish(missing)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: auh.d Lpk; (entityHit)",
+                absent.getMessage());
+
+        final ClassWriter wrongDescriptor = writer(
+                Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedInternalName());
+        wrongDescriptor.visitField(Opcodes.ACC_PUBLIC, "a", "Lauh$a;", null, null)
+                .visitEnd();
+        wrongDescriptor.visitField(Opcodes.ACC_PUBLIC, "d", "Lwn;", null, null)
+                .visitEnd();
+        assertThrows(IllegalStateException.class,
+                () -> transformer.transform(
+                        Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedBinaryName(),
+                        finish(wrongDescriptor)));
+        // A proximity-only target is NOT a validated ray-trace hit.
+    }
+
+    @Test
+    void minecraftShapeRejectsMissingSourceProvenCrosshairHitField() {
+        final ClassWriter w = writer(
+                Minecraft189Mappings.MINECRAFT.obfuscatedInternalName());
+        addMinecraftFields(w);
+        // A fixture with all prior fields but no objectMouseOver must be
+        // rejected before treating an unverified hit result as authority.
+        // Remove by constructing a second class with the exact former set.
+        final ClassWriter missing = writer(
+                Minecraft189Mappings.MINECRAFT.obfuscatedInternalName());
+        addField(missing, Minecraft189Mappings.MINECRAFT_PLAYER);
+        addField(missing, Minecraft189Mappings.MINECRAFT_WORLD);
+        addField(missing, Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER);
+        addField(missing, Minecraft189Mappings.MINECRAFT_FONT_RENDERER);
+        addField(missing, Minecraft189Mappings.MINECRAFT_ENTITY_RENDERER);
+        addField(missing, Minecraft189Mappings.MINECRAFT_INGAME_GUI);
+        addField(missing, Minecraft189Mappings.MINECRAFT_GAME_SETTINGS);
+        addField(missing, Minecraft189Mappings.MINECRAFT_CURRENT_SERVER_DATA);
+        addField(missing, Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_DELAY_TIMER);
+        addField(missing, Minecraft189Mappings.MINECRAFT_LEFT_CLICK_COUNTER);
+        addField(missing, Minecraft189Mappings.MINECRAFT_TIMER);
+        final IllegalStateException error = assertThrows(
+                IllegalStateException.class,
+                () -> Minecraft189ClassShapeVerifier.verifyMinecraft(finish(missing)));
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: ave.s Lauh; (objectMouseOver)",
+                error.getMessage());
+    }
+
     private static byte[] minecraftShape() {
         final ClassWriter writer =
                 writer(
@@ -2708,6 +2797,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.MINECRAFT_TIMER);
+        addField(
+                writer,
+                Minecraft189Mappings.MINECRAFT_OBJECT_MOUSE_OVER);
     }
 
     private static ClassWriter writer(

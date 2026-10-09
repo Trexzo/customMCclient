@@ -95,6 +95,14 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "xg",
                     "net/minecraft/util/FoodStats");
+    public static final MappedClass MOVING_OBJECT_POSITION =
+            new MappedClass(
+                    "auh",
+                    "net/minecraft/util/MovingObjectPosition");
+    public static final MappedClass MOVING_OBJECT_TYPE =
+            new MappedClass(
+                    "auh$a",
+                    "net/minecraft/util/MovingObjectPosition$MovingObjectType");
     public static final MappedClass MOVEMENT_INPUT =
             new MappedClass(
                     "beu",
@@ -108,6 +116,29 @@ public final class Minecraft189Mappings {
                     "pf",
                     "net/minecraft/potion/PotionEffect");
 
+    // Proven in the pinned joined.srg blob (0b1e3f1d...).
+    // Crosshair hit state is separate from proximity-only player targeting.
+    public static final MappedField MINECRAFT_OBJECT_MOUSE_OVER =
+            new MappedField(
+                    MINECRAFT,
+                    "s",
+                    "Lauh;",
+                    "field_71476_x",
+                    "objectMouseOver");
+    public static final MappedField MOVING_OBJECT_TYPE_OF_HIT =
+            new MappedField(
+                    MOVING_OBJECT_POSITION,
+                    "a",
+                    "Lauh$a;",
+                    "field_72313_a",
+                    "typeOfHit");
+    public static final MappedField MOVING_OBJECT_ENTITY_HIT =
+            new MappedField(
+                    MOVING_OBJECT_POSITION,
+                    "d",
+                    "Lpk;",
+                    "field_72308_g",
+                    "entityHit");
     public static final MappedField MINECRAFT_PLAYER =
             new MappedField(
                     MINECRAFT,

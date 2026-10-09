@@ -259,6 +259,12 @@ final class Minecraft189MappedHostTransformationTest {
                 "bdb",
                 worldClientShape());
         loader.put(
+                "auh",
+                transformer.transform("auh", movingObjectShape()));
+        loader.put(
+                "auh$a",
+                emptyClass("auh$a"));
+        loader.put(
                 "bda",
                 transformer.transform(
                         "bda",
@@ -6660,6 +6666,15 @@ final class Minecraft189MappedHostTransformationTest {
         return writer.toByteArray();
     }
 
+    private static byte[] movingObjectShape() {
+        final ClassWriter writer = classWriter("auh");
+        field(writer, "a", "Lauh$a;");
+        field(writer, "d", "Lpk;");
+        endDefaultConstructor(writer, "auh");
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
     private static byte[] minecraftShape() {
         final ClassWriter writer =
                 classWriter("ave");
@@ -6674,6 +6689,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "ap", "I");
         field(writer, "ag", "I");
         field(writer, "Y", "Lavl;");
+        field(writer, "s", "Lauh;");
         field(writer, "clickMouseCalls", "I");
         endDefaultConstructor(writer, "ave");
 

@@ -34,6 +34,20 @@ unit/integration fixtures and launcher smoke, not real server acceptance.
    multiplayer, module interoperability, frame/heap regression and a
    reproducible release with checksums/rollback.
 
+## M350 Ray-hit mapping authority
+
+The pinned Minecraft 1.8.9 `joined.srg` mapping blob
+(`0b1e3f1d0156abcbd70e2b09b720379fc0c1eae6`) identifies
+`Minecraft.objectMouseOver` as `ave.s:Lauh;`, with
+`MovingObjectPosition` `auh`, `typeOfHit` as `auh.a:Lauh$a;`
+and `entityHit` as `auh.d:Lpk;`. M350 adds these to the mapping
+registry, verifies the Minecraft objectMouseOver field and verifies the
+hit-result class shape fail-closed at transformation time. It does **not**
+yet read or act on a live hit result, introduce a TriggerBot, or claim a
+verified player raycast. The next combat milestone should add a narrow
+read-only hit-result bridge and test against real clickMouse dispatch,
+without confusing nearest-player proximity with crosshair targeting.
+
 ## M349 Target Strafe behavior
 
 Uses only mapped local position and nearest-player snapshots. With the module
