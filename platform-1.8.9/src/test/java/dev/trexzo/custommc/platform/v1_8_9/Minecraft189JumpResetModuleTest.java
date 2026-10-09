@@ -71,6 +71,38 @@ final class Minecraft189JumpResetModuleTest {
     }
 
     @Test
+    void zeroChanceAndSprintRequirementDoNotBankHitEvents() {
+        final Minecraft189JumpResetModule module = new Minecraft189JumpResetModule();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        final Minecraft189PlayerHurtTimeState hurt = new Minecraft189PlayerHurtTimeState();
+        final JumpCounter player = new JumpCounter();
+        module.cooldownSetting().set(0);
+        module.chanceSetting().set(0);
+        module.onEnable();
+        movement.update(true, false, true);
+        hurt.update(0);
+        module.apply(player, movement.snapshot(), hurt.snapshot(), true, false);
+        hurt.update(10);
+        assertFalse(module.apply(player, movement.snapshot(), hurt.snapshot(), true, false));
+        module.chanceSetting().set(100);
+        assertFalse(module.apply(player, movement.snapshot(), hurt.snapshot(), true, false));
+        hurt.update(0);
+        module.apply(player, movement.snapshot(), hurt.snapshot(), true, false);
+        module.requireSprintSetting().set(true);
+        movement.update(true, false, false);
+        hurt.update(10);
+        assertFalse(module.apply(player, movement.snapshot(), hurt.snapshot(), true, false));
+        movement.update(true, false, true);
+        assertFalse(module.apply(player, movement.snapshot(), hurt.snapshot(), true, false));
+        hurt.update(0);
+        module.apply(player, movement.snapshot(), hurt.snapshot(), true, false);
+        hurt.update(10);
+        assertTrue(module.apply(player, movement.snapshot(), hurt.snapshot(), true, false));
+        assertEquals(1, player.jumps);
+        module.onDisable();
+    }
+
+    @Test
     void settingsPersistAndFeatureCleansRegistrations() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -87,6 +119,12 @@ final class Minecraft189JumpResetModuleTest {
                     Minecraft189JumpResetModule.COOLDOWN_ID));
             assertThrows(IllegalArgumentException.class,
                     () -> feature.module().cooldownSetting().set(21));
+            feature.module().chanceSetting().set(75);
+            assertEquals("75", settings.snapshotEncoded().get(
+                    Minecraft189JumpResetModule.CHANCE_ID));
+            feature.module().requireSprintSetting().set(true);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189JumpResetModule.SPRINT_ID));
             controller.enable(Minecraft189JumpResetModule.ID);
         } finally {
             feature.close();

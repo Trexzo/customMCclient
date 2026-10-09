@@ -62,6 +62,19 @@ final class Minecraft189JumpResetFeature implements AutoCloseable {
                     SettingValueKind.BOOLEAN, 20)));
             feature.owned.add(moduleSettings.register(new ModuleSettingBinding(
                     Minecraft189JumpResetModule.ID, Minecraft189JumpResetModule.SNEAK_ID, 20)));
+            feature.owned.add(settings.register(feature.module.chanceSetting()));
+            feature.owned.add(settingPresentations.register(new SettingDescriptor(
+                    Minecraft189JumpResetModule.CHANCE_ID, "Activation Chance %",
+                    SettingValueKind.INTEGER, 30, new SettingNumericSpec(0, 100, 1))));
+            feature.owned.add(moduleSettings.register(new ModuleSettingBinding(
+                    Minecraft189JumpResetModule.ID, Minecraft189JumpResetModule.CHANCE_ID, 30)));
+
+            feature.owned.add(settings.register(feature.module.requireSprintSetting()));
+            feature.owned.add(settingPresentations.register(new SettingDescriptor(
+                    Minecraft189JumpResetModule.SPRINT_ID, "Require Sprint",
+                    SettingValueKind.BOOLEAN, 40)));
+            feature.owned.add(moduleSettings.register(new ModuleSettingBinding(
+                    Minecraft189JumpResetModule.ID, Minecraft189JumpResetModule.SPRINT_ID, 40)));
             return feature;
         } catch (RuntimeException ex) {
             try { feature.close(); }
