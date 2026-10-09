@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189StepModuleTest {
     @Test
@@ -191,6 +192,91 @@ final class Minecraft189StepModuleTest {
         assertNull(settings.find(Minecraft189StepModule.GROUND_ONLY_SETTING_ID));
         assertNull(settings.find(
                 Minecraft189StepModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189StepModule.ID));
+    }
+
+    @Test
+    void stepAirborneHeightUsesOnlyConfirmedMovementAndExistingVetoes() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(
+                new EventBus(), modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189StepModule step = runtime.featureCatalog().step();
+            final TestPlayer player = new TestPlayer();
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189StepModule.AIRBORNE_OVERRIDE_SETTING_ID));
+            assertEquals("100", settings.snapshotEncoded().get(
+                    Minecraft189StepModule.AIRBORNE_HEIGHT_SETTING_ID));
+            step.heightPercentSetting().set(150);
+            step.airborneHeightPercentSetting().set(70);
+            controller.enable(Minecraft189StepModule.ID);
+
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerStepControl(player);
+            assertEquals(1.5F, player.height, 0.000001F); // Original OFF parity.
+            step.airborneOverrideSetting().set(Boolean.TRUE);
+            runtime.playerStepControl(player);
+            assertEquals(0.7F, player.height, 0.000001F);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189StepModule.AIRBORNE_OVERRIDE_SETTING_ID));
+            assertEquals("70", settings.snapshotEncoded().get(
+                    Minecraft189StepModule.AIRBORNE_HEIGHT_SETTING_ID));
+
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerStepControl(player);
+            assertEquals(1.5F, player.height, 0.000001F);
+            runtime.playerMovementState().clear();
+            runtime.playerStepControl(player);
+            assertEquals(1.5F, player.height, 0.000001F); // Unknown uses base.
+
+            step.groundOnlySetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerStepControl(player);
+            assertEquals(0.6F, player.height, 0.000001F); // Veto resets vanilla.
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerStepControl(player);
+            assertEquals(1.5F, player.height, 0.000001F);
+            step.groundOnlySetting().set(Boolean.FALSE);
+            step.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(false, true, false);
+            runtime.playerStepControl(player);
+            assertEquals(0.6F, player.height, 0.000001F);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerStepControl(player);
+            assertEquals(0.7F, player.height, 0.000001F);
+            runtime.playerMovementState().clear();
+            runtime.playerStepControl(player);
+            assertEquals(0.6F, player.height, 0.000001F);
+            step.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            step.airborneOverrideSetting().set(Boolean.FALSE);
+            runtime.playerStepControl(player);
+            assertEquals(1.5F, player.height, 0.000001F);
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> step.airborneHeightPercentSetting().set(59));
+            assertThrows(IllegalArgumentException.class,
+                    () -> step.airborneHeightPercentSetting().set(251));
+            controller.disable(Minecraft189StepModule.ID);
+            runtime.playerStepControl(player);
+            assertEquals(0.6F, player.height, 0.000001F);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189StepModule.AIRBORNE_OVERRIDE_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189StepModule.AIRBORNE_HEIGHT_SETTING_ID));
         assertNull(modules.find(Minecraft189StepModule.ID));
     }
 

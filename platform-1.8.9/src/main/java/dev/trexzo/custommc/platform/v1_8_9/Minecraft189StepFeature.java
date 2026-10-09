@@ -28,6 +28,12 @@ final class Minecraft189StepFeature
     private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
     private final ModuleSettingRegistry.Registration groundOnlyBinding;
     private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
+    private final SettingRegistry.Registration airborneOverrideSetting;
+    private final SettingRegistry.Registration airborneHeightSetting;
+    private final SettingPresentationRegistry.Registration airborneOverridePresentation;
+    private final SettingPresentationRegistry.Registration airborneHeightPresentation;
+    private final ModuleSettingRegistry.Registration airborneOverrideBinding;
+    private final ModuleSettingRegistry.Registration airborneHeightBinding;
     private boolean closed;
 
     private Minecraft189StepFeature(
@@ -43,7 +49,13 @@ final class Minecraft189StepFeature
             final SettingPresentationRegistry.Registration groundOnlyPresentation,
             final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
             final ModuleSettingRegistry.Registration groundOnlyBinding,
-            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding,
+            final SettingRegistry.Registration airborneOverrideSetting,
+            final SettingRegistry.Registration airborneHeightSetting,
+            final SettingPresentationRegistry.Registration airborneOverridePresentation,
+            final SettingPresentationRegistry.Registration airborneHeightPresentation,
+            final ModuleSettingRegistry.Registration airborneOverrideBinding,
+            final ModuleSettingRegistry.Registration airborneHeightBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -57,6 +69,12 @@ final class Minecraft189StepFeature
         this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
         this.groundOnlyBinding = groundOnlyBinding;
         this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
+        this.airborneOverrideSetting = airborneOverrideSetting;
+        this.airborneHeightSetting = airborneHeightSetting;
+        this.airborneOverridePresentation = airborneOverridePresentation;
+        this.airborneHeightPresentation = airborneHeightPresentation;
+        this.airborneOverrideBinding = airborneOverrideBinding;
+        this.airborneHeightBinding = airborneHeightBinding;
     }
 
     static Minecraft189StepFeature install(
@@ -80,6 +98,12 @@ final class Minecraft189StepFeature
         SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
         ModuleSettingRegistry.Registration groundOnlyBinding = null;
         ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
+        SettingRegistry.Registration airborneOverrideSetting = null;
+        SettingRegistry.Registration airborneHeightSetting = null;
+        SettingPresentationRegistry.Registration airborneOverridePresentation = null;
+        SettingPresentationRegistry.Registration airborneHeightPresentation = null;
+        ModuleSettingRegistry.Registration airborneOverrideBinding = null;
+        ModuleSettingRegistry.Registration airborneHeightBinding = null;
 
         try {
             moduleRegistration =
@@ -98,6 +122,8 @@ final class Minecraft189StepFeature
                             module.heightPercentSetting());
             groundOnlySetting = settings.register(module.groundOnlySetting());
             pauseWhileSneakingSetting = settings.register(module.pauseWhileSneakingSetting());
+            airborneOverrideSetting = settings.register(module.airborneOverrideSetting());
+            airborneHeightSetting = settings.register(module.airborneHeightPercentSetting());
             heightPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -117,6 +143,15 @@ final class Minecraft189StepFeature
                     new SettingDescriptor(
                             Minecraft189StepModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
                             "Pause While Sneaking", SettingValueKind.BOOLEAN, 20));
+            airborneOverridePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189StepModule.AIRBORNE_OVERRIDE_SETTING_ID,
+                            "Airborne Override", SettingValueKind.BOOLEAN, 30));
+            airborneHeightPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189StepModule.AIRBORNE_HEIGHT_SETTING_ID,
+                            "Air Height %", SettingValueKind.INTEGER, 40,
+                            new SettingNumericSpec(60.0D, 250.0D, 5.0D)));
             heightBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -133,6 +168,15 @@ final class Minecraft189StepFeature
                             Minecraft189StepModule.ID,
                             Minecraft189StepModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 20));
 
+            airborneOverrideBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189StepModule.ID,
+                            Minecraft189StepModule.AIRBORNE_OVERRIDE_SETTING_ID, 30));
+            airborneHeightBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189StepModule.ID,
+                            Minecraft189StepModule.AIRBORNE_HEIGHT_SETTING_ID, 40));
+
             return new Minecraft189StepFeature(
                     controller,
                     module,
@@ -146,8 +190,20 @@ final class Minecraft189StepFeature
                     groundOnlyPresentation,
                     pauseWhileSneakingPresentation,
                     groundOnlyBinding,
-                    pauseWhileSneakingBinding);
+                    pauseWhileSneakingBinding,
+                    airborneOverrideSetting,
+                    airborneHeightSetting,
+                    airborneOverridePresentation,
+                    airborneHeightPresentation,
+                    airborneOverrideBinding,
+                    airborneHeightBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(airborneHeightBinding, failure);
+            closeQuietly(airborneOverrideBinding, failure);
+            closeQuietly(airborneHeightPresentation, failure);
+            closeQuietly(airborneOverridePresentation, failure);
+            closeQuietly(airborneHeightSetting, failure);
+            closeQuietly(airborneOverrideSetting, failure);
             closeQuietly(pauseWhileSneakingBinding, failure);
             closeQuietly(groundOnlyBinding, failure);
             closeQuietly(pauseWhileSneakingPresentation, failure);
@@ -190,6 +246,12 @@ final class Minecraft189StepFeature
             failure = closeFailure;
         }
 
+        failure = close(airborneHeightBinding, failure);
+        failure = close(airborneOverrideBinding, failure);
+        failure = close(airborneHeightPresentation, failure);
+        failure = close(airborneOverridePresentation, failure);
+        failure = close(airborneHeightSetting, failure);
+        failure = close(airborneOverrideSetting, failure);
         failure = close(pauseWhileSneakingBinding, failure);
         failure = close(groundOnlyBinding, failure);
         failure = close(pauseWhileSneakingPresentation, failure);
