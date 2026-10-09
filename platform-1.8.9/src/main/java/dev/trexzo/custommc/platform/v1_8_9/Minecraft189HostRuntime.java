@@ -748,6 +748,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerJumpControl player) {
         requireOpen();
         if (player == null) {
+            featureCatalog.jumpReset().apply(null, null, null, false, true);
             return;
         }
         final Minecraft189PlayerMovementState.Snapshot movement =
@@ -769,6 +770,18 @@ public final class Minecraft189HostRuntime
                         .active()
                         || featureCatalog.flight()
                                 .active();
+        // Combat Jump Reset consumes only a fresh mapped local hurt edge.
+        // Never execute a second synthetic jump in the same callback.
+        // Existing movement jump modules retain priority while active.
+        if (featureCatalog.jumpReset().apply(
+                player, movement, playerHurtTimeState.snapshot(),
+                inputState.keyPressed(LegacyKeyboardCodes.W),
+                movementJumpSuspended || longJumpActive || highJumpActive
+                        || lowHopActive || bunnyHopActive
+                        || featureCatalog.airJump().active()
+                        || clickGuiRuntime.coreRuntime().model().snapshot().open())) {
+            return;
+        }
         featureCatalog.longJump()
                 .applyJump(
                         player,
