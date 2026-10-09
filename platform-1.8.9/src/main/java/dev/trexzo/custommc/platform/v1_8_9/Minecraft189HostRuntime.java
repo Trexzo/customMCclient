@@ -830,7 +830,8 @@ public final class Minecraft189HostRuntime
         requireOpen();
         featureCatalog.noClip()
                 .apply(
-                        player);
+                        player,
+                        playerMovementState.snapshot());
     }
 
     void playerMotionControl(
