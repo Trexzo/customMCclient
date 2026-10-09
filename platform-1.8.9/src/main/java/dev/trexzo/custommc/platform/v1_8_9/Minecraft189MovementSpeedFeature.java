@@ -22,6 +22,12 @@ final class Minecraft189MovementSpeedFeature
     private final SettingRegistry.Registration speedSetting;
     private final SettingPresentationRegistry.Registration speedPresentation;
     private final ModuleSettingRegistry.Registration speedBinding;
+    private final SettingRegistry.Registration smoothAccelerationSetting;
+    private final SettingRegistry.Registration accelerationPercentSetting;
+    private final SettingPresentationRegistry.Registration smoothAccelerationPresentation;
+    private final SettingPresentationRegistry.Registration accelerationPercentPresentation;
+    private final ModuleSettingRegistry.Registration smoothAccelerationBinding;
+    private final ModuleSettingRegistry.Registration accelerationPercentBinding;
     private boolean closed;
 
     private Minecraft189MovementSpeedFeature(
@@ -31,7 +37,13 @@ final class Minecraft189MovementSpeedFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration speedSetting,
             final SettingPresentationRegistry.Registration speedPresentation,
-            final ModuleSettingRegistry.Registration speedBinding) {
+            final ModuleSettingRegistry.Registration speedBinding,
+            final SettingRegistry.Registration smoothAccelerationSetting,
+            final SettingRegistry.Registration accelerationPercentSetting,
+            final SettingPresentationRegistry.Registration smoothAccelerationPresentation,
+            final SettingPresentationRegistry.Registration accelerationPercentPresentation,
+            final ModuleSettingRegistry.Registration smoothAccelerationBinding,
+            final ModuleSettingRegistry.Registration accelerationPercentBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -39,6 +51,12 @@ final class Minecraft189MovementSpeedFeature
         this.speedSetting = speedSetting;
         this.speedPresentation = speedPresentation;
         this.speedBinding = speedBinding;
+        this.smoothAccelerationSetting = smoothAccelerationSetting;
+        this.accelerationPercentSetting = accelerationPercentSetting;
+        this.smoothAccelerationPresentation = smoothAccelerationPresentation;
+        this.accelerationPercentPresentation = accelerationPercentPresentation;
+        this.smoothAccelerationBinding = smoothAccelerationBinding;
+        this.accelerationPercentBinding = accelerationPercentBinding;
     }
 
     static Minecraft189MovementSpeedFeature install(
@@ -58,6 +76,12 @@ final class Minecraft189MovementSpeedFeature
         SettingRegistry.Registration speedSetting = null;
         SettingPresentationRegistry.Registration speedPresentation = null;
         ModuleSettingRegistry.Registration speedBinding = null;
+        SettingRegistry.Registration smoothAccelerationSetting = null;
+        SettingRegistry.Registration accelerationPercentSetting = null;
+        SettingPresentationRegistry.Registration smoothAccelerationPresentation = null;
+        SettingPresentationRegistry.Registration accelerationPercentPresentation = null;
+        ModuleSettingRegistry.Registration smoothAccelerationBinding = null;
+        ModuleSettingRegistry.Registration accelerationPercentBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -74,6 +98,10 @@ final class Minecraft189MovementSpeedFeature
             speedSetting =
                     settings.register(
                             module.speedSetting());
+            smoothAccelerationSetting = settings.register(
+                    module.smoothAccelerationSetting());
+            accelerationPercentSetting = settings.register(
+                    module.accelerationPercentSetting());
             speedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -85,12 +113,30 @@ final class Minecraft189MovementSpeedFeature
                                             Minecraft189MovementSpeedModule.MINIMUM_SPEED,
                                             Minecraft189MovementSpeedModule.MAXIMUM_SPEED,
                                             0.05D)));
+            smoothAccelerationPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189MovementSpeedModule.SMOOTH_ACCELERATION_SETTING_ID,
+                            "Smooth Acceleration", SettingValueKind.BOOLEAN, 10));
+            accelerationPercentPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189MovementSpeedModule.ACCELERATION_PERCENT_SETTING_ID,
+                            "Acceleration %", SettingValueKind.INTEGER, 20,
+                            new SettingNumericSpec(10.0D, 100.0D, 5.0D)));
             speedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
                                     Minecraft189MovementSpeedModule.ID,
                                     Minecraft189MovementSpeedModule.SPEED_SETTING_ID,
                                     0));
+
+            smoothAccelerationBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189MovementSpeedModule.ID,
+                            Minecraft189MovementSpeedModule.SMOOTH_ACCELERATION_SETTING_ID, 10));
+            accelerationPercentBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189MovementSpeedModule.ID,
+                            Minecraft189MovementSpeedModule.ACCELERATION_PERCENT_SETTING_ID, 20));
 
             return new Minecraft189MovementSpeedFeature(
                     controller,
@@ -99,8 +145,20 @@ final class Minecraft189MovementSpeedFeature
                     presentation,
                     speedSetting,
                     speedPresentation,
-                    speedBinding);
+                    speedBinding,
+                    smoothAccelerationSetting,
+                    accelerationPercentSetting,
+                    smoothAccelerationPresentation,
+                    accelerationPercentPresentation,
+                    smoothAccelerationBinding,
+                    accelerationPercentBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(accelerationPercentBinding, failure);
+            closeQuietly(smoothAccelerationBinding, failure);
+            closeQuietly(accelerationPercentPresentation, failure);
+            closeQuietly(smoothAccelerationPresentation, failure);
+            closeQuietly(accelerationPercentSetting, failure);
+            closeQuietly(smoothAccelerationSetting, failure);
             closeQuietly(speedBinding, failure);
             closeQuietly(speedPresentation, failure);
             closeQuietly(speedSetting, failure);
@@ -137,6 +195,12 @@ final class Minecraft189MovementSpeedFeature
             failure = closeFailure;
         }
 
+        failure = close(accelerationPercentBinding, failure);
+        failure = close(smoothAccelerationBinding, failure);
+        failure = close(accelerationPercentPresentation, failure);
+        failure = close(smoothAccelerationPresentation, failure);
+        failure = close(accelerationPercentSetting, failure);
+        failure = close(smoothAccelerationSetting, failure);
         failure = close(speedBinding, failure);
         failure = close(speedPresentation, failure);
         failure = close(speedSetting, failure);
