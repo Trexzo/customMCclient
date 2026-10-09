@@ -394,6 +394,19 @@ public final class Minecraft189RuntimeBridge {
                     ? ((Minecraft189CrosshairHitAccess) minecraft)
                             .customMcCrosshairPlayerIndex()
                     : -1;
+            // Healing item has priority over Rod and synthetic attacks.
+            // Each winning action owns the full native right-click lane.
+            if (host.shouldAutoPot(playerHit, playerIndex)) {
+                final int originalPotionSlot = host.selectAutoPotSlot();
+                if (originalPotionSlot >= 0) {
+                    try {
+                        minecraft.customMcRightClickMouse();
+                    } finally {
+                        host.restoreAutoPotSlot(originalPotionSlot);
+                    }
+                }
+                return;
+            }
             // Rod consumes one synthetic combat action on its own tick.
             // Normal clicks are not double-issued on the same tick.
             if (host.shouldAutoRod(playerHit, playerIndex)) {

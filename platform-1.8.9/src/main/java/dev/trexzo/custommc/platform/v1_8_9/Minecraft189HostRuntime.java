@@ -1370,6 +1370,36 @@ public final class Minecraft189HostRuntime
     }
 
     /** Eligibility captured immediately before the native synthetic click. */
+    boolean shouldAutoPot(final boolean crosshairPlayer,
+            final int crosshairPlayerIndex) {
+        requireOpen();
+        final Minecraft189AutoPotModule pot = featureCatalog.autoPot();
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()
+                || tickHotbarControl == null) {
+            pot.suspend();
+            return false;
+        }
+        final Minecraft189WorldEntityCombatState.Snapshot combat =
+                worldEntityCombatState.snapshot();
+        final boolean verifiedTarget = crosshairPlayer
+                && crosshairPlayerIndex >= 0
+                && combat.alive(crosshairPlayerIndex)
+                && featureCatalog.antiBot().permits(crosshairPlayerIndex, combat);
+        return pot.shouldUse(playerHealthState.snapshot(), verifiedTarget,
+                inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                false, true);
+    }
+
+    int selectAutoPotSlot() {
+        requireOpen();
+        return featureCatalog.autoPot().selectSlot(tickHotbarControl);
+    }
+
+    void restoreAutoPotSlot(final int originalSlot) {
+        requireOpen();
+        featureCatalog.autoPot().restoreSlot(tickHotbarControl, originalSlot);
+    }
+
     boolean shouldAutoRod(final boolean confirmedPlayer,
             final int verifiedPlayerIndex) {
         requireOpen();
