@@ -1233,6 +1233,23 @@ public final class Minecraft189HostRuntime
             worldEntityCombatState.update(data);
         } catch (IllegalArgumentException malformed) {
             worldEntityCombatState.clear();
+            return;
+        }
+        // Aura should rotate toward the nearest verified *living* player,
+        // rather than repeatedly selecting a nearer dead player. This does
+        // not change the normal nearest-target semantics for other modules.
+        if (featureCatalog.killAura().active()) {
+            final Minecraft189WorldEntityCombatState.Snapshot combat =
+                    worldEntityCombatState.snapshot();
+            nearestPlayerTargetState.update(
+                    playerPositionState.snapshot(),
+                    worldEntityPositionState.snapshot(),
+                    worldEntityKindState.snapshot(),
+                    0.0D, Double.MAX_VALUE,
+                    candidate -> combat.alive(candidate.entityIndex()));
+            targetRotationState.update(
+                    playerPositionState.snapshot(),
+                    nearestPlayerTargetState.snapshot());
         }
     }
 
@@ -1390,11 +1407,27 @@ public final class Minecraft189HostRuntime
                     rightHeld, nearestPlayerTargetState.snapshot(),
                     playerMovementState.snapshot(), confirmedHit);
         }
-        if (click) {
-            clickRateTracker.recordPress(
-                    Minecraft189ClickRateTracker.LEFT_BUTTON);
+        // One shared final veto applies to every automatic click owner.
+        // It never alters genuine vanilla mouse presses. A rejected click
+        // consumes scheduler credit rather than banking a late burst.
+        if (!click) return false;
+        final Minecraft189WorldEntityCombatState.Snapshot combat =
+                worldEntityCombatState.snapshot();
+        if (aura.active()) {
+            final Minecraft189TargetRotationState.Snapshot selected =
+                    targetRotationState.snapshot();
+            if (!selected.available()
+                    || !combat.alive(selected.entityIndex())) {
+                return false;
+            }
         }
-        return click;
+        if (!featureCatalog.hitSelect().permits(
+                crosshairPlayerIndex, combat)) {
+            return false;
+        }
+        clickRateTracker.recordPress(
+                Minecraft189ClickRateTracker.LEFT_BUTTON);
+        return true;
     }
 
     public void publishTick(
