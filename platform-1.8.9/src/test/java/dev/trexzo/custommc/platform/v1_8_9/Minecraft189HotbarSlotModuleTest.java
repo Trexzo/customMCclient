@@ -173,6 +173,76 @@ final class Minecraft189HotbarSlotModuleTest {
                 () -> state.update(9));
     }
 
+    @Test
+    void optionalHotbarStripDrawsExactlyNineCellsWithOneLiveSelection() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189HotbarSlotModule hud =
+                    runtime.featureCatalog().hotbarSlot();
+            assertFalse(hud.showStripSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189HotbarSlotModule.SHOW_STRIP_SETTING_ID));
+            hud.xSetting().set(112);
+            hud.ySetting().set(372);
+            controller.enable(Minecraft189HotbarSlotModule.ID);
+            runtime.playerHotbarSlot(playerWithSlot(4));
+            runtime.renderHud(0L, 0.0F);
+            assertEquals("Slot: 5/9", host.lastText);
+            assertEquals(0, host.slotCellsDrawn);
+
+            hud.showStripSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189HotbarSlotModule.SHOW_STRIP_SETTING_ID));
+            host.lastText = null;
+            runtime.renderHud(1L, 0.0F);
+            assertEquals(9, host.slotCellsDrawn);
+            assertEquals(1, host.activeSlotCells);
+            assertEquals(192.0F, host.activeSlotX, 0.0001F);
+            assertEquals(372.0F, host.activeSlotY, 0.0001F);
+            assertEquals("9", host.lastText);
+            assertEquals(278.0F, host.lastX, 0.0001F);
+
+            runtime.playerHotbarSlot(playerWithSlot(8));
+            runtime.renderHud(2L, 0.0F);
+            assertEquals(18, host.slotCellsDrawn);
+            assertEquals(2, host.activeSlotCells);
+            assertEquals(272.0F, host.activeSlotX, 0.0001F);
+
+            runtime.playerHotbarSlot(playerWithoutInventory());
+            final int drawnBeforeUnknown = host.slotCellsDrawn;
+            runtime.renderHud(3L, 0.0F);
+            assertEquals(drawnBeforeUnknown, host.slotCellsDrawn);
+            assertEquals(2, host.activeSlotCells);
+
+            hud.showStripSetting().set(Boolean.FALSE);
+            runtime.playerHotbarSlot(playerWithSlot(0));
+            runtime.renderHud(4L, 0.0F);
+            assertEquals("Slot: 1/9", host.lastText);
+            assertEquals(18, host.slotCellsDrawn);
+
+            controller.disable(Minecraft189HotbarSlotModule.ID);
+            runtime.renderHud(5L, 0.0F);
+            assertEquals(18, host.slotCellsDrawn);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189HotbarSlotModule.SHOW_STRIP_SETTING_ID));
+        assertNull(modules.find(Minecraft189HotbarSlotModule.ID));
+    }
+
     private static Minecraft189PlayerInventoryAccess playerWithSlot(
             final int slot) {
         return new Minecraft189PlayerInventoryAccess() {
@@ -202,6 +272,10 @@ final class Minecraft189HotbarSlotModuleTest {
         private String lastText;
         private float lastX;
         private float lastY;
+        private int slotCellsDrawn;
+        private int activeSlotCells;
+        private float activeSlotX;
+        private float activeSlotY;
 
         @Override
         public int framebufferWidth() {
@@ -240,6 +314,12 @@ final class Minecraft189HotbarSlotModuleTest {
                 final float height,
                 final float radius,
                 final int argb) {
+            slotCellsDrawn++;
+            if (argb == 0xFF70C9E8) {
+                activeSlotCells++;
+                activeSlotX = x;
+                activeSlotY = y;
+            }
         }
 
         @Override
