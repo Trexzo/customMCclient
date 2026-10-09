@@ -87,6 +87,11 @@ final class Minecraft189TargetStrafeModuleTest {
             final int beforeGround = player.writes;
             runtime.playerMotionControl(player);
             assertEquals(beforeGround, player.writes);
+            // While gated the vanilla game can change horizontal motion.
+            // Regaining an already-exact orbit is correctly a zero-write
+            // no-op, so simulate observed drift before testing ownership.
+            player.x = 0.0D;
+            player.z = 0.0D;
             runtime.playerMovementState().update(true, false, false);
             runtime.playerMotionControl(player);
             assertTrue(player.writes > beforeGround);
