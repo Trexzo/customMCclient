@@ -640,6 +640,86 @@ final class Minecraft189WTapModuleTest {
         assertNull(settings.find(Minecraft189WTapModule.MAX_PLAYER_DISTANCE_SETTING_ID));
     }
 
+    @Test
+    void optionalReleaseCancelsRemainingSprintWritesWithoutBypassingCooldown() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final Minecraft189WTapFeature feature = Minecraft189WTapFeature.install(
+                modules, controller, new ModulePresentationRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                settings, new SettingPresentationRegistry());
+        try {
+            final Minecraft189WTapModule tap = feature.module();
+            final Minecraft189PlayerMovementState movement =
+                    new Minecraft189PlayerMovementState();
+            final TestPlayer player = new TestPlayer();
+            movement.update(true, false, true);
+            assertFalse(tap.cancelResetOnReleaseSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189WTapModule.CANCEL_ON_RELEASE_SETTING_ID));
+            tap.resetTicksSetting().set(3);
+            tap.cooldownTicksSetting().set(4);
+            controller.enable(Minecraft189WTapModule.ID);
+
+            // Default OFF retains the original multi-tick continuation,
+            // even after the physical attack button is released.
+            assertTrue(tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(1, player.setCalls);
+            player.sprinting = true;
+            assertTrue(tap.apply(player, movement.snapshot(), false, true));
+            assertEquals(2, player.setCalls);
+            assertFalse(player.sprinting);
+
+            controller.disable(Minecraft189WTapModule.ID);
+            controller.enable(Minecraft189WTapModule.ID);
+            tap.cancelResetOnReleaseSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189WTapModule.CANCEL_ON_RELEASE_SETTING_ID));
+            player.sprinting = true;
+            assertTrue(tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(3, player.setCalls);
+            player.sprinting = true;
+            assertFalse(tap.apply(player, movement.snapshot(), false, true));
+            assertEquals(3, player.setCalls);
+            assertTrue(player.sprinting); // No synthetic sprint suppression.
+
+            // The new press must still respect the existing cooldown.
+            assertFalse(tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(3, player.setCalls);
+            assertFalse(tap.apply(player, movement.snapshot(), false, true));
+            assertFalse(tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(3, player.setCalls);
+            assertFalse(tap.apply(player, movement.snapshot(), false, true));
+            assertTrue(tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(4, player.setCalls);
+
+            // No remaining writes after a release during a longer reset.
+            player.sprinting = true;
+            assertFalse(tap.apply(player, movement.snapshot(), false, true));
+            assertTrue(player.sprinting);
+            assertEquals(4, player.setCalls);
+            assertFalse(tap.apply(player, movement.snapshot(), false, true));
+            assertEquals(4, player.setCalls);
+
+            tap.cancelResetOnReleaseSetting().set(Boolean.FALSE);
+            controller.disable(Minecraft189WTapModule.ID);
+            controller.enable(Minecraft189WTapModule.ID);
+            player.sprinting = true;
+            assertTrue(tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(5, player.setCalls);
+            player.sprinting = true;
+            assertTrue(tap.apply(player, movement.snapshot(), false, true));
+            assertEquals(6, player.setCalls); // Legacy behavior restored.
+            controller.disable(Minecraft189WTapModule.ID);
+        } finally {
+            feature.close();
+        }
+        assertNull(settings.find(
+                Minecraft189WTapModule.CANCEL_ON_RELEASE_SETTING_ID));
+        assertNull(modules.find(Minecraft189WTapModule.ID));
+    }
+
     private static void targetAt(
             final Minecraft189NearestPlayerTargetState nearest,
             final double distance) {
