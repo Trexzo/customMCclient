@@ -65,6 +65,9 @@ final class Minecraft189KillAuraFeature implements AutoCloseable {
             f.bind(moduleSettings, settings, settingPresentations,
                     f.module.pauseRightSetting(), "Pause While Right-Clicking",
                     SettingValueKind.BOOLEAN, 70, null);
+            f.bind(moduleSettings, settings, settingPresentations,
+                    f.module.prioritizeCrosshairSetting(), "Prioritize Crosshair",
+                    SettingValueKind.BOOLEAN, 80, null);
             return f;
         } catch (RuntimeException ex) {
             try { f.close(); }

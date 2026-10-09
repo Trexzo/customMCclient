@@ -1239,14 +1239,14 @@ public final class Minecraft189HostRuntime
         // rather than repeatedly selecting a nearer dead player. This does
         // not change the normal nearest-target semantics for other modules.
         if (featureCatalog.killAura().active()) {
-            final Minecraft189WorldEntityCombatState.Snapshot combat =
-                    worldEntityCombatState.snapshot();
-            nearestPlayerTargetState.update(
+            Minecraft189KillAuraTargetSelector.select(
+                    featureCatalog.killAura(),
                     playerPositionState.snapshot(),
+                    playerRotationState.snapshot(),
                     worldEntityPositionState.snapshot(),
                     worldEntityKindState.snapshot(),
-                    0.0D, Double.MAX_VALUE,
-                    candidate -> combat.alive(candidate.entityIndex()));
+                    worldEntityCombatState.snapshot(),
+                    nearestPlayerTargetState);
             targetRotationState.update(
                     playerPositionState.snapshot(),
                     nearestPlayerTargetState.snapshot());
