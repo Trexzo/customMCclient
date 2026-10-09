@@ -31,6 +31,8 @@ public final class Minecraft189AutoClickerModule
             "combat.autoClicker.rampUp";
     public static final String RAMP_UP_TICKS_SETTING_ID =
             "combat.autoClicker.rampUpTicks";
+    public static final String GROUND_ONLY_SETTING_ID =
+            "combat.autoClicker.groundOnly";
     public static final String START_DELAY_SETTING_ID =
             "combat.autoClicker.startDelayTicks";
     public static final int DEFAULT_START_DELAY_TICKS = 0;
@@ -103,6 +105,10 @@ public final class Minecraft189AutoClickerModule
                             && value <= MAXIMUM_START_DELAY_TICKS,
                     SettingCodecs.INTEGER);
 
+    private final Setting<Boolean> groundOnly = new Setting<Boolean>(
+            GROUND_ONLY_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+
     private boolean enabled;
     private boolean startDelayPrimed;
     private int startDelayRemaining;
@@ -158,6 +164,10 @@ public final class Minecraft189AutoClickerModule
 
     public Setting<Integer> rampUpTicksSetting() {
         return rampUpTicks;
+    }
+
+    public Setting<Boolean> groundOnlySetting() {
+        return groundOnly;
     }
 
     public Setting<Integer> startDelayTicksSetting() {
@@ -219,6 +229,9 @@ public final class Minecraft189AutoClickerModule
                 || (pauseWhileSneaking.get().booleanValue()
                         && (movement == null || !movement.available()
                         || movement.sneaking()))
+                || (groundOnly.get().booleanValue()
+                        && (movement == null || !movement.available()
+                        || !movement.onGround()))
                 || (requireNearbyPlayer.get().booleanValue()
                         && (nearestPlayer == null
                         || !nearestPlayer.available()
