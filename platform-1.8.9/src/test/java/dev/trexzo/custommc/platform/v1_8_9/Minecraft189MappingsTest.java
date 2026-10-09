@@ -1847,6 +1847,8 @@ final class Minecraft189MappingsTest {
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH);
 
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM);
+
         final IllegalStateException failure =
                 assertThrows(
                         IllegalStateException.class,
@@ -1879,6 +1881,8 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS);
+
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM);
 
         final IllegalStateException failure =
                 assertThrows(
@@ -1972,6 +1976,8 @@ final class Minecraft189MappingsTest {
         addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT);
         addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS);
         addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_JUMP);
+
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM);
 
         final IllegalStateException failure =
                 assertThrows(
