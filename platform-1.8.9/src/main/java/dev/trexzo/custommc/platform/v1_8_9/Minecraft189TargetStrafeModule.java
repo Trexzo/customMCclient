@@ -93,8 +93,12 @@ public final class Minecraft189TargetStrafeModule implements Module {
             return false;
         }
         final double configuredSpeed = speed.get().doubleValue();
-        final double nextX = vx / norm * configuredSpeed;
-        final double nextZ = vz / norm * configuredSpeed;
+        // Canonicalize signed and tiny floating-point zero so a tangent
+        // aligned to one axis never produces an unnecessary -0.0 write.
+        final double rawX = vx / norm * configuredSpeed;
+        final double rawZ = vz / norm * configuredSpeed;
+        final double nextX = Math.abs(rawX) < 1.0E-12D ? 0.0D : rawX;
+        final double nextZ = Math.abs(rawZ) < 1.0E-12D ? 0.0D : rawZ;
         final double currentX = player.customMcMotionX();
         final double currentZ = player.customMcMotionZ();
         if (Double.compare(currentX, nextX) != 0) {
