@@ -39,6 +39,9 @@ final class Minecraft189HealthFeature
     private final SettingRegistry.Registration showBarSetting;
     private final SettingPresentationRegistry.Registration showBarPresentation;
     private final ModuleSettingRegistry.Registration showBarBinding;
+    private final SettingRegistry.Registration barWidthSetting;
+    private final SettingPresentationRegistry.Registration barWidthPresentation;
+    private final ModuleSettingRegistry.Registration barWidthBinding;
     private boolean closed;
 
     private Minecraft189HealthFeature(
@@ -63,7 +66,10 @@ final class Minecraft189HealthFeature
             final ModuleSettingRegistry.Registration lowHealthThresholdBinding,
             final SettingRegistry.Registration showBarSetting,
             final SettingPresentationRegistry.Registration showBarPresentation,
-            final ModuleSettingRegistry.Registration showBarBinding) {
+            final ModuleSettingRegistry.Registration showBarBinding,
+            final SettingRegistry.Registration barWidthSetting,
+            final SettingPresentationRegistry.Registration barWidthPresentation,
+            final ModuleSettingRegistry.Registration barWidthBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -86,6 +92,9 @@ final class Minecraft189HealthFeature
         this.showBarSetting = showBarSetting;
         this.showBarPresentation = showBarPresentation;
         this.showBarBinding = showBarBinding;
+        this.barWidthSetting = barWidthSetting;
+        this.barWidthPresentation = barWidthPresentation;
+        this.barWidthBinding = barWidthBinding;
     }
 
     static Minecraft189HealthFeature install(
@@ -124,6 +133,9 @@ final class Minecraft189HealthFeature
         SettingRegistry.Registration showBarSetting = null;
         SettingPresentationRegistry.Registration showBarPresentation = null;
         ModuleSettingRegistry.Registration showBarBinding = null;
+        SettingRegistry.Registration barWidthSetting = null;
+        SettingPresentationRegistry.Registration barWidthPresentation = null;
+        ModuleSettingRegistry.Registration barWidthBinding = null;
 
         try {
             moduleRegistration =
@@ -147,6 +159,7 @@ final class Minecraft189HealthFeature
             lowHealthAlertSetting = settings.register(module.lowHealthAlertSetting());
             lowHealthThresholdSetting = settings.register(module.lowHealthThresholdSetting());
             showBarSetting = settings.register(module.showBarSetting());
+            barWidthSetting = settings.register(module.barWidthSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -186,6 +199,14 @@ final class Minecraft189HealthFeature
                     new SettingDescriptor(
                             Minecraft189HealthModule.SHOW_BAR_SETTING_ID,
                             "Show Health Bar", SettingValueKind.BOOLEAN, 50));
+            barWidthPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189HealthModule.BAR_WIDTH_SETTING_ID,
+                            "Health Bar Width", SettingValueKind.INTEGER, 60,
+                            new SettingNumericSpec(
+                                    Minecraft189HealthModule.MINIMUM_BAR_WIDTH,
+                                    Minecraft189HealthModule.MAXIMUM_BAR_WIDTH,
+                                    1.0D)));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -216,6 +237,11 @@ final class Minecraft189HealthFeature
                     new ModuleSettingBinding(
                             Minecraft189HealthModule.ID,
                             Minecraft189HealthModule.SHOW_BAR_SETTING_ID, 50));
+            barWidthBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189HealthModule.ID,
+                            Minecraft189HealthModule.BAR_WIDTH_SETTING_ID, 60));
+
             return new Minecraft189HealthFeature(
                     controller,
                     module,
@@ -238,8 +264,14 @@ final class Minecraft189HealthFeature
                     lowHealthThresholdBinding,
                     showBarSetting,
                     showBarPresentation,
-                    showBarBinding);
+                    showBarBinding,
+                    barWidthSetting,
+                    barWidthPresentation,
+                    barWidthBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(barWidthBinding, failure);
+            closeQuietly(barWidthPresentation, failure);
+            closeQuietly(barWidthSetting, failure);
             closeQuietly(showBarBinding, failure);
             closeQuietly(showBarPresentation, failure);
             closeQuietly(showBarSetting, failure);
@@ -291,6 +323,9 @@ final class Minecraft189HealthFeature
             failure = closeFailure;
         }
 
+        failure = close(barWidthBinding, failure);
+        failure = close(barWidthPresentation, failure);
+        failure = close(barWidthSetting, failure);
         failure = close(showBarBinding, failure);
         failure = close(showBarPresentation, failure);
         failure = close(showBarSetting, failure);
