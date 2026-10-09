@@ -204,6 +204,9 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189ClickMouseControl";
     private static final String CLICK_MOUSE_CONTROL_DESCRIPTOR =
             "L" + CLICK_MOUSE_CONTROL_INTERNAL_NAME + ";";
+    private static final String CROSSHAIR_HIT_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189CrosshairHitAccess";
     private static final String BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189BlockHitDelayControl";
@@ -289,6 +292,9 @@ public final class Minecraft189ClassTransformer
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
                 || Minecraft189Mappings.MOVING_OBJECT_POSITION
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
+                || Minecraft189Mappings.MOVING_OBJECT_TYPE
                 .obfuscatedBinaryName()
                 .equals(binaryClassName);
     }
@@ -445,6 +451,12 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyTimer(input);
             return transformTimer(input);
+        }
+        if (Minecraft189Mappings.MOVING_OBJECT_TYPE
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier.verifyMovingObjectType(input);
+            return input;
         }
         if (Minecraft189Mappings.MOVING_OBJECT_POSITION
                 .obfuscatedBinaryName()
@@ -644,8 +656,9 @@ public final class Minecraft189ClassTransformer
                                 signature,
                                 superName,
                                 withInterface(
-                                        interfaces,
-                                        CLICK_MOUSE_CONTROL_INTERNAL_NAME));
+                                        withInterface(interfaces,
+                                                CLICK_MOUSE_CONTROL_INTERNAL_NAME),
+                                        CROSSHAIR_HIT_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1521,6 +1534,7 @@ public final class Minecraft189ClassTransformer
                                 "customMcClickMouse",
                                 Minecraft189Mappings
                                         .MINECRAFT_CLICK_MOUSE);
+                        addCrosshairHitAccessor(cv);
                         super.visitEnd();
                     }
                 },
@@ -3828,6 +3842,56 @@ public final class Minecraft189ClassTransformer
         method.visitMaxs(
                 0,
                 0);
+        method.visitEnd();
+    }
+
+    private static void addCrosshairHitAccessor(
+            final ClassVisitor visitor) {
+        final Minecraft189Mappings.MappedField over =
+                Minecraft189Mappings.MINECRAFT_OBJECT_MOUSE_OVER;
+        final Minecraft189Mappings.MappedField kind =
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_OF_HIT;
+        final Minecraft189Mappings.MappedField entity =
+                Minecraft189Mappings.MOVING_OBJECT_ENTITY_HIT;
+        final Minecraft189Mappings.MappedField enumEntity =
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_ENTITY;
+        final Label reject = new Label();
+        final MethodVisitor method = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcCrosshairPlayerHit", "()Z",
+                null, null);
+        method.visitCode();
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                over.owner().obfuscatedInternalName(),
+                over.obfuscatedName(), over.descriptor());
+        method.visitVarInsn(Opcodes.ASTORE, 1);
+        method.visitVarInsn(Opcodes.ALOAD, 1);
+        method.visitJumpInsn(Opcodes.IFNULL, reject);
+        method.visitVarInsn(Opcodes.ALOAD, 1);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                kind.owner().obfuscatedInternalName(),
+                kind.obfuscatedName(), kind.descriptor());
+        method.visitFieldInsn(Opcodes.GETSTATIC,
+                enumEntity.owner().obfuscatedInternalName(),
+                enumEntity.obfuscatedName(), enumEntity.descriptor());
+        method.visitJumpInsn(Opcodes.IF_ACMPNE, reject);
+        method.visitVarInsn(Opcodes.ALOAD, 1);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                entity.owner().obfuscatedInternalName(),
+                entity.obfuscatedName(), entity.descriptor());
+        method.visitTypeInsn(Opcodes.INSTANCEOF,
+                Minecraft189Mappings.ENTITY_PLAYER.obfuscatedInternalName());
+        method.visitInsn(Opcodes.IRETURN);
+        method.visitLabel(reject);
+        // Newly introduced Java 8 branch target must carry its own
+        // stack-map frame; COMPUTE_MAXS alone does not generate frames.
+        method.visitFrame(Opcodes.F_FULL, 2,
+                new Object[]{Minecraft189Mappings.MINECRAFT.obfuscatedInternalName(),
+                        Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedInternalName()},
+                0, new Object[0]);
+        method.visitInsn(Opcodes.ICONST_0);
+        method.visitInsn(Opcodes.IRETURN);
+        method.visitMaxs(2, 2);
         method.visitEnd();
     }
 

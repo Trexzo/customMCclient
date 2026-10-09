@@ -139,6 +139,13 @@ public final class Minecraft189Mappings {
                     "Lpk;",
                     "field_72308_g",
                     "entityHit");
+    public static final MappedField MOVING_OBJECT_TYPE_ENTITY =
+            new MappedField(
+                    MOVING_OBJECT_TYPE,
+                    "c",
+                    "Lauh$a;",
+                    "ENTITY",
+                    "ENTITY");
     public static final MappedField MINECRAFT_PLAYER =
             new MappedField(
                     MINECRAFT,

@@ -44,9 +44,12 @@ and `entityHit` as `auh.d:Lpk;`. M350 adds these to the mapping
 registry, verifies the Minecraft objectMouseOver field and verifies the
 hit-result class shape fail-closed at transformation time. It does **not**
 yet read or act on a live hit result, introduce a TriggerBot, or claim a
-verified player raycast. The next combat milestone should add a narrow
-read-only hit-result bridge and test against real clickMouse dispatch,
-without confusing nearest-player proximity with crosshair targeting.
+verified player raycast. M351 adds a read-only
+`Minecraft189CrosshairHitAccess` implemented on transformed Minecraft:
+only non-null `objectMouseOver` with exact `MovingObjectType.ENTITY`
+identity and an `EntityPlayer` instance returns true. Synthetic runtime
+tests distinguish null, nonplayer, mismatched type, and player hits.
+No automatic attacks are dispatched, and real-game acceptance is unverified.
 
 ## M349 Target Strafe behavior
 
