@@ -206,6 +206,9 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189ItemStackAccess";
     private static final String ITEM_STACK_ACCESS_DESCRIPTOR =
             "L" + ITEM_STACK_ACCESS_INTERNAL_NAME + ";";
+    private static final String INVENTORY_HOTBAR_ITEMS_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189InventoryHotbarItemsAccess";
     private static final String PLAYER_HELD_ITEM_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189PlayerHeldItemAccess";
@@ -2816,6 +2819,7 @@ public final class Minecraft189ClassTransformer
                         addItemStackTypeGetter(cv, "customMcIsSword",
                                 sourceItemField,
                                 Minecraft189Mappings.ITEM_SWORD);
+                        addSwordBaseDamageGetter(cv, sourceItemField);
                         addItemStackTypeGetter(cv, "customMcIsFishingRod",
                                 sourceItemField,
                                 Minecraft189Mappings.ITEM_FISHING_ROD);
@@ -2847,6 +2851,41 @@ public final class Minecraft189ClassTransformer
                 0);
 
         return writer.toByteArray();
+    }
+
+    /**
+     * Uses exact source ItemStack Item field and ItemSword.g()F, no names.
+     * The stack-frame at the non-sword branch includes the Item reference.
+     */
+    private static void addSwordBaseDamageGetter(
+            final ClassVisitor visitor, final String sourceItemField) {
+        final String sword = Minecraft189Mappings.ITEM_SWORD.obfuscatedInternalName();
+        final Minecraft189Mappings.MappedMethod damage =
+                Minecraft189Mappings.ITEM_SWORD_GET_DAMAGE_VS_ENTITY;
+        final MethodVisitor mv = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcSwordBaseDamage", "()F", null, null);
+        final Label notSword = new Label();
+        mv.visitCode();
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitFieldInsn(Opcodes.GETFIELD,
+                Minecraft189Mappings.ITEM_STACK.obfuscatedInternalName(),
+                sourceItemField,
+                "L" + Minecraft189Mappings.ITEM.obfuscatedInternalName() + ";");
+        mv.visitInsn(Opcodes.DUP);
+        mv.visitTypeInsn(Opcodes.INSTANCEOF, sword);
+        mv.visitJumpInsn(Opcodes.IFEQ, notSword);
+        mv.visitTypeInsn(Opcodes.CHECKCAST, sword);
+        mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, sword,
+                damage.obfuscatedName(), damage.descriptor(), false);
+        mv.visitInsn(Opcodes.FRETURN);
+        mv.visitLabel(notSword);
+        mv.visitFrame(Opcodes.F_SAME1, 0, null, 1,
+                new Object[]{Minecraft189Mappings.ITEM.obfuscatedInternalName()});
+        mv.visitInsn(Opcodes.POP);
+        mv.visitLdcInsn(Float.valueOf(Float.NaN));
+        mv.visitInsn(Opcodes.FRETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
     }
 
     private static void addItemStackTypeGetter(
@@ -3194,8 +3233,9 @@ public final class Minecraft189ClassTransformer
                                 signature,
                                 superName,
                                 withInterface(
-                                        interfaces,
-                                        INVENTORY_HOTBAR_CONTROL_INTERNAL_NAME));
+                                        withInterface(interfaces,
+                                                INVENTORY_HOTBAR_CONTROL_INTERNAL_NAME),
+                                        INVENTORY_HOTBAR_ITEMS_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -3208,12 +3248,33 @@ public final class Minecraft189ClassTransformer
                         addIntFieldSetter(cv,
                                 "customMcSetSelectedHotbarSlot",
                                 Minecraft189Mappings.INVENTORY_PLAYER_CURRENT_ITEM);
+                        addMappedHotbarItemsGetter(cv);
                         super.visitEnd();
                     }
                 },
                 0);
 
         return writer.toByteArray();
+    }
+
+    /** Typed view of exact InventoryPlayer.mainInventory (never mutated). */
+    private static void addMappedHotbarItemsGetter(final ClassVisitor visitor) {
+        final Minecraft189Mappings.MappedField main =
+                Minecraft189Mappings.INVENTORY_PLAYER_MAIN_INVENTORY;
+        final MethodVisitor mv = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcHotbarItems",
+                "()[L" + ITEM_STACK_ACCESS_INTERNAL_NAME + ";",
+                null, null);
+        mv.visitCode();
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitFieldInsn(Opcodes.GETFIELD,
+                main.owner().obfuscatedInternalName(),
+                main.obfuscatedName(), main.descriptor());
+        mv.visitTypeInsn(Opcodes.CHECKCAST,
+                "[L" + ITEM_STACK_ACCESS_INTERNAL_NAME + ";");
+        mv.visitInsn(Opcodes.ARETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
     }
 
     private static void addPlayerInventoryGetter(

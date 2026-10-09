@@ -415,6 +415,10 @@ public final class Minecraft189Mappings {
                     "Lwm;",
                     "field_71071_by",
                     "inventory");
+    // Exact MCP 1.8.9 joined.srg: wm.a [Lzx; field_70462_a.
+    public static final MappedField INVENTORY_PLAYER_MAIN_INVENTORY =
+            new MappedField(INVENTORY_PLAYER, "a", "[Lzx;",
+                    "field_70462_a", "mainInventory");
     public static final MappedField INVENTORY_PLAYER_CURRENT_ITEM =
             new MappedField(
                     INVENTORY_PLAYER,
@@ -688,6 +692,10 @@ public final class Minecraft189Mappings {
                     "()I",
                     "func_178853_c",
                     "getResponseTime");
+    // Exact MCP 1.8.9 joined.srg: aay.g()F / func_150931_i.
+    public static final MappedMethod ITEM_SWORD_GET_DAMAGE_VS_ENTITY =
+            new MappedMethod(ITEM_SWORD, "g", "()F",
+                    "func_150931_i", "getDamageVsEntity");
     public static final MappedMethod ITEM_STACK_GET_DISPLAY_NAME =
             new MappedMethod(
                     ITEM_STACK,

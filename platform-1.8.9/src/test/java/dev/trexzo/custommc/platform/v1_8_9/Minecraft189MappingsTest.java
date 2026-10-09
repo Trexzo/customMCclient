@@ -2713,6 +2713,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.INVENTORY_PLAYER_CURRENT_ITEM);
+        addField(
+                writer,
+                Minecraft189Mappings.INVENTORY_PLAYER_MAIN_INVENTORY);
         return finish(writer);
     }
 
