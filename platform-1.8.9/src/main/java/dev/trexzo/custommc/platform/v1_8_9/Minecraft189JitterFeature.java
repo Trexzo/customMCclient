@@ -49,6 +49,12 @@ final class Minecraft189JitterFeature
     private final SettingPresentationRegistry.Registration intervalVariationPresentation;
     private final ModuleSettingRegistry.Registration randomIntervalBinding;
     private final ModuleSettingRegistry.Registration intervalVariationBinding;
+    private final SettingRegistry.Registration groundOnlySetting;
+    private final SettingRegistry.Registration pauseSneakingSetting;
+    private final SettingPresentationRegistry.Registration groundOnlyPresentation;
+    private final SettingPresentationRegistry.Registration pauseSneakingPresentation;
+    private final ModuleSettingRegistry.Registration groundOnlyBinding;
+    private final ModuleSettingRegistry.Registration pauseSneakingBinding;
     private boolean closed;
 
     private Minecraft189JitterFeature(
@@ -85,7 +91,13 @@ final class Minecraft189JitterFeature
             final SettingPresentationRegistry.Registration randomIntervalPresentation,
             final SettingPresentationRegistry.Registration intervalVariationPresentation,
             final ModuleSettingRegistry.Registration randomIntervalBinding,
-            final ModuleSettingRegistry.Registration intervalVariationBinding) {
+            final ModuleSettingRegistry.Registration intervalVariationBinding,
+            final SettingRegistry.Registration groundOnlySetting,
+            final SettingRegistry.Registration pauseSneakingSetting,
+            final SettingPresentationRegistry.Registration groundOnlyPresentation,
+            final SettingPresentationRegistry.Registration pauseSneakingPresentation,
+            final ModuleSettingRegistry.Registration groundOnlyBinding,
+            final ModuleSettingRegistry.Registration pauseSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -120,6 +132,12 @@ final class Minecraft189JitterFeature
         this.intervalVariationPresentation = intervalVariationPresentation;
         this.randomIntervalBinding = randomIntervalBinding;
         this.intervalVariationBinding = intervalVariationBinding;
+        this.groundOnlySetting = groundOnlySetting;
+        this.pauseSneakingSetting = pauseSneakingSetting;
+        this.groundOnlyPresentation = groundOnlyPresentation;
+        this.pauseSneakingPresentation = pauseSneakingPresentation;
+        this.groundOnlyBinding = groundOnlyBinding;
+        this.pauseSneakingBinding = pauseSneakingBinding;
     }
 
     static Minecraft189JitterFeature install(
@@ -164,6 +182,12 @@ final class Minecraft189JitterFeature
         SettingPresentationRegistry.Registration intervalVariationPresentation = null;
         ModuleSettingRegistry.Registration randomIntervalBinding = null;
         ModuleSettingRegistry.Registration intervalVariationBinding = null;
+        SettingRegistry.Registration groundOnlySetting = null;
+        SettingRegistry.Registration pauseSneakingSetting = null;
+        SettingPresentationRegistry.Registration groundOnlyPresentation = null;
+        SettingPresentationRegistry.Registration pauseSneakingPresentation = null;
+        ModuleSettingRegistry.Registration groundOnlyBinding = null;
+        ModuleSettingRegistry.Registration pauseSneakingBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -201,6 +225,9 @@ final class Minecraft189JitterFeature
             randomIntervalSetting = settings.register(module.randomIntervalSetting());
             intervalVariationSetting = settings.register(
                     module.intervalVariationTicksSetting());
+            groundOnlySetting = settings.register(module.groundOnlySetting());
+            pauseSneakingSetting = settings.register(
+                    module.pauseWhileSneakingSetting());
             yawPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -275,6 +302,14 @@ final class Minecraft189JitterFeature
                             new SettingNumericSpec(0.0D,
                                     Minecraft189JitterModule.MAXIMUM_INTERVAL_VARIATION_TICKS,
                                     1.0D)));
+            groundOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189JitterModule.GROUND_ONLY_SETTING_ID,
+                            "Ground Only", SettingValueKind.BOOLEAN, 80));
+            pauseSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189JitterModule.PAUSE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 90));
             yawBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -330,6 +365,14 @@ final class Minecraft189JitterFeature
                             Minecraft189JitterModule.ID,
                             Minecraft189JitterModule.INTERVAL_VARIATION_SETTING_ID, 70));
 
+            groundOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189JitterModule.ID,
+                            Minecraft189JitterModule.GROUND_ONLY_SETTING_ID, 80));
+            pauseSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189JitterModule.ID,
+                            Minecraft189JitterModule.PAUSE_SNEAKING_SETTING_ID, 90));
             return new Minecraft189JitterFeature(
                     controller,
                     module,
@@ -364,8 +407,20 @@ final class Minecraft189JitterFeature
                     randomIntervalPresentation,
                     intervalVariationPresentation,
                     randomIntervalBinding,
-                    intervalVariationBinding);
+                    intervalVariationBinding,
+                    groundOnlySetting,
+                    pauseSneakingSetting,
+                    groundOnlyPresentation,
+                    pauseSneakingPresentation,
+                    groundOnlyBinding,
+                    pauseSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseSneakingBinding, failure);
+            closeQuietly(groundOnlyBinding, failure);
+            closeQuietly(pauseSneakingPresentation, failure);
+            closeQuietly(groundOnlyPresentation, failure);
+            closeQuietly(pauseSneakingSetting, failure);
+            closeQuietly(groundOnlySetting, failure);
             closeQuietly(intervalVariationBinding, failure);
             closeQuietly(randomIntervalBinding, failure);
             closeQuietly(intervalVariationPresentation, failure);
@@ -429,6 +484,12 @@ final class Minecraft189JitterFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseSneakingBinding, failure);
+        failure = close(groundOnlyBinding, failure);
+        failure = close(pauseSneakingPresentation, failure);
+        failure = close(groundOnlyPresentation, failure);
+        failure = close(pauseSneakingSetting, failure);
+        failure = close(groundOnlySetting, failure);
         failure = close(intervalVariationBinding, failure);
         failure = close(randomIntervalBinding, failure);
         failure = close(intervalVariationPresentation, failure);
