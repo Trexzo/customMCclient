@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189NoHitDelayModuleTest {
     @Test
@@ -271,6 +272,89 @@ final class Minecraft189NoHitDelayModuleTest {
         }
         assertNull(settings.find(
                 Minecraft189NoHitDelayModule.REQUIRE_ATTACK_HELD_SETTING_ID));
+        assertNull(modules.find(Minecraft189NoHitDelayModule.ID));
+    }
+
+    @Test
+    void airborneDelayUsesOnlyConfirmedMappedMovementAndPreservesGates() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189NoHitDelayModule delay =
+                    runtime.featureCatalog().noHitDelay();
+            assertFalse(delay.airborneOverrideSetting().get().booleanValue());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189NoHitDelayModule.AIRBORNE_OVERRIDE_SETTING_ID));
+            assertEquals("0", settings.snapshotEncoded().get(
+                    Minecraft189NoHitDelayModule.AIRBORNE_DELAY_SETTING_ID));
+            controller.enable(Minecraft189NoHitDelayModule.ID);
+            delay.delaySetting().set(3);
+            delay.airborneDelaySetting().set(1);
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(3, runtime.leftClickCounter(7)); // Override OFF.
+
+            delay.airborneOverrideSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189NoHitDelayModule.AIRBORNE_OVERRIDE_SETTING_ID));
+            assertEquals("1", settings.snapshotEncoded().get(
+                    Minecraft189NoHitDelayModule.AIRBORNE_DELAY_SETTING_ID));
+            assertEquals(1, runtime.leftClickCounter(7)); // Confirmed airborne.
+            assertEquals(0, runtime.leftClickCounter(0)); // Do not raise counter.
+            assertEquals(-2, runtime.leftClickCounter(-2)); // Negative untouched.
+            runtime.playerMovementState().update(true, false, false);
+            assertEquals(3, runtime.leftClickCounter(7)); // Ground uses base.
+            runtime.playerMovementState().clear();
+            assertEquals(3, runtime.leftClickCounter(7)); // Missing uses base.
+            assertEquals(3, delay.apply(7)); // Legacy missing state uses base.
+
+            delay.groundOnlySetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(7, runtime.leftClickCounter(7)); // Ground veto wins.
+            runtime.playerMovementState().update(true, false, false);
+            assertEquals(3, runtime.leftClickCounter(7));
+            delay.groundOnlySetting().set(Boolean.FALSE);
+            delay.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(false, true, false);
+            assertEquals(7, runtime.leftClickCounter(7));
+            delay.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            delay.requireAttackHeldSetting().set(Boolean.TRUE);
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(7, runtime.leftClickCounter(7));
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            assertEquals(1, runtime.leftClickCounter(7));
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            assertEquals(7, runtime.leftClickCounter(7));
+            delay.requireAttackHeldSetting().set(Boolean.FALSE);
+            delay.airborneOverrideSetting().set(Boolean.FALSE);
+            assertEquals(3, runtime.leftClickCounter(7)); // Live OFF parity.
+
+            assertThrows(IllegalArgumentException.class,
+                    () -> delay.airborneDelaySetting().set(-1));
+            assertThrows(IllegalArgumentException.class,
+                    () -> delay.airborneDelaySetting().set(11));
+            controller.disable(Minecraft189NoHitDelayModule.ID);
+            assertEquals(7, runtime.leftClickCounter(7));
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189NoHitDelayModule.AIRBORNE_OVERRIDE_SETTING_ID));
+        assertNull(settings.find(
+                Minecraft189NoHitDelayModule.AIRBORNE_DELAY_SETTING_ID));
         assertNull(modules.find(Minecraft189NoHitDelayModule.ID));
     }
 
