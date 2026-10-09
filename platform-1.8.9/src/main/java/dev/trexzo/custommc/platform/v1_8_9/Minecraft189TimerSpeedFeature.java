@@ -34,6 +34,9 @@ final class Minecraft189TimerSpeedFeature
     private final SettingPresentationRegistry.Registration transitionStepPresentation;
     private final ModuleSettingRegistry.Registration smoothTransitionBinding;
     private final ModuleSettingRegistry.Registration transitionStepBinding;
+    private final SettingRegistry.Registration pauseWhileSneakingSetting;
+    private final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation;
+    private final ModuleSettingRegistry.Registration pauseWhileSneakingBinding;
     private boolean closed;
 
     private Minecraft189TimerSpeedFeature(
@@ -55,7 +58,10 @@ final class Minecraft189TimerSpeedFeature
             final SettingPresentationRegistry.Registration smoothTransitionPresentation,
             final SettingPresentationRegistry.Registration transitionStepPresentation,
             final ModuleSettingRegistry.Registration smoothTransitionBinding,
-            final ModuleSettingRegistry.Registration transitionStepBinding) {
+            final ModuleSettingRegistry.Registration transitionStepBinding,
+            final SettingRegistry.Registration pauseWhileSneakingSetting,
+            final SettingPresentationRegistry.Registration pauseWhileSneakingPresentation,
+            final ModuleSettingRegistry.Registration pauseWhileSneakingBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -75,6 +81,9 @@ final class Minecraft189TimerSpeedFeature
         this.transitionStepPresentation = transitionStepPresentation;
         this.smoothTransitionBinding = smoothTransitionBinding;
         this.transitionStepBinding = transitionStepBinding;
+        this.pauseWhileSneakingSetting = pauseWhileSneakingSetting;
+        this.pauseWhileSneakingPresentation = pauseWhileSneakingPresentation;
+        this.pauseWhileSneakingBinding = pauseWhileSneakingBinding;
     }
 
     static Minecraft189TimerSpeedFeature install(
@@ -104,6 +113,9 @@ final class Minecraft189TimerSpeedFeature
         SettingPresentationRegistry.Registration transitionStepPresentation = null;
         ModuleSettingRegistry.Registration smoothTransitionBinding = null;
         ModuleSettingRegistry.Registration transitionStepBinding = null;
+        SettingRegistry.Registration pauseWhileSneakingSetting = null;
+        SettingPresentationRegistry.Registration pauseWhileSneakingPresentation = null;
+        ModuleSettingRegistry.Registration pauseWhileSneakingBinding = null;
 
         try {
             moduleRegistration =
@@ -125,6 +137,8 @@ final class Minecraft189TimerSpeedFeature
                     module.airborneSpeedPercentSetting());
             smoothTransitionSetting = settings.register(module.smoothTransitionSetting());
             transitionStepSetting = settings.register(module.transitionStepPercentSetting());
+            pauseWhileSneakingSetting = settings.register(
+                    module.pauseWhileSneakingSetting());
             speedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -160,6 +174,10 @@ final class Minecraft189TimerSpeedFeature
                                     Minecraft189TimerSpeedModule.MINIMUM_TRANSITION_STEP_PERCENT,
                                     Minecraft189TimerSpeedModule.MAXIMUM_TRANSITION_STEP_PERCENT,
                                     5.0D)));
+            pauseWhileSneakingPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189TimerSpeedModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
+                            "Pause While Sneaking", SettingValueKind.BOOLEAN, 50));
             speedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -185,6 +203,11 @@ final class Minecraft189TimerSpeedFeature
                             Minecraft189TimerSpeedModule.ID,
                             Minecraft189TimerSpeedModule.TRANSITION_STEP_SETTING_ID, 40));
 
+            pauseWhileSneakingBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189TimerSpeedModule.ID,
+                            Minecraft189TimerSpeedModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 50));
+
             return new Minecraft189TimerSpeedFeature(
                     controller,
                     module,
@@ -204,8 +227,14 @@ final class Minecraft189TimerSpeedFeature
                     smoothTransitionPresentation,
                     transitionStepPresentation,
                     smoothTransitionBinding,
-                    transitionStepBinding);
+                    transitionStepBinding,
+                    pauseWhileSneakingSetting,
+                    pauseWhileSneakingPresentation,
+                    pauseWhileSneakingBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseWhileSneakingBinding, failure);
+            closeQuietly(pauseWhileSneakingPresentation, failure);
+            closeQuietly(pauseWhileSneakingSetting, failure);
             closeQuietly(transitionStepBinding, failure);
             closeQuietly(smoothTransitionBinding, failure);
             closeQuietly(transitionStepPresentation, failure);
@@ -254,6 +283,9 @@ final class Minecraft189TimerSpeedFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseWhileSneakingBinding, failure);
+        failure = close(pauseWhileSneakingPresentation, failure);
+        failure = close(pauseWhileSneakingSetting, failure);
         failure = close(transitionStepBinding, failure);
         failure = close(smoothTransitionBinding, failure);
         failure = close(transitionStepPresentation, failure);

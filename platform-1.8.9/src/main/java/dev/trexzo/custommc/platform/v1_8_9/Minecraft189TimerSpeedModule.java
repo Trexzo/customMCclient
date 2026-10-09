@@ -18,6 +18,8 @@ public final class Minecraft189TimerSpeedModule
             "player.timer.smoothTransition";
     public static final String TRANSITION_STEP_SETTING_ID =
             "player.timer.transitionStepPercent";
+    public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
+            "player.timer.pauseWhileSneaking";
     public static final int DEFAULT_TRANSITION_STEP_PERCENT = 25;
     public static final int MINIMUM_TRANSITION_STEP_PERCENT = 5;
     public static final int MAXIMUM_TRANSITION_STEP_PERCENT = 100;
@@ -62,6 +64,9 @@ public final class Minecraft189TimerSpeedModule
                             && value >= MINIMUM_TRANSITION_STEP_PERCENT
                             && value <= MAXIMUM_TRANSITION_STEP_PERCENT,
                     SettingCodecs.INTEGER);
+    private final Setting<Boolean> pauseWhileSneaking = new Setting<Boolean>(
+            PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
 
     @Override
@@ -87,6 +92,10 @@ public final class Minecraft189TimerSpeedModule
 
     public Setting<Integer> transitionStepPercentSetting() {
         return transitionStepPercent;
+    }
+
+    public Setting<Boolean> pauseWhileSneakingSetting() {
+        return pauseWhileSneaking;
     }
 
     @Override
@@ -119,12 +128,20 @@ public final class Minecraft189TimerSpeedModule
         final int configuredPercent = airborne
                 ? airborneSpeedPercent.get().intValue()
                 : speedPercent.get().intValue();
-        final float target = enabled ? configuredPercent / 100.0F : 1.0F;
+        // An opt-in sneak pause is a hard safety gate, not a gradual
+        // smoothing target. No movement authority also restores vanilla
+        // instead of inheriting a previously accelerated clock.
+        final boolean paused = enabled && pauseWhileSneaking.get().booleanValue()
+                && (movement == null || !movement.available()
+                        || movement.sneaking());
+        final float target = enabled && !paused
+                ? configuredPercent / 100.0F : 1.0F;
         final float current = timer.customMcTimerSpeed();
         // Disabling Timer must always restore vanilla immediately, even
         // when smoothing was enabled and an earlier transition was active.
         // Nonfinite mapped current state is repaired directly to target.
-        final float next = enabled && smoothTransition.get().booleanValue()
+        final float next = enabled && !paused
+                && smoothTransition.get().booleanValue()
                 ? stepToward(current, target,
                         transitionStepPercent.get().intValue())
                 : target;

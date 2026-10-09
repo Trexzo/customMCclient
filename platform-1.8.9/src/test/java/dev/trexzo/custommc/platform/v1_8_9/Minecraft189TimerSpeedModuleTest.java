@@ -407,6 +407,112 @@ final class Minecraft189TimerSpeedModuleTest {
                 1.0F, 2.0F, 500), 0.000001F);
     }
 
+    @Test
+    void timerPauseWhileSneakingRestoresVanillaWithoutSmoothingOrStaleMotion() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189TimerSpeedModule speed = runtime.featureCatalog().timerSpeed();
+            final TestTimer clock = new TestTimer();
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            speed.speedPercentSetting().set(200);
+            controller.enable(Minecraft189TimerSpeedModule.ID);
+            runtime.playerMovementState().update(false, true, false);
+            runtime.timerSpeedControl(clock);
+            assertEquals(2.0F, clock.speed, 0.000001F); // Default legacy parity.
+
+            speed.pauseWhileSneakingSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+            runtime.timerSpeedControl(clock);
+            assertEquals(1.0F, clock.speed, 0.000001F);
+            final int pausedWrites = clock.writes;
+            runtime.timerSpeedControl(clock);
+            assertEquals(pausedWrites, clock.writes);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.timerSpeedControl(clock);
+            assertEquals(2.0F, clock.speed, 0.000001F);
+            runtime.playerMovementState().clear();
+            runtime.timerSpeedControl(clock);
+            assertEquals(1.0F, clock.speed, 0.000001F); // Missing authority.
+
+            // Smooth transitions run only in a valid active state. Sneaking
+            // bypasses smoothing to restore 1x in the same callback.
+            speed.smoothTransitionSetting().set(Boolean.TRUE);
+            speed.transitionStepPercentSetting().set(25);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.timerSpeedControl(clock);
+            assertEquals(1.25F, clock.speed, 0.000001F);
+            runtime.playerMovementState().update(true, true, false);
+            runtime.timerSpeedControl(clock);
+            assertEquals(1.0F, clock.speed, 0.000001F);
+            clock.speed = Float.NaN;
+            runtime.timerSpeedControl(clock);
+            assertEquals(1.0F, clock.speed, 0.000001F);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.timerSpeedControl(clock);
+            assertEquals(1.25F, clock.speed, 0.000001F);
+
+            speed.airborneOverrideSetting().set(Boolean.TRUE);
+            speed.airborneSpeedPercentSetting().set(50);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.timerSpeedControl(clock);
+            assertEquals(1.0F, clock.speed, 0.000001F);
+            runtime.playerMovementState().update(false, true, false);
+            runtime.timerSpeedControl(clock);
+            assertEquals(1.0F, clock.speed, 0.000001F);
+
+            // Live OFF restores the existing air profile, even in sneak.
+            speed.pauseWhileSneakingSetting().set(Boolean.FALSE);
+            runtime.timerSpeedControl(clock);
+            assertEquals(0.75F, clock.speed, 0.000001F);
+            controller.disable(Minecraft189TimerSpeedModule.ID);
+            runtime.timerSpeedControl(clock);
+            assertEquals(1.0F, clock.speed, 0.000001F);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189TimerSpeedModule.PAUSE_WHILE_SNEAKING_SETTING_ID));
+        assertNull(modules.find(Minecraft189TimerSpeedModule.ID));
+    }
+
+    @Test
+    void timerSneakGuardRequiresMappedMovementOnLegacyEntryPoint() {
+        final Minecraft189TimerSpeedModule module = new Minecraft189TimerSpeedModule();
+        final Minecraft189PlayerMovementState state = new Minecraft189PlayerMovementState();
+        final TestTimer clock = new TestTimer();
+        module.speedPercentSetting().set(180);
+        module.pauseWhileSneakingSetting().set(Boolean.TRUE);
+        module.onEnable();
+        module.apply(clock);
+        assertEquals(1.0F, clock.speed, 0.000001F);
+        state.update(false, false, false);
+        module.apply(clock, state.snapshot());
+        assertEquals(1.8F, clock.speed, 0.000001F);
+        module.apply(clock);
+        assertEquals(1.0F, clock.speed, 0.000001F);
+        module.pauseWhileSneakingSetting().set(Boolean.FALSE);
+        module.apply(clock);
+        assertEquals(1.8F, clock.speed, 0.000001F);
+        module.onDisable();
+        module.apply(clock);
+        assertEquals(1.0F, clock.speed, 0.000001F);
+    }
+
     private static final class TestTimer
             implements Minecraft189TimerSpeedControl {
         private float speed = 1.0F;
