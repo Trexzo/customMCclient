@@ -24,6 +24,9 @@ final class Minecraft189AutoSneakFeature
     private final SettingPresentationRegistry.Registration pauseSprintingPresentation;
     private final ModuleSettingRegistry.Registration groundOnlyBinding;
     private final ModuleSettingRegistry.Registration pauseSprintingBinding;
+    private final SettingRegistry.Registration requireMovementSetting;
+    private final SettingPresentationRegistry.Registration requireMovementPresentation;
+    private final ModuleSettingRegistry.Registration requireMovementBinding;
     private boolean closed;
 
     private Minecraft189AutoSneakFeature(
@@ -36,7 +39,10 @@ final class Minecraft189AutoSneakFeature
             final SettingPresentationRegistry.Registration groundOnlyPresentation,
             final SettingPresentationRegistry.Registration pauseSprintingPresentation,
             final ModuleSettingRegistry.Registration groundOnlyBinding,
-            final ModuleSettingRegistry.Registration pauseSprintingBinding) {
+            final ModuleSettingRegistry.Registration pauseSprintingBinding,
+            final SettingRegistry.Registration requireMovementSetting,
+            final SettingPresentationRegistry.Registration requireMovementPresentation,
+            final ModuleSettingRegistry.Registration requireMovementBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -47,6 +53,9 @@ final class Minecraft189AutoSneakFeature
         this.pauseSprintingPresentation = pauseSprintingPresentation;
         this.groundOnlyBinding = groundOnlyBinding;
         this.pauseSprintingBinding = pauseSprintingBinding;
+        this.requireMovementSetting = requireMovementSetting;
+        this.requireMovementPresentation = requireMovementPresentation;
+        this.requireMovementBinding = requireMovementBinding;
     }
 
     static Minecraft189AutoSneakFeature install(
@@ -67,6 +76,9 @@ final class Minecraft189AutoSneakFeature
         SettingPresentationRegistry.Registration pauseSprintingPresentation = null;
         ModuleSettingRegistry.Registration groundOnlyBinding = null;
         ModuleSettingRegistry.Registration pauseSprintingBinding = null;
+        SettingRegistry.Registration requireMovementSetting = null;
+        SettingPresentationRegistry.Registration requireMovementPresentation = null;
+        ModuleSettingRegistry.Registration requireMovementBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -82,6 +94,7 @@ final class Minecraft189AutoSneakFeature
                                     20));
             groundOnlySetting = settings.register(module.groundOnlySetting());
             pauseSprintingSetting = settings.register(module.pauseSprintingSetting());
+            requireMovementSetting = settings.register(module.requireMovementSetting());
             groundOnlyPresentation = settingPresentations.register(
                     new SettingDescriptor(
                             Minecraft189AutoSneakModule.GROUND_ONLY_SETTING_ID,
@@ -90,6 +103,10 @@ final class Minecraft189AutoSneakFeature
                     new SettingDescriptor(
                             Minecraft189AutoSneakModule.PAUSE_SPRINTING_SETTING_ID,
                             "Pause While Sprinting", SettingValueKind.BOOLEAN, 10));
+            requireMovementPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoSneakModule.REQUIRE_MOVEMENT_SETTING_ID,
+                            "Require Movement (WASD)", SettingValueKind.BOOLEAN, 20));
             groundOnlyBinding = moduleSettings.register(new ModuleSettingBinding(
                     Minecraft189AutoSneakModule.ID,
                     Minecraft189AutoSneakModule.GROUND_ONLY_SETTING_ID, 0));
@@ -97,6 +114,10 @@ final class Minecraft189AutoSneakFeature
                     Minecraft189AutoSneakModule.ID,
                     Minecraft189AutoSneakModule.PAUSE_SPRINTING_SETTING_ID, 10));
 
+            requireMovementBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoSneakModule.ID,
+                            Minecraft189AutoSneakModule.REQUIRE_MOVEMENT_SETTING_ID, 20));
             return new Minecraft189AutoSneakFeature(
                     controller,
                     module,
@@ -107,8 +128,14 @@ final class Minecraft189AutoSneakFeature
                     groundOnlyPresentation,
                     pauseSprintingPresentation,
                     groundOnlyBinding,
-                    pauseSprintingBinding);
+                    pauseSprintingBinding,
+                    requireMovementSetting,
+                    requireMovementPresentation,
+                    requireMovementBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(requireMovementBinding, failure);
+            closeQuietly(requireMovementPresentation, failure);
+            closeQuietly(requireMovementSetting, failure);
             closeQuietly(pauseSprintingBinding, failure);
             closeQuietly(groundOnlyBinding, failure);
             closeQuietly(pauseSprintingPresentation, failure);
@@ -148,6 +175,9 @@ final class Minecraft189AutoSneakFeature
             failure = closeFailure;
         }
 
+        failure = close(requireMovementBinding, failure);
+        failure = close(requireMovementPresentation, failure);
+        failure = close(requireMovementSetting, failure);
         failure = close(pauseSprintingBinding, failure);
         failure = close(groundOnlyBinding, failure);
         failure = close(pauseSprintingPresentation, failure);
