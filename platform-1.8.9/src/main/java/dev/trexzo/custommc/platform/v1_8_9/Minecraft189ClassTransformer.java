@@ -184,6 +184,11 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189WorldEntityKindsAccess";
     private static final String WORLD_ENTITY_KINDS_ACCESS_DESCRIPTOR =
             "L" + WORLD_ENTITY_KINDS_ACCESS_INTERNAL_NAME + ";";
+    private static final String WORLD_ENTITY_COMBAT_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189WorldEntityCombatAccess";
+    private static final String WORLD_ENTITY_COMBAT_ACCESS_DESCRIPTOR =
+            "L" + WORLD_ENTITY_COMBAT_ACCESS_INTERNAL_NAME + ";";
     private static final String SERVER_DATA_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189ServerDataAccess";
@@ -613,6 +618,8 @@ public final class Minecraft189ClassTransformer
         final boolean[] injectedWorldEntityPositions =
                 new boolean[]{false};
         final boolean[] injectedWorldEntityKinds =
+                new boolean[]{false};
+        final boolean[] injectedWorldEntityCombat =
                 new boolean[]{false};
         final boolean[] injectedServerAddress =
                 new boolean[]{false};
@@ -1266,6 +1273,21 @@ public final class Minecraft189ClassTransformer
                                                 false);
                                         injectedWorldEntityKinds[0] = true;
 
+                                        super.visitVarInsn(Opcodes.ALOAD, 0);
+                                        super.visitFieldInsn(Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT
+                                                        .obfuscatedInternalName(),
+                                                world.obfuscatedName(),
+                                                world.descriptor());
+                                        super.visitTypeInsn(Opcodes.CHECKCAST,
+                                                WORLD_ENTITY_COMBAT_ACCESS_INTERNAL_NAME);
+                                        super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "worldEntityCombat",
+                                                "(" + WORLD_ENTITY_COMBAT_ACCESS_DESCRIPTOR + ")V",
+                                                false);
+                                        injectedWorldEntityCombat[0] = true;
+
                                         final Minecraft189Mappings.MappedField serverData =
                                                 Minecraft189Mappings
                                                         .MINECRAFT_CURRENT_SERVER_DATA;
@@ -1572,6 +1594,7 @@ public final class Minecraft189ClassTransformer
                 || !injectedWeather[0]
                 || !injectedWorldEntityPositions[0]
                 || !injectedWorldEntityKinds[0]
+                || !injectedWorldEntityCombat[0]
                 || !injectedServerAddress[0]
                 || !injectedHeldItem[0]
                 || !injectedRightClickDelay[0]
@@ -2864,11 +2887,13 @@ public final class Minecraft189ClassTransformer
                                         withInterface(
                                                 withInterface(
                                                         withInterface(
-                                                                interfaces,
-                                                                WORLD_TIME_ACCESS_INTERNAL_NAME),
+                                                                withInterface(
+                                                                        interfaces,
+                                                                        WORLD_TIME_ACCESS_INTERNAL_NAME),
                                                         WORLD_WEATHER_ACCESS_INTERNAL_NAME),
                                                 WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME),
-                                        WORLD_ENTITY_KINDS_ACCESS_INTERNAL_NAME));
+                                        WORLD_ENTITY_KINDS_ACCESS_INTERNAL_NAME),
+                                WORLD_ENTITY_COMBAT_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -2892,6 +2917,7 @@ public final class Minecraft189ClassTransformer
                                 cv);
                         addLoadedEntityKindsSnapshot(
                                 cv);
+                        addLoadedEntityCombatSnapshot(cv);
                         super.visitEnd();
                     }
                 },
@@ -3843,6 +3869,124 @@ public final class Minecraft189ClassTransformer
         method.visitMaxs(
                 0,
                 0);
+        method.visitEnd();
+    }
+
+    /**
+     * Per-index alive/hurt evidence from the already-mapped loadedEntityList.
+     * -1 = unknown or nonliving. Nonnegative = (hurtTime << 1) | alive.
+     * The list index exactly matches the position/kind snapshots.
+     */
+    private static void addLoadedEntityCombatSnapshot(
+            final ClassVisitor visitor) {
+        final MethodVisitor method = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcLoadedEntityCombatStates",
+                "()[I", null, null);
+        final Label nonNull = new Label();
+        final Label loopCheck = new Label();
+        final Label loopEnd = new Label();
+        final Label nonLiving = new Label();
+        final Label store = new Label();
+        final String world = Minecraft189Mappings.WORLD.obfuscatedInternalName();
+
+        method.visitCode();
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(Opcodes.GETFIELD, world,
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST.obfuscatedName(),
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST.descriptor());
+        method.visitVarInsn(Opcodes.ASTORE, 1);
+        method.visitVarInsn(Opcodes.ALOAD, 1);
+        method.visitJumpInsn(Opcodes.IFNONNULL, nonNull);
+        method.visitInsn(Opcodes.ICONST_0);
+        method.visitIntInsn(Opcodes.NEWARRAY, Opcodes.T_INT);
+        method.visitInsn(Opcodes.ARETURN);
+
+        method.visitLabel(nonNull);
+        method.visitFrame(Opcodes.F_FULL, 2,
+                new Object[]{world, "java/util/List"},
+                0, new Object[0]);
+        method.visitVarInsn(Opcodes.ALOAD, 1);
+        method.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                "java/util/List", "size", "()I", true);
+        method.visitVarInsn(Opcodes.ISTORE, 2);
+        method.visitVarInsn(Opcodes.ILOAD, 2);
+        method.visitIntInsn(Opcodes.NEWARRAY, Opcodes.T_INT);
+        method.visitVarInsn(Opcodes.ASTORE, 3);
+        method.visitInsn(Opcodes.ICONST_0);
+        method.visitVarInsn(Opcodes.ISTORE, 4);
+
+        method.visitLabel(loopCheck);
+        method.visitFrame(Opcodes.F_FULL, 5,
+                new Object[]{world, "java/util/List", Opcodes.INTEGER,
+                        "[I", Opcodes.INTEGER}, 0, new Object[0]);
+        method.visitVarInsn(Opcodes.ILOAD, 4);
+        method.visitVarInsn(Opcodes.ILOAD, 2);
+        method.visitJumpInsn(Opcodes.IF_ICMPGE, loopEnd);
+        method.visitVarInsn(Opcodes.ALOAD, 1);
+        method.visitVarInsn(Opcodes.ILOAD, 4);
+        method.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                "java/util/List", "get", "(I)Ljava/lang/Object;", true);
+        method.visitVarInsn(Opcodes.ASTORE, 5);
+
+        method.visitVarInsn(Opcodes.ALOAD, 5);
+        method.visitTypeInsn(Opcodes.INSTANCEOF,
+                PLAYER_HEALTH_ACCESS_INTERNAL_NAME);
+        method.visitJumpInsn(Opcodes.IFEQ, nonLiving);
+
+        // Math.max(0, FCMPL(health, 0)) yields exactly 1 for health > 0.
+        // FCMPL is -1 for NaN, so malformed health fails closed as dead.
+        method.visitVarInsn(Opcodes.ALOAD, 5);
+        method.visitTypeInsn(Opcodes.CHECKCAST,
+                PLAYER_HEALTH_ACCESS_INTERNAL_NAME);
+        method.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                PLAYER_HEALTH_ACCESS_INTERNAL_NAME,
+                "customMcHealth", "()F", true);
+        method.visitInsn(Opcodes.FCONST_0);
+        method.visitInsn(Opcodes.FCMPL);
+        method.visitInsn(Opcodes.ICONST_0);
+        method.visitMethodInsn(Opcodes.INVOKESTATIC,
+                "java/lang/Math", "max", "(II)I", false);
+
+        method.visitVarInsn(Opcodes.ALOAD, 5);
+        method.visitTypeInsn(Opcodes.CHECKCAST,
+                PLAYER_HURT_TIME_ACCESS_INTERNAL_NAME);
+        method.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                PLAYER_HURT_TIME_ACCESS_INTERNAL_NAME,
+                "customMcHurtTime", "()I", true);
+        method.visitInsn(Opcodes.ICONST_1);
+        method.visitInsn(Opcodes.ISHL);
+        method.visitInsn(Opcodes.IOR);
+        method.visitVarInsn(Opcodes.ISTORE, 6);
+        method.visitJumpInsn(Opcodes.GOTO, store);
+
+        method.visitLabel(nonLiving);
+        method.visitFrame(Opcodes.F_FULL, 6,
+                new Object[]{world, "java/util/List", Opcodes.INTEGER,
+                        "[I", Opcodes.INTEGER, "java/lang/Object"},
+                0, new Object[0]);
+        method.visitInsn(Opcodes.ICONST_M1);
+        method.visitVarInsn(Opcodes.ISTORE, 6);
+
+        method.visitLabel(store);
+        method.visitFrame(Opcodes.F_FULL, 7,
+                new Object[]{world, "java/util/List", Opcodes.INTEGER,
+                        "[I", Opcodes.INTEGER, "java/lang/Object", Opcodes.INTEGER},
+                0, new Object[0]);
+        method.visitVarInsn(Opcodes.ALOAD, 3);
+        method.visitVarInsn(Opcodes.ILOAD, 4);
+        method.visitVarInsn(Opcodes.ILOAD, 6);
+        method.visitInsn(Opcodes.IASTORE);
+        method.visitIincInsn(4, 1);
+        method.visitJumpInsn(Opcodes.GOTO, loopCheck);
+
+        method.visitLabel(loopEnd);
+        method.visitFrame(Opcodes.F_FULL, 5,
+                new Object[]{world, "java/util/List", Opcodes.INTEGER,
+                        "[I", Opcodes.INTEGER},
+                0, new Object[0]);
+        method.visitVarInsn(Opcodes.ALOAD, 3);
+        method.visitInsn(Opcodes.ARETURN);
+        method.visitMaxs(0, 0);
         method.visitEnd();
     }
 

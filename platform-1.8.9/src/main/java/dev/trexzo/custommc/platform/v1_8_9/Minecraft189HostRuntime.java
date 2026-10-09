@@ -42,6 +42,8 @@ public final class Minecraft189HostRuntime
     private final Minecraft189WorldWeatherState worldWeatherState;
     private final Minecraft189WorldEntityPositionState worldEntityPositionState;
     private final Minecraft189WorldEntityKindState worldEntityKindState;
+    private final Minecraft189WorldEntityCombatState worldEntityCombatState =
+            new Minecraft189WorldEntityCombatState();
     private final Minecraft189NearestPlayerTargetState nearestPlayerTargetState;
     private final Minecraft189TargetRotationState targetRotationState;
     // Range-only Aim Assist targeting does not replace general nearest-player state.
@@ -439,6 +441,11 @@ public final class Minecraft189HostRuntime
     public Minecraft189WorldEntityKindState worldEntityKindState() {
         requireOpen();
         return worldEntityKindState;
+    }
+
+    public Minecraft189WorldEntityCombatState worldEntityCombatState() {
+        requireOpen();
+        return worldEntityCombatState;
     }
 
     public Minecraft189NearestPlayerTargetState nearestPlayerTargetState() {
@@ -1161,6 +1168,9 @@ public final class Minecraft189HostRuntime
     void worldEntityPositions(
             final Minecraft189WorldEntityPositionsAccess world) {
         requireOpen();
+        // Begin a new entity-list snapshot; never pair old combat evidence
+        // with positions that may have reordered across world ticks.
+        worldEntityCombatState.clear();
         nearestPlayerTargetState.clear();
         targetRotationState.clear();
         if (world == null) {
@@ -1203,6 +1213,27 @@ public final class Minecraft189HostRuntime
         targetRotationState.update(
                 playerPositionState.snapshot(),
                 nearestPlayerTargetState.snapshot());
+    }
+
+    void worldEntityCombat(
+            final Minecraft189WorldEntityCombatAccess world) {
+        requireOpen();
+        if (world == null || !worldEntityPositionState.snapshot().available()
+                || !worldEntityKindState.snapshot().available()) {
+            worldEntityCombatState.clear();
+            return;
+        }
+        final int[] data = world.customMcLoadedEntityCombatStates();
+        if (data == null || data.length != worldEntityPositionState.snapshot().entityCount()
+                || data.length != worldEntityKindState.snapshot().entityCount()) {
+            worldEntityCombatState.clear();
+            return;
+        }
+        try {
+            worldEntityCombatState.update(data);
+        } catch (IllegalArgumentException malformed) {
+            worldEntityCombatState.clear();
+        }
     }
 
     void serverAddress(
@@ -1505,6 +1536,7 @@ public final class Minecraft189HostRuntime
         worldWeatherState.clear();
         worldEntityPositionState.clear();
         worldEntityKindState.clear();
+        worldEntityCombatState.clear();
         nearestPlayerTargetState.clear();
         targetRotationState.clear();
         serverAddressState.clear();
