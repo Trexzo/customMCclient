@@ -52,6 +52,9 @@ final class Minecraft189AutoClickerFeature
     private final SettingRegistry.Registration startDelaySetting;
     private final SettingPresentationRegistry.Registration startDelayPresentation;
     private final ModuleSettingRegistry.Registration startDelayBinding;
+    private final SettingRegistry.Registration groundOnlySetting;
+    private final SettingPresentationRegistry.Registration groundOnlyPresentation;
+    private final ModuleSettingRegistry.Registration groundOnlyBinding;
     private boolean closed;
 
     private Minecraft189AutoClickerFeature(
@@ -91,7 +94,10 @@ final class Minecraft189AutoClickerFeature
             final ModuleSettingRegistry.Registration rampUpTicksBinding,
             final SettingRegistry.Registration startDelaySetting,
             final SettingPresentationRegistry.Registration startDelayPresentation,
-            final ModuleSettingRegistry.Registration startDelayBinding) {
+            final ModuleSettingRegistry.Registration startDelayBinding,
+            final SettingRegistry.Registration groundOnlySetting,
+            final SettingPresentationRegistry.Registration groundOnlyPresentation,
+            final ModuleSettingRegistry.Registration groundOnlyBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -129,6 +135,9 @@ final class Minecraft189AutoClickerFeature
         this.startDelaySetting = startDelaySetting;
         this.startDelayPresentation = startDelayPresentation;
         this.startDelayBinding = startDelayBinding;
+        this.groundOnlySetting = groundOnlySetting;
+        this.groundOnlyPresentation = groundOnlyPresentation;
+        this.groundOnlyBinding = groundOnlyBinding;
     }
 
     static Minecraft189AutoClickerFeature install(
@@ -176,6 +185,9 @@ final class Minecraft189AutoClickerFeature
         SettingRegistry.Registration startDelaySetting = null;
         SettingPresentationRegistry.Registration startDelayPresentation = null;
         ModuleSettingRegistry.Registration startDelayBinding = null;
+        SettingRegistry.Registration groundOnlySetting = null;
+        SettingPresentationRegistry.Registration groundOnlyPresentation = null;
+        ModuleSettingRegistry.Registration groundOnlyBinding = null;
 
         try {
             moduleRegistration =
@@ -213,6 +225,7 @@ final class Minecraft189AutoClickerFeature
             rampUpSetting = settings.register(module.rampUpSetting());
             rampUpTicksSetting = settings.register(module.rampUpTicksSetting());
             startDelaySetting = settings.register(module.startDelayTicksSetting());
+            groundOnlySetting = settings.register(module.groundOnlySetting());
             minPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -288,6 +301,10 @@ final class Minecraft189AutoClickerFeature
                             new SettingNumericSpec(0.0D,
                                     Minecraft189AutoClickerModule.MAXIMUM_START_DELAY_TICKS,
                                     1.0D)));
+            groundOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoClickerModule.GROUND_ONLY_SETTING_ID,
+                            "Ground Only", SettingValueKind.BOOLEAN, 80));
             minBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -345,6 +362,11 @@ final class Minecraft189AutoClickerFeature
                             Minecraft189AutoClickerModule.ID,
                             Minecraft189AutoClickerModule.START_DELAY_SETTING_ID, 70));
 
+            groundOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoClickerModule.ID,
+                            Minecraft189AutoClickerModule.GROUND_ONLY_SETTING_ID, 80));
+
             return new Minecraft189AutoClickerFeature(
                     controller,
                     module,
@@ -382,8 +404,14 @@ final class Minecraft189AutoClickerFeature
                     rampUpTicksBinding,
                     startDelaySetting,
                     startDelayPresentation,
-                    startDelayBinding);
+                    startDelayBinding,
+                    groundOnlySetting,
+                    groundOnlyPresentation,
+                    groundOnlyBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(groundOnlyBinding, failure);
+            closeQuietly(groundOnlyPresentation, failure);
+            closeQuietly(groundOnlySetting, failure);
             closeQuietly(startDelayBinding, failure);
             closeQuietly(startDelayPresentation, failure);
             closeQuietly(startDelaySetting, failure);
@@ -490,6 +518,9 @@ final class Minecraft189AutoClickerFeature
             failure = closeFailure;
         }
 
+        failure = close(groundOnlyBinding, failure);
+        failure = close(groundOnlyPresentation, failure);
+        failure = close(groundOnlySetting, failure);
         failure = close(startDelayBinding, failure);
         failure = close(startDelayPresentation, failure);
         failure = close(startDelaySetting, failure);
