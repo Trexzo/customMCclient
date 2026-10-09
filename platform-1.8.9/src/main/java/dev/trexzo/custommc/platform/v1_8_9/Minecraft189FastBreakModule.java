@@ -16,6 +16,10 @@ public final class Minecraft189FastBreakModule
             "player.fastBreak.pauseWhileSneaking";
     public static final String GROUND_ONLY_SETTING_ID =
             "player.fastBreak.groundOnly";
+    public static final String AIRBORNE_OVERRIDE_SETTING_ID =
+            "player.fastBreak.airborneOverride";
+    public static final String AIRBORNE_DELAY_SETTING_ID =
+            "player.fastBreak.airborneDelay";
     public static final int DEFAULT_DELAY = 0;
     public static final int MINIMUM_DELAY = 0;
     public static final int MAXIMUM_DELAY = 5;
@@ -49,6 +53,18 @@ public final class Minecraft189FastBreakModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    private final Setting<Boolean> airborneOverride =
+            new Setting<Boolean>(
+                    AIRBORNE_OVERRIDE_SETTING_ID, Boolean.FALSE,
+                    value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Integer> airborneDelay =
+            new Setting<Integer>(
+                    AIRBORNE_DELAY_SETTING_ID, DEFAULT_DELAY,
+                    value -> value != null
+                            && value >= MINIMUM_DELAY
+                            && value <= MAXIMUM_DELAY,
+                    SettingCodecs.INTEGER);
+
     private boolean enabled;
 
     @Override
@@ -70,6 +86,14 @@ public final class Minecraft189FastBreakModule
 
     public Setting<Boolean> groundOnlySetting() {
         return groundOnly;
+    }
+
+    public Setting<Boolean> airborneOverrideSetting() {
+        return airborneOverride;
+    }
+
+    public Setting<Integer> airborneDelaySetting() {
+        return airborneDelay;
     }
 
     @Override
@@ -105,8 +129,16 @@ public final class Minecraft189FastBreakModule
                         || !movement.onGround()))) {
             return;
         }
+        // Never infer airborne state from an absent/stale mapped snapshot.
+        // Ground Only remains authoritative and blocks any airborne override.
+        final boolean airborne = airborneOverride.get().booleanValue()
+                && movement != null
+                && movement.available()
+                && !movement.onGround();
         controller.customMcSetBlockHitDelay(
-                delay.get().intValue());
+                airborne
+                        ? airborneDelay.get().intValue()
+                        : delay.get().intValue());
     }
 
     synchronized boolean active() {

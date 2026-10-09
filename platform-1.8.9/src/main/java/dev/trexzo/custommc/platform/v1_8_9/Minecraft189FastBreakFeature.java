@@ -31,6 +31,12 @@ final class Minecraft189FastBreakFeature
     private final SettingRegistry.Registration groundOnlySetting;
     private final SettingPresentationRegistry.Registration groundOnlyPresentation;
     private final ModuleSettingRegistry.Registration groundOnlyBinding;
+    private final SettingRegistry.Registration airborneOverrideSetting;
+    private final SettingRegistry.Registration airborneDelaySetting;
+    private final SettingPresentationRegistry.Registration airborneOverridePresentation;
+    private final SettingPresentationRegistry.Registration airborneDelayPresentation;
+    private final ModuleSettingRegistry.Registration airborneOverrideBinding;
+    private final ModuleSettingRegistry.Registration airborneDelayBinding;
     private boolean closed;
 
     private Minecraft189FastBreakFeature(
@@ -49,7 +55,13 @@ final class Minecraft189FastBreakFeature
             final ModuleSettingRegistry.Registration pauseWhileSneakingBinding,
             final SettingRegistry.Registration groundOnlySetting,
             final SettingPresentationRegistry.Registration groundOnlyPresentation,
-            final ModuleSettingRegistry.Registration groundOnlyBinding) {
+            final ModuleSettingRegistry.Registration groundOnlyBinding,
+            final SettingRegistry.Registration airborneOverrideSetting,
+            final SettingRegistry.Registration airborneDelaySetting,
+            final SettingPresentationRegistry.Registration airborneOverridePresentation,
+            final SettingPresentationRegistry.Registration airborneDelayPresentation,
+            final ModuleSettingRegistry.Registration airborneOverrideBinding,
+            final ModuleSettingRegistry.Registration airborneDelayBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -66,6 +78,12 @@ final class Minecraft189FastBreakFeature
         this.groundOnlySetting = groundOnlySetting;
         this.groundOnlyPresentation = groundOnlyPresentation;
         this.groundOnlyBinding = groundOnlyBinding;
+        this.airborneOverrideSetting = airborneOverrideSetting;
+        this.airborneDelaySetting = airborneDelaySetting;
+        this.airborneOverridePresentation = airborneOverridePresentation;
+        this.airborneDelayPresentation = airborneDelayPresentation;
+        this.airborneOverrideBinding = airborneOverrideBinding;
+        this.airborneDelayBinding = airborneDelayBinding;
     }
 
     static Minecraft189FastBreakFeature install(
@@ -92,6 +110,12 @@ final class Minecraft189FastBreakFeature
         SettingRegistry.Registration groundOnlySetting = null;
         SettingPresentationRegistry.Registration groundOnlyPresentation = null;
         ModuleSettingRegistry.Registration groundOnlyBinding = null;
+        SettingRegistry.Registration airborneOverrideSetting = null;
+        SettingRegistry.Registration airborneDelaySetting = null;
+        SettingPresentationRegistry.Registration airborneOverridePresentation = null;
+        SettingPresentationRegistry.Registration airborneDelayPresentation = null;
+        ModuleSettingRegistry.Registration airborneOverrideBinding = null;
+        ModuleSettingRegistry.Registration airborneDelayBinding = null;
         try {
             moduleRegistration =
                     modules.register(module);
@@ -112,6 +136,10 @@ final class Minecraft189FastBreakFeature
             pauseWhileSneakingSetting = settings.register(
                     module.pauseWhileSneakingSetting());
             groundOnlySetting = settings.register(module.groundOnlySetting());
+            airborneOverrideSetting = settings.register(
+                    module.airborneOverrideSetting());
+            airborneDelaySetting = settings.register(
+                    module.airborneDelaySetting());
             delayPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -135,6 +163,17 @@ final class Minecraft189FastBreakFeature
                     new SettingDescriptor(
                             Minecraft189FastBreakModule.GROUND_ONLY_SETTING_ID,
                             "Ground Only", SettingValueKind.BOOLEAN, 30));
+            airborneOverridePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FastBreakModule.AIRBORNE_OVERRIDE_SETTING_ID,
+                            "Airborne Override", SettingValueKind.BOOLEAN, 40));
+            airborneDelayPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FastBreakModule.AIRBORNE_DELAY_SETTING_ID,
+                            "Airborne Delay", SettingValueKind.INTEGER, 50,
+                            new SettingNumericSpec(
+                                    Minecraft189FastBreakModule.MINIMUM_DELAY,
+                                    Minecraft189FastBreakModule.MAXIMUM_DELAY, 1.0D)));
             delayBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -156,6 +195,15 @@ final class Minecraft189FastBreakFeature
                             Minecraft189FastBreakModule.ID,
                             Minecraft189FastBreakModule.GROUND_ONLY_SETTING_ID, 30));
 
+            airborneOverrideBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FastBreakModule.ID,
+                            Minecraft189FastBreakModule.AIRBORNE_OVERRIDE_SETTING_ID, 40));
+            airborneDelayBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FastBreakModule.ID,
+                            Minecraft189FastBreakModule.AIRBORNE_DELAY_SETTING_ID, 50));
+
             return new Minecraft189FastBreakFeature(
                     controller,
                     module,
@@ -172,8 +220,20 @@ final class Minecraft189FastBreakFeature
                     pauseWhileSneakingBinding,
                     groundOnlySetting,
                     groundOnlyPresentation,
-                    groundOnlyBinding);
+                    groundOnlyBinding,
+                    airborneOverrideSetting,
+                    airborneDelaySetting,
+                    airborneOverridePresentation,
+                    airborneDelayPresentation,
+                    airborneOverrideBinding,
+                    airborneDelayBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(airborneDelayBinding, failure);
+            closeQuietly(airborneOverrideBinding, failure);
+            closeQuietly(airborneDelayPresentation, failure);
+            closeQuietly(airborneOverridePresentation, failure);
+            closeQuietly(airborneDelaySetting, failure);
+            closeQuietly(airborneOverrideSetting, failure);
             closeQuietly(groundOnlyBinding, failure);
             closeQuietly(groundOnlyPresentation, failure);
             closeQuietly(groundOnlySetting, failure);
@@ -219,6 +279,12 @@ final class Minecraft189FastBreakFeature
             failure = closeFailure;
         }
 
+        failure = close(airborneDelayBinding, failure);
+        failure = close(airborneOverrideBinding, failure);
+        failure = close(airborneDelayPresentation, failure);
+        failure = close(airborneOverridePresentation, failure);
+        failure = close(airborneDelaySetting, failure);
+        failure = close(airborneOverrideSetting, failure);
         failure = close(groundOnlyBinding, failure);
         failure = close(groundOnlyPresentation, failure);
         failure = close(groundOnlySetting, failure);
