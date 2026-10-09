@@ -39,6 +39,9 @@ final class Minecraft189TargetHudFeature
     private final SettingRegistry.Registration showCoordinatesSetting;
     private final SettingPresentationRegistry.Registration showCoordinatesPresentation;
     private final ModuleSettingRegistry.Registration showCoordinatesBinding;
+    private final SettingRegistry.Registration adaptiveAccentSetting;
+    private final SettingPresentationRegistry.Registration adaptiveAccentPresentation;
+    private final ModuleSettingRegistry.Registration adaptiveAccentBinding;
     private boolean closed;
 
     private Minecraft189TargetHudFeature(
@@ -63,7 +66,10 @@ final class Minecraft189TargetHudFeature
             final ModuleSettingRegistry.Registration proximityRangeBinding,
             final SettingRegistry.Registration showCoordinatesSetting,
             final SettingPresentationRegistry.Registration showCoordinatesPresentation,
-            final ModuleSettingRegistry.Registration showCoordinatesBinding) {
+            final ModuleSettingRegistry.Registration showCoordinatesBinding,
+            final SettingRegistry.Registration adaptiveAccentSetting,
+            final SettingPresentationRegistry.Registration adaptiveAccentPresentation,
+            final ModuleSettingRegistry.Registration adaptiveAccentBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -86,6 +92,9 @@ final class Minecraft189TargetHudFeature
         this.showCoordinatesSetting = showCoordinatesSetting;
         this.showCoordinatesPresentation = showCoordinatesPresentation;
         this.showCoordinatesBinding = showCoordinatesBinding;
+        this.adaptiveAccentSetting = adaptiveAccentSetting;
+        this.adaptiveAccentPresentation = adaptiveAccentPresentation;
+        this.adaptiveAccentBinding = adaptiveAccentBinding;
     }
 
     static Minecraft189TargetHudFeature install(
@@ -125,6 +134,9 @@ final class Minecraft189TargetHudFeature
         SettingRegistry.Registration showCoordinatesSetting = null;
         SettingPresentationRegistry.Registration showCoordinatesPresentation = null;
         ModuleSettingRegistry.Registration showCoordinatesBinding = null;
+        SettingRegistry.Registration adaptiveAccentSetting = null;
+        SettingPresentationRegistry.Registration adaptiveAccentPresentation = null;
+        ModuleSettingRegistry.Registration adaptiveAccentBinding = null;
 
         try {
             moduleRegistration =
@@ -148,6 +160,7 @@ final class Minecraft189TargetHudFeature
             proximityMeterSetting = settings.register(module.proximityMeterSetting());
             proximityRangeSetting = settings.register(module.proximityRangeSetting());
             showCoordinatesSetting = settings.register(module.showCoordinatesSetting());
+            adaptiveAccentSetting = settings.register(module.adaptiveAccentSetting());
             xPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -192,6 +205,10 @@ final class Minecraft189TargetHudFeature
                     new SettingDescriptor(
                             Minecraft189TargetHudModule.SHOW_COORDINATES_SETTING_ID,
                             "Show XYZ Coordinates", SettingValueKind.BOOLEAN, 50));
+            adaptiveAccentPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189TargetHudModule.ADAPTIVE_ACCENT_SETTING_ID,
+                            "Adaptive Accent", SettingValueKind.BOOLEAN, 60));
             xBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -224,6 +241,10 @@ final class Minecraft189TargetHudFeature
                             Minecraft189TargetHudModule.ID,
                             Minecraft189TargetHudModule.SHOW_COORDINATES_SETTING_ID, 50));
 
+            adaptiveAccentBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189TargetHudModule.ID,
+                            Minecraft189TargetHudModule.ADAPTIVE_ACCENT_SETTING_ID, 60));
             return new Minecraft189TargetHudFeature(
                     controller,
                     module,
@@ -246,8 +267,14 @@ final class Minecraft189TargetHudFeature
                     proximityRangeBinding,
                     showCoordinatesSetting,
                     showCoordinatesPresentation,
-                    showCoordinatesBinding);
+                    showCoordinatesBinding,
+                    adaptiveAccentSetting,
+                    adaptiveAccentPresentation,
+                    adaptiveAccentBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(adaptiveAccentBinding, failure);
+            closeQuietly(adaptiveAccentPresentation, failure);
+            closeQuietly(adaptiveAccentSetting, failure);
             closeQuietly(showCoordinatesBinding, failure);
             closeQuietly(showCoordinatesPresentation, failure);
             closeQuietly(showCoordinatesSetting, failure);
@@ -299,6 +326,9 @@ final class Minecraft189TargetHudFeature
             failure = closeFailure;
         }
 
+        failure = close(adaptiveAccentBinding, failure);
+        failure = close(adaptiveAccentPresentation, failure);
+        failure = close(adaptiveAccentSetting, failure);
         failure = close(showCoordinatesBinding, failure);
         failure = close(showCoordinatesPresentation, failure);
         failure = close(showCoordinatesSetting, failure);

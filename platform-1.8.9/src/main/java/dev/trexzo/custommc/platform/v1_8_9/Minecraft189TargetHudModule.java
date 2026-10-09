@@ -22,6 +22,8 @@ public final class Minecraft189TargetHudModule implements Module {
             "render.targetHud.proximityMeter";
     public static final String PROXIMITY_RANGE_SETTING_ID =
             "render.targetHud.proximityRange";
+    public static final String ADAPTIVE_ACCENT_SETTING_ID =
+            "render.targetHud.adaptiveAccent";
     public static final String SHOW_COORDINATES_SETTING_ID =
             "render.targetHud.showCoordinates";
     public static final int DEFAULT_PROXIMITY_RANGE = 16;
@@ -49,6 +51,9 @@ public final class Minecraft189TargetHudModule implements Module {
             v -> v != null && v >= MINIMUM_PROXIMITY_RANGE
                     && v <= MAXIMUM_PROXIMITY_RANGE,
             SettingCodecs.INTEGER);
+    private final Setting<Boolean> adaptiveAccent = new Setting<Boolean>(
+            ADAPTIVE_ACCENT_SETTING_ID, Boolean.FALSE,
+            v -> v != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> showCoordinates = new Setting<Boolean>(
             SHOW_COORDINATES_SETTING_ID, Boolean.FALSE,
             v -> v != null, SettingCodecs.BOOLEAN);
@@ -71,6 +76,7 @@ public final class Minecraft189TargetHudModule implements Module {
     public Setting<Boolean> compactSetting() { return compact; }
     public Setting<Boolean> proximityMeterSetting() { return proximityMeter; }
     public Setting<Integer> proximityRangeSetting() { return proximityRange; }
+    public Setting<Boolean> adaptiveAccentSetting() { return adaptiveAccent; }
     public Setting<Boolean> showCoordinatesSetting() { return showCoordinates; }
 
     static float proximityFraction(final double distance,
@@ -84,6 +90,14 @@ public final class Minecraft189TargetHudModule implements Module {
         }
         return (float) Math.max(0.0D,
                 Math.min(1.0D, 1.0D - distance / range));
+    }
+
+    static int accentColor(final double distance, final int range,
+            final boolean adaptive) {
+        // Color encodes only already-certified player distance, never
+        // target health, reach, line of sight, or identity.
+        return adaptive && proximityFraction(distance, range) >= 0.75F
+                ? PROXIMITY_CLOSE_ARGB : PROXIMITY_FILL_ARGB;
     }
 
     static int proximityFillColor(final float fraction) {
@@ -162,7 +176,10 @@ public final class Minecraft189TargetHudModule implements Module {
             RuntimeException failure = null;
             try {
                 graphics.fillRoundedRect(left, top, width, height, 6.0F, 0xE610141E);
-                graphics.fillRoundedRect(left, top, 3.0F, height, 1.5F, 0xFF70C9E8);
+                graphics.fillRoundedRect(left, top, 3.0F, height, 1.5F,
+                        accentColor(target.distance(),
+                                proximityRange.get().intValue(),
+                                adaptiveAccent.get().booleanValue()));
                 graphics.drawText(UiFonts.DEFAULT, left + 12, top + 7,
                         "TARGET  #" + (target.entityIndex() + 1), 0xFFFFFFFF);
                 graphics.drawText(UiFonts.DEFAULT, left + 12, top + 23,
