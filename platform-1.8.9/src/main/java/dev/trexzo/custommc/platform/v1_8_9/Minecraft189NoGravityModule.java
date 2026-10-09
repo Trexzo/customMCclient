@@ -10,6 +10,8 @@ public final class Minecraft189NoGravityModule
             "movement.noGravity";
     public static final String SMOOTH_LIFT_SETTING_ID =
             "movement.noGravity.smoothLift";
+    public static final String REQUIRE_JUMP_HELD_SETTING_ID =
+            "movement.noGravity.requireJumpHeld";
     public static final String LIFT_STEP_SETTING_ID =
             "movement.noGravity.liftStep";
     public static final double DEFAULT_LIFT_STEP = 0.10D;
@@ -37,6 +39,9 @@ public final class Minecraft189NoGravityModule
                             && value >= MINIMUM_LIFT_STEP
                             && value <= MAXIMUM_LIFT_STEP,
                     SettingCodecs.DOUBLE);
+    private final Setting<Boolean> requireJumpHeld = new Setting<Boolean>(
+            REQUIRE_JUMP_HELD_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
 
     public Setting<Double> liftSpeedSetting() {
@@ -49,6 +54,10 @@ public final class Minecraft189NoGravityModule
 
     public Setting<Double> liftStepSetting() {
         return liftStep;
+    }
+
+    public Setting<Boolean> requireJumpHeldSetting() {
+        return requireJumpHeld;
     }
 
     @Override
@@ -70,7 +79,16 @@ public final class Minecraft189NoGravityModule
             final Minecraft189PlayerMotionControl player,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean suspended) {
-        if (!enabled
+        // Legacy callers have no physical Space state.
+        apply(player, movement, suspended, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerMotionControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean suspended,
+            final boolean jumpHeld) {
+        if (!ownsVertical(jumpHeld)
                 || suspended
                 || player == null
                 || movement == null
@@ -101,5 +119,12 @@ public final class Minecraft189NoGravityModule
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    synchronized boolean ownsVertical(final boolean jumpHeld) {
+        // Keep owner arbitration and actual writes governed by the same
+        // physical Space input. Releasing Space yields to Fast Fall/Glide
+        // instead of leaving an inert No Gravity owner in their way.
+        return enabled && (!requireJumpHeld.get().booleanValue() || jumpHeld);
     }
 }

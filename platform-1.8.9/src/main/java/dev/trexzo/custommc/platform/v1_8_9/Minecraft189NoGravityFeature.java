@@ -28,6 +28,9 @@ final class Minecraft189NoGravityFeature
     private final SettingPresentationRegistry.Registration liftStepPresentation;
     private final ModuleSettingRegistry.Registration smoothLiftBinding;
     private final ModuleSettingRegistry.Registration liftStepBinding;
+    private final SettingRegistry.Registration requireJumpSetting;
+    private final SettingPresentationRegistry.Registration requireJumpPresentation;
+    private final ModuleSettingRegistry.Registration requireJumpBinding;
     private boolean closed;
 
     private Minecraft189NoGravityFeature(
@@ -43,7 +46,10 @@ final class Minecraft189NoGravityFeature
             final SettingPresentationRegistry.Registration smoothLiftPresentation,
             final SettingPresentationRegistry.Registration liftStepPresentation,
             final ModuleSettingRegistry.Registration smoothLiftBinding,
-            final ModuleSettingRegistry.Registration liftStepBinding) {
+            final ModuleSettingRegistry.Registration liftStepBinding,
+            final SettingRegistry.Registration requireJumpSetting,
+            final SettingPresentationRegistry.Registration requireJumpPresentation,
+            final ModuleSettingRegistry.Registration requireJumpBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -57,6 +63,9 @@ final class Minecraft189NoGravityFeature
         this.liftStepPresentation = liftStepPresentation;
         this.smoothLiftBinding = smoothLiftBinding;
         this.liftStepBinding = liftStepBinding;
+        this.requireJumpSetting = requireJumpSetting;
+        this.requireJumpPresentation = requireJumpPresentation;
+        this.requireJumpBinding = requireJumpBinding;
     }
 
     static Minecraft189NoGravityFeature install(
@@ -80,6 +89,9 @@ final class Minecraft189NoGravityFeature
         SettingPresentationRegistry.Registration liftStepPresentation = null;
         ModuleSettingRegistry.Registration smoothLiftBinding = null;
         ModuleSettingRegistry.Registration liftStepBinding = null;
+        SettingRegistry.Registration requireJumpSetting = null;
+        SettingPresentationRegistry.Registration requireJumpPresentation = null;
+        ModuleSettingRegistry.Registration requireJumpBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -96,6 +108,7 @@ final class Minecraft189NoGravityFeature
             liftSpeedSetting = settings.register(module.liftSpeedSetting());
             smoothLiftSetting = settings.register(module.smoothLiftSetting());
             liftStepSetting = settings.register(module.liftStepSetting());
+            requireJumpSetting = settings.register(module.requireJumpHeldSetting());
             liftSpeedPresentation = settingPresentations.register(
                     new SettingDescriptor(
                             Minecraft189NoGravityModule.LIFT_SPEED_SETTING_ID,
@@ -116,6 +129,10 @@ final class Minecraft189NoGravityFeature
                                     Minecraft189NoGravityModule.MINIMUM_LIFT_STEP,
                                     Minecraft189NoGravityModule.MAXIMUM_LIFT_STEP,
                                     0.01D)));
+            requireJumpPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189NoGravityModule.REQUIRE_JUMP_HELD_SETTING_ID,
+                            "Require Jump Held (Space)", SettingValueKind.BOOLEAN, 40));
             liftSpeedBinding = moduleSettings.register(
                     new ModuleSettingBinding(
                             Minecraft189NoGravityModule.ID,
@@ -128,6 +145,11 @@ final class Minecraft189NoGravityFeature
                     new ModuleSettingBinding(
                             Minecraft189NoGravityModule.ID,
                             Minecraft189NoGravityModule.LIFT_STEP_SETTING_ID, 30));
+            requireJumpBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189NoGravityModule.ID,
+                            Minecraft189NoGravityModule.REQUIRE_JUMP_HELD_SETTING_ID, 40));
+
             return new Minecraft189NoGravityFeature(
                     controller,
                     module,
@@ -141,8 +163,14 @@ final class Minecraft189NoGravityFeature
                     smoothLiftPresentation,
                     liftStepPresentation,
                     smoothLiftBinding,
-                    liftStepBinding);
+                    liftStepBinding,
+                    requireJumpSetting,
+                    requireJumpPresentation,
+                    requireJumpBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(requireJumpBinding, failure);
+            closeQuietly(requireJumpPresentation, failure);
+            closeQuietly(requireJumpSetting, failure);
             closeQuietly(liftStepBinding, failure);
             closeQuietly(smoothLiftBinding, failure);
             closeQuietly(liftStepPresentation, failure);
@@ -189,6 +217,9 @@ final class Minecraft189NoGravityFeature
             failure = closeFailure;
         }
 
+        failure = close(requireJumpBinding, failure);
+        failure = close(requireJumpPresentation, failure);
+        failure = close(requireJumpSetting, failure);
         failure = close(liftStepBinding, failure);
         failure = close(smoothLiftBinding, failure);
         failure = close(liftStepPresentation, failure);
