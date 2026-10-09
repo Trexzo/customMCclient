@@ -699,7 +699,8 @@ public final class Minecraft189HostRuntime
         requireOpen();
         return featureCatalog.noSlow()
                 .adjustSlowedMovement(
-                        slowedValue);
+                        slowedValue,
+                        playerMovementState.snapshot());
     }
 
     double adjustVelocityHorizontal(
