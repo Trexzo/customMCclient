@@ -24,6 +24,9 @@ final class Minecraft189AutoSprintFeature
     private final SettingPresentationRegistry.Registration groundOnlyPresentation;
     private final ModuleSettingRegistry.Registration requireForwardBinding;
     private final ModuleSettingRegistry.Registration groundOnlyBinding;
+    private final SettingRegistry.Registration requireMovementSetting;
+    private final SettingPresentationRegistry.Registration requireMovementPresentation;
+    private final ModuleSettingRegistry.Registration requireMovementBinding;
     private boolean closed;
 
     private Minecraft189AutoSprintFeature(
@@ -36,7 +39,10 @@ final class Minecraft189AutoSprintFeature
             final SettingPresentationRegistry.Registration requireForwardPresentation,
             final SettingPresentationRegistry.Registration groundOnlyPresentation,
             final ModuleSettingRegistry.Registration requireForwardBinding,
-            final ModuleSettingRegistry.Registration groundOnlyBinding) {
+            final ModuleSettingRegistry.Registration groundOnlyBinding,
+            final SettingRegistry.Registration requireMovementSetting,
+            final SettingPresentationRegistry.Registration requireMovementPresentation,
+            final ModuleSettingRegistry.Registration requireMovementBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -47,6 +53,9 @@ final class Minecraft189AutoSprintFeature
         this.groundOnlyPresentation = groundOnlyPresentation;
         this.requireForwardBinding = requireForwardBinding;
         this.groundOnlyBinding = groundOnlyBinding;
+        this.requireMovementSetting = requireMovementSetting;
+        this.requireMovementPresentation = requireMovementPresentation;
+        this.requireMovementBinding = requireMovementBinding;
     }
 
     static Minecraft189AutoSprintFeature install(
@@ -67,6 +76,9 @@ final class Minecraft189AutoSprintFeature
         SettingPresentationRegistry.Registration groundOnlyPresentation = null;
         ModuleSettingRegistry.Registration requireForwardBinding = null;
         ModuleSettingRegistry.Registration groundOnlyBinding = null;
+        SettingRegistry.Registration requireMovementSetting = null;
+        SettingPresentationRegistry.Registration requireMovementPresentation = null;
+        ModuleSettingRegistry.Registration requireMovementBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -84,6 +96,7 @@ final class Minecraft189AutoSprintFeature
                     settings.register(
                             module.requireForwardSetting());
             groundOnlySetting = settings.register(module.groundOnlySetting());
+            requireMovementSetting = settings.register(module.requireMovementSetting());
             requireForwardPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -95,6 +108,10 @@ final class Minecraft189AutoSprintFeature
                     new SettingDescriptor(
                             Minecraft189AutoSprintModule.GROUND_ONLY_SETTING_ID,
                             "Ground Only", SettingValueKind.BOOLEAN, 10));
+            requireMovementPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189AutoSprintModule.REQUIRE_MOVEMENT_SETTING_ID,
+                            "Require Movement (WASD)", SettingValueKind.BOOLEAN, 20));
             requireForwardBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -106,6 +123,11 @@ final class Minecraft189AutoSprintFeature
                             Minecraft189AutoSprintModule.ID,
                             Minecraft189AutoSprintModule.GROUND_ONLY_SETTING_ID, 10));
 
+            requireMovementBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189AutoSprintModule.ID,
+                            Minecraft189AutoSprintModule.REQUIRE_MOVEMENT_SETTING_ID, 20));
+
             return new Minecraft189AutoSprintFeature(
                     controller,
                     module,
@@ -116,8 +138,14 @@ final class Minecraft189AutoSprintFeature
                     requireForwardPresentation,
                     groundOnlyPresentation,
                     requireForwardBinding,
-                    groundOnlyBinding);
+                    groundOnlyBinding,
+                    requireMovementSetting,
+                    requireMovementPresentation,
+                    requireMovementBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(requireMovementBinding, failure);
+            closeQuietly(requireMovementPresentation, failure);
+            closeQuietly(requireMovementSetting, failure);
             closeQuietly(groundOnlyBinding, failure);
             closeQuietly(groundOnlyPresentation, failure);
             closeQuietly(groundOnlySetting, failure);
@@ -161,6 +189,9 @@ final class Minecraft189AutoSprintFeature
             failure = closeFailure;
         }
 
+        failure = close(requireMovementBinding, failure);
+        failure = close(requireMovementPresentation, failure);
+        failure = close(requireMovementSetting, failure);
         failure = close(groundOnlyBinding, failure);
         failure = close(groundOnlyPresentation, failure);
         failure = close(groundOnlySetting, failure);
