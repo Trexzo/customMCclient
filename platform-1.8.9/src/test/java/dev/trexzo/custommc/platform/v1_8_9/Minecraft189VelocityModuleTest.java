@@ -487,9 +487,10 @@ final class Minecraft189VelocityModuleTest {
 
         velocity.horizontalPercentSetting().set(0);
         assertEquals(5.0D, velocity.adjustHorizontal(Double.NaN, 5.0D), 0.0D);
-        assertThrows(IllegalArgumentException.class,
+        // Core Setting#set rejects null before its validator runs.
+        assertThrows(NullPointerException.class,
                 () -> velocity.horizontalPercentSetting().set(null));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(NullPointerException.class,
                 () -> velocity.verticalPercentSetting().set(null));
         velocity.onDisable();
         assertEquals(-Double.MAX_VALUE, velocity.adjustHorizontal(
