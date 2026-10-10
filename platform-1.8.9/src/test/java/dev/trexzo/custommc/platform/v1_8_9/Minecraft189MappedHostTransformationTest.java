@@ -49,7 +49,7 @@ final class Minecraft189MappedHostTransformationTest {
     void nativeRaycastReachHooksPatchExactMappedSitesOnly() {
         final byte[] transformed = new Minecraft189ClassTransformer()
                 .transform("bfk", entityRendererShape());
-        final int[] bridgeCalls = new int[3];
+        final int[] bridgeCalls = new int[4];
         final int[] sixConstants = new int[1];
         new ClassReader(transformed).accept(new ClassVisitor(Opcodes.ASM9) {
             @Override public MethodVisitor visitMethod(
@@ -69,6 +69,8 @@ final class Minecraft189MappedHostTransformationTest {
                                 && desc.equals("(Z)Z")) bridgeCalls[1]++;
                         if (method.equals("raycastExtendedDistance")
                                 && desc.equals("()D")) bridgeCalls[2]++;
+                        if (method.equals("raycastHitboxBorder")
+                                && desc.equals("(ZF)F")) bridgeCalls[3]++;
                     }
                     @Override public void visitLdcInsn(final Object constant) {
                         if (Double.valueOf(6.0D).equals(constant)) sixConstants[0]++;
@@ -76,7 +78,7 @@ final class Minecraft189MappedHostTransformationTest {
                 };
             }
         }, 0);
-        assertArrayEquals(new int[]{1, 1, 2}, bridgeCalls);
+        assertArrayEquals(new int[]{1, 1, 2, 1}, bridgeCalls);
         assertEquals(0, sixConstants[0]);
     }
 
@@ -7099,6 +7101,13 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "e", "D");
         field(writer, "f", "D");
         endDefaultConstructor(writer, "aug");
+        final MethodVisitor expanded = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "b", "(DDD)Laug;", null, null);
+        expanded.visitCode();
+        expanded.visitVarInsn(Opcodes.ALOAD, 0);
+        expanded.visitInsn(Opcodes.ARETURN);
+        expanded.visitMaxs(1, 7);
+        expanded.visitEnd();
         writer.visitEnd();
         return writer.toByteArray();
     }
@@ -7244,6 +7253,14 @@ final class Minecraft189MappedHostTransformationTest {
         getUuid.visitMaxs(1, 1);
         getUuid.visitEnd();
         // Vanilla 1.8.9 native Entity.rayTrace(DF)Lauh; fixture.
+        final MethodVisitor collisionBorder = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "ao", "()F", null, null);
+        collisionBorder.visitCode();
+        collisionBorder.visitLdcInsn(Float.valueOf(0.1F));
+        collisionBorder.visitInsn(Opcodes.FRETURN);
+        collisionBorder.visitMaxs(1, 1);
+        collisionBorder.visitEnd();
+
         final MethodVisitor nativeRayTrace = writer.visitMethod(
                 Opcodes.ACC_PUBLIC, "a", "(DF)Lauh;", null, null);
         nativeRayTrace.visitCode();
@@ -8129,6 +8146,19 @@ final class Minecraft189MappedHostTransformationTest {
         mouseOver.visitInsn(Opcodes.POP2);
         mouseOver.visitLdcInsn(Double.valueOf(6.0D));
         mouseOver.visitInsn(Opcodes.POP2);
+        mouseOver.visitInsn(Opcodes.ACONST_NULL);
+        mouseOver.visitTypeInsn(Opcodes.CHECKCAST, "pk");
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "pk", "ao", "()F", false);
+        mouseOver.visitInsn(Opcodes.POP);
+        mouseOver.visitInsn(Opcodes.ACONST_NULL);
+        mouseOver.visitTypeInsn(Opcodes.CHECKCAST, "aug");
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "aug", "b", "(DDD)Laug;", false);
+        mouseOver.visitInsn(Opcodes.POP);
         mouseOver.visitInsn(Opcodes.RETURN);
         mouseOver.visitMaxs(4, 2);
         mouseOver.visitEnd();

@@ -519,6 +519,14 @@ public final class Minecraft189Mappings {
                     "onLivingUpdate");
 
     // Exact MCP 1.8.9: pk.aR()Laug; / Entity.getEntityBoundingBox.
+    // Official MCP 1.8.9 exact ray-hitbox border / AABB expansion mappings.
+    public static final MappedMethod ENTITY_GET_COLLISION_BORDER_SIZE =
+            new MappedMethod(ENTITY, "ao", "()F",
+                    "func_70111_Y", "getCollisionBorderSize");
+    public static final MappedMethod AABB_EXPAND =
+            new MappedMethod(AXIS_ALIGNED_BB, "b", "(DDD)Laug;",
+                    "func_72314_b", "expand");
+
     public static final MappedMethod ENTITY_GET_ENTITY_BOUNDING_BOX =
             new MappedMethod(ENTITY, "aR", "()Laug;",
                     "func_174813_aQ", "getEntityBoundingBox");

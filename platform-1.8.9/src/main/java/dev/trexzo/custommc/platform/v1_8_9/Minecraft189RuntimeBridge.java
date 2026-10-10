@@ -399,6 +399,18 @@ public final class Minecraft189RuntimeBridge {
                 : host.featureCatalog().reach().raycastExtendedDistance(6.0D);
     }
 
+    /**
+     * Player-only local ray-hitbox inflation. Receives the native border
+     * unchanged whenever Hitbox is disabled or the candidate is not a player.
+     */
+    public static synchronized float raycastHitboxBorder(
+            final boolean playerCandidate, final float nativeBorder) {
+        final Minecraft189HostRuntime host = activeHost();
+        return host == null ? nativeBorder
+                : host.featureCatalog().hitbox()
+                        .adjustNativeBorder(playerCandidate, nativeBorder);
+    }
+
     public static synchronized void autoClick(
             final Minecraft189ClickMouseControl minecraft) {
         final Minecraft189HostRuntime host =

@@ -2047,6 +2047,7 @@ public final class Minecraft189ClassTransformer
         final boolean[] foundRaycast = new boolean[1];
         final int[] changedRaycastCalls = new int[2];
         final int[] changedExtendedConstants = new int[1];
+        final int[] changedHitboxCalls = new int[1];
 
         reader.accept(
                 new ClassVisitor(
@@ -2078,8 +2079,32 @@ public final class Minecraft189ClassTransformer
                                         final int opcode, final String owner,
                                         final String methodName, final String methodDesc,
                                         final boolean isInterface) {
+                                    final Minecraft189Mappings.MappedMethod border =
+                                            Minecraft189Mappings
+                                                    .ENTITY_GET_COLLISION_BORDER_SIZE;
+                                    final boolean borderCall =
+                                            opcode == Opcodes.INVOKEVIRTUAL && !isInterface
+                                            && owner.equals(border.owner().obfuscatedInternalName())
+                                            && methodName.equals(border.obfuscatedName())
+                                            && methodDesc.equals(border.descriptor());
+                                    if (borderCall) {
+                                        // Before invoke: [candidate Entity].
+                                        // After: [isPlayer(boolean), candidate Entity].
+                                        super.visitInsn(Opcodes.DUP);
+                                        super.visitTypeInsn(Opcodes.INSTANCEOF,
+                                                Minecraft189Mappings.ENTITY_PLAYER
+                                                        .obfuscatedInternalName());
+                                        super.visitInsn(Opcodes.SWAP);
+                                    }
                                     super.visitMethodInsn(opcode, owner,
                                             methodName, methodDesc, isInterface);
+                                    if (borderCall) {
+                                        // Native method result: [isPlayer, nativeBorder].
+                                        changedHitboxCalls[0]++;
+                                        super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "raycastHitboxBorder", "(ZF)F", false);
+                                    }
                                     if (opcode != Opcodes.INVOKEVIRTUAL || isInterface)
                                         return;
                                     final Minecraft189Mappings.MappedMethod block =
@@ -2176,12 +2201,14 @@ public final class Minecraft189ClassTransformer
 
         if (!foundRaycast[0] || changedRaycastCalls[0] != 1
                 || changedRaycastCalls[1] != 1
-                || changedExtendedConstants[0] != 2) {
+                || changedExtendedConstants[0] != 2
+                || changedHitboxCalls[0] != 1) {
             throw new IllegalStateException(
                     "mapped EntityRenderer reach raycast not patchable: "
                     + "blockCalls=" + changedRaycastCalls[0]
                     + " extendedCalls=" + changedRaycastCalls[1]
-                    + " sixConstants=" + changedExtendedConstants[0]);
+                    + " sixConstants=" + changedExtendedConstants[0]
+                    + " borderCalls=" + changedHitboxCalls[0]);
         }
         if (!found[0]
                 || !injectedStart[0]
