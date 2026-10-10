@@ -501,6 +501,12 @@ public final class Minecraft189Mappings {
                     "func_70636_d",
                     "onLivingUpdate");
 
+    // MCP 1.8.9 official joined.srg: pk/aK ()Ljava/util/UUID;
+    // Source-backed Entity.func_110124_au/getUniqueID.
+    public static final MappedMethod ENTITY_GET_UNIQUE_ID =
+            new MappedMethod(ENTITY, "aK", "()Ljava/util/UUID;",
+                    "func_110124_au", "getUniqueID");
+
     public static final MappedMethod ENTITY_IS_SNEAKING =
             new MappedMethod(
                     ENTITY,

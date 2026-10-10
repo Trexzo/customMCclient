@@ -477,6 +477,21 @@ final class Minecraft189MappedHostTransformationTest {
                     rayWorld, java.util.Arrays.asList(otherRayEntity, playerHit));
             minecraftClass.getField("f").set(minecraft, rayWorld);
             assertEquals(1, rayHit.customMcCrosshairPlayerIndex());
+            final Minecraft189WorldEntityUuidAccess identity =
+                    (Minecraft189WorldEntityUuidAccess) rayWorld;
+            org.junit.jupiter.api.Assertions.assertNull(identity.customMcLoadedEntityUuids());
+            final java.util.UUID otherId = java.util.UUID.randomUUID();
+            final java.util.UUID playerId = java.util.UUID.randomUUID();
+            loader.loadClass("pk").getField("uuid").set(otherRayEntity, otherId);
+            loader.loadClass("pk").getField("uuid").set(playerHit, playerId);
+            assertArrayEquals(new java.util.UUID[]{otherId, playerId},
+                    identity.customMcLoadedEntityUuids());
+            loader.loadClass("adm").getField("f").set(rayWorld,
+                    java.util.Arrays.asList(playerHit, otherRayEntity));
+            assertArrayEquals(new java.util.UUID[]{playerId, otherId},
+                    identity.customMcLoadedEntityUuids());
+            loader.loadClass("adm").getField("f").set(rayWorld,
+                    java.util.Arrays.asList(otherRayEntity, playerHit));
             final Minecraft189WorldEntityCombatAccess combat =
                     (Minecraft189WorldEntityCombatAccess) rayWorld;
             loader.loadClass("pr").getField("health").setFloat(playerHit, 12.0F);
@@ -6996,6 +7011,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "O", "F");
         field(writer, "H", "Z");
         field(writer, "T", "Z");
+        field(writer, "uuid", "Ljava/util/UUID;");
         field(writer, "sneaking", "Z");
         field(writer, "sprinting", "Z");
         endDefaultConstructor(writer, "pk");
@@ -7098,6 +7114,15 @@ final class Minecraft189MappedHostTransformationTest {
                 2);
         setSneaking.visitEnd();
 
+        final MethodVisitor getUuid = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "aK", "()Ljava/util/UUID;", null, null);
+        getUuid.visitCode();
+        getUuid.visitVarInsn(Opcodes.ALOAD, 0);
+        getUuid.visitFieldInsn(Opcodes.GETFIELD, "pk",
+                "uuid", "Ljava/util/UUID;");
+        getUuid.visitInsn(Opcodes.ARETURN);
+        getUuid.visitMaxs(1, 1);
+        getUuid.visitEnd();
         writer.visitEnd();
         return writer.toByteArray();
     }

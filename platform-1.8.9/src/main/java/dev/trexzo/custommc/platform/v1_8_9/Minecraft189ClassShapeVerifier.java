@@ -190,7 +190,8 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_IS_SNEAKING,
                         Minecraft189Mappings.ENTITY_IS_SPRINTING,
                         Minecraft189Mappings.ENTITY_SET_SPRINTING,
-                        Minecraft189Mappings.ENTITY_SET_SNEAKING
+                        Minecraft189Mappings.ENTITY_SET_SNEAKING,
+                        Minecraft189Mappings.ENTITY_GET_UNIQUE_ID
                 });
     }
 
