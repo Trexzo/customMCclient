@@ -7,6 +7,7 @@ on:
       - 'scripts/FetchMojang189Client.py'
       - 'scripts/FetchMojang189Libraries.py'
       - 'scripts/FetchMojang189NativeAssets.py'
+      - 'scripts/test_mojang189_complete_assets.py'
       - 'bootstrap/src/main/java/dev/trexzo/custommc/bootstrap/TransformingTargetClassLoader.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RuntimeBridge.java'
       - 'platform-1.8.9/build.gradle.kts'
@@ -22,7 +23,7 @@ permissions:
 jobs:
   official-binary:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -35,12 +36,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
+      - name: Offline asset-integrity regression tests (no network)
+        run: python -m unittest discover -s scripts -p 'test_mojang189_complete_assets.py' -v
       - name: Fetch and verify official Mojang 1.8.9 client
         run: python scripts/FetchMojang189Client.py --output "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar"
       - name: Fetch and verify official Mojang 1.8.9 managed libraries
         run: python scripts/FetchMojang189Libraries.py --output-dir "$RUNNER_TEMP/minecraft-1.8.9-libraries"
-      - name: Verify official Linux native classifiers and Minecraft 1.8 asset index
-        run: python scripts/FetchMojang189NativeAssets.py --output-dir "$RUNNER_TEMP/minecraft-1.8.9-resources"
+      - name: Verify Linux natives and stage all 734 official Minecraft 1.8 assets
+        timeout-minutes: 25
+        run: python scripts/FetchMojang189NativeAssets.py --output-dir "$RUNNER_TEMP/minecraft-1.8.9-resources" --full-assets
       - name: Verify actual obfuscated class mappings and transformer hooks
         env:
           CUSTOMMC_189_REAL_CLIENT_REQUIRED: 'true'

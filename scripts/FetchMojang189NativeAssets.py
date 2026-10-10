@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Verify and stage transient Mojang 1.8.9 Linux natives and bounded 1.8 assets.
+"""Verify Mojang 1.8.9 Linux natives and asset index, optionally stage all assets.
 
-This is NOT a complete asset installation or graphical Minecraft launch.
-All downloads come from Mojang URLs with pinned SHA-1 and bounded size.
-No binaries or retrieved asset data are stored in Git or uploaded as artifacts.
+--full-assets downloads the complete official 1.8 asset index (734 logical entries)
+with bounded concurrent streaming and per-object SHA-1 verification. Neither
+mode starts Minecraft or claims a graphical/gameplay test. Official downloaded
+binaries stay transient and must not be uploaded as CI artifacts.
 """
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
 import hashlib
 import json
@@ -28,6 +30,11 @@ MAX_INDEX_SIZE = 8 * 1024 * 1024
 MAX_SAMPLE_OBJECT = 12 * 1024 * 1024
 MAX_SAMPLED_BYTES = 36 * 1024 * 1024
 MAX_ASSET_OBJECTS = 12000
+EXPECTED_INDEX_OBJECTS = 734
+EXPECTED_INDEX_SHA1 = "f6ad102bcaa53b1a58358f16e376d548d44933ec"
+MAX_COMPLETE_OBJECT = 64 * 1024 * 1024
+MAX_COMPLETE_TOTAL = 1024 * 1024 * 1024
+COMPLETE_DOWNLOAD_WORKERS = 8
 
 
 def verify_download(url, sha1, expected_size, limit, hosts):
@@ -144,13 +151,117 @@ def stage_natives(metadata, root):
     return native_root
 
 
-def stage_index_and_sampled_assets(metadata, root):
+def _download_one_complete_asset(destination_root, sha1, expected_size):
+    """Stream one *unique* official object to an exclusive temporary file."""
+    path = destination_root / sha1[:2] / sha1
+    path.parent.mkdir(parents=True, exist_ok=True)
+    url = "https://resources.download.minecraft.net/" + sha1[:2] + "/" + sha1
+    if not DIGEST.fullmatch(sha1):
+        raise ValueError("invalid asset object digest")
+    if not isinstance(expected_size, int) or not (0 <= expected_size <= MAX_COMPLETE_OBJECT):
+        raise ValueError("invalid official asset object size")
+    if path.exists():
+        raise ValueError("asset path unexpectedly existed: " + sha1)
+    staging = path.with_name(sha1 + ".partial")
+    checksum = hashlib.sha1()
+    count = 0
+    try:
+        # Zero-length blobs are materialized from the uniquely known SHA-1
+        # of empty bytes rather than depending on a CDN serving an empty file.
+        if expected_size == 0:
+            if sha1 != hashlib.sha1(b"").hexdigest():
+                raise ValueError("zero-length object hash does not match empty bytes")
+            with staging.open("xb"):
+                pass
+        else:
+            with urlopen(
+                Request(url, headers={"User-Agent": "customMCclient-189-complete-assets/1"}),
+                timeout=90
+            ) as response:
+                if response.geturl() != url:
+                    raise ValueError("unexpected official resource redirect")
+                with staging.open("xb") as target:
+                    while True:
+                        payload = response.read(1024 * 1024)
+                        if not payload:
+                            break
+                        count += len(payload)
+                        if count > expected_size or count > MAX_COMPLETE_OBJECT:
+                            raise ValueError("asset exceeded pinned size")
+                        checksum.update(payload)
+                        target.write(payload)
+            if count != expected_size or checksum.hexdigest() != sha1:
+                raise ValueError("official asset size/hash mismatch: " + sha1)
+        staging.replace(path)
+        return expected_size
+    finally:
+        staging.unlink(missing_ok=True)
+
+
+def _stage_complete_asset_collection(objects, asset_root):
+    """Verify every indexed logical asset and every unique content object."""
+    unique = {}
+    for object_info in objects.values():
+        sha1, size = object_info["hash"], object_info["size"]
+        if size > MAX_COMPLETE_OBJECT:
+            raise ValueError("official object exceeds bounded full-install size")
+        previous = unique.setdefault(sha1, size)
+        if previous != size:
+            raise ValueError("same content hash has conflicting declared sizes")
+    total = sum(unique.values())
+    if total > MAX_COMPLETE_TOTAL:
+        raise ValueError("complete official asset collection exceeds total budget")
+    if not unique:
+        raise ValueError("complete asset inventory is empty")
+
+    object_root = asset_root / "objects"
+    object_root.mkdir()
+    # Cap network concurrency, deduplicate identical content hashes and
+    # abort on any failed object. The caller removes *all* staging on failure.
+    with ThreadPoolExecutor(max_workers=COMPLETE_DOWNLOAD_WORKERS) as pool:
+        futures = {
+            pool.submit(_download_one_complete_asset, object_root, sha, size): sha
+            for sha, size in sorted(unique.items())
+        }
+        completed = 0
+        try:
+            for future in as_completed(futures):
+                future.result()
+                completed += 1
+                if completed % 100 == 0:
+                    print("OFFICIAL_189_ASSET_DOWNLOAD_PROGRESS=" + str(completed)
+                          + "/" + str(len(unique)), flush=True)
+        except BaseException:
+            for future in futures:
+                future.cancel()
+            raise
+    if completed != len(unique):
+        raise ValueError("asset retrieval was incomplete")
+
+    # Perform a final inventory and independent disk-read digest pass.
+    for sha, size in unique.items():
+        stored = object_root / sha[:2] / sha
+        if not stored.is_file() or stored.stat().st_size != size:
+            raise ValueError("asset object missing or size changed during staging")
+        hasher = hashlib.sha1()
+        with stored.open("rb") as reader:
+            for block in iter(lambda: reader.read(1024 * 1024), b""):
+                hasher.update(block)
+        if hasher.hexdigest() != sha:
+            raise ValueError("staged asset failed final SHA-1 verification")
+    print("OFFICIAL_189_FULL_ASSET_LOGICAL_ENTRIES_VERIFIED=" + str(len(objects)))
+    print("OFFICIAL_189_FULL_ASSET_UNIQUE_OBJECTS_VERIFIED=" + str(len(unique)))
+    print("OFFICIAL_189_FULL_ASSET_TOTAL_BYTES_VERIFIED=" + str(total))
+    print("OFFICIAL_189_FULL_ASSET_INSTALLATION=YES")
+
+
+def stage_index_and_sampled_assets(metadata, root, full_assets=False):
     info = metadata.get("assetIndex")
     if not isinstance(info, dict) or info.get("id") != "1.8":
         raise ValueError("not the expected Mojang 1.8 asset index")
     sha1, size, url = info.get("sha1"), info.get("size"), info.get("url")
-    if not isinstance(url, str) or not DIGEST.fullmatch(sha1 or ""):
-        raise ValueError("asset index metadata is missing SHA-1/URL")
+    if not isinstance(url, str) or sha1 != EXPECTED_INDEX_SHA1:
+        raise ValueError("unexpected/potentially unpinned Minecraft 1.8 asset index")
     if not url.endswith("/1.8.json") or sha1 not in url:
         raise ValueError("asset index URL is not version/pin bound")
     index = verify_download(
@@ -159,9 +270,8 @@ def stage_index_and_sampled_assets(metadata, root):
     )
     parsed = json.loads(index)
     objects = parsed.get("objects")
-    if not isinstance(objects, dict) or not (100 <= len(objects) <= MAX_ASSET_OBJECTS):
-        raise ValueError("pinned 1.8 asset index object count outside bounded range: "
-                         + str(len(objects) if isinstance(objects, dict) else "missing"))
+    if not isinstance(objects, dict) or len(objects) != EXPECTED_INDEX_OBJECTS:
+        raise ValueError("official 1.8 asset index object count drifted from the pinned 734-entry release")
     for name, obj in objects.items():
         if (not isinstance(name, str) or not name or len(name) > 400
                 or name.startswith("/") or "\\" in name
@@ -176,6 +286,12 @@ def stage_index_and_sampled_assets(metadata, root):
     indexes = asset_root / "indexes"
     indexes.mkdir(parents=True)
     (indexes / "1.8.json").write_bytes(index)
+    if full_assets:
+        _stage_complete_asset_collection(objects, asset_root)
+        print("OFFICIAL_189_ASSET_INDEX_SHA1_PASS=" + sha1)
+        print("OFFICIAL_189_ASSET_INDEX_OBJECTS_VALIDATED=" + str(len(objects)))
+        return asset_root
+
     # Representative deterministic sample, NOT the full set of game assets.
     names = sorted(objects)
     selected = list(dict.fromkeys(names[:6] + names[-6:]))
@@ -206,7 +322,7 @@ def stage_index_and_sampled_assets(metadata, root):
     return asset_root
 
 
-def run(output_directory):
+def run(output_directory, full_assets=False):
     root = Path(output_directory).resolve()
     if root.exists() or not root.parent.is_dir():
         raise ValueError("refusing preexisting native/asset staging destination")
@@ -219,7 +335,7 @@ def run(output_directory):
                 != CLIENT_SHA1):
             raise ValueError("pinned Mojang release metadata mismatch")
         stage_natives(metadata, root)
-        stage_index_and_sampled_assets(metadata, root)
+        stage_index_and_sampled_assets(metadata, root, full_assets=full_assets)
         print("OFFICIAL_189_NATIVE_ASSET_PREFLIGHT_PASS=YES")
     except BaseException:
         shutil.rmtree(root)
@@ -229,9 +345,11 @@ def run(output_directory):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--full-assets", action="store_true",
+                        help="verify and stage all 734 pinned official 1.8 asset index entries")
     args = parser.parse_args()
     try:
-        run(args.output_dir)
+        run(args.output_dir, full_assets=args.full_assets)
     except Exception as error:
         print("OFFICIAL_189_NATIVE_ASSET_PREFLIGHT_FAILED: " + str(error),
               file=sys.stderr)
