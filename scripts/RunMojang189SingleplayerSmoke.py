@@ -256,6 +256,14 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # Offline integrated-server commands only. No external server
                 # join, forged damage or direct entity edits.
                 send_command(process, log, window, "/time set 1000")
+                # Deterministic platform and clear LOS. Random normal-world
+                # spawns otherwise leave a no-AI pig falling into a ravine,
+                # causing intermittent loss of the 20-tick raycast gate.
+                # Both are genuine local integrated-server vanilla commands.
+                send_command(process, log, window,
+                             "/fill ~-3 ~-1 ~-3 ~3 ~-1 ~5 stone")
+                send_command(process, log, window,
+                             "/fill ~-2 ~ ~1 ~2 ~2 ~4 air")
                 send_command(process, log, window, "/tp ~ ~ ~ 0 26")
                 send_command(process, log, window,
                              "/summon Pig ~ ~ ~2 {NoAI:1b}")
