@@ -99,16 +99,21 @@ def run(command, game, timeout):
                          "actual graphical frame")
             window = find_window(min(deadline, time.monotonic() + 15))
             print("CUSTOMMC_189_REAL_X11_WINDOW_FOUND=YES", flush=True)
+            geometry = xdotool("getwindowgeometry", "--shell", window)
+            print("CUSTOMMC_189_WINDOW_GEOMETRY="
+                  + geometry.replace("\n", " "), flush=True)
             # Ensure a stable vanilla title menu before clicking.
             time.sleep(3)
             require_running(process, "Minecraft main menu")
             # GuiMainMenu: Singleplayer button is centered at x427, y~180.
             click(window, 427, 178)
-            time.sleep(1.5)
+            print("CUSTOMMC_189_GUI_CLICK=singleplayer", flush=True)
+            time.sleep(2.0)
             require_running(process, "world selection GUI")
             # GuiSelectWorld: "Create New World" near bottom-left centre.
             click(window, 347, 437)
-            time.sleep(1.5)
+            print("CUSTOMMC_189_GUI_CLICK=create-world-menu", flush=True)
+            time.sleep(2.0)
             require_running(process, "create world GUI")
             # GuiCreateWorld: default New World, no server or cheat commands.
             click(window, 346, 462)
