@@ -3,6 +3,7 @@ package dev.trexzo.custommc.platform.v1_8_9;
 import dev.trexzo.custommc.core.module.Module;
 import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /** Bounded rotation + confirmed vanilla crosshair-player attack automation. */
@@ -53,7 +54,7 @@ public final class Minecraft189KillAuraModule implements Module {
     private final Setting<Boolean> lockTarget = new Setting<Boolean>(
             LOCK_TARGET, Boolean.FALSE, value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
-    private int lockedTargetIndex = -1;
+    private UUID lockedTargetUuid;
     private int phase;
     private int sampledCps;
     private int lastMin = -1;
@@ -74,12 +75,12 @@ public final class Minecraft189KillAuraModule implements Module {
     public Setting<Boolean> switchHurtTargetsSetting() { return switchHurt; }
     public Setting<Integer> maxSwitchHurtTicksSetting() { return maxSwitchHurtTicks; }
     public Setting<Boolean> lockTargetSetting() { return lockTarget; }
-    /** Index is retained only while this module is active and lock is enabled. */
-    synchronized int lockedTargetIndex() {
-        return enabled && lockTarget.get() ? lockedTargetIndex : -1;
+    /** Retains stable native identity, never a potentially recycled list index. */
+    synchronized UUID lockedTargetUuid() {
+        return enabled && lockTarget.get() ? lockedTargetUuid : null;
     }
-    synchronized void rememberSelectedTarget(final int index) {
-        lockedTargetIndex = enabled && lockTarget.get() && index >= 0 ? index : -1;
+    synchronized void rememberSelectedTarget(final UUID uuid) {
+        lockedTargetUuid = enabled && lockTarget.get() ? uuid : null;
     }
     synchronized boolean active() { return enabled; }
 
@@ -195,7 +196,7 @@ public final class Minecraft189KillAuraModule implements Module {
     private void clear() {
         resetSchedule();
         lastEntityIndex = -1;
-        lockedTargetIndex = -1;
+        lockedTargetUuid = null;
     }
 
     private void resetSchedule() {

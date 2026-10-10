@@ -44,6 +44,10 @@ public final class Minecraft189HostRuntime
     private final Minecraft189WorldEntityKindState worldEntityKindState;
     private final Minecraft189WorldEntityCombatState worldEntityCombatState =
             new Minecraft189WorldEntityCombatState();
+    private final Minecraft189WorldEntityUuidState worldEntityUuidState =
+            new Minecraft189WorldEntityUuidState();
+    // Exact loaded-world object used for UUID parity, never a stored entity index.
+    private Minecraft189WorldEntityUuidAccess tickUuidWorld;
     private final Minecraft189CriticalsEvidence criticalsEvidence =
             new Minecraft189CriticalsEvidence();
     // Per-host-tick reference only; cleared before every new position sample.
@@ -1190,9 +1194,28 @@ public final class Minecraft189HostRuntime
         worldEntityCombatState.clear();
         nearestPlayerTargetState.clear();
         targetRotationState.clear();
+        worldEntityUuidState.clear();
+        final Minecraft189WorldEntityUuidAccess identityWorld =
+                world instanceof Minecraft189WorldEntityUuidAccess
+                        ? (Minecraft189WorldEntityUuidAccess) world : null;
+        if (tickUuidWorld != identityWorld) {
+            featureCatalog.killAura().rememberSelectedTarget(null);
+        }
+        tickUuidWorld = identityWorld;
         if (world == null) {
             worldEntityPositionState.clear();
+            featureCatalog.killAura().rememberSelectedTarget(null);
             return;
+        }
+        if (featureCatalog.killAura().active()
+                && featureCatalog.killAura().lockTargetSetting().get()
+                && identityWorld != null) {
+            try {
+                worldEntityUuidState.update(
+                        identityWorld.customMcLoadedEntityUuids());
+            } catch (RuntimeException invalidEvidence) {
+                worldEntityUuidState.clear();
+            }
         }
         final double[] packedPositions =
                 world.customMcLoadedEntityPositions();
@@ -1238,7 +1261,32 @@ public final class Minecraft189HostRuntime
         if (world == null || !worldEntityPositionState.snapshot().available()
                 || !worldEntityKindState.snapshot().available()) {
             worldEntityCombatState.clear();
+            featureCatalog.killAura().rememberSelectedTarget(null);
             return;
+        }
+        final Minecraft189KillAuraModule aura = featureCatalog.killAura();
+        final boolean uuidLock = aura.active() && aura.lockTargetSetting().get();
+        if (uuidLock) {
+            final Minecraft189WorldEntityUuidState.Snapshot ids =
+                    worldEntityUuidState.snapshot();
+            boolean consistent = false;
+            if (tickUuidWorld != null && tickUuidWorld == world
+                    && ids.available()
+                    && ids.entityCount() == worldEntityPositionState.snapshot().entityCount()
+                    && ids.entityCount() == worldEntityKindState.snapshot().entityCount()) {
+                try {
+                    consistent = ids.matches(tickUuidWorld.customMcLoadedEntityUuids());
+                } catch (RuntimeException invalidEvidence) {
+                    consistent = false;
+                }
+            }
+            if (!consistent) {
+                worldEntityCombatState.clear();
+                nearestPlayerTargetState.clear();
+                targetRotationState.clear();
+                aura.rememberSelectedTarget(null);
+                return;
+            }
         }
         final int[] data = world.customMcLoadedEntityCombatStates();
         if (data == null || data.length != worldEntityPositionState.snapshot().entityCount()
@@ -1264,7 +1312,7 @@ public final class Minecraft189HostRuntime
                     worldEntityKindState.snapshot(),
                     worldEntityCombatState.snapshot(),
                     featureCatalog.antiBot(), featureCatalog.teamGuard(),
-                    nearestPlayerTargetState);
+                    worldEntityUuidState.snapshot(), nearestPlayerTargetState);
             targetRotationState.update(
                     playerPositionState.snapshot(),
                     nearestPlayerTargetState.snapshot());
@@ -1613,6 +1661,21 @@ public final class Minecraft189HostRuntime
                     || !combat.alive(selected.entityIndex())) {
                 return false;
             }
+            if (aura.lockTargetSetting().get()) {
+                final Minecraft189WorldEntityUuidState.Snapshot ids =
+                        worldEntityUuidState.snapshot();
+                final java.util.UUID selectedUuid = aura.lockedTargetUuid();
+                if (!ids.available() || selectedUuid == null
+                        || !selectedUuid.equals(ids.at(selected.entityIndex()))
+                        || !selectedUuid.equals(ids.at(crosshairPlayerIndex))
+                        || tickUuidWorld == null) return false;
+                try {
+                    if (!ids.matches(tickUuidWorld.customMcLoadedEntityUuids()))
+                        return false;
+                } catch (RuntimeException invalidEvidence) {
+                    return false;
+                }
+            }
         }
         // A verified tab-list miss is a veto for every synthetic click
         // owner. A real manually-triggered vanilla click remains untouched.
@@ -1787,6 +1850,8 @@ public final class Minecraft189HostRuntime
         featureCatalog.autoBlock().forgetForShutdown();
         worldEntityKindState.clear();
         worldEntityCombatState.clear();
+        worldEntityUuidState.clear();
+        tickUuidWorld = null;
         nearestPlayerTargetState.clear();
         targetRotationState.clear();
         serverAddressState.clear();
