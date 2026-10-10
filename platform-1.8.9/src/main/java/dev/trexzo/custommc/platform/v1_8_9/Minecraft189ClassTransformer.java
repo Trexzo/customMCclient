@@ -2044,6 +2044,9 @@ public final class Minecraft189ClassTransformer
                 new boolean[]{false};
         final boolean[] injectedEnd =
                 new boolean[]{false};
+        final boolean[] foundRaycast = new boolean[1];
+        final int[] changedRaycastCalls = new int[2];
+        final int[] changedExtendedConstants = new int[1];
 
         reader.accept(
                 new ClassVisitor(
@@ -2063,6 +2066,60 @@ public final class Minecraft189ClassTransformer
                                         descriptor,
                                         signature,
                                         exceptions);
+                        final Minecraft189Mappings.MappedMethod mouseOver =
+                                Minecraft189Mappings.ENTITY_RENDERER_GET_MOUSE_OVER;
+                        if (mouseOver.obfuscatedName().equals(name)
+                                && mouseOver.descriptor().equals(descriptor)) {
+                            if (foundRaycast[0]) throw new IllegalStateException(
+                                    "duplicate mapped raycast reach boundary");
+                            foundRaycast[0] = true;
+                            return new MethodVisitor(Opcodes.ASM9, delegate) {
+                                @Override public void visitMethodInsn(
+                                        final int opcode, final String owner,
+                                        final String methodName, final String methodDesc,
+                                        final boolean isInterface) {
+                                    super.visitMethodInsn(opcode, owner,
+                                            methodName, methodDesc, isInterface);
+                                    if (opcode != Opcodes.INVOKEVIRTUAL || isInterface)
+                                        return;
+                                    final Minecraft189Mappings.MappedMethod block =
+                                            Minecraft189Mappings
+                                                    .PLAYER_CONTROLLER_GET_BLOCK_REACH;
+                                    final Minecraft189Mappings.MappedMethod extended =
+                                            Minecraft189Mappings
+                                                    .PLAYER_CONTROLLER_EXTENDED_REACH;
+                                    if (owner.equals(block.owner().obfuscatedInternalName())
+                                            && methodName.equals(block.obfuscatedName())
+                                            && methodDesc.equals(block.descriptor())) {
+                                        changedRaycastCalls[0]++;
+                                        super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "raycastBlockDistance", "(F)F", false);
+                                    }
+                                    if (owner.equals(extended.owner().obfuscatedInternalName())
+                                            && methodName.equals(extended.obfuscatedName())
+                                            && methodDesc.equals(extended.descriptor())) {
+                                        changedRaycastCalls[1]++;
+                                        super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "raycastExtendedBranch", "(Z)Z", false);
+                                    }
+                                }
+
+                                @Override public void visitLdcInsn(final Object constant) {
+                                    if (constant instanceof Double
+                                            && ((Double) constant).doubleValue() == 6.0D) {
+                                        changedExtendedConstants[0]++;
+                                        super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "raycastExtendedDistance", "()D", false);
+                                    } else {
+                                        super.visitLdcInsn(constant);
+                                    }
+                                }
+                            };
+                        }
+
                         final Minecraft189Mappings.MappedMethod render =
                                 Minecraft189Mappings
                                         .ENTITY_RENDERER_UPDATE_CAMERA_AND_RENDER;
@@ -2117,6 +2174,15 @@ public final class Minecraft189ClassTransformer
                 },
                 0);
 
+        if (!foundRaycast[0] || changedRaycastCalls[0] != 1
+                || changedRaycastCalls[1] != 1
+                || changedExtendedConstants[0] != 2) {
+            throw new IllegalStateException(
+                    "mapped EntityRenderer reach raycast not patchable: "
+                    + "blockCalls=" + changedRaycastCalls[0]
+                    + " extendedCalls=" + changedRaycastCalls[1]
+                    + " sixConstants=" + changedExtendedConstants[0]);
+        }
         if (!found[0]
                 || !injectedStart[0]
                 || !injectedEnd[0]) {

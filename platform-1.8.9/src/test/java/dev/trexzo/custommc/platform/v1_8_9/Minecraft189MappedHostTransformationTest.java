@@ -46,6 +46,41 @@ final class Minecraft189MappedHostTransformationTest {
                     + "Minecraft189LwjglMouseBinding";
 
     @Test
+    void nativeRaycastReachHooksPatchExactMappedSitesOnly() {
+        final byte[] transformed = new Minecraft189ClassTransformer()
+                .transform("bfk", entityRendererShape());
+        final int[] bridgeCalls = new int[3];
+        final int[] sixConstants = new int[1];
+        new ClassReader(transformed).accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override public MethodVisitor visitMethod(
+                    final int access, final String name, final String descriptor,
+                    final String signature, final String[] exceptions) {
+                if (!"a".equals(name) || !"(F)V".equals(descriptor)) return null;
+                return new MethodVisitor(Opcodes.ASM9) {
+                    @Override public void visitMethodInsn(
+                            final int opcode, final String owner, final String method,
+                            final String desc, final boolean isInterface) {
+                        if (opcode != Opcodes.INVOKESTATIC ||
+                                !owner.equals("dev/trexzo/custommc/platform/v1_8_9/"
+                                        + "Minecraft189RuntimeBridge")) return;
+                        if (method.equals("raycastBlockDistance")
+                                && desc.equals("(F)F")) bridgeCalls[0]++;
+                        if (method.equals("raycastExtendedBranch")
+                                && desc.equals("(Z)Z")) bridgeCalls[1]++;
+                        if (method.equals("raycastExtendedDistance")
+                                && desc.equals("()D")) bridgeCalls[2]++;
+                    }
+                    @Override public void visitLdcInsn(final Object constant) {
+                        if (Double.valueOf(6.0D).equals(constant)) sixConstants[0]++;
+                    }
+                };
+            }
+        }, 0);
+        assertArrayEquals(new int[]{1, 1, 2}, bridgeCalls);
+        assertEquals(0, sixConstants[0]);
+    }
+
+    @Test
     void transformerClaimsOnlyStableMainAndMappedHostOwners() {
         final Minecraft189ClassTransformer transformer =
                 new Minecraft189ClassTransformer();
@@ -8089,6 +8124,11 @@ final class Minecraft189MappedHostTransformationTest {
         mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "pk", "a",
                 "(DF)Lauh;", false);
         mouseOver.visitInsn(Opcodes.POP);
+        // Real 1.8.9 extendedReach branch has exactly two 6.0D literals.
+        mouseOver.visitLdcInsn(Double.valueOf(6.0D));
+        mouseOver.visitInsn(Opcodes.POP2);
+        mouseOver.visitLdcInsn(Double.valueOf(6.0D));
+        mouseOver.visitInsn(Opcodes.POP2);
         mouseOver.visitInsn(Opcodes.RETURN);
         mouseOver.visitMaxs(4, 2);
         mouseOver.visitEnd();
