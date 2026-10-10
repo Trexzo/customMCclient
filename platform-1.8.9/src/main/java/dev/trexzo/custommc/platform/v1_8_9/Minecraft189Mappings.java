@@ -657,6 +657,10 @@ public final class Minecraft189Mappings {
     public static final MappedMethod ENTITY_LIVING_BASE_IS_ON_SAME_TEAM =
             new MappedMethod(ENTITY_LIVING_BASE, "c", "(Lpr;)Z",
                     "func_142014_c", "isOnSameTeam");
+    // MCP 1.8.9 official joined.srg: pr/t (Lpk;)Z.
+    public static final MappedMethod ENTITY_LIVING_BASE_CAN_ENTITY_BE_SEEN =
+            new MappedMethod(ENTITY_LIVING_BASE, "t", "(Lpk;)Z",
+                    "func_70685_l", "canEntityBeSeen");
     public static final MappedMethod ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT =
             new MappedMethod(
                     ENTITY_LIVING_BASE,

@@ -639,6 +639,10 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.ENTITY_LIVING_BASE,
                 "c", "(Lpr;)Z", "func_142014_c", "isOnSameTeam");
         assertMethod(
+                Minecraft189Mappings.ENTITY_LIVING_BASE_CAN_ENTITY_BE_SEEN,
+                Minecraft189Mappings.ENTITY_LIVING_BASE,
+                "t", "(Lpk;)Z", "func_70685_l", "canEntityBeSeen");
+        assertMethod(
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT,
                 Minecraft189Mappings.ENTITY_LIVING_BASE,
                 "p",
@@ -2328,6 +2332,7 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_KNOCK_BACK);
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_CAN_ENTITY_BE_SEEN);
         return finish(writer);
     }
 
