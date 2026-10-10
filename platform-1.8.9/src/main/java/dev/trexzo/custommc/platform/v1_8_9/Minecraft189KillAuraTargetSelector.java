@@ -43,7 +43,7 @@ final class Minecraft189KillAuraTargetSelector {
             final Minecraft189TeamGuardModule teamGuard,
             final Minecraft189NearestPlayerTargetState target) {
         select(aura, local, rotation, positions, kinds, combat,
-                antiBot, teamGuard, null, target);
+                antiBot, teamGuard, null, null, target);
     }
 
     static void select(
@@ -55,6 +55,22 @@ final class Minecraft189KillAuraTargetSelector {
             final Minecraft189WorldEntityCombatState.Snapshot combat,
             final Minecraft189AntiBotModule antiBot,
             final Minecraft189TeamGuardModule teamGuard,
+            final Minecraft189WorldEntityUuidState.Snapshot identities,
+            final Minecraft189NearestPlayerTargetState target) {
+        select(aura, local, rotation, positions, kinds, combat,
+                antiBot, teamGuard, null, identities, target);
+    }
+
+    static void select(
+            final Minecraft189KillAuraModule aura,
+            final Minecraft189PlayerPositionState.Snapshot local,
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final Minecraft189WorldEntityPositionState.Snapshot positions,
+            final Minecraft189WorldEntityKindState.Snapshot kinds,
+            final Minecraft189WorldEntityCombatState.Snapshot combat,
+            final Minecraft189AntiBotModule antiBot,
+            final Minecraft189TeamGuardModule teamGuard,
+            final Minecraft189FriendGuardModule friendGuard,
             final Minecraft189WorldEntityUuidState.Snapshot identities,
             final Minecraft189NearestPlayerTargetState target) {
         if (target == null) return;
@@ -71,8 +87,9 @@ final class Minecraft189KillAuraTargetSelector {
         }
 
         final boolean lockEnabled = aura.active() && aura.lockTargetSetting().get();
-        if (lockEnabled && (identities == null || !identities.available()
-                || identities.entityCount() != positions.entityCount())) {
+        if ((lockEnabled || (friendGuard != null && friendGuard.requiresIdentity()))
+                && (identities == null || !identities.available()
+                    || identities.entityCount() != positions.entityCount())) {
             target.clear();
             aura.rememberSelectedTarget(null);
             return;
@@ -91,6 +108,8 @@ final class Minecraft189KillAuraTargetSelector {
                                 || antiBot.permits(candidate.entityIndex(), combat))
                         && (teamGuard == null
                                 || teamGuard.permits(candidate.entityIndex(), combat))
+                        && (friendGuard == null
+                                || friendGuard.permits(candidate.entityIndex(), identities))
                         && Double.isFinite(
                             angularScore(local, rotation, candidate, fov)),
                 candidate -> lockedUuid != null

@@ -120,6 +120,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189CombatSlotFeature combatSlotFeature;
     private final Minecraft189AntiBotFeature antiBotFeature;
     private final Minecraft189TeamGuardFeature teamGuardFeature;
+    private final Minecraft189FriendGuardFeature friendGuardFeature;
     private final Minecraft189AutoRodFeature autoRodFeature;
     private final Minecraft189AutoPotFeature autoPotFeature;
     private final Minecraft189AutoBlockFeature autoBlockFeature;
@@ -221,6 +222,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189CombatSlotFeature combatSlotFeature,
             final Minecraft189AntiBotFeature antiBotFeature,
             final Minecraft189TeamGuardFeature teamGuardFeature,
+            final Minecraft189FriendGuardFeature friendGuardFeature,
             final Minecraft189AutoRodFeature autoRodFeature,
             final Minecraft189AutoPotFeature autoPotFeature,
             final Minecraft189AutoBlockFeature autoBlockFeature,
@@ -316,6 +318,7 @@ public final class Minecraft189FeatureCatalog
         this.combatSlotFeature = combatSlotFeature;
         this.antiBotFeature = antiBotFeature;
         this.teamGuardFeature = teamGuardFeature;
+        this.friendGuardFeature = friendGuardFeature;
         this.autoRodFeature = autoRodFeature;
         this.autoPotFeature = autoPotFeature;
         this.autoBlockFeature = autoBlockFeature;
@@ -474,6 +477,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189CombatSlotFeature combatSlotFeature = null;
         Minecraft189AntiBotFeature antiBotFeature = null;
         Minecraft189TeamGuardFeature teamGuardFeature = null;
+        Minecraft189FriendGuardFeature friendGuardFeature = null;
         Minecraft189AutoRodFeature autoRodFeature = null;
         Minecraft189AutoPotFeature autoPotFeature = null;
         Minecraft189AutoBlockFeature autoBlockFeature = null;
@@ -928,6 +932,9 @@ public final class Minecraft189FeatureCatalog
                     settings, settingPresentations);
             teamGuardFeature = Minecraft189TeamGuardFeature.install(
                     modules, moduleController, presentations);
+            friendGuardFeature = Minecraft189FriendGuardFeature.install(
+                    modules, moduleController, presentations,
+                    moduleSettings, settings, settingPresentations);
 
             autoRodFeature = Minecraft189AutoRodFeature.install(
                     modules, moduleController, presentations, moduleSettings,
@@ -1329,6 +1336,7 @@ public final class Minecraft189FeatureCatalog
                     combatSlotFeature,
                     antiBotFeature,
                     teamGuardFeature,
+                    friendGuardFeature,
                     autoRodFeature,
                     autoPotFeature,
                     autoBlockFeature,
@@ -1340,6 +1348,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(autoBlockFeature, failure);
             closeQuietly(autoPotFeature, failure);
             closeQuietly(autoRodFeature, failure);
+            closeQuietly(friendGuardFeature, failure);
             closeQuietly(teamGuardFeature, failure);
             closeQuietly(antiBotFeature, failure);
             closeQuietly(combatSlotFeature, failure);
@@ -1687,6 +1696,11 @@ public final class Minecraft189FeatureCatalog
         return teamGuardFeature.module();
     }
 
+    public Minecraft189FriendGuardModule friendGuard() {
+        requireOpen();
+        return friendGuardFeature.module();
+    }
+
     public Minecraft189CombatSlotModule combatSlot() {
         requireOpen();
         return combatSlotFeature.module();
@@ -1964,6 +1978,12 @@ public final class Minecraft189FeatureCatalog
 
         try {
             autoRodFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            friendGuardFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(failure, closeFailure);
         }

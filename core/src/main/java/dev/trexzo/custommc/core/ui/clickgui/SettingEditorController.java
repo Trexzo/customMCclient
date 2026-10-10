@@ -16,7 +16,8 @@ import dev.trexzo.custommc.core.ui.UiPointerEvent;
 import java.util.Objects;
 
 final class SettingEditorController {
-    private static final int MAX_TEXT_LENGTH = 128;
+    private static final int MAX_TEXT_LENGTH = 1024;
+    private static final int VISIBLE_TEXT_LENGTH = 30;
 
     private TextEditSession textEdit;
 
@@ -77,9 +78,13 @@ final class SettingEditorController {
             final Setting<?> setting) {
         Objects.requireNonNull(setting, "setting");
         if (isEditing(setting)) {
-            return textEdit.draft() + "|";
+            final String draft = textEdit.draft() + "|";
+            return draft.length() <= VISIBLE_TEXT_LENGTH ? draft
+                    : "..." + draft.substring(draft.length() - VISIBLE_TEXT_LENGTH + 3);
         }
-        return String.valueOf(setting.get());
+        final String value = String.valueOf(setting.get());
+        return value.length() <= VISIBLE_TEXT_LENGTH ? value
+                : value.substring(0, VISIBLE_TEXT_LENGTH - 3) + "...";
     }
 
     private boolean beginTextEdit(
