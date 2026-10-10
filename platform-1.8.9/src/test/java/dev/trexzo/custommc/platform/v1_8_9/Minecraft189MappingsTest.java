@@ -622,6 +622,14 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.PLAYER_CONTROLLER_MP,
                 "i", "()Z", "func_78749_i", "extendedReach");
         assertMethod(
+                Minecraft189Mappings.ENTITY_GET_COLLISION_BORDER_SIZE,
+                Minecraft189Mappings.ENTITY,
+                "ao", "()F", "func_70111_Y", "getCollisionBorderSize");
+        assertMethod(
+                Minecraft189Mappings.AABB_EXPAND,
+                Minecraft189Mappings.AXIS_ALIGNED_BB,
+                "b", "(DDD)Laug;", "func_72314_b", "expand");
+        assertMethod(
                 Minecraft189Mappings.ENTITY_RAY_TRACE,
                 Minecraft189Mappings.ENTITY,
                 "a", "(DF)Lauh;", "func_174822_a", "rayTrace");
@@ -2244,6 +2252,7 @@ final class Minecraft189MappingsTest {
         addField(writer, Minecraft189Mappings.AABB_MAX_X);
         addField(writer, Minecraft189Mappings.AABB_MAX_Y);
         addField(writer, Minecraft189Mappings.AABB_MAX_Z);
+        addMethod(writer, Minecraft189Mappings.AABB_EXPAND);
         return finish(writer);
     }
 
@@ -2309,6 +2318,7 @@ final class Minecraft189MappingsTest {
         addMethod(writer, Minecraft189Mappings.ENTITY_GET_UNIQUE_ID);
         addMethod(writer, Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX);
         addMethod(writer, Minecraft189Mappings.ENTITY_RAY_TRACE);
+        addMethod(writer, Minecraft189Mappings.ENTITY_GET_COLLISION_BORDER_SIZE);
         return finish(writer);
     }
 
@@ -2889,6 +2899,20 @@ final class Minecraft189MappingsTest {
         ray.visitInsn(Opcodes.FCONST_0);
         ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "pk",
                 "a", "(DF)Lauh;", false);
+        ray.visitInsn(Opcodes.POP);
+        // Verified vanilla getMouseOver player-candidate hitbox expansion.
+        ray.visitInsn(Opcodes.ACONST_NULL);
+        ray.visitTypeInsn(Opcodes.CHECKCAST, "pk");
+        ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "pk", "ao", "()F", false);
+        ray.visitInsn(Opcodes.POP);
+        ray.visitInsn(Opcodes.ACONST_NULL);
+        ray.visitTypeInsn(Opcodes.CHECKCAST, "aug");
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "aug", "b", "(DDD)Laug;", false);
         ray.visitInsn(Opcodes.POP);
         ray.visitInsn(Opcodes.RETURN);
         ray.visitMaxs(4, 2);

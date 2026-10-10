@@ -177,7 +177,9 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.AABB_MAX_X,
                         Minecraft189Mappings.AABB_MAX_Y,
                         Minecraft189Mappings.AABB_MAX_Z
-                }, new Minecraft189Mappings.MappedMethod[0]);
+                }, new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.AABB_EXPAND
+                });
     }
 
     public static void verifyEntity(
@@ -208,7 +210,8 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_SET_SNEAKING,
                         Minecraft189Mappings.ENTITY_GET_UNIQUE_ID,
                         Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX,
-                        Minecraft189Mappings.ENTITY_RAY_TRACE
+                        Minecraft189Mappings.ENTITY_RAY_TRACE,
+                        Minecraft189Mappings.ENTITY_GET_COLLISION_BORDER_SIZE
                 });
     }
 
@@ -369,7 +372,7 @@ public final class Minecraft189ClassShapeVerifier {
      * reach/raycast mutation is considered. Does not rewrite these calls.
      */
     static void verifyNativeRaycastCalls(final byte[] classBytes) {
-        final int[] calls = new int[3];
+        final int[] calls = new int[5];
         final boolean[] found = new boolean[1];
         new ClassReader(Objects.requireNonNull(classBytes, "classBytes")).accept(
                 new ClassVisitor(Opcodes.ASM9) {
@@ -392,7 +395,9 @@ public final class Minecraft189ClassShapeVerifier {
                                 final Minecraft189Mappings.MappedMethod[] required = {
                                         Minecraft189Mappings.PLAYER_CONTROLLER_GET_BLOCK_REACH,
                                         Minecraft189Mappings.PLAYER_CONTROLLER_EXTENDED_REACH,
-                                        Minecraft189Mappings.ENTITY_RAY_TRACE
+                                        Minecraft189Mappings.ENTITY_RAY_TRACE,
+                                        Minecraft189Mappings.ENTITY_GET_COLLISION_BORDER_SIZE,
+                                        Minecraft189Mappings.AABB_EXPAND
                                 };
                                 for (int index = 0; index < required.length; index++) {
                                     final Minecraft189Mappings.MappedMethod expected =
@@ -408,11 +413,14 @@ public final class Minecraft189ClassShapeVerifier {
                         };
                     }
                 }, 0);
-        if (!found[0] || calls[0] < 1 || calls[1] < 1 || calls[2] < 1)
+        if (!found[0] || calls[0] < 1 || calls[1] < 1 || calls[2] < 1
+                || calls[3] != 1 || calls[4] != 1)
             throw new IllegalStateException(
                     "Minecraft 1.8.9 native getMouseOver boundary mismatch: "
                     + "blockReach=" + calls[0] + ", extendedReach=" + calls[1]
-                    + ", entityRayTrace=" + calls[2]);
+                    + ", entityRayTrace=" + calls[2]
+                    + ", collisionBorder=" + calls[3]
+                    + ", boxExpand=" + calls[4]);
     }
 
     private static void verify(
