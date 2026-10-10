@@ -1672,6 +1672,31 @@ public final class Minecraft189FeatureCatalog
         return autoClickerFeature.module();
     }
 
+    /**
+     * CI-only: exercise the existing ModuleController activation path instead
+     * of setting the module's internal enabled flag. Without the explicit
+     * acceptance property no code may call this method successfully.
+     */
+    void enableAutoClickerForOfficialAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.reportAutoClicker")) {
+            throw new IllegalStateException("official Auto Clicker probe not armed");
+        }
+        if (moduleController.stateOf(Minecraft189AutoClickerModule.ID)
+                != ModuleState.DISABLED) {
+            throw new IllegalStateException("Auto Clicker not initially disabled");
+        }
+        // An unattended CI probe cannot hold a physical X11 button:
+        // only this explicit test changes the module's ordinary hold setting.
+        autoClicker().requireHoldSetting().set(Boolean.FALSE);
+        moduleController.enable(Minecraft189AutoClickerModule.ID);
+        if (!autoClicker().active()
+                || moduleController.stateOf(Minecraft189AutoClickerModule.ID)
+                != ModuleState.ENABLED) {
+            throw new IllegalStateException("normal module enable failed");
+        }
+    }
+
     public Minecraft189JitterModule jitter() {
         requireOpen();
         return jitterFeature.module();
