@@ -117,7 +117,7 @@ final class Minecraft189OfficialBinaryTest {
             assertTrue(nativeCalls[0] >= 1 && nativeCalls[1] >= 1
                     && nativeCalls[2] >= 1, "missing vanilla renderer call");
             assertEquals(1, nativeCalls[3], "native player border method");
-            assertEquals(1, nativeCalls[4], "native bounding box expansion");
+            assertEquals(2, nativeCalls[4], "two native bounding box expansions");
             assertArrayEquals(new int[]{1, 1, 1, 1}, bridges,
                     "real getMouseOver Reach/Hitbox patch layout");
         }
