@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/minecraft-189-real-client.yml'
       - 'scripts/FetchMojang189Client.py'
+      - 'scripts/FetchMojang189Server.py'
+      - 'scripts/RunMojang189LocalhostTwoPlayerSmoke.py'
       - 'scripts/FetchMojang189Libraries.py'
       - 'scripts/FetchMojang189NativeAssets.py'
       - 'scripts/test_mojang189_complete_assets.py'
@@ -26,7 +28,7 @@ permissions:
 jobs:
   official-binary:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -43,6 +45,8 @@ jobs:
         run: python -m unittest discover -s scripts -p 'test_mojang189_complete_assets.py' -v
       - name: Fetch and verify official Mojang 1.8.9 client
         run: python scripts/FetchMojang189Client.py --output "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar"
+      - name: Fetch SHA1 pinned real Mojang 1.8.9 dedicated server
+        run: python scripts/FetchMojang189Server.py --output "$RUNNER_TEMP/minecraft-1.8.9-dedicated-server.jar"
       - name: Fetch and verify official Mojang 1.8.9 managed libraries
         run: python scripts/FetchMojang189Libraries.py --output-dir "$RUNNER_TEMP/minecraft-1.8.9-libraries"
       - name: Verify Linux natives and stage all 734 official Minecraft 1.8 assets
@@ -153,6 +157,22 @@ jobs:
             --overlay "build/runtime-overlay" \
             --game "$RUNNER_TEMP/custommc-189-aura-negative" \
             --timeout 140 --kill-aura-nonplayer
+      - name: Verify two real clients joined actual localhost dedicated server
+        timeout-minutes: 4
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '2.1'
+        run: |
+          xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189LocalhostTwoPlayerSmoke.py \
+            --java "$JAVA_HOME/bin/java" \
+            --server "$RUNNER_TEMP/minecraft-1.8.9-dedicated-server.jar" \
+            --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
+            --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
+            --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
+            --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
+            --overlay "build/runtime-overlay" \
+            --root "$RUNNER_TEMP/custommc-189-localhost" \
+            --timeout 170
       - name: Remove official binary and libraries from CI runner
         if: always()
-        run: python -c "from pathlib import Path; import shutil, os; root=Path(os.environ['RUNNER_TEMP']); (root/'minecraft-1.8.9-vanilla.jar').unlink(missing_ok=True); shutil.rmtree(root/'minecraft-1.8.9-libraries', ignore_errors=True); shutil.rmtree(root/'minecraft-1.8.9-resources', ignore_errors=True); shutil.rmtree(root/'custommc-189-game', ignore_errors=True); shutil.rmtree(root/'custommc-189-singleplayer', ignore_errors=True); shutil.rmtree(root/'custommc-189-melee', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker', ignore_errors=True); shutil.rmtree(root/'custommc-189-aura-negative', ignore_errors=True)"
+        run: python -c "from pathlib import Path; import shutil, os; root=Path(os.environ['RUNNER_TEMP']); (root/'minecraft-1.8.9-vanilla.jar').unlink(missing_ok=True); (root/'minecraft-1.8.9-dedicated-server.jar').unlink(missing_ok=True); shutil.rmtree(root/'minecraft-1.8.9-libraries', ignore_errors=True); shutil.rmtree(root/'minecraft-1.8.9-resources', ignore_errors=True); shutil.rmtree(root/'custommc-189-game', ignore_errors=True); shutil.rmtree(root/'custommc-189-singleplayer', ignore_errors=True); shutil.rmtree(root/'custommc-189-melee', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker', ignore_errors=True); shutil.rmtree(root/'custommc-189-aura-negative', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost', ignore_errors=True)"
