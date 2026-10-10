@@ -3,11 +3,18 @@ package dev.trexzo.custommc.platform.v1_8_9;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 
 import java.util.Objects;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 public final class Minecraft189RuntimeBridge {
     private static Minecraft189BootstrapRuntime activeRuntime;
     private static int graphicalAcceptanceFrames;
     private static boolean graphicalAcceptanceReported;
+    private static boolean acceptancePlayerObserved;
+    private static boolean acceptanceWorldCombatObserved;
+    private static int acceptanceWorldTicks;
+    private static boolean acceptanceWorldReported;
+    private static String acceptanceLastScreen;
 
     private Minecraft189RuntimeBridge() {
     }
@@ -25,6 +32,11 @@ public final class Minecraft189RuntimeBridge {
         activeRuntime = next;
         graphicalAcceptanceFrames = 0;
         graphicalAcceptanceReported = false;
+        acceptancePlayerObserved = false;
+        acceptanceWorldCombatObserved = false;
+        acceptanceWorldTicks = 0;
+        acceptanceWorldReported = false;
+        acceptanceLastScreen = null;
         return new Registration(next);
     }
 
@@ -66,11 +78,82 @@ public final class Minecraft189RuntimeBridge {
     public static synchronized void gameTick() {
         if (activeRuntime != null) {
             activeRuntime.publishGameTick();
+            // This checkpoint requires repeated genuine game ticks with both
+            // loaded player and world combat evidence; menu frames alone
+            // cannot reach it. Normal launches never enable this property.
+            if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")
+                    && activeRuntime.hostInstalled()) {
+                reportAcceptanceScreen();
+            }
+            if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")
+                    && !acceptanceWorldReported
+                    && activeRuntime.hostInstalled()) {
+                if (acceptancePlayerObserved
+                        && acceptanceWorldCombatObserved) {
+                    acceptanceWorldTicks++;
+                    if (acceptanceWorldTicks >= 20) {
+                        acceptanceWorldReported = true;
+                        System.out.println(
+                                "CUSTOMMC_OFFICIAL_189_LIVE_WORLD_TICKS_PASS=YES");
+                        System.out.flush();
+                    }
+                } else {
+                    acceptanceWorldTicks = 0;
+                }
+                acceptancePlayerObserved = false;
+                acceptanceWorldCombatObserved = false;
+            }
+        }
+    }
+
+    /**
+     * Test-only GUI state tracing for diagnosing real X11 menu navigation.
+     * The target class is resolved from the game's owned context loader;
+     * there are no hardcoded parent-owned vanilla class identities.
+     */
+    private static void reportAcceptanceScreen() {
+        try {
+            final ClassLoader loader = Thread.currentThread()
+                    .getContextClassLoader();
+            final Class<?> minecraft = Class.forName("ave", false, loader);
+            final Method singleton = minecraft.getDeclaredMethod("A");
+            singleton.setAccessible(true);
+            final Object instance = singleton.invoke(null);
+            if (instance == null) {
+                return;
+            }
+            for (Field field : minecraft.getDeclaredFields()) {
+                if (!"axu".equals(field.getType().getName())) {
+                    continue;
+                }
+                field.setAccessible(true);
+                final Object screen = field.get(instance);
+                final String screenType = screen == null
+                        ? "(in-game/no GUI)"
+                        : screen.getClass().getName();
+                if (!screenType.equals(acceptanceLastScreen)) {
+                    acceptanceLastScreen = screenType;
+                    System.out.println("CUSTOMMC_189_ACCEPTANCE_SCREEN=" + screenType);
+                    System.out.flush();
+                }
+                return;
+            }
+        } catch (ReflectiveOperationException | SecurityException ignored) {
+            // Optional diagnostics must not break normal Minecraft ticks.
         }
     }
 
     public static synchronized void playerPosition(
             final Minecraft189PlayerPositionAccess player) {
+        if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")) {
+            acceptancePlayerObserved = player != null
+                    && Double.isFinite(player.customMcPositionX())
+                    && Double.isFinite(player.customMcPositionY())
+                    && Double.isFinite(player.customMcPositionZ());
+            if (player == null) {
+                acceptanceWorldTicks = 0;
+            }
+        }
         final Minecraft189HostRuntime host =
                 activeHost();
         if (host != null) {
@@ -321,6 +404,12 @@ public final class Minecraft189RuntimeBridge {
 
     public static synchronized void worldEntityCombat(
             final Minecraft189WorldEntityCombatAccess world) {
+        if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")) {
+            acceptanceWorldCombatObserved = world != null;
+            if (world == null) {
+                acceptanceWorldTicks = 0;
+            }
+        }
         final Minecraft189HostRuntime host = activeHost();
         if (host != null) {
             host.worldEntityCombat(world);
