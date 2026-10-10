@@ -108,7 +108,9 @@ public final class Minecraft189KillAuraModule implements Module {
             return false;
         }
         if (lastEntityIndex != target.entityIndex()) {
-            clear();
+            // Switching the confirmed attack owner resets CPS credit, but
+            // must not discard a freshly source-validated sticky selection.
+            resetSchedule();
             lastEntityIndex = target.entityIndex();
         }
         final double step = angularStep.get();
