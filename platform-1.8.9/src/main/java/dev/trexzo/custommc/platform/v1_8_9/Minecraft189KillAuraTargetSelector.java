@@ -1,5 +1,7 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
+import java.util.UUID;
+
 /**
  * Source-mapped KillAura candidate arbitration. Other modules keep the
  * shared nearest-player semantics; only active KillAura opts into this.
@@ -27,7 +29,7 @@ final class Minecraft189KillAuraTargetSelector {
             final Minecraft189WorldEntityCombatState.Snapshot combat,
             final Minecraft189AntiBotModule antiBot,
             final Minecraft189NearestPlayerTargetState target) {
-        select(aura, local, rotation, positions, kinds, combat, antiBot, null, target);
+        select(aura, local, rotation, positions, kinds, combat, antiBot, null, null, target);
     }
 
     static void select(
@@ -40,6 +42,21 @@ final class Minecraft189KillAuraTargetSelector {
             final Minecraft189AntiBotModule antiBot,
             final Minecraft189TeamGuardModule teamGuard,
             final Minecraft189NearestPlayerTargetState target) {
+        select(aura, local, rotation, positions, kinds, combat,
+                antiBot, teamGuard, null, target);
+    }
+
+    static void select(
+            final Minecraft189KillAuraModule aura,
+            final Minecraft189PlayerPositionState.Snapshot local,
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final Minecraft189WorldEntityPositionState.Snapshot positions,
+            final Minecraft189WorldEntityKindState.Snapshot kinds,
+            final Minecraft189WorldEntityCombatState.Snapshot combat,
+            final Minecraft189AntiBotModule antiBot,
+            final Minecraft189TeamGuardModule teamGuard,
+            final Minecraft189WorldEntityUuidState.Snapshot identities,
+            final Minecraft189NearestPlayerTargetState target) {
         if (target == null) return;
         if (aura == null || local == null || rotation == null
                 || positions == null || kinds == null || combat == null
@@ -49,11 +66,18 @@ final class Minecraft189KillAuraTargetSelector {
                 || positions.entityCount() != kinds.entityCount()
                 || positions.entityCount() != combat.entityCount()) {
             target.clear();
-            if (aura != null) aura.rememberSelectedTarget(-1);
+            if (aura != null) aura.rememberSelectedTarget(null);
             return;
         }
 
-        final int lockedIndex = aura.lockedTargetIndex();
+        final boolean lockEnabled = aura.active() && aura.lockTargetSetting().get();
+        if (lockEnabled && (identities == null || !identities.available()
+                || identities.entityCount() != positions.entityCount())) {
+            target.clear();
+            aura.rememberSelectedTarget(null);
+            return;
+        }
+        final UUID lockedUuid = aura.lockedTargetUuid();
         final double range = aura.rangeSetting().get();
         final double fov = aura.fovSetting().get();
         final boolean crosshair = aura.prioritizeCrosshairSetting().get();
@@ -69,8 +93,8 @@ final class Minecraft189KillAuraTargetSelector {
                                 || teamGuard.permits(candidate.entityIndex(), combat))
                         && Double.isFinite(
                             angularScore(local, rotation, candidate, fov)),
-                candidate -> lockedIndex >= 0
-                        && candidate.entityIndex() == lockedIndex
+                candidate -> lockedUuid != null
+                        && lockedUuid.equals(identities.at(candidate.entityIndex()))
                         ? 0.0D
                         : (crosshair
                                 ? angularScore(local, rotation, candidate, fov)
@@ -80,7 +104,8 @@ final class Minecraft189KillAuraTargetSelector {
         final Minecraft189NearestPlayerTargetState.Snapshot selected =
                 target.snapshot();
         aura.rememberSelectedTarget(
-                selected.found() ? selected.entityIndex() : -1);
+                selected.found() && lockEnabled
+                        ? identities.at(selected.entityIndex()) : null);
     }
 
     private static double angularScore(

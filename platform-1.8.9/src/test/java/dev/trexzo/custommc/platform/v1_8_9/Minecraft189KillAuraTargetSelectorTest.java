@@ -123,7 +123,7 @@ final class Minecraft189KillAuraTargetSelectorTest {
 
 
     @Test
-    void optionalTargetLockRevalidatesEligibilityAndClearsOnWorldLoss() {
+    void stableUuidLockSurvivesReorderedIndicesAndRevalidatesEligibility() {
         final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
         final Minecraft189PlayerPositionState local = new Minecraft189PlayerPositionState();
         final Minecraft189PlayerRotationState rotation = new Minecraft189PlayerRotationState();
@@ -133,66 +133,61 @@ final class Minecraft189KillAuraTargetSelectorTest {
                 new Minecraft189WorldEntityKindState();
         final Minecraft189WorldEntityCombatState combat =
                 new Minecraft189WorldEntityCombatState();
+        final Minecraft189WorldEntityUuidState identities =
+                new Minecraft189WorldEntityUuidState();
         final Minecraft189NearestPlayerTargetState selected =
                 new Minecraft189NearestPlayerTargetState();
+        final java.util.UUID a = java.util.UUID.randomUUID();
+        final java.util.UUID b = java.util.UUID.randomUUID();
         local.update(0, 0, 0);
         rotation.update(0, 0);
         positions.update(new double[]{0, 0, 2, 0, 0, 3});
         kinds.update(new int[]{3, 3});
         combat.update(new int[]{1, 1});
-        aura.onEnable();
+        identities.update(new java.util.UUID[]{a, b});
         aura.lockTargetSetting().set(true);
+        aura.onEnable();
         try {
             Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
                     rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
-                    combat.snapshot(), selected);
+                    combat.snapshot(), null, null, identities.snapshot(), selected);
             assertEquals(0, selected.snapshot().entityIndex());
+            assertEquals(a, aura.lockedTargetUuid());
 
-            // The originally selected enemy remains eligible, despite a
-            // different opponent moving closer on a later snapshot.
-            positions.update(new double[]{0, 0, 3, 0, 0, 2});
-            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
-                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
-                    combat.snapshot(), selected);
-            assertEquals(0, selected.snapshot().entityIndex());
-
-            // Dead/filtered targets are not retained as a stale target.
-            combat.update(new int[]{0, 1});
-            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
-                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
-                    combat.snapshot(), selected);
-            assertEquals(1, selected.snapshot().entityIndex());
-
-            combat.update(new int[]{1, 1});
+            // Identical entities appear in a different loadedEntityList order.
+            // A remains selected by UUID even though index zero is now B.
             positions.update(new double[]{0, 0, 1, 0, 0, 3});
+            identities.update(new java.util.UUID[]{b, a});
             Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
                     rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
-                    combat.snapshot(), selected);
+                    combat.snapshot(), null, null, identities.snapshot(), selected);
             assertEquals(1, selected.snapshot().entityIndex());
+            assertEquals(a, aura.lockedTargetUuid());
 
-            // World evidence loss destroys retained state immediately.
-            combat.clear();
+            // The locked UUID dies; choose an eligible new player.
+            combat.update(new int[]{1, 0});
             Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
                     rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
-                    combat.snapshot(), selected);
+                    combat.snapshot(), null, null, identities.snapshot(), selected);
+            assertEquals(0, selected.snapshot().entityIndex());
+            assertEquals(b, aura.lockedTargetUuid());
+
+            // A stale or missing identity snapshot must fail closed.
+            identities.clear();
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, identities.snapshot(), selected);
             assertFalse(selected.snapshot().available());
-            combat.update(new int[]{1, 1});
+            assertNull(aura.lockedTargetUuid());
+
+            // Disable the optional lock: nearest targeting is unchanged.
+            aura.lockTargetSetting().set(false);
             Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
                     rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
                     combat.snapshot(), selected);
             assertEquals(0, selected.snapshot().entityIndex());
-
-            // Default/off behavior remains ordinary nearest-player targeting.
-            aura.lockTargetSetting().set(false);
-            positions.update(new double[]{0, 0, 3, 0, 0, 2});
-            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
-                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
-                    combat.snapshot(), selected);
-            assertEquals(1, selected.snapshot().entityIndex());
-        } finally {
-            aura.onDisable();
-        }
-        assertEquals(-1, aura.lockedTargetIndex());
+        } finally { aura.onDisable(); }
+        assertNull(aura.lockedTargetUuid());
     }
 
     @Test

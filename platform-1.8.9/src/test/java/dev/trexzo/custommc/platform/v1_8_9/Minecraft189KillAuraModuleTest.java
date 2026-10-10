@@ -60,13 +60,14 @@ final class Minecraft189KillAuraModuleTest {
         aura.lockTargetSetting().set(true);
         aura.onEnable();
         try {
-            aura.rememberSelectedTarget(0);
-            assertEquals(0, aura.lockedTargetIndex());
+            final java.util.UUID id = java.util.UUID.randomUUID();
+            aura.rememberSelectedTarget(id);
+            assertEquals(id, aura.lockedTargetUuid());
             assertTrue(aura.aim(new RotationPlayer(), rotation.snapshot(),
                     target.snapshot(), false, movement.snapshot()));
-            assertEquals(0, aura.lockedTargetIndex());
+            assertEquals(id, aura.lockedTargetUuid());
             aura.suspend();
-            assertEquals(-1, aura.lockedTargetIndex());
+            assertNull(aura.lockedTargetUuid());
         } finally {
             aura.onDisable();
         }
