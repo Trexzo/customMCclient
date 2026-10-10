@@ -8,6 +8,10 @@ public final class Minecraft189RuntimeBridge {
     private static Minecraft189BootstrapRuntime activeRuntime;
     private static int graphicalAcceptanceFrames;
     private static boolean graphicalAcceptanceReported;
+    private static boolean acceptancePlayerObserved;
+    private static boolean acceptanceWorldCombatObserved;
+    private static int acceptanceWorldTicks;
+    private static boolean acceptanceWorldReported;
 
     private Minecraft189RuntimeBridge() {
     }
@@ -25,6 +29,10 @@ public final class Minecraft189RuntimeBridge {
         activeRuntime = next;
         graphicalAcceptanceFrames = 0;
         graphicalAcceptanceReported = false;
+        acceptancePlayerObserved = false;
+        acceptanceWorldCombatObserved = false;
+        acceptanceWorldTicks = 0;
+        acceptanceWorldReported = false;
         return new Registration(next);
     }
 
@@ -66,11 +74,41 @@ public final class Minecraft189RuntimeBridge {
     public static synchronized void gameTick() {
         if (activeRuntime != null) {
             activeRuntime.publishGameTick();
+            // This checkpoint requires repeated genuine game ticks with both
+            // loaded player and world combat evidence; menu frames alone
+            // cannot reach it. Normal launches never enable this property.
+            if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")
+                    && !acceptanceWorldReported
+                    && activeRuntime.hostInstalled()) {
+                if (acceptancePlayerObserved
+                        && acceptanceWorldCombatObserved) {
+                    acceptanceWorldTicks++;
+                    if (acceptanceWorldTicks >= 20) {
+                        acceptanceWorldReported = true;
+                        System.out.println(
+                                "CUSTOMMC_OFFICIAL_189_LIVE_WORLD_TICKS_PASS=YES");
+                        System.out.flush();
+                    }
+                } else {
+                    acceptanceWorldTicks = 0;
+                }
+                acceptancePlayerObserved = false;
+                acceptanceWorldCombatObserved = false;
+            }
         }
     }
 
     public static synchronized void playerPosition(
             final Minecraft189PlayerPositionAccess player) {
+        if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")) {
+            acceptancePlayerObserved = player != null
+                    && Double.isFinite(player.customMcPositionX())
+                    && Double.isFinite(player.customMcPositionY())
+                    && Double.isFinite(player.customMcPositionZ());
+            if (player == null) {
+                acceptanceWorldTicks = 0;
+            }
+        }
         final Minecraft189HostRuntime host =
                 activeHost();
         if (host != null) {
@@ -321,6 +359,12 @@ public final class Minecraft189RuntimeBridge {
 
     public static synchronized void worldEntityCombat(
             final Minecraft189WorldEntityCombatAccess world) {
+        if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")) {
+            acceptanceWorldCombatObserved = world != null;
+            if (world == null) {
+                acceptanceWorldTicks = 0;
+            }
+        }
         final Minecraft189HostRuntime host = activeHost();
         if (host != null) {
             host.worldEntityCombat(world);
