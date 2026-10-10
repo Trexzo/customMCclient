@@ -59,6 +59,21 @@ def require_running(process, stage):
                              + " exit=" + str(status))
 
 
+def await_screen_change(process, log, previous, deadline, stage):
+    """Require fresh vanilla screen transitions, not blind X11 timing."""
+    prefix = b"CUSTOMMC_189_ACCEPTANCE_SCREEN="
+    while time.monotonic() < deadline:
+        require_running(process, stage)
+        screens = [line.split(prefix, 1)[1].strip()
+                   for line in read_tail(log).splitlines() if prefix in line]
+        if screens and screens[-1] != previous:
+            screen = screens[-1].decode("ascii", "replace")
+            print("CUSTOMMC_189_SCREEN_TRANSITION=" + screen, flush=True)
+            return screens[-1]
+        time.sleep(0.25)
+    raise AssertionError("no vanilla GUI transition after " + stage)
+
+
 def await_marker(process, log, marker, deadline, stage):
     while time.monotonic() < deadline:
         require_running(process, stage)
@@ -106,14 +121,25 @@ def run(command, game, timeout):
             time.sleep(3)
             require_running(process, "Minecraft main menu")
             # GuiMainMenu: Singleplayer button is centered at x427, y~180.
+            # The pinned official 1.8.9 title screen is obfuscated aya.
+            await_marker(process, log, b"CUSTOMMC_189_ACCEPTANCE_SCREEN=aya",
+                         min(deadline, time.monotonic() + 10), "title GUI")
             click(window, 427, 178)
             print("CUSTOMMC_189_GUI_CLICK=singleplayer", flush=True)
-            time.sleep(2.0)
-            require_running(process, "world selection GUI")
-            # GuiSelectWorld: "Create New World" near bottom-left centre.
-            click(window, 347, 437)
+            select_screen = await_screen_change(
+                process, log, b"aya", time.monotonic() + 8,
+                "singleplayer menu")
+            if select_screen != b"axv":
+                raise AssertionError("unexpected 1.8.9 world selector "
+                                     + repr(select_screen))
+            # GuiSelectWorld: "Create New World" is on the RIGHT
+            # (width/2+4 .. width/2+154), not the disabled Select World
+            # button on the left when there are zero saves.
+            click(window, 505, 437)
             print("CUSTOMMC_189_GUI_CLICK=create-world-menu", flush=True)
-            time.sleep(2.0)
+            create_screen = await_screen_change(
+                process, log, select_screen, time.monotonic() + 8,
+                "create world GUI")
             require_running(process, "create world GUI")
             # GuiCreateWorld: default New World, no server or cheat commands.
             click(window, 346, 462)
