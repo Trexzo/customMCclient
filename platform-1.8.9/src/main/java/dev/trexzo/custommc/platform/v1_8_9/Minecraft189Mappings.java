@@ -87,6 +87,9 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "pr",
                     "net/minecraft/entity/EntityLivingBase");
+    // Official MCP 1.8.9 aug = AxisAlignedBB (not a guessed collision shape).
+    public static final MappedClass AXIS_ALIGNED_BB =
+            new MappedClass("aug", "net/minecraft/util/AxisAlignedBB");
     public static final MappedClass ITEM_STACK =
             new MappedClass(
                     "zx",
@@ -128,6 +131,20 @@ public final class Minecraft189Mappings {
 
     // Proven in the pinned joined.srg blob (0b1e3f1d...).
     // Crosshair hit state is separate from proximity-only player targeting.
+    // Official 1.8.9 joined.srg: AxisAlignedBB min/max six double fields.
+    public static final MappedField AABB_MIN_X =
+            new MappedField(AXIS_ALIGNED_BB, "a", "D", "field_72340_a", "minX");
+    public static final MappedField AABB_MIN_Y =
+            new MappedField(AXIS_ALIGNED_BB, "b", "D", "field_72338_b", "minY");
+    public static final MappedField AABB_MIN_Z =
+            new MappedField(AXIS_ALIGNED_BB, "c", "D", "field_72339_c", "minZ");
+    public static final MappedField AABB_MAX_X =
+            new MappedField(AXIS_ALIGNED_BB, "d", "D", "field_72336_d", "maxX");
+    public static final MappedField AABB_MAX_Y =
+            new MappedField(AXIS_ALIGNED_BB, "e", "D", "field_72337_e", "maxY");
+    public static final MappedField AABB_MAX_Z =
+            new MappedField(AXIS_ALIGNED_BB, "f", "D", "field_72334_f", "maxZ");
+
     public static final MappedField MINECRAFT_OBJECT_MOUSE_OVER =
             new MappedField(
                     MINECRAFT,
@@ -500,6 +517,11 @@ public final class Minecraft189Mappings {
                     "()V",
                     "func_70636_d",
                     "onLivingUpdate");
+
+    // Exact MCP 1.8.9: pk.aR()Laug; / Entity.getEntityBoundingBox.
+    public static final MappedMethod ENTITY_GET_ENTITY_BOUNDING_BOX =
+            new MappedMethod(ENTITY, "aR", "()Laug;",
+                    "func_174813_aQ", "getEntityBoundingBox");
 
     // MCP 1.8.9 official joined.srg: pk/aK ()Ljava/util/UUID;
     // Source-backed Entity.func_110124_au/getUniqueID.

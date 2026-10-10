@@ -165,6 +165,19 @@ public final class Minecraft189ClassShapeVerifier {
                 });
     }
 
+    /** Fail-closed exact 1.8.9 AxisAlignedBB field owner and geometry shape. */
+    public static void verifyAxisAlignedBB(final byte[] classBytes) {
+        verify(classBytes, Minecraft189Mappings.AXIS_ALIGNED_BB,
+                new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.AABB_MIN_X,
+                        Minecraft189Mappings.AABB_MIN_Y,
+                        Minecraft189Mappings.AABB_MIN_Z,
+                        Minecraft189Mappings.AABB_MAX_X,
+                        Minecraft189Mappings.AABB_MAX_Y,
+                        Minecraft189Mappings.AABB_MAX_Z
+                }, new Minecraft189Mappings.MappedMethod[0]);
+    }
+
     public static void verifyEntity(
             final byte[] classBytes) {
         verify(
@@ -191,7 +204,8 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_IS_SPRINTING,
                         Minecraft189Mappings.ENTITY_SET_SPRINTING,
                         Minecraft189Mappings.ENTITY_SET_SNEAKING,
-                        Minecraft189Mappings.ENTITY_GET_UNIQUE_ID
+                        Minecraft189Mappings.ENTITY_GET_UNIQUE_ID,
+                        Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX
                 });
     }
 

@@ -617,6 +617,10 @@ final class Minecraft189MappingsTest {
                 "func_181560_a",
                 "updateCameraAndRender");
         assertMethod(
+                Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX,
+                Minecraft189Mappings.ENTITY,
+                "aR", "()Laug;", "func_174813_aQ", "getEntityBoundingBox");
+        assertMethod(
                 Minecraft189Mappings.ENTITY_GET_UNIQUE_ID,
                 Minecraft189Mappings.ENTITY,
                 "aK", "()Ljava/util/UUID;", "func_110124_au", "getUniqueID");
@@ -778,6 +782,8 @@ final class Minecraft189MappingsTest {
                 entityRendererShape());
         Minecraft189ClassShapeVerifier.verifyEntity(
                 entityShape());
+        Minecraft189ClassShapeVerifier.verifyAxisAlignedBB(
+                axisAlignedBbShape());
         Minecraft189ClassShapeVerifier.verifyEntityLivingBase(
                 entityLivingBaseShape());
         Minecraft189ClassShapeVerifier.verifyEntityPlayerSp(
@@ -2195,6 +2201,34 @@ final class Minecraft189MappingsTest {
         return finish(writer);
     }
 
+    @Test
+    void axisAlignedBbRejectsMissingMaxZ() {
+        final ClassWriter writer = writer(
+                Minecraft189Mappings.AXIS_ALIGNED_BB.obfuscatedInternalName());
+        addField(writer, Minecraft189Mappings.AABB_MIN_X);
+        addField(writer, Minecraft189Mappings.AABB_MIN_Y);
+        addField(writer, Minecraft189Mappings.AABB_MIN_Z);
+        addField(writer, Minecraft189Mappings.AABB_MAX_X);
+        addField(writer, Minecraft189Mappings.AABB_MAX_Y);
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: aug.f D (maxZ)",
+                assertThrows(IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier.verifyAxisAlignedBB(
+                                finish(writer))).getMessage());
+    }
+
+    private static byte[] axisAlignedBbShape() {
+        final ClassWriter writer = writer(
+                Minecraft189Mappings.AXIS_ALIGNED_BB.obfuscatedInternalName());
+        addField(writer, Minecraft189Mappings.AABB_MIN_X);
+        addField(writer, Minecraft189Mappings.AABB_MIN_Y);
+        addField(writer, Minecraft189Mappings.AABB_MIN_Z);
+        addField(writer, Minecraft189Mappings.AABB_MAX_X);
+        addField(writer, Minecraft189Mappings.AABB_MAX_Y);
+        addField(writer, Minecraft189Mappings.AABB_MAX_Z);
+        return finish(writer);
+    }
+
     private static byte[] entityShape() {
         final ClassWriter writer =
                 writer(
@@ -2255,6 +2289,7 @@ final class Minecraft189MappingsTest {
                 writer,
                 Minecraft189Mappings.ENTITY_SET_SNEAKING);
         addMethod(writer, Minecraft189Mappings.ENTITY_GET_UNIQUE_ID);
+        addMethod(writer, Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX);
         return finish(writer);
     }
 
