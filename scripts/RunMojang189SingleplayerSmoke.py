@@ -85,16 +85,54 @@ def await_marker(process, log, marker, deadline, stage):
     raise AssertionError("no " + stage + " checkpoint before bounded deadline")
 
 
-def send_command(window, command):
-    """Type a genuine local-world chat command via real X11 keyboard events."""
+def current_screen(log):
+    """Read the most recent actual vanilla GUI callback from the JVM."""
+    prefix = b"CUSTOMMC_189_ACCEPTANCE_SCREEN="
+    screens = [line.split(prefix, 1)[1].strip()
+               for line in read_tail(log).splitlines() if prefix in line]
+    return screens[-1] if screens else None
+
+
+def resume_if_paused(process, log, window):
+    screen = current_screen(log)
+    if screen == b"axp":
+        # Actual Minecraft 1.8.9 GuiIngameMenu button 4,
+        # "Back to Game", is at width/2, height/4+8.
+        click(window, 427, 128)
+        print("CUSTOMMC_189_RESUME_FROM_ACTUAL_PAUSE_MENU=YES", flush=True)
+        resumed = await_screen_change(
+            process, log, b"axp", time.monotonic() + 6, "resume game")
+        if resumed != b"(in-game/no GUI)":
+            raise AssertionError("cannot resume paused Minecraft GUI: "
+                                 + repr(resumed))
+    elif screen != b"(in-game/no GUI)":
+        raise AssertionError("cannot send in-world command from GUI "
+                             + repr(screen))
+
+
+def send_command(process, log, window, command):
+    """Use actual Minecraft chat UI and require its open/close transitions."""
     if not command.startswith("/") or len(command) > 125:
         raise ValueError("refusing invalid offline acceptance command")
-    xdotool("windowfocus", "--sync", window)
+    resume_if_paused(process, log, window)
+    # Never change X11 focus with windowfocus() mid-game: the old runner
+    # triggered Minecraft's auto-pause-on-lost-focus and lost every command.
     xdotool("key", "--clearmodifiers", "t")
-    time.sleep(0.35)
+    opened = await_screen_change(
+        process, log, b"(in-game/no GUI)", time.monotonic() + 6,
+        "actual vanilla chat open")
+    if opened in (b"axp", b"aya", b"axb"):
+        raise AssertionError("not the in-world chat GUI: " + repr(opened))
+    print("CUSTOMMC_189_REAL_CHAT_OPEN_SCREEN="
+          + opened.decode("ascii", "replace"), flush=True)
     xdotool("type", "--clearmodifiers", "--delay", "12", command)
     xdotool("key", "--clearmodifiers", "Return")
-    time.sleep(0.75)
+    closed = await_screen_change(
+        process, log, opened, time.monotonic() + 6,
+        "actual vanilla chat close")
+    if closed != b"(in-game/no GUI)":
+        raise AssertionError("command did not close vanilla chat: "
+                             + repr(closed))
     print("CUSTOMMC_189_OFFLINE_COMMAND_SENT=" + command.split(" ", 1)[0],
           flush=True)
 
@@ -182,9 +220,10 @@ def run(command, game, timeout, attack=False):
             if attack:
                 # Offline integrated-server commands only. No external server
                 # join, module activation, forged damage or direct entity edits.
-                send_command(window, "/time set 1000")
-                send_command(window, "/tp ~ ~ ~ 0 26")
-                send_command(window, "/summon Pig ~ ~ ~2 {NoAI:1b}")
+                send_command(process, log, window, "/time set 1000")
+                send_command(process, log, window, "/tp ~ ~ ~ 0 26")
+                send_command(process, log, window,
+                             "/summon Pig ~ ~ ~2 {NoAI:1b}")
                 time.sleep(1.2)
                 require_running(process, "live vanilla melee fixture")
                 # Click where the actual Mojang raycast is aimed, not a
@@ -193,7 +232,7 @@ def run(command, game, timeout, attack=False):
                 for attempt in range(12):
                     if MELEE_HURT in read_tail(log):
                         break
-                    xdotool("windowfocus", "--sync", window)
+                    resume_if_paused(process, log, window)
                     xdotool("click", "1")
                     time.sleep(0.33)
                 await_marker(process, log, MELEE_ARMED,
