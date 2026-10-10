@@ -15,7 +15,7 @@ final class Minecraft189KillAuraTargetSelector {
             final Minecraft189WorldEntityKindState.Snapshot kinds,
             final Minecraft189WorldEntityCombatState.Snapshot combat,
             final Minecraft189NearestPlayerTargetState target) {
-        select(aura, local, rotation, positions, kinds, combat, null, target);
+        select(aura, local, rotation, positions, kinds, combat, null, null, target);
     }
 
     static void select(
@@ -26,6 +26,19 @@ final class Minecraft189KillAuraTargetSelector {
             final Minecraft189WorldEntityKindState.Snapshot kinds,
             final Minecraft189WorldEntityCombatState.Snapshot combat,
             final Minecraft189AntiBotModule antiBot,
+            final Minecraft189NearestPlayerTargetState target) {
+        select(aura, local, rotation, positions, kinds, combat, antiBot, null, target);
+    }
+
+    static void select(
+            final Minecraft189KillAuraModule aura,
+            final Minecraft189PlayerPositionState.Snapshot local,
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final Minecraft189WorldEntityPositionState.Snapshot positions,
+            final Minecraft189WorldEntityKindState.Snapshot kinds,
+            final Minecraft189WorldEntityCombatState.Snapshot combat,
+            final Minecraft189AntiBotModule antiBot,
+            final Minecraft189TeamGuardModule teamGuard,
             final Minecraft189NearestPlayerTargetState target) {
         if (target == null) return;
         if (aura == null || local == null || rotation == null
@@ -52,6 +65,8 @@ final class Minecraft189KillAuraTargetSelector {
                                 || combat.hurtTime(candidate.entityIndex()) <= acceptedHurtTime)
                         && (antiBot == null
                                 || antiBot.permits(candidate.entityIndex(), combat))
+                        && (teamGuard == null
+                                || teamGuard.permits(candidate.entityIndex(), combat))
                         && Double.isFinite(
                             angularScore(local, rotation, candidate, fov)),
                 candidate -> lockedIndex >= 0
