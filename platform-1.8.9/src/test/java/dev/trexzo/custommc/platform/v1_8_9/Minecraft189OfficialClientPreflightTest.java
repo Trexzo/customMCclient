@@ -4,6 +4,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.IOException;
 import java.net.URL;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,6 +19,7 @@ import java.util.TreeSet;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import dev.trexzo.custommc.bootstrap.BootstrapContext;
 import dev.trexzo.custommc.bootstrap.TransformingTargetClassLoader;
 
 import org.junit.jupiter.api.Assumptions;
@@ -46,6 +49,85 @@ final class Minecraft189OfficialClientPreflightTest {
     private static final String OFFICIAL_SHA1 =
             "3870888a6c3d349d3771a3e9d16c9bf5e076b908";
     private static final long OFFICIAL_SIZE = 8461484L;
+
+    /**
+     * M396: exercise the actual signed Mojang main bytecode with the installed
+     * bootstrap runtime and the production transformer. Stop at the very first
+     * injected main instruction by an explicitly armed acceptance property;
+     * normal clients continue into Minecraft, while this test never needs a
+     * render thread, OS window, account or native libraries.
+     */
+    @Test
+    void officialMinecraftMainEntersLiveBootstrapBeforeGraphics() throws Exception {
+        final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured, "required genuine Minecraft JAR path absent");
+            assertFalse(configured.trim().isEmpty(), "required JAR path empty");
+        } else {
+            Assumptions.assumeTrue(configured != null && !configured.trim().isEmpty(),
+                    "No genuine Minecraft binary available offline");
+        }
+        final Path jar = Paths.get(configured);
+        assertTrue(Files.isRegularFile(jar), "official 1.8.9 JAR missing");
+        assertEquals(OFFICIAL_SIZE, Files.size(jar), "official JAR size mismatch");
+        assertEquals(OFFICIAL_SHA1, digestFile(jar), "official JAR checksum mismatch");
+
+        final String key = Minecraft189RuntimeBridge.MAIN_ENTRY_ACCEPTANCE_PROPERTY;
+        final String prior = System.getProperty(key);
+        assertFalse(Minecraft189RuntimeBridge.active(),
+                "the official acceptance test requires an unowned runtime bridge");
+
+        final Minecraft189BootstrapRuntime runtime =
+                (Minecraft189BootstrapRuntime)
+                        new Minecraft189BootstrapInitializer().initialize(
+                                new BootstrapContext(
+                                        Minecraft189ClassTransformer.TARGET_MAIN_CLASS,
+                                        new String[0]));
+        try {
+            assertTrue(Minecraft189RuntimeBridge.active(),
+                    "production runtime initialization did not install the bridge");
+            assertFalse(runtime.targetMainEntered(),
+                    "main must not be marked entered before executing Mojang main");
+            try (TransformingTargetClassLoader loader =
+                         new TransformingTargetClassLoader(
+                                 new URL[]{jar.toUri().toURL()},
+                                 getClass().getClassLoader(),
+                                 new Minecraft189ClassTransformer())) {
+                final Class<?> main = Class.forName(
+                        Minecraft189ClassTransformer.TARGET_MAIN_CLASS, true, loader);
+                assertSame(loader, main.getClassLoader());
+                final Method entry = main.getMethod("main", String[].class);
+                assertEquals(Void.TYPE, entry.getReturnType());
+
+                System.setProperty(key, "true");
+                final InvocationTargetException reached =
+                        assertThrows(InvocationTargetException.class,
+                                () -> entry.invoke(null, (Object) new String[0]));
+                assertTrue(reached.getCause() instanceof IllegalStateException,
+                        "first hooked instruction did not signal the opt-in entry probe: "
+                                + reached.getCause());
+                assertEquals("CUSTOMMC_OFFICIAL_189_MAIN_ENTRY_PROBE_REACHED",
+                        reached.getCause().getMessage());
+                assertTrue(runtime.targetMainEntered(),
+                        "transformed game main did not enter the real bootstrap bridge");
+                assertFalse(runtime.hostInstalled(),
+                        "probe must stop before game host or graphical initialization");
+                System.out.println("OFFICIAL_189_REAL_BOOTSTRAP_MAIN_HANDOFF_PASS=YES");
+            }
+        } finally {
+            if (prior == null) {
+                System.clearProperty(key);
+            } else {
+                System.setProperty(key, prior);
+            }
+            runtime.close();
+            assertTrue(runtime.closed(), "runtime cleanup after probe failed");
+            assertFalse(Minecraft189RuntimeBridge.active(),
+                    "runtime bridge leaked after official main probe");
+        }
+        System.out.println("OFFICIAL_189_BOOTSTRAP_CLEANUP_PASS=YES");
+    }
 
     /**
      * M395: discover the entire claimed transformer owner set in the exact

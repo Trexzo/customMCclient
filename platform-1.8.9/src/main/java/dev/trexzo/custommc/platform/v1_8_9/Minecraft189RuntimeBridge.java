@@ -34,9 +34,20 @@ public final class Minecraft189RuntimeBridge {
                 && activeRuntime.hostInstalled();
     }
 
+    /**
+     * Explicit CI-only stop after the real transformed Minecraft main hook.
+     * Normal launches never set this property and continue unchanged.
+     */
+    static final String MAIN_ENTRY_ACCEPTANCE_PROPERTY =
+            "custommc.acceptance.stopAtMinecraftMain";
+
     public static synchronized void targetMainEntered() {
         requireRuntime()
                 .markTargetMainEntered();
+        if (Boolean.getBoolean(MAIN_ENTRY_ACCEPTANCE_PROPERTY)) {
+            throw new IllegalStateException(
+                    "CUSTOMMC_OFFICIAL_189_MAIN_ENTRY_PROBE_REACHED");
+        }
     }
 
     public static synchronized Minecraft189HostRuntime installHost(

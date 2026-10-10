@@ -19,6 +19,11 @@ dependencies {
         isTransitive = false
     }
 
+    // Vanilla 1.8.9 Main resolves jopt-simple before main() executes.
+    // The launcher normally supplies it from Mojang version metadata;
+    // this belongs only to the genuine-entrypoint test runtime.
+    testRuntimeOnly("net.sf.jopt-simple:jopt-simple:4.6")
+
     testImplementation("org.ow2.asm:asm-tree:9.7.1")
     testImplementation("org.ow2.asm:asm-analysis:9.7.1")
     testImplementation(platform("org.junit:junit-bom:5.11.0"))
