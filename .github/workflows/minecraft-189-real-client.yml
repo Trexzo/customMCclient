@@ -59,13 +59,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '8'
-      - name: Ensure X11 virtual display is available
+      - name: Ensure Xvfb and legacy LWJGL2 XRandR display enumeration
         run: |
-          if ! command -v xvfb-run >/dev/null 2>&1; then
+          if ! command -v xvfb-run >/dev/null 2>&1 || ! command -v xrandr >/dev/null 2>&1; then
             sudo apt-get update
-            sudo apt-get install -y xvfb
+            sudo apt-get install -y xvfb x11-xserver-utils
           fi
           command -v xvfb-run
+          command -v xrandr
+          xvfb-run -a -s "-screen 0 1280x720x24" xrandr --query
       - name: Run bounded genuine Minecraft 1.8.9 graphical smoke
         timeout-minutes: 3
         env:
