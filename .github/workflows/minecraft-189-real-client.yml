@@ -9,6 +9,7 @@ on:
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClassShapeVerifier.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189Mappings.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OfficialClientPreflightTest.java'
+      - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OfficialFullTransformPreflightTest.java'
   workflow_dispatch:
 
 permissions:
@@ -36,7 +37,7 @@ jobs:
         env:
           CUSTOMMC_189_REAL_CLIENT_REQUIRED: 'true'
           CUSTOMMC_189_REAL_CLIENT_JAR: ${{ runner.temp }}/minecraft-1.8.9-client.jar
-        run: gradle --no-daemon :platform-1.8.9:test --tests 'dev.trexzo.custommc.platform.v1_8_9.Minecraft189OfficialClientPreflightTest'
+        run: gradle --no-daemon :platform-1.8.9:test --tests 'dev.trexzo.custommc.platform.v1_8_9.Minecraft189Official*PreflightTest'
       - name: Remove copyrighted vanilla client binary
         if: always()
         run: python -c "from pathlib import Path; p=Path('$RUNNER_TEMP/minecraft-1.8.9-client.jar'); p.unlink(missing_ok=True)"
