@@ -610,6 +610,22 @@ final class Minecraft189MappingsTest {
                 "func_175180_a",
                 "renderGameOverlay");
         assertMethod(
+                Minecraft189Mappings.ENTITY_RENDERER_GET_MOUSE_OVER,
+                Minecraft189Mappings.ENTITY_RENDERER,
+                "a", "(F)V", "func_78473_a", "getMouseOver");
+        assertMethod(
+                Minecraft189Mappings.PLAYER_CONTROLLER_GET_BLOCK_REACH,
+                Minecraft189Mappings.PLAYER_CONTROLLER_MP,
+                "d", "()F", "func_78757_d", "getBlockReachDistance");
+        assertMethod(
+                Minecraft189Mappings.PLAYER_CONTROLLER_EXTENDED_REACH,
+                Minecraft189Mappings.PLAYER_CONTROLLER_MP,
+                "i", "()Z", "func_78749_i", "extendedReach");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_RAY_TRACE,
+                Minecraft189Mappings.ENTITY,
+                "a", "(DF)Lauh;", "func_174822_a", "rayTrace");
+        assertMethod(
                 Minecraft189Mappings.ENTITY_RENDERER_UPDATE_CAMERA_AND_RENDER,
                 Minecraft189Mappings.ENTITY_RENDERER,
                 "a",
@@ -1207,6 +1223,8 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.PLAYER_CONTROLLER_STOP_USING_ITEM);
+        addMethod(writer, Minecraft189Mappings.PLAYER_CONTROLLER_GET_BLOCK_REACH);
+        addMethod(writer, Minecraft189Mappings.PLAYER_CONTROLLER_EXTENDED_REACH);
         return finish(writer);
     }
 
@@ -2290,6 +2308,7 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.ENTITY_SET_SNEAKING);
         addMethod(writer, Minecraft189Mappings.ENTITY_GET_UNIQUE_ID);
         addMethod(writer, Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX);
+        addMethod(writer, Minecraft189Mappings.ENTITY_RAY_TRACE);
         return finish(writer);
     }
 
@@ -2845,7 +2864,47 @@ final class Minecraft189MappingsTest {
                 writer,
                 Minecraft189Mappings
                         .ENTITY_RENDERER_UPDATE_CAMERA_AND_RENDER);
+        addNativeMouseOverFixture(writer, true);
         return finish(writer);
+    }
+
+    private static void addNativeMouseOverFixture(
+            final ClassWriter writer, final boolean extendedReach) {
+        final MethodVisitor ray = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "a", "(F)V", null, null);
+        ray.visitCode();
+        ray.visitInsn(Opcodes.ACONST_NULL);
+        ray.visitTypeInsn(Opcodes.CHECKCAST, "bda");
+        ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "bda", "d", "()F", false);
+        ray.visitInsn(Opcodes.POP);
+        if (extendedReach) {
+            ray.visitInsn(Opcodes.ACONST_NULL);
+            ray.visitTypeInsn(Opcodes.CHECKCAST, "bda");
+            ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "bda", "i", "()Z", false);
+            ray.visitInsn(Opcodes.POP);
+        }
+        ray.visitInsn(Opcodes.ACONST_NULL);
+        ray.visitTypeInsn(Opcodes.CHECKCAST, "pk");
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitInsn(Opcodes.FCONST_0);
+        ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "pk",
+                "a", "(DF)Lauh;", false);
+        ray.visitInsn(Opcodes.POP);
+        ray.visitInsn(Opcodes.RETURN);
+        ray.visitMaxs(4, 2);
+        ray.visitEnd();
+    }
+
+    @Test
+    void nativeMouseOverBoundaryRejectsMissingExtendedReachCall() {
+        final ClassWriter writer = writer(
+                Minecraft189Mappings.ENTITY_RENDERER.obfuscatedInternalName());
+        addNativeMouseOverFixture(writer, false);
+        final IllegalStateException mismatch = assertThrows(
+                IllegalStateException.class,
+                () -> Minecraft189ClassShapeVerifier.verifyNativeRaycastCalls(
+                        finish(writer)));
+        assertTrue(mismatch.getMessage().contains("extendedReach=0"));
     }
 
     private static void addMinecraftFields(

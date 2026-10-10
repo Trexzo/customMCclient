@@ -242,6 +242,9 @@ public final class Minecraft189ClassTransformer
     private static final String BLOCK_MINING_CONTROL_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189BlockMiningControl";
+    private static final String VANILLA_REACH_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189VanillaReachAccess";
     private static final String BLOCK_MINING_CONTROL_DESCRIPTOR =
             "L" + BLOCK_MINING_CONTROL_INTERNAL_NAME + ";";
     private static final String TIMER_SPEED_CONTROL_INTERNAL_NAME =
@@ -2202,13 +2205,21 @@ public final class Minecraft189ClassTransformer
                                 superName,
                                 withInterface(
                                         withInterface(
+                                        withInterface(
                                                 interfaces,
                                                 BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME),
-                                        BLOCK_MINING_CONTROL_INTERNAL_NAME));
+                                        BLOCK_MINING_CONTROL_INTERNAL_NAME),
+                                VANILLA_REACH_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
                     public void visitEnd() {
+                        addFloatMethodDelegate(cv,
+                                "customMcVanillaBlockReachDistance",
+                                Minecraft189Mappings.PLAYER_CONTROLLER_GET_BLOCK_REACH);
+                        addBooleanMethodDelegate(cv,
+                                "customMcVanillaExtendedReach",
+                                Minecraft189Mappings.PLAYER_CONTROLLER_EXTENDED_REACH);
                         addIntFieldSetter(
                                 cv,
                                 "customMcSetBlockHitDelay",

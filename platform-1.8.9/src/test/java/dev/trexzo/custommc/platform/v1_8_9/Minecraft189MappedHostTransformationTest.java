@@ -605,6 +605,19 @@ final class Minecraft189MappedHostTransformationTest {
                     .set(
                             minecraft,
                             playerController);
+            final Minecraft189VanillaReachAccess nativeReach =
+                    (Minecraft189VanillaReachAccess) playerController;
+            playerControllerClass.getField("nativeReach")
+                    .setFloat(playerController, 4.5F);
+            playerControllerClass.getField("nativeExtended")
+                    .setBoolean(playerController, false);
+            assertEquals(4.5F, nativeReach.customMcVanillaBlockReachDistance(), 0.0F);
+            assertFalse(nativeReach.customMcVanillaExtendedReach());
+            playerControllerClass.getField("nativeExtended")
+                    .setBoolean(playerController, true);
+            assertTrue(nativeReach.customMcVanillaExtendedReach());
+            playerControllerClass.getField("nativeExtended")
+                    .setBoolean(playerController, false);
 
             final Class<?> playerClass =
                     loader.loadClass("bew");
@@ -6891,6 +6904,8 @@ final class Minecraft189MappedHostTransformationTest {
         final ClassWriter writer =
                 classWriter("bda");
         field(writer, "stopUsingCalls", "I");
+        field(writer, "nativeReach", "F");
+        field(writer, "nativeExtended", "Z");
         field(
                 writer,
                 "g",
@@ -6921,6 +6936,22 @@ final class Minecraft189MappedHostTransformationTest {
         stopUse.visitInsn(Opcodes.RETURN);
         stopUse.visitMaxs(3, 2);
         stopUse.visitEnd();
+        final MethodVisitor reach = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "d", "()F", null, null);
+        reach.visitCode();
+        reach.visitVarInsn(Opcodes.ALOAD, 0);
+        reach.visitFieldInsn(Opcodes.GETFIELD, "bda", "nativeReach", "F");
+        reach.visitInsn(Opcodes.FRETURN);
+        reach.visitMaxs(1, 1);
+        reach.visitEnd();
+        final MethodVisitor extended = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "i", "()Z", null, null);
+        extended.visitCode();
+        extended.visitVarInsn(Opcodes.ALOAD, 0);
+        extended.visitFieldInsn(Opcodes.GETFIELD, "bda", "nativeExtended", "Z");
+        extended.visitInsn(Opcodes.IRETURN);
+        extended.visitMaxs(1, 1);
+        extended.visitEnd();
         writer.visitEnd();
         return writer.toByteArray();
     }
@@ -7177,6 +7208,14 @@ final class Minecraft189MappedHostTransformationTest {
         getUuid.visitInsn(Opcodes.ARETURN);
         getUuid.visitMaxs(1, 1);
         getUuid.visitEnd();
+        // Vanilla 1.8.9 native Entity.rayTrace(DF)Lauh; fixture.
+        final MethodVisitor nativeRayTrace = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "a", "(DF)Lauh;", null, null);
+        nativeRayTrace.visitCode();
+        nativeRayTrace.visitInsn(Opcodes.ACONST_NULL);
+        nativeRayTrace.visitInsn(Opcodes.ARETURN);
+        nativeRayTrace.visitMaxs(1, 4);
+        nativeRayTrace.visitEnd();
         writer.visitEnd();
         return writer.toByteArray();
     }
@@ -8029,6 +8068,30 @@ final class Minecraft189MappedHostTransformationTest {
                 Opcodes.RETURN);
         render.visitMaxs(3, 4);
         render.visitEnd();
+
+        // Synthetic mapped method call shape, never invoked as game logic.
+        // Verifies the transformer refuses nonvanilla getMouseOver boundaries.
+        final MethodVisitor mouseOver = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "a", "(F)V", null, null);
+        mouseOver.visitCode();
+        mouseOver.visitInsn(Opcodes.ACONST_NULL);
+        mouseOver.visitTypeInsn(Opcodes.CHECKCAST, "bda");
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "bda", "d", "()F", false);
+        mouseOver.visitInsn(Opcodes.POP);
+        mouseOver.visitInsn(Opcodes.ACONST_NULL);
+        mouseOver.visitTypeInsn(Opcodes.CHECKCAST, "bda");
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "bda", "i", "()Z", false);
+        mouseOver.visitInsn(Opcodes.POP);
+        mouseOver.visitInsn(Opcodes.ACONST_NULL);
+        mouseOver.visitTypeInsn(Opcodes.CHECKCAST, "pk");
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.FCONST_0);
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "pk", "a",
+                "(DF)Lauh;", false);
+        mouseOver.visitInsn(Opcodes.POP);
+        mouseOver.visitInsn(Opcodes.RETURN);
+        mouseOver.visitMaxs(4, 2);
+        mouseOver.visitEnd();
 
         writer.visitEnd();
         return writer.toByteArray();

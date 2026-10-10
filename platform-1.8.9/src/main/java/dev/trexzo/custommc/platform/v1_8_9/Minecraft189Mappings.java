@@ -616,6 +616,20 @@ public final class Minecraft189Mappings {
                     "func_147121_ag",
                     "rightClickMouse");
     // Pinned Minecraft 1.8.9 joined.srg source mapping.
+    // Exact Minecraft 1.8.9 joined.srg native raycast dependencies.
+    public static final MappedMethod PLAYER_CONTROLLER_GET_BLOCK_REACH =
+            new MappedMethod(PLAYER_CONTROLLER_MP, "d", "()F",
+                    "func_78757_d", "getBlockReachDistance");
+    public static final MappedMethod PLAYER_CONTROLLER_EXTENDED_REACH =
+            new MappedMethod(PLAYER_CONTROLLER_MP, "i", "()Z",
+                    "func_78749_i", "extendedReach");
+    public static final MappedMethod ENTITY_RAY_TRACE =
+            new MappedMethod(ENTITY, "a", "(DF)Lauh;",
+                    "func_174822_a", "rayTrace");
+    public static final MappedMethod ENTITY_RENDERER_GET_MOUSE_OVER =
+            new MappedMethod(ENTITY_RENDERER, "a", "(F)V",
+                    "func_78473_a", "getMouseOver");
+
     public static final MappedMethod PLAYER_CONTROLLER_STOP_USING_ITEM =
             new MappedMethod(PLAYER_CONTROLLER_MP, "c", "(Lwn;)V",
                     "func_78766_c", "onStoppedUsingItem");
