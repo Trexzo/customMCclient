@@ -76,7 +76,9 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.PLAYER_CONTROLLER_IS_HITTING_BLOCK
                 },
                 new Minecraft189Mappings.MappedMethod[]{
-                        Minecraft189Mappings.PLAYER_CONTROLLER_STOP_USING_ITEM
+                        Minecraft189Mappings.PLAYER_CONTROLLER_STOP_USING_ITEM,
+                        Minecraft189Mappings.PLAYER_CONTROLLER_GET_BLOCK_REACH,
+                        Minecraft189Mappings.PLAYER_CONTROLLER_EXTENDED_REACH
                 });
     }
 
@@ -205,7 +207,8 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_SET_SPRINTING,
                         Minecraft189Mappings.ENTITY_SET_SNEAKING,
                         Minecraft189Mappings.ENTITY_GET_UNIQUE_ID,
-                        Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX
+                        Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX,
+                        Minecraft189Mappings.ENTITY_RAY_TRACE
                 });
     }
 
@@ -354,9 +357,62 @@ public final class Minecraft189ClassShapeVerifier {
                 Minecraft189Mappings.ENTITY_RENDERER,
                 new Minecraft189Mappings.MappedField[0],
                 new Minecraft189Mappings.MappedMethod[]{
-                        Minecraft189Mappings
-                                .ENTITY_RENDERER_UPDATE_CAMERA_AND_RENDER
+                        Minecraft189Mappings.ENTITY_RENDERER_UPDATE_CAMERA_AND_RENDER,
+                        Minecraft189Mappings.ENTITY_RENDERER_GET_MOUSE_OVER
                 });
+        verifyNativeRaycastCalls(classBytes);
+    }
+
+    /**
+     * Fail-closed native 1.8.9 getMouseOver boundary. Proves the method body
+     * calls all three mapped upstream vanilla operations before any later
+     * reach/raycast mutation is considered. Does not rewrite these calls.
+     */
+    static void verifyNativeRaycastCalls(final byte[] classBytes) {
+        final int[] calls = new int[3];
+        final boolean[] found = new boolean[1];
+        new ClassReader(Objects.requireNonNull(classBytes, "classBytes")).accept(
+                new ClassVisitor(Opcodes.ASM9) {
+                    @Override public MethodVisitor visitMethod(
+                            final int access, final String name,
+                            final String descriptor, final String signature,
+                            final String[] exceptions) {
+                        final Minecraft189Mappings.MappedMethod method =
+                                Minecraft189Mappings.ENTITY_RENDERER_GET_MOUSE_OVER;
+                        if (!name.equals(method.obfuscatedName())
+                                || !descriptor.equals(method.descriptor())) return null;
+                        if (found[0]) throw new IllegalStateException(
+                                "duplicate mapped getMouseOver boundary");
+                        found[0] = true;
+                        return new MethodVisitor(Opcodes.ASM9) {
+                            @Override public void visitMethodInsn(
+                                    final int opcode, final String owner,
+                                    final String methodName, final String methodDesc,
+                                    final boolean isInterface) {
+                                final Minecraft189Mappings.MappedMethod[] required = {
+                                        Minecraft189Mappings.PLAYER_CONTROLLER_GET_BLOCK_REACH,
+                                        Minecraft189Mappings.PLAYER_CONTROLLER_EXTENDED_REACH,
+                                        Minecraft189Mappings.ENTITY_RAY_TRACE
+                                };
+                                for (int index = 0; index < required.length; index++) {
+                                    final Minecraft189Mappings.MappedMethod expected =
+                                            required[index];
+                                    if (owner.equals(expected.owner().obfuscatedInternalName())
+                                            && methodName.equals(expected.obfuscatedName())
+                                            && methodDesc.equals(expected.descriptor())
+                                            && opcode == Opcodes.INVOKEVIRTUAL) {
+                                        calls[index]++;
+                                    }
+                                }
+                            }
+                        };
+                    }
+                }, 0);
+        if (!found[0] || calls[0] < 1 || calls[1] < 1 || calls[2] < 1)
+            throw new IllegalStateException(
+                    "Minecraft 1.8.9 native getMouseOver boundary mismatch: "
+                    + "blockReach=" + calls[0] + ", extendedReach=" + calls[1]
+                    + ", entityRayTrace=" + calls[2]);
     }
 
     private static void verify(
