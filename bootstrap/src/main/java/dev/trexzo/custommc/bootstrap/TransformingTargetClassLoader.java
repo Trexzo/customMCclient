@@ -4,9 +4,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.JarURLConnection;
 import java.net.MalformedURLException;
+import java.net.URLConnection;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.security.CodeSource;
+import java.security.cert.Certificate;
+import java.util.jar.JarEntry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -87,10 +92,10 @@ public final class TransformingTargetClassLoader
                             + binaryName);
         }
 
-        final byte[] original;
+        final VerifiedOriginal original;
         try {
             original =
-                    readAll(resource);
+                    readVerifiedOriginal(resource);
         } catch (IOException failure) {
             throw new ClassNotFoundException(
                     "failed reading transform class: "
@@ -104,7 +109,7 @@ public final class TransformingTargetClassLoader
                     Objects.requireNonNull(
                             transformer.transform(
                                     binaryName,
-                                    original),
+                                    original.bytes),
                             "transformed class bytes");
         } catch (Exception failure) {
             throw new ClassNotFoundException(
@@ -119,30 +124,57 @@ public final class TransformingTargetClassLoader
                             + binaryName);
         }
 
-        return defineClass(
-                binaryName,
-                transformed,
-                0,
+        // Retain the original JAR's *verified* signer certificates. Without
+        // the matching CodeSource, loading unsigned transformed classes beside
+        // normally loaded signed Mojang classes in the default package throws
+        // a SecurityException before actual JVM bytecode linkage can run.
+        // The verification happens while reading the entire original entry;
+        // we never invent or bypass signatures and never modify the JAR.
+        if (original.codeSource != null) {
+            return defineClass(binaryName, transformed, 0,
+                    transformed.length, original.codeSource);
+        }
+        return defineClass(binaryName, transformed, 0,
                 transformed.length);
     }
 
-    private static byte[] readAll(
-            final URL resource)
-            throws IOException {
-        try (InputStream input =
-                     resource.openStream();
+    private static VerifiedOriginal readVerifiedOriginal(
+            final URL resource) throws IOException {
+        final URLConnection connection = resource.openConnection();
+        final byte[] bytes;
+        try (InputStream input = connection.getInputStream();
              ByteArrayOutputStream output =
                      new ByteArrayOutputStream()) {
-            final byte[] buffer =
-                    new byte[BUFFER_SIZE];
+            final byte[] buffer = new byte[BUFFER_SIZE];
             int read;
             while ((read = input.read(buffer)) != -1) {
-                output.write(
-                        buffer,
-                        0,
-                        read);
+                output.write(buffer, 0, read);
             }
-            return output.toByteArray();
+            bytes = output.toByteArray();
+        }
+        if (connection instanceof JarURLConnection) {
+            final JarURLConnection jar = (JarURLConnection) connection;
+            // Only after consuming the verified entry can its signer
+            // certificates be trusted. A corrupt signed entry fails during
+            // the read and is never supplied to the transformer.
+            final JarEntry entry = jar.getJarEntry();
+            if (entry == null) {
+                throw new IOException("target class JAR entry missing");
+            }
+            final Certificate[] certificates = entry.getCertificates();
+            return new VerifiedOriginal(bytes,
+                    new CodeSource(jar.getJarFileURL(), certificates));
+        }
+        return new VerifiedOriginal(bytes, null);
+    }
+
+    private static final class VerifiedOriginal {
+        final byte[] bytes;
+        final CodeSource codeSource;
+
+        VerifiedOriginal(final byte[] bytes, final CodeSource codeSource) {
+            this.bytes = bytes;
+            this.codeSource = codeSource;
         }
     }
 
