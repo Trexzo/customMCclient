@@ -599,6 +599,8 @@ public final class Minecraft189ClassTransformer
                         ClassWriter.COMPUTE_MAXS);
         final boolean[] foundStartGame =
                 new boolean[]{false};
+        final boolean[] foundVanillaClickMouse =
+                new boolean[]{false};
         final boolean[] injectedHost =
                 new boolean[]{false};
         final boolean[] foundRunTick =
@@ -718,6 +720,28 @@ public final class Minecraft189ClassTransformer
                                         descriptor,
                                         signature,
                                         exceptions);
+
+                        final Minecraft189Mappings.MappedMethod clickMouse =
+                                Minecraft189Mappings.MINECRAFT_CLICK_MOUSE;
+                        if (clickMouse.obfuscatedName().equals(name)
+                                && clickMouse.descriptor().equals(descriptor)) {
+                            if (foundVanillaClickMouse[0]) {
+                                throw new IllegalStateException(
+                                        "duplicate native Minecraft clickMouse method");
+                            }
+                            foundVanillaClickMouse[0] = true;
+                            return new MethodVisitor(Opcodes.ASM9, delegate) {
+                                @Override
+                                public void visitCode() {
+                                    super.visitCode();
+                                    super.visitVarInsn(Opcodes.ALOAD, 0);
+                                    super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                            RUNTIME_BRIDGE_INTERNAL_NAME,
+                                            "acceptanceVanillaClick",
+                                            "(Ljava/lang/Object;)V", false);
+                                }
+                            };
+                        }
 
                         final Minecraft189Mappings.MappedMethod startGame =
                                 Minecraft189Mappings.MINECRAFT_START_GAME;
@@ -1605,6 +1629,10 @@ public final class Minecraft189ClassTransformer
                 },
                 0);
 
+        if (!foundVanillaClickMouse[0]) {
+            throw new IllegalStateException(
+                    "official Minecraft clickMouse observational probe missing");
+        }
         if (!foundStartGame[0]
                 || !injectedHost[0]) {
             throw new IllegalStateException(

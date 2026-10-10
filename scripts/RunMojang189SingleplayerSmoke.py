@@ -17,6 +17,8 @@ from RunMojang189GraphicalSmoke import build_command
 
 FRAME = b"CUSTOMMC_OFFICIAL_189_OPENGL_FRAME_PASS=YES"
 WORLD = b"CUSTOMMC_OFFICIAL_189_LIVE_WORLD_TICKS_PASS=YES"
+MELEE_ARMED = b"CUSTOMMC_189_VANILLA_MELEE_TARGET_ARMED=YES"
+MELEE_HURT = b"CUSTOMMC_OFFICIAL_189_REAL_ENTITY_HURT_AFTER_VANILLA_CLICK_PASS=YES"
 
 
 def xdotool(*arguments):
@@ -83,13 +85,71 @@ def await_marker(process, log, marker, deadline, stage):
     raise AssertionError("no " + stage + " checkpoint before bounded deadline")
 
 
-def run(command, game, timeout):
+def current_screen(log):
+    """Read the most recent actual vanilla GUI callback from the JVM."""
+    prefix = b"CUSTOMMC_189_ACCEPTANCE_SCREEN="
+    screens = [line.split(prefix, 1)[1].strip()
+               for line in read_tail(log).splitlines() if prefix in line]
+    return screens[-1] if screens else None
+
+
+def resume_if_paused(process, log, window):
+    screen = current_screen(log)
+    if screen == b"axp":
+        # With a real WM on the acceptance display this activates the
+        # window before clicking the vanilla "Back to Game" button.
+        xdotool("windowactivate", "--sync", window)
+        # Actual Minecraft 1.8.9 GuiIngameMenu button 4,
+        # "Back to Game", is at width/2, height/4+8.
+        click(window, 427, 128)
+        print("CUSTOMMC_189_RESUME_FROM_ACTUAL_PAUSE_MENU=YES", flush=True)
+        resumed = await_screen_change(
+            process, log, b"axp", time.monotonic() + 6, "resume game")
+        if resumed != b"(in-game/no GUI)":
+            raise AssertionError("cannot resume paused Minecraft GUI: "
+                                 + repr(resumed))
+    elif screen != b"(in-game/no GUI)":
+        raise AssertionError("cannot send in-world command from GUI "
+                             + repr(screen))
+
+
+def send_command(process, log, window, command):
+    """Use actual Minecraft chat UI and require its open/close transitions."""
+    if not command.startswith("/") or len(command) > 125:
+        raise ValueError("refusing invalid offline acceptance command")
+    resume_if_paused(process, log, window)
+    # Never change X11 focus with windowfocus() mid-game: the old runner
+    # triggered Minecraft's auto-pause-on-lost-focus and lost every command.
+    xdotool("key", "--clearmodifiers", "t")
+    opened = await_screen_change(
+        process, log, b"(in-game/no GUI)", time.monotonic() + 6,
+        "actual vanilla chat open")
+    if opened in (b"axp", b"aya", b"axb"):
+        raise AssertionError("not the in-world chat GUI: " + repr(opened))
+    print("CUSTOMMC_189_REAL_CHAT_OPEN_SCREEN="
+          + opened.decode("ascii", "replace"), flush=True)
+    xdotool("type", "--clearmodifiers", "--delay", "12", command)
+    xdotool("key", "--clearmodifiers", "Return")
+    closed = await_screen_change(
+        process, log, opened, time.monotonic() + 6,
+        "actual vanilla chat close")
+    if closed != b"(in-game/no GUI)":
+        raise AssertionError("command did not close vanilla chat: "
+                             + repr(closed))
+    print("CUSTOMMC_189_OFFLINE_COMMAND_SENT=" + command.split(" ", 1)[0],
+          flush=True)
+
+
+def run(command, game, timeout, attack=False):
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
         raise ValueError("singleplayer timeout must be 70..240 seconds")
     # Java flags must precede the class name.
     command.insert(command.index("-cp"), "-Dcustommc.acceptance.reportLiveWorld=true")
+    if attack:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportVanillaMelee=true")
     # Vanilla UI coordinates are measured in 854x480 GUI scale 1, not auto.
     options = Path(game) / "options.txt"
     with options.open("a", encoding="utf-8") as stream:
@@ -100,9 +160,22 @@ def run(command, game, timeout):
     env.pop("CUSTOMMC_ACCESS_TOKEN", None)
     env.pop("JAVA_TOOL_OPTIONS", None)
     process = None
+    window_manager = None
     with tempfile.TemporaryDirectory(prefix="custommc-189-world-") as temp:
         log = Path(temp) / "minecraft.txt"
         try:
+            if attack:
+                # Xvfb alone has no EWMH window manager; LWJGL2 may lose
+                # active focus and auto-pause the integrated server. Openbox
+                # supplies real X11 activation without patching Minecraft.
+                window_manager = subprocess.Popen(
+                    ["openbox", "--sm-disable"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+                time.sleep(1.0)
+                if window_manager.poll() is not None:
+                    raise AssertionError("Openbox failed to initialize X11 focus")
+                print("CUSTOMMC_189_X11_WINDOW_MANAGER_ACTIVE=YES", flush=True)
             with log.open("wb") as output:
                 process = subprocess.Popen(
                     command, env=env, stdout=output,
@@ -114,6 +187,8 @@ def run(command, game, timeout):
                          "actual graphical frame")
             window = find_window(min(deadline, time.monotonic() + 15))
             print("CUSTOMMC_189_REAL_X11_WINDOW_FOUND=YES", flush=True)
+            if attack:
+                xdotool("windowactivate", "--sync", window)
             geometry = xdotool("getwindowgeometry", "--shell", window)
             print("CUSTOMMC_189_WINDOW_GEOMETRY="
                   + geometry.replace("\n", " "), flush=True)
@@ -141,7 +216,17 @@ def run(command, game, timeout):
                 process, log, select_screen, time.monotonic() + 8,
                 "create world GUI")
             require_running(process, "create world GUI")
-            # GuiCreateWorld: default New World, no server or cheat commands.
+            # Actual 1.8.9 GuiCreateWorld Game Mode button is centered
+            # at x427,y125. Survival -> Hardcore -> Creative; Creative
+            # enables commands unless explicitly overridden.
+            if attack:
+                if create_screen != b"axb":
+                    raise AssertionError("unexpected create-world GUI")
+                click(window, 427, 125)
+                time.sleep(0.25)
+                click(window, 427, 125)
+                print("CUSTOMMC_189_CREATIVE_COMMAND_WORLD_REQUESTED=YES",
+                      flush=True)
             click(window, 346, 462)
             print("CUSTOMMC_189_NEW_WORLD_GUI_REQUEST_SENT=YES", flush=True)
             await_marker(process, log, WORLD, deadline, "real player/world-tick")
@@ -150,7 +235,34 @@ def run(command, game, timeout):
             require_running(process, "world stability")
             print("CUSTOMMC_OFFICIAL_189_SINGLEPLAYER_WORLD_SUSTAINED_PASS=YES")
             print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_AND_WORLD_CALLBACKS=YES")
-            print("CUSTOMMC_OFFICIAL_189_COMBAT_DAMAGE_TESTED=NO")
+            if attack:
+                # Offline integrated-server commands only. No external server
+                # join, module activation, forged damage or direct entity edits.
+                send_command(process, log, window, "/time set 1000")
+                send_command(process, log, window, "/tp ~ ~ ~ 0 26")
+                send_command(process, log, window,
+                             "/summon Pig ~ ~ ~2 {NoAI:1b}")
+                time.sleep(1.2)
+                require_running(process, "live vanilla melee fixture")
+                # Click where the actual Mojang raycast is aimed, not a
+                # synthetic module method. The bridge pairs that clicked
+                # entity identity with a later real world hurtTime transition.
+                for attempt in range(12):
+                    if MELEE_HURT in read_tail(log):
+                        break
+                    resume_if_paused(process, log, window)
+                    xdotool("click", "1")
+                    time.sleep(0.33)
+                await_marker(process, log, MELEE_ARMED,
+                             min(deadline, time.monotonic() + 8),
+                             "actual raycast entity under vanilla left click")
+                await_marker(process, log, MELEE_HURT,
+                             min(deadline, time.monotonic() + 12),
+                             "same real loaded entity becoming hurt")
+                print("CUSTOMMC_OFFICIAL_189_REAL_VANILLA_MELEE_DAMAGE_PASS=YES",
+                      flush=True)
+            else:
+                print("CUSTOMMC_OFFICIAL_189_COMBAT_DAMAGE_TESTED=NO")
             print("CUSTOMMC_OFFICIAL_189_MULTIPLAYER_TESTED=NO")
         except BaseException:
             print("SINGLEPLAYER_SMOKE_OUTPUT_TAIL_START", file=sys.stderr)
@@ -165,6 +277,13 @@ def run(command, game, timeout):
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=5)
+            if window_manager is not None:
+                window_manager.terminate()
+                try:
+                    window_manager.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    window_manager.kill()
+                    window_manager.wait(timeout=5)
 
 
 if __name__ == "__main__":
@@ -172,13 +291,15 @@ if __name__ == "__main__":
     for field in ("java", "client", "libraries", "assets", "natives", "overlay", "game"):
         parser.add_argument("--" + field, required=True)
     parser.add_argument("--timeout", type=int, default=150)
+    parser.add_argument("--attack", action="store_true",
+                        help="create offline creative world and verify genuine melee hurt")
     args = parser.parse_args()
     try:
         command = build_command(
             args.java, args.client, args.libraries, args.assets,
             args.natives, args.overlay, args.game
         )
-        run(command, args.game, args.timeout)
+        run(command, args.game, args.timeout, attack=args.attack)
     except Exception as failure:
         print("CUSTOMMC_189_SINGLEPLAYER_WORLD_FAILED: " + str(failure),
               file=sys.stderr)

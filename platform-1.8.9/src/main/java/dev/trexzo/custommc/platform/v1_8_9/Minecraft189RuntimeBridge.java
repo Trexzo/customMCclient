@@ -37,6 +37,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceWorldTicks = 0;
         acceptanceWorldReported = false;
         acceptanceLastScreen = null;
+        Minecraft189VanillaMeleeAcceptance.reset();
         return new Registration(next);
     }
 
@@ -77,6 +78,7 @@ public final class Minecraft189RuntimeBridge {
 
     public static synchronized void gameTick() {
         if (activeRuntime != null) {
+            Minecraft189VanillaMeleeAcceptance.tick();
             activeRuntime.publishGameTick();
             // This checkpoint requires repeated genuine game ticks with both
             // loaded player and world combat evidence; menu frames alone
@@ -404,6 +406,7 @@ public final class Minecraft189RuntimeBridge {
 
     public static synchronized void worldEntityCombat(
             final Minecraft189WorldEntityCombatAccess world) {
+        Minecraft189VanillaMeleeAcceptance.onWorldCombat(world);
         if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")) {
             acceptanceWorldCombatObserved = world != null;
             if (world == null) {
@@ -630,6 +633,15 @@ public final class Minecraft189RuntimeBridge {
      * Minecraft render callbacks. The property is absent in normal runs.
      * Never report a window or game loop from a bootstrap-only probe.
      */
+    /**
+     * Called only from the first instruction of vanilla ave.aw()V clickMouse.
+     * This is observational, and only does work under an opt-in CI property.
+     */
+    public static synchronized void acceptanceVanillaClick(
+            final Object minecraft) {
+        Minecraft189VanillaMeleeAcceptance.onNativeClick(minecraft);
+    }
+
     public static synchronized void renderFrameStarted(
             final float partialTicks) {
         if (activeRuntime != null) {
