@@ -48,6 +48,31 @@ final class Minecraft189KillAuraModuleTest {
     }
 
     @Test
+    void aimingKeepsCurrentTickValidatedLockButSuspendClearsIt() {
+        final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
+        final Minecraft189TargetRotationState target = targetAtTwoBlocks();
+        final Minecraft189PlayerRotationState rotation =
+                new Minecraft189PlayerRotationState();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        rotation.update(0, 0);
+        movement.update(true, false, true);
+        aura.lockTargetSetting().set(true);
+        aura.onEnable();
+        try {
+            aura.rememberSelectedTarget(0);
+            assertEquals(0, aura.lockedTargetIndex());
+            assertTrue(aura.aim(new RotationPlayer(), rotation.snapshot(),
+                    target.snapshot(), false, movement.snapshot()));
+            assertEquals(0, aura.lockedTargetIndex());
+            aura.suspend();
+            assertEquals(-1, aura.lockedTargetIndex());
+        } finally {
+            aura.onDisable();
+        }
+    }
+
+    @Test
     void movementAndRangeGatesFailClosedAndDoNotBankClicks() {
         final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
         final Minecraft189TargetRotationState target = targetAtTwoBlocks();

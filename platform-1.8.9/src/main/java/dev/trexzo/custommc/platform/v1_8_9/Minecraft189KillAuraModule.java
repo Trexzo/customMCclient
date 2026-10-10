@@ -19,6 +19,7 @@ public final class Minecraft189KillAuraModule implements Module {
     public static final String PRIORITIZE_CROSSHAIR = ID + ".prioritizeCrosshair";
     public static final String SWITCH_HURT_TARGETS = ID + ".switchHurtTargets";
     public static final String MAX_SWITCH_HURT_TICKS = ID + ".maxSwitchHurtTicks";
+    public static final String LOCK_TARGET = ID + ".lockTargetWhileEligible";
     private static final double MAX_AIM_ERROR = 8.0D;
 
     private final Setting<Integer> minCps = new Setting<Integer>(
@@ -49,7 +50,10 @@ public final class Minecraft189KillAuraModule implements Module {
             MAX_SWITCH_HURT_TICKS, 1,
             value -> value != null && value >= 0 && value <= 20,
             SettingCodecs.INTEGER);
+    private final Setting<Boolean> lockTarget = new Setting<Boolean>(
+            LOCK_TARGET, Boolean.FALSE, value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
+    private int lockedTargetIndex = -1;
     private int phase;
     private int sampledCps;
     private int lastMin = -1;
@@ -69,6 +73,14 @@ public final class Minecraft189KillAuraModule implements Module {
     public Setting<Boolean> prioritizeCrosshairSetting() { return prioritizeCrosshair; }
     public Setting<Boolean> switchHurtTargetsSetting() { return switchHurt; }
     public Setting<Integer> maxSwitchHurtTicksSetting() { return maxSwitchHurtTicks; }
+    public Setting<Boolean> lockTargetSetting() { return lockTarget; }
+    /** Index is retained only while this module is active and lock is enabled. */
+    synchronized int lockedTargetIndex() {
+        return enabled && lockTarget.get() ? lockedTargetIndex : -1;
+    }
+    synchronized void rememberSelectedTarget(final int index) {
+        lockedTargetIndex = enabled && lockTarget.get() && index >= 0 ? index : -1;
+    }
     synchronized boolean active() { return enabled; }
 
     @Override
@@ -96,7 +108,9 @@ public final class Minecraft189KillAuraModule implements Module {
             return false;
         }
         if (lastEntityIndex != target.entityIndex()) {
-            clear();
+            // Switching the confirmed attack owner resets CPS credit, but
+            // must not discard a freshly source-validated sticky selection.
+            resetSchedule();
             lastEntityIndex = target.entityIndex();
         }
         final double step = angularStep.get();
@@ -181,6 +195,7 @@ public final class Minecraft189KillAuraModule implements Module {
     private void clear() {
         resetSchedule();
         lastEntityIndex = -1;
+        lockedTargetIndex = -1;
     }
 
     private void resetSchedule() {

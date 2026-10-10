@@ -36,9 +36,11 @@ final class Minecraft189KillAuraTargetSelector {
                 || positions.entityCount() != kinds.entityCount()
                 || positions.entityCount() != combat.entityCount()) {
             target.clear();
+            if (aura != null) aura.rememberSelectedTarget(-1);
             return;
         }
 
+        final int lockedIndex = aura.lockedTargetIndex();
         final double range = aura.rangeSetting().get();
         final double fov = aura.fovSetting().get();
         final boolean crosshair = aura.prioritizeCrosshairSetting().get();
@@ -52,9 +54,18 @@ final class Minecraft189KillAuraTargetSelector {
                                 || antiBot.permits(candidate.entityIndex(), combat))
                         && Double.isFinite(
                             angularScore(local, rotation, candidate, fov)),
-                candidate -> crosshair
-                        ? angularScore(local, rotation, candidate, fov)
-                        : candidate.distanceSquared());
+                candidate -> lockedIndex >= 0
+                        && candidate.entityIndex() == lockedIndex
+                        ? 0.0D
+                        : (crosshair
+                                ? angularScore(local, rotation, candidate, fov)
+                                : candidate.distanceSquared()));
+        // Revalidate each tick against the current living/range/FOV/AntiBot
+        // filters; never reuse a stale index without reselecting it.
+        final Minecraft189NearestPlayerTargetState.Snapshot selected =
+                target.snapshot();
+        aura.rememberSelectedTarget(
+                selected.found() ? selected.entityIndex() : -1);
     }
 
     private static double angularScore(
