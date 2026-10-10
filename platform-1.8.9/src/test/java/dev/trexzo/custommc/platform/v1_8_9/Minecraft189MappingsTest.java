@@ -2870,7 +2870,7 @@ final class Minecraft189MappingsTest {
 
     private static void addNativeMouseOverFixture(
             final ClassWriter writer, final boolean extendedReach) {
-        final MethodVisitor ray = writer.visitMethod(
+        final org.objectweb.asm.MethodVisitor ray = writer.visitMethod(
                 Opcodes.ACC_PUBLIC, "a", "(F)V", null, null);
         ray.visitCode();
         ray.visitInsn(Opcodes.ACONST_NULL);
@@ -2904,7 +2904,8 @@ final class Minecraft189MappingsTest {
                 IllegalStateException.class,
                 () -> Minecraft189ClassShapeVerifier.verifyNativeRaycastCalls(
                         finish(writer)));
-        assertTrue(mismatch.getMessage().contains("extendedReach=0"));
+        org.junit.jupiter.api.Assertions.assertTrue(
+                mismatch.getMessage().contains("extendedReach=0"));
     }
 
     private static void addMinecraftFields(
