@@ -479,7 +479,7 @@ final class Minecraft189MappedHostTransformationTest {
             assertEquals(1, rayHit.customMcCrosshairPlayerIndex());
             final Minecraft189WorldEntityUuidAccess identity =
                     (Minecraft189WorldEntityUuidAccess) rayWorld;
-            assertNull(identity.customMcLoadedEntityUuids());
+            org.junit.jupiter.api.Assertions.assertNull(identity.customMcLoadedEntityUuids());
             final java.util.UUID otherId = java.util.UUID.randomUUID();
             final java.util.UUID playerId = java.util.UUID.randomUUID();
             loader.loadClass("pk").getField("uuid").set(otherRayEntity, otherId);
