@@ -1616,6 +1616,10 @@ public final class Minecraft189HostRuntime
         if (!featureCatalog.antiBot().permits(crosshairPlayerIndex, combat)) {
             return false;
         }
+        if (!featureCatalog.attackRange().permits(
+                crosshairPlayerIndex, playerPositionState.snapshot(),
+                worldEntityPositionState.snapshot(),
+                worldEntityKindState.snapshot())) return false;
         if (!featureCatalog.hitSelect().permits(
                 crosshairPlayerIndex, combat)) {
             return false;

@@ -123,6 +123,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189AutoPotFeature autoPotFeature;
     private final Minecraft189AutoBlockFeature autoBlockFeature;
     private final Minecraft189AutoWeaponFeature autoWeaponFeature;
+    private final Minecraft189AttackRangeFeature attackRangeFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
     private Minecraft189FovFeature fovFeature;
     private Minecraft189NoBobbingFeature noBobbingFeature;
@@ -221,7 +222,8 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189AutoRodFeature autoRodFeature,
             final Minecraft189AutoPotFeature autoPotFeature,
             final Minecraft189AutoBlockFeature autoBlockFeature,
-            final Minecraft189AutoWeaponFeature autoWeaponFeature) {
+            final Minecraft189AutoWeaponFeature autoWeaponFeature,
+            final Minecraft189AttackRangeFeature attackRangeFeature) {
         this.modules = modules;
         this.moduleController = moduleController;
         this.modulePresentations = modulePresentations;
@@ -315,6 +317,7 @@ public final class Minecraft189FeatureCatalog
         this.autoPotFeature = autoPotFeature;
         this.autoBlockFeature = autoBlockFeature;
         this.autoWeaponFeature = autoWeaponFeature;
+        this.attackRangeFeature = attackRangeFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -471,6 +474,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189AutoPotFeature autoPotFeature = null;
         Minecraft189AutoBlockFeature autoBlockFeature = null;
         Minecraft189AutoWeaponFeature autoWeaponFeature = null;
+        Minecraft189AttackRangeFeature attackRangeFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -935,6 +939,10 @@ public final class Minecraft189FeatureCatalog
                     modules, moduleController, presentations, moduleSettings,
                     settings, settingPresentations);
 
+            attackRangeFeature = Minecraft189AttackRangeFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
             arrayListFeature =
                     Minecraft189ArrayListFeature.install(
                             modules,
@@ -1317,8 +1325,10 @@ public final class Minecraft189FeatureCatalog
                     autoRodFeature,
                     autoPotFeature,
                     autoBlockFeature,
-                    autoWeaponFeature);
+                    autoWeaponFeature,
+                    attackRangeFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(attackRangeFeature, failure);
             closeQuietly(autoWeaponFeature, failure);
             closeQuietly(autoBlockFeature, failure);
             closeQuietly(autoPotFeature, failure);
@@ -1634,6 +1644,11 @@ public final class Minecraft189FeatureCatalog
         return spinFeature.module();
     }
 
+    public Minecraft189AttackRangeModule attackRange() {
+        requireOpen();
+        return attackRangeFeature.module();
+    }
+
     public Minecraft189AutoWeaponModule autoWeapon() {
         requireOpen();
         return autoWeaponFeature.module();
@@ -1908,6 +1923,12 @@ public final class Minecraft189FeatureCatalog
                         failure,
                         closeFailure);
             }
+        }
+
+        try {
+            attackRangeFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
         }
 
         try {
