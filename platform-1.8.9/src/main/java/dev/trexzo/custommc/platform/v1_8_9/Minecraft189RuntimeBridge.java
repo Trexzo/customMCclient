@@ -22,6 +22,9 @@ public final class Minecraft189RuntimeBridge {
     private static int killAuraEnabledVetoTicks;
     private static boolean killAuraNonPlayerEnabled;
     private static boolean killAuraNonPlayerReported;
+    private static int acceptanceRemotePlayerKindTicks;
+    private static boolean acceptanceRemotePlayerKindFresh;
+    private static boolean acceptanceRemotePlayerKindReported;
 
     private Minecraft189RuntimeBridge() {
     }
@@ -52,6 +55,9 @@ public final class Minecraft189RuntimeBridge {
         killAuraEnabledVetoTicks = 0;
         killAuraNonPlayerEnabled = false;
         killAuraNonPlayerReported = false;
+        acceptanceRemotePlayerKindTicks = 0;
+        acceptanceRemotePlayerKindFresh = false;
+        acceptanceRemotePlayerKindReported = false;
         return new Registration(next);
     }
 
@@ -94,6 +100,22 @@ public final class Minecraft189RuntimeBridge {
         if (activeRuntime != null) {
             Minecraft189VanillaMeleeAcceptance.tick();
             activeRuntime.publishGameTick();
+            if (Boolean.getBoolean("custommc.acceptance.reportRemotePlayer")
+                    && !acceptanceRemotePlayerKindReported
+                    && activeRuntime.hostInstalled()) {
+                if (acceptanceRemotePlayerKindFresh) {
+                    acceptanceRemotePlayerKindTicks++;
+                    if (acceptanceRemotePlayerKindTicks >= 20) {
+                        acceptanceRemotePlayerKindReported = true;
+                        System.out.println(
+                                "CUSTOMMC_OFFICIAL_189_REMOTE_PLAYER_KIND_20_TICKS_PASS=YES");
+                        System.out.flush();
+                    }
+                } else {
+                    acceptanceRemotePlayerKindTicks = 0;
+                }
+                acceptanceRemotePlayerKindFresh = false;
+            }
             // This checkpoint requires repeated genuine game ticks with both
             // loaded player and world combat evidence; menu frames alone
             // cannot reach it. Normal launches never enable this property.
@@ -415,6 +437,27 @@ public final class Minecraft189RuntimeBridge {
                 activeHost();
         if (host != null) {
             host.worldEntityKinds(world);
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportRemotePlayer")
+                    && !acceptanceRemotePlayerKindReported) {
+                acceptanceRemotePlayerKindFresh = false;
+                if (world != null) {
+                    final int[] kinds = world.customMcLoadedEntityKinds();
+                    if (kinds != null) {
+                        for (int bits : kinds) {
+                            if ((bits & (Minecraft189WorldEntityKindState.LIVING
+                                    | Minecraft189WorldEntityKindState.PLAYER))
+                                    == (Minecraft189WorldEntityKindState.LIVING
+                                    | Minecraft189WorldEntityKindState.PLAYER)
+                                    && (bits & Minecraft189WorldEntityKindState.LOCAL_PLAYER)
+                                    == 0) {
+                                acceptanceRemotePlayerKindFresh = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
