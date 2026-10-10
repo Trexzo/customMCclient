@@ -252,7 +252,7 @@ def run(args):
             send_server_command(
                 server, server_log,
                 "scoreboard players test CITarget taken 0 0",
-                expected=b"test passed")
+                expected=b"score 0 is in range 0 to 0")
             print("CUSTOMMC_189_SERVER_TARGET_DAMAGE_BASELINE_ZERO_PASS=YES",
                   flush=True)
             send_server_command(server, server_log, "gamemode 1 CIHost")
@@ -281,7 +281,7 @@ def run(args):
                     send_server_command(
                         server, server_log,
                         "scoreboard players test CITarget taken 1 999999",
-                        expected=b"test passed", timeout=1.4)
+                        expected=b"is in range 1 to 999999", timeout=1.4)
                     verified_server_damage = True
                 except AssertionError as error:
                     if "dedicated server unavailable" in str(error):
