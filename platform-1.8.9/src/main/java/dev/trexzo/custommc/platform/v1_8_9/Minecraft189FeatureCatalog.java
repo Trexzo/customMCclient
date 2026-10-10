@@ -1677,6 +1677,28 @@ public final class Minecraft189FeatureCatalog
      * lifecycle as the public UI while leaving Kill Aura settings unchanged.
      * The property is never set by ordinary client launches.
      */
+    /**
+     * CI-only positive verification against a second, server-owned player.
+     * Uses the same normal module activation as the UI and does not change
+     * any Kill Aura attack/rotation/target settings or allow fake players.
+     */
+    void enableKillAuraForOfficialLocalPvpAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraLocalPvp")) {
+            throw new IllegalStateException("real localhost PvP probe not armed");
+        }
+        if (moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                != ModuleState.DISABLED) {
+            throw new IllegalStateException("Kill Aura was already enabled");
+        }
+        moduleController.enable(Minecraft189KillAuraModule.ID);
+        if (!killAura().active()
+                || moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                != ModuleState.ENABLED) {
+            throw new IllegalStateException("Kill Aura lifecycle failed");
+        }
+    }
+
     void enableKillAuraForOfficialNonPlayerAcceptance() {
         requireOpen();
         if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraNonPlayer")) {
