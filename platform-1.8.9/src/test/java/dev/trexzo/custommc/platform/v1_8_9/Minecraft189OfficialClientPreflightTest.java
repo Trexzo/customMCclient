@@ -131,6 +131,76 @@ final class Minecraft189OfficialClientPreflightTest {
         System.out.println("CLIENT_BINARY_NOT_PERSISTED=YES");
     }
 
+
+    /**
+     * Full original-binary transform smoke, including previously fixture-only
+     * hosts. This runs solely in the checksum-pinned official Mojang JAR job.
+     */
+    @Test
+    void transformAllHandledOriginal189ClassesAndReportExactFrontier()
+            throws Exception {
+        final String pathValue = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(pathValue, "real Mojang JAR required for full sweep");
+            assertFalse(pathValue.trim().isEmpty(), "empty official JAR path");
+        } else {
+            Assumptions.assumeTrue(pathValue != null && !pathValue.trim().isEmpty(),
+                    "official Mojang JAR intentionally absent from Foundation CI");
+        }
+        final Path jarPath = Paths.get(pathValue);
+        assertTrue(Files.isRegularFile(jarPath), "Mojang 1.8.9 client missing");
+        assertEquals(OFFICIAL_SIZE, Files.size(jarPath), "official byte size");
+        assertEquals(OFFICIAL_SHA1, digestFile(jarPath), "official SHA1");
+
+        final Minecraft189ClassTransformer transformer =
+                new Minecraft189ClassTransformer();
+        final java.util.Set<String> handled = new java.util.TreeSet<String>();
+        final java.util.List<String> failures = new java.util.ArrayList<String>();
+        int total = 0;
+        try (JarFile jar = new JarFile(jarPath.toFile())) {
+            final java.util.Enumeration<JarEntry> entries = jar.entries();
+            while (entries.hasMoreElements()) {
+                final JarEntry entry = entries.nextElement();
+                if (entry.isDirectory() || !entry.getName().endsWith(".class"))
+                    continue;
+                total++;
+                final String name = entry.getName().substring(
+                        0, entry.getName().length() - ".class".length())
+                        .replace('/', '.');
+                if (!transformer.handles(name)) continue;
+                assertTrue(handled.add(name), "duplicate handled owner: " + name);
+                try (InputStream input = jar.getInputStream(entry)) {
+                    final byte[] source = readAll(input);
+                    final String sourceInternal = new ClassReader(source).getClassName();
+                    if (!sourceInternal.equals(name.replace('.', '/'))) {
+                        throw new IllegalStateException("original class identity differs");
+                    }
+                    final byte[] output = transformer.transform(name, source);
+                    if (output == null || output.length == 0
+                            || !new ClassReader(output).getClassName()
+                                    .equals(sourceInternal)) {
+                        throw new IllegalStateException("transformed class identity differs");
+                    }
+                    System.out.println("OFFICIAL_189_OWNER_TRANSFORM_PASS=" + name);
+                } catch (RuntimeException | LinkageError problem) {
+                    final String why = problem.getClass().getSimpleName() + ": "
+                            + String.valueOf(problem.getMessage());
+                    failures.add(name + " => " + why);
+                    System.err.println("OFFICIAL_189_OWNER_TRANSFORM_FAIL=" + name
+                            + " reason=" + why);
+                }
+            }
+        }
+        assertTrue(total > 1000, "official 1.8.9 class archive unexpectedly small");
+        assertTrue(handled.size() >= 20, "not enough mapped transformer owners found");
+        assertTrue(failures.isEmpty(),
+                "real 1.8.9 full-owner transformation failures: " + failures);
+        System.out.println("OFFICIAL_189_HANDLED_OWNERS_PASS=" + handled.size());
+        System.out.println("OFFICIAL_189_TOTAL_CLASS_FILES_SCANNED=" + total);
+        System.out.println("NO_OFFICIAL_JAR_EXPORTED=YES");
+    }
+
     private static byte[] readAll(final InputStream input) throws Exception {
         final ByteArrayOutputStream stream = new ByteArrayOutputStream();
         final byte[] buffer = new byte[32768];
