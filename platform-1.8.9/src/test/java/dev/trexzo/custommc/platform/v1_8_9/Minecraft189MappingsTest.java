@@ -617,6 +617,10 @@ final class Minecraft189MappingsTest {
                 "func_181560_a",
                 "updateCameraAndRender");
         assertMethod(
+                Minecraft189Mappings.ENTITY_GET_UNIQUE_ID,
+                Minecraft189Mappings.ENTITY,
+                "aK", "()Ljava/util/UUID;", "func_110124_au", "getUniqueID");
+        assertMethod(
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH,
                 Minecraft189Mappings.ENTITY_LIVING_BASE,
                 "bn",
@@ -2246,6 +2250,7 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_SET_SNEAKING);
+        addMethod(writer, Minecraft189Mappings.ENTITY_GET_UNIQUE_ID);
         return finish(writer);
     }
 

@@ -196,6 +196,9 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189WorldEntityCombatAccess";
     private static final String WORLD_ENTITY_COMBAT_ACCESS_DESCRIPTOR =
             "L" + WORLD_ENTITY_COMBAT_ACCESS_INTERNAL_NAME + ";";
+    private static final String WORLD_ENTITY_UUID_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189WorldEntityUuidAccess";
     private static final String SERVER_DATA_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189ServerDataAccess";
@@ -2995,6 +2998,7 @@ public final class Minecraft189ClassTransformer
                                 superName,
                                 withInterface(
                                         withInterface(
+                                        withInterface(
                                                 withInterface(
                                                         withInterface(
                                                                 withInterface(
@@ -3003,7 +3007,8 @@ public final class Minecraft189ClassTransformer
                                                         WORLD_WEATHER_ACCESS_INTERNAL_NAME),
                                                 WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME),
                                         WORLD_ENTITY_KINDS_ACCESS_INTERNAL_NAME),
-                                WORLD_ENTITY_COMBAT_ACCESS_INTERNAL_NAME));
+                                WORLD_ENTITY_COMBAT_ACCESS_INTERNAL_NAME),
+                                WORLD_ENTITY_UUID_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -3028,6 +3033,7 @@ public final class Minecraft189ClassTransformer
                         addLoadedEntityKindsSnapshot(
                                 cv);
                         addLoadedEntityCombatSnapshot(cv);
+                        addLoadedEntityUuidSnapshot(cv);
                         super.visitEnd();
                     }
                 },
@@ -3833,6 +3839,96 @@ public final class Minecraft189ClassTransformer
                 0,
                 0);
         method.visitEnd();
+    }
+
+
+    /**
+     * Exact 1.8.9 pk.aK getUniqueID on each loaded Entity.
+     * Returns null rather than false identity data on any unsupported entry.
+     */
+    private static void addLoadedEntityUuidSnapshot(final ClassVisitor visitor) {
+        final MethodVisitor m = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcLoadedEntityUuids",
+                "()[Ljava/util/UUID;", null, null);
+        final Label haveList = new Label();
+        final Label loop = new Label();
+        final Label entityOk = new Label();
+        final Label uuidOk = new Label();
+        final Label done = new Label();
+        final String world = Minecraft189Mappings.WORLD.obfuscatedInternalName();
+        final String entity = Minecraft189Mappings.ENTITY.obfuscatedInternalName();
+        m.visitCode();
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitFieldInsn(Opcodes.GETFIELD, world,
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST.obfuscatedName(),
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST.descriptor());
+        m.visitVarInsn(Opcodes.ASTORE, 1);
+        m.visitVarInsn(Opcodes.ALOAD, 1);
+        m.visitJumpInsn(Opcodes.IFNONNULL, haveList);
+        m.visitInsn(Opcodes.ACONST_NULL);
+        m.visitInsn(Opcodes.ARETURN);
+
+        m.visitLabel(haveList);
+        m.visitFrame(Opcodes.F_FULL, 2,
+                new Object[]{world, "java/util/List"}, 0, new Object[0]);
+        m.visitVarInsn(Opcodes.ALOAD, 1);
+        m.visitMethodInsn(Opcodes.INVOKEINTERFACE, "java/util/List",
+                "size", "()I", true);
+        m.visitVarInsn(Opcodes.ISTORE, 2);
+        m.visitVarInsn(Opcodes.ILOAD, 2);
+        m.visitTypeInsn(Opcodes.ANEWARRAY, "java/util/UUID");
+        m.visitVarInsn(Opcodes.ASTORE, 3);
+        m.visitInsn(Opcodes.ICONST_0);
+        m.visitVarInsn(Opcodes.ISTORE, 4);
+
+        m.visitLabel(loop);
+        final Object[] locals = new Object[]{world, "java/util/List",
+                Opcodes.INTEGER, "[Ljava/util/UUID;", Opcodes.INTEGER};
+        m.visitFrame(Opcodes.F_FULL, 5, locals, 0, new Object[0]);
+        m.visitVarInsn(Opcodes.ILOAD, 4);
+        m.visitVarInsn(Opcodes.ILOAD, 2);
+        m.visitJumpInsn(Opcodes.IF_ICMPGE, done);
+        m.visitVarInsn(Opcodes.ALOAD, 1);
+        m.visitVarInsn(Opcodes.ILOAD, 4);
+        m.visitMethodInsn(Opcodes.INVOKEINTERFACE, "java/util/List",
+                "get", "(I)Ljava/lang/Object;", true);
+        m.visitInsn(Opcodes.DUP);
+        m.visitTypeInsn(Opcodes.INSTANCEOF, entity);
+        m.visitJumpInsn(Opcodes.IFNE, entityOk);
+        m.visitInsn(Opcodes.POP);
+        m.visitInsn(Opcodes.ACONST_NULL);
+        m.visitInsn(Opcodes.ARETURN);
+
+        m.visitLabel(entityOk);
+        m.visitFrame(Opcodes.F_FULL, 5, locals,
+                1, new Object[]{"java/lang/Object"});
+        m.visitTypeInsn(Opcodes.CHECKCAST, entity);
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, entity,
+                Minecraft189Mappings.ENTITY_GET_UNIQUE_ID.obfuscatedName(),
+                Minecraft189Mappings.ENTITY_GET_UNIQUE_ID.descriptor(), false);
+        m.visitInsn(Opcodes.DUP);
+        m.visitJumpInsn(Opcodes.IFNONNULL, uuidOk);
+        m.visitInsn(Opcodes.POP);
+        m.visitInsn(Opcodes.ACONST_NULL);
+        m.visitInsn(Opcodes.ARETURN);
+
+        m.visitLabel(uuidOk);
+        m.visitFrame(Opcodes.F_FULL, 5, locals,
+                1, new Object[]{"java/util/UUID"});
+        m.visitVarInsn(Opcodes.ALOAD, 3);
+        m.visitInsn(Opcodes.SWAP);
+        m.visitVarInsn(Opcodes.ILOAD, 4);
+        m.visitInsn(Opcodes.SWAP);
+        m.visitInsn(Opcodes.AASTORE);
+        m.visitIincInsn(4, 1);
+        m.visitJumpInsn(Opcodes.GOTO, loop);
+
+        m.visitLabel(done);
+        m.visitFrame(Opcodes.F_FULL, 5, locals, 0, new Object[0]);
+        m.visitVarInsn(Opcodes.ALOAD, 3);
+        m.visitInsn(Opcodes.ARETURN);
+        m.visitMaxs(0, 0);
+        m.visitEnd();
     }
 
     private static void addLoadedEntityKindsSnapshot(
