@@ -131,6 +131,63 @@ final class Minecraft189OfficialClientPreflightTest {
         System.out.println("CLIENT_BINARY_NOT_PERSISTED=YES");
     }
 
+    @Test
+    void allHandledMappedClassesTransformFromRealOfficialClient()
+            throws Exception {
+        final String value = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(value, "required official Mojang client path missing");
+            assertFalse(value.trim().isEmpty(), "required official client path empty");
+        } else {
+            Assumptions.assumeTrue(value != null && !value.trim().isEmpty(),
+                    "No Mojang jar in standard offline CI");
+        }
+        final Path path = Paths.get(value);
+        assertTrue(Files.isRegularFile(path), "missing client JAR");
+        assertEquals(OFFICIAL_SIZE, Files.size(path));
+        assertEquals(OFFICIAL_SHA1, digestFile(path));
+        final Minecraft189ClassTransformer transformer =
+                new Minecraft189ClassTransformer();
+        final java.util.Set<String> handled = new java.util.TreeSet<String>();
+        final java.util.List<String> missingOrFailed =
+                new java.util.ArrayList<String>();
+        try (JarFile jar = new JarFile(path.toFile())) {
+            final java.util.Enumeration<JarEntry> iterator = jar.entries();
+            while (iterator.hasMoreElements()) {
+                final JarEntry entry = iterator.nextElement();
+                if (entry.isDirectory() || !entry.getName().endsWith(".class")) continue;
+                final String internal = entry.getName().substring(
+                        0, entry.getName().length() - ".class".length());
+                final String binary = internal.replace('/', '.');
+                if (!transformer.handles(binary)) continue;
+                handled.add(binary);
+                final byte[] source;
+                try (InputStream input = jar.getInputStream(entry)) {
+                    source = readAll(input);
+                }
+                assertEquals(internal, new ClassReader(source).getClassName(),
+                        "official JAR path-to-owner mismatch");
+                try {
+                    final byte[] transformed = transformer.transform(binary, source);
+                    assertNotNull(transformed, "transform returned null: " + binary);
+                    assertEquals(internal, new ClassReader(transformed).getClassName(),
+                            "transform changed mapped owner: " + binary);
+                    System.out.println("OFFICIAL_189_TRANSFORM_OK=" + binary
+                            + " sha256=" + sha256(source));
+                } catch (RuntimeException invalidShape) {
+                    missingOrFailed.add(binary + ": " + invalidShape.getMessage());
+                }
+            }
+        }
+        // 24 mapped runtime owners plus the Minecraft entry-point class.
+        // Reject silently missing owners instead of passing a partial list.
+        assertEquals(25, handled.size(),
+                "not all declared 1.8.9 transform owners occur in official JAR: " + handled);
+        assertTrue(missingOrFailed.isEmpty(),
+                "real vanilla classes failed mapped transformation: " + missingOrFailed);
+        System.out.println("OFFICIAL_189_COMPLETE_MAPPED_OWNERS_PASS=" + handled.size());
+    }
+
     private static byte[] readAll(final InputStream input) throws Exception {
         final ByteArrayOutputStream stream = new ByteArrayOutputStream();
         final byte[] buffer = new byte[32768];
