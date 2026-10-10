@@ -96,6 +96,9 @@ def current_screen(log):
 def resume_if_paused(process, log, window):
     screen = current_screen(log)
     if screen == b"axp":
+        # With a real WM on the acceptance display this activates the
+        # window before clicking the vanilla "Back to Game" button.
+        xdotool("windowactivate", "--sync", window)
         # Actual Minecraft 1.8.9 GuiIngameMenu button 4,
         # "Back to Game", is at width/2, height/4+8.
         click(window, 427, 128)
@@ -157,9 +160,22 @@ def run(command, game, timeout, attack=False):
     env.pop("CUSTOMMC_ACCESS_TOKEN", None)
     env.pop("JAVA_TOOL_OPTIONS", None)
     process = None
+    window_manager = None
     with tempfile.TemporaryDirectory(prefix="custommc-189-world-") as temp:
         log = Path(temp) / "minecraft.txt"
         try:
+            if attack:
+                # Xvfb alone has no EWMH window manager; LWJGL2 may lose
+                # active focus and auto-pause the integrated server. Openbox
+                # supplies real X11 activation without patching Minecraft.
+                window_manager = subprocess.Popen(
+                    ["openbox", "--sm-disable"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+                time.sleep(1.0)
+                if window_manager.poll() is not None:
+                    raise AssertionError("Openbox failed to initialize X11 focus")
+                print("CUSTOMMC_189_X11_WINDOW_MANAGER_ACTIVE=YES", flush=True)
             with log.open("wb") as output:
                 process = subprocess.Popen(
                     command, env=env, stdout=output,
@@ -171,6 +187,8 @@ def run(command, game, timeout, attack=False):
                          "actual graphical frame")
             window = find_window(min(deadline, time.monotonic() + 15))
             print("CUSTOMMC_189_REAL_X11_WINDOW_FOUND=YES", flush=True)
+            if attack:
+                xdotool("windowactivate", "--sync", window)
             geometry = xdotool("getwindowgeometry", "--shell", window)
             print("CUSTOMMC_189_WINDOW_GEOMETRY="
                   + geometry.replace("\n", " "), flush=True)
@@ -259,6 +277,13 @@ def run(command, game, timeout, attack=False):
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=5)
+            if window_manager is not None:
+                window_manager.terminate()
+                try:
+                    window_manager.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    window_manager.kill()
+                    window_manager.wait(timeout=5)
 
 
 if __name__ == "__main__":
