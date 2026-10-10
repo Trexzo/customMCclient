@@ -22,6 +22,8 @@ final class Minecraft189VanillaMeleeAcceptance {
     private static boolean reported;
     private static boolean syntheticCall;
     private static boolean pendingAutoClicker;
+    private static boolean syntheticAura;
+    private static boolean pendingAura;
 
     private Minecraft189VanillaMeleeAcceptance() {
     }
@@ -36,6 +38,8 @@ final class Minecraft189VanillaMeleeAcceptance {
         reported = false;
         syntheticCall = false;
         pendingAutoClicker = false;
+        syntheticAura = false;
+        pendingAura = false;
     }
 
     static void tick() {
@@ -83,9 +87,47 @@ final class Minecraft189VanillaMeleeAcceptance {
                     || ((baseline & 255) >>> 1) != 0) {
                 return;
             }
+            // Do not reset the 20-tick window on every high-CPS Aura
+            // attempt against the same unhurt real player, or flood logs.
+            if (syntheticAura && pendingAura
+                    && pendingWorld == world && pendingEntity == entity
+                    && ticks >= pendingTick && ticks - pendingTick <= 20) {
+                return;
+            }
             pendingWorld = world;
             pendingEntity = entity;
             pendingTick = ticks;
+            pendingAura = syntheticAura
+                    && Boolean.getBoolean(
+                            "custommc.acceptance.reportKillAuraLocalPvp");
+            if (pendingAura) {
+                // A real second player must be present in the game's native
+                // entity-kind list. A pig or client-only fake cannot certify
+                // this target identity from a server-owned player join.
+                if (!(world instanceof Minecraft189WorldEntityKindsAccess)) {
+                    pendingAura = false;
+                    pendingEntity = null;
+                    return;
+                }
+                final int[] kinds = ((Minecraft189WorldEntityKindsAccess) world)
+                        .customMcLoadedEntityKinds();
+                if (kinds == null || index >= kinds.length
+                        || (kinds[index]
+                                & (Minecraft189WorldEntityKindState.PLAYER
+                                   | Minecraft189WorldEntityKindState.LIVING))
+                            != (Minecraft189WorldEntityKindState.PLAYER
+                                | Minecraft189WorldEntityKindState.LIVING)
+                        || (kinds[index]
+                                & Minecraft189WorldEntityKindState.LOCAL_PLAYER)
+                            != 0) {
+                    pendingAura = false;
+                    pendingEntity = null;
+                    return;
+                }
+                System.out.println(
+                        "CUSTOMMC_189_KILLAURA_REAL_PLAYER_RAYCAST_ARMED=YES");
+                System.out.flush();
+            }
             pendingAutoClicker = syntheticCall
                     && Boolean.getBoolean("custommc.acceptance.reportAutoClicker");
             if (pendingAutoClicker) {
@@ -133,6 +175,10 @@ final class Minecraft189VanillaMeleeAcceptance {
                 if (pendingAutoClicker) {
                     System.out.println(
                             "CUSTOMMC_OFFICIAL_189_AUTOCLICKER_SAME_ENTITY_HURT_PASS=YES");
+                }
+                if (pendingAura) {
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HURT_PASS=YES");
                 }
                 System.out.flush();
             }
@@ -205,6 +251,14 @@ final class Minecraft189VanillaMeleeAcceptance {
         } catch (ReflectiveOperationException | SecurityException ignored) {
             return null;
         }
+    }
+
+    static void syntheticAuraStarted() {
+        syntheticAura = true;
+    }
+
+    static void syntheticAuraFinished() {
+        syntheticAura = false;
     }
 
     static void syntheticClickStarted() {
