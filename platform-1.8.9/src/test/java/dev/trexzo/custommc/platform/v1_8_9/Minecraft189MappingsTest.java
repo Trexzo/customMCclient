@@ -2914,6 +2914,14 @@ final class Minecraft189MappingsTest {
         ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
                 "aug", "b", "(DDD)Laug;", false);
         ray.visitInsn(Opcodes.POP);
+        ray.visitInsn(Opcodes.ACONST_NULL);
+        ray.visitTypeInsn(Opcodes.CHECKCAST, "aug");
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "aug", "b", "(DDD)Laug;", false);
+        ray.visitInsn(Opcodes.POP);
         ray.visitInsn(Opcodes.RETURN);
         ray.visitMaxs(4, 2);
         ray.visitEnd();

@@ -1,0 +1,42 @@
+name: Official Minecraft 1.8.9 Binary Preflight
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/minecraft-189-real-client.yml'
+      - 'scripts/FetchMojang189Client.py'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClassTransformer.java'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClassShapeVerifier.java'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189Mappings.java'
+      - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OfficialClientPreflightTest.java'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  official-binary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Fetch and verify official Mojang 1.8.9 client
+        run: python scripts/FetchMojang189Client.py --output "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar"
+      - name: Verify actual obfuscated class mappings and transformer hooks
+        env:
+          CUSTOMMC_189_REAL_CLIENT_REQUIRED: 'true'
+          CUSTOMMC_189_REAL_CLIENT_JAR: ${{ runner.temp }}/minecraft-1.8.9-vanilla.jar
+        run: gradle --no-daemon :platform-1.8.9:test --tests 'dev.trexzo.custommc.platform.v1_8_9.Minecraft189OfficialClientPreflightTest'
+      - name: Remove official JAR from CI runner
+        if: always()
+        run: python -c "from pathlib import Path; Path('$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar').unlink(missing_ok=True)"

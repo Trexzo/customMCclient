@@ -110,7 +110,7 @@ final class Minecraft189MappedHostTransformationTest {
                 };
             }
         }, 0);
-        assertArrayEquals(new int[]{1, 1, 2, 1}, bridgeCalls);
+        assertArrayEquals(new int[]{1, 1, 1, 1}, bridgeCalls);
         assertEquals(0, sixConstants[0]);
     }
 
@@ -8195,9 +8195,7 @@ final class Minecraft189MappedHostTransformationTest {
         mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "pk", "a",
                 "(DF)Lauh;", false);
         mouseOver.visitInsn(Opcodes.POP);
-        // Real 1.8.9 extendedReach branch has exactly two 6.0D literals.
-        mouseOver.visitLdcInsn(Double.valueOf(6.0D));
-        mouseOver.visitInsn(Opcodes.POP2);
+        // Exact native 1.8.9 getMouseOver has one extended-reach 6.0D literal.
         mouseOver.visitLdcInsn(Double.valueOf(6.0D));
         mouseOver.visitInsn(Opcodes.POP2);
         mouseOver.visitTypeInsn(Opcodes.NEW, playerCandidate ? "wn" : "pk");
@@ -8208,6 +8206,16 @@ final class Minecraft189MappedHostTransformationTest {
                 "pk", "ao", "()F", false);
         mouseOver.visitFieldInsn(Opcodes.PUTSTATIC,
                 "bfk", "lastBorder", "F");
+        mouseOver.visitTypeInsn(Opcodes.NEW, "aug");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "aug", "<init>", "()V", false);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "aug", "b", "(DDD)Laug;", false);
+        mouseOver.visitInsn(Opcodes.POP);
         mouseOver.visitTypeInsn(Opcodes.NEW, "aug");
         mouseOver.visitInsn(Opcodes.DUP);
         mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
