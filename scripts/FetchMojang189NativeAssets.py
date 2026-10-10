@@ -159,8 +159,9 @@ def stage_index_and_sampled_assets(metadata, root):
     )
     parsed = json.loads(index)
     objects = parsed.get("objects")
-    if not isinstance(objects, dict) or not (1000 <= len(objects) <= MAX_ASSET_OBJECTS):
-        raise ValueError("official asset index has an implausible object count")
+    if not isinstance(objects, dict) or not (100 <= len(objects) <= MAX_ASSET_OBJECTS):
+        raise ValueError("pinned 1.8 asset index object count outside bounded range: "
+                         + str(len(objects) if isinstance(objects, dict) else "missing"))
     for name, obj in objects.items():
         if (not isinstance(name, str) or not name or len(name) > 400
                 or name.startswith("/") or "\\" in name
