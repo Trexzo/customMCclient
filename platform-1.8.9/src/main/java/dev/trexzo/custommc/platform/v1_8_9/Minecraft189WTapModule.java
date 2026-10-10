@@ -296,6 +296,14 @@ public final class Minecraft189WTapModule
         return true;
     }
 
+    // A ClickGUI boundary invalidates any pending sprint reset.
+    // Preserve a currently-held physical button so closing the GUI
+    // cannot fabricate a new attack-button press edge.
+    synchronized void suspendForGui(final boolean attackHeld) {
+        resetState();
+        previousLeftButtonHeld = attackHeld;
+    }
+
     synchronized boolean active() {
         return enabled;
     }

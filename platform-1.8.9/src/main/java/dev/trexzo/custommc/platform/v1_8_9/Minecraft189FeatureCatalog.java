@@ -111,6 +111,24 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189AimAssistFeature aimAssistFeature;
     private final Minecraft189SpinFeature spinFeature;
     private final Minecraft189WTapFeature wTapFeature;
+    private final Minecraft189JumpResetFeature jumpResetFeature;
+    private final Minecraft189TriggerBotFeature triggerBotFeature;
+    private final Minecraft189KillAuraFeature killAuraFeature;
+    private final Minecraft189HitSelectFeature hitSelectFeature;
+    private final Minecraft189CriticalsFeature criticalsFeature;
+    private final Minecraft189KeepSprintFeature keepSprintFeature;
+    private final Minecraft189CombatSlotFeature combatSlotFeature;
+    private final Minecraft189AntiBotFeature antiBotFeature;
+    private final Minecraft189TeamGuardFeature teamGuardFeature;
+    private final Minecraft189FriendGuardFeature friendGuardFeature;
+    private final Minecraft189WallCheckFeature wallCheckFeature;
+    private final Minecraft189AutoRodFeature autoRodFeature;
+    private final Minecraft189AutoPotFeature autoPotFeature;
+    private final Minecraft189AutoBlockFeature autoBlockFeature;
+    private final Minecraft189AutoWeaponFeature autoWeaponFeature;
+    private final Minecraft189AttackRangeFeature attackRangeFeature;
+    private final Minecraft189ReachFeature reachFeature;
+    private final Minecraft189HitboxFeature hitboxFeature;
     private Minecraft189FullbrightFeature fullbrightFeature;
     private Minecraft189FovFeature fovFeature;
     private Minecraft189NoBobbingFeature noBobbingFeature;
@@ -197,7 +215,25 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189JitterFeature jitterFeature,
             final Minecraft189AimAssistFeature aimAssistFeature,
             final Minecraft189SpinFeature spinFeature,
-            final Minecraft189WTapFeature wTapFeature) {
+            final Minecraft189WTapFeature wTapFeature,
+            final Minecraft189JumpResetFeature jumpResetFeature,
+            final Minecraft189TriggerBotFeature triggerBotFeature,
+            final Minecraft189KillAuraFeature killAuraFeature,
+            final Minecraft189HitSelectFeature hitSelectFeature,
+            final Minecraft189CriticalsFeature criticalsFeature,
+            final Minecraft189KeepSprintFeature keepSprintFeature,
+            final Minecraft189CombatSlotFeature combatSlotFeature,
+            final Minecraft189AntiBotFeature antiBotFeature,
+            final Minecraft189TeamGuardFeature teamGuardFeature,
+            final Minecraft189FriendGuardFeature friendGuardFeature,
+            final Minecraft189WallCheckFeature wallCheckFeature,
+            final Minecraft189AutoRodFeature autoRodFeature,
+            final Minecraft189AutoPotFeature autoPotFeature,
+            final Minecraft189AutoBlockFeature autoBlockFeature,
+            final Minecraft189AutoWeaponFeature autoWeaponFeature,
+            final Minecraft189AttackRangeFeature attackRangeFeature,
+            final Minecraft189ReachFeature reachFeature,
+            final Minecraft189HitboxFeature hitboxFeature) {
         this.modules = modules;
         this.moduleController = moduleController;
         this.modulePresentations = modulePresentations;
@@ -279,6 +315,24 @@ public final class Minecraft189FeatureCatalog
         this.aimAssistFeature = aimAssistFeature;
         this.spinFeature = spinFeature;
         this.wTapFeature = wTapFeature;
+        this.jumpResetFeature = jumpResetFeature;
+        this.triggerBotFeature = triggerBotFeature;
+        this.killAuraFeature = killAuraFeature;
+        this.hitSelectFeature = hitSelectFeature;
+        this.criticalsFeature = criticalsFeature;
+        this.keepSprintFeature = keepSprintFeature;
+        this.combatSlotFeature = combatSlotFeature;
+        this.antiBotFeature = antiBotFeature;
+        this.teamGuardFeature = teamGuardFeature;
+        this.friendGuardFeature = friendGuardFeature;
+        this.wallCheckFeature = wallCheckFeature;
+        this.autoRodFeature = autoRodFeature;
+        this.autoPotFeature = autoPotFeature;
+        this.autoBlockFeature = autoBlockFeature;
+        this.autoWeaponFeature = autoWeaponFeature;
+        this.attackRangeFeature = attackRangeFeature;
+        this.reachFeature = reachFeature;
+        this.hitboxFeature = hitboxFeature;
     }
 
     public static Minecraft189FeatureCatalog install(
@@ -423,6 +477,24 @@ public final class Minecraft189FeatureCatalog
         Minecraft189AimAssistFeature aimAssistFeature = null;
         Minecraft189SpinFeature spinFeature = null;
         Minecraft189WTapFeature wTapFeature = null;
+        Minecraft189JumpResetFeature jumpResetFeature = null;
+        Minecraft189TriggerBotFeature triggerBotFeature = null;
+        Minecraft189KillAuraFeature killAuraFeature = null;
+        Minecraft189HitSelectFeature hitSelectFeature = null;
+        Minecraft189CriticalsFeature criticalsFeature = null;
+        Minecraft189KeepSprintFeature keepSprintFeature = null;
+        Minecraft189CombatSlotFeature combatSlotFeature = null;
+        Minecraft189AntiBotFeature antiBotFeature = null;
+        Minecraft189TeamGuardFeature teamGuardFeature = null;
+        Minecraft189FriendGuardFeature friendGuardFeature = null;
+        Minecraft189WallCheckFeature wallCheckFeature = null;
+        Minecraft189AutoRodFeature autoRodFeature = null;
+        Minecraft189AutoPotFeature autoPotFeature = null;
+        Minecraft189AutoBlockFeature autoBlockFeature = null;
+        Minecraft189AutoWeaponFeature autoWeaponFeature = null;
+        Minecraft189AttackRangeFeature attackRangeFeature = null;
+        Minecraft189ReachFeature reachFeature = null;
+        Minecraft189HitboxFeature hitboxFeature = null;
 
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
@@ -839,6 +911,71 @@ public final class Minecraft189FeatureCatalog
                             settings,
                             settingPresentations);
 
+            jumpResetFeature = Minecraft189JumpResetFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
+            triggerBotFeature = Minecraft189TriggerBotFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
+            killAuraFeature = Minecraft189KillAuraFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
+            hitSelectFeature = Minecraft189HitSelectFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
+            criticalsFeature = Minecraft189CriticalsFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
+            keepSprintFeature = Minecraft189KeepSprintFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
+            combatSlotFeature = Minecraft189CombatSlotFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
+            antiBotFeature = Minecraft189AntiBotFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+            teamGuardFeature = Minecraft189TeamGuardFeature.install(
+                    modules, moduleController, presentations);
+            friendGuardFeature = Minecraft189FriendGuardFeature.install(
+                    modules, moduleController, presentations,
+                    moduleSettings, settings, settingPresentations);
+            wallCheckFeature = Minecraft189WallCheckFeature.install(
+                    modules, moduleController, presentations);
+
+            autoRodFeature = Minecraft189AutoRodFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
+            autoPotFeature = Minecraft189AutoPotFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
+            autoBlockFeature = Minecraft189AutoBlockFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
+            autoWeaponFeature = Minecraft189AutoWeaponFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
+            attackRangeFeature = Minecraft189AttackRangeFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+            reachFeature = Minecraft189ReachFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+            hitboxFeature = Minecraft189HitboxFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations);
+
             arrayListFeature =
                     Minecraft189ArrayListFeature.install(
                             modules,
@@ -1209,8 +1346,44 @@ public final class Minecraft189FeatureCatalog
                     jitterFeature,
                     aimAssistFeature,
                     spinFeature,
-                    wTapFeature);
+                    wTapFeature,
+                    jumpResetFeature,
+                    triggerBotFeature,
+                    killAuraFeature,
+                    hitSelectFeature,
+                    criticalsFeature,
+                    keepSprintFeature,
+                    combatSlotFeature,
+                    antiBotFeature,
+                    teamGuardFeature,
+                    friendGuardFeature,
+                    wallCheckFeature,
+                    autoRodFeature,
+                    autoPotFeature,
+                    autoBlockFeature,
+                    autoWeaponFeature,
+                    attackRangeFeature,
+                    reachFeature,
+                    hitboxFeature);
         } catch (RuntimeException failure) {
+            closeQuietly(hitboxFeature, failure);
+            closeQuietly(reachFeature, failure);
+            closeQuietly(attackRangeFeature, failure);
+            closeQuietly(autoWeaponFeature, failure);
+            closeQuietly(autoBlockFeature, failure);
+            closeQuietly(autoPotFeature, failure);
+            closeQuietly(autoRodFeature, failure);
+            closeQuietly(wallCheckFeature, failure);
+            closeQuietly(friendGuardFeature, failure);
+            closeQuietly(teamGuardFeature, failure);
+            closeQuietly(antiBotFeature, failure);
+            closeQuietly(combatSlotFeature, failure);
+            closeQuietly(keepSprintFeature, failure);
+            closeQuietly(criticalsFeature, failure);
+            closeQuietly(hitSelectFeature, failure);
+            closeQuietly(killAuraFeature, failure);
+            closeQuietly(triggerBotFeature, failure);
+            closeQuietly(jumpResetFeature, failure);
             closeQuietly(wTapFeature, failure);
             closeQuietly(spinFeature, failure);
             closeQuietly(aimAssistFeature, failure);
@@ -1514,6 +1687,96 @@ public final class Minecraft189FeatureCatalog
         return spinFeature.module();
     }
 
+    public Minecraft189AttackRangeModule attackRange() {
+        requireOpen();
+        return attackRangeFeature.module();
+    }
+
+    public Minecraft189ReachModule reach() {
+        requireOpen();
+        return reachFeature.module();
+    }
+
+    public Minecraft189HitboxModule hitbox() {
+        requireOpen();
+        return hitboxFeature.module();
+    }
+
+    public Minecraft189AutoWeaponModule autoWeapon() {
+        requireOpen();
+        return autoWeaponFeature.module();
+    }
+
+    public Minecraft189AutoBlockModule autoBlock() {
+        requireOpen();
+        return autoBlockFeature.module();
+    }
+
+    public Minecraft189AutoPotModule autoPot() {
+        requireOpen();
+        return autoPotFeature.module();
+    }
+
+    public Minecraft189AutoRodModule autoRod() {
+        requireOpen();
+        return autoRodFeature.module();
+    }
+
+    public Minecraft189AntiBotModule antiBot() {
+        requireOpen();
+        return antiBotFeature.module();
+    }
+
+    public Minecraft189TeamGuardModule teamGuard() {
+        requireOpen();
+        return teamGuardFeature.module();
+    }
+
+    public Minecraft189FriendGuardModule friendGuard() {
+        requireOpen();
+        return friendGuardFeature.module();
+    }
+
+    public Minecraft189WallCheckModule wallCheck() {
+        requireOpen();
+        return wallCheckFeature.module();
+    }
+
+    public Minecraft189CombatSlotModule combatSlot() {
+        requireOpen();
+        return combatSlotFeature.module();
+    }
+
+    public Minecraft189KeepSprintModule keepSprint() {
+        requireOpen();
+        return keepSprintFeature.module();
+    }
+
+    public Minecraft189CriticalsModule criticals() {
+        requireOpen();
+        return criticalsFeature.module();
+    }
+
+    public Minecraft189HitSelectModule hitSelect() {
+        requireOpen();
+        return hitSelectFeature.module();
+    }
+
+    public Minecraft189KillAuraModule killAura() {
+        requireOpen();
+        return killAuraFeature.module();
+    }
+
+    public Minecraft189TriggerBotModule triggerBot() {
+        requireOpen();
+        return triggerBotFeature.module();
+    }
+
+    public Minecraft189JumpResetModule jumpReset() {
+        requireOpen();
+        return jumpResetFeature.module();
+    }
+
     public Minecraft189WTapModule wTap() {
         requireOpen();
         return wTapFeature.module();
@@ -1728,6 +1991,114 @@ public final class Minecraft189FeatureCatalog
                         failure,
                         closeFailure);
             }
+        }
+
+        try {
+            hitboxFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            reachFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            attackRangeFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            autoWeaponFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            autoBlockFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            autoPotFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            autoRodFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            wallCheckFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            friendGuardFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            teamGuardFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            antiBotFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            combatSlotFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            keepSprintFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            criticalsFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            hitSelectFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            killAuraFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            triggerBotFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            jumpResetFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
         }
 
         try {

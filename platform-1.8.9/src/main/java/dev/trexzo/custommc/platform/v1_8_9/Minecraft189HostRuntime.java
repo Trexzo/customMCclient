@@ -42,6 +42,22 @@ public final class Minecraft189HostRuntime
     private final Minecraft189WorldWeatherState worldWeatherState;
     private final Minecraft189WorldEntityPositionState worldEntityPositionState;
     private final Minecraft189WorldEntityKindState worldEntityKindState;
+    private final Minecraft189WorldEntityCombatState worldEntityCombatState =
+            new Minecraft189WorldEntityCombatState();
+    private final Minecraft189WorldEntityUuidState worldEntityUuidState =
+            new Minecraft189WorldEntityUuidState();
+    private final Minecraft189WorldEntityVisibilityState worldEntityVisibilityState =
+            new Minecraft189WorldEntityVisibilityState();
+    private Minecraft189WorldEntityVisibilityAccess tickVisibilityWorld;
+    // Exact loaded-world object used for UUID parity, never a stored entity index.
+    private Minecraft189WorldEntityUuidAccess tickUuidWorld;
+    private final Minecraft189CriticalsEvidence criticalsEvidence =
+            new Minecraft189CriticalsEvidence();
+    // Per-host-tick reference only; cleared before every new position sample.
+    private Minecraft189PlayerSprintControl tickSprintControl;
+    private Minecraft189InventoryHotbarControl tickHotbarControl;
+    private boolean autoWeaponOwnedClick;
+    private Minecraft189PlayerHeldItemAccess tickHeldItemAccess;
     private final Minecraft189NearestPlayerTargetState nearestPlayerTargetState;
     private final Minecraft189TargetRotationState targetRotationState;
     // Range-only Aim Assist targeting does not replace general nearest-player state.
@@ -441,6 +457,11 @@ public final class Minecraft189HostRuntime
         return worldEntityKindState;
     }
 
+    public Minecraft189WorldEntityCombatState worldEntityCombatState() {
+        requireOpen();
+        return worldEntityCombatState;
+    }
+
     public Minecraft189NearestPlayerTargetState nearestPlayerTargetState() {
         requireOpen();
         return nearestPlayerTargetState;
@@ -469,6 +490,12 @@ public final class Minecraft189HostRuntime
     void playerPosition(
             final Minecraft189PlayerPositionAccess player) {
         requireOpen();
+        // Clear both halves on every host tick. No stale fall/motion
+        // evidence can authorize an automatic attack after world changes.
+        criticalsEvidence.reset();
+        tickSprintControl = null;
+        tickHotbarControl = null;
+        tickHeldItemAccess = null;
         nearestPlayerTargetState.clear();
         if (player == null) {
             targetRotationState.clear();
@@ -505,10 +532,8 @@ public final class Minecraft189HostRuntime
                             null,
                             false);
             featureCatalog.jitter()
-                    .apply(
-                            null,
-                            null,
-                            false);
+                    .apply(null, null, false);
+            featureCatalog.killAura().suspend();
             return;
         }
 
@@ -540,6 +565,15 @@ public final class Minecraft189HostRuntime
         final boolean leftButtonHeld =
                 inputState.pointerPressed(
                         Minecraft189ClickRateTracker.LEFT_BUTTON);
+        // The GUI owns pointer/keyboard focus: rotation automation must
+        // release ownership and discard any pending correction cadence.
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            featureCatalog.spin().apply(null, null, false);
+            featureCatalog.aimAssist().apply(null, null, null, false, false);
+            featureCatalog.jitter().apply(null, null, false);
+            featureCatalog.killAura().suspend();
+            return;
+        }
         if (featureCatalog.spin()
                 .apply(
                         control,
@@ -551,6 +585,15 @@ public final class Minecraft189HostRuntime
                             null,
                             null,
                             false);
+            return;
+        }
+        // Aura exclusively owns the rotation lane when enabled.
+        // Spin retains its established, explicit precedence.
+        final Minecraft189KillAuraModule aura = featureCatalog.killAura();
+        if (aura.active()) {
+            aura.aim(control, rotation, targetRotationState.snapshot(),
+                    leftButtonHeld, playerMovementState.snapshot());
+            featureCatalog.jitter().apply(null, null, false);
             return;
         }
         final Minecraft189AimAssistModule assist =
@@ -656,6 +699,7 @@ public final class Minecraft189HostRuntime
     void playerSprintControl(
             final Minecraft189PlayerSprintControl player) {
         requireOpen();
+        tickSprintControl = player;
         if (player == null) {
             featureCatalog.wTap()
                     .apply(
@@ -667,15 +711,14 @@ public final class Minecraft189HostRuntime
         }
         final Minecraft189PlayerMovementState.Snapshot movement =
                 playerMovementState.snapshot();
-        if (featureCatalog.wTap()
-                .apply(
-                        player,
-                        movement,
-                        inputState.pointerPressed(
-                                Minecraft189ClickRateTracker.LEFT_BUTTON),
-                        inputState.keyPressed(
-                                LegacyKeyboardCodes.W),
-                        nearestPlayerTargetState.snapshot())) {
+        final boolean attackHeld = inputState.pointerPressed(
+                Minecraft189ClickRateTracker.LEFT_BUTTON);
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            featureCatalog.wTap().suspendForGui(attackHeld);
+        } else if (featureCatalog.wTap().apply(
+                player, movement, attackHeld,
+                inputState.keyPressed(LegacyKeyboardCodes.W),
+                nearestPlayerTargetState.snapshot())) {
             return;
         }
         featureCatalog.autoSprint()
@@ -741,6 +784,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerJumpControl player) {
         requireOpen();
         if (player == null) {
+            featureCatalog.jumpReset().apply(null, null, null, false, true);
             return;
         }
         final Minecraft189PlayerMovementState.Snapshot movement =
@@ -762,6 +806,18 @@ public final class Minecraft189HostRuntime
                         .active()
                         || featureCatalog.flight()
                                 .active();
+        // Combat Jump Reset consumes only a fresh mapped local hurt edge.
+        // Never execute a second synthetic jump in the same callback.
+        // Existing movement jump modules retain priority while active.
+        if (featureCatalog.jumpReset().apply(
+                player, movement, playerHurtTimeState.snapshot(),
+                inputState.keyPressed(LegacyKeyboardCodes.W),
+                movementJumpSuspended || longJumpActive || highJumpActive
+                        || lowHopActive || bunnyHopActive
+                        || featureCatalog.airJump().active()
+                        || clickGuiRuntime.coreRuntime().model().snapshot().open())) {
+            return;
+        }
         featureCatalog.longJump()
                 .applyJump(
                         player,
@@ -821,9 +877,10 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerFallDistanceControl player) {
         requireOpen();
         featureCatalog.noFall()
-                .apply(
-                        player,
-                        playerMovementState.snapshot());
+                .apply(player, playerMovementState.snapshot());
+        if (player != null) {
+            criticalsEvidence.fall(player.customMcFallDistance());
+        }
     }
 
     void playerWebControl(
@@ -857,10 +914,7 @@ public final class Minecraft189HostRuntime
                         player);
         if (freezeActive) {
             featureCatalog.damageBoost()
-                    .apply(
-                            player,
-                            hurtTime,
-                            true);
+                    .apply(player, hurtTime, true);
             return;
         }
 
@@ -982,10 +1036,11 @@ public final class Minecraft189HostRuntime
                                 || reverseStepOwnsVertical
                                 || fastFallActive);
         featureCatalog.damageBoost()
-                .apply(
-                        player,
-                        hurtTime,
-                        flightActive);
+                .apply(player, hurtTime, flightActive);
+        if (player != null) {
+            // Read the final mapped motion after movement policies apply.
+            criticalsEvidence.motion(player.customMcMotionY());
+        }
     }
 
     void playerHealth(
@@ -1086,12 +1141,16 @@ public final class Minecraft189HostRuntime
     void playerHotbarSlot(
             final Minecraft189PlayerInventoryAccess player) {
         requireOpen();
+        tickHotbarControl = null;
         if (player == null) {
             hotbarSlotState.clear();
             return;
         }
         final Minecraft189InventoryHotbarAccess inventory =
                 player.customMcInventory();
+        if (inventory instanceof Minecraft189InventoryHotbarControl) {
+            tickHotbarControl = (Minecraft189InventoryHotbarControl) inventory;
+        }
         if (inventory == null) {
             hotbarSlotState.clear();
             return;
@@ -1133,11 +1192,42 @@ public final class Minecraft189HostRuntime
     void worldEntityPositions(
             final Minecraft189WorldEntityPositionsAccess world) {
         requireOpen();
+        // Begin a new entity-list snapshot; never pair old combat evidence
+        // with positions that may have reordered across world ticks.
+        worldEntityCombatState.clear();
         nearestPlayerTargetState.clear();
         targetRotationState.clear();
+        worldEntityUuidState.clear();
+        worldEntityVisibilityState.clear();
+        tickVisibilityWorld = world instanceof Minecraft189WorldEntityVisibilityAccess
+                ? (Minecraft189WorldEntityVisibilityAccess) world : null;
+        if (featureCatalog.wallCheck().active() && tickVisibilityWorld != null) {
+            try {
+                worldEntityVisibilityState.update(
+                        tickVisibilityWorld.customMcLoadedEntityVisibility());
+            } catch (RuntimeException invalidEvidence) {
+                worldEntityVisibilityState.clear();
+            }
+        }
+        final Minecraft189WorldEntityUuidAccess identityWorld =
+                world instanceof Minecraft189WorldEntityUuidAccess
+                        ? (Minecraft189WorldEntityUuidAccess) world : null;
+        if (tickUuidWorld != identityWorld) {
+            featureCatalog.killAura().rememberSelectedTarget(null);
+        }
+        tickUuidWorld = identityWorld;
         if (world == null) {
             worldEntityPositionState.clear();
+            featureCatalog.killAura().rememberSelectedTarget(null);
             return;
+        }
+        if (identityRequired() && identityWorld != null) {
+            try {
+                worldEntityUuidState.update(
+                        identityWorld.customMcLoadedEntityUuids());
+            } catch (RuntimeException invalidEvidence) {
+                worldEntityUuidState.clear();
+            }
         }
         final double[] packedPositions =
                 world.customMcLoadedEntityPositions();
@@ -1177,6 +1267,95 @@ public final class Minecraft189HostRuntime
                 nearestPlayerTargetState.snapshot());
     }
 
+    void worldEntityCombat(
+            final Minecraft189WorldEntityCombatAccess world) {
+        requireOpen();
+        if (world == null || !worldEntityPositionState.snapshot().available()
+                || !worldEntityKindState.snapshot().available()) {
+            worldEntityCombatState.clear();
+            featureCatalog.killAura().rememberSelectedTarget(null);
+            return;
+        }
+        final Minecraft189KillAuraModule aura = featureCatalog.killAura();
+        if (identityRequired()) {
+            final Minecraft189WorldEntityUuidState.Snapshot ids =
+                    worldEntityUuidState.snapshot();
+            boolean consistent = false;
+            if (tickUuidWorld != null && tickUuidWorld == world
+                    && ids.available()
+                    && ids.entityCount() == worldEntityPositionState.snapshot().entityCount()
+                    && ids.entityCount() == worldEntityKindState.snapshot().entityCount()) {
+                try {
+                    consistent = ids.matches(tickUuidWorld.customMcLoadedEntityUuids());
+                } catch (RuntimeException invalidEvidence) {
+                    consistent = false;
+                }
+            }
+            if (!consistent) {
+                worldEntityCombatState.clear();
+                nearestPlayerTargetState.clear();
+                targetRotationState.clear();
+                aura.rememberSelectedTarget(null);
+                return;
+            }
+        }
+        if (featureCatalog.wallCheck().active()) {
+            final Minecraft189WorldEntityVisibilityState.Snapshot visibility =
+                    worldEntityVisibilityState.snapshot();
+            boolean consistent = false;
+            if (tickVisibilityWorld != null && tickVisibilityWorld == world
+                    && visibility.available()
+                    && visibility.entityCount() == worldEntityPositionState.snapshot().entityCount()
+                    && visibility.entityCount() == worldEntityKindState.snapshot().entityCount()) {
+                try {
+                    consistent = visibility.matches(
+                            tickVisibilityWorld.customMcLoadedEntityVisibility());
+                } catch (RuntimeException invalidEvidence) {
+                    consistent = false;
+                }
+            }
+            if (!consistent) {
+                worldEntityCombatState.clear();
+                nearestPlayerTargetState.clear();
+                targetRotationState.clear();
+                aura.rememberSelectedTarget(null);
+                return;
+            }
+        }
+        final int[] data = world.customMcLoadedEntityCombatStates();
+        if (data == null || data.length != worldEntityPositionState.snapshot().entityCount()
+                || data.length != worldEntityKindState.snapshot().entityCount()) {
+            worldEntityCombatState.clear();
+            return;
+        }
+        try {
+            worldEntityCombatState.update(data);
+        } catch (IllegalArgumentException malformed) {
+            worldEntityCombatState.clear();
+            return;
+        }
+        // Aura should rotate toward the nearest verified *living* player,
+        // rather than repeatedly selecting a nearer dead player. This does
+        // not change the normal nearest-target semantics for other modules.
+        if (featureCatalog.killAura().active()) {
+            Minecraft189KillAuraTargetSelector.select(
+                    featureCatalog.killAura(),
+                    playerPositionState.snapshot(),
+                    playerRotationState.snapshot(),
+                    worldEntityPositionState.snapshot(),
+                    worldEntityKindState.snapshot(),
+                    worldEntityCombatState.snapshot(),
+                    featureCatalog.antiBot(), featureCatalog.teamGuard(),
+                    featureCatalog.friendGuard(),
+                    worldEntityUuidState.snapshot(),
+                    featureCatalog.wallCheck(), worldEntityVisibilityState.snapshot(),
+                    nearestPlayerTargetState);
+            targetRotationState.update(
+                    playerPositionState.snapshot(),
+                    nearestPlayerTargetState.snapshot());
+        }
+    }
+
     void serverAddress(
             final Minecraft189ServerDataAccess serverData) {
         requireOpen();
@@ -1198,6 +1377,7 @@ public final class Minecraft189HostRuntime
     void playerHeldItem(
             final Minecraft189PlayerHeldItemAccess player) {
         requireOpen();
+        tickHeldItemAccess = player;
         if (player == null) {
             heldItemState.clear();
             return;
@@ -1267,6 +1447,9 @@ public final class Minecraft189HostRuntime
     int leftClickCounter(
             final int currentCounter) {
         requireOpen();
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            return currentCounter;
+        }
         return featureCatalog.noHitDelay()
                 .apply(
                         currentCounter,
@@ -1275,33 +1458,362 @@ public final class Minecraft189HostRuntime
                                 Minecraft189ClickRateTracker.LEFT_BUTTON));
     }
 
+    /** Source-mapped held item identity; no display-name matching. */
+    private boolean holdingVerifiedSword() {
+        final Minecraft189PlayerHeldItemAccess player = tickHeldItemAccess;
+        if (player == null) return false;
+        final Minecraft189ItemStackAccess held = player.customMcHeldItem();
+        return held != null && held.customMcIsSword();
+    }
+
+    boolean shouldReleaseAutoBlock(final boolean playerHit,
+            final int hitIndex) {
+        requireOpen();
+        return featureCatalog.autoBlock().shouldStop(
+                clickGuiRuntime.coreRuntime().model().snapshot().open(),
+                inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                holdingVerifiedSword(),
+                playerHit && worldEntityCombatState.snapshot().alive(hitIndex));
+    }
+
+    boolean releaseAutoBlockBeforeAction() {
+        requireOpen();
+        return featureCatalog.autoBlock().releaseForAction(
+                inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON));
+    }
+
+    boolean mayStartAutoBlock(final boolean playerHit, final int hitIndex,
+            final int previousCombatSlot, final boolean itemAlreadyInUse) {
+        requireOpen();
+        return featureCatalog.autoBlock().mayStart(
+                holdingVerifiedSword(),
+                playerHit && worldEntityCombatState.snapshot().alive(hitIndex),
+                clickGuiRuntime.coreRuntime().model().snapshot().open(),
+                inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                previousCombatSlot >= 0,
+                itemAlreadyInUse);
+    }
+
+    void recordAutoBlockStart() {
+        requireOpen();
+        featureCatalog.autoBlock().started();
+    }
+
+    private boolean identityRequired() {
+        return (featureCatalog.killAura().active()
+                        && featureCatalog.killAura().lockTargetSetting().get())
+                || featureCatalog.friendGuard().requiresIdentity()
+                || featureCatalog.wallCheck().active();
+    }
+
+    /**
+     * Final target-specific UUID veto for synthetic Combat operations.
+     * Current world list is rechecked against the captured identity sequence.
+     */
+    private boolean friendTargetPermits(final int candidateIndex) {
+        final Minecraft189FriendGuardModule friends = featureCatalog.friendGuard();
+        if (!friends.requiresIdentity()) return true;
+        final Minecraft189WorldEntityUuidState.Snapshot ids =
+                worldEntityUuidState.snapshot();
+        if (tickUuidWorld == null || !ids.available()
+                || ids.entityCount() != worldEntityPositionState.snapshot().entityCount()
+                || ids.entityCount() != worldEntityKindState.snapshot().entityCount()
+                || ids.entityCount() != worldEntityCombatState.snapshot().entityCount()) {
+            return false;
+        }
+        try {
+            return ids.matches(tickUuidWorld.customMcLoadedEntityUuids())
+                    && friends.permits(candidateIndex, ids);
+        } catch (RuntimeException invalidEvidence) {
+            return false;
+        }
+    }
+
+    /** Native current-tick LOS evidence and exact UUID/list parity. */
+    private boolean wallTargetPermits(final int index) {
+        final Minecraft189WallCheckModule wall = featureCatalog.wallCheck();
+        if (!wall.active()) return true;
+        final Minecraft189WorldEntityVisibilityState.Snapshot evidence =
+                worldEntityVisibilityState.snapshot();
+        final Minecraft189WorldEntityUuidState.Snapshot ids =
+                worldEntityUuidState.snapshot();
+        if (!evidence.available() || !ids.available()
+                || tickVisibilityWorld == null || tickUuidWorld == null
+                || !wall.permits(index, evidence)
+                || evidence.entityCount() != ids.entityCount()
+                || evidence.entityCount() != worldEntityPositionState.snapshot().entityCount()
+                || evidence.entityCount() != worldEntityKindState.snapshot().entityCount()
+                || evidence.entityCount() != worldEntityCombatState.snapshot().entityCount()) {
+            return false;
+        }
+        try {
+            final int[] current = tickVisibilityWorld.customMcLoadedEntityVisibility();
+            return current != null && index >= 0 && index < current.length
+                    && current.length == evidence.entityCount()
+                    && current[index] == 1
+                    && ids.matches(tickUuidWorld.customMcLoadedEntityUuids());
+        } catch (RuntimeException invalidEvidence) {
+            return false;
+        }
+    }
+
+    /** Eligibility captured immediately before the native synthetic click. */
+    boolean shouldAutoPot(final boolean crosshairPlayer,
+            final int crosshairPlayerIndex) {
+        requireOpen();
+        final Minecraft189AutoPotModule pot = featureCatalog.autoPot();
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()
+                || tickHotbarControl == null) {
+            pot.suspend();
+            return false;
+        }
+        final Minecraft189WorldEntityCombatState.Snapshot combat =
+                worldEntityCombatState.snapshot();
+        final boolean verifiedTarget = crosshairPlayer
+                && crosshairPlayerIndex >= 0
+                && combat.alive(crosshairPlayerIndex)
+                && featureCatalog.antiBot().permits(crosshairPlayerIndex, combat)
+                && featureCatalog.teamGuard().permits(crosshairPlayerIndex, combat)
+                && friendTargetPermits(crosshairPlayerIndex)
+                && wallTargetPermits(crosshairPlayerIndex);
+        return pot.shouldUse(playerHealthState.snapshot(), verifiedTarget,
+                inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                false, true);
+    }
+
+    int selectAutoPotSlot() {
+        requireOpen();
+        return Minecraft189VerifiedCombatItemSlot.selectPotion(
+                featureCatalog.autoPot(), tickHotbarControl, tickHeldItemAccess);
+    }
+
+    void restoreAutoPotSlot(final int originalSlot) {
+        requireOpen();
+        featureCatalog.autoPot().restoreSlot(tickHotbarControl, originalSlot);
+    }
+
+    void commitAutoPotUseAttempt() {
+        requireOpen();
+        featureCatalog.autoPot().commitUseAttempt();
+    }
+
+    boolean shouldAutoRod(final boolean confirmedPlayer,
+            final int verifiedPlayerIndex) {
+        requireOpen();
+        final Minecraft189AutoRodModule rod = featureCatalog.autoRod();
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()
+                || tickHotbarControl == null || !confirmedPlayer
+                || verifiedPlayerIndex < 0
+                || !worldEntityCombatState.snapshot().alive(verifiedPlayerIndex)
+                || !featureCatalog.antiBot().permits(
+                        verifiedPlayerIndex, worldEntityCombatState.snapshot())
+                || !featureCatalog.teamGuard().permits(
+                        verifiedPlayerIndex, worldEntityCombatState.snapshot())
+                || !friendTargetPermits(verifiedPlayerIndex)
+                || !wallTargetPermits(verifiedPlayerIndex)
+                || (featureCatalog.killAura().active()
+                    && (!targetRotationState.snapshot().available()
+                        || targetRotationState.snapshot().entityIndex()
+                                != verifiedPlayerIndex))) {
+            rod.suspend();
+            return false;
+        }
+        return rod.shouldUse(true,
+                inputState.pointerPressed(Minecraft189ClickRateTracker.LEFT_BUTTON),
+                inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                false, true);
+    }
+
+    int selectAutoRodSlot() {
+        requireOpen();
+        return Minecraft189VerifiedCombatItemSlot.selectRod(
+                featureCatalog.autoRod(), tickHotbarControl, tickHeldItemAccess);
+    }
+
+    void restoreAutoRodSlot(final int originalSlot) {
+        requireOpen();
+        featureCatalog.autoRod().restoreSlot(tickHotbarControl, originalSlot);
+    }
+
+    void commitAutoRodUseAttempt() {
+        requireOpen();
+        featureCatalog.autoRod().commitUseAttempt();
+    }
+
+    int selectCombatSlotBeforeSyntheticClick(final boolean playerHit) {
+        requireOpen();
+        autoWeaponOwnedClick = featureCatalog.autoWeapon().active();
+        if (autoWeaponOwnedClick) {
+            // Explicit sword-ranking module wins over the fixed-slot setting.
+            // Unknown hotbar content never falls through to blind slot choice.
+            return featureCatalog.autoWeapon().select(tickHotbarControl,
+                    playerHit,
+                    clickGuiRuntime.coreRuntime().model().snapshot().open());
+        }
+        return featureCatalog.combatSlot().select(tickHotbarControl, playerHit,
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
+    }
+
+    void restoreCombatSlotAfterSyntheticClick(final int originalSlot) {
+        requireOpen();
+        if (autoWeaponOwnedClick) {
+            autoWeaponOwnedClick = false;
+            featureCatalog.autoWeapon().restore(tickHotbarControl, originalSlot);
+        } else {
+            featureCatalog.combatSlot().restore(tickHotbarControl, originalSlot);
+        }
+    }
+
+    boolean shouldKeepSprintAfterSyntheticClick(final boolean playerHit) {
+        requireOpen();
+        final Minecraft189PlayerSprintControl current = tickSprintControl;
+        if (!(current instanceof Minecraft189PlayerMovementStateAccess)) {
+            return false;
+        }
+        final Minecraft189PlayerMovementStateAccess state =
+                (Minecraft189PlayerMovementStateAccess) current;
+        final Minecraft189PlayerMovementState measured =
+                new Minecraft189PlayerMovementState();
+        measured.update(state.customMcOnGround(), state.customMcSneaking(),
+                state.customMcSprinting());
+        return featureCatalog.keepSprint().shouldRestore(
+                measured.snapshot(), state.customMcSprinting(),
+                inputState.keyPressed(LegacyKeyboardCodes.W), playerHit,
+                featureCatalog.wTap().active(),
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
+    }
+
+    void restoreSprintAfterSyntheticClick() {
+        requireOpen();
+        // Called synchronously after the mapped vanilla click. Preserve
+        // WTap's higher-priority sprint-reset behavior if it is active.
+        if (tickSprintControl != null && featureCatalog.keepSprint().active()
+                && !featureCatalog.wTap().active()
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            tickSprintControl.customMcSetSprinting(true);
+        }
+    }
+
     boolean shouldAutoClick() {
-        return shouldAutoClick(false);
+        return shouldAutoClick(false, -1);
     }
 
     boolean shouldAutoClick(final boolean crosshairPlayerHit) {
+        return shouldAutoClick(crosshairPlayerHit, -1);
+    }
+
+    boolean shouldAutoClick(final boolean crosshairPlayerHit,
+            final int crosshairPlayerIndex) {
+        return shouldAutoClick(crosshairPlayerHit, crosshairPlayerIndex, null);
+    }
+
+    boolean needsHitboxRangeEvidence() {
         requireOpen();
-        // Trigger mode must not fire against a stale raycast while the
-        // native ClickGUI owns input. Legacy Auto Clicker stays unchanged.
-        final boolean confirmedHit = crosshairPlayerHit
-                && !clickGuiRuntime.coreRuntime().model().snapshot().open();
-        final boolean click =
-                featureCatalog.autoClicker()
-                        .shouldClick(
-                                inputState.pointerPressed(
-                                        Minecraft189ClickRateTracker.LEFT_BUTTON),
-                                inputState.keyPressed(
-                                        LegacyKeyboardCodes.W),
-                                inputState.pointerPressed(
-                                        Minecraft189ClickRateTracker.RIGHT_BUTTON),
-                                nearestPlayerTargetState.snapshot(),
-                                playerMovementState.snapshot(),
-                                confirmedHit);
-        if (click) {
-            clickRateTracker.recordPress(
-                    Minecraft189ClickRateTracker.LEFT_BUTTON);
+        return featureCatalog.attackRange().needsNativeHitbox();
+    }
+
+    boolean shouldAutoClick(final boolean crosshairPlayerHit,
+            final int crosshairPlayerIndex, final double[] nativeHitbox) {
+        requireOpen();
+        // No automatic attack may cross the native ClickGUI focus boundary.
+        // The same rule applies to hold and trigger modes; pending phase
+        // is cancelled so closing the GUI cannot replay banked clicks.
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+            featureCatalog.autoClicker().suspendForGui();
+            featureCatalog.triggerBot().suspend();
+            featureCatalog.killAura().suspend();
+            return false;
         }
-        return click;
+        final boolean confirmedHit = crosshairPlayerHit;
+        // Exactly one Combat module can own an automatic attack callback.
+        // Dedicated Trigger Bot has precedence; legacy Auto Clicker trigger
+        // mode remains for backward-compatible persisted profiles.
+        final Minecraft189TriggerBotModule trigger = featureCatalog.triggerBot();
+        final Minecraft189KillAuraModule aura = featureCatalog.killAura();
+        final boolean attackHeld = inputState.pointerPressed(
+                Minecraft189ClickRateTracker.LEFT_BUTTON);
+        final boolean rightHeld = inputState.pointerPressed(
+                Minecraft189ClickRateTracker.RIGHT_BUTTON);
+        final boolean click;
+        if (aura.active()) {
+            trigger.suspend();
+            featureCatalog.autoClicker().suspendForGui();
+            click = aura.shouldClick(
+                    confirmedHit, crosshairPlayerIndex,
+                    playerRotationState.snapshot(),
+                    targetRotationState.snapshot(), attackHeld, rightHeld,
+                    playerMovementState.snapshot(), featureCatalog.spin().active());
+        } else if (trigger.active()) {
+            aura.suspend();
+            featureCatalog.autoClicker().suspendForGui();
+            click = trigger.shouldClick(
+                    confirmedHit, attackHeld, rightHeld,
+                    playerMovementState.snapshot());
+        } else {
+            aura.suspend();
+            trigger.suspend();
+            click = featureCatalog.autoClicker().shouldClick(
+                    attackHeld, inputState.keyPressed(LegacyKeyboardCodes.W),
+                    rightHeld, nearestPlayerTargetState.snapshot(),
+                    playerMovementState.snapshot(), confirmedHit);
+        }
+        // One shared final veto applies to every automatic click owner.
+        // It never alters genuine vanilla mouse presses. A rejected click
+        // consumes scheduler credit rather than banking a late burst.
+        if (!click) return false;
+        final Minecraft189WorldEntityCombatState.Snapshot combat =
+                worldEntityCombatState.snapshot();
+        if (aura.active()) {
+            final Minecraft189TargetRotationState.Snapshot selected =
+                    targetRotationState.snapshot();
+            if (!selected.available()
+                    || !combat.alive(selected.entityIndex())) {
+                return false;
+            }
+            if (aura.lockTargetSetting().get()) {
+                final Minecraft189WorldEntityUuidState.Snapshot ids =
+                        worldEntityUuidState.snapshot();
+                final java.util.UUID selectedUuid = aura.lockedTargetUuid();
+                if (!ids.available() || selectedUuid == null
+                        || !selectedUuid.equals(ids.at(selected.entityIndex()))
+                        || !selectedUuid.equals(ids.at(crosshairPlayerIndex))
+                        || tickUuidWorld == null) return false;
+                try {
+                    if (!ids.matches(tickUuidWorld.customMcLoadedEntityUuids()))
+                        return false;
+                } catch (RuntimeException invalidEvidence) {
+                    return false;
+                }
+            }
+        }
+        // A verified tab-list miss is a veto for every synthetic click
+        // owner. A real manually-triggered vanilla click remains untouched.
+        if (!featureCatalog.antiBot().permits(crosshairPlayerIndex, combat)
+                || !featureCatalog.teamGuard().permits(crosshairPlayerIndex, combat)
+                || !friendTargetPermits(crosshairPlayerIndex)
+                || !wallTargetPermits(crosshairPlayerIndex)) {
+            return false;
+        }
+        if (!featureCatalog.attackRange().permits(
+                crosshairPlayerIndex, playerPositionState.snapshot(),
+                worldEntityPositionState.snapshot(),
+                worldEntityKindState.snapshot(), nativeHitbox)) return false;
+        if (!featureCatalog.hitSelect().permits(
+                crosshairPlayerIndex, combat)) {
+            return false;
+        }
+        if (!featureCatalog.criticals().permits(
+                playerMovementState.snapshot(), criticalsEvidence.snapshot(),
+                featureCatalog.flight().active()
+                        || featureCatalog.freeze().active()
+                        || featureCatalog.noFall().active()
+                        || featureCatalog.noGravity().active()
+                        || featureCatalog.noClip().active())) {
+            return false;
+        }
+        clickRateTracker.recordPress(
+                Minecraft189ClickRateTracker.LEFT_BUTTON);
+        return true;
     }
 
     public void publishTick(
@@ -1442,7 +1954,17 @@ public final class Minecraft189HostRuntime
         worldTimeState.clear();
         worldWeatherState.clear();
         worldEntityPositionState.clear();
+        criticalsEvidence.reset();
+        tickSprintControl = null;
+        tickHotbarControl = null;
+        tickHeldItemAccess = null;
+        featureCatalog.autoBlock().forgetForShutdown();
         worldEntityKindState.clear();
+        worldEntityCombatState.clear();
+        worldEntityUuidState.clear();
+        worldEntityVisibilityState.clear();
+        tickVisibilityWorld = null;
+        tickUuidWorld = null;
         nearestPlayerTargetState.clear();
         targetRotationState.clear();
         serverAddressState.clear();

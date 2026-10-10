@@ -610,12 +610,44 @@ final class Minecraft189MappingsTest {
                 "func_175180_a",
                 "renderGameOverlay");
         assertMethod(
+                Minecraft189Mappings.ENTITY_RENDERER_GET_MOUSE_OVER,
+                Minecraft189Mappings.ENTITY_RENDERER,
+                "a", "(F)V", "func_78473_a", "getMouseOver");
+        assertMethod(
+                Minecraft189Mappings.PLAYER_CONTROLLER_GET_BLOCK_REACH,
+                Minecraft189Mappings.PLAYER_CONTROLLER_MP,
+                "d", "()F", "func_78757_d", "getBlockReachDistance");
+        assertMethod(
+                Minecraft189Mappings.PLAYER_CONTROLLER_EXTENDED_REACH,
+                Minecraft189Mappings.PLAYER_CONTROLLER_MP,
+                "i", "()Z", "func_78749_i", "extendedReach");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_GET_COLLISION_BORDER_SIZE,
+                Minecraft189Mappings.ENTITY,
+                "ao", "()F", "func_70111_Y", "getCollisionBorderSize");
+        assertMethod(
+                Minecraft189Mappings.AABB_EXPAND,
+                Minecraft189Mappings.AXIS_ALIGNED_BB,
+                "b", "(DDD)Laug;", "func_72314_b", "expand");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_RAY_TRACE,
+                Minecraft189Mappings.ENTITY,
+                "a", "(DF)Lauh;", "func_174822_a", "rayTrace");
+        assertMethod(
                 Minecraft189Mappings.ENTITY_RENDERER_UPDATE_CAMERA_AND_RENDER,
                 Minecraft189Mappings.ENTITY_RENDERER,
                 "a",
                 "(FJ)V",
                 "func_181560_a",
                 "updateCameraAndRender");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX,
+                Minecraft189Mappings.ENTITY,
+                "aR", "()Laug;", "func_174813_aQ", "getEntityBoundingBox");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_GET_UNIQUE_ID,
+                Minecraft189Mappings.ENTITY,
+                "aK", "()Ljava/util/UUID;", "func_110124_au", "getUniqueID");
         assertMethod(
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH,
                 Minecraft189Mappings.ENTITY_LIVING_BASE,
@@ -630,6 +662,14 @@ final class Minecraft189MappingsTest {
                 "()F",
                 "func_110138_aP",
                 "getMaxHealth");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM,
+                Minecraft189Mappings.ENTITY_LIVING_BASE,
+                "c", "(Lpr;)Z", "func_142014_c", "isOnSameTeam");
+        assertMethod(
+                Minecraft189Mappings.ENTITY_LIVING_BASE_CAN_ENTITY_BE_SEEN,
+                Minecraft189Mappings.ENTITY_LIVING_BASE,
+                "t", "(Lpk;)Z", "func_70685_l", "canEntityBeSeen");
         assertMethod(
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT,
                 Minecraft189Mappings.ENTITY_LIVING_BASE,
@@ -766,6 +806,8 @@ final class Minecraft189MappingsTest {
                 entityRendererShape());
         Minecraft189ClassShapeVerifier.verifyEntity(
                 entityShape());
+        Minecraft189ClassShapeVerifier.verifyAxisAlignedBB(
+                axisAlignedBbShape());
         Minecraft189ClassShapeVerifier.verifyEntityLivingBase(
                 entityLivingBaseShape());
         Minecraft189ClassShapeVerifier.verifyEntityPlayerSp(
@@ -1186,6 +1228,11 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.PLAYER_CONTROLLER_IS_HITTING_BLOCK);
+        addMethod(
+                writer,
+                Minecraft189Mappings.PLAYER_CONTROLLER_STOP_USING_ITEM);
+        addMethod(writer, Minecraft189Mappings.PLAYER_CONTROLLER_GET_BLOCK_REACH);
+        addMethod(writer, Minecraft189Mappings.PLAYER_CONTROLLER_EXTENDED_REACH);
         return finish(writer);
     }
 
@@ -1840,6 +1887,8 @@ final class Minecraft189MappingsTest {
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH);
 
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM);
+
         final IllegalStateException failure =
                 assertThrows(
                         IllegalStateException.class,
@@ -1872,6 +1921,8 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS);
+
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM);
 
         final IllegalStateException failure =
                 assertThrows(
@@ -1965,6 +2016,8 @@ final class Minecraft189MappingsTest {
         addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT);
         addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS);
         addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_JUMP);
+
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM);
 
         final IllegalStateException failure =
                 assertThrows(
@@ -2174,6 +2227,35 @@ final class Minecraft189MappingsTest {
         return finish(writer);
     }
 
+    @Test
+    void axisAlignedBbRejectsMissingMaxZ() {
+        final ClassWriter writer = writer(
+                Minecraft189Mappings.AXIS_ALIGNED_BB.obfuscatedInternalName());
+        addField(writer, Minecraft189Mappings.AABB_MIN_X);
+        addField(writer, Minecraft189Mappings.AABB_MIN_Y);
+        addField(writer, Minecraft189Mappings.AABB_MIN_Z);
+        addField(writer, Minecraft189Mappings.AABB_MAX_X);
+        addField(writer, Minecraft189Mappings.AABB_MAX_Y);
+        assertEquals(
+                "Minecraft 1.8.9 mapping field missing: aug.f D (maxZ)",
+                assertThrows(IllegalStateException.class,
+                        () -> Minecraft189ClassShapeVerifier.verifyAxisAlignedBB(
+                                finish(writer))).getMessage());
+    }
+
+    private static byte[] axisAlignedBbShape() {
+        final ClassWriter writer = writer(
+                Minecraft189Mappings.AXIS_ALIGNED_BB.obfuscatedInternalName());
+        addField(writer, Minecraft189Mappings.AABB_MIN_X);
+        addField(writer, Minecraft189Mappings.AABB_MIN_Y);
+        addField(writer, Minecraft189Mappings.AABB_MIN_Z);
+        addField(writer, Minecraft189Mappings.AABB_MAX_X);
+        addField(writer, Minecraft189Mappings.AABB_MAX_Y);
+        addField(writer, Minecraft189Mappings.AABB_MAX_Z);
+        addMethod(writer, Minecraft189Mappings.AABB_EXPAND);
+        return finish(writer);
+    }
+
     private static byte[] entityShape() {
         final ClassWriter writer =
                 writer(
@@ -2233,6 +2315,10 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_SET_SNEAKING);
+        addMethod(writer, Minecraft189Mappings.ENTITY_GET_UNIQUE_ID);
+        addMethod(writer, Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX);
+        addMethod(writer, Minecraft189Mappings.ENTITY_RAY_TRACE);
+        addMethod(writer, Minecraft189Mappings.ENTITY_GET_COLLISION_BORDER_SIZE);
         return finish(writer);
     }
 
@@ -2297,6 +2383,7 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH);
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM);
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT);
@@ -2309,6 +2396,7 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_LIVING_BASE_KNOCK_BACK);
+        addMethod(writer, Minecraft189Mappings.ENTITY_LIVING_BASE_CAN_ENTITY_BE_SEEN);
         return finish(writer);
     }
 
@@ -2696,6 +2784,9 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_IS_USING_ITEM);
         return finish(writer);
     }
 
@@ -2707,6 +2798,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.INVENTORY_PLAYER_CURRENT_ITEM);
+        addField(
+                writer,
+                Minecraft189Mappings.INVENTORY_PLAYER_MAIN_INVENTORY);
         return finish(writer);
     }
 
@@ -2780,7 +2874,70 @@ final class Minecraft189MappingsTest {
                 writer,
                 Minecraft189Mappings
                         .ENTITY_RENDERER_UPDATE_CAMERA_AND_RENDER);
+        addNativeMouseOverFixture(writer, true);
         return finish(writer);
+    }
+
+    private static void addNativeMouseOverFixture(
+            final ClassWriter writer, final boolean extendedReach) {
+        final org.objectweb.asm.MethodVisitor ray = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "a", "(F)V", null, null);
+        ray.visitCode();
+        ray.visitInsn(Opcodes.ACONST_NULL);
+        ray.visitTypeInsn(Opcodes.CHECKCAST, "bda");
+        ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "bda", "d", "()F", false);
+        ray.visitInsn(Opcodes.POP);
+        if (extendedReach) {
+            ray.visitInsn(Opcodes.ACONST_NULL);
+            ray.visitTypeInsn(Opcodes.CHECKCAST, "bda");
+            ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "bda", "i", "()Z", false);
+            ray.visitInsn(Opcodes.POP);
+        }
+        ray.visitInsn(Opcodes.ACONST_NULL);
+        ray.visitTypeInsn(Opcodes.CHECKCAST, "pk");
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitInsn(Opcodes.FCONST_0);
+        ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "pk",
+                "a", "(DF)Lauh;", false);
+        ray.visitInsn(Opcodes.POP);
+        // Verified vanilla getMouseOver player-candidate hitbox expansion.
+        ray.visitInsn(Opcodes.ACONST_NULL);
+        ray.visitTypeInsn(Opcodes.CHECKCAST, "pk");
+        ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "pk", "ao", "()F", false);
+        ray.visitInsn(Opcodes.POP);
+        ray.visitInsn(Opcodes.ACONST_NULL);
+        ray.visitTypeInsn(Opcodes.CHECKCAST, "aug");
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "aug", "b", "(DDD)Laug;", false);
+        ray.visitInsn(Opcodes.POP);
+        ray.visitInsn(Opcodes.ACONST_NULL);
+        ray.visitTypeInsn(Opcodes.CHECKCAST, "aug");
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "aug", "b", "(DDD)Laug;", false);
+        ray.visitInsn(Opcodes.POP);
+        ray.visitInsn(Opcodes.RETURN);
+        ray.visitMaxs(4, 2);
+        ray.visitEnd();
+    }
+
+    @Test
+    void nativeMouseOverBoundaryRejectsMissingExtendedReachCall() {
+        final ClassWriter writer = writer(
+                Minecraft189Mappings.ENTITY_RENDERER.obfuscatedInternalName());
+        addNativeMouseOverFixture(writer, false);
+        final IllegalStateException mismatch = assertThrows(
+                IllegalStateException.class,
+                () -> Minecraft189ClassShapeVerifier.verifyNativeRaycastCalls(
+                        finish(writer)));
+        org.junit.jupiter.api.Assertions.assertTrue(
+                mismatch.getMessage().contains("extendedReach=0"));
     }
 
     private static void addMinecraftFields(

@@ -75,7 +75,11 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.PLAYER_CONTROLLER_CUR_BLOCK_DAMAGE,
                         Minecraft189Mappings.PLAYER_CONTROLLER_IS_HITTING_BLOCK
                 },
-                new Minecraft189Mappings.MappedMethod[0]);
+                new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.PLAYER_CONTROLLER_STOP_USING_ITEM,
+                        Minecraft189Mappings.PLAYER_CONTROLLER_GET_BLOCK_REACH,
+                        Minecraft189Mappings.PLAYER_CONTROLLER_EXTENDED_REACH
+                });
     }
 
     public static void verifyTimer(
@@ -163,6 +167,21 @@ public final class Minecraft189ClassShapeVerifier {
                 });
     }
 
+    /** Fail-closed exact 1.8.9 AxisAlignedBB field owner and geometry shape. */
+    public static void verifyAxisAlignedBB(final byte[] classBytes) {
+        verify(classBytes, Minecraft189Mappings.AXIS_ALIGNED_BB,
+                new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.AABB_MIN_X,
+                        Minecraft189Mappings.AABB_MIN_Y,
+                        Minecraft189Mappings.AABB_MIN_Z,
+                        Minecraft189Mappings.AABB_MAX_X,
+                        Minecraft189Mappings.AABB_MAX_Y,
+                        Minecraft189Mappings.AABB_MAX_Z
+                }, new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.AABB_EXPAND
+                });
+    }
+
     public static void verifyEntity(
             final byte[] classBytes) {
         verify(
@@ -188,7 +207,11 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_IS_SNEAKING,
                         Minecraft189Mappings.ENTITY_IS_SPRINTING,
                         Minecraft189Mappings.ENTITY_SET_SPRINTING,
-                        Minecraft189Mappings.ENTITY_SET_SNEAKING
+                        Minecraft189Mappings.ENTITY_SET_SNEAKING,
+                        Minecraft189Mappings.ENTITY_GET_UNIQUE_ID,
+                        Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX,
+                        Minecraft189Mappings.ENTITY_RAY_TRACE,
+                        Minecraft189Mappings.ENTITY_GET_COLLISION_BORDER_SIZE
                 });
     }
 
@@ -203,10 +226,12 @@ public final class Minecraft189ClassShapeVerifier {
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.ENTITY_LIVING_BASE_GET_HEALTH,
                         Minecraft189Mappings.ENTITY_LIVING_BASE_GET_MAX_HEALTH,
+                        Minecraft189Mappings.ENTITY_LIVING_BASE_IS_ON_SAME_TEAM,
                         Minecraft189Mappings.ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT,
                         Minecraft189Mappings.ENTITY_LIVING_BASE_GET_ACTIVE_POTION_EFFECTS,
                         Minecraft189Mappings.ENTITY_LIVING_BASE_JUMP,
-                        Minecraft189Mappings.ENTITY_LIVING_BASE_KNOCK_BACK
+                        Minecraft189Mappings.ENTITY_LIVING_BASE_KNOCK_BACK,
+                        Minecraft189Mappings.ENTITY_LIVING_BASE_CAN_ENTITY_BE_SEEN
                 });
     }
 
@@ -270,7 +295,8 @@ public final class Minecraft189ClassShapeVerifier {
                 },
                 new Minecraft189Mappings.MappedMethod[]{
                         Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS,
-                        Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP
+                        Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP,
+                        Minecraft189Mappings.ENTITY_PLAYER_IS_USING_ITEM
                 });
     }
 
@@ -280,7 +306,8 @@ public final class Minecraft189ClassShapeVerifier {
                 classBytes,
                 Minecraft189Mappings.INVENTORY_PLAYER,
                 new Minecraft189Mappings.MappedField[]{
-                        Minecraft189Mappings.INVENTORY_PLAYER_CURRENT_ITEM
+                        Minecraft189Mappings.INVENTORY_PLAYER_CURRENT_ITEM,
+                        Minecraft189Mappings.INVENTORY_PLAYER_MAIN_INVENTORY
                 },
                 new Minecraft189Mappings.MappedMethod[0]);
     }
@@ -333,9 +360,67 @@ public final class Minecraft189ClassShapeVerifier {
                 Minecraft189Mappings.ENTITY_RENDERER,
                 new Minecraft189Mappings.MappedField[0],
                 new Minecraft189Mappings.MappedMethod[]{
-                        Minecraft189Mappings
-                                .ENTITY_RENDERER_UPDATE_CAMERA_AND_RENDER
+                        Minecraft189Mappings.ENTITY_RENDERER_UPDATE_CAMERA_AND_RENDER,
+                        Minecraft189Mappings.ENTITY_RENDERER_GET_MOUSE_OVER
                 });
+        verifyNativeRaycastCalls(classBytes);
+    }
+
+    /**
+     * Fail-closed native 1.8.9 getMouseOver boundary. Proves the method body
+     * calls all three mapped upstream vanilla operations before any later
+     * reach/raycast mutation is considered. Does not rewrite these calls.
+     */
+    static void verifyNativeRaycastCalls(final byte[] classBytes) {
+        final int[] calls = new int[5];
+        final boolean[] found = new boolean[1];
+        new ClassReader(Objects.requireNonNull(classBytes, "classBytes")).accept(
+                new ClassVisitor(Opcodes.ASM9) {
+                    @Override public MethodVisitor visitMethod(
+                            final int access, final String name,
+                            final String descriptor, final String signature,
+                            final String[] exceptions) {
+                        final Minecraft189Mappings.MappedMethod method =
+                                Minecraft189Mappings.ENTITY_RENDERER_GET_MOUSE_OVER;
+                        if (!name.equals(method.obfuscatedName())
+                                || !descriptor.equals(method.descriptor())) return null;
+                        if (found[0]) throw new IllegalStateException(
+                                "duplicate mapped getMouseOver boundary");
+                        found[0] = true;
+                        return new MethodVisitor(Opcodes.ASM9) {
+                            @Override public void visitMethodInsn(
+                                    final int opcode, final String owner,
+                                    final String methodName, final String methodDesc,
+                                    final boolean isInterface) {
+                                final Minecraft189Mappings.MappedMethod[] required = {
+                                        Minecraft189Mappings.PLAYER_CONTROLLER_GET_BLOCK_REACH,
+                                        Minecraft189Mappings.PLAYER_CONTROLLER_EXTENDED_REACH,
+                                        Minecraft189Mappings.ENTITY_RAY_TRACE,
+                                        Minecraft189Mappings.ENTITY_GET_COLLISION_BORDER_SIZE,
+                                        Minecraft189Mappings.AABB_EXPAND
+                                };
+                                for (int index = 0; index < required.length; index++) {
+                                    final Minecraft189Mappings.MappedMethod expected =
+                                            required[index];
+                                    if (owner.equals(expected.owner().obfuscatedInternalName())
+                                            && methodName.equals(expected.obfuscatedName())
+                                            && methodDesc.equals(expected.descriptor())
+                                            && opcode == Opcodes.INVOKEVIRTUAL) {
+                                        calls[index]++;
+                                    }
+                                }
+                            }
+                        };
+                    }
+                }, 0);
+        if (!found[0] || calls[0] < 1 || calls[1] < 1 || calls[2] < 1
+                || calls[3] != 1 || calls[4] != 2)
+            throw new IllegalStateException(
+                    "Minecraft 1.8.9 native getMouseOver boundary mismatch: "
+                    + "blockReach=" + calls[0] + ", extendedReach=" + calls[1]
+                    + ", entityRayTrace=" + calls[2]
+                    + ", collisionBorder=" + calls[3]
+                    + ", boxExpand=" + calls[4]);
     }
 
     private static void verify(

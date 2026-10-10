@@ -304,6 +304,14 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    public static synchronized void worldEntityCombat(
+            final Minecraft189WorldEntityCombatAccess world) {
+        final Minecraft189HostRuntime host = activeHost();
+        if (host != null) {
+            host.worldEntityCombat(world);
+        }
+    }
+
     public static synchronized void serverAddress(
             final Minecraft189ServerDataAccess serverData) {
         final Minecraft189HostRuntime host =
@@ -372,18 +380,134 @@ public final class Minecraft189RuntimeBridge {
                         currentCounter);
     }
 
+    /** Called solely at exact mapped EntityRenderer.getMouseOver bytecode sites. */
+    public static synchronized float raycastBlockDistance(final float vanilla) {
+        final Minecraft189HostRuntime host = activeHost();
+        return host == null ? vanilla
+                : host.featureCatalog().reach().raycastBlockDistance(vanilla);
+    }
+
+    public static synchronized boolean raycastExtendedBranch(final boolean vanilla) {
+        final Minecraft189HostRuntime host = activeHost();
+        return host == null ? vanilla
+                : host.featureCatalog().reach().raycastExtendedBranch(vanilla);
+    }
+
+    public static synchronized double raycastExtendedDistance() {
+        final Minecraft189HostRuntime host = activeHost();
+        return host == null ? 6.0D
+                : host.featureCatalog().reach().raycastExtendedDistance(6.0D);
+    }
+
+    /**
+     * Player-only local ray-hitbox inflation. Receives the native border
+     * unchanged whenever Hitbox is disabled or the candidate is not a player.
+     */
+    public static synchronized float raycastHitboxBorder(
+            final boolean playerCandidate, final float nativeBorder) {
+        final Minecraft189HostRuntime host = activeHost();
+        return host == null ? nativeBorder
+                : host.featureCatalog().hitbox()
+                        .adjustNativeBorder(playerCandidate, nativeBorder);
+    }
+
     public static synchronized void autoClick(
             final Minecraft189ClickMouseControl minecraft) {
         final Minecraft189HostRuntime host =
                 activeHost();
         if (host != null && minecraft != null) {
+            final Minecraft189SwordBlockControl swordBlock =
+                    minecraft instanceof Minecraft189SwordBlockControl
+                    ? (Minecraft189SwordBlockControl) minecraft : null;
             // M351 verified the exact live vanilla hit-result fields.
             final boolean playerHit =
                     minecraft instanceof Minecraft189CrosshairHitAccess
                     && ((Minecraft189CrosshairHitAccess) minecraft)
                             .customMcCrosshairPlayerHit();
-            if (host.shouldAutoClick(playerHit)) {
-                minecraft.customMcClickMouse();
+            final int playerIndex = playerHit
+                    ? ((Minecraft189CrosshairHitAccess) minecraft)
+                            .customMcCrosshairPlayerIndex()
+                    : -1;
+            // Expire an owned use-item latch even when no attack is due.
+            // A real manual right-click takes ownership and is never released
+            // by this synthetic module.
+            if (swordBlock != null
+                    && host.shouldReleaseAutoBlock(playerHit, playerIndex)
+                    && swordBlock.customMcIsUsingItem()) {
+                swordBlock.customMcStopUsingItem();
+            }
+            // Healing item has priority over Rod and synthetic attacks.
+            // Each winning action owns the full native right-click lane.
+            if (host.shouldAutoPot(playerHit, playerIndex)) {
+                // Only an actual potion takes the combat action lane.
+                final int originalPotionSlot = host.selectAutoPotSlot();
+                if (originalPotionSlot >= 0) {
+                    try {
+                        if (swordBlock != null && host.releaseAutoBlockBeforeAction()
+                                && swordBlock.customMcIsUsingItem())
+                            swordBlock.customMcStopUsingItem();
+                        minecraft.customMcRightClickMouse();
+                        host.commitAutoPotUseAttempt();
+                    } finally {
+                        host.restoreAutoPotSlot(originalPotionSlot);
+                    }
+                    return;
+                }
+                // Incorrect or unknown item type: the slot is already
+                // restored. Rod or ordinary click can still run.
+            }
+            // Rod consumes one synthetic combat action on its own tick.
+            // Normal clicks are not double-issued on the same tick.
+            if (host.shouldAutoRod(playerHit, playerIndex)) {
+                final int originalRodSlot = host.selectAutoRodSlot();
+                if (originalRodSlot >= 0) {
+                    try {
+                        if (swordBlock != null && host.releaseAutoBlockBeforeAction()
+                                && swordBlock.customMcIsUsingItem())
+                            swordBlock.customMcStopUsingItem();
+                        minecraft.customMcRightClickMouse();
+                        host.commitAutoRodUseAttempt();
+                    } finally {
+                        host.restoreAutoRodSlot(originalRodSlot);
+                    }
+                    return;
+                }
+                // No verified rod in the configured slot: fall through.
+            }
+            final double[] nativeHitbox = playerHit
+                    && host.needsHitboxRangeEvidence()
+                    ? ((Minecraft189CrosshairHitAccess) minecraft)
+                            .customMcCrosshairHitboxBounds()
+                    : null;
+            if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {
+                if (swordBlock != null && host.releaseAutoBlockBeforeAction()
+                        && swordBlock.customMcIsUsingItem())
+                    swordBlock.customMcStopUsingItem();
+                final boolean alreadyUsingItem = swordBlock != null
+                        && swordBlock.customMcIsUsingItem();
+                final boolean restoreSprint =
+                        host.shouldKeepSprintAfterSyntheticClick(playerHit);
+                final int originalSlot =
+                        host.selectCombatSlotBeforeSyntheticClick(playerHit);
+                try {
+                    minecraft.customMcClickMouse();
+                    if (restoreSprint) {
+                        host.restoreSprintAfterSyntheticClick();
+                    }
+                } finally {
+                    // Never strand the player on a synthetic combat slot if
+                    // vanilla clickMouse() throws during invocation.
+                    host.restoreCombatSlotAfterSyntheticClick(originalSlot);
+                }
+                if (swordBlock != null && host.mayStartAutoBlock(
+                        playerHit, playerIndex, originalSlot, alreadyUsingItem)) {
+                    // Source-mapped rightClickMouse is the only way to begin
+                    // vanilla sword use. Verify it actually started before
+                    // tracking ownership (cooldown/no-item may refuse it).
+                    minecraft.customMcRightClickMouse();
+                    if (swordBlock.customMcIsUsingItem())
+                        host.recordAutoBlockStart();
+                }
             }
         }
     }

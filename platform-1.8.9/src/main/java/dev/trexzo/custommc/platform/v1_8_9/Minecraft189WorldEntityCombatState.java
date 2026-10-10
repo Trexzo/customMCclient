@@ -1,0 +1,90 @@
+package dev.trexzo.custommc.platform.v1_8_9;
+
+import java.util.Arrays;
+import java.util.Objects;
+
+/**
+ * Immutable-copy snapshot for mapped loadedEntityList combat evidence.
+ * Nonliving/unknown = -1. Nonnegative codes carry alive and hurt-time.
+ */
+public final class Minecraft189WorldEntityCombatState {
+    public static final int UNKNOWN = -1;
+    public static final int MAX_HURT_TIME = 127;
+    public static final int NETWORK_INFO_PRESENT = 1 << 8;
+    public static final int NETWORK_INFO_KNOWN = 1 << 9;
+    public static final int SAME_TEAM = 1 << 10;
+    public static final int TEAM_KNOWN = 1 << 11;
+    private static final int COMBAT_BITS = 255;
+    private boolean available;
+    private int[] packed = new int[0];
+
+    public synchronized void update(final int[] next) {
+        Objects.requireNonNull(next, "next");
+        final int[] copy = Arrays.copyOf(next, next.length);
+        for (int i = 0; i < copy.length; i++) {
+            if (copy[i] < UNKNOWN || copy[i] > (MAX_HURT_TIME * 2 + 1
+                    + NETWORK_INFO_PRESENT + NETWORK_INFO_KNOWN
+                    + SAME_TEAM + TEAM_KNOWN)
+                    || (copy[i] >= 0
+                        && (copy[i] & SAME_TEAM) != 0
+                        && (copy[i] & TEAM_KNOWN) == 0)
+                    || (copy[i] >= 0
+                        && (copy[i] & NETWORK_INFO_PRESENT) != 0
+                        && (copy[i] & NETWORK_INFO_KNOWN) == 0)) {
+                throw new IllegalArgumentException(
+                        "invalid combat state at entity index " + i);
+            }
+        }
+        packed = copy;
+        available = true;
+    }
+
+    public synchronized void clear() {
+        available = false;
+        packed = new int[0];
+    }
+
+    public synchronized Snapshot snapshot() {
+        return new Snapshot(available, packed);
+    }
+
+    public static final class Snapshot {
+        private final boolean available;
+        private final int[] packed;
+
+        private Snapshot(final boolean available, final int[] source) {
+            this.available = available;
+            this.packed = Arrays.copyOf(source, source.length);
+        }
+
+        public boolean available() { return available; }
+        public int entityCount() { return packed.length; }
+        public boolean known(final int index) {
+            return available && index >= 0 && index < packed.length
+                    && packed[index] != UNKNOWN;
+        }
+        public boolean alive(final int index) {
+            return known(index) && (packed[index] & 1) != 0;
+        }
+        /** Returns -1 when the entity is unknown or not in this snapshot. */
+        public int hurtTime(final int index) {
+            return known(index) ? (packed[index] & COMBAT_BITS) >>> 1 : UNKNOWN;
+        }
+        public boolean networkInfoKnown(final int index) {
+            return known(index) && (packed[index] & NETWORK_INFO_KNOWN) != 0;
+        }
+        public boolean networkInfoPresent(final int index) {
+            return networkInfoKnown(index)
+                    && (packed[index] & NETWORK_INFO_PRESENT) != 0;
+        }
+        public boolean teamKnown(final int index) {
+            return known(index) && (packed[index] & TEAM_KNOWN) != 0;
+        }
+        public boolean sameTeam(final int index) {
+            return teamKnown(index) && (packed[index] & SAME_TEAM) != 0;
+        }
+        public int raw(final int index) {
+            return known(index) ? packed[index] : UNKNOWN;
+        }
+    }
+}

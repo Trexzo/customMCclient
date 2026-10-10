@@ -87,10 +87,23 @@ public final class Minecraft189Mappings {
             new MappedClass(
                     "pr",
                     "net/minecraft/entity/EntityLivingBase");
+    // Official MCP 1.8.9 aug = AxisAlignedBB (not a guessed collision shape).
+    public static final MappedClass AXIS_ALIGNED_BB =
+            new MappedClass("aug", "net/minecraft/util/AxisAlignedBB");
     public static final MappedClass ITEM_STACK =
             new MappedClass(
                     "zx",
                     "net/minecraft/item/ItemStack");
+    // Vanilla MCP 1.8.9 class identities, not display-name heuristics.
+    // The ItemStack-to-Item field is located by its unique verified type.
+    public static final MappedClass ITEM =
+            new MappedClass("zw", "net/minecraft/item/Item");
+    public static final MappedClass ITEM_SWORD =
+            new MappedClass("aay", "net/minecraft/item/ItemSword");
+    public static final MappedClass ITEM_FISHING_ROD =
+            new MappedClass("zq", "net/minecraft/item/ItemFishingRod");
+    public static final MappedClass ITEM_POTION =
+            new MappedClass("aai", "net/minecraft/item/ItemPotion");
     public static final MappedClass FOOD_STATS =
             new MappedClass(
                     "xg",
@@ -118,6 +131,20 @@ public final class Minecraft189Mappings {
 
     // Proven in the pinned joined.srg blob (0b1e3f1d...).
     // Crosshair hit state is separate from proximity-only player targeting.
+    // Official 1.8.9 joined.srg: AxisAlignedBB min/max six double fields.
+    public static final MappedField AABB_MIN_X =
+            new MappedField(AXIS_ALIGNED_BB, "a", "D", "field_72340_a", "minX");
+    public static final MappedField AABB_MIN_Y =
+            new MappedField(AXIS_ALIGNED_BB, "b", "D", "field_72338_b", "minY");
+    public static final MappedField AABB_MIN_Z =
+            new MappedField(AXIS_ALIGNED_BB, "c", "D", "field_72339_c", "minZ");
+    public static final MappedField AABB_MAX_X =
+            new MappedField(AXIS_ALIGNED_BB, "d", "D", "field_72336_d", "maxX");
+    public static final MappedField AABB_MAX_Y =
+            new MappedField(AXIS_ALIGNED_BB, "e", "D", "field_72337_e", "maxY");
+    public static final MappedField AABB_MAX_Z =
+            new MappedField(AXIS_ALIGNED_BB, "f", "D", "field_72334_f", "maxZ");
+
     public static final MappedField MINECRAFT_OBJECT_MOUSE_OVER =
             new MappedField(
                     MINECRAFT,
@@ -405,6 +432,10 @@ public final class Minecraft189Mappings {
                     "Lwm;",
                     "field_71071_by",
                     "inventory");
+    // Exact MCP 1.8.9 joined.srg: wm.a [Lzx; field_70462_a.
+    public static final MappedField INVENTORY_PLAYER_MAIN_INVENTORY =
+            new MappedField(INVENTORY_PLAYER, "a", "[Lzx;",
+                    "field_70462_a", "mainInventory");
     public static final MappedField INVENTORY_PLAYER_CURRENT_ITEM =
             new MappedField(
                     INVENTORY_PLAYER,
@@ -486,6 +517,25 @@ public final class Minecraft189Mappings {
                     "()V",
                     "func_70636_d",
                     "onLivingUpdate");
+
+    // Exact MCP 1.8.9: pk.aR()Laug; / Entity.getEntityBoundingBox.
+    // Official MCP 1.8.9 exact ray-hitbox border / AABB expansion mappings.
+    public static final MappedMethod ENTITY_GET_COLLISION_BORDER_SIZE =
+            new MappedMethod(ENTITY, "ao", "()F",
+                    "func_70111_Y", "getCollisionBorderSize");
+    public static final MappedMethod AABB_EXPAND =
+            new MappedMethod(AXIS_ALIGNED_BB, "b", "(DDD)Laug;",
+                    "func_72314_b", "expand");
+
+    public static final MappedMethod ENTITY_GET_ENTITY_BOUNDING_BOX =
+            new MappedMethod(ENTITY, "aR", "()Laug;",
+                    "func_174813_aQ", "getEntityBoundingBox");
+
+    // MCP 1.8.9 official joined.srg: pk/aK ()Ljava/util/UUID;
+    // Source-backed Entity.func_110124_au/getUniqueID.
+    public static final MappedMethod ENTITY_GET_UNIQUE_ID =
+            new MappedMethod(ENTITY, "aK", "()Ljava/util/UUID;",
+                    "func_110124_au", "getUniqueID");
 
     public static final MappedMethod ENTITY_IS_SNEAKING =
             new MappedMethod(
@@ -573,6 +623,24 @@ public final class Minecraft189Mappings {
                     "()V",
                     "func_147121_ag",
                     "rightClickMouse");
+    // Pinned Minecraft 1.8.9 joined.srg source mapping.
+    // Exact Minecraft 1.8.9 joined.srg native raycast dependencies.
+    public static final MappedMethod PLAYER_CONTROLLER_GET_BLOCK_REACH =
+            new MappedMethod(PLAYER_CONTROLLER_MP, "d", "()F",
+                    "func_78757_d", "getBlockReachDistance");
+    public static final MappedMethod PLAYER_CONTROLLER_EXTENDED_REACH =
+            new MappedMethod(PLAYER_CONTROLLER_MP, "i", "()Z",
+                    "func_78749_i", "extendedReach");
+    public static final MappedMethod ENTITY_RAY_TRACE =
+            new MappedMethod(ENTITY, "a", "(DF)Lauh;",
+                    "func_174822_a", "rayTrace");
+    public static final MappedMethod ENTITY_RENDERER_GET_MOUSE_OVER =
+            new MappedMethod(ENTITY_RENDERER, "a", "(F)V",
+                    "func_78473_a", "getMouseOver");
+
+    public static final MappedMethod PLAYER_CONTROLLER_STOP_USING_ITEM =
+            new MappedMethod(PLAYER_CONTROLLER_MP, "c", "(Lwn;)V",
+                    "func_78766_c", "onStoppedUsingItem");
     public static final MappedMethod MINECRAFT_MIDDLE_CLICK_MOUSE =
             new MappedMethod(
                     MINECRAFT,
@@ -629,6 +697,14 @@ public final class Minecraft189Mappings {
                     "()F",
                     "func_110138_aP",
                     "getMaxHealth");
+    // Pinned vanilla 1.8.9 joined.srg pr.c(Lpr;)Z.
+    public static final MappedMethod ENTITY_LIVING_BASE_IS_ON_SAME_TEAM =
+            new MappedMethod(ENTITY_LIVING_BASE, "c", "(Lpr;)Z",
+                    "func_142014_c", "isOnSameTeam");
+    // MCP 1.8.9 official joined.srg: pr/t (Lpk;)Z.
+    public static final MappedMethod ENTITY_LIVING_BASE_CAN_ENTITY_BE_SEEN =
+            new MappedMethod(ENTITY_LIVING_BASE, "t", "(Lpk;)Z",
+                    "func_70685_l", "canEntityBeSeen");
     public static final MappedMethod ENTITY_LIVING_BASE_GET_EQUIPMENT_IN_SLOT =
             new MappedMethod(
                     ENTITY_LIVING_BASE,
@@ -643,6 +719,9 @@ public final class Minecraft189Mappings {
                     "()V",
                     "func_70664_aZ",
                     "jump");
+    public static final MappedMethod ENTITY_PLAYER_IS_USING_ITEM =
+            new MappedMethod(ENTITY_PLAYER, "bS", "()Z",
+                    "func_71039_bw", "isUsingItem");
     public static final MappedMethod ENTITY_PLAYER_GET_FOOD_STATS =
             new MappedMethod(
                     ENTITY_PLAYER,
@@ -671,6 +750,10 @@ public final class Minecraft189Mappings {
                     "()I",
                     "func_178853_c",
                     "getResponseTime");
+    // Exact MCP 1.8.9 joined.srg: aay.g()F / func_150931_i.
+    public static final MappedMethod ITEM_SWORD_GET_DAMAGE_VS_ENTITY =
+            new MappedMethod(ITEM_SWORD, "g", "()F",
+                    "func_150931_i", "getDamageVsEntity");
     public static final MappedMethod ITEM_STACK_GET_DISPLAY_NAME =
             new MappedMethod(
                     ITEM_STACK,

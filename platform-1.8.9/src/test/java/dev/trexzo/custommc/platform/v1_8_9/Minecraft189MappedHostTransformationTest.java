@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -43,6 +44,75 @@ final class Minecraft189MappedHostTransformationTest {
     private static final String MOUSE_BINDING =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189LwjglMouseBinding";
+
+    @Test
+    void mappedRaycastPlayerAndNonplayerHooksExecuteWithoutVerifierFailures()
+            throws Exception {
+        // This actually executes the transformed bytecode, rather than only
+        // counting ASM instructions. It exercises both instanceof branches.
+        for (boolean playerCandidate : new boolean[]{false, true}) {
+            final Minecraft189ClassTransformer transformer =
+                    new Minecraft189ClassTransformer();
+            final ByteMapClassLoader loader =
+                    new ByteMapClassLoader(getClass().getClassLoader());
+            loader.put("aug", transformer.transform("aug", axisAlignedBbShape()));
+            loader.put("pk", transformer.transform("pk", entityShape()));
+            loader.put("pr", transformer.transform("pr", entityLivingBaseShape()));
+            loader.put("wn", transformer.transform("wn", entityPlayerShape()));
+            loader.put("bda", transformer.transform("bda", playerControllerShape()));
+            loader.put("auh$a", movingObjectTypeShape());
+            loader.put("auh", transformer.transform("auh", movingObjectShape()));
+            loader.put("avo", guiIngameShape());
+            loader.put("bfk", transformer.transform(
+                    "bfk", entityRendererShape(playerCandidate)));
+            final Class<?> rendererClass = loader.loadClass("bfk");
+            final Object renderer =
+                    rendererClass.getDeclaredConstructor().newInstance();
+            // A VerifyError, linkage failure or stack corruption fails this.
+            rendererClass.getMethod("a", float.class).invoke(renderer, 0.0F);
+            assertEquals(0.1F, rendererClass.getField("lastBorder")
+                    .getFloat(null), 0.0F);
+            assertEquals(1, loader.loadClass("pk").getField("collisionCalls")
+                    .getInt(null)); // Original native getter invoked exactly once
+        }
+    }
+
+    @Test
+    void nativeRaycastReachHooksPatchExactMappedSitesOnly() {
+        final byte[] transformed = new Minecraft189ClassTransformer()
+                .transform("bfk", entityRendererShape());
+        final int[] bridgeCalls = new int[4];
+        final int[] sixConstants = new int[1];
+        new ClassReader(transformed).accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override public MethodVisitor visitMethod(
+                    final int access, final String name, final String descriptor,
+                    final String signature, final String[] exceptions) {
+                if (!"a".equals(name) || !"(F)V".equals(descriptor)) return null;
+                return new MethodVisitor(Opcodes.ASM9) {
+                    @Override public void visitMethodInsn(
+                            final int opcode, final String owner, final String method,
+                            final String desc, final boolean isInterface) {
+                        if (opcode != Opcodes.INVOKESTATIC ||
+                                !owner.equals("dev/trexzo/custommc/platform/v1_8_9/"
+                                        + "Minecraft189RuntimeBridge")) return;
+                        if (method.equals("raycastBlockDistance")
+                                && desc.equals("(F)F")) bridgeCalls[0]++;
+                        if (method.equals("raycastExtendedBranch")
+                                && desc.equals("(Z)Z")) bridgeCalls[1]++;
+                        if (method.equals("raycastExtendedDistance")
+                                && desc.equals("()D")) bridgeCalls[2]++;
+                        if (method.equals("raycastHitboxBorder")
+                                && desc.equals("(ZF)F")) bridgeCalls[3]++;
+                    }
+                    @Override public void visitLdcInsn(final Object constant) {
+                        if (Double.valueOf(6.0D).equals(constant)) sixConstants[0]++;
+                    }
+                };
+            }
+        }, 0);
+        assertArrayEquals(new int[]{1, 1, 1, 1}, bridgeCalls);
+        assertEquals(0, sixConstants[0]);
+    }
 
     @Test
     void transformerClaimsOnlyStableMainAndMappedHostOwners() {
@@ -279,11 +349,20 @@ final class Minecraft189MappedHostTransformationTest {
                 transformer.transform(
                         "avn",
                         fontRendererShape()));
+        loader.put("aug", transformer.transform("aug", axisAlignedBbShape()));
         loader.put(
                 "pk",
                 transformer.transform(
                         "pk",
                         entityShape()));
+        loader.put(
+                "zw", itemTypeShape("zw", "java/lang/Object"));
+        loader.put(
+                "aay", itemTypeShape("aay", "zw"));
+        loader.put(
+                "zq", itemTypeShape("zq", "zw"));
+        loader.put(
+                "aai", itemTypeShape("aai", "zw"));
         loader.put(
                 "zx",
                 transformer.transform(
@@ -439,6 +518,9 @@ final class Minecraft189MappedHostTransformationTest {
             final Object minecraft =
                     minecraftClass.getDeclaredConstructor()
                             .newInstance();
+            // Exact 1.8.9 rightClickMouse() delegate must link on the
+            // transformed Minecraft owner, even if no AutoRod is enabled.
+            ((Minecraft189ClickMouseControl) minecraft).customMcRightClickMouse();
             final Minecraft189CrosshairHitAccess rayHit =
                     (Minecraft189CrosshairHitAccess) minecraft;
             org.junit.jupiter.api.Assertions.assertFalse(
@@ -451,15 +533,94 @@ final class Minecraft189MappedHostTransformationTest {
             final Object hit = hitClass.getDeclaredConstructor().newInstance();
             final Object playerHit = loader.loadClass("wn")
                     .getDeclaredConstructor().newInstance();
+            final Minecraft189EntityHitboxBoundsAccess hitbox =
+                    (Minecraft189EntityHitboxBoundsAccess) playerHit;
+            org.junit.jupiter.api.Assertions.assertNull(hitbox.customMcHitboxBounds());
+            final Object sourceBox = loader.loadClass("aug")
+                    .getDeclaredConstructor().newInstance();
+            final Class<?> boxType = loader.loadClass("aug");
+            final double[] boxCoordinates = {1.25, 2.5, -3.75, 2.5, 4.0, -2.25};
+            final String[] boxFields = {"a", "b", "c", "d", "e", "f"};
+            for (int i = 0; i < boxCoordinates.length; i++) {
+                boxType.getField(boxFields[i]).setDouble(sourceBox, boxCoordinates[i]);
+            }
+            loader.loadClass("pk").getField("hitbox").set(playerHit, sourceBox);
+            assertArrayEquals(boxCoordinates, hitbox.customMcHitboxBounds(), 0.0D);
             hitClass.getField("a").set(hit, entityType);
             hitClass.getField("d").set(hit, playerHit);
             minecraftClass.getField("s").set(minecraft, hit);
             org.junit.jupiter.api.Assertions.assertTrue(
                     rayHit.customMcCrosshairPlayerHit());
+            assertArrayEquals(boxCoordinates,
+                    rayHit.customMcCrosshairHitboxBounds(), 0.0D);
+            assertEquals(-1, rayHit.customMcCrosshairPlayerIndex());
+            final Object rayWorld = loader.loadClass("bdb")
+                    .getDeclaredConstructor().newInstance();
+            final Object otherRayEntity = loader.loadClass("pk")
+                    .getDeclaredConstructor().newInstance();
+            loader.loadClass("adm").getField("f").set(
+                    rayWorld, java.util.Arrays.asList(otherRayEntity, playerHit));
+            minecraftClass.getField("f").set(minecraft, rayWorld);
+            assertEquals(1, rayHit.customMcCrosshairPlayerIndex());
+            final Minecraft189WorldEntityUuidAccess identity =
+                    (Minecraft189WorldEntityUuidAccess) rayWorld;
+            org.junit.jupiter.api.Assertions.assertNull(identity.customMcLoadedEntityUuids());
+            final java.util.UUID otherId = java.util.UUID.randomUUID();
+            final java.util.UUID playerId = java.util.UUID.randomUUID();
+            loader.loadClass("pk").getField("uuid").set(otherRayEntity, otherId);
+            loader.loadClass("pk").getField("uuid").set(playerHit, playerId);
+            assertArrayEquals(new java.util.UUID[]{otherId, playerId},
+                    identity.customMcLoadedEntityUuids());
+            loader.loadClass("adm").getField("f").set(rayWorld,
+                    java.util.Arrays.asList(playerHit, otherRayEntity));
+            assertArrayEquals(new java.util.UUID[]{playerId, otherId},
+                    identity.customMcLoadedEntityUuids());
+            loader.loadClass("adm").getField("f").set(rayWorld,
+                    java.util.Arrays.asList(otherRayEntity, playerHit));
+            final Minecraft189WorldEntityCombatAccess combat =
+                    (Minecraft189WorldEntityCombatAccess) rayWorld;
+            loader.loadClass("pr").getField("health").setFloat(playerHit, 12.0F);
+            loader.loadClass("pr").getField("au").setInt(playerHit, 7);
+            assertArrayEquals(new int[]{-1, 15},
+                    combat.customMcLoadedEntityCombatStates());
+            final Object clientPlayer = loader.loadClass("bet")
+                    .getDeclaredConstructor().newInstance();
+            loader.loadClass("pr").getField("health").setFloat(clientPlayer, 16.0F);
+            loader.loadClass("pr").getField("au").setInt(clientPlayer, 3);
+            final Minecraft189PlayerTabInfoAccess tabAccessor =
+                    (Minecraft189PlayerTabInfoAccess) clientPlayer;
+            assertFalse(tabAccessor.customMcHasNetworkPlayerInfo());
+            loader.loadClass("adm").getField("f").set(
+                    rayWorld, java.util.Arrays.asList(otherRayEntity, clientPlayer));
+            assertArrayEquals(new int[]{-1, 512 | (3 << 1) | 1},
+                    combat.customMcLoadedEntityCombatStates());
+            final Object tabNetworkInfo = loader.loadClass("bdc")
+                    .getDeclaredConstructor().newInstance();
+            loader.loadClass("bet").getField("playerInfo")
+                    .set(clientPlayer, tabNetworkInfo);
+            assertTrue(tabAccessor.customMcHasNetworkPlayerInfo());
+            assertArrayEquals(new int[]{-1, 512 | 256 | (3 << 1) | 1},
+                    combat.customMcLoadedEntityCombatStates());
+            loader.loadClass("adm").getField("f").set(
+                    rayWorld, java.util.Arrays.asList(otherRayEntity, playerHit));
+            loader.loadClass("pr").getField("health").setFloat(playerHit, 0.0F);
+            assertArrayEquals(new int[]{-1, 14},
+                    combat.customMcLoadedEntityCombatStates());
+            loader.loadClass("pr").getField("health").setFloat(playerHit, 12.0F);
+            loader.loadClass("adm").getField("f").set(
+                    rayWorld, java.util.Arrays.asList(otherRayEntity));
+            assertEquals(-1, rayHit.customMcCrosshairPlayerIndex());
+            assertArrayEquals(new int[]{-1},
+                    combat.customMcLoadedEntityCombatStates());
+            loader.loadClass("adm").getField("f").set(
+                    rayWorld, java.util.Arrays.asList(otherRayEntity, playerHit));
             hitClass.getField("d").set(hit,
                     loader.loadClass("pk").getDeclaredConstructor().newInstance());
             org.junit.jupiter.api.Assertions.assertFalse(
                     rayHit.customMcCrosshairPlayerHit());
+            org.junit.jupiter.api.Assertions.assertNull(
+                    rayHit.customMcCrosshairHitboxBounds());
+            assertEquals(-1, rayHit.customMcCrosshairPlayerIndex());
             hitClass.getField("d").set(hit, playerHit);
             hitClass.getField("a").set(hit,
                     enumClass.getDeclaredConstructor().newInstance());
@@ -513,6 +674,19 @@ final class Minecraft189MappedHostTransformationTest {
                     .set(
                             minecraft,
                             playerController);
+            final Minecraft189VanillaReachAccess nativeReach =
+                    (Minecraft189VanillaReachAccess) playerController;
+            playerControllerClass.getField("nativeReach")
+                    .setFloat(playerController, 4.5F);
+            playerControllerClass.getField("nativeExtended")
+                    .setBoolean(playerController, false);
+            assertEquals(4.5F, nativeReach.customMcVanillaBlockReachDistance(), 0.0F);
+            assertFalse(nativeReach.customMcVanillaExtendedReach());
+            playerControllerClass.getField("nativeExtended")
+                    .setBoolean(playerController, true);
+            assertTrue(nativeReach.customMcVanillaExtendedReach());
+            playerControllerClass.getField("nativeExtended")
+                    .setBoolean(playerController, false);
 
             final Class<?> playerClass =
                     loader.loadClass("bew");
@@ -623,6 +797,12 @@ final class Minecraft189MappedHostTransformationTest {
                     .setInt(
                             inventory,
                             4);
+            final Minecraft189InventoryHotbarControl control =
+                    (Minecraft189InventoryHotbarControl) inventory;
+            assertEquals(4, control.customMcSelectedHotbarSlot());
+            control.customMcSetSelectedHotbarSlot(8);
+            assertEquals(8, inventoryClass.getField("c").getInt(inventory));
+            control.customMcSetSelectedHotbarSlot(4);
             playerClass.getField("bi")
                     .set(
                             player,
@@ -651,6 +831,33 @@ final class Minecraft189MappedHostTransformationTest {
             final Object heldItem =
                     itemStackClass.getDeclaredConstructor()
                             .newInstance();
+            final Minecraft189ItemStackAccess sourceItem =
+                    (Minecraft189ItemStackAccess) heldItem;
+            assertFalse(sourceItem.customMcIsSword());
+            assertFalse(sourceItem.customMcIsFishingRod());
+            assertFalse(sourceItem.customMcIsPotion());
+            itemStackClass.getField("sourceItem").set(heldItem,
+                    loader.loadClass("zw").getDeclaredConstructor().newInstance());
+            assertFalse(sourceItem.customMcIsSword());
+            itemStackClass.getField("sourceItem").set(heldItem,
+                    loader.loadClass("aay").getDeclaredConstructor().newInstance());
+            assertTrue(sourceItem.customMcIsSword());
+            assertEquals(0.0F, sourceItem.customMcSwordBaseDamage(), 0.001F);
+            final Object mappedSword = itemStackClass.getField("sourceItem")
+                    .get(heldItem);
+            loader.loadClass("aay").getField("baseSwordDamage")
+                    .setFloat(mappedSword, 8.5F);
+            assertEquals(8.5F, sourceItem.customMcSwordBaseDamage(), 0.001F);
+            assertFalse(sourceItem.customMcIsFishingRod());
+            itemStackClass.getField("sourceItem").set(heldItem,
+                    loader.loadClass("zq").getDeclaredConstructor().newInstance());
+            assertTrue(sourceItem.customMcIsFishingRod());
+            assertTrue(Float.isNaN(sourceItem.customMcSwordBaseDamage()));
+            itemStackClass.getField("sourceItem").set(heldItem,
+                    loader.loadClass("aai").getDeclaredConstructor().newInstance());
+            assertTrue(sourceItem.customMcIsPotion());
+            itemStackClass.getField("sourceItem").set(heldItem,
+                    loader.loadClass("aay").getDeclaredConstructor().newInstance());
             itemStackClass.getField("b")
                     .setInt(
                             heldItem,
@@ -667,6 +874,15 @@ final class Minecraft189MappedHostTransformationTest {
                     .setInt(
                             heldItem,
                             1561);
+            final Object hotbarItems = java.lang.reflect.Array.newInstance(
+                    itemStackClass, 9);
+            java.lang.reflect.Array.set(hotbarItems, 4, heldItem);
+            inventoryClass.getField("a").set(inventory, hotbarItems);
+            final Minecraft189InventoryHotbarItemsAccess itemSlots =
+                    (Minecraft189InventoryHotbarItemsAccess) inventory;
+            org.junit.jupiter.api.Assertions.assertSame(sourceItem, itemSlots.customMcHotbarItems()[4]);
+            org.junit.jupiter.api.Assertions.assertNull(itemSlots.customMcHotbarItems()[0]);
+            assertEquals(9, itemSlots.customMcHotbarItems().length);
             java.lang.reflect.Array.set(
                     equipmentSlots,
                     0,
@@ -794,6 +1010,55 @@ final class Minecraft189MappedHostTransformationTest {
                     .set(
                             minecraft,
                             player);
+            // Pinned native EntityPlayer.isUsingItem + controller stop-use.
+            final Minecraft189SwordBlockControl swordBlock =
+                    (Minecraft189SwordBlockControl) minecraft;
+            assertFalse(swordBlock.customMcIsUsingItem());
+            playerClass.getField("usingItem").setBoolean(player, true);
+            assertTrue(swordBlock.customMcIsUsingItem());
+            swordBlock.customMcStopUsingItem();
+            assertFalse(swordBlock.customMcIsUsingItem());
+            assertEquals(1, playerControllerClass.getField("stopUsingCalls")
+                    .getInt(playerController));
+            minecraftClass.getField("h").set(minecraft, null);
+            assertFalse(swordBlock.customMcIsUsingItem());
+            swordBlock.customMcStopUsingItem();
+            assertEquals(1, playerControllerClass.getField("stopUsingCalls")
+                    .getInt(playerController));
+            minecraftClass.getField("h").set(minecraft, player);
+
+            // Source-mapped same-team relation from live Minecraft.thePlayer.
+            minecraftClass.getField("instance").set(null, minecraft);
+            minecraftClass.getField("f").set(minecraft, rayWorld);
+            loader.loadClass("pr").getField("teamGroup").setInt(player, 17);
+            loader.loadClass("pr").getField("teamGroup").setInt(playerHit, 17);
+            assertArrayEquals(new int[]{-1, 2048 | 1024 | 15},
+                    combat.customMcLoadedEntityCombatStates());
+            final Minecraft189WorldEntityVisibilityAccess visibility =
+                    (Minecraft189WorldEntityVisibilityAccess) rayWorld;
+            assertArrayEquals(new int[]{-1, 1},
+                    visibility.customMcLoadedEntityVisibility());
+            loader.loadClass("pk").getField("occluded").setBoolean(playerHit, true);
+            assertArrayEquals(new int[]{-1, 0},
+                    visibility.customMcLoadedEntityVisibility());
+            loader.loadClass("pk").getField("occluded").setBoolean(playerHit, false);
+            loader.loadClass("pr").getField("teamGroup").setInt(playerHit, 18);
+            assertArrayEquals(new int[]{-1, 2048 | 15},
+                    combat.customMcLoadedEntityCombatStates());
+            minecraftClass.getField("f").set(minecraft,
+                    loader.loadClass("bdb").getDeclaredConstructor().newInstance());
+            assertArrayEquals(new int[]{-1, 15},
+                    combat.customMcLoadedEntityCombatStates());
+            org.junit.jupiter.api.Assertions.assertNull(
+                    visibility.customMcLoadedEntityVisibility());
+            minecraftClass.getField("f").set(minecraft, rayWorld);
+            minecraftClass.getField("h").set(minecraft, null);
+            assertArrayEquals(new int[]{-1, 15},
+                    combat.customMcLoadedEntityCombatStates());
+            org.junit.jupiter.api.Assertions.assertNull(
+                    visibility.customMcLoadedEntityVisibility());
+            minecraftClass.getField("h").set(minecraft, player);
+            minecraftClass.getField("instance").set(null, null);
 
             final Class<?> worldClass =
                     loader.loadClass("bdb");
@@ -6376,6 +6641,36 @@ final class Minecraft189MappedHostTransformationTest {
         return calls[0];
     }
 
+    private static byte[] itemTypeShape(
+            final String name, final String parent) {
+        final ClassWriter writer = new ClassWriter(0);
+        writer.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, name,
+                null, parent, null);
+        final MethodVisitor constructor = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+        constructor.visitCode();
+        constructor.visitVarInsn(Opcodes.ALOAD, 0);
+        constructor.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                parent, "<init>", "()V", false);
+        constructor.visitInsn(Opcodes.RETURN);
+        constructor.visitMaxs(1, 1);
+        constructor.visitEnd();
+        if ("aay".equals(name)) {
+            field(writer, "baseSwordDamage", "F");
+            final MethodVisitor getBase = writer.visitMethod(
+                    Opcodes.ACC_PUBLIC, "g", "()F", null, null);
+            getBase.visitCode();
+            getBase.visitVarInsn(Opcodes.ALOAD, 0);
+            getBase.visitFieldInsn(Opcodes.GETFIELD, name,
+                    "baseSwordDamage", "F");
+            getBase.visitInsn(Opcodes.FRETURN);
+            getBase.visitMaxs(1, 1);
+            getBase.visitEnd();
+        }
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
     private static byte[] itemStackShape() {
         final ClassWriter writer =
                 classWriter("zx");
@@ -6387,6 +6682,7 @@ final class Minecraft189MappedHostTransformationTest {
                 writer,
                 "displayName",
                 "Ljava/lang/String;");
+        field(writer, "sourceItem", "Lzw;");
         field(
                 writer,
                 "itemDamage",
@@ -6676,6 +6972,9 @@ final class Minecraft189MappedHostTransformationTest {
     private static byte[] playerControllerShape() {
         final ClassWriter writer =
                 classWriter("bda");
+        field(writer, "stopUsingCalls", "I");
+        field(writer, "nativeReach", "F");
+        field(writer, "nativeExtended", "Z");
         field(
                 writer,
                 "g",
@@ -6691,6 +6990,37 @@ final class Minecraft189MappedHostTransformationTest {
         endDefaultConstructor(
                 writer,
                 "bda");
+        final MethodVisitor stopUse = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "c", "(Lwn;)V", null, null);
+        stopUse.visitCode();
+        stopUse.visitVarInsn(Opcodes.ALOAD, 0);
+        stopUse.visitInsn(Opcodes.DUP);
+        stopUse.visitFieldInsn(Opcodes.GETFIELD, "bda", "stopUsingCalls", "I");
+        stopUse.visitInsn(Opcodes.ICONST_1);
+        stopUse.visitInsn(Opcodes.IADD);
+        stopUse.visitFieldInsn(Opcodes.PUTFIELD, "bda", "stopUsingCalls", "I");
+        stopUse.visitVarInsn(Opcodes.ALOAD, 1);
+        stopUse.visitInsn(Opcodes.ICONST_0);
+        stopUse.visitFieldInsn(Opcodes.PUTFIELD, "wn", "usingItem", "Z");
+        stopUse.visitInsn(Opcodes.RETURN);
+        stopUse.visitMaxs(3, 2);
+        stopUse.visitEnd();
+        final MethodVisitor reach = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "d", "()F", null, null);
+        reach.visitCode();
+        reach.visitVarInsn(Opcodes.ALOAD, 0);
+        reach.visitFieldInsn(Opcodes.GETFIELD, "bda", "nativeReach", "F");
+        reach.visitInsn(Opcodes.FRETURN);
+        reach.visitMaxs(1, 1);
+        reach.visitEnd();
+        final MethodVisitor extended = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "i", "()Z", null, null);
+        extended.visitCode();
+        extended.visitVarInsn(Opcodes.ALOAD, 0);
+        extended.visitFieldInsn(Opcodes.GETFIELD, "bda", "nativeExtended", "Z");
+        extended.visitInsn(Opcodes.IRETURN);
+        extended.visitMaxs(1, 1);
+        extended.visitEnd();
         writer.visitEnd();
         return writer.toByteArray();
     }
@@ -6730,6 +7060,8 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "Y", "Lavl;");
         field(writer, "s", "Lauh;");
         field(writer, "clickMouseCalls", "I");
+        writer.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                "instance", "Lave;", null, null).visitEnd();
         endDefaultConstructor(writer, "ave");
 
         final MethodVisitor getMinecraft =
@@ -6741,10 +7073,9 @@ final class Minecraft189MappedHostTransformationTest {
                         null,
                         null);
         getMinecraft.visitCode();
-        getMinecraft.visitInsn(
-                Opcodes.ACONST_NULL);
-        getMinecraft.visitInsn(
-                Opcodes.ARETURN);
+        getMinecraft.visitFieldInsn(Opcodes.GETSTATIC, "ave",
+                "instance", "Lave;");
+        getMinecraft.visitInsn(Opcodes.ARETURN);
         getMinecraft.visitMaxs(1, 0);
         getMinecraft.visitEnd();
 
@@ -6793,6 +7124,26 @@ final class Minecraft189MappedHostTransformationTest {
         return writer.toByteArray();
     }
 
+    private static byte[] axisAlignedBbShape() {
+        final ClassWriter writer = classWriter("aug");
+        field(writer, "a", "D");
+        field(writer, "b", "D");
+        field(writer, "c", "D");
+        field(writer, "d", "D");
+        field(writer, "e", "D");
+        field(writer, "f", "D");
+        endDefaultConstructor(writer, "aug");
+        final MethodVisitor expanded = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "b", "(DDD)Laug;", null, null);
+        expanded.visitCode();
+        expanded.visitVarInsn(Opcodes.ALOAD, 0);
+        expanded.visitInsn(Opcodes.ARETURN);
+        expanded.visitMaxs(1, 7);
+        expanded.visitEnd();
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
     private static byte[] entityShape() {
         final ClassWriter writer =
                 classWriter("pk");
@@ -6810,6 +7161,11 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "O", "F");
         field(writer, "H", "Z");
         field(writer, "T", "Z");
+        field(writer, "uuid", "Ljava/util/UUID;");
+        writer.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                "collisionCalls", "I", null, null).visitEnd();
+        field(writer, "hitbox", "Laug;");
+        field(writer, "occluded", "Z");
         field(writer, "sneaking", "Z");
         field(writer, "sprinting", "Z");
         endDefaultConstructor(writer, "pk");
@@ -6912,6 +7268,47 @@ final class Minecraft189MappedHostTransformationTest {
                 2);
         setSneaking.visitEnd();
 
+        final MethodVisitor getBox = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "aR", "()Laug;", null, null);
+        getBox.visitCode();
+        getBox.visitVarInsn(Opcodes.ALOAD, 0);
+        getBox.visitFieldInsn(Opcodes.GETFIELD, "pk", "hitbox", "Laug;");
+        getBox.visitInsn(Opcodes.ARETURN);
+        getBox.visitMaxs(1, 1);
+        getBox.visitEnd();
+
+        final MethodVisitor getUuid = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "aK", "()Ljava/util/UUID;", null, null);
+        getUuid.visitCode();
+        getUuid.visitVarInsn(Opcodes.ALOAD, 0);
+        getUuid.visitFieldInsn(Opcodes.GETFIELD, "pk",
+                "uuid", "Ljava/util/UUID;");
+        getUuid.visitInsn(Opcodes.ARETURN);
+        getUuid.visitMaxs(1, 1);
+        getUuid.visitEnd();
+        // Vanilla 1.8.9 native Entity.rayTrace(DF)Lauh; fixture.
+        final MethodVisitor collisionBorder = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "ao", "()F", null, null);
+        collisionBorder.visitCode();
+        collisionBorder.visitFieldInsn(Opcodes.GETSTATIC,
+                "pk", "collisionCalls", "I");
+        collisionBorder.visitInsn(Opcodes.ICONST_1);
+        collisionBorder.visitInsn(Opcodes.IADD);
+        collisionBorder.visitFieldInsn(Opcodes.PUTSTATIC,
+                "pk", "collisionCalls", "I");
+        collisionBorder.visitLdcInsn(Float.valueOf(0.1F));
+        collisionBorder.visitInsn(Opcodes.FRETURN);
+        // GETSTATIC + ICONST_1 needs two JVM stack slots before IADD.
+        collisionBorder.visitMaxs(2, 1);
+        collisionBorder.visitEnd();
+
+        final MethodVisitor nativeRayTrace = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "a", "(DF)Lauh;", null, null);
+        nativeRayTrace.visitCode();
+        nativeRayTrace.visitInsn(Opcodes.ACONST_NULL);
+        nativeRayTrace.visitInsn(Opcodes.ARETURN);
+        nativeRayTrace.visitMaxs(1, 4);
+        nativeRayTrace.visitEnd();
         writer.visitEnd();
         return writer.toByteArray();
     }
@@ -6928,6 +7325,7 @@ final class Minecraft189MappedHostTransformationTest {
                 null);
         field(writer, "au", "I");
         field(writer, "health", "F");
+        field(writer, "teamGroup", "I");
         field(writer, "maxHealth", "F");
         field(writer, "equipmentSlots", "[Lzx;");
         field(writer, "activePotionEffects", "Ljava/util/Collection;");
@@ -7002,6 +7400,27 @@ final class Minecraft189MappedHostTransformationTest {
                 1,
                 1);
         getMaxHealth.visitEnd();
+
+        final MethodVisitor isTeammate = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "c", "(Lpr;)Z", null, null);
+        final org.objectweb.asm.Label notSameTeam = new org.objectweb.asm.Label();
+        isTeammate.visitCode();
+        isTeammate.visitVarInsn(Opcodes.ALOAD, 0);
+        isTeammate.visitFieldInsn(Opcodes.GETFIELD, "pr", "teamGroup", "I");
+        isTeammate.visitJumpInsn(Opcodes.IFEQ, notSameTeam);
+        isTeammate.visitVarInsn(Opcodes.ALOAD, 0);
+        isTeammate.visitFieldInsn(Opcodes.GETFIELD, "pr", "teamGroup", "I");
+        isTeammate.visitVarInsn(Opcodes.ALOAD, 1);
+        isTeammate.visitFieldInsn(Opcodes.GETFIELD, "pr", "teamGroup", "I");
+        isTeammate.visitJumpInsn(Opcodes.IF_ICMPNE, notSameTeam);
+        isTeammate.visitInsn(Opcodes.ICONST_1);
+        isTeammate.visitInsn(Opcodes.IRETURN);
+        isTeammate.visitLabel(notSameTeam);
+        isTeammate.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+        isTeammate.visitInsn(Opcodes.ICONST_0);
+        isTeammate.visitInsn(Opcodes.IRETURN);
+        isTeammate.visitMaxs(2, 2);
+        isTeammate.visitEnd();
 
         final MethodVisitor getEquipmentInSlot =
                 writer.visitMethod(
@@ -7169,6 +7588,16 @@ final class Minecraft189MappedHostTransformationTest {
                 7);
         knockBack.visitEnd();
 
+        final MethodVisitor sees = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "t", "(Lpk;)Z", null, null);
+        sees.visitCode();
+        sees.visitVarInsn(Opcodes.ALOAD, 1);
+        sees.visitFieldInsn(Opcodes.GETFIELD, "pk", "occluded", "Z");
+        sees.visitInsn(Opcodes.ICONST_1);
+        sees.visitInsn(Opcodes.IXOR);
+        sees.visitInsn(Opcodes.IRETURN);
+        sees.visitMaxs(2, 2);
+        sees.visitEnd();
         writer.visitEnd();
         return writer.toByteArray();
     }
@@ -7350,6 +7779,7 @@ final class Minecraft189MappedHostTransformationTest {
                 "pr",
                 null);
         field(writer, "foodStats", "Lxg;");
+        field(writer, "usingItem", "Z");
         field(writer, "bi", "Lwm;");
         field(writer, "bB", "I");
         field(writer, "bC", "I");
@@ -7420,6 +7850,15 @@ final class Minecraft189MappedHostTransformationTest {
                 1);
         xpBarCap.visitEnd();
 
+        final MethodVisitor isUsingItem = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "bS", "()Z", null, null);
+        isUsingItem.visitCode();
+        isUsingItem.visitVarInsn(Opcodes.ALOAD, 0);
+        isUsingItem.visitFieldInsn(Opcodes.GETFIELD, "wn", "usingItem", "Z");
+        isUsingItem.visitInsn(Opcodes.IRETURN);
+        isUsingItem.visitMaxs(1, 1);
+        isUsingItem.visitEnd();
+
         writer.visitEnd();
         return writer.toByteArray();
     }
@@ -7427,6 +7866,7 @@ final class Minecraft189MappedHostTransformationTest {
     private static byte[] inventoryPlayerShape() {
         final ClassWriter writer =
                 classWriter("wm");
+        field(writer, "a", "[Lzx;");
         field(
                 writer,
                 "c",
@@ -7685,8 +8125,15 @@ final class Minecraft189MappedHostTransformationTest {
     }
 
     private static byte[] entityRendererShape() {
+        return entityRendererShape(true);
+    }
+
+    /** Executable fixture can use a real Player or nonplayer border receiver. */
+    private static byte[] entityRendererShape(final boolean playerCandidate) {
         final ClassWriter writer =
                 classWriter("bfk");
+        writer.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                "lastBorder", "F", null, null).visitEnd();
         endDefaultConstructor(writer, "bfk");
 
         final MethodVisitor render =
@@ -7721,6 +8168,67 @@ final class Minecraft189MappedHostTransformationTest {
                 Opcodes.RETURN);
         render.visitMaxs(3, 4);
         render.visitEnd();
+
+        // Synthetic mapped method call shape, never invoked as game logic.
+        // Verifies the transformer refuses nonvanilla getMouseOver boundaries.
+        final MethodVisitor mouseOver = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "a", "(F)V", null, null);
+        mouseOver.visitCode();
+        mouseOver.visitTypeInsn(Opcodes.NEW, "bda");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "bda", "<init>", "()V", false);
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "bda", "d", "()F", false);
+        mouseOver.visitInsn(Opcodes.POP);
+        mouseOver.visitTypeInsn(Opcodes.NEW, "bda");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "bda", "<init>", "()V", false);
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "bda", "i", "()Z", false);
+        mouseOver.visitInsn(Opcodes.POP);
+        mouseOver.visitTypeInsn(Opcodes.NEW, "pk");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "pk", "<init>", "()V", false);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.FCONST_0);
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "pk", "a",
+                "(DF)Lauh;", false);
+        mouseOver.visitInsn(Opcodes.POP);
+        // Exact native 1.8.9 getMouseOver has one extended-reach 6.0D literal.
+        mouseOver.visitLdcInsn(Double.valueOf(6.0D));
+        mouseOver.visitInsn(Opcodes.POP2);
+        mouseOver.visitTypeInsn(Opcodes.NEW, playerCandidate ? "wn" : "pk");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                playerCandidate ? "wn" : "pk", "<init>", "()V", false);
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "pk", "ao", "()F", false);
+        mouseOver.visitFieldInsn(Opcodes.PUTSTATIC,
+                "bfk", "lastBorder", "F");
+        mouseOver.visitTypeInsn(Opcodes.NEW, "aug");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "aug", "<init>", "()V", false);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "aug", "b", "(DDD)Laug;", false);
+        mouseOver.visitInsn(Opcodes.POP);
+        mouseOver.visitTypeInsn(Opcodes.NEW, "aug");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "aug", "<init>", "()V", false);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "aug", "b", "(DDD)Laug;", false);
+        mouseOver.visitInsn(Opcodes.POP);
+        mouseOver.visitInsn(Opcodes.RETURN);
+        mouseOver.visitMaxs(4, 2);
+        mouseOver.visitEnd();
 
         writer.visitEnd();
         return writer.toByteArray();
