@@ -380,6 +380,25 @@ public final class Minecraft189RuntimeBridge {
                         currentCounter);
     }
 
+    /** Called solely at exact mapped EntityRenderer.getMouseOver bytecode sites. */
+    public static synchronized float raycastBlockDistance(final float vanilla) {
+        final Minecraft189HostRuntime host = activeHost();
+        return host == null ? vanilla
+                : host.featureCatalog().reach().raycastBlockDistance(vanilla);
+    }
+
+    public static synchronized boolean raycastExtendedBranch(final boolean vanilla) {
+        final Minecraft189HostRuntime host = activeHost();
+        return host == null ? vanilla
+                : host.featureCatalog().reach().raycastExtendedBranch(vanilla);
+    }
+
+    public static synchronized double raycastExtendedDistance() {
+        final Minecraft189HostRuntime host = activeHost();
+        return host == null ? 6.0D
+                : host.featureCatalog().reach().raycastExtendedDistance(6.0D);
+    }
+
     public static synchronized void autoClick(
             final Minecraft189ClickMouseControl minecraft) {
         final Minecraft189HostRuntime host =
