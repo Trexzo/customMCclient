@@ -74,6 +74,9 @@ final class Minecraft189KillAuraFeature implements AutoCloseable {
             f.bind(moduleSettings, settings, settingPresentations,
                     f.module.maxSwitchHurtTicksSetting(), "Max Target Hurt Ticks",
                     SettingValueKind.INTEGER, 100, new SettingNumericSpec(0, 20, 1));
+            f.bind(moduleSettings, settings, settingPresentations,
+                    f.module.lockTargetSetting(), "Lock Target While Eligible",
+                    SettingValueKind.BOOLEAN, 110, null);
             return f;
         } catch (RuntimeException ex) {
             try { f.close(); }
