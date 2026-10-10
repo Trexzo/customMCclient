@@ -7298,7 +7298,8 @@ final class Minecraft189MappedHostTransformationTest {
                 "pk", "collisionCalls", "I");
         collisionBorder.visitLdcInsn(Float.valueOf(0.1F));
         collisionBorder.visitInsn(Opcodes.FRETURN);
-        collisionBorder.visitMaxs(1, 1);
+        // GETSTATIC + ICONST_1 needs two JVM stack slots before IADD.
+        collisionBorder.visitMaxs(2, 1);
         collisionBorder.visitEnd();
 
         final MethodVisitor nativeRayTrace = writer.visitMethod(
