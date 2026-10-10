@@ -2,11 +2,13 @@ package dev.trexzo.custommc.platform.v1_8_9;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.jar.JarEntry;
@@ -18,7 +20,11 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldInsnNode;
+import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Analyzer;
 import org.objectweb.asm.tree.analysis.AnalyzerException;
@@ -157,6 +163,9 @@ final class Minecraft189OfficialClientPreflightTest {
         final java.util.Set<String> handled = new java.util.TreeSet<String>();
         final java.util.List<String> missingOrFailed =
                 new java.util.ArrayList<String>();
+        final Map<String, ClassNode> compiledHookOwners =
+                new HashMap<String, ClassNode>();
+        final int[] resolvedProjectSites = new int[2];
         try (JarFile jar = new JarFile(path.toFile())) {
             final java.util.Enumeration<JarEntry> iterator = jar.entries();
             while (iterator.hasMoreElements()) {
@@ -179,6 +188,8 @@ final class Minecraft189OfficialClientPreflightTest {
                     assertEquals(internal, new ClassReader(transformed).getClassName(),
                             "transform changed mapped owner: " + binary);
                     verifyTransformedStack(internal, transformed);
+                    verifyCompiledProjectHookLinkage(internal, transformed,
+                            compiledHookOwners, resolvedProjectSites);
                     System.out.println("OFFICIAL_189_TRANSFORM_OK=" + binary
                             + " sha256=" + sha256(source));
                 } catch (RuntimeException invalidShape) {
@@ -193,6 +204,134 @@ final class Minecraft189OfficialClientPreflightTest {
         assertTrue(missingOrFailed.isEmpty(),
                 "real vanilla classes failed mapped transformation: " + missingOrFailed);
         System.out.println("OFFICIAL_189_COMPLETE_MAPPED_OWNERS_PASS=" + handled.size());
+        assertTrue(resolvedProjectSites[0] >= 20,
+                "too few CustomMC method linkage sites; verifier may have stopped inspecting injected hooks");
+        System.out.println("OFFICIAL_189_COMPILED_HOOK_LINKAGE_PASS=YES methods="
+                + resolvedProjectSites[0] + " fields=" + resolvedProjectSites[1]
+                + " owners=" + compiledHookOwners.size());
+    }
+
+
+    private static final String PROJECT_PACKAGE = "dev/trexzo/custommc/";
+
+    /**
+     * Check instructions emitted into Mojang's real classes against the
+     * actual compiled CustomMC class files on the test runtime classpath.
+     * This catches NoSuchMethodError/NoSuchFieldError-shaped bridge drift
+     * without loading a game client or invoking hooks.
+     */
+    private static void verifyCompiledProjectHookLinkage(
+            final String minecraftOwner, final byte[] transformed,
+            final Map<String, ClassNode> compiledOwners, final int[] sites)
+            throws IOException {
+        final ClassNode node = new ClassNode(Opcodes.ASM9);
+        new ClassReader(transformed).accept(node, 0);
+        assertEquals(minecraftOwner, node.name);
+        for (MethodNode method : node.methods) {
+            for (AbstractInsnNode insn = method.instructions.getFirst();
+                    insn != null; insn = insn.getNext()) {
+                if (insn instanceof MethodInsnNode) {
+                    final MethodInsnNode call = (MethodInsnNode) insn;
+                    if (!call.owner.startsWith(PROJECT_PACKAGE)) continue;
+                    verifyCompiledProjectMethod(call, compiledOwners);
+                    sites[0]++;
+                } else if (insn instanceof FieldInsnNode) {
+                    final FieldInsnNode field = (FieldInsnNode) insn;
+                    if (!field.owner.startsWith(PROJECT_PACKAGE)) continue;
+                    verifyCompiledProjectField(field, compiledOwners);
+                    sites[1]++;
+                }
+            }
+        }
+    }
+
+    private static ClassNode compiledProjectOwner(
+            final String internal, final Map<String, ClassNode> cache)
+            throws IOException {
+        final ClassNode cached = cache.get(internal);
+        if (cached != null) return cached;
+        assertTrue(internal.startsWith(PROJECT_PACKAGE),
+                "refusing to resolve non-project class: " + internal);
+        final String resource = internal + ".class";
+        final ClassLoader loader =
+                Minecraft189OfficialClientPreflightTest.class.getClassLoader();
+        final ClassNode resolved = new ClassNode(Opcodes.ASM9);
+        try (InputStream stream = loader.getResourceAsStream(resource)) {
+            assertNotNull(stream, "compiled runtime hook class missing: " + resource);
+            new ClassReader(stream).accept(resolved,
+                    ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+        }
+        assertEquals(internal, resolved.name, "hook class internal name drift");
+        assertTrue((resolved.access & Opcodes.ACC_PUBLIC) != 0,
+                "real Minecraft class cannot access nonpublic hook owner: " + internal);
+        cache.put(internal, resolved);
+        return resolved;
+    }
+
+    private static void verifyCompiledProjectMethod(
+            final MethodInsnNode call, final Map<String, ClassNode> compiledOwners)
+            throws IOException {
+        final ClassNode owner = compiledProjectOwner(call.owner, compiledOwners);
+        assertEquals((owner.access & Opcodes.ACC_INTERFACE) != 0, call.itf,
+                "interface invocation/owner mismatch: " + call.owner + "." + call.name);
+        for (MethodNode method : owner.methods) {
+            if (!method.name.equals(call.name) || !method.desc.equals(call.desc)) {
+                continue;
+            }
+            assertTrue((method.access & Opcodes.ACC_PUBLIC) != 0,
+                    "Minecraft cannot access nonpublic compiled hook method: "
+                            + call.owner + "." + call.name + call.desc);
+            assertEquals(call.getOpcode() == Opcodes.INVOKESTATIC,
+                    (method.access & Opcodes.ACC_STATIC) != 0,
+                    "static/instance hook invocation mismatch: "
+                            + call.owner + "." + call.name + call.desc);
+            return;
+        }
+        fail("compiled hook method missing: "
+                + call.owner + "." + call.name + call.desc);
+    }
+
+    private static void verifyCompiledProjectField(
+            final FieldInsnNode ref, final Map<String, ClassNode> compiledOwners)
+            throws IOException {
+        final ClassNode owner = compiledProjectOwner(ref.owner, compiledOwners);
+        for (FieldNode field : owner.fields) {
+            if (!field.name.equals(ref.name) || !field.desc.equals(ref.desc)) continue;
+            assertTrue((field.access & Opcodes.ACC_PUBLIC) != 0,
+                    "Minecraft cannot access nonpublic hook field: "
+                            + ref.owner + "." + ref.name + ":" + ref.desc);
+            final boolean expectsStatic = ref.getOpcode() == Opcodes.GETSTATIC
+                    || ref.getOpcode() == Opcodes.PUTSTATIC;
+            assertEquals(expectsStatic, (field.access & Opcodes.ACC_STATIC) != 0,
+                    "static/instance hook field mismatch: "
+                            + ref.owner + "." + ref.name + ":" + ref.desc);
+            return;
+        }
+        fail("compiled hook field missing: "
+                + ref.owner + "." + ref.name + ":" + ref.desc);
+    }
+
+    @Test
+    void compiledHookLinkageRejectsMissingWrongDescriptorAndPrivateMembers()
+            throws Exception {
+        final Map<String, ClassNode> classes = new HashMap<String, ClassNode>();
+        final String owner = "dev/trexzo/custommc/platform/v1_8_9/Minecraft189RuntimeBridge";
+        verifyCompiledProjectMethod(
+                new MethodInsnNode(Opcodes.INVOKESTATIC, owner,
+                        "gameTick", "()V", false), classes);
+        assertThrows(AssertionError.class, () -> verifyCompiledProjectMethod(
+                new MethodInsnNode(Opcodes.INVOKESTATIC, owner,
+                        "nonexistentGameTick", "()V", false), classes));
+        assertThrows(AssertionError.class, () -> verifyCompiledProjectMethod(
+                new MethodInsnNode(Opcodes.INVOKESTATIC, owner,
+                        "gameTick", "(I)V", false), classes));
+        assertThrows(AssertionError.class, () -> verifyCompiledProjectMethod(
+                new MethodInsnNode(Opcodes.INVOKEVIRTUAL, owner,
+                        "gameTick", "()V", false), classes));
+        assertThrows(AssertionError.class, () -> verifyCompiledProjectField(
+                new FieldInsnNode(Opcodes.GETSTATIC, owner,
+                        "activeRuntime", "Ldev/trexzo/custommc/platform/v1_8_9/Minecraft189BootstrapRuntime;"),
+                classes));
     }
 
     /**
