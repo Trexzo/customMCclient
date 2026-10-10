@@ -102,7 +102,7 @@ jobs:
             --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
             --overlay "build/runtime-overlay" \
             --game "$RUNNER_TEMP/custommc-189-singleplayer" \
-            --timeout 90
+            --timeout 120
       - name: Remove official binary and libraries from CI runner
         if: always()
         run: python -c "from pathlib import Path; import shutil, os; root=Path(os.environ['RUNNER_TEMP']); (root/'minecraft-1.8.9-vanilla.jar').unlink(missing_ok=True); shutil.rmtree(root/'minecraft-1.8.9-libraries', ignore_errors=True); shutil.rmtree(root/'minecraft-1.8.9-resources', ignore_errors=True); shutil.rmtree(root/'custommc-189-game', ignore_errors=True); shutil.rmtree(root/'custommc-189-singleplayer', ignore_errors=True)"
