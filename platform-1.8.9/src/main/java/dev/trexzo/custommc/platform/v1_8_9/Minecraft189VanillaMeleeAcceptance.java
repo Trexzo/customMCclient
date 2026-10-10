@@ -172,6 +172,41 @@ final class Minecraft189VanillaMeleeAcceptance {
         }
     }
 
+    /**
+     * Exact native 1.8.9 raycast + loaded-world identity verification for the
+     * CI Kill Aura *nonplayer* veto. This observes a real living nonplayer;
+     * it does not create or reclassify entities.
+     */
+    static Object raycastLivingNonPlayer(
+            final Object minecraft, final int[] kinds) {
+        if (!Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraNonPlayer")
+                || minecraft == null || kinds == null
+                || observedWorld == null) return null;
+        try {
+            final Object hit = field(minecraft, "s");
+            if (hit == null) return null;
+            final ClassLoader gameLoader = minecraft.getClass().getClassLoader();
+            final Class<?> type = Class.forName("auh$a", false, gameLoader);
+            if (field(hit, "a") != field(type, null, "c")) return null;
+            final Object entity = field(hit, "d");
+            final Object world = field(minecraft, "f");
+            if (entity == null || world == null || world != observedWorld
+                    || entity == field(minecraft, "h")) return null;
+            final int index = identityIndex(loadedEntities(world), entity);
+            if (index < 0 || index >= kinds.length) return null;
+            final int flags = kinds[index];
+            if ((flags & Minecraft189WorldEntityKindState.LIVING) == 0
+                    || (flags & Minecraft189WorldEntityKindState.PLAYER) != 0
+                    || (flags & Minecraft189WorldEntityKindState.LOCAL_PLAYER) != 0) {
+                return null;
+            }
+            return entity;
+        } catch (ReflectiveOperationException | SecurityException ignored) {
+            return null;
+        }
+    }
+
     static void syntheticClickStarted() {
         syntheticCall = true;
     }
