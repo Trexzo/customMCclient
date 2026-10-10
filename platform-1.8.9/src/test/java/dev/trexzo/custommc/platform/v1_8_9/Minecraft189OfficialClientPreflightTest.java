@@ -3,6 +3,7 @@ package dev.trexzo.custommc.platform.v1_8_9;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -13,6 +14,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+
+import dev.trexzo.custommc.bootstrap.TransformingTargetClassLoader;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -41,6 +44,64 @@ final class Minecraft189OfficialClientPreflightTest {
     private static final String OFFICIAL_SHA1 =
             "3870888a6c3d349d3771a3e9d16c9bf5e076b908";
     private static final long OFFICIAL_SIZE = 8461484L;
+
+    /**
+     * M394: use the production child-first transformer loader to ask the JVM
+     * to define and link actual Mojang 1.8.9 classes, not synthetic fixtures.
+     *
+     * Do not initialize Minecraft or enter its main method: graphics, LWJGL
+     * natives and the full game/library classpath are deliberately absent.
+     */
+    @Test
+    void actualMojang189ClassesLinkWithProductionTransformingLoader()
+            throws Exception {
+        final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured, "required Mojang JAR is missing");
+            assertFalse(configured.trim().isEmpty(),
+                    "required Mojang JAR path is empty");
+        } else {
+            Assumptions.assumeTrue(configured != null && !configured.trim().isEmpty(),
+                    "Real Mojang 1.8.9 JAR is not present in offline CI");
+        }
+        final Path path = Paths.get(configured);
+        assertTrue(Files.isRegularFile(path), "official JAR is missing");
+        assertEquals(OFFICIAL_SIZE, Files.size(path), "official size mismatch");
+        assertEquals(OFFICIAL_SHA1, digestFile(path), "official checksum mismatch");
+
+        final Minecraft189ClassTransformer transformer =
+                new Minecraft189ClassTransformer();
+        final URL[] officialClasspath = {path.toUri().toURL()};
+        final String[] linkedOwners = {
+                "aug", // AxisAlignedBB
+                "auh", // MovingObjectPosition / raycast result
+                "bda", // PlayerControllerMP
+                "pk",  // Entity
+                "bfk", // EntityRenderer (Reach/Hitbox interception)
+                Minecraft189ClassTransformer.TARGET_MAIN_CLASS
+        };
+        try (TransformingTargetClassLoader loader =
+                     new TransformingTargetClassLoader(officialClasspath,
+                             getClass().getClassLoader(), transformer)) {
+            int linked = 0;
+            for (String owner : linkedOwners) {
+                assertTrue(transformer.handles(owner),
+                        "selected class must actually be transformed: " + owner);
+                final Class<?> defined = Class.forName(owner, false, loader);
+                assertSame(loader, defined.getClassLoader(),
+                        "real game class escaped the transforming child loader: " + owner);
+                assertEquals(owner, defined.getName());
+                assertSame(defined, Class.forName(owner, false, loader),
+                        "duplicate linkage or inconsistent class identity: " + owner);
+                linked++;
+                System.out.println("OFFICIAL_189_REAL_JVM_CLASS_LINK_PASS=" + owner);
+            }
+            assertEquals(linkedOwners.length, linked,
+                    "some required official classes were not linked");
+            System.out.println("OFFICIAL_189_REAL_JVM_CLASSES_LINKED=" + linked);
+        }
+    }
 
     @Test
     void actualMojang189RaycastClassBytesMatchAndTransform() throws Exception {
