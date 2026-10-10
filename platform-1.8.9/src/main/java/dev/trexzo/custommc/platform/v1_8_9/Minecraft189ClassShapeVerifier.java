@@ -372,6 +372,8 @@ public final class Minecraft189ClassShapeVerifier {
      * reach/raycast mutation is considered. Does not rewrite these calls.
      */
     static void verifyNativeRaycastCalls(final byte[] classBytes) {
+        // Official Mojang client has TWO AABB expand calls in getMouseOver:
+        // broad-phase candidate query and narrow-phase collision-border ray hit.
         final int[] calls = new int[5];
         final boolean[] found = new boolean[1];
         new ClassReader(Objects.requireNonNull(classBytes, "classBytes")).accept(
@@ -414,7 +416,7 @@ public final class Minecraft189ClassShapeVerifier {
                     }
                 }, 0);
         if (!found[0] || calls[0] < 1 || calls[1] < 1 || calls[2] < 1
-                || calls[3] != 1 || calls[4] != 1)
+                || calls[3] != 1 || calls[4] != 2)
             throw new IllegalStateException(
                     "Minecraft 1.8.9 native getMouseOver boundary mismatch: "
                     + "blockReach=" + calls[0] + ", extendedReach=" + calls[1]

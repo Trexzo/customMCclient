@@ -110,7 +110,8 @@ final class Minecraft189OfficialClientPreflightTest {
         assertTrue(observed[0] >= 1 && observed[1] >= 1 && observed[2] >= 1,
                 "real native raytrace dependencies missing");
         assertEquals(1, observed[3], "original native collision border call");
-        assertEquals(1, observed[4], "original native AABB expansion call");
+        assertEquals(2, observed[4],
+                "native AABB expands broad-phase and narrow-phase once each");
         assertArrayEquals(new int[]{1, 1, 2, 1}, bridge,
                 "expected exactly Reach and Hitbox bridge hooks");
 

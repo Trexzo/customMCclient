@@ -8200,6 +8200,17 @@ final class Minecraft189MappedHostTransformationTest {
         mouseOver.visitInsn(Opcodes.POP2);
         mouseOver.visitLdcInsn(Double.valueOf(6.0D));
         mouseOver.visitInsn(Opcodes.POP2);
+        // The real renderer also expands the broad-phase lookup box.
+        mouseOver.visitTypeInsn(Opcodes.NEW, "aug");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "aug", "<init>", "()V", false);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "aug", "b", "(DDD)Laug;", false);
+        mouseOver.visitInsn(Opcodes.POP);
         mouseOver.visitTypeInsn(Opcodes.NEW, playerCandidate ? "wn" : "pk");
         mouseOver.visitInsn(Opcodes.DUP);
         mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,

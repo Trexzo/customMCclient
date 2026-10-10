@@ -2900,6 +2900,16 @@ final class Minecraft189MappingsTest {
         ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "pk",
                 "a", "(DF)Lauh;", false);
         ray.visitInsn(Opcodes.POP);
+        // Real native getMouseOver broad-phase AABB expansion precedes
+        // the player-candidate collision-border narrow-phase expansion.
+        ray.visitInsn(Opcodes.ACONST_NULL);
+        ray.visitTypeInsn(Opcodes.CHECKCAST, "aug");
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitInsn(Opcodes.DCONST_0);
+        ray.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "aug", "b", "(DDD)Laug;", false);
+        ray.visitInsn(Opcodes.POP);
         // Verified vanilla getMouseOver player-candidate hitbox expansion.
         ray.visitInsn(Opcodes.ACONST_NULL);
         ray.visitTypeInsn(Opcodes.CHECKCAST, "pk");
