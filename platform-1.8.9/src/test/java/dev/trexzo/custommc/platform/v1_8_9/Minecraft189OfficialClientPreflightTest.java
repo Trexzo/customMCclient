@@ -12,6 +12,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -46,60 +48,82 @@ final class Minecraft189OfficialClientPreflightTest {
     private static final long OFFICIAL_SIZE = 8461484L;
 
     /**
-     * M394: use the production child-first transformer loader to ask the JVM
-     * to define and link actual Mojang 1.8.9 classes, not synthetic fixtures.
+     * M395: discover the entire claimed transformer owner set in the exact
+     * signed official Mojang 1.8.9 JAR and require JVM definition/linkage of
+     * every owner through the production TransformingTargetClassLoader.
      *
-     * Do not initialize Minecraft or enter its main method: graphics, LWJGL
-     * natives and the full game/library classpath are deliberately absent.
+     * Class.forName(..., false, loader) does not initialize classes or launch
+     * the game. This is deliberately not a graphics or multiplayer test.
      */
     @Test
-    void actualMojang189ClassesLinkWithProductionTransformingLoader()
-            throws Exception {
+    void allOfficial189MappedOwnersLinkWithProductionLoader() throws Exception {
         final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
         if ("true".equalsIgnoreCase(
                 System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
-            assertNotNull(configured, "required Mojang JAR is missing");
-            assertFalse(configured.trim().isEmpty(),
-                    "required Mojang JAR path is empty");
+            assertNotNull(configured, "required official JAR path is missing");
+            assertFalse(configured.trim().isEmpty(), "official JAR path is empty");
         } else {
             Assumptions.assumeTrue(configured != null && !configured.trim().isEmpty(),
-                    "Real Mojang 1.8.9 JAR is not present in offline CI");
+                    "No official Mojang 1.8.9 JAR in ordinary offline CI");
         }
         final Path path = Paths.get(configured);
-        assertTrue(Files.isRegularFile(path), "official JAR is missing");
+        assertTrue(Files.isRegularFile(path), "official JAR missing");
         assertEquals(OFFICIAL_SIZE, Files.size(path), "official size mismatch");
-        assertEquals(OFFICIAL_SHA1, digestFile(path), "official checksum mismatch");
+        assertEquals(OFFICIAL_SHA1, digestFile(path), "official SHA-1 mismatch");
 
         final Minecraft189ClassTransformer transformer =
                 new Minecraft189ClassTransformer();
-        final URL[] officialClasspath = {path.toUri().toURL()};
-        final String[] linkedOwners = {
-                "aug", // AxisAlignedBB
-                "auh", // MovingObjectPosition / raycast result
-                "bda", // PlayerControllerMP
-                "pk",  // Entity
-                "bfk", // EntityRenderer (Reach/Hitbox interception)
-                Minecraft189ClassTransformer.TARGET_MAIN_CLASS
-        };
+        final Set<String> handled = new TreeSet<String>();
+        try (JarFile jar = new JarFile(path.toFile())) {
+            final java.util.Enumeration<JarEntry> entries = jar.entries();
+            while (entries.hasMoreElements()) {
+                final JarEntry entry = entries.nextElement();
+                if (entry.isDirectory() || !entry.getName().endsWith(".class")) continue;
+                final String name = entry.getName().substring(
+                        0, entry.getName().length() - ".class".length())
+                        .replace('/', '.');
+                if (transformer.handles(name)) {
+                    assertTrue(handled.add(name),
+                            "duplicate claimed game owner in official JAR: " + name);
+                }
+            }
+        }
+        assertEquals(25, handled.size(),
+                "official mapped-owner count differs from transformer contract");
+        assertTrue(handled.contains(Minecraft189ClassTransformer.TARGET_MAIN_CLASS),
+                "missing official Minecraft main entry-point from claimed owners");
+        assertTrue(handled.containsAll(Arrays.asList("aug", "auh", "bda", "pk", "bfk")),
+                "native raycast owner coverage regressed");
+
         try (TransformingTargetClassLoader loader =
-                     new TransformingTargetClassLoader(officialClasspath,
+                     new TransformingTargetClassLoader(
+                             new URL[]{path.toUri().toURL()},
                              getClass().getClassLoader(), transformer)) {
             int linked = 0;
-            for (String owner : linkedOwners) {
-                assertTrue(transformer.handles(owner),
-                        "selected class must actually be transformed: " + owner);
-                final Class<?> defined = Class.forName(owner, false, loader);
+            for (String owner : handled) {
+                final Class<?> defined;
+                try {
+                    defined = Class.forName(owner, false, loader);
+                } catch (LinkageError failure) {
+                    throw new AssertionError(
+                            "genuine Mojang transformed JVM linkage failed: " + owner,
+                            failure);
+                } catch (ClassNotFoundException failure) {
+                    throw new AssertionError(
+                            "claimed official Minecraft class not loadable: " + owner,
+                            failure);
+                }
                 assertSame(loader, defined.getClassLoader(),
-                        "real game class escaped the transforming child loader: " + owner);
+                        "mapped class escaped production child loader: " + owner);
                 assertEquals(owner, defined.getName());
                 assertSame(defined, Class.forName(owner, false, loader),
-                        "duplicate linkage or inconsistent class identity: " + owner);
+                        "unstable mapped class identity: " + owner);
+                System.out.println("OFFICIAL_189_JVM_OWNER_LINK_PASS=" + owner);
                 linked++;
-                System.out.println("OFFICIAL_189_REAL_JVM_CLASS_LINK_PASS=" + owner);
             }
-            assertEquals(linkedOwners.length, linked,
-                    "some required official classes were not linked");
-            System.out.println("OFFICIAL_189_REAL_JVM_CLASSES_LINKED=" + linked);
+            assertEquals(25, linked,
+                    "not all exact official Mojang transformer owners were JVM-linked");
+            System.out.println("OFFICIAL_189_JVM_ALL_MAPPED_OWNERS_LINKED=" + linked);
         }
     }
 
