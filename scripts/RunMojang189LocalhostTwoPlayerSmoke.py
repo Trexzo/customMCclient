@@ -271,8 +271,9 @@ def run(args):
                      "normal real-player Kill Aura module enable")
             wait_for(host, host_log, AURA_ATTACK, deadline,
                      "host-owned Kill Aura synthetic rotated player attack")
-            wait_for(host, host_log, AURA_HURT, deadline,
-                     "same native remote player hurt after Kill Aura click")
+            print("CUSTOMMC_189_CLIENT_AURA_CLICK_OBSERVED=YES", flush=True)
+            # Server response comes first: determine whether real PvP damage
+            # was accepted before interpreting any client animation/hurt flag.
             # Require a *server* stat.damageTaken objective change on the
             # exact target. Never infer PvP success only from the host client.
             verified_server_damage = False
@@ -288,9 +289,17 @@ def run(args):
                         raise
                     check_process(server, "server-authoritative damage probe")
             if not verified_server_damage:
+                # Official server console diagnostics, never fabricated.
+                # This is a read-only scoreboard report, not a test bypass.
+                send_server_command(server, server_log,
+                                    "scoreboard players list CITarget")
+                print("CUSTOMMC_189_SERVER_DAMAGE_SCORE_NOT_POSITIVE=YES",
+                      flush=True)
                 raise AssertionError("no dedicated-server damage statistic for CITarget")
             print("CUSTOMMC_OFFICIAL_189_SERVER_ACCEPTED_PLAYER_DAMAGE_PASS=YES",
                   flush=True)
+            wait_for(host, host_log, AURA_HURT, deadline,
+                     "same native remote player hurt after server-accepted click")
 
         for phase, proc in (
                 ("dedicated server", server),
