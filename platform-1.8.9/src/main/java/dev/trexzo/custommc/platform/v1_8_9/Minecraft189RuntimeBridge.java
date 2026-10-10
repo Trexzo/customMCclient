@@ -443,7 +443,12 @@ public final class Minecraft189RuntimeBridge {
                 }
                 // No verified rod in the configured slot: fall through.
             }
-            if (host.shouldAutoClick(playerHit, playerIndex)) {
+            final double[] nativeHitbox = playerHit
+                    && host.needsHitboxRangeEvidence()
+                    ? ((Minecraft189CrosshairHitAccess) minecraft)
+                            .customMcCrosshairHitboxBounds()
+                    : null;
+            if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {
                 if (swordBlock != null && host.releaseAutoBlockBeforeAction()
                         && swordBlock.customMcIsUsingItem())
                     swordBlock.customMcStopUsingItem();
