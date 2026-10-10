@@ -75,7 +75,6 @@ class CompleteAssetStageTest(unittest.TestCase):
         sha = hashlib.sha1(b"a").hexdigest()
         with TemporaryDirectory() as temp:
             root = Path(temp)
-            root.mkdir()
             with self.assertRaisesRegex(ValueError, "conflicting declared sizes"):
                 assets._stage_complete_asset_collection({
                     "a": {"hash": sha, "size": 1},
