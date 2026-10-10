@@ -934,6 +934,14 @@ final class Minecraft189MappedHostTransformationTest {
             loader.loadClass("pr").getField("teamGroup").setInt(playerHit, 17);
             assertArrayEquals(new int[]{-1, 2048 | 1024 | 15},
                     combat.customMcLoadedEntityCombatStates());
+            final Minecraft189WorldEntityVisibilityAccess visibility =
+                    (Minecraft189WorldEntityVisibilityAccess) rayWorld;
+            assertArrayEquals(new int[]{-1, 1},
+                    visibility.customMcLoadedEntityVisibility());
+            loader.loadClass("pk").getField("occluded").setBoolean(playerHit, true);
+            assertArrayEquals(new int[]{-1, 0},
+                    visibility.customMcLoadedEntityVisibility());
+            loader.loadClass("pk").getField("occluded").setBoolean(playerHit, false);
             loader.loadClass("pr").getField("teamGroup").setInt(playerHit, 18);
             assertArrayEquals(new int[]{-1, 2048 | 15},
                     combat.customMcLoadedEntityCombatStates());
@@ -941,10 +949,14 @@ final class Minecraft189MappedHostTransformationTest {
                     loader.loadClass("bdb").getDeclaredConstructor().newInstance());
             assertArrayEquals(new int[]{-1, 15},
                     combat.customMcLoadedEntityCombatStates());
+            org.junit.jupiter.api.Assertions.assertNull(
+                    visibility.customMcLoadedEntityVisibility());
             minecraftClass.getField("f").set(minecraft, rayWorld);
             minecraftClass.getField("h").set(minecraft, null);
             assertArrayEquals(new int[]{-1, 15},
                     combat.customMcLoadedEntityCombatStates());
+            org.junit.jupiter.api.Assertions.assertNull(
+                    visibility.customMcLoadedEntityVisibility());
             minecraftClass.getField("h").set(minecraft, player);
             minecraftClass.getField("instance").set(null, null);
 
@@ -7012,6 +7024,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "H", "Z");
         field(writer, "T", "Z");
         field(writer, "uuid", "Ljava/util/UUID;");
+        field(writer, "occluded", "Z");
         field(writer, "sneaking", "Z");
         field(writer, "sprinting", "Z");
         endDefaultConstructor(writer, "pk");
@@ -7402,6 +7415,16 @@ final class Minecraft189MappedHostTransformationTest {
                 7);
         knockBack.visitEnd();
 
+        final MethodVisitor sees = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "t", "(Lpk;)Z", null, null);
+        sees.visitCode();
+        sees.visitVarInsn(Opcodes.ALOAD, 1);
+        sees.visitFieldInsn(Opcodes.GETFIELD, "pk", "occluded", "Z");
+        sees.visitInsn(Opcodes.ICONST_1);
+        sees.visitInsn(Opcodes.IXOR);
+        sees.visitInsn(Opcodes.IRETURN);
+        sees.visitMaxs(2, 2);
+        sees.visitEnd();
         writer.visitEnd();
         return writer.toByteArray();
     }

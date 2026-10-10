@@ -196,6 +196,9 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189WorldEntityCombatAccess";
     private static final String WORLD_ENTITY_COMBAT_ACCESS_DESCRIPTOR =
             "L" + WORLD_ENTITY_COMBAT_ACCESS_INTERNAL_NAME + ";";
+    private static final String WORLD_ENTITY_VISIBILITY_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189WorldEntityVisibilityAccess";
     private static final String WORLD_ENTITY_UUID_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189WorldEntityUuidAccess";
@@ -2999,6 +3002,7 @@ public final class Minecraft189ClassTransformer
                                 withInterface(
                                         withInterface(
                                         withInterface(
+                                        withInterface(
                                                 withInterface(
                                                         withInterface(
                                                                 withInterface(
@@ -3008,7 +3012,8 @@ public final class Minecraft189ClassTransformer
                                                 WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME),
                                         WORLD_ENTITY_KINDS_ACCESS_INTERNAL_NAME),
                                 WORLD_ENTITY_COMBAT_ACCESS_INTERNAL_NAME),
-                                WORLD_ENTITY_UUID_ACCESS_INTERNAL_NAME));
+                                WORLD_ENTITY_UUID_ACCESS_INTERNAL_NAME),
+                                WORLD_ENTITY_VISIBILITY_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -3034,6 +3039,7 @@ public final class Minecraft189ClassTransformer
                                 cv);
                         addLoadedEntityCombatSnapshot(cv);
                         addLoadedEntityUuidSnapshot(cv);
+                        addLoadedEntityVisibilitySnapshot(cv);
                         super.visitEnd();
                     }
                 },
@@ -3926,6 +3932,149 @@ public final class Minecraft189ClassTransformer
         m.visitLabel(done);
         m.visitFrame(Opcodes.F_FULL, 5, locals, 0, new Object[0]);
         m.visitVarInsn(Opcodes.ALOAD, 3);
+        m.visitInsn(Opcodes.ARETURN);
+        m.visitMaxs(0, 0);
+        m.visitEnd();
+    }
+
+
+    /**
+     * Native line-of-sight evidence using local EntityLivingBase.canEntityBeSeen
+     * (1.8.9 pr.t(Lpk;)Z) and active Minecraft World identity.
+     * Returns null without an active world/local player.
+     * -1 = nonplayer, 0 = occluded, 1 = visible.
+     */
+    private static void addLoadedEntityVisibilitySnapshot(final ClassVisitor visitor) {
+        final MethodVisitor m = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcLoadedEntityVisibility",
+                "()[I", null, null);
+        final Label haveList = new Label();
+        final Label haveMinecraft = new Label();
+        final Label sameWorld = new Label();
+        final Label havePlayer = new Label();
+        final Label loop = new Label();
+        final Label nonPlayer = new Label();
+        final Label store = new Label();
+        final Label done = new Label();
+        final Label invalid = new Label();
+        final String world = Minecraft189Mappings.WORLD.obfuscatedInternalName();
+        final String minecraft = Minecraft189Mappings.MINECRAFT.obfuscatedInternalName();
+        final String player = Minecraft189Mappings.ENTITY_PLAYER_SP.obfuscatedInternalName();
+        final String entity = Minecraft189Mappings.ENTITY.obfuscatedInternalName();
+        m.visitCode();
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitFieldInsn(Opcodes.GETFIELD, world,
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST.obfuscatedName(),
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST.descriptor());
+        m.visitVarInsn(Opcodes.ASTORE, 1);
+        m.visitVarInsn(Opcodes.ALOAD, 1);
+        m.visitJumpInsn(Opcodes.IFNONNULL, haveList);
+        m.visitJumpInsn(Opcodes.GOTO, invalid);
+        m.visitLabel(haveList);
+        m.visitFrame(Opcodes.F_FULL, 2,
+                new Object[]{world, "java/util/List"}, 0, new Object[0]);
+        m.visitMethodInsn(Opcodes.INVOKESTATIC,
+                Minecraft189Mappings.MINECRAFT_GET_MINECRAFT.owner().obfuscatedInternalName(),
+                Minecraft189Mappings.MINECRAFT_GET_MINECRAFT.obfuscatedName(),
+                Minecraft189Mappings.MINECRAFT_GET_MINECRAFT.descriptor(), false);
+        m.visitVarInsn(Opcodes.ASTORE, 2);
+        m.visitVarInsn(Opcodes.ALOAD, 2);
+        m.visitJumpInsn(Opcodes.IFNONNULL, haveMinecraft);
+        m.visitJumpInsn(Opcodes.GOTO, invalid);
+
+        m.visitLabel(haveMinecraft);
+        m.visitFrame(Opcodes.F_FULL, 3,
+                new Object[]{world, "java/util/List", minecraft}, 0, new Object[0]);
+        m.visitVarInsn(Opcodes.ALOAD, 2);
+        m.visitFieldInsn(Opcodes.GETFIELD, minecraft,
+                Minecraft189Mappings.MINECRAFT_WORLD.obfuscatedName(),
+                Minecraft189Mappings.MINECRAFT_WORLD.descriptor());
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitJumpInsn(Opcodes.IF_ACMPEQ, sameWorld);
+        m.visitJumpInsn(Opcodes.GOTO, invalid);
+
+        m.visitLabel(sameWorld);
+        m.visitFrame(Opcodes.F_FULL, 3,
+                new Object[]{world, "java/util/List", minecraft}, 0, new Object[0]);
+        m.visitVarInsn(Opcodes.ALOAD, 2);
+        m.visitFieldInsn(Opcodes.GETFIELD, minecraft,
+                Minecraft189Mappings.MINECRAFT_PLAYER.obfuscatedName(),
+                Minecraft189Mappings.MINECRAFT_PLAYER.descriptor());
+        m.visitVarInsn(Opcodes.ASTORE, 3);
+        m.visitVarInsn(Opcodes.ALOAD, 3);
+        m.visitJumpInsn(Opcodes.IFNONNULL, havePlayer);
+        m.visitJumpInsn(Opcodes.GOTO, invalid);
+
+        m.visitLabel(havePlayer);
+        m.visitFrame(Opcodes.F_FULL, 4,
+                new Object[]{world, "java/util/List", minecraft, player},
+                0, new Object[0]);
+        m.visitVarInsn(Opcodes.ALOAD, 1);
+        m.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                "java/util/List", "size", "()I", true);
+        m.visitVarInsn(Opcodes.ISTORE, 4);
+        m.visitVarInsn(Opcodes.ILOAD, 4);
+        m.visitIntInsn(Opcodes.NEWARRAY, Opcodes.T_INT);
+        m.visitVarInsn(Opcodes.ASTORE, 5);
+        m.visitInsn(Opcodes.ICONST_0);
+        m.visitVarInsn(Opcodes.ISTORE, 6);
+
+        final Object[] indexed = new Object[]{
+                world, "java/util/List", minecraft, player,
+                Opcodes.INTEGER, "[I", Opcodes.INTEGER};
+        m.visitLabel(loop);
+        m.visitFrame(Opcodes.F_FULL, 7, indexed, 0, new Object[0]);
+        m.visitVarInsn(Opcodes.ILOAD, 6);
+        m.visitVarInsn(Opcodes.ILOAD, 4);
+        m.visitJumpInsn(Opcodes.IF_ICMPGE, done);
+        m.visitVarInsn(Opcodes.ALOAD, 1);
+        m.visitVarInsn(Opcodes.ILOAD, 6);
+        m.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                "java/util/List", "get", "(I)Ljava/lang/Object;", true);
+        m.visitVarInsn(Opcodes.ASTORE, 7);
+        m.visitVarInsn(Opcodes.ALOAD, 7);
+        m.visitTypeInsn(Opcodes.INSTANCEOF,
+                Minecraft189Mappings.ENTITY_PLAYER.obfuscatedInternalName());
+        m.visitJumpInsn(Opcodes.IFEQ, nonPlayer);
+        m.visitVarInsn(Opcodes.ALOAD, 3);
+        m.visitVarInsn(Opcodes.ALOAD, 7);
+        m.visitTypeInsn(Opcodes.CHECKCAST, entity);
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                Minecraft189Mappings.ENTITY_LIVING_BASE_CAN_ENTITY_BE_SEEN
+                        .owner().obfuscatedInternalName(),
+                Minecraft189Mappings.ENTITY_LIVING_BASE_CAN_ENTITY_BE_SEEN
+                        .obfuscatedName(),
+                Minecraft189Mappings.ENTITY_LIVING_BASE_CAN_ENTITY_BE_SEEN
+                        .descriptor(), false);
+        m.visitJumpInsn(Opcodes.GOTO, store);
+
+        final Object[] withCandidate = new Object[]{
+                world, "java/util/List", minecraft, player,
+                Opcodes.INTEGER, "[I", Opcodes.INTEGER, "java/lang/Object"};
+        m.visitLabel(nonPlayer);
+        m.visitFrame(Opcodes.F_FULL, 8, withCandidate, 0, new Object[0]);
+        m.visitInsn(Opcodes.ICONST_M1);
+
+        m.visitLabel(store);
+        m.visitFrame(Opcodes.F_FULL, 8, withCandidate,
+                1, new Object[]{Opcodes.INTEGER});
+        m.visitVarInsn(Opcodes.ALOAD, 5);
+        m.visitInsn(Opcodes.SWAP);
+        m.visitVarInsn(Opcodes.ILOAD, 6);
+        m.visitInsn(Opcodes.SWAP);
+        m.visitInsn(Opcodes.IASTORE);
+        m.visitIincInsn(6, 1);
+        m.visitJumpInsn(Opcodes.GOTO, loop);
+
+        m.visitLabel(done);
+        m.visitFrame(Opcodes.F_FULL, 7, indexed, 0, new Object[0]);
+        m.visitVarInsn(Opcodes.ALOAD, 5);
+        m.visitInsn(Opcodes.ARETURN);
+
+        m.visitLabel(invalid);
+        m.visitFrame(Opcodes.F_FULL, 2,
+                new Object[]{world, "java/util/List"}, 0, new Object[0]);
+        m.visitInsn(Opcodes.ACONST_NULL);
         m.visitInsn(Opcodes.ARETURN);
         m.visitMaxs(0, 0);
         m.visitEnd();
