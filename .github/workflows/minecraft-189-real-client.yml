@@ -5,6 +5,10 @@ on:
     paths:
       - '.github/workflows/minecraft-189-real-client.yml'
       - 'scripts/FetchMojang189Client.py'
+      - 'scripts/FetchMojang189Libraries.py'
+      - 'bootstrap/src/main/java/dev/trexzo/custommc/bootstrap/TransformingTargetClassLoader.java'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RuntimeBridge.java'
+      - 'platform-1.8.9/build.gradle.kts'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClassTransformer.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClassShapeVerifier.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189Mappings.java'
@@ -17,7 +21,7 @@ permissions:
 jobs:
   official-binary:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -32,11 +36,14 @@ jobs:
           gradle-version: '8.10.2'
       - name: Fetch and verify official Mojang 1.8.9 client
         run: python scripts/FetchMojang189Client.py --output "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar"
+      - name: Fetch and verify official Mojang 1.8.9 managed libraries
+        run: python scripts/FetchMojang189Libraries.py --output-dir "$RUNNER_TEMP/minecraft-1.8.9-libraries"
       - name: Verify actual obfuscated class mappings and transformer hooks
         env:
           CUSTOMMC_189_REAL_CLIENT_REQUIRED: 'true'
           CUSTOMMC_189_REAL_CLIENT_JAR: ${{ runner.temp }}/minecraft-1.8.9-vanilla.jar
+          CUSTOMMC_189_REAL_LIBRARIES_FILE: ${{ runner.temp }}/minecraft-1.8.9-libraries/classpath.txt
         run: gradle --no-daemon :platform-1.8.9:test --tests 'dev.trexzo.custommc.platform.v1_8_9.Minecraft189OfficialClientPreflightTest'
-      - name: Remove official JAR from CI runner
+      - name: Remove official binary and libraries from CI runner
         if: always()
-        run: python -c "from pathlib import Path; Path('$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar').unlink(missing_ok=True)"
+        run: python -c "from pathlib import Path; import shutil, os; Path(os.environ['RUNNER_TEMP'], 'minecraft-1.8.9-vanilla.jar').unlink(missing_ok=True); shutil.rmtree(Path(os.environ['RUNNER_TEMP'], 'minecraft-1.8.9-libraries'), ignore_errors=True)"

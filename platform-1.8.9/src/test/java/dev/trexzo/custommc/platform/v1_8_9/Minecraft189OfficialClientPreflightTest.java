@@ -3,14 +3,18 @@ package dev.trexzo.custommc.platform.v1_8_9;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.IOException;
+import java.io.File;
 import java.net.URL;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -20,6 +24,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 import dev.trexzo.custommc.bootstrap.BootstrapContext;
+import dev.trexzo.custommc.bootstrap.CustomMcBootstrapMain;
 import dev.trexzo.custommc.bootstrap.TransformingTargetClassLoader;
 
 import org.junit.jupiter.api.Assumptions;
@@ -49,6 +54,42 @@ final class Minecraft189OfficialClientPreflightTest {
     private static final String OFFICIAL_SHA1 =
             "3870888a6c3d349d3771a3e9d16c9bf5e076b908";
     private static final long OFFICIAL_SIZE = 8461484L;
+
+    private static URL[] actualMojangRuntimeClasspath(final Path jar)
+            throws Exception {
+        final String configured = System.getenv("CUSTOMMC_189_REAL_LIBRARIES_FILE");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured, "official managed library classpath missing");
+            assertFalse(configured.trim().isEmpty(), "official library manifest empty");
+        } else {
+            Assumptions.assumeTrue(configured != null && !configured.trim().isEmpty(),
+                    "No verified official Mojang library inventory offline");
+        }
+        final Path manifest = Paths.get(configured).toAbsolutePath().normalize();
+        assertTrue(Files.isRegularFile(manifest), "library inventory is missing");
+        final Path root = manifest.getParent();
+        final List<String> entries = Files.readAllLines(manifest, StandardCharsets.UTF_8);
+        assertTrue(entries.size() >= 12, "incomplete 1.8.9 official library classpath");
+        final List<URL> urls = new ArrayList<URL>();
+        urls.add(jar.toUri().toURL());
+        final Set<Path> seen = new TreeSet<Path>();
+        boolean jopt = false;
+        for (String item : entries) {
+            assertFalse(item.trim().isEmpty(), "blank official library entry");
+            final Path file = Paths.get(item).toAbsolutePath().normalize();
+            assertTrue(file.startsWith(root), "library escaped verified temporary directory");
+            assertTrue(Files.isRegularFile(file), "official library not found: " + file);
+            assertTrue(file.getFileName().toString().endsWith(".jar"),
+                    "official library is not a JAR");
+            assertTrue(seen.add(file), "duplicate managed Mojang library: " + file);
+            jopt |= file.getFileName().toString().contains("jopt-simple");
+            urls.add(file.toUri().toURL());
+        }
+        assertTrue(jopt, "pinned official JOpt Simple not downloaded");
+        System.out.println("OFFICIAL_189_VERIFIED_MANAGED_LIBRARIES=" + entries.size());
+        return urls.toArray(new URL[urls.size()]);
+    }
 
     /**
      * M396: exercise the actual signed Mojang main bytecode with the installed
@@ -91,9 +132,11 @@ final class Minecraft189OfficialClientPreflightTest {
                     "main must not be marked entered before executing Mojang main");
             try (TransformingTargetClassLoader loader =
                          new TransformingTargetClassLoader(
-                                 new URL[]{jar.toUri().toURL()},
+                                 actualMojangRuntimeClasspath(jar),
                                  getClass().getClassLoader(),
                                  new Minecraft189ClassTransformer())) {
+                assertSame(loader, Class.forName("joptsimple.OptionSpec", false, loader)
+                        .getClassLoader(), "JOpt Simple resolved outside pinned Mojang libraries");
                 final Class<?> main = Class.forName(
                         Minecraft189ClassTransformer.TARGET_MAIN_CLASS, true, loader);
                 assertSame(loader, main.getClassLoader());
@@ -127,6 +170,72 @@ final class Minecraft189OfficialClientPreflightTest {
                     "runtime bridge leaked after official main probe");
         }
         System.out.println("OFFICIAL_189_BOOTSTRAP_CLEANUP_PASS=YES");
+    }
+
+    /**
+     * M397: invoke the actual CustomMcBootstrapMain pipeline with the pinned
+     * Mojang client and ALL applicable managed 1.8.9 libraries on the runtime
+     * classpath. This tests session ownership, target loader construction,
+     * class initialization, reflection and cleanup as one real entry flow.
+     *
+     * A property arms the M396 first-instruction sentinel. No Minecraft
+     * graphics, assets, native libraries or network session are started.
+     */
+    @Test
+    void officialBootstrapPipelineEntersMojangMainWithOfficialLibraries()
+            throws Exception {
+        final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured, "required official client missing");
+        } else {
+            Assumptions.assumeTrue(configured != null && !configured.trim().isEmpty(),
+                    "Official Mojang client is absent in offline CI");
+        }
+        final Path jar = Paths.get(configured);
+        assertTrue(Files.isRegularFile(jar), "official game jar absent");
+        assertEquals(OFFICIAL_SIZE, Files.size(jar));
+        assertEquals(OFFICIAL_SHA1, digestFile(jar));
+        final URL[] runtimeUrls = actualMojangRuntimeClasspath(jar);
+
+        final String key = Minecraft189RuntimeBridge.MAIN_ENTRY_ACCEPTANCE_PROPERTY;
+        final String priorProbe = System.getProperty(key);
+        final String priorClasspath = System.getProperty("java.class.path");
+        assertNotNull(priorClasspath, "JVM classpath unavailable");
+        assertFalse(Minecraft189RuntimeBridge.active(),
+                "runtime bridge must be free before launching the real bootstrap");
+        try {
+            final StringBuilder classpath = new StringBuilder(priorClasspath);
+            for (URL url : runtimeUrls) {
+                classpath.append(File.pathSeparator);
+                classpath.append(Paths.get(url.toURI()));
+            }
+            System.setProperty("java.class.path", classpath.toString());
+            System.setProperty(key, "true");
+            final IllegalStateException reached =
+                    assertThrows(IllegalStateException.class,
+                            () -> CustomMcBootstrapMain.main(new String[]{
+                                    "--custommc-runtime",
+                                    Minecraft189BootstrapInitializer.class.getName(),
+                                    Minecraft189ClassTransformer.TARGET_MAIN_CLASS,
+                                    "--username", "CIProbe"
+                            }));
+            assertEquals("CUSTOMMC_OFFICIAL_189_MAIN_ENTRY_PROBE_REACHED",
+                    reached.getMessage(),
+                    "actual bootstrap did not reach the first transformed Mojang main hook");
+            assertFalse(Minecraft189RuntimeBridge.active(),
+                    "bootstrap did not close its owned runtime after entry probe");
+            System.out.println("OFFICIAL_189_FULL_BOOTSTRAP_HANDOFF_PASS=YES");
+        } finally {
+            System.setProperty("java.class.path", priorClasspath);
+            if (priorProbe == null) {
+                System.clearProperty(key);
+            } else {
+                System.setProperty(key, priorProbe);
+            }
+            assertFalse(Minecraft189RuntimeBridge.active(),
+                    "bootstrap runtime leaked on cleanup");
+        }
     }
 
     /**
