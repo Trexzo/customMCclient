@@ -121,6 +121,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189AntiBotFeature antiBotFeature;
     private final Minecraft189TeamGuardFeature teamGuardFeature;
     private final Minecraft189FriendGuardFeature friendGuardFeature;
+    private final Minecraft189WallCheckFeature wallCheckFeature;
     private final Minecraft189AutoRodFeature autoRodFeature;
     private final Minecraft189AutoPotFeature autoPotFeature;
     private final Minecraft189AutoBlockFeature autoBlockFeature;
@@ -223,6 +224,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189AntiBotFeature antiBotFeature,
             final Minecraft189TeamGuardFeature teamGuardFeature,
             final Minecraft189FriendGuardFeature friendGuardFeature,
+            final Minecraft189WallCheckFeature wallCheckFeature,
             final Minecraft189AutoRodFeature autoRodFeature,
             final Minecraft189AutoPotFeature autoPotFeature,
             final Minecraft189AutoBlockFeature autoBlockFeature,
@@ -319,6 +321,7 @@ public final class Minecraft189FeatureCatalog
         this.antiBotFeature = antiBotFeature;
         this.teamGuardFeature = teamGuardFeature;
         this.friendGuardFeature = friendGuardFeature;
+        this.wallCheckFeature = wallCheckFeature;
         this.autoRodFeature = autoRodFeature;
         this.autoPotFeature = autoPotFeature;
         this.autoBlockFeature = autoBlockFeature;
@@ -478,6 +481,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189AntiBotFeature antiBotFeature = null;
         Minecraft189TeamGuardFeature teamGuardFeature = null;
         Minecraft189FriendGuardFeature friendGuardFeature = null;
+        Minecraft189WallCheckFeature wallCheckFeature = null;
         Minecraft189AutoRodFeature autoRodFeature = null;
         Minecraft189AutoPotFeature autoPotFeature = null;
         Minecraft189AutoBlockFeature autoBlockFeature = null;
@@ -935,6 +939,8 @@ public final class Minecraft189FeatureCatalog
             friendGuardFeature = Minecraft189FriendGuardFeature.install(
                     modules, moduleController, presentations,
                     moduleSettings, settings, settingPresentations);
+            wallCheckFeature = Minecraft189WallCheckFeature.install(
+                    modules, moduleController, presentations);
 
             autoRodFeature = Minecraft189AutoRodFeature.install(
                     modules, moduleController, presentations, moduleSettings,
@@ -1337,6 +1343,7 @@ public final class Minecraft189FeatureCatalog
                     antiBotFeature,
                     teamGuardFeature,
                     friendGuardFeature,
+                    wallCheckFeature,
                     autoRodFeature,
                     autoPotFeature,
                     autoBlockFeature,
@@ -1348,6 +1355,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(autoBlockFeature, failure);
             closeQuietly(autoPotFeature, failure);
             closeQuietly(autoRodFeature, failure);
+            closeQuietly(wallCheckFeature, failure);
             closeQuietly(friendGuardFeature, failure);
             closeQuietly(teamGuardFeature, failure);
             closeQuietly(antiBotFeature, failure);
@@ -1701,6 +1709,11 @@ public final class Minecraft189FeatureCatalog
         return friendGuardFeature.module();
     }
 
+    public Minecraft189WallCheckModule wallCheck() {
+        requireOpen();
+        return wallCheckFeature.module();
+    }
+
     public Minecraft189CombatSlotModule combatSlot() {
         requireOpen();
         return combatSlotFeature.module();
@@ -1978,6 +1991,12 @@ public final class Minecraft189FeatureCatalog
 
         try {
             autoRodFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            wallCheckFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(failure, closeFailure);
         }

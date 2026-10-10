@@ -46,6 +46,9 @@ public final class Minecraft189HostRuntime
             new Minecraft189WorldEntityCombatState();
     private final Minecraft189WorldEntityUuidState worldEntityUuidState =
             new Minecraft189WorldEntityUuidState();
+    private final Minecraft189WorldEntityVisibilityState worldEntityVisibilityState =
+            new Minecraft189WorldEntityVisibilityState();
+    private Minecraft189WorldEntityVisibilityAccess tickVisibilityWorld;
     // Exact loaded-world object used for UUID parity, never a stored entity index.
     private Minecraft189WorldEntityUuidAccess tickUuidWorld;
     private final Minecraft189CriticalsEvidence criticalsEvidence =
@@ -1195,6 +1198,17 @@ public final class Minecraft189HostRuntime
         nearestPlayerTargetState.clear();
         targetRotationState.clear();
         worldEntityUuidState.clear();
+        worldEntityVisibilityState.clear();
+        tickVisibilityWorld = world instanceof Minecraft189WorldEntityVisibilityAccess
+                ? (Minecraft189WorldEntityVisibilityAccess) world : null;
+        if (featureCatalog.wallCheck().active() && tickVisibilityWorld != null) {
+            try {
+                worldEntityVisibilityState.update(
+                        tickVisibilityWorld.customMcLoadedEntityVisibility());
+            } catch (RuntimeException invalidEvidence) {
+                worldEntityVisibilityState.clear();
+            }
+        }
         final Minecraft189WorldEntityUuidAccess identityWorld =
                 world instanceof Minecraft189WorldEntityUuidAccess
                         ? (Minecraft189WorldEntityUuidAccess) world : null;
@@ -1285,6 +1299,29 @@ public final class Minecraft189HostRuntime
                 return;
             }
         }
+        if (featureCatalog.wallCheck().active()) {
+            final Minecraft189WorldEntityVisibilityState.Snapshot visibility =
+                    worldEntityVisibilityState.snapshot();
+            boolean consistent = false;
+            if (tickVisibilityWorld != null && tickVisibilityWorld == world
+                    && visibility.available()
+                    && visibility.entityCount() == worldEntityPositionState.snapshot().entityCount()
+                    && visibility.entityCount() == worldEntityKindState.snapshot().entityCount()) {
+                try {
+                    consistent = visibility.matches(
+                            tickVisibilityWorld.customMcLoadedEntityVisibility());
+                } catch (RuntimeException invalidEvidence) {
+                    consistent = false;
+                }
+            }
+            if (!consistent) {
+                worldEntityCombatState.clear();
+                nearestPlayerTargetState.clear();
+                targetRotationState.clear();
+                aura.rememberSelectedTarget(null);
+                return;
+            }
+        }
         final int[] data = world.customMcLoadedEntityCombatStates();
         if (data == null || data.length != worldEntityPositionState.snapshot().entityCount()
                 || data.length != worldEntityKindState.snapshot().entityCount()) {
@@ -1310,7 +1347,9 @@ public final class Minecraft189HostRuntime
                     worldEntityCombatState.snapshot(),
                     featureCatalog.antiBot(), featureCatalog.teamGuard(),
                     featureCatalog.friendGuard(),
-                    worldEntityUuidState.snapshot(), nearestPlayerTargetState);
+                    worldEntityUuidState.snapshot(),
+                    featureCatalog.wallCheck(), worldEntityVisibilityState.snapshot(),
+                    nearestPlayerTargetState);
             targetRotationState.update(
                     playerPositionState.snapshot(),
                     nearestPlayerTargetState.snapshot());
@@ -1463,7 +1502,8 @@ public final class Minecraft189HostRuntime
     private boolean identityRequired() {
         return (featureCatalog.killAura().active()
                         && featureCatalog.killAura().lockTargetSetting().get())
-                || featureCatalog.friendGuard().requiresIdentity();
+                || featureCatalog.friendGuard().requiresIdentity()
+                || featureCatalog.wallCheck().active();
     }
 
     /**
@@ -1489,6 +1529,34 @@ public final class Minecraft189HostRuntime
         }
     }
 
+    /** Native current-tick LOS evidence and exact UUID/list parity. */
+    private boolean wallTargetPermits(final int index) {
+        final Minecraft189WallCheckModule wall = featureCatalog.wallCheck();
+        if (!wall.active()) return true;
+        final Minecraft189WorldEntityVisibilityState.Snapshot evidence =
+                worldEntityVisibilityState.snapshot();
+        final Minecraft189WorldEntityUuidState.Snapshot ids =
+                worldEntityUuidState.snapshot();
+        if (!evidence.available() || !ids.available()
+                || tickVisibilityWorld == null || tickUuidWorld == null
+                || !wall.permits(index, evidence)
+                || evidence.entityCount() != ids.entityCount()
+                || evidence.entityCount() != worldEntityPositionState.snapshot().entityCount()
+                || evidence.entityCount() != worldEntityKindState.snapshot().entityCount()
+                || evidence.entityCount() != worldEntityCombatState.snapshot().entityCount()) {
+            return false;
+        }
+        try {
+            final int[] current = tickVisibilityWorld.customMcLoadedEntityVisibility();
+            return current != null && index >= 0 && index < current.length
+                    && current.length == evidence.entityCount()
+                    && current[index] == 1
+                    && ids.matches(tickUuidWorld.customMcLoadedEntityUuids());
+        } catch (RuntimeException invalidEvidence) {
+            return false;
+        }
+    }
+
     /** Eligibility captured immediately before the native synthetic click. */
     boolean shouldAutoPot(final boolean crosshairPlayer,
             final int crosshairPlayerIndex) {
@@ -1506,7 +1574,8 @@ public final class Minecraft189HostRuntime
                 && combat.alive(crosshairPlayerIndex)
                 && featureCatalog.antiBot().permits(crosshairPlayerIndex, combat)
                 && featureCatalog.teamGuard().permits(crosshairPlayerIndex, combat)
-                && friendTargetPermits(crosshairPlayerIndex);
+                && friendTargetPermits(crosshairPlayerIndex)
+                && wallTargetPermits(crosshairPlayerIndex);
         return pot.shouldUse(playerHealthState.snapshot(), verifiedTarget,
                 inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
                 false, true);
@@ -1541,6 +1610,7 @@ public final class Minecraft189HostRuntime
                 || !featureCatalog.teamGuard().permits(
                         verifiedPlayerIndex, worldEntityCombatState.snapshot())
                 || !friendTargetPermits(verifiedPlayerIndex)
+                || !wallTargetPermits(verifiedPlayerIndex)
                 || (featureCatalog.killAura().active()
                     && (!targetRotationState.snapshot().available()
                         || targetRotationState.snapshot().entityIndex()
@@ -1710,7 +1780,8 @@ public final class Minecraft189HostRuntime
         // owner. A real manually-triggered vanilla click remains untouched.
         if (!featureCatalog.antiBot().permits(crosshairPlayerIndex, combat)
                 || !featureCatalog.teamGuard().permits(crosshairPlayerIndex, combat)
-                || !friendTargetPermits(crosshairPlayerIndex)) {
+                || !friendTargetPermits(crosshairPlayerIndex)
+                || !wallTargetPermits(crosshairPlayerIndex)) {
             return false;
         }
         if (!featureCatalog.attackRange().permits(
@@ -1881,6 +1952,8 @@ public final class Minecraft189HostRuntime
         worldEntityKindState.clear();
         worldEntityCombatState.clear();
         worldEntityUuidState.clear();
+        worldEntityVisibilityState.clear();
+        tickVisibilityWorld = null;
         tickUuidWorld = null;
         nearestPlayerTargetState.clear();
         targetRotationState.clear();
