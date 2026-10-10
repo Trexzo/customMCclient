@@ -17,6 +17,11 @@ public final class Minecraft189RuntimeBridge {
     private static String acceptanceLastScreen;
     private static int acceptanceDisabledTargetTicks;
     private static boolean acceptanceAutoClickerEnabled;
+    private static Object killAuraNonPlayerTarget;
+    private static int killAuraDisabledTargetTicks;
+    private static int killAuraEnabledVetoTicks;
+    private static boolean killAuraNonPlayerEnabled;
+    private static boolean killAuraNonPlayerReported;
 
     private Minecraft189RuntimeBridge() {
     }
@@ -42,6 +47,11 @@ public final class Minecraft189RuntimeBridge {
         Minecraft189VanillaMeleeAcceptance.reset();
         acceptanceDisabledTargetTicks = 0;
         acceptanceAutoClickerEnabled = false;
+        killAuraNonPlayerTarget = null;
+        killAuraDisabledTargetTicks = 0;
+        killAuraEnabledVetoTicks = 0;
+        killAuraNonPlayerEnabled = false;
+        killAuraNonPlayerReported = false;
         return new Registration(next);
     }
 
@@ -553,6 +563,55 @@ public final class Minecraft189RuntimeBridge {
                     System.out.flush();
                 }
             }
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraNonPlayer")
+                    && !killAuraNonPlayerReported) {
+                final Minecraft189WorldEntityKindState.Snapshot kindState =
+                        host.worldEntityKindState().snapshot();
+                final Object nonPlayer = kindState.available()
+                        ? Minecraft189VanillaMeleeAcceptance.raycastLivingNonPlayer(
+                                minecraft, kindState.kindBits()) : null;
+                if (nonPlayer == null
+                        || (killAuraNonPlayerTarget != null
+                                && nonPlayer != killAuraNonPlayerTarget)) {
+                    killAuraNonPlayerTarget = null;
+                    killAuraDisabledTargetTicks = 0;
+                    killAuraEnabledVetoTicks = 0;
+                } else {
+                    killAuraNonPlayerTarget = nonPlayer;
+                    if (!killAuraNonPlayerEnabled) {
+                        if (host.featureCatalog().killAura().active()) {
+                            throw new IllegalStateException(
+                                    "Kill Aura negative fixture pre-enabled");
+                        }
+                        killAuraDisabledTargetTicks++;
+                        if (killAuraDisabledTargetTicks >= 20) {
+                            System.out.println(
+                                    "CUSTOMMC_189_KILLAURA_DISABLED_NONPLAYER_TICKS_PASS=20");
+                            host.featureCatalog()
+                                    .enableKillAuraForOfficialNonPlayerAcceptance();
+                            killAuraNonPlayerEnabled = true;
+                            System.out.println(
+                                    "CUSTOMMC_189_KILLAURA_NORMAL_MODULE_ENABLE_PASS=YES");
+                            System.out.flush();
+                        }
+                    } else {
+                        if (!host.featureCatalog().killAura().active()
+                                || (host.nearestPlayerTargetState().snapshot().found())
+                                || host.targetRotationState().snapshot().available()) {
+                            throw new IllegalStateException(
+                                    "Kill Aura accepted native nonplayer target");
+                        }
+                        killAuraEnabledVetoTicks++;
+                        if (killAuraEnabledVetoTicks >= 80) {
+                            killAuraNonPlayerReported = true;
+                            System.out.println(
+                                    "CUSTOMMC_OFFICIAL_189_KILLAURA_NONPLAYER_VETO_PASS=YES");
+                            System.out.flush();
+                        }
+                    }
+                }
+            }
             final Minecraft189SwordBlockControl swordBlock =
                     minecraft instanceof Minecraft189SwordBlockControl
                     ? (Minecraft189SwordBlockControl) minecraft : null;
@@ -617,6 +676,11 @@ public final class Minecraft189RuntimeBridge {
                             .customMcCrosshairHitboxBounds()
                     : null;
             if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.reportKillAuraNonPlayer")) {
+                    throw new IllegalStateException(
+                            "Kill Aura nonplayer fixture attempted a synthetic attack");
+                }
                 if (swordBlock != null && host.releaseAutoBlockBeforeAction()
                         && swordBlock.customMcIsUsingItem())
                     swordBlock.customMcStopUsingItem();

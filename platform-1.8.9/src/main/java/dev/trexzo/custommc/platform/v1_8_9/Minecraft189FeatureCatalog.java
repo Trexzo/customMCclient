@@ -1673,6 +1673,28 @@ public final class Minecraft189FeatureCatalog
     }
 
     /**
+     * Negative-control CI fixture only. Exercises the same ModuleController
+     * lifecycle as the public UI while leaving Kill Aura settings unchanged.
+     * The property is never set by ordinary client launches.
+     */
+    void enableKillAuraForOfficialNonPlayerAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraNonPlayer")) {
+            throw new IllegalStateException("Kill Aura negative fixture not armed");
+        }
+        if (moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                != ModuleState.DISABLED) {
+            throw new IllegalStateException("Kill Aura not initially disabled");
+        }
+        moduleController.enable(Minecraft189KillAuraModule.ID);
+        if (!killAura().active()
+                || moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                != ModuleState.ENABLED) {
+            throw new IllegalStateException("normal Kill Aura enable failed");
+        }
+    }
+
+    /**
      * CI-only: exercise the existing ModuleController activation path instead
      * of setting the module's internal enabled flag. Without the explicit
      * acceptance property no code may call this method successfully.
