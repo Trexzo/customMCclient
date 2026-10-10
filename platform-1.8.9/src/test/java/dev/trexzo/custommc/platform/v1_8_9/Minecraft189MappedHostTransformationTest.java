@@ -477,13 +477,13 @@ final class Minecraft189MappedHostTransformationTest {
             }
             loader.loadClass("pk").getField("hitbox").set(playerHit, sourceBox);
             assertArrayEquals(boxCoordinates, hitbox.customMcHitboxBounds(), 0.0D);
-            assertArrayEquals(boxCoordinates,
-                    rayHit.customMcCrosshairHitboxBounds(), 0.0D);
             hitClass.getField("a").set(hit, entityType);
             hitClass.getField("d").set(hit, playerHit);
             minecraftClass.getField("s").set(minecraft, hit);
             org.junit.jupiter.api.Assertions.assertTrue(
                     rayHit.customMcCrosshairPlayerHit());
+            assertArrayEquals(boxCoordinates,
+                    rayHit.customMcCrosshairHitboxBounds(), 0.0D);
             assertEquals(-1, rayHit.customMcCrosshairPlayerIndex());
             final Object rayWorld = loader.loadClass("bdb")
                     .getDeclaredConstructor().newInstance();
