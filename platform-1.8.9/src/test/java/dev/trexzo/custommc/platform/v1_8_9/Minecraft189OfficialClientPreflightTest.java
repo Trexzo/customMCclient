@@ -315,6 +315,20 @@ final class Minecraft189OfficialClientPreflightTest {
             assertEquals(25, linked,
                     "not all exact official Mojang transformer owners were JVM-linked");
             System.out.println("OFFICIAL_189_JVM_ALL_MAPPED_OWNERS_LINKED=" + linked);
+            // M400: the untransformed WorldClient must be owned by the same
+            // game classloader as the transformed World superclass. The
+            // original selective loader passed ASM preflight but failed the
+            // actual Java 8 verifier with bdb not assignable to adm.
+            assertFalse(transformer.handles("bdb"),
+                    "the regression must cover an untransformed vanilla owner");
+            final Class<?> vanillaWorldClient = Class.forName("bdb", false, loader);
+            final Class<?> transformedWorld = Class.forName("adm", false, loader);
+            assertSame(loader, vanillaWorldClient.getClassLoader(),
+                    "untransformed Mojang WorldClient must not delegate to parent");
+            assertSame(loader, transformedWorld.getClassLoader());
+            assertTrue(transformedWorld.isAssignableFrom(vanillaWorldClient),
+                    "untransformed WorldClient must inherit transformed World identity");
+            System.out.println("OFFICIAL_189_VANILLA_WORLD_HIERARCHY_PASS=YES");
         }
     }
 
