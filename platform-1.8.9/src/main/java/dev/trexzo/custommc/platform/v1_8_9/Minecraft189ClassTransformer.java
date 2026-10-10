@@ -57,6 +57,9 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerPositionAccess";
     private static final String PLAYER_POSITION_ACCESS_DESCRIPTOR =
             "L" + PLAYER_POSITION_ACCESS_INTERNAL_NAME + ";";
+    private static final String HITBOX_BOUNDS_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189EntityHitboxBoundsAccess";
     private static final String PLAYER_ROTATION_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189PlayerRotationAccess";
@@ -279,6 +282,9 @@ public final class Minecraft189ClassTransformer
                 || Minecraft189Mappings.ENTITY_LIVING_BASE
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
+                || Minecraft189Mappings.AXIS_ALIGNED_BB
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)
                 || Minecraft189Mappings.ENTITY_PLAYER_SP
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)
@@ -384,6 +390,12 @@ public final class Minecraft189ClassTransformer
             Minecraft189ClassShapeVerifier
                     .verifyEntityRenderer(input);
             return transformEntityRenderer(input);
+        }
+        if (Minecraft189Mappings.AXIS_ALIGNED_BB
+                .obfuscatedBinaryName()
+                .equals(binaryClassName)) {
+            Minecraft189ClassShapeVerifier.verifyAxisAlignedBB(input);
+            return input;
         }
         if (Minecraft189Mappings.ENTITY
                 .obfuscatedBinaryName()
@@ -2253,6 +2265,7 @@ public final class Minecraft189ClassTransformer
                                 superName,
                                 withInterface(
                                         withInterface(
+                                        withInterface(
                                                 withInterface(
                                                         withInterface(
                                                                 withInterface(
@@ -2275,7 +2288,8 @@ public final class Minecraft189ClassTransformer
                                                                 PLAYER_WEB_CONTROL_INTERNAL_NAME),
                                                         PLAYER_NO_CLIP_CONTROL_INTERNAL_NAME),
                                                 PLAYER_MOTION_CONTROL_INTERNAL_NAME),
-                                        PLAYER_ROTATION_CONTROL_INTERNAL_NAME));
+                                        PLAYER_ROTATION_CONTROL_INTERNAL_NAME),
+                                HITBOX_BOUNDS_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -2388,12 +2402,66 @@ public final class Minecraft189ClassTransformer
                                 cv,
                                 "customMcSetMotionZ",
                                 Minecraft189Mappings.ENTITY_MOTION_Z);
+                        addNativeEntityHitboxBoundsGetter(cv);
                         super.visitEnd();
                     }
                 },
                 0);
 
         return writer.toByteArray();
+    }
+
+
+    /**
+     * Actual vanilla Entity.getEntityBoundingBox() six-component double AABB.
+     * Read-only; no hitbox mutation and no raycast extension.
+     */
+    private static void addNativeEntityHitboxBoundsGetter(final ClassVisitor visitor) {
+        final MethodVisitor m = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcHitboxBounds", "()[D", null, null);
+        final Label absent = new Label();
+        final String owner = Minecraft189Mappings.AXIS_ALIGNED_BB.obfuscatedInternalName();
+        m.visitCode();
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX.owner()
+                        .obfuscatedInternalName(),
+                Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX.obfuscatedName(),
+                Minecraft189Mappings.ENTITY_GET_ENTITY_BOUNDING_BOX.descriptor(),
+                false);
+        m.visitVarInsn(Opcodes.ASTORE, 1);
+        m.visitVarInsn(Opcodes.ALOAD, 1);
+        m.visitJumpInsn(Opcodes.IFNULL, absent);
+        m.visitIntInsn(Opcodes.BIPUSH, 6);
+        m.visitIntInsn(Opcodes.NEWARRAY, Opcodes.T_DOUBLE);
+        m.visitVarInsn(Opcodes.ASTORE, 2);
+        final Minecraft189Mappings.MappedField[] fields =
+                new Minecraft189Mappings.MappedField[]{
+                        Minecraft189Mappings.AABB_MIN_X,
+                        Minecraft189Mappings.AABB_MIN_Y,
+                        Minecraft189Mappings.AABB_MIN_Z,
+                        Minecraft189Mappings.AABB_MAX_X,
+                        Minecraft189Mappings.AABB_MAX_Y,
+                        Minecraft189Mappings.AABB_MAX_Z
+                };
+        for (int i = 0; i < fields.length; i++) {
+            m.visitVarInsn(Opcodes.ALOAD, 2);
+            m.visitIntInsn(Opcodes.BIPUSH, i);
+            m.visitVarInsn(Opcodes.ALOAD, 1);
+            m.visitFieldInsn(Opcodes.GETFIELD, owner,
+                    fields[i].obfuscatedName(), fields[i].descriptor());
+            m.visitInsn(Opcodes.DASTORE);
+        }
+        m.visitVarInsn(Opcodes.ALOAD, 2);
+        m.visitInsn(Opcodes.ARETURN);
+        m.visitLabel(absent);
+        m.visitFrame(Opcodes.F_FULL, 2, new Object[]{
+                Minecraft189Mappings.ENTITY.obfuscatedInternalName(), owner
+        }, 0, new Object[0]);
+        m.visitInsn(Opcodes.ACONST_NULL);
+        m.visitInsn(Opcodes.ARETURN);
+        m.visitMaxs(0, 0);
+        m.visitEnd();
     }
 
     private static byte[] transformEntityLivingBase(

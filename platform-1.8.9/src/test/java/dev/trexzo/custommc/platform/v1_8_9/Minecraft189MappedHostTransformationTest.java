@@ -280,6 +280,7 @@ final class Minecraft189MappedHostTransformationTest {
                 transformer.transform(
                         "avn",
                         fontRendererShape()));
+        loader.put("aug", transformer.transform("aug", axisAlignedBbShape()));
         loader.put(
                 "pk",
                 transformer.transform(
@@ -463,6 +464,19 @@ final class Minecraft189MappedHostTransformationTest {
             final Object hit = hitClass.getDeclaredConstructor().newInstance();
             final Object playerHit = loader.loadClass("wn")
                     .getDeclaredConstructor().newInstance();
+            final Minecraft189EntityHitboxBoundsAccess hitbox =
+                    (Minecraft189EntityHitboxBoundsAccess) playerHit;
+            org.junit.jupiter.api.Assertions.assertNull(hitbox.customMcHitboxBounds());
+            final Object sourceBox = loader.loadClass("aug")
+                    .getDeclaredConstructor().newInstance();
+            final Class<?> boxType = loader.loadClass("aug");
+            final double[] boxCoordinates = {1.25, 2.5, -3.75, 2.5, 4.0, -2.25};
+            final String[] boxFields = {"a", "b", "c", "d", "e", "f"};
+            for (int i = 0; i < boxCoordinates.length; i++) {
+                boxType.getField(boxFields[i]).setDouble(sourceBox, boxCoordinates[i]);
+            }
+            loader.loadClass("pk").getField("hitbox").set(playerHit, sourceBox);
+            assertArrayEquals(boxCoordinates, hitbox.customMcHitboxBounds(), 0.0D);
             hitClass.getField("a").set(hit, entityType);
             hitClass.getField("d").set(hit, playerHit);
             minecraftClass.getField("s").set(minecraft, hit);
@@ -7006,6 +7020,19 @@ final class Minecraft189MappedHostTransformationTest {
         return writer.toByteArray();
     }
 
+    private static byte[] axisAlignedBbShape() {
+        final ClassWriter writer = classWriter("aug");
+        field(writer, "a", "D");
+        field(writer, "b", "D");
+        field(writer, "c", "D");
+        field(writer, "d", "D");
+        field(writer, "e", "D");
+        field(writer, "f", "D");
+        endDefaultConstructor(writer, "aug");
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
     private static byte[] entityShape() {
         final ClassWriter writer =
                 classWriter("pk");
@@ -7024,6 +7051,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "H", "Z");
         field(writer, "T", "Z");
         field(writer, "uuid", "Ljava/util/UUID;");
+        field(writer, "hitbox", "Laug;");
         field(writer, "occluded", "Z");
         field(writer, "sneaking", "Z");
         field(writer, "sprinting", "Z");
@@ -7126,6 +7154,15 @@ final class Minecraft189MappedHostTransformationTest {
                 2,
                 2);
         setSneaking.visitEnd();
+
+        final MethodVisitor getBox = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "aR", "()Laug;", null, null);
+        getBox.visitCode();
+        getBox.visitVarInsn(Opcodes.ALOAD, 0);
+        getBox.visitFieldInsn(Opcodes.GETFIELD, "pk", "hitbox", "Laug;");
+        getBox.visitInsn(Opcodes.ARETURN);
+        getBox.visitMaxs(1, 1);
+        getBox.visitEnd();
 
         final MethodVisitor getUuid = writer.visitMethod(
                 Opcodes.ACC_PUBLIC, "aK", "()Ljava/util/UUID;", null, null);
