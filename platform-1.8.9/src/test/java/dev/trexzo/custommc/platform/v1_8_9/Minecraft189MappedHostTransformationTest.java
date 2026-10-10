@@ -46,6 +46,38 @@ final class Minecraft189MappedHostTransformationTest {
                     + "Minecraft189LwjglMouseBinding";
 
     @Test
+    void mappedRaycastPlayerAndNonplayerHooksExecuteWithoutVerifierFailures()
+            throws Exception {
+        // This actually executes the transformed bytecode, rather than only
+        // counting ASM instructions. It exercises both instanceof branches.
+        for (boolean playerCandidate : new boolean[]{false, true}) {
+            final Minecraft189ClassTransformer transformer =
+                    new Minecraft189ClassTransformer();
+            final ByteMapClassLoader loader =
+                    new ByteMapClassLoader(getClass().getClassLoader());
+            loader.put("aug", transformer.transform("aug", axisAlignedBbShape()));
+            loader.put("pk", transformer.transform("pk", entityShape()));
+            loader.put("pr", transformer.transform("pr", entityLivingBaseShape()));
+            loader.put("wn", transformer.transform("wn", entityPlayerShape()));
+            loader.put("bda", transformer.transform("bda", playerControllerShape()));
+            loader.put("auh$a", movingObjectTypeShape());
+            loader.put("auh", transformer.transform("auh", movingObjectShape()));
+            loader.put("avo", guiIngameShape());
+            loader.put("bfk", transformer.transform(
+                    "bfk", entityRendererShape(playerCandidate)));
+            final Class<?> rendererClass = loader.loadClass("bfk");
+            final Object renderer =
+                    rendererClass.getDeclaredConstructor().newInstance();
+            // A VerifyError, linkage failure or stack corruption fails this.
+            rendererClass.getMethod("a", float.class).invoke(renderer, 0.0F);
+            assertEquals(0.1F, rendererClass.getField("lastBorder")
+                    .getFloat(null), 0.0F);
+            assertEquals(1, loader.loadClass("pk").getField("collisionCalls")
+                    .getInt(null)); // Original native getter invoked exactly once
+        }
+    }
+
+    @Test
     void nativeRaycastReachHooksPatchExactMappedSitesOnly() {
         final byte[] transformed = new Minecraft189ClassTransformer()
                 .transform("bfk", entityRendererShape());
@@ -7130,6 +7162,8 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "H", "Z");
         field(writer, "T", "Z");
         field(writer, "uuid", "Ljava/util/UUID;");
+        writer.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                "collisionCalls", "I", null, null).visitEnd();
         field(writer, "hitbox", "Laug;");
         field(writer, "occluded", "Z");
         field(writer, "sneaking", "Z");
@@ -7256,6 +7290,12 @@ final class Minecraft189MappedHostTransformationTest {
         final MethodVisitor collisionBorder = writer.visitMethod(
                 Opcodes.ACC_PUBLIC, "ao", "()F", null, null);
         collisionBorder.visitCode();
+        collisionBorder.visitFieldInsn(Opcodes.GETSTATIC,
+                "pk", "collisionCalls", "I");
+        collisionBorder.visitInsn(Opcodes.ICONST_1);
+        collisionBorder.visitInsn(Opcodes.IADD);
+        collisionBorder.visitFieldInsn(Opcodes.PUTSTATIC,
+                "pk", "collisionCalls", "I");
         collisionBorder.visitLdcInsn(Float.valueOf(0.1F));
         collisionBorder.visitInsn(Opcodes.FRETURN);
         collisionBorder.visitMaxs(1, 1);
@@ -8084,8 +8124,15 @@ final class Minecraft189MappedHostTransformationTest {
     }
 
     private static byte[] entityRendererShape() {
+        return entityRendererShape(true);
+    }
+
+    /** Executable fixture can use a real Player or nonplayer border receiver. */
+    private static byte[] entityRendererShape(final boolean playerCandidate) {
         final ClassWriter writer =
                 classWriter("bfk");
+        writer.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                "lastBorder", "F", null, null).visitEnd();
         endDefaultConstructor(writer, "bfk");
 
         final MethodVisitor render =
@@ -8126,16 +8173,22 @@ final class Minecraft189MappedHostTransformationTest {
         final MethodVisitor mouseOver = writer.visitMethod(
                 Opcodes.ACC_PUBLIC, "a", "(F)V", null, null);
         mouseOver.visitCode();
-        mouseOver.visitInsn(Opcodes.ACONST_NULL);
-        mouseOver.visitTypeInsn(Opcodes.CHECKCAST, "bda");
+        mouseOver.visitTypeInsn(Opcodes.NEW, "bda");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "bda", "<init>", "()V", false);
         mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "bda", "d", "()F", false);
         mouseOver.visitInsn(Opcodes.POP);
-        mouseOver.visitInsn(Opcodes.ACONST_NULL);
-        mouseOver.visitTypeInsn(Opcodes.CHECKCAST, "bda");
+        mouseOver.visitTypeInsn(Opcodes.NEW, "bda");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "bda", "<init>", "()V", false);
         mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "bda", "i", "()Z", false);
         mouseOver.visitInsn(Opcodes.POP);
-        mouseOver.visitInsn(Opcodes.ACONST_NULL);
-        mouseOver.visitTypeInsn(Opcodes.CHECKCAST, "pk");
+        mouseOver.visitTypeInsn(Opcodes.NEW, "pk");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "pk", "<init>", "()V", false);
         mouseOver.visitInsn(Opcodes.DCONST_0);
         mouseOver.visitInsn(Opcodes.FCONST_0);
         mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "pk", "a",
@@ -8146,13 +8199,18 @@ final class Minecraft189MappedHostTransformationTest {
         mouseOver.visitInsn(Opcodes.POP2);
         mouseOver.visitLdcInsn(Double.valueOf(6.0D));
         mouseOver.visitInsn(Opcodes.POP2);
-        mouseOver.visitInsn(Opcodes.ACONST_NULL);
-        mouseOver.visitTypeInsn(Opcodes.CHECKCAST, "pk");
+        mouseOver.visitTypeInsn(Opcodes.NEW, playerCandidate ? "wn" : "pk");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                playerCandidate ? "wn" : "pk", "<init>", "()V", false);
         mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
                 "pk", "ao", "()F", false);
-        mouseOver.visitInsn(Opcodes.POP);
-        mouseOver.visitInsn(Opcodes.ACONST_NULL);
-        mouseOver.visitTypeInsn(Opcodes.CHECKCAST, "aug");
+        mouseOver.visitFieldInsn(Opcodes.PUTSTATIC,
+                "bfk", "lastBorder", "F");
+        mouseOver.visitTypeInsn(Opcodes.NEW, "aug");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "aug", "<init>", "()V", false);
         mouseOver.visitInsn(Opcodes.DCONST_0);
         mouseOver.visitInsn(Opcodes.DCONST_0);
         mouseOver.visitInsn(Opcodes.DCONST_0);
