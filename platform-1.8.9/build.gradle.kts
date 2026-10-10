@@ -19,6 +19,8 @@ dependencies {
         isTransitive = false
     }
 
+    testImplementation("org.ow2.asm:asm-tree:9.7.1")
+    testImplementation("org.ow2.asm:asm-analysis:9.7.1")
     testImplementation(platform("org.junit:junit-bom:5.11.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
 }

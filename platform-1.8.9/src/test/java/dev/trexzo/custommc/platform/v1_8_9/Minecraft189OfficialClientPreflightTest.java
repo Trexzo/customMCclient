@@ -18,6 +18,12 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.analysis.Analyzer;
+import org.objectweb.asm.tree.analysis.AnalyzerException;
+import org.objectweb.asm.tree.analysis.BasicValue;
+import org.objectweb.asm.tree.analysis.BasicVerifier;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -172,6 +178,7 @@ final class Minecraft189OfficialClientPreflightTest {
                     assertNotNull(transformed, "transform returned null: " + binary);
                     assertEquals(internal, new ClassReader(transformed).getClassName(),
                             "transform changed mapped owner: " + binary);
+                    verifyTransformedStack(internal, transformed);
                     System.out.println("OFFICIAL_189_TRANSFORM_OK=" + binary
                             + " sha256=" + sha256(source));
                 } catch (RuntimeException invalidShape) {
@@ -186,6 +193,41 @@ final class Minecraft189OfficialClientPreflightTest {
         assertTrue(missingOrFailed.isEmpty(),
                 "real vanilla classes failed mapped transformation: " + missingOrFailed);
         System.out.println("OFFICIAL_189_COMPLETE_MAPPED_OWNERS_PASS=" + handled.size());
+    }
+
+    /**
+     * Validate the operand stack and local-variable transitions in every
+     * real transformed method, not just whether ClassReader parses its bytes.
+     * BasicVerifier intentionally avoids external Minecraft class loading:
+     * this is a structural bytecode check, NOT a full JVM linkage test.
+     */
+    private static void verifyTransformedStack(
+            final String expectedOwner, final byte[] transformed)
+            throws AnalyzerException {
+        final ClassNode parsed = new ClassNode(Opcodes.ASM9);
+        new ClassReader(transformed).accept(parsed, ClassReader.EXPAND_FRAMES);
+        assertEquals(expectedOwner, parsed.name,
+                "unexpected mapped owner in bytecode analyzer");
+        int inspected = 0;
+        for (MethodNode method : parsed.methods) {
+            if ((method.access & (Opcodes.ACC_ABSTRACT | Opcodes.ACC_NATIVE)) != 0) {
+                continue;
+            }
+            try {
+                new Analyzer<BasicValue>(new BasicVerifier())
+                        .analyze(expectedOwner, method);
+            } catch (AnalyzerException invalid) {
+                throw new AssertionError(
+                        "official 1.8.9 bytecode stack invalid: "
+                                + expectedOwner + "." + method.name + method.desc,
+                        invalid);
+            }
+            inspected++;
+        }
+        assertTrue(inspected > 0,
+                "no real method bytecode analyzed for owner: " + expectedOwner);
+        System.out.println("OFFICIAL_189_STACK_ANALYSIS_PASS=" + expectedOwner
+                + " methods=" + inspected);
     }
 
     private static byte[] readAll(final InputStream input) throws Exception {
