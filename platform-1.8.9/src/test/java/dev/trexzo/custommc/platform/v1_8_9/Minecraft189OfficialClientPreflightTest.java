@@ -114,7 +114,7 @@ final class Minecraft189OfficialClientPreflightTest {
         assertTrue(nativeCalls[0] >= 1 && nativeCalls[1] >= 1
                 && nativeCalls[2] >= 1, "vanilla raycast dependencies missing");
         assertEquals(1, nativeCalls[3], "vanilla collision border call");
-        assertEquals(1, nativeCalls[4], "vanilla AABB expansion call");
+        assertEquals(2, nativeCalls[4], "vanilla AABB expansion calls");
         assertArrayEquals(new int[]{1, 1, 2, 1}, bridgeHooks,
                 "expected exact native Reach + Hitbox bridge injection counts");
 

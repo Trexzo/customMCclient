@@ -8218,6 +8218,16 @@ final class Minecraft189MappedHostTransformationTest {
         mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
                 "aug", "b", "(DDD)Laug;", false);
         mouseOver.visitInsn(Opcodes.POP);
+        mouseOver.visitTypeInsn(Opcodes.NEW, "aug");
+        mouseOver.visitInsn(Opcodes.DUP);
+        mouseOver.visitMethodInsn(Opcodes.INVOKESPECIAL,
+                "aug", "<init>", "()V", false);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitInsn(Opcodes.DCONST_0);
+        mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                "aug", "b", "(DDD)Laug;", false);
+        mouseOver.visitInsn(Opcodes.POP);
         mouseOver.visitInsn(Opcodes.RETURN);
         mouseOver.visitMaxs(4, 2);
         mouseOver.visitEnd();
