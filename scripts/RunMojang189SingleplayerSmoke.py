@@ -17,6 +17,8 @@ from RunMojang189GraphicalSmoke import build_command
 
 FRAME = b"CUSTOMMC_OFFICIAL_189_OPENGL_FRAME_PASS=YES"
 WORLD = b"CUSTOMMC_OFFICIAL_189_LIVE_WORLD_TICKS_PASS=YES"
+MELEE_ARMED = b"CUSTOMMC_189_VANILLA_MELEE_TARGET_ARMED=YES"
+MELEE_HURT = b"CUSTOMMC_OFFICIAL_189_REAL_ENTITY_HURT_AFTER_VANILLA_CLICK_PASS=YES"
 
 
 def xdotool(*arguments):
@@ -83,13 +85,30 @@ def await_marker(process, log, marker, deadline, stage):
     raise AssertionError("no " + stage + " checkpoint before bounded deadline")
 
 
-def run(command, game, timeout):
+def send_command(window, command):
+    """Type a genuine local-world chat command via real X11 keyboard events."""
+    if not command.startswith("/") or len(command) > 125:
+        raise ValueError("refusing invalid offline acceptance command")
+    xdotool("windowfocus", "--sync", window)
+    xdotool("key", "--clearmodifiers", "t")
+    time.sleep(0.35)
+    xdotool("type", "--clearmodifiers", "--delay", "12", command)
+    xdotool("key", "--clearmodifiers", "Return")
+    time.sleep(0.75)
+    print("CUSTOMMC_189_OFFLINE_COMMAND_SENT=" + command.split(" ", 1)[0],
+          flush=True)
+
+
+def run(command, game, timeout, attack=False):
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
         raise ValueError("singleplayer timeout must be 70..240 seconds")
     # Java flags must precede the class name.
     command.insert(command.index("-cp"), "-Dcustommc.acceptance.reportLiveWorld=true")
+    if attack:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportVanillaMelee=true")
     # Vanilla UI coordinates are measured in 854x480 GUI scale 1, not auto.
     options = Path(game) / "options.txt"
     with options.open("a", encoding="utf-8") as stream:
@@ -141,7 +160,17 @@ def run(command, game, timeout):
                 process, log, select_screen, time.monotonic() + 8,
                 "create world GUI")
             require_running(process, "create world GUI")
-            # GuiCreateWorld: default New World, no server or cheat commands.
+            # Actual 1.8.9 GuiCreateWorld Game Mode button is centered
+            # at x427,y125. Survival -> Hardcore -> Creative; Creative
+            # enables commands unless explicitly overridden.
+            if attack:
+                if create_screen != b"axb":
+                    raise AssertionError("unexpected create-world GUI")
+                click(window, 427, 125)
+                time.sleep(0.25)
+                click(window, 427, 125)
+                print("CUSTOMMC_189_CREATIVE_COMMAND_WORLD_REQUESTED=YES",
+                      flush=True)
             click(window, 346, 462)
             print("CUSTOMMC_189_NEW_WORLD_GUI_REQUEST_SENT=YES", flush=True)
             await_marker(process, log, WORLD, deadline, "real player/world-tick")
@@ -150,7 +179,33 @@ def run(command, game, timeout):
             require_running(process, "world stability")
             print("CUSTOMMC_OFFICIAL_189_SINGLEPLAYER_WORLD_SUSTAINED_PASS=YES")
             print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_AND_WORLD_CALLBACKS=YES")
-            print("CUSTOMMC_OFFICIAL_189_COMBAT_DAMAGE_TESTED=NO")
+            if attack:
+                # Offline integrated-server commands only. No external server
+                # join, module activation, forged damage or direct entity edits.
+                send_command(window, "/time set 1000")
+                send_command(window, "/tp ~ ~ ~ 0 26")
+                send_command(window, "/summon Pig ~ ~ ~2 {NoAI:1b}")
+                time.sleep(1.2)
+                require_running(process, "live vanilla melee fixture")
+                # Click where the actual Mojang raycast is aimed, not a
+                # synthetic module method. The bridge pairs that clicked
+                # entity identity with a later real world hurtTime transition.
+                for attempt in range(12):
+                    if MELEE_HURT in read_tail(log):
+                        break
+                    xdotool("windowfocus", "--sync", window)
+                    xdotool("click", "1")
+                    time.sleep(0.33)
+                await_marker(process, log, MELEE_ARMED,
+                             min(deadline, time.monotonic() + 8),
+                             "actual raycast entity under vanilla left click")
+                await_marker(process, log, MELEE_HURT,
+                             min(deadline, time.monotonic() + 12),
+                             "same real loaded entity becoming hurt")
+                print("CUSTOMMC_OFFICIAL_189_REAL_VANILLA_MELEE_DAMAGE_PASS=YES",
+                      flush=True)
+            else:
+                print("CUSTOMMC_OFFICIAL_189_COMBAT_DAMAGE_TESTED=NO")
             print("CUSTOMMC_OFFICIAL_189_MULTIPLAYER_TESTED=NO")
         except BaseException:
             print("SINGLEPLAYER_SMOKE_OUTPUT_TAIL_START", file=sys.stderr)
@@ -172,13 +227,15 @@ if __name__ == "__main__":
     for field in ("java", "client", "libraries", "assets", "natives", "overlay", "game"):
         parser.add_argument("--" + field, required=True)
     parser.add_argument("--timeout", type=int, default=150)
+    parser.add_argument("--attack", action="store_true",
+                        help="create offline creative world and verify genuine melee hurt")
     args = parser.parse_args()
     try:
         command = build_command(
             args.java, args.client, args.libraries, args.assets,
             args.natives, args.overlay, args.game
         )
-        run(command, args.game, args.timeout)
+        run(command, args.game, args.timeout, attack=args.attack)
     except Exception as failure:
         print("CUSTOMMC_189_SINGLEPLAYER_WORLD_FAILED: " + str(failure),
               file=sys.stderr)
