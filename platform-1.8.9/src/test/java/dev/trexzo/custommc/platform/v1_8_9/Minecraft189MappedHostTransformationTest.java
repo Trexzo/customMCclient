@@ -110,7 +110,7 @@ final class Minecraft189MappedHostTransformationTest {
                 };
             }
         }, 0);
-        assertArrayEquals(new int[]{1, 1, 2, 1}, bridgeCalls);
+        assertArrayEquals(new int[]{1, 1, 1, 1}, bridgeCalls);
         assertEquals(0, sixConstants[0]);
     }
 
@@ -8195,9 +8195,7 @@ final class Minecraft189MappedHostTransformationTest {
         mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "pk", "a",
                 "(DF)Lauh;", false);
         mouseOver.visitInsn(Opcodes.POP);
-        // Real 1.8.9 extendedReach branch has exactly two 6.0D literals.
-        mouseOver.visitLdcInsn(Double.valueOf(6.0D));
-        mouseOver.visitInsn(Opcodes.POP2);
+        // Genuine 1.8.9 getMouseOver has one 6.0D LDC.
         mouseOver.visitLdcInsn(Double.valueOf(6.0D));
         mouseOver.visitInsn(Opcodes.POP2);
         mouseOver.visitTypeInsn(Opcodes.NEW, playerCandidate ? "wn" : "pk");

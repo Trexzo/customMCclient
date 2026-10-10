@@ -2201,7 +2201,7 @@ public final class Minecraft189ClassTransformer
 
         if (!foundRaycast[0] || changedRaycastCalls[0] != 1
                 || changedRaycastCalls[1] != 1
-                || changedExtendedConstants[0] != 2
+                || changedExtendedConstants[0] != 1
                 || changedHitboxCalls[0] != 1) {
             throw new IllegalStateException(
                     "mapped EntityRenderer reach raycast not patchable: "

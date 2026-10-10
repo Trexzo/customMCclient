@@ -118,7 +118,7 @@ final class Minecraft189OfficialBinaryTest {
                     && nativeCalls[2] >= 1, "missing vanilla renderer call");
             assertEquals(1, nativeCalls[3], "native player border method");
             assertEquals(1, nativeCalls[4], "native bounding box expansion");
-            assertArrayEquals(new int[]{1, 1, 2, 1}, bridges,
+            assertArrayEquals(new int[]{1, 1, 1, 1}, bridges,
                     "real getMouseOver Reach/Hitbox patch layout");
         }
         System.out.println("OFFICIAL_189_RAYCAST_PREFLIGHT_PASS=YES");
