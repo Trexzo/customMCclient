@@ -119,6 +119,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189KeepSprintFeature keepSprintFeature;
     private final Minecraft189CombatSlotFeature combatSlotFeature;
     private final Minecraft189AntiBotFeature antiBotFeature;
+    private final Minecraft189TeamGuardFeature teamGuardFeature;
     private final Minecraft189AutoRodFeature autoRodFeature;
     private final Minecraft189AutoPotFeature autoPotFeature;
     private final Minecraft189AutoBlockFeature autoBlockFeature;
@@ -219,6 +220,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189KeepSprintFeature keepSprintFeature,
             final Minecraft189CombatSlotFeature combatSlotFeature,
             final Minecraft189AntiBotFeature antiBotFeature,
+            final Minecraft189TeamGuardFeature teamGuardFeature,
             final Minecraft189AutoRodFeature autoRodFeature,
             final Minecraft189AutoPotFeature autoPotFeature,
             final Minecraft189AutoBlockFeature autoBlockFeature,
@@ -313,6 +315,7 @@ public final class Minecraft189FeatureCatalog
         this.keepSprintFeature = keepSprintFeature;
         this.combatSlotFeature = combatSlotFeature;
         this.antiBotFeature = antiBotFeature;
+        this.teamGuardFeature = teamGuardFeature;
         this.autoRodFeature = autoRodFeature;
         this.autoPotFeature = autoPotFeature;
         this.autoBlockFeature = autoBlockFeature;
@@ -470,6 +473,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189KeepSprintFeature keepSprintFeature = null;
         Minecraft189CombatSlotFeature combatSlotFeature = null;
         Minecraft189AntiBotFeature antiBotFeature = null;
+        Minecraft189TeamGuardFeature teamGuardFeature = null;
         Minecraft189AutoRodFeature autoRodFeature = null;
         Minecraft189AutoPotFeature autoPotFeature = null;
         Minecraft189AutoBlockFeature autoBlockFeature = null;
@@ -922,6 +926,8 @@ public final class Minecraft189FeatureCatalog
             antiBotFeature = Minecraft189AntiBotFeature.install(
                     modules, moduleController, presentations, moduleSettings,
                     settings, settingPresentations);
+            teamGuardFeature = Minecraft189TeamGuardFeature.install(
+                    modules, moduleController, presentations);
 
             autoRodFeature = Minecraft189AutoRodFeature.install(
                     modules, moduleController, presentations, moduleSettings,
@@ -1322,6 +1328,7 @@ public final class Minecraft189FeatureCatalog
                     keepSprintFeature,
                     combatSlotFeature,
                     antiBotFeature,
+                    teamGuardFeature,
                     autoRodFeature,
                     autoPotFeature,
                     autoBlockFeature,
@@ -1333,6 +1340,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(autoBlockFeature, failure);
             closeQuietly(autoPotFeature, failure);
             closeQuietly(autoRodFeature, failure);
+            closeQuietly(teamGuardFeature, failure);
             closeQuietly(antiBotFeature, failure);
             closeQuietly(combatSlotFeature, failure);
             closeQuietly(keepSprintFeature, failure);
@@ -1674,6 +1682,11 @@ public final class Minecraft189FeatureCatalog
         return antiBotFeature.module();
     }
 
+    public Minecraft189TeamGuardModule teamGuard() {
+        requireOpen();
+        return teamGuardFeature.module();
+    }
+
     public Minecraft189CombatSlotModule combatSlot() {
         requireOpen();
         return combatSlotFeature.module();
@@ -1951,6 +1964,12 @@ public final class Minecraft189FeatureCatalog
 
         try {
             autoRodFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
+        }
+
+        try {
+            teamGuardFeature.close();
         } catch (RuntimeException closeFailure) {
             failure = append(failure, closeFailure);
         }

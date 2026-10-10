@@ -196,6 +196,47 @@ final class Minecraft189KillAuraTargetSelectorTest {
     }
 
     @Test
+    void standaloneTeamGuardFiltersAuraWithoutAntiBotEnabled() {
+        final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
+        final Minecraft189AntiBotModule bot = new Minecraft189AntiBotModule();
+        final Minecraft189TeamGuardModule guard = new Minecraft189TeamGuardModule();
+        final Minecraft189PlayerPositionState local = new Minecraft189PlayerPositionState();
+        final Minecraft189PlayerRotationState rotation = new Minecraft189PlayerRotationState();
+        final Minecraft189WorldEntityPositionState pos = new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds = new Minecraft189WorldEntityKindState();
+        final Minecraft189WorldEntityCombatState combat = new Minecraft189WorldEntityCombatState();
+        final Minecraft189NearestPlayerTargetState selected =
+                new Minecraft189NearestPlayerTargetState();
+        local.update(0, 0, 0);
+        rotation.update(0, 0);
+        pos.update(new double[]{0, 0, 2, 0, 0, 3});
+        kinds.update(new int[]{3, 3});
+        combat.update(new int[]{1 | 2048 | 1024, 1 | 2048});
+        Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                rotation.snapshot(), pos.snapshot(), kinds.snapshot(), combat.snapshot(),
+                bot, guard, selected);
+        assertEquals(0, selected.snapshot().entityIndex());
+        guard.onEnable();
+        try {
+            assertFalse(bot.active());
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), pos.snapshot(), kinds.snapshot(), combat.snapshot(),
+                    bot, guard, selected);
+            assertEquals(1, selected.snapshot().entityIndex());
+            combat.update(new int[]{1 | 2048 | 1024, 1});
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), pos.snapshot(), kinds.snapshot(), combat.snapshot(),
+                    bot, guard, selected);
+            assertFalse(selected.snapshot().found());
+            guard.onDisable();
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), pos.snapshot(), kinds.snapshot(), combat.snapshot(),
+                    bot, guard, selected);
+            assertEquals(0, selected.snapshot().entityIndex());
+        } finally { guard.onDisable(); }
+    }
+
+    @Test
     void excludesDeadUnknownAndOutOfRangeAndClearsStaleInputs() {
         final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
         final Minecraft189PlayerPositionState local = new Minecraft189PlayerPositionState();

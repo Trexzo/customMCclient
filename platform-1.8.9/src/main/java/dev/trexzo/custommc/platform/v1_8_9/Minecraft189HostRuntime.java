@@ -1263,7 +1263,7 @@ public final class Minecraft189HostRuntime
                     worldEntityPositionState.snapshot(),
                     worldEntityKindState.snapshot(),
                     worldEntityCombatState.snapshot(),
-                    featureCatalog.antiBot(),
+                    featureCatalog.antiBot(), featureCatalog.teamGuard(),
                     nearestPlayerTargetState);
             targetRotationState.update(
                     playerPositionState.snapshot(),
@@ -1429,7 +1429,8 @@ public final class Minecraft189HostRuntime
         final boolean verifiedTarget = crosshairPlayer
                 && crosshairPlayerIndex >= 0
                 && combat.alive(crosshairPlayerIndex)
-                && featureCatalog.antiBot().permits(crosshairPlayerIndex, combat);
+                && featureCatalog.antiBot().permits(crosshairPlayerIndex, combat)
+                && featureCatalog.teamGuard().permits(crosshairPlayerIndex, combat);
         return pot.shouldUse(playerHealthState.snapshot(), verifiedTarget,
                 inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
                 false, true);
@@ -1460,6 +1461,8 @@ public final class Minecraft189HostRuntime
                 || verifiedPlayerIndex < 0
                 || !worldEntityCombatState.snapshot().alive(verifiedPlayerIndex)
                 || !featureCatalog.antiBot().permits(
+                        verifiedPlayerIndex, worldEntityCombatState.snapshot())
+                || !featureCatalog.teamGuard().permits(
                         verifiedPlayerIndex, worldEntityCombatState.snapshot())
                 || (featureCatalog.killAura().active()
                     && (!targetRotationState.snapshot().available()
@@ -1613,7 +1616,8 @@ public final class Minecraft189HostRuntime
         }
         // A verified tab-list miss is a veto for every synthetic click
         // owner. A real manually-triggered vanilla click remains untouched.
-        if (!featureCatalog.antiBot().permits(crosshairPlayerIndex, combat)) {
+        if (!featureCatalog.antiBot().permits(crosshairPlayerIndex, combat)
+                || !featureCatalog.teamGuard().permits(crosshairPlayerIndex, combat)) {
             return false;
         }
         if (!featureCatalog.attackRange().permits(
