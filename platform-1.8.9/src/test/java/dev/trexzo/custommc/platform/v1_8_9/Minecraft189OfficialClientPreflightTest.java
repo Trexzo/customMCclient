@@ -179,8 +179,10 @@ final class Minecraft189OfficialClientPreflightTest {
                 }
             }
         }
-        assertTrue(handled.size() >= 24,
-                "insufficient actual vanilla 1.8.9 handled class owners: " + handled);
+        // 24 mapped runtime owners plus the Minecraft entry-point class.
+        // Reject silently missing owners instead of passing a partial list.
+        assertEquals(25, handled.size(),
+                "not all declared 1.8.9 transform owners occur in official JAR: " + handled);
         assertTrue(missingOrFailed.isEmpty(),
                 "real vanilla classes failed mapped transformation: " + missingOrFailed);
         System.out.println("OFFICIAL_189_COMPLETE_MAPPED_OWNERS_PASS=" + handled.size());
