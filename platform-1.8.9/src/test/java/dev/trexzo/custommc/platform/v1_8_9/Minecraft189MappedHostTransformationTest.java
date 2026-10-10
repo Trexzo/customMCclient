@@ -110,7 +110,7 @@ final class Minecraft189MappedHostTransformationTest {
                 };
             }
         }, 0);
-        assertArrayEquals(new int[]{1, 1, 2, 1}, bridgeCalls);
+        assertArrayEquals(new int[]{1, 1, 1, 1}, bridgeCalls);
         assertEquals(0, sixConstants[0]);
     }
 
@@ -8195,10 +8195,11 @@ final class Minecraft189MappedHostTransformationTest {
         mouseOver.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "pk", "a",
                 "(DF)Lauh;", false);
         mouseOver.visitInsn(Opcodes.POP);
-        // Real 1.8.9 extendedReach branch has exactly two 6.0D literals.
+        // Actual official 1.8.9 obfuscated renderer has one LDC 6.0D
+        // value shared between the two extended-reach local assignments.
         mouseOver.visitLdcInsn(Double.valueOf(6.0D));
+        mouseOver.visitInsn(Opcodes.DUP2);
         mouseOver.visitInsn(Opcodes.POP2);
-        mouseOver.visitLdcInsn(Double.valueOf(6.0D));
         mouseOver.visitInsn(Opcodes.POP2);
         // The real renderer also expands the broad-phase lookup box.
         mouseOver.visitTypeInsn(Opcodes.NEW, "aug");
