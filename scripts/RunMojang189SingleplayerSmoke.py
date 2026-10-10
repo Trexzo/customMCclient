@@ -23,6 +23,9 @@ AUTO_DISABLED = b"CUSTOMMC_189_AUTOCLICKER_DISABLED_TARGET_TICKS_PASS=20"
 AUTO_ENABLED = b"CUSTOMMC_189_AUTOCLICKER_NORMAL_MODULE_ENABLE_PASS=YES"
 AUTO_ARMED = b"CUSTOMMC_189_AUTOCLICKER_REAL_TARGET_ARMED=YES"
 AUTO_HURT = b"CUSTOMMC_OFFICIAL_189_AUTOCLICKER_SAME_ENTITY_HURT_PASS=YES"
+AURA_DISABLED = b"CUSTOMMC_189_KILLAURA_DISABLED_NONPLAYER_TICKS_PASS=20"
+AURA_ENABLED = b"CUSTOMMC_189_KILLAURA_NORMAL_MODULE_ENABLE_PASS=YES"
+AURA_VETO = b"CUSTOMMC_OFFICIAL_189_KILLAURA_NONPLAYER_VETO_PASS=YES"
 
 
 def xdotool(*arguments):
@@ -144,10 +147,11 @@ def send_command(process, log, window, command):
           flush=True)
 
 
-def run(command, game, timeout, attack=False, auto_clicker=False):
-    if attack and auto_clicker:
-        raise ValueError("manual attack and automated click test are exclusive")
-    controlled_combat = attack or auto_clicker
+def run(command, game, timeout, attack=False, auto_clicker=False,
+        kill_aura_nonplayer=False):
+    if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer)) > 1:
+        raise ValueError("manual and module combat tests are exclusive")
+    controlled_combat = attack or auto_clicker or kill_aura_nonplayer
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
@@ -160,6 +164,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False):
     if auto_clicker:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportAutoClicker=true")
+    if kill_aura_nonplayer:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportKillAuraNonPlayer=true")
     # Vanilla UI coordinates are measured in 854x480 GUI scale 1, not auto.
     options = Path(game) / "options.txt"
     with options.open("a", encoding="utf-8") as stream:
@@ -254,7 +261,25 @@ def run(command, game, timeout, attack=False, auto_clicker=False):
                              "/summon Pig ~ ~ ~2 {NoAI:1b}")
                 time.sleep(1.2)
                 require_running(process, "live vanilla melee fixture")
-                if auto_clicker:
+                if kill_aura_nonplayer:
+                    # No X11 attack events. Verify 20 observed native living
+                    # nonplayer raycast target callbacks with module disabled,
+                    # then 80 consecutive enabled Kill Aura callbacks that
+                    # never select or strike that same nonplayer identity.
+                    await_marker(process, log, AURA_DISABLED, deadline,
+                                 "disabled Kill Aura nonplayer negative control")
+                    await_marker(process, log, AURA_ENABLED, deadline,
+                                 "normal Kill Aura module lifecycle enable")
+                    await_marker(process, log, AURA_VETO, deadline,
+                                 "80 enabled Kill Aura nonplayer veto callbacks")
+                    require_running(process, "Kill Aura nonplayer veto")
+                    time.sleep(1)
+                    require_running(process, "Kill Aura veto stability")
+                    print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_NONPLAYER_NEGATIVE_PASS=YES",
+                          flush=True)
+                    print("CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HIT_TESTED=NO",
+                          flush=True)
+                elif auto_clicker:
                     # There are deliberately NO X11 attack button events here.
                     # Real crosshair targeting must be seen for 20 normal
                     # disabled-module callbacks, followed by a standard
@@ -319,6 +344,8 @@ if __name__ == "__main__":
                         help="create offline creative world and verify genuine melee hurt")
     parser.add_argument("--auto-clicker", action="store_true",
                         help="verify enabled Auto Clicker causes offline entity hurt without X11 attack")
+    parser.add_argument("--kill-aura-nonplayer", action="store_true",
+                        help="verify enabled player-only Kill Aura vetoes genuine passive mob")
     args = parser.parse_args()
     try:
         command = build_command(
@@ -326,7 +353,8 @@ if __name__ == "__main__":
             args.natives, args.overlay, args.game
         )
         run(command, args.game, args.timeout, attack=args.attack,
-            auto_clicker=args.auto_clicker)
+            auto_clicker=args.auto_clicker,
+            kill_aura_nonplayer=args.kill_aura_nonplayer)
     except Exception as failure:
         print("CUSTOMMC_189_SINGLEPLAYER_WORLD_FAILED: " + str(failure),
               file=sys.stderr)
