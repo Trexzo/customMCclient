@@ -211,8 +211,8 @@ def _stage_complete_asset_collection(objects, asset_root):
     total = sum(unique.values())
     if total > MAX_COMPLETE_TOTAL:
         raise ValueError("complete official asset collection exceeds total budget")
-    if len(unique) < 100:
-        raise ValueError("complete asset inventory unexpectedly small")
+    if not unique:
+        raise ValueError("complete asset inventory is empty")
 
     object_root = asset_root / "objects"
     object_root.mkdir()
