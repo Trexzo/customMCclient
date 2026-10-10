@@ -8,6 +8,7 @@ on:
       - 'scripts/FetchMojang189Libraries.py'
       - 'scripts/FetchMojang189NativeAssets.py'
       - 'scripts/test_mojang189_complete_assets.py'
+      - 'scripts/RunMojang189GraphicalSmoke.py'
       - 'bootstrap/src/main/java/dev/trexzo/custommc/bootstrap/TransformingTargetClassLoader.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RuntimeBridge.java'
       - 'platform-1.8.9/build.gradle.kts'
@@ -23,7 +24,7 @@ permissions:
 jobs:
   official-binary:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -51,6 +52,37 @@ jobs:
           CUSTOMMC_189_REAL_CLIENT_JAR: ${{ runner.temp }}/minecraft-1.8.9-vanilla.jar
           CUSTOMMC_189_REAL_LIBRARIES_FILE: ${{ runner.temp }}/minecraft-1.8.9-libraries/classpath.txt
         run: gradle --no-daemon :platform-1.8.9:test --tests 'dev.trexzo.custommc.platform.v1_8_9.Minecraft189OfficialClientPreflightTest'
+      - name: Build production Minecraft 1.8.9 runtime overlay
+        run: gradle --no-daemon assembleRuntimeOverlay
+      - name: Configure Java 8 for genuine Minecraft 1.8.9 graphics
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+      - name: Ensure Xvfb and legacy LWJGL2 XRandR display enumeration
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1 || ! command -v xrandr >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb x11-xserver-utils
+          fi
+          command -v xvfb-run
+          command -v xrandr
+          xvfb-run -a -s "-screen 0 1280x720x24" xrandr --query
+      - name: Run bounded genuine Minecraft 1.8.9 graphical smoke
+        timeout-minutes: 3
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '2.1'
+        run: |
+          xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189GraphicalSmoke.py \
+            --java "$JAVA_HOME/bin/java" \
+            --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
+            --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
+            --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
+            --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
+            --overlay "build/runtime-overlay" \
+            --game "$RUNNER_TEMP/custommc-189-game" \
+            --timeout 90
       - name: Remove official binary and libraries from CI runner
         if: always()
-        run: python -c "from pathlib import Path; import shutil, os; root=Path(os.environ['RUNNER_TEMP']); (root/'minecraft-1.8.9-vanilla.jar').unlink(missing_ok=True); shutil.rmtree(root/'minecraft-1.8.9-libraries', ignore_errors=True); shutil.rmtree(root/'minecraft-1.8.9-resources', ignore_errors=True)"
+        run: python -c "from pathlib import Path; import shutil, os; root=Path(os.environ['RUNNER_TEMP']); (root/'minecraft-1.8.9-vanilla.jar').unlink(missing_ok=True); shutil.rmtree(root/'minecraft-1.8.9-libraries', ignore_errors=True); shutil.rmtree(root/'minecraft-1.8.9-resources', ignore_errors=True); shutil.rmtree(root/'custommc-189-game', ignore_errors=True)"

@@ -6,6 +6,8 @@ import java.util.Objects;
 
 public final class Minecraft189RuntimeBridge {
     private static Minecraft189BootstrapRuntime activeRuntime;
+    private static int graphicalAcceptanceFrames;
+    private static boolean graphicalAcceptanceReported;
 
     private Minecraft189RuntimeBridge() {
     }
@@ -21,6 +23,8 @@ public final class Minecraft189RuntimeBridge {
                     "minecraft 1.8.9 runtime bridge is already active");
         }
         activeRuntime = next;
+        graphicalAcceptanceFrames = 0;
+        graphicalAcceptanceReported = false;
         return new Registration(next);
     }
 
@@ -532,11 +536,29 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    /**
+     * Optional bounded CI proof of a live LWJGL Display and repeated
+     * Minecraft render callbacks. The property is absent in normal runs.
+     * Never report a window or game loop from a bootstrap-only probe.
+     */
     public static synchronized void renderFrameStarted(
             final float partialTicks) {
         if (activeRuntime != null) {
             activeRuntime.beginRenderFrame(
                     partialTicks);
+            if (!graphicalAcceptanceReported
+                    && Boolean.getBoolean(
+                            "custommc.acceptance.reportGraphicalFrame")
+                    && activeRuntime.hostInstalled()
+                    && org.lwjgl.opengl.Display.isCreated()) {
+                graphicalAcceptanceFrames++;
+                if (graphicalAcceptanceFrames >= 3) {
+                    graphicalAcceptanceReported = true;
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_OPENGL_FRAME_PASS=YES");
+                    System.out.flush();
+                }
+            }
         }
     }
 
