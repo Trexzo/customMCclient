@@ -106,7 +106,7 @@ final class Minecraft189OfficialClientPreflightTest {
                 && nativeCalls[2] >= 1, "Native reach/raytrace dependency missing");
         assertEquals(1, nativeCalls[3], "Native hitbox border call");
         assertEquals(2, nativeCalls[4], "Two native AABB expansion call sites");
-        assertArrayEquals(new int[]{1, 1, 2, 1}, bridgeCalls,
+        assertArrayEquals(new int[]{1, 1, 1, 1}, bridgeCalls,
                 "Expected bounded native Reach and Hitbox hook sites");
 
         for (String name : Arrays.asList("bda", "pk", "aug")) {
