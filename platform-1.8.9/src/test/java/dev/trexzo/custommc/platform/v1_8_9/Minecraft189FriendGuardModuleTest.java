@@ -68,10 +68,11 @@ final class Minecraft189FriendGuardModuleTest {
     @Test void registeredSettingIsPersistentAndModuleLifecycleIsIndependent() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
         final Minecraft189FriendGuardFeature feature =
                 Minecraft189FriendGuardFeature.install(
                         modules, controller, new ModulePresentationRegistry(),
-                        new ModuleSettingRegistry(), new SettingRegistry(),
+                        new ModuleSettingRegistry(modules, settings), settings,
                         new SettingPresentationRegistry());
         try {
             assertNotNull(modules.find(Minecraft189FriendGuardModule.ID));
