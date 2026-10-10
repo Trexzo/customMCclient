@@ -3,6 +3,8 @@ package dev.trexzo.custommc.platform.v1_8_9;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 
 import java.util.Objects;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 public final class Minecraft189RuntimeBridge {
     private static Minecraft189BootstrapRuntime activeRuntime;
@@ -12,6 +14,7 @@ public final class Minecraft189RuntimeBridge {
     private static boolean acceptanceWorldCombatObserved;
     private static int acceptanceWorldTicks;
     private static boolean acceptanceWorldReported;
+    private static String acceptanceLastScreen;
 
     private Minecraft189RuntimeBridge() {
     }
@@ -33,6 +36,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceWorldCombatObserved = false;
         acceptanceWorldTicks = 0;
         acceptanceWorldReported = false;
+        acceptanceLastScreen = null;
         return new Registration(next);
     }
 
@@ -78,6 +82,10 @@ public final class Minecraft189RuntimeBridge {
             // loaded player and world combat evidence; menu frames alone
             // cannot reach it. Normal launches never enable this property.
             if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")
+                    && activeRuntime.hostInstalled()) {
+                reportAcceptanceScreen();
+            }
+            if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")
                     && !acceptanceWorldReported
                     && activeRuntime.hostInstalled()) {
                 if (acceptancePlayerObserved
@@ -95,6 +103,43 @@ public final class Minecraft189RuntimeBridge {
                 acceptancePlayerObserved = false;
                 acceptanceWorldCombatObserved = false;
             }
+        }
+    }
+
+    /**
+     * Test-only GUI state tracing for diagnosing real X11 menu navigation.
+     * The target class is resolved from the game's owned context loader;
+     * there are no hardcoded parent-owned vanilla class identities.
+     */
+    private static void reportAcceptanceScreen() {
+        try {
+            final ClassLoader loader = Thread.currentThread()
+                    .getContextClassLoader();
+            final Class<?> minecraft = Class.forName("ave", false, loader);
+            final Method singleton = minecraft.getDeclaredMethod("A");
+            singleton.setAccessible(true);
+            final Object instance = singleton.invoke(null);
+            if (instance == null) {
+                return;
+            }
+            for (Field field : minecraft.getDeclaredFields()) {
+                if (!"axu".equals(field.getType().getName())) {
+                    continue;
+                }
+                field.setAccessible(true);
+                final Object screen = field.get(instance);
+                final String screenType = screen == null
+                        ? "(in-game/no GUI)"
+                        : screen.getClass().getName();
+                if (!screenType.equals(acceptanceLastScreen)) {
+                    acceptanceLastScreen = screenType;
+                    System.out.println("CUSTOMMC_189_ACCEPTANCE_SCREEN=" + screenType);
+                    System.out.flush();
+                }
+                return;
+            }
+        } catch (ReflectiveOperationException | SecurityException ignored) {
+            // Optional diagnostics must not break normal Minecraft ticks.
         }
     }
 
