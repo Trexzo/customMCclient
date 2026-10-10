@@ -15,6 +15,8 @@ public final class Minecraft189RuntimeBridge {
     private static int acceptanceWorldTicks;
     private static boolean acceptanceWorldReported;
     private static String acceptanceLastScreen;
+    private static int acceptanceDisabledTargetTicks;
+    private static boolean acceptanceAutoClickerEnabled;
 
     private Minecraft189RuntimeBridge() {
     }
@@ -38,6 +40,8 @@ public final class Minecraft189RuntimeBridge {
         acceptanceWorldReported = false;
         acceptanceLastScreen = null;
         Minecraft189VanillaMeleeAcceptance.reset();
+        acceptanceDisabledTargetTicks = 0;
+        acceptanceAutoClickerEnabled = false;
         return new Registration(next);
     }
 
@@ -523,6 +527,32 @@ public final class Minecraft189RuntimeBridge {
         final Minecraft189HostRuntime host =
                 activeHost();
         if (host != null && minecraft != null) {
+            if (Boolean.getBoolean("custommc.acceptance.reportAutoClicker")
+                    && !acceptanceAutoClickerEnabled) {
+                // Negative control: with a real, alive, zero-hurt raycast
+                // target, keep the ordinary module DISABLED for 20 actual
+                // automatic-action callbacks before enabling it through
+                // ModuleController. No external left clicks are sent.
+                if (Minecraft189VanillaMeleeAcceptance.cleanCrosshairEntity(
+                        minecraft)) {
+                    acceptanceDisabledTargetTicks++;
+                } else {
+                    acceptanceDisabledTargetTicks = 0;
+                }
+                if (acceptanceDisabledTargetTicks >= 20) {
+                    if (host.featureCatalog().autoClicker().active()) {
+                        throw new IllegalStateException(
+                                "negative control: Auto Clicker pre-enabled");
+                    }
+                    System.out.println(
+                            "CUSTOMMC_189_AUTOCLICKER_DISABLED_TARGET_TICKS_PASS=20");
+                    host.featureCatalog().enableAutoClickerForOfficialAcceptance();
+                    acceptanceAutoClickerEnabled = true;
+                    System.out.println(
+                            "CUSTOMMC_189_AUTOCLICKER_NORMAL_MODULE_ENABLE_PASS=YES");
+                    System.out.flush();
+                }
+            }
             final Minecraft189SwordBlockControl swordBlock =
                     minecraft instanceof Minecraft189SwordBlockControl
                     ? (Minecraft189SwordBlockControl) minecraft : null;
@@ -597,7 +627,20 @@ public final class Minecraft189RuntimeBridge {
                 final int originalSlot =
                         host.selectCombatSlotBeforeSyntheticClick(playerHit);
                 try {
-                    minecraft.customMcClickMouse();
+                    if (Boolean.getBoolean(
+                            "custommc.acceptance.reportAutoClicker")) {
+                        if (!acceptanceAutoClickerEnabled
+                                || !host.featureCatalog().autoClicker().active()) {
+                            throw new IllegalStateException(
+                                    "automatic attack escaped disabled module");
+                        }
+                        Minecraft189VanillaMeleeAcceptance.syntheticClickStarted();
+                    }
+                    try {
+                        minecraft.customMcClickMouse();
+                    } finally {
+                        Minecraft189VanillaMeleeAcceptance.syntheticClickFinished();
+                    }
                     if (restoreSprint) {
                         host.restoreSprintAfterSyntheticClick();
                     }

@@ -20,6 +20,8 @@ final class Minecraft189VanillaMeleeAcceptance {
     private static long pendingTick;
     private static long ticks;
     private static boolean reported;
+    private static boolean syntheticCall;
+    private static boolean pendingAutoClicker;
 
     private Minecraft189VanillaMeleeAcceptance() {
     }
@@ -32,6 +34,8 @@ final class Minecraft189VanillaMeleeAcceptance {
         pendingTick = 0;
         ticks = 0;
         reported = false;
+        syntheticCall = false;
+        pendingAutoClicker = false;
     }
 
     static void tick() {
@@ -82,6 +86,12 @@ final class Minecraft189VanillaMeleeAcceptance {
             pendingWorld = world;
             pendingEntity = entity;
             pendingTick = ticks;
+            pendingAutoClicker = syntheticCall
+                    && Boolean.getBoolean("custommc.acceptance.reportAutoClicker");
+            if (pendingAutoClicker) {
+                System.out.println("CUSTOMMC_189_AUTOCLICKER_REAL_TARGET_ARMED=YES");
+                System.out.flush();
+            }
             System.out.println("CUSTOMMC_189_VANILLA_MELEE_TARGET_ARMED=YES");
             System.out.flush();
         } catch (ReflectiveOperationException | SecurityException failure) {
@@ -120,12 +130,54 @@ final class Minecraft189VanillaMeleeAcceptance {
                 reported = true;
                 System.out.println(
                         "CUSTOMMC_OFFICIAL_189_REAL_ENTITY_HURT_AFTER_VANILLA_CLICK_PASS=YES");
+                if (pendingAutoClicker) {
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_AUTOCLICKER_SAME_ENTITY_HURT_PASS=YES");
+                }
                 System.out.flush();
             }
         } catch (ReflectiveOperationException | SecurityException failure) {
             observedWorld = null;
             observedCombat = null;
         }
+    }
+
+    /**
+     * Requires genuine current native raycast entity and a fresh zero-hurt
+     * combat snapshot. Called at the real Minecraft auto-click callback, not
+     * from synthetic test fixtures or vanilla input event impersonation.
+     */
+    static boolean cleanCrosshairEntity(final Object minecraft) {
+        if (!Boolean.getBoolean("custommc.acceptance.reportAutoClicker")
+                || minecraft == null || observedCombat == null) {
+            return false;
+        }
+        try {
+            final Object hit = field(minecraft, "s");
+            if (hit == null) return false;
+            final ClassLoader loader = minecraft.getClass().getClassLoader();
+            final Class<?> type = Class.forName("auh$a", false, loader);
+            if (field(hit, "a") != field(type, null, "c")) return false;
+            final Object entity = field(hit, "d");
+            final Object world = field(minecraft, "f");
+            if (world == null || entity == null || world != observedWorld
+                    || entity == field(minecraft, "h")) return false;
+            final int index = identityIndex(loadedEntities(world), entity);
+            if (index < 0 || index >= observedCombat.length) return false;
+            final int state = observedCombat[index];
+            return state >= 0 && (state & 1) == 1
+                    && ((state & 255) >>> 1) == 0;
+        } catch (ReflectiveOperationException | SecurityException invalid) {
+            return false;
+        }
+    }
+
+    static void syntheticClickStarted() {
+        syntheticCall = true;
+    }
+
+    static void syntheticClickFinished() {
+        syntheticCall = false;
     }
 
     private static List<?> loadedEntities(final Object world)

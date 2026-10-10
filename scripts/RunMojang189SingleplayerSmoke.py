@@ -19,6 +19,10 @@ FRAME = b"CUSTOMMC_OFFICIAL_189_OPENGL_FRAME_PASS=YES"
 WORLD = b"CUSTOMMC_OFFICIAL_189_LIVE_WORLD_TICKS_PASS=YES"
 MELEE_ARMED = b"CUSTOMMC_189_VANILLA_MELEE_TARGET_ARMED=YES"
 MELEE_HURT = b"CUSTOMMC_OFFICIAL_189_REAL_ENTITY_HURT_AFTER_VANILLA_CLICK_PASS=YES"
+AUTO_DISABLED = b"CUSTOMMC_189_AUTOCLICKER_DISABLED_TARGET_TICKS_PASS=20"
+AUTO_ENABLED = b"CUSTOMMC_189_AUTOCLICKER_NORMAL_MODULE_ENABLE_PASS=YES"
+AUTO_ARMED = b"CUSTOMMC_189_AUTOCLICKER_REAL_TARGET_ARMED=YES"
+AUTO_HURT = b"CUSTOMMC_OFFICIAL_189_AUTOCLICKER_SAME_ENTITY_HURT_PASS=YES"
 
 
 def xdotool(*arguments):
@@ -140,16 +144,22 @@ def send_command(process, log, window, command):
           flush=True)
 
 
-def run(command, game, timeout, attack=False):
+def run(command, game, timeout, attack=False, auto_clicker=False):
+    if attack and auto_clicker:
+        raise ValueError("manual attack and automated click test are exclusive")
+    controlled_combat = attack or auto_clicker
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
         raise ValueError("singleplayer timeout must be 70..240 seconds")
     # Java flags must precede the class name.
     command.insert(command.index("-cp"), "-Dcustommc.acceptance.reportLiveWorld=true")
-    if attack:
+    if controlled_combat:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportVanillaMelee=true")
+    if auto_clicker:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportAutoClicker=true")
     # Vanilla UI coordinates are measured in 854x480 GUI scale 1, not auto.
     options = Path(game) / "options.txt"
     with options.open("a", encoding="utf-8") as stream:
@@ -164,7 +174,7 @@ def run(command, game, timeout, attack=False):
     with tempfile.TemporaryDirectory(prefix="custommc-189-world-") as temp:
         log = Path(temp) / "minecraft.txt"
         try:
-            if attack:
+            if controlled_combat:
                 # Xvfb alone has no EWMH window manager; LWJGL2 may lose
                 # active focus and auto-pause the integrated server. Openbox
                 # supplies real X11 activation without patching Minecraft.
@@ -187,7 +197,7 @@ def run(command, game, timeout, attack=False):
                          "actual graphical frame")
             window = find_window(min(deadline, time.monotonic() + 15))
             print("CUSTOMMC_189_REAL_X11_WINDOW_FOUND=YES", flush=True)
-            if attack:
+            if controlled_combat:
                 xdotool("windowactivate", "--sync", window)
             geometry = xdotool("getwindowgeometry", "--shell", window)
             print("CUSTOMMC_189_WINDOW_GEOMETRY="
@@ -219,7 +229,7 @@ def run(command, game, timeout, attack=False):
             # Actual 1.8.9 GuiCreateWorld Game Mode button is centered
             # at x427,y125. Survival -> Hardcore -> Creative; Creative
             # enables commands unless explicitly overridden.
-            if attack:
+            if controlled_combat:
                 if create_screen != b"axb":
                     raise AssertionError("unexpected create-world GUI")
                 click(window, 427, 125)
@@ -235,32 +245,46 @@ def run(command, game, timeout, attack=False):
             require_running(process, "world stability")
             print("CUSTOMMC_OFFICIAL_189_SINGLEPLAYER_WORLD_SUSTAINED_PASS=YES")
             print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_AND_WORLD_CALLBACKS=YES")
-            if attack:
+            if controlled_combat:
                 # Offline integrated-server commands only. No external server
-                # join, module activation, forged damage or direct entity edits.
+                # join, forged damage or direct entity edits.
                 send_command(process, log, window, "/time set 1000")
                 send_command(process, log, window, "/tp ~ ~ ~ 0 26")
                 send_command(process, log, window,
                              "/summon Pig ~ ~ ~2 {NoAI:1b}")
                 time.sleep(1.2)
                 require_running(process, "live vanilla melee fixture")
-                # Click where the actual Mojang raycast is aimed, not a
-                # synthetic module method. The bridge pairs that clicked
-                # entity identity with a later real world hurtTime transition.
-                for attempt in range(12):
-                    if MELEE_HURT in read_tail(log):
-                        break
-                    resume_if_paused(process, log, window)
-                    xdotool("click", "1")
-                    time.sleep(0.33)
-                await_marker(process, log, MELEE_ARMED,
-                             min(deadline, time.monotonic() + 8),
-                             "actual raycast entity under vanilla left click")
-                await_marker(process, log, MELEE_HURT,
-                             min(deadline, time.monotonic() + 12),
-                             "same real loaded entity becoming hurt")
-                print("CUSTOMMC_OFFICIAL_189_REAL_VANILLA_MELEE_DAMAGE_PASS=YES",
-                      flush=True)
+                if auto_clicker:
+                    # There are deliberately NO X11 attack button events here.
+                    # Real crosshair targeting must be seen for 20 normal
+                    # disabled-module callbacks, followed by a standard
+                    # ModuleController.enable and synthetic click + hurtTime.
+                    await_marker(process, log, AUTO_DISABLED,
+                                 deadline, "20 target ticks with Auto Clicker disabled")
+                    await_marker(process, log, AUTO_ENABLED,
+                                 deadline, "normal Auto Clicker module enable")
+                    await_marker(process, log, AUTO_ARMED,
+                                 deadline, "module-owned click on real entity")
+                    await_marker(process, log, AUTO_HURT,
+                                 deadline, "same entity hurt after module-owned click")
+                    print("CUSTOMMC_OFFICIAL_189_REAL_AUTOCLICKER_DAMAGE_PASS=YES",
+                          flush=True)
+                else:
+                    # M402 legacy manual vanilla X11 attack acceptance.
+                    for attempt in range(12):
+                        if MELEE_HURT in read_tail(log):
+                            break
+                        resume_if_paused(process, log, window)
+                        xdotool("click", "1")
+                        time.sleep(0.33)
+                    await_marker(process, log, MELEE_ARMED,
+                                 min(deadline, time.monotonic() + 8),
+                                 "actual raycast entity under vanilla left click")
+                    await_marker(process, log, MELEE_HURT,
+                                 min(deadline, time.monotonic() + 12),
+                                 "same real loaded entity becoming hurt")
+                    print("CUSTOMMC_OFFICIAL_189_REAL_VANILLA_MELEE_DAMAGE_PASS=YES",
+                          flush=True)
             else:
                 print("CUSTOMMC_OFFICIAL_189_COMBAT_DAMAGE_TESTED=NO")
             print("CUSTOMMC_OFFICIAL_189_MULTIPLAYER_TESTED=NO")
@@ -293,13 +317,16 @@ if __name__ == "__main__":
     parser.add_argument("--timeout", type=int, default=150)
     parser.add_argument("--attack", action="store_true",
                         help="create offline creative world and verify genuine melee hurt")
+    parser.add_argument("--auto-clicker", action="store_true",
+                        help="verify enabled Auto Clicker causes offline entity hurt without X11 attack")
     args = parser.parse_args()
     try:
         command = build_command(
             args.java, args.client, args.libraries, args.assets,
             args.natives, args.overlay, args.game
         )
-        run(command, args.game, args.timeout, attack=args.attack)
+        run(command, args.game, args.timeout, attack=args.attack,
+            auto_clicker=args.auto_clicker)
     except Exception as failure:
         print("CUSTOMMC_189_SINGLEPLAYER_WORLD_FAILED: " + str(failure),
               file=sys.stderr)
