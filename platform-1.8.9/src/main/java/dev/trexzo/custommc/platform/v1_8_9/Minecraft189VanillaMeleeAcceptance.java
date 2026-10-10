@@ -87,6 +87,13 @@ final class Minecraft189VanillaMeleeAcceptance {
                     || ((baseline & 255) >>> 1) != 0) {
                 return;
             }
+            // Do not reset the 20-tick window on every high-CPS Aura
+            // attempt against the same unhurt real player, or flood logs.
+            if (syntheticAura && pendingAura
+                    && pendingWorld == world && pendingEntity == entity
+                    && ticks >= pendingTick && ticks - pendingTick <= 20) {
+                return;
+            }
             pendingWorld = world;
             pendingEntity = entity;
             pendingTick = ticks;
