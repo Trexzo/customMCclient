@@ -17,7 +17,7 @@ final class Minecraft189AttackRangeFeature implements AutoCloseable {
             f.owned.add(modules.register(f.module));
             f.owned.add(presentations.register(new ModuleDescriptor(
                 Minecraft189AttackRangeModule.ID,"Attack Range Gate",
-                "Optional shared maximum distance for synthetic player attacks.",
+                "Maximum synthetic attack distance, optionally measured to native hitbox.",
                 Minecraft189FeatureCatalog.COMBAT_CATEGORY_ID,115)));
             f.owned.add(settings.register(f.module.maxRangeSetting()));
             f.owned.add(labels.register(new SettingDescriptor(
@@ -25,6 +25,13 @@ final class Minecraft189AttackRangeFeature implements AutoCloseable {
                 SettingValueKind.DOUBLE,0,new SettingNumericSpec(1,6,0.1))));
             f.owned.add(binds.register(new ModuleSettingBinding(
                 Minecraft189AttackRangeModule.ID,Minecraft189AttackRangeModule.MAX_RANGE,0)));
+            f.owned.add(settings.register(f.module.useNativeHitboxSetting()));
+            f.owned.add(labels.register(new SettingDescriptor(
+                Minecraft189AttackRangeModule.USE_NATIVE_HITBOX,
+                "Use Native Hitbox Distance", SettingValueKind.BOOLEAN, 10)));
+            f.owned.add(binds.register(new ModuleSettingBinding(
+                Minecraft189AttackRangeModule.ID,
+                Minecraft189AttackRangeModule.USE_NATIVE_HITBOX,10)));
             return f;
         }catch(RuntimeException e){try{f.close();}catch(RuntimeException cleanup){e.addSuppressed(cleanup);}throw e;}
     }

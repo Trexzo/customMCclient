@@ -6,4 +6,7 @@ public interface Minecraft189CrosshairHitAccess {
 
     /** Exact loadedEntityList index, or -1 when no verifiable player match. */
     default int customMcCrosshairPlayerIndex() { return -1; }
+
+    /** Exact current vanilla crosshair player's native AABB, or null. */
+    default double[] customMcCrosshairHitboxBounds() { return null; }
 }

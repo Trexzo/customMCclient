@@ -1704,6 +1704,16 @@ public final class Minecraft189HostRuntime
 
     boolean shouldAutoClick(final boolean crosshairPlayerHit,
             final int crosshairPlayerIndex) {
+        return shouldAutoClick(crosshairPlayerHit, crosshairPlayerIndex, null);
+    }
+
+    boolean needsHitboxRangeEvidence() {
+        requireOpen();
+        return featureCatalog.attackRange().needsNativeHitbox();
+    }
+
+    boolean shouldAutoClick(final boolean crosshairPlayerHit,
+            final int crosshairPlayerIndex, final double[] nativeHitbox) {
         requireOpen();
         // No automatic attack may cross the native ClickGUI focus boundary.
         // The same rule applies to hold and trigger modes; pending phase
@@ -1787,7 +1797,7 @@ public final class Minecraft189HostRuntime
         if (!featureCatalog.attackRange().permits(
                 crosshairPlayerIndex, playerPositionState.snapshot(),
                 worldEntityPositionState.snapshot(),
-                worldEntityKindState.snapshot())) return false;
+                worldEntityKindState.snapshot(), nativeHitbox)) return false;
         if (!featureCatalog.hitSelect().permits(
                 crosshairPlayerIndex, combat)) {
             return false;

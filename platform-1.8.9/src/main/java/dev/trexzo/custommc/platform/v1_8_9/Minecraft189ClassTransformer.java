@@ -1596,6 +1596,7 @@ public final class Minecraft189ClassTransformer
                         addMappedStopUsingItem(cv);
                         addCrosshairHitAccessor(cv);
                         addCrosshairPlayerIndexAccessor(cv);
+                        addCrosshairHitboxBoundsAccessor(cv);
                         super.visitEnd();
                     }
                 },
@@ -4701,6 +4702,62 @@ public final class Minecraft189ClassTransformer
      * Only existing proven Minecraft, MovingObjectPosition and World
      * fields are touched. Unknown/stale evidence returns -1.
      */
+
+    /** Exact native ray-hit player's mapped six-coordinate AABB; read-only. */
+    private static void addCrosshairHitboxBoundsAccessor(final ClassVisitor visitor) {
+        final Minecraft189Mappings.MappedField over =
+                Minecraft189Mappings.MINECRAFT_OBJECT_MOUSE_OVER;
+        final Minecraft189Mappings.MappedField kind =
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_OF_HIT;
+        final Minecraft189Mappings.MappedField entity =
+                Minecraft189Mappings.MOVING_OBJECT_ENTITY_HIT;
+        final Minecraft189Mappings.MappedField enumEntity =
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_ENTITY;
+        final Label reject = new Label();
+        final MethodVisitor m = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcCrosshairHitboxBounds", "()[D",
+                null, null);
+        m.visitCode();
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitFieldInsn(Opcodes.GETFIELD,
+                over.owner().obfuscatedInternalName(),
+                over.obfuscatedName(), over.descriptor());
+        m.visitVarInsn(Opcodes.ASTORE, 1);
+        m.visitVarInsn(Opcodes.ALOAD, 1);
+        m.visitJumpInsn(Opcodes.IFNULL, reject);
+        m.visitVarInsn(Opcodes.ALOAD, 1);
+        m.visitFieldInsn(Opcodes.GETFIELD,
+                kind.owner().obfuscatedInternalName(),
+                kind.obfuscatedName(), kind.descriptor());
+        m.visitFieldInsn(Opcodes.GETSTATIC,
+                enumEntity.owner().obfuscatedInternalName(),
+                enumEntity.obfuscatedName(), enumEntity.descriptor());
+        m.visitJumpInsn(Opcodes.IF_ACMPNE, reject);
+        m.visitVarInsn(Opcodes.ALOAD, 1);
+        m.visitFieldInsn(Opcodes.GETFIELD,
+                entity.owner().obfuscatedInternalName(),
+                entity.obfuscatedName(), entity.descriptor());
+        m.visitVarInsn(Opcodes.ASTORE, 2);
+        m.visitVarInsn(Opcodes.ALOAD, 2);
+        m.visitTypeInsn(Opcodes.INSTANCEOF,
+                Minecraft189Mappings.ENTITY_PLAYER.obfuscatedInternalName());
+        m.visitJumpInsn(Opcodes.IFEQ, reject);
+        m.visitVarInsn(Opcodes.ALOAD, 2);
+        m.visitTypeInsn(Opcodes.CHECKCAST, HITBOX_BOUNDS_ACCESS_INTERNAL_NAME);
+        m.visitMethodInsn(Opcodes.INVOKEINTERFACE,
+                HITBOX_BOUNDS_ACCESS_INTERNAL_NAME,
+                "customMcHitboxBounds", "()[D", true);
+        m.visitInsn(Opcodes.ARETURN);
+        m.visitLabel(reject);
+        m.visitFrame(Opcodes.F_FULL, 1,
+                new Object[]{Minecraft189Mappings.MINECRAFT.obfuscatedInternalName()},
+                0, new Object[0]);
+        m.visitInsn(Opcodes.ACONST_NULL);
+        m.visitInsn(Opcodes.ARETURN);
+        m.visitMaxs(0, 0);
+        m.visitEnd();
+    }
+
     private static void addCrosshairPlayerIndexAccessor(
             final ClassVisitor visitor) {
         final Minecraft189Mappings.MappedField over =
