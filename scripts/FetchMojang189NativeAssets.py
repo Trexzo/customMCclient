@@ -82,7 +82,7 @@ def stage_natives(metadata, root):
         mapping = library.get("natives")
         if not isinstance(mapping, dict) or "linux" not in mapping:
             continue
-        classifier = mapping["linux"].replace("\${arch}", "64")
+        classifier = mapping["linux"].replace("${arch}", "64")
         info = library.get("downloads", {}).get("classifiers", {}).get(classifier)
         if not isinstance(info, dict):
             raise ValueError("official Linux native classifier is missing: " + classifier)
