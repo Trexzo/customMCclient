@@ -231,6 +231,75 @@ final class Minecraft189KillAuraTargetSelectorTest {
         } finally { guard.onDisable(); }
     }
 
+
+    @Test
+    void friendsExcludedFromAuraByUuidWithLockOffAndAfterReordering() {
+        final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
+        final Minecraft189FriendGuardModule friends = new Minecraft189FriendGuardModule();
+        final Minecraft189PlayerPositionState local = new Minecraft189PlayerPositionState();
+        final Minecraft189PlayerRotationState rotation = new Minecraft189PlayerRotationState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        final Minecraft189WorldEntityCombatState combat =
+                new Minecraft189WorldEntityCombatState();
+        final Minecraft189WorldEntityUuidState identities =
+                new Minecraft189WorldEntityUuidState();
+        final Minecraft189NearestPlayerTargetState selected =
+                new Minecraft189NearestPlayerTargetState();
+        final java.util.UUID friend =
+                java.util.UUID.fromString("00000000-0000-4000-8000-000000000001");
+        final java.util.UUID enemy =
+                java.util.UUID.fromString("00000000-0000-4000-8000-000000000002");
+        local.update(0, 0, 0);
+        rotation.update(0, 0);
+        positions.update(new double[]{0, 0, 2, 0, 0, 3});
+        kinds.update(new int[]{3, 3});
+        combat.update(new int[]{1, 1});
+        identities.update(new java.util.UUID[]{friend, enemy});
+        friends.friendUuidsSetting().set(friend.toString());
+        aura.onEnable();
+        try {
+            // Friend guard disabled: nearer friend remains eligible.
+            Minecraft189KillAuraTargetSelector.select(aura,
+                    local.snapshot(), rotation.snapshot(), positions.snapshot(),
+                    kinds.snapshot(), combat.snapshot(), null, null,
+                    friends, identities.snapshot(), selected);
+            assertEquals(0, selected.snapshot().entityIndex());
+            friends.onEnable();
+            assertFalse(aura.lockTargetSetting().get());
+            Minecraft189KillAuraTargetSelector.select(aura,
+                    local.snapshot(), rotation.snapshot(), positions.snapshot(),
+                    kinds.snapshot(), combat.snapshot(), null, null,
+                    friends, identities.snapshot(), selected);
+            assertEquals(1, selected.snapshot().entityIndex());
+
+            // Reorder without changing friend identity: friend still rejected.
+            identities.update(new java.util.UUID[]{enemy, friend});
+            positions.update(new double[]{0, 0, 3, 0, 0, 2});
+            Minecraft189KillAuraTargetSelector.select(aura,
+                    local.snapshot(), rotation.snapshot(), positions.snapshot(),
+                    kinds.snapshot(), combat.snapshot(), null, null,
+                    friends, identities.snapshot(), selected);
+            assertEquals(0, selected.snapshot().entityIndex());
+
+            identities.clear();
+            Minecraft189KillAuraTargetSelector.select(aura,
+                    local.snapshot(), rotation.snapshot(), positions.snapshot(),
+                    kinds.snapshot(), combat.snapshot(), null, null,
+                    friends, identities.snapshot(), selected);
+            assertFalse(selected.snapshot().available());
+
+            friends.friendUuidsSetting().set("");
+            Minecraft189KillAuraTargetSelector.select(aura,
+                    local.snapshot(), rotation.snapshot(), positions.snapshot(),
+                    kinds.snapshot(), combat.snapshot(), null, null,
+                    friends, identities.snapshot(), selected);
+            assertEquals(1, selected.snapshot().entityIndex());
+        } finally { friends.onDisable(); aura.onDisable(); }
+    }
+
     @Test
     void excludesDeadUnknownAndOutOfRangeAndClearsStaleInputs() {
         final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();

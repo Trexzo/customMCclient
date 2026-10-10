@@ -1207,9 +1207,7 @@ public final class Minecraft189HostRuntime
             featureCatalog.killAura().rememberSelectedTarget(null);
             return;
         }
-        if (featureCatalog.killAura().active()
-                && featureCatalog.killAura().lockTargetSetting().get()
-                && identityWorld != null) {
+        if (identityRequired() && identityWorld != null) {
             try {
                 worldEntityUuidState.update(
                         identityWorld.customMcLoadedEntityUuids());
@@ -1265,8 +1263,7 @@ public final class Minecraft189HostRuntime
             return;
         }
         final Minecraft189KillAuraModule aura = featureCatalog.killAura();
-        final boolean uuidLock = aura.active() && aura.lockTargetSetting().get();
-        if (uuidLock) {
+        if (identityRequired()) {
             final Minecraft189WorldEntityUuidState.Snapshot ids =
                     worldEntityUuidState.snapshot();
             boolean consistent = false;
@@ -1312,6 +1309,7 @@ public final class Minecraft189HostRuntime
                     worldEntityKindState.snapshot(),
                     worldEntityCombatState.snapshot(),
                     featureCatalog.antiBot(), featureCatalog.teamGuard(),
+                    featureCatalog.friendGuard(),
                     worldEntityUuidState.snapshot(), nearestPlayerTargetState);
             targetRotationState.update(
                     playerPositionState.snapshot(),
@@ -1462,6 +1460,35 @@ public final class Minecraft189HostRuntime
         featureCatalog.autoBlock().started();
     }
 
+    private boolean identityRequired() {
+        return (featureCatalog.killAura().active()
+                        && featureCatalog.killAura().lockTargetSetting().get())
+                || featureCatalog.friendGuard().requiresIdentity();
+    }
+
+    /**
+     * Final target-specific UUID veto for synthetic Combat operations.
+     * Current world list is rechecked against the captured identity sequence.
+     */
+    private boolean friendTargetPermits(final int candidateIndex) {
+        final Minecraft189FriendGuardModule friends = featureCatalog.friendGuard();
+        if (!friends.requiresIdentity()) return true;
+        final Minecraft189WorldEntityUuidState.Snapshot ids =
+                worldEntityUuidState.snapshot();
+        if (tickUuidWorld == null || !ids.available()
+                || ids.entityCount() != worldEntityPositionState.snapshot().entityCount()
+                || ids.entityCount() != worldEntityKindState.snapshot().entityCount()
+                || ids.entityCount() != worldEntityCombatState.snapshot().entityCount()) {
+            return false;
+        }
+        try {
+            return ids.matches(tickUuidWorld.customMcLoadedEntityUuids())
+                    && friends.permits(candidateIndex, ids);
+        } catch (RuntimeException invalidEvidence) {
+            return false;
+        }
+    }
+
     /** Eligibility captured immediately before the native synthetic click. */
     boolean shouldAutoPot(final boolean crosshairPlayer,
             final int crosshairPlayerIndex) {
@@ -1478,7 +1505,8 @@ public final class Minecraft189HostRuntime
                 && crosshairPlayerIndex >= 0
                 && combat.alive(crosshairPlayerIndex)
                 && featureCatalog.antiBot().permits(crosshairPlayerIndex, combat)
-                && featureCatalog.teamGuard().permits(crosshairPlayerIndex, combat);
+                && featureCatalog.teamGuard().permits(crosshairPlayerIndex, combat)
+                && friendTargetPermits(crosshairPlayerIndex);
         return pot.shouldUse(playerHealthState.snapshot(), verifiedTarget,
                 inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
                 false, true);
@@ -1512,6 +1540,7 @@ public final class Minecraft189HostRuntime
                         verifiedPlayerIndex, worldEntityCombatState.snapshot())
                 || !featureCatalog.teamGuard().permits(
                         verifiedPlayerIndex, worldEntityCombatState.snapshot())
+                || !friendTargetPermits(verifiedPlayerIndex)
                 || (featureCatalog.killAura().active()
                     && (!targetRotationState.snapshot().available()
                         || targetRotationState.snapshot().entityIndex()
@@ -1680,7 +1709,8 @@ public final class Minecraft189HostRuntime
         // A verified tab-list miss is a veto for every synthetic click
         // owner. A real manually-triggered vanilla click remains untouched.
         if (!featureCatalog.antiBot().permits(crosshairPlayerIndex, combat)
-                || !featureCatalog.teamGuard().permits(crosshairPlayerIndex, combat)) {
+                || !featureCatalog.teamGuard().permits(crosshairPlayerIndex, combat)
+                || !friendTargetPermits(crosshairPlayerIndex)) {
             return false;
         }
         if (!featureCatalog.attackRange().permits(
