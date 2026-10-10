@@ -1,0 +1,42 @@
+name: Minecraft 1.8.9 Binary Acceptance
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/minecraft-189-binary-acceptance.yml'
+      - 'scripts/fetch-mojang-189.py'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClassTransformer.java'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClassShapeVerifier.java'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189Mappings.java'
+      - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OfficialBinaryTest.java'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-real-189:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Download and pin Mojang official client
+        run: python scripts/fetch-mojang-189.py --output "$RUNNER_TEMP/official-1.8.9.jar"
+      - name: Audit real client mapping and transformed bytecode
+        env:
+          CUSTOMMC_OFFICIAL_189_JAR: ${{ runner.temp }}/official-1.8.9.jar
+          CUSTOMMC_OFFICIAL_189_REQUIRED: 'true'
+        run: gradle --no-daemon :platform-1.8.9:test --tests 'dev.trexzo.custommc.platform.v1_8_9.Minecraft189OfficialBinaryTest'
+      - name: Delete transient copyrighted binary
+        if: always()
+        run: python -c "import os; from pathlib import Path; Path(os.environ['RUNNER_TEMP'],'official-1.8.9.jar').unlink(missing_ok=True)"

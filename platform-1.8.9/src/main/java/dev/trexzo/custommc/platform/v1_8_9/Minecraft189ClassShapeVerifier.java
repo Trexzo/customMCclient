@@ -414,7 +414,7 @@ public final class Minecraft189ClassShapeVerifier {
                     }
                 }, 0);
         if (!found[0] || calls[0] < 1 || calls[1] < 1 || calls[2] < 1
-                || calls[3] != 1 || calls[4] != 1)
+                || calls[3] != 1 || calls[4] != 2)
             throw new IllegalStateException(
                     "Minecraft 1.8.9 native getMouseOver boundary mismatch: "
                     + "blockReach=" + calls[0] + ", extendedReach=" + calls[1]
