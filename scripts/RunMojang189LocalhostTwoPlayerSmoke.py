@@ -21,6 +21,10 @@ HOST_JOIN = b"CIHost joined the game"
 TARGET_JOIN = b"CITarget joined the game"
 REMOTE = b"CUSTOMMC_OFFICIAL_189_REMOTE_PLAYER_KIND_20_TICKS_PASS=YES"
 GRAPHICAL = b"CUSTOMMC_OFFICIAL_189_OPENGL_FRAME_PASS=YES"
+AURA_DISABLED = b"CUSTOMMC_189_KILLAURA_DISABLED_REAL_PLAYER_TICKS_PASS=20"
+AURA_ENABLED = b"CUSTOMMC_189_KILLAURA_PLAYER_MODULE_ENABLE_PASS=YES"
+AURA_ATTACK = b"CUSTOMMC_189_KILLAURA_SYNTHETIC_PLAYER_ATTACK_PASS=YES"
+AURA_HURT = b"CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HURT_PASS=YES"
 
 
 def local_port():
@@ -84,6 +88,34 @@ def write_server_properties(path, port):
     path.write_text(content, encoding="ascii")
 
 
+def send_server_command(server, log, command, expected=None, timeout=6):
+    """Run a genuine Mojang dedicated-server console command and check reply.
+
+    Only literal, source-controlled commands are passed; no remote RCON,
+    scripting plugins or direct health/NBT modification can prove damage.
+    """
+    if server.poll() is not None or server.stdin is None:
+        raise AssertionError("dedicated server unavailable for console command")
+    before = log.stat().st_size
+    server.stdin.write((command + "\n").encode("ascii"))
+    server.stdin.flush()
+    if expected is None:
+        time.sleep(0.30)
+        check_process(server, "dedicated server console " + command)
+        return
+    stop = time.monotonic() + timeout
+    while time.monotonic() < stop:
+        check_process(server, "dedicated server console " + command)
+        with log.open("rb") as reader:
+            reader.seek(before)
+            after = reader.read().lower()
+        if expected.lower() in after:
+            return
+        time.sleep(0.15)
+    raise AssertionError("server did not confirm console command: " + command
+                         + " log=" + after[-800:].decode("ascii", "replace"))
+
+
 def client_command(args, game, username, uuid, port, remote):
     if not re.fullmatch(r"[A-Za-z0-9_]{3,16}", username):
         raise ValueError("invalid offline fixture username")
@@ -98,6 +130,11 @@ def client_command(args, game, username, uuid, port, remote):
     if remote:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportRemotePlayer=true")
+    if remote and args.pvp:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportVanillaMelee=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportKillAuraLocalPvp=true")
     command += ["--server", "127.0.0.1", "--port", str(port)]
     # Limit GUI/test process heap so both instances and server fit CI RAM.
     command[command.index("-Xmx1536m")] = "-Xmx1024m"
@@ -202,6 +239,59 @@ def run(args):
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
 
+        if args.pvp:
+            # The same unmodified dedicated server owns BOTH real players
+            # and the authoritative damage-taken scoreboard statistic.
+            # Stat data is set to zero BEFORE the attack and never edited
+            # after arming; only actual accepted server damage may raise it.
+            send_server_command(
+                server, server_log,
+                "scoreboard objectives add taken stat.damageTaken")
+            send_server_command(
+                server, server_log, "scoreboard players set CITarget taken 0")
+            send_server_command(
+                server, server_log,
+                "scoreboard players test CITarget taken 0 0",
+                expected=b"test passed")
+            print("CUSTOMMC_189_SERVER_TARGET_DAMAGE_BASELINE_ZERO_PASS=YES",
+                  flush=True)
+            send_server_command(server, server_log, "gamemode 1 CIHost")
+            send_server_command(server, server_log, "gamemode 0 CITarget")
+            send_server_command(server, server_log, "gamerule naturalRegeneration false")
+            # Vanilla FLAT overworld with y=5. CIHost facing +Z.
+            # Stationary CITarget 2 blocks ahead, genuinely in PvP reach.
+            send_server_command(server, server_log, "tp CIHost 0 5 0 0 0")
+            send_server_command(server, server_log, "tp CITarget 0 5 2 180 0")
+            print("CUSTOMMC_189_SERVER_REAL_PLAYER_PVP_POSITIONS_SET=YES",
+                  flush=True)
+
+            wait_for(host, host_log, AURA_DISABLED, deadline,
+                     "20 disabled genuine nonlocal player target callbacks")
+            wait_for(host, host_log, AURA_ENABLED, deadline,
+                     "normal real-player Kill Aura module enable")
+            wait_for(host, host_log, AURA_ATTACK, deadline,
+                     "host-owned Kill Aura synthetic rotated player attack")
+            wait_for(host, host_log, AURA_HURT, deadline,
+                     "same native remote player hurt after Kill Aura click")
+            # Require a *server* stat.damageTaken objective change on the
+            # exact target. Never infer PvP success only from the host client.
+            verified_server_damage = False
+            while time.monotonic() < deadline and not verified_server_damage:
+                try:
+                    send_server_command(
+                        server, server_log,
+                        "scoreboard players test CITarget taken 1 999999",
+                        expected=b"test passed", timeout=1.4)
+                    verified_server_damage = True
+                except AssertionError as error:
+                    if "dedicated server unavailable" in str(error):
+                        raise
+                    check_process(server, "server-authoritative damage probe")
+            if not verified_server_damage:
+                raise AssertionError("no dedicated-server damage statistic for CITarget")
+            print("CUSTOMMC_OFFICIAL_189_SERVER_ACCEPTED_PLAYER_DAMAGE_PASS=YES",
+                  flush=True)
+
         for phase, proc in (
                 ("dedicated server", server),
                 ("host game", host),
@@ -219,10 +309,14 @@ def run(args):
               flush=True)
         print("CUSTOMMC_OFFICIAL_189_REMOTE_PLAYER_KIND_SUSTAINED_PASS=YES",
               flush=True)
-        print("CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HIT_TESTED=NO",
-              flush=True)
-        print("CUSTOMMC_OFFICIAL_189_SERVER_ACCEPTED_DAMAGE_TESTED=NO",
-              flush=True)
+        if args.pvp:
+            print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_PLAYER_PVP_PASS=YES",
+                  flush=True)
+        else:
+            print("CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HIT_TESTED=NO",
+                  flush=True)
+            print("CUSTOMMC_OFFICIAL_189_SERVER_ACCEPTED_DAMAGE_TESTED=NO",
+                  flush=True)
     except BaseException:
         for name, log in logs:
             print("M405_" + name.upper() + "_TAIL_START",
@@ -244,6 +338,8 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
+    parser.add_argument("--pvp", action="store_true",
+                        help="prove Kill Aura player click and real server damage statistic")
     args = parser.parse_args()
     run(args)
 
