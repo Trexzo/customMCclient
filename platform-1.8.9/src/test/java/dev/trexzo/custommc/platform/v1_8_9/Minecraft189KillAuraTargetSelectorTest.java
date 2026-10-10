@@ -300,6 +300,71 @@ final class Minecraft189KillAuraTargetSelectorTest {
         } finally { friends.onDisable(); aura.onDisable(); }
     }
 
+
+    @Test
+    void wallCheckRejectsOccludedAndUnknownPlayersWithoutChangingDefaultAura() {
+        final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
+        final Minecraft189WallCheckModule wall = new Minecraft189WallCheckModule();
+        final Minecraft189PlayerPositionState local = new Minecraft189PlayerPositionState();
+        final Minecraft189PlayerRotationState rotation = new Minecraft189PlayerRotationState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        final Minecraft189WorldEntityCombatState combat =
+                new Minecraft189WorldEntityCombatState();
+        final Minecraft189WorldEntityVisibilityState visibility =
+                new Minecraft189WorldEntityVisibilityState();
+        final Minecraft189NearestPlayerTargetState target =
+                new Minecraft189NearestPlayerTargetState();
+        local.update(0, 0, 0);
+        rotation.update(0, 0);
+        positions.update(new double[]{0, 0, 2, 0, 0, 3});
+        kinds.update(new int[]{3, 3});
+        combat.update(new int[]{1, 1});
+        visibility.update(new int[]{0, 1});
+        aura.onEnable();
+        try {
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, null, null,
+                    wall, visibility.snapshot(), target);
+            assertEquals(0, target.snapshot().entityIndex()); // wall off
+            wall.onEnable();
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, null, null,
+                    wall, visibility.snapshot(), target);
+            assertEquals(1, target.snapshot().entityIndex()); // 0 occluded
+
+            visibility.update(new int[]{1, 0});
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, null, null,
+                    wall, visibility.snapshot(), target);
+            assertEquals(0, target.snapshot().entityIndex());
+
+            visibility.update(new int[]{-1, 0});
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, null, null,
+                    wall, visibility.snapshot(), target);
+            assertFalse(target.snapshot().found()); // unknown not visible
+            visibility.clear();
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, null, null,
+                    wall, visibility.snapshot(), target);
+            assertFalse(target.snapshot().available());
+            wall.onDisable();
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, null, null,
+                    wall, visibility.snapshot(), target);
+            assertEquals(0, target.snapshot().entityIndex());
+        } finally { wall.onDisable(); aura.onDisable(); }
+    }
+
     @Test
     void excludesDeadUnknownAndOutOfRangeAndClearsStaleInputs() {
         final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();

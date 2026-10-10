@@ -58,7 +58,7 @@ final class Minecraft189KillAuraTargetSelector {
             final Minecraft189WorldEntityUuidState.Snapshot identities,
             final Minecraft189NearestPlayerTargetState target) {
         select(aura, local, rotation, positions, kinds, combat,
-                antiBot, teamGuard, null, identities, target);
+                antiBot, teamGuard, null, identities, null, null, target);
     }
 
     static void select(
@@ -72,6 +72,24 @@ final class Minecraft189KillAuraTargetSelector {
             final Minecraft189TeamGuardModule teamGuard,
             final Minecraft189FriendGuardModule friendGuard,
             final Minecraft189WorldEntityUuidState.Snapshot identities,
+            final Minecraft189NearestPlayerTargetState target) {
+        select(aura, local, rotation, positions, kinds, combat,
+                antiBot, teamGuard, friendGuard, identities, null, null, target);
+    }
+
+    static void select(
+            final Minecraft189KillAuraModule aura,
+            final Minecraft189PlayerPositionState.Snapshot local,
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final Minecraft189WorldEntityPositionState.Snapshot positions,
+            final Minecraft189WorldEntityKindState.Snapshot kinds,
+            final Minecraft189WorldEntityCombatState.Snapshot combat,
+            final Minecraft189AntiBotModule antiBot,
+            final Minecraft189TeamGuardModule teamGuard,
+            final Minecraft189FriendGuardModule friendGuard,
+            final Minecraft189WorldEntityUuidState.Snapshot identities,
+            final Minecraft189WallCheckModule wallCheck,
+            final Minecraft189WorldEntityVisibilityState.Snapshot visibility,
             final Minecraft189NearestPlayerTargetState target) {
         if (target == null) return;
         if (aura == null || local == null || rotation == null
@@ -94,6 +112,13 @@ final class Minecraft189KillAuraTargetSelector {
             aura.rememberSelectedTarget(null);
             return;
         }
+        if (wallCheck != null && wallCheck.active()
+                && (visibility == null || !visibility.available()
+                    || visibility.entityCount() != positions.entityCount())) {
+            target.clear();
+            aura.rememberSelectedTarget(null);
+            return;
+        }
         final UUID lockedUuid = aura.lockedTargetUuid();
         final double range = aura.rangeSetting().get();
         final double fov = aura.fovSetting().get();
@@ -110,6 +135,8 @@ final class Minecraft189KillAuraTargetSelector {
                                 || teamGuard.permits(candidate.entityIndex(), combat))
                         && (friendGuard == null
                                 || friendGuard.permits(candidate.entityIndex(), identities))
+                        && (wallCheck == null
+                                || wallCheck.permits(candidate.entityIndex(), visibility))
                         && Double.isFinite(
                             angularScore(local, rotation, candidate, fov)),
                 candidate -> lockedUuid != null
