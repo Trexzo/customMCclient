@@ -41,6 +41,9 @@ public final class Minecraft189RuntimeBridge {
     private static boolean acceptanceAuraWallCheckArmed;
     private static boolean acceptanceAuraWallEnabled;
     private static boolean acceptanceAuraWallReported;
+    private static boolean acceptanceAuraWallRecoveryVisibleReported;
+    private static boolean acceptanceAuraWallRecoveryClickReported;
+    private static boolean acceptanceAuraWallRecoveryControllerReported;
     private static int acceptanceAuraFovTargetIndex = -1;
     private static int acceptanceAuraFovDisabledTicks;
     private static int acceptanceAuraFovEnabledTicks;
@@ -95,6 +98,9 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraWallCheckArmed = false;
         acceptanceAuraWallEnabled = false;
         acceptanceAuraWallReported = false;
+        acceptanceAuraWallRecoveryVisibleReported = false;
+        acceptanceAuraWallRecoveryClickReported = false;
+        acceptanceAuraWallRecoveryControllerReported = false;
         acceptanceAuraFovTargetIndex = -1;
         acceptanceAuraFovDisabledTicks = 0;
         acceptanceAuraFovEnabledTicks = 0;
@@ -697,8 +703,10 @@ public final class Minecraft189RuntimeBridge {
                     }
                 }
             }
-            if (Boolean.getBoolean(
+            if ((Boolean.getBoolean(
                     "custommc.acceptance.reportKillAuraWallVeto")
+                    || Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraWallRecovery"))
                     && !acceptanceAuraWallReported) {
                 // Use genuine player positions + the live vanilla LOS vector.
                 // 0 means native canEntityBeSeen confirmed occluded;
@@ -805,6 +813,35 @@ public final class Minecraft189RuntimeBridge {
                             System.out.flush();
                         }
                     }
+                }
+            }
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraWallRecovery")
+                    && acceptanceAuraWallReported
+                    && !acceptanceAuraWallRecoveryVisibleReported) {
+                final Minecraft189WorldEntityVisibilityState.Snapshot visibility =
+                        host.worldEntityVisibilityState().snapshot();
+                final Minecraft189WorldEntityKindState.Snapshot kinds =
+                        host.worldEntityKindState().snapshot();
+                final Minecraft189WorldEntityCombatState.Snapshot combat =
+                        host.worldEntityCombatState().snapshot();
+                final Minecraft189TargetRotationState.Snapshot selected =
+                        host.targetRotationState().snapshot();
+                final int idx = acceptanceAuraWallIndex;
+                if (host.featureCatalog().wallCheck().active()
+                        && host.featureCatalog().killAura().active()
+                        && idx >= 0 && kinds.available() && combat.available()
+                        && visibility.available()
+                        && idx < kinds.entityCount() && idx < combat.entityCount()
+                        && idx < visibility.entityCount()
+                        && kinds.player(idx) && kinds.living(idx)
+                        && !kinds.localPlayer(idx) && combat.alive(idx)
+                        && visibility.visible(idx)
+                        && selected.available() && selected.entityIndex() == idx) {
+                    acceptanceAuraWallRecoveryVisibleReported = true;
+                    System.out.println(
+                            "CUSTOMMC_189_WALL_RECOVERY_NATIVE_VISIBLE_SELECTED_PASS=YES");
+                    System.out.flush();
                 }
             }
             if (Boolean.getBoolean(
@@ -1112,6 +1149,31 @@ public final class Minecraft189RuntimeBridge {
                             "real occluded player caused synthetic attack");
                 }
                 if (Boolean.getBoolean(
+                        "custommc.acceptance.reportKillAuraWallRecovery")) {
+                    final Minecraft189WorldEntityVisibilityState.Snapshot los =
+                            host.worldEntityVisibilityState().snapshot();
+                    final Minecraft189TargetRotationState.Snapshot selected =
+                            host.targetRotationState().snapshot();
+                    if (!acceptanceAuraWallReported
+                            || !acceptanceAuraWallRecoveryVisibleReported
+                            || !host.featureCatalog().wallCheck().active()
+                            || !host.featureCatalog().killAura().active()
+                            || !playerHit || playerIndex < 0
+                            || playerIndex != acceptanceAuraWallIndex
+                            || !los.visible(playerIndex)
+                            || !selected.available()
+                            || selected.entityIndex() != playerIndex) {
+                        throw new IllegalStateException(
+                                "wall recovery attacked without genuine visible original player");
+                    }
+                    if (!acceptanceAuraWallRecoveryClickReported) {
+                        acceptanceAuraWallRecoveryClickReported = true;
+                        System.out.println(
+                                "CUSTOMMC_189_WALL_RECOVERY_OWNED_VISIBLE_ATTACK_PASS=YES");
+                        System.out.flush();
+                    }
+                }
+                if (Boolean.getBoolean(
                         "custommc.acceptance.reportKillAuraFovVeto")) {
                     throw new IllegalStateException(
                             "out-of-FOV real player caused synthetic attack");
@@ -1255,6 +1317,20 @@ public final class Minecraft189RuntimeBridge {
                 "custommc.acceptance.reportKillAuraWallVeto")) {
             throw new IllegalStateException(
                     "real occluded player reached native attackEntity");
+        }
+        if (Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraWallRecovery")) {
+            if (!acceptanceAuraWallRecoveryClickReported
+                    || controller == null || player == null || entity == null) {
+                throw new IllegalStateException(
+                        "native attackEntity before verified wall removal and Aura attack");
+            }
+            if (!acceptanceAuraWallRecoveryControllerReported) {
+                acceptanceAuraWallRecoveryControllerReported = true;
+                System.out.println(
+                        "CUSTOMMC_189_WALL_RECOVERY_NATIVE_CONTROLLER_ATTACK_PASS=YES");
+                System.out.flush();
+            }
         }
         if (Boolean.getBoolean(
                 "custommc.acceptance.reportKillAuraFovVeto")) {

@@ -7,6 +7,7 @@ from RunMojang189LocalhostTwoPlayerSmoke import (
     actual_server_spawn_fixture,
     actual_server_spawn_fov_fixture,
     actual_server_spawn_wall_fixture,
+    actual_server_clear_wall_command,
 )
 
 
@@ -106,6 +107,28 @@ class RealWallSpawnChunkFixtureTest(unittest.TestCase):
             log.write_bytes(b"CIHost joined the game\n")
             with self.assertRaisesRegex(AssertionError, "wall host spawn unknown"):
                 actual_server_spawn_wall_fixture(log)
+
+
+class WallRemovalCommandTest(unittest.TestCase):
+    def test_forward_wall_removal_reuses_exact_coordinates(self):
+        self.assertEqual(
+            actual_server_clear_wall_command("fill 242 5 445 244 8 445 stone"),
+            "fill 242 5 445 244 8 445 air",
+        )
+
+    def test_negative_coords_remain_identical(self):
+        self.assertEqual(
+            actual_server_clear_wall_command("fill -38 5 -35 -36 8 -35 stone"),
+            "fill -38 5 -35 -36 8 -35 air",
+        )
+
+    def test_malformed_or_non_stone_command_fails_closed(self):
+        for command in ("fill 0 0 0 1 1 1 air",
+                        "fill 0 0 0 1 1 stone",
+                        "fill 0 0 NaN 1 1 1 stone"):
+            with self.subTest(command=command):
+                with self.assertRaises(AssertionError):
+                    actual_server_clear_wall_command(command)
 
 
 if __name__ == "__main__":

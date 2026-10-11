@@ -1720,7 +1720,8 @@ public final class Minecraft189FeatureCatalog
     /** Only real Mojang wall-occlusion CI: normal module lifecycle. */
     void enableWallCheckForOfficialWallVetoAcceptance() {
         requireOpen();
-        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraWallVeto")) {
+        if (!(Boolean.getBoolean("custommc.acceptance.reportKillAuraWallVeto")
+                || Boolean.getBoolean("custommc.acceptance.reportKillAuraWallRecovery"))) {
             throw new IllegalStateException("wall fixture not armed");
         }
         if (moduleController.stateOf(Minecraft189WallCheckModule.ID)
@@ -1739,7 +1740,8 @@ public final class Minecraft189FeatureCatalog
 
     void enableKillAuraForOfficialWallVetoAcceptance() {
         requireOpen();
-        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraWallVeto")
+        if (!(Boolean.getBoolean("custommc.acceptance.reportKillAuraWallVeto")
+                || Boolean.getBoolean("custommc.acceptance.reportKillAuraWallRecovery"))
                 || !wallCheck().active()
                 || moduleController.stateOf(Minecraft189KillAuraModule.ID)
                 != ModuleState.DISABLED) {

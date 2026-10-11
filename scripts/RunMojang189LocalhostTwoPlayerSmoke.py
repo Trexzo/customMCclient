@@ -36,6 +36,9 @@ FOV_VETO = b"CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_FOV_VETO_PASS=YES"
 WALL_DISABLED = b"CUSTOMMC_189_KILLAURA_WALL_DISABLED_OCCLUDED_TICKS_PASS=20"
 WALL_ENABLED = b"CUSTOMMC_189_KILLAURA_WALL_MODULE_ENABLE_PASS=YES"
 WALL_VETO = b"CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_WALL_VETO_PASS=YES"
+WALL_RECOVERY_VISIBLE = b"CUSTOMMC_189_WALL_RECOVERY_NATIVE_VISIBLE_SELECTED_PASS=YES"
+WALL_RECOVERY_CLICK = b"CUSTOMMC_189_WALL_RECOVERY_OWNED_VISIBLE_ATTACK_PASS=YES"
+WALL_RECOVERY_CONTROLLER = b"CUSTOMMC_189_WALL_RECOVERY_NATIVE_CONTROLLER_ATTACK_PASS=YES"
 
 
 def local_port():
@@ -154,6 +157,20 @@ def actual_server_spawn_wall_fixture(server_log):
             x - 1, y, z + sign, x + 1, y + 3, z + sign
         ),
     )
+
+
+
+def actual_server_clear_wall_command(wall_fill):
+    """Reverse ONLY the genuine fixture's server-created stone barrier."""
+    parts = wall_fill.split()
+    if (len(parts) != 8 or parts[0] != "fill"
+            or parts[7] != "stone"):
+        raise AssertionError("not a real fixture stone-wall fill command")
+    try:
+        tuple(int(value) for value in parts[1:7])
+    except ValueError as error:
+        raise AssertionError("malformed stone wall coordinates") from error
+    return " ".join(parts[:7] + ["air"])
 
 
 def write_server_properties(path, port):
@@ -306,6 +323,9 @@ def client_command(args, game, username, uuid, port, remote):
     if remote and args.wall_veto:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraWallVeto=true")
+    if remote and args.wall_recovery:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportKillAuraWallRecovery=true")
     if remote and args.fov_veto:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraFovVeto=true")
@@ -418,7 +438,7 @@ def run(args):
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
 
-        if args.wall_veto:
+        if args.wall_veto or args.wall_recovery:
             # Unmodified Mojang server places a real full-height stone wall.
             # Target is close and IN camera FOV; only native LOS can veto.
             send_server_command(server, server_log,
@@ -453,6 +473,42 @@ def run(args):
                                 expected=b"score 0 is in range 0 to 0")
             print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_WALL_SERVER_NO_DAMAGE_PASS=YES",
                   flush=True)
+            if args.wall_recovery:
+                # SAME genuine server + clients + unchanged modules.
+                # Remove only the barrier using the server's vanilla command.
+                # Never click manually or reset CITarget's scoreboard.
+                air_fill = actual_server_clear_wall_command(wall_fill)
+                send_server_command(server, server_log, air_fill,
+                                    expected=b"12 blocks filled")
+                print("CUSTOMMC_189_WALL_RECOVERY_REAL_SERVER_AIR_REMOVAL_PASS=YES",
+                      flush=True)
+                wait_for(host, host_log, WALL_RECOVERY_VISIBLE, deadline,
+                         "same native remote player visible and selected after wall removal")
+                wait_for(host, host_log, WALL_RECOVERY_CLICK, deadline,
+                         "Kill Aura owned real visible-player attack after wall removal")
+                wait_for(host, host_log, WALL_RECOVERY_CONTROLLER, deadline,
+                         "genuine Mojang PlayerController attackEntity post-wall")
+                # A client click/controller entry cannot certify server PvP.
+                # Only a positive, read-only vanilla scoreboard result can.
+                recovered = False
+                while time.monotonic() < deadline and not recovered:
+                    try:
+                        send_server_command(
+                            server, server_log,
+                            "scoreboard players test CITarget taken 1 999999",
+                            expected=b"is in range 1 to 999999", timeout=1.4)
+                        recovered = True
+                    except AssertionError as error:
+                        if "dedicated server unavailable" in str(error):
+                            raise
+                        check_process(server, "recovered wall-clear server damage probe")
+                if not recovered:
+                    send_server_command(server, server_log,
+                                        "scoreboard players list CITarget")
+                    raise AssertionError(
+                        "real wall removal did not restore server-accepted PvP damage")
+                print("CUSTOMMC_OFFICIAL_189_WALL_REMOVAL_SERVER_DAMAGE_PASS=YES",
+                      flush=True)
 
         if args.fov_veto:
             # The second player is genuinely close enough to hit, but the
@@ -640,6 +696,9 @@ def run(args):
         elif args.range_veto:
             print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_RANGE_NEGATIVE_PASS=YES",
                   flush=True)
+        elif args.wall_recovery:
+            print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_WALL_RECOVERY_PASS=YES",
+                  flush=True)
         elif args.wall_veto:
             print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_WALL_NEGATIVE_PASS=YES",
                   flush=True)
@@ -679,6 +738,8 @@ def main():
                        help="prove real out-of-range player cannot be attacked")
     group.add_argument("--wall-veto", action="store_true",
                        help="prove native LOS-veto for in-range player behind server wall")
+    group.add_argument("--wall-recovery", action="store_true",
+                       help="prove stone wall veto then same server wall removal restores damage")
     group.add_argument("--fov-veto", action="store_true",
                        help="prove in-range real player behind camera is excluded")
     args = parser.parse_args()
