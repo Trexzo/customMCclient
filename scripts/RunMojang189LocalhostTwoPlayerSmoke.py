@@ -164,6 +164,12 @@ def actual_server_spawn_wall_fixture(server_log):
 
 
 
+def actual_server_spawn_positive_pvp_fixture(server_log):
+    """Real in-range PvP positions without a wall, within loaded spawn chunk."""
+    host_tp, target_tp, _unused_wall = actual_server_spawn_wall_fixture(server_log)
+    return host_tp, target_tp
+
+
 def actual_server_clear_wall_command(wall_fill):
     """Reverse ONLY the genuine fixture's server-created stone barrier."""
     parts = wall_fill.split()
@@ -641,10 +647,18 @@ def run(args):
             send_server_command(server, server_log, "gamemode 0 CIHost")
             send_server_command(server, server_log, "gamemode 0 CITarget")
             send_server_command(server, server_log, "gamerule naturalRegeneration false")
-            # Vanilla FLAT overworld with y=5. CIHost facing +Z.
-            # Stationary CITarget 2 blocks ahead, genuinely in PvP reach.
-            send_server_command(server, server_log, "tp CIHost 0 5 0 0 0")
-            send_server_command(server, server_log, "tp CITarget 0 5 2 180 0")
+            # The dedicated server generates a new FLAT spawn for each
+            # trial. Teleporting BOTH clients to 0,0 can leave the remote
+            # EntityPlayer outside the locally loaded entity inventory.
+            # Reuse the ACTUAL login spawn chunk and a genuine two-block
+            # separation, just as the certified wall controls do, without
+            # creating a wall or changing any attack/range checks.
+            host_tp, target_tp = actual_server_spawn_positive_pvp_fixture(
+                server_log)
+            send_server_command(server, server_log, host_tp)
+            send_server_command(server, server_log, target_tp)
+            print("CUSTOMMC_189_PVP_REAL_SERVER_SPAWN_CHUNK_PASS=YES",
+                  flush=True)
             print("CUSTOMMC_189_SERVER_REAL_PLAYER_PVP_POSITIONS_SET=YES",
                   flush=True)
             wait_for(host, host_log, AURA_DISABLED, deadline,

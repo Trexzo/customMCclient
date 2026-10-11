@@ -7,6 +7,7 @@ from RunMojang189LocalhostTwoPlayerSmoke import (
     actual_server_spawn_fixture,
     actual_server_spawn_fov_fixture,
     actual_server_spawn_wall_fixture,
+    actual_server_spawn_positive_pvp_fixture,
     actual_server_clear_wall_command,
 )
 
@@ -129,6 +130,36 @@ class WallRemovalCommandTest(unittest.TestCase):
             with self.subTest(command=command):
                 with self.assertRaises(AssertionError):
                     actual_server_clear_wall_command(command)
+
+
+class PositivePvpSpawnChunkFixtureTest(unittest.TestCase):
+    def check(self, raw, host, target):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "server.log"
+            path.write_bytes(raw)
+            self.assertEqual(actual_server_spawn_positive_pvp_fixture(path),
+                             (host, target))
+
+    def test_positive_pvp_follows_real_positive_z_spawn(self):
+        self.check(
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\n",
+            "tp CIHost 243 5 444 0 0",
+            "tp CITarget 243 5 446 180 0",
+        )
+
+    def test_positive_pvp_follows_negative_chunk_edge(self):
+        self.check(
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (-36.5, 4.0, -33.5)\n",
+            "tp CIHost -37 5 -34 180 0",
+            "tp CITarget -37 5 -36 0 0",
+        )
+
+    def test_positive_pvp_requires_real_server_login(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "server.log"
+            path.write_bytes(b"CIHost joined the game\n")
+            with self.assertRaisesRegex(AssertionError, "wall host spawn unknown"):
+                actual_server_spawn_positive_pvp_fixture(path)
 
 
 if __name__ == "__main__":
