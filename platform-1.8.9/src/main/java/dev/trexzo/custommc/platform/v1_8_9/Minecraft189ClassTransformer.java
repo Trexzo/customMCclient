@@ -757,7 +757,7 @@ public final class Minecraft189ClassTransformer
                                     if (!firstNativeClickCounter
                                             && opcode == Opcodes.GETFIELD
                                             && Minecraft189Mappings.MINECRAFT
-                                                    .obfuscatedName().equals(owner)
+                                                    .obfuscatedInternalName().equals(owner)
                                             && "I".equals(fieldDescriptor)) {
                                         firstNativeClickCounter = true;
                                         super.visitInsn(Opcodes.DUP);
