@@ -439,7 +439,7 @@ def run(args):
             # the vanilla dedicated-server Slowness effect; never change
             # any combat range, selector or damage gate.
             send_server_command(server, server_log,
-                                "effect CITarget 2 600 255 true")
+                                "effect CITarget 2 600 5 true")
             host_tp, target_tp = actual_server_spawn_fixture(server_log)
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, target_tp)
