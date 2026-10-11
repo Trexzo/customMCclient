@@ -4,12 +4,12 @@ import java.util.UUID;
 /** Real Mojang localhost CI only; observes production sticky UUID arbitration. */
 final class Minecraft189LockedTargetAcceptance {
     private static UUID aUuid, bUuid;
-    private static int phase, initialTicks, heldTicks;
+    private static int phase, initialTicks, armedTicks, heldTicks;
     private static boolean aHit, bHit;
     private Minecraft189LockedTargetAcceptance() {}
     static void reset() {
         aUuid = bUuid = null;
-        phase = initialTicks = heldTicks = 0;
+        phase = initialTicks = armedTicks = heldTicks = 0;
         aHit = bHit = false;
     }
 
@@ -74,7 +74,19 @@ final class Minecraft189LockedTargetAcceptance {
         }
         if (!aura.active() || !aura.lockTargetSetting().get())
             throw new IllegalStateException("sticky module disabled");
-        if (phase==2) {
+        if (phase==1) {
+            // First confirm genuine native A is the live locked UUID.
+            // Test A remains creative to exclude PvP knockback in this
+            // selection-only phase. Server damage remains at zero.
+            if (e!=null && e.initialA()
+                    && aUuid.equals(aura.lockedTargetUuid())) {
+                if (++armedTicks>=10) {
+                    phase=2;
+                    System.out.println("CUSTOMMC_189_LOCK_A_NATIVE_UUID_ARMED_PASS=10");
+                    System.out.flush();
+                }
+            } else armedTicks=0;
+        } else if (phase==2) {
             if (e!=null && e.bCloserButASelected()
                     && aUuid.equals(aura.lockedTargetUuid())) {
                 if (++heldTicks>=15) {
@@ -84,9 +96,9 @@ final class Minecraft189LockedTargetAcceptance {
                 }
             } else heldTicks=0;
         }
-        if (phase==3 && e!=null && e.aFarBSelected()
+        if (phase==4 && e!=null && e.aFarBSelected()
                 && bUuid.equals(aura.lockedTargetUuid())) {
-            phase=4;
+            phase=5;
             System.out.println("CUSTOMMC_189_LOCK_A_INELIGIBLE_RELEASES_TO_B_PASS=YES");
             System.out.flush();
         }
@@ -107,25 +119,29 @@ final class Minecraft189LockedTargetAcceptance {
                 || !uuid.equals(aura.lockedTargetUuid()))
             throw new IllegalStateException("no live locked owner: phase="+phase
                     +" index="+index+" uuid="+uuid+" locked="+aura.lockedTargetUuid());
-        if (phase==1 && aUuid.equals(uuid)) {
-            aHit=true; phase=2;
+        if ((phase==1 || phase==2) && aUuid.equals(uuid)) {
+            // Creative A is a real eligible selectable player, but cannot
+            // satisfy the later survival PvP server-damage gate.
+        } else if (phase==3 && aUuid.equals(uuid)) {
+            aHit=true; phase=4;
             System.out.println("CUSTOMMC_189_LOCK_A_NATIVE_UUID_OWNED_ATTACK_PASS=YES");
             System.out.flush();
-        } else if ((phase==2 || phase==3) && aUuid.equals(uuid)) {
+        } else if (phase==4 && aUuid.equals(uuid)) {
             if (!(e.da<=3.5D && e.da>=1.0D))
                 throw new IllegalStateException("stale A attack after range expiry");
-        } else if (phase>=3 && bUuid.equals(uuid) && aHit && e.aFarBSelected()) {
-            if (phase==3) {
-                phase=4;
+        } else if ((phase==4 || phase==5) && bUuid.equals(uuid)
+                && aHit && e.aFarBSelected()) {
+            if (phase==4) {
+                phase=5;
                 System.out.println("CUSTOMMC_189_LOCK_A_INELIGIBLE_RELEASES_TO_B_PASS=YES");
             }
             if (!bHit) {
-                bHit=true; phase=5;
+                bHit=true; phase=6;
                 System.out.println("CUSTOMMC_189_LOCK_B_NATIVE_UUID_OWNED_ATTACK_PASS=YES");
             }
             System.out.flush();
-        } else if (phase==5 && bUuid.equals(uuid)) {
-            // Subsequent B attacks remain gated by real current UUID owner.
+        } else if (phase==6 && bUuid.equals(uuid)) {
+            // Every later B click must still pass exact current native guard.
         } else throw new IllegalStateException("wrong locked target UUID phase="
                 +phase+" uuid="+uuid);
     }
@@ -161,7 +177,7 @@ final class Minecraft189LockedTargetAcceptance {
                     && db+0.12<da && selected(a);
         }
         boolean aFarBSelected() {
-            return da>3.5 && db>=1 && db<=3.5 && selected(b);
+            return da>4.5 && db>=1 && db<=3.5 && selected(b);
         }
     }
 }
