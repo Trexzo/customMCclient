@@ -35,6 +35,7 @@ public final class Minecraft189RuntimeBridge {
     private static boolean acceptanceAuraFarEnabled;
     private static boolean acceptanceAuraFarReported;
     private static int acceptanceAuraFarEvidenceChecks;
+    private static int acceptanceAuraFovTargetIndex = -1;
     private static int acceptanceAuraFovDisabledTicks;
     private static int acceptanceAuraFovEnabledTicks;
     private static boolean acceptanceAuraFovEnabled;
@@ -82,6 +83,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraFarEnabled = false;
         acceptanceAuraFarReported = false;
         acceptanceAuraFarEvidenceChecks = 0;
+        acceptanceAuraFovTargetIndex = -1;
         acceptanceAuraFovDisabledTicks = 0;
         acceptanceAuraFovEnabledTicks = 0;
         acceptanceAuraFovEnabled = false;
@@ -686,61 +688,89 @@ public final class Minecraft189RuntimeBridge {
             if (Boolean.getBoolean(
                     "custommc.acceptance.reportKillAuraFovVeto")
                     && !acceptanceAuraFovReported) {
+                // Once enabled, the real Aura selector correctly clears its
+                // rejected target. Measure yaw from the unmodified native
+                // loaded-player position instead of requiring targetRotation.
                 final Minecraft189PlayerRotationState.Snapshot rotation =
                         host.playerRotationState().snapshot();
-                final Minecraft189TargetRotationState.Snapshot target =
-                        host.targetRotationState().snapshot();
                 final Minecraft189WorldEntityKindState.Snapshot kinds =
                         host.worldEntityKindState().snapshot();
                 final Minecraft189PlayerPositionState.Snapshot local =
                         host.playerPositionState().snapshot();
                 final Minecraft189WorldEntityPositionState.Snapshot positions =
                         host.worldEntityPositionState().snapshot();
-                boolean valid = rotation.available() && target.available()
+                int remoteIndex = -1;
+                int remoteCount = 0;
+                boolean valid = rotation.available()
                         && kinds.available() && positions.available()
                         && local.available()
-                        && target.entityIndex() >= 0
-                        && target.entityIndex() < kinds.entityCount()
                         && kinds.entityCount() == positions.entityCount();
                 if (valid) {
-                    final int index = target.entityIndex();
-                    final double dx = positions.x(index) - local.x();
-                    final double dy = positions.y(index) - local.y();
-                    final double dz = positions.z(index) - local.z();
+                    for (int index = 0; index < kinds.entityCount(); index++) {
+                        if (kinds.player(index) && !kinds.localPlayer(index)) {
+                            remoteCount++;
+                            if (kinds.living(index))
+                                remoteIndex = index;
+                        }
+                    }
+                    valid = remoteCount == 1 && remoteIndex >= 0;
+                }
+                if (valid) {
+                    final double dx = positions.x(remoteIndex) - local.x();
+                    final double dy = positions.y(remoteIndex) - local.y();
+                    final double dz = positions.z(remoteIndex) - local.z();
+                    final double horizontal = Math.hypot(dx, dz);
                     final double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                    double yawError = target.yaw() - rotation.yaw();
+                    final double targetYaw = Math.toDegrees(Math.atan2(dz, dx))
+                            - 90.0D;
+                    double yawError = targetYaw - rotation.yaw();
                     yawError = ((yawError + 540.0D) % 360.0D) - 180.0D;
-                    valid = kinds.player(index) && kinds.living(index)
-                            && !kinds.localPlayer(index)
-                            && Double.isFinite(distance)
+                    valid = Double.isFinite(distance)
                             && distance >= 1.5D && distance <= 3.25D
+                            && Double.isFinite(horizontal) && horizontal > 0.0D
                             && Double.isFinite(yawError)
                             && Math.abs(yawError) >= 120.0D;
                 }
-                if (!valid) {
+                if (!valid || (acceptanceAuraFovTargetIndex >= 0
+                        && remoteIndex != acceptanceAuraFovTargetIndex)) {
+                    acceptanceAuraFovTargetIndex = -1;
                     acceptanceAuraFovDisabledTicks = 0;
                     acceptanceAuraFovEnabledTicks = 0;
-                } else if (!acceptanceAuraFovEnabled) {
-                    if (host.featureCatalog().killAura().active())
-                        throw new IllegalStateException("FOV module pre-enabled");
-                    if (++acceptanceAuraFovDisabledTicks >= 20) {
-                        System.out.println(
-                                "CUSTOMMC_189_KILLAURA_FOV_DISABLED_TARGET_TICKS_PASS=20");
-                        host.featureCatalog()
-                                .enableKillAuraForOfficialFovVetoAcceptance();
-                        acceptanceAuraFovEnabled = true;
-                        System.out.println(
-                                "CUSTOMMC_189_KILLAURA_FOV_MODULE_ENABLE_PASS=YES");
-                        System.out.flush();
-                    }
                 } else {
-                    if (!host.featureCatalog().killAura().active())
-                        throw new IllegalStateException("FOV module disabled unexpectedly");
-                    if (++acceptanceAuraFovEnabledTicks >= 80) {
-                        acceptanceAuraFovReported = true;
-                        System.out.println(
-                                "CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_FOV_VETO_PASS=YES");
-                        System.out.flush();
+                    acceptanceAuraFovTargetIndex = remoteIndex;
+                    if (Double.compare(host.featureCatalog().killAura()
+                            .fovSetting().get(), 90.0D) != 0) {
+                        throw new IllegalStateException(
+                                "FOV acceptance requires unchanged 90-degree setting");
+                    }
+                    if (!acceptanceAuraFovEnabled) {
+                        if (host.featureCatalog().killAura().active())
+                            throw new IllegalStateException("FOV module pre-enabled");
+                        if (++acceptanceAuraFovDisabledTicks >= 20) {
+                            System.out.println(
+                                    "CUSTOMMC_189_KILLAURA_FOV_DISABLED_TARGET_TICKS_PASS=20");
+                            host.featureCatalog()
+                                    .enableKillAuraForOfficialFovVetoAcceptance();
+                            acceptanceAuraFovEnabled = true;
+                            System.out.println(
+                                    "CUSTOMMC_189_KILLAURA_FOV_MODULE_ENABLE_PASS=YES");
+                            System.out.flush();
+                        }
+                    } else {
+                        if (!host.featureCatalog().killAura().active())
+                            throw new IllegalStateException(
+                                    "FOV module disabled unexpectedly");
+                        // An actual rejected remote player must remain absent
+                        // from BOTH selected player and attack rotation state.
+                        if (host.nearestPlayerTargetState().snapshot().found()
+                                || host.targetRotationState().snapshot().available()) {
+                            acceptanceAuraFovEnabledTicks = 0;
+                        } else if (++acceptanceAuraFovEnabledTicks >= 80) {
+                            acceptanceAuraFovReported = true;
+                            System.out.println(
+                                    "CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_FOV_VETO_PASS=YES");
+                            System.out.flush();
+                        }
                     }
                 }
             }
