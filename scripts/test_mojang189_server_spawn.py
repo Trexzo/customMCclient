@@ -6,6 +6,7 @@ import unittest
 from RunMojang189LocalhostTwoPlayerSmoke import (
     actual_server_spawn_fixture,
     actual_server_spawn_fov_fixture,
+    actual_server_spawn_wall_fixture,
 )
 
 
@@ -72,6 +73,39 @@ class RealFovSpawnChunkFixtureTest(unittest.TestCase):
             path.write_bytes(b"CIHost joined the game\n")
             with self.assertRaisesRegex(AssertionError, "host spawn unknown"):
                 actual_server_spawn_fov_fixture(path)
+
+
+class RealWallSpawnChunkFixtureTest(unittest.TestCase):
+    def check(self, raw, host, target, fill):
+        with tempfile.TemporaryDirectory() as root:
+            log = Path(root) / "server.log"
+            log.write_bytes(raw)
+            self.assertEqual(
+                actual_server_spawn_wall_fixture(log), (host, target, fill)
+            )
+
+    def test_forward_two_block_server_wall_in_same_chunk(self):
+        self.check(
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\n",
+            "tp CIHost 243 5 444 0 0",
+            "tp CITarget 243 5 446 180 0",
+            "fill 242 5 445 244 8 445 stone",
+        )
+
+    def test_backward_two_block_server_wall_near_chunk_edge(self):
+        self.check(
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (-36.5, 4.0, -33.5)\n",
+            "tp CIHost -37 5 -34 180 0",
+            "tp CITarget -37 5 -36 0 0",
+            "fill -38 5 -35 -36 8 -35 stone",
+        )
+
+    def test_wall_fixture_requires_native_mojang_login(self):
+        with tempfile.TemporaryDirectory() as root:
+            log = Path(root) / "server.log"
+            log.write_bytes(b"CIHost joined the game\n")
+            with self.assertRaisesRegex(AssertionError, "wall host spawn unknown"):
+                actual_server_spawn_wall_fixture(log)
 
 
 if __name__ == "__main__":

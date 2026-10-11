@@ -1717,6 +1717,42 @@ public final class Minecraft189FeatureCatalog
         }
     }
 
+    /** Only real Mojang wall-occlusion CI: normal module lifecycle. */
+    void enableWallCheckForOfficialWallVetoAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraWallVeto")) {
+            throw new IllegalStateException("wall fixture not armed");
+        }
+        if (moduleController.stateOf(Minecraft189WallCheckModule.ID)
+                != ModuleState.DISABLED
+                || moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                != ModuleState.DISABLED) {
+            throw new IllegalStateException("wall fixture modules pre-enabled");
+        }
+        moduleController.enable(Minecraft189WallCheckModule.ID);
+        if (!wallCheck().active()
+                || moduleController.stateOf(Minecraft189WallCheckModule.ID)
+                != ModuleState.ENABLED) {
+            throw new IllegalStateException("wall-check lifecycle failed");
+        }
+    }
+
+    void enableKillAuraForOfficialWallVetoAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraWallVeto")
+                || !wallCheck().active()
+                || moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                != ModuleState.DISABLED) {
+            throw new IllegalStateException("wall Aura fixture not ready");
+        }
+        moduleController.enable(Minecraft189KillAuraModule.ID);
+        if (!killAura().active()
+                || moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                != ModuleState.ENABLED) {
+            throw new IllegalStateException("wall Aura lifecycle failed");
+        }
+    }
+
     void enableKillAuraForOfficialFovVetoAcceptance() {
         requireOpen();
         if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraFovVeto")) {
