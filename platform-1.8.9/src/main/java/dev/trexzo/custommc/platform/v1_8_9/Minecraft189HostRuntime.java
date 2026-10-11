@@ -1207,7 +1207,11 @@ public final class Minecraft189HostRuntime
         worldEntityVisibilityState.clear();
         tickVisibilityWorld = world instanceof Minecraft189WorldEntityVisibilityAccess
                 ? (Minecraft189WorldEntityVisibilityAccess) world : null;
-        if (featureCatalog.wallCheck().active() && tickVisibilityWorld != null) {
+        // CI-only read-only LOS evidence while Wall Check is disabled.
+        // Normal gameplay still queries native LOS only with Wall Check ON.
+        if ((featureCatalog.wallCheck().active()
+                || Boolean.getBoolean("custommc.acceptance.reportKillAuraWallLifecycle"))
+                && tickVisibilityWorld != null) {
             try {
                 worldEntityVisibilityState.update(
                         tickVisibilityWorld.customMcLoadedEntityVisibility());
