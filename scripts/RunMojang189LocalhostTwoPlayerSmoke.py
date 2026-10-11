@@ -436,8 +436,10 @@ def run(args):
                 server_log)
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, target_tp)
+            # Genuine Mojang 1.8.9 prints "12 blocks filled" for
+            # the 3-wide by 4-tall single-block-thick stone barrier.
             send_server_command(server, server_log, wall_fill,
-                                expected=b"successfully filled")
+                                expected=b"12 blocks filled")
             print("CUSTOMMC_189_WALL_ACTUAL_SERVER_STONE_BARRIER_PASS=YES",
                   flush=True)
             wait_for(host, host_log, WALL_DISABLED, deadline,
