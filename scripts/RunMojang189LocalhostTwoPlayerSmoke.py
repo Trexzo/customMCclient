@@ -116,6 +116,42 @@ def send_server_command(server, log, command, expected=None, timeout=6):
                          + " log=" + after[-800:].decode("ascii", "replace"))
 
 
+def restore_real_attacker_focus(host, deadline):
+    """Reclaim real X11 active-window ownership after the second JVM starts.
+
+    Minecraft 1.8.9 suppresses clickMouse while leftClickCounter > 0.
+    Window activation can set leftClickCounter=10000, and vanilla clears
+    that guard in subsequent focused runTick cycles when attack is released.
+    Do not synthesize a manual attack or bypass the vanilla cooldown here.
+    """
+    window = None
+    while time.monotonic() < deadline:
+        check_process(host, "CIHost game focus")
+        result = subprocess.run(
+            ["xdotool", "search", "--onlyvisible", "--pid", str(host.pid),
+             "--name", "Minecraft"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=4
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            window = result.stdout.decode("ascii", "strict").splitlines()[-1]
+            break
+        time.sleep(0.3)
+    if window is None:
+        raise AssertionError("genuine host JVM Minecraft X11 window not found")
+    subprocess.check_call(["xdotool", "windowactivate", "--sync", window],
+                          timeout=6)
+    focused = subprocess.check_output(
+        ["xdotool", "getactivewindow"], timeout=4
+    ).decode("ascii", "strict").strip()
+    if int(focused) != int(window):
+        raise AssertionError("host window not active after EWMH activation")
+    # No X11 click is issued. Vanilla's attack-key released path owns the
+    # click counter reset; only subsequent module-owned clicks may attack.
+    print("CUSTOMMC_189_REAL_ATTACKER_X11_FOCUS_RESTORED=YES", flush=True)
+    time.sleep(2.0)
+    check_process(host, "CIHost refocused Minecraft game")
+
+
 def client_command(args, game, username, uuid, port, remote):
     if not re.fullmatch(r"[A-Za-z0-9_]{3,16}", username):
         raise ValueError("invalid offline fixture username")
@@ -264,6 +300,12 @@ def run(args):
             send_server_command(server, server_log, "tp CITarget 0 5 2 180 0")
             print("CUSTOMMC_189_SERVER_REAL_PLAYER_PVP_POSITIONS_SET=YES",
                   flush=True)
+            # The second client was launched last and may own X11 focus.
+            # Vanilla Minecraft leftClickCounter can suppress real packet
+            # dispatch when the attacker is unfocused. Restore actual
+            # host-window focus; never forge a packet or game state.
+            restore_real_attacker_focus(
+                host, min(deadline, time.monotonic() + 12))
 
             wait_for(host, host_log, AURA_DISABLED, deadline,
                      "20 disabled genuine nonlocal player target callbacks")
