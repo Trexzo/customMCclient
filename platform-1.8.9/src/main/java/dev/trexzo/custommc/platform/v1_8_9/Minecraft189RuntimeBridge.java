@@ -41,6 +41,9 @@ public final class Minecraft189RuntimeBridge {
     private static boolean acceptanceAuraWallCheckArmed;
     private static boolean acceptanceAuraWallEnabled;
     private static boolean acceptanceAuraWallReported;
+    private static int acceptanceWallLifecyclePhase;
+    private static int acceptanceWallLifecycleDisabledSelectionTicks;
+    private static int acceptanceWallLifecycleReenabledVetoTicks;
     private static boolean acceptanceAuraWallRecoveryVisibleReported;
     private static boolean acceptanceAuraWallRecoveryClickReported;
     private static boolean acceptanceAuraWallRecoveryControllerReported;
@@ -98,6 +101,9 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraWallCheckArmed = false;
         acceptanceAuraWallEnabled = false;
         acceptanceAuraWallReported = false;
+        acceptanceWallLifecyclePhase = 0;
+        acceptanceWallLifecycleDisabledSelectionTicks = 0;
+        acceptanceWallLifecycleReenabledVetoTicks = 0;
         acceptanceAuraWallRecoveryVisibleReported = false;
         acceptanceAuraWallRecoveryClickReported = false;
         acceptanceAuraWallRecoveryControllerReported = false;
@@ -706,7 +712,9 @@ public final class Minecraft189RuntimeBridge {
             if ((Boolean.getBoolean(
                     "custommc.acceptance.reportKillAuraWallVeto")
                     || Boolean.getBoolean(
-                    "custommc.acceptance.reportKillAuraWallRecovery"))
+                    "custommc.acceptance.reportKillAuraWallRecovery")
+                    || Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraWallLifecycle"))
                     && !acceptanceAuraWallReported) {
                 // Use genuine player positions + the live vanilla LOS vector.
                 // 0 means native canEntityBeSeen confirmed occluded;
@@ -816,7 +824,87 @@ public final class Minecraft189RuntimeBridge {
                 }
             }
             if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraWallLifecycle")
+                    && acceptanceAuraWallReported
+                    && acceptanceWallLifecyclePhase < 3) {
+                final Minecraft189WorldEntityKindState.Snapshot kinds =
+                        host.worldEntityKindState().snapshot();
+                final Minecraft189WorldEntityCombatState.Snapshot combat =
+                        host.worldEntityCombatState().snapshot();
+                final Minecraft189WorldEntityVisibilityState.Snapshot los =
+                        host.worldEntityVisibilityState().snapshot();
+                final Minecraft189NearestPlayerTargetState.Snapshot nearest =
+                        host.nearestPlayerTargetState().snapshot();
+                final Minecraft189TargetRotationState.Snapshot target =
+                        host.targetRotationState().snapshot();
+                final int idx = acceptanceAuraWallIndex;
+                // Real native occlusion remains mandatory throughout BOTH
+                // module lifecycle changes. Never count unknown -1 as 0.
+                final boolean stableOccluded =
+                        idx >= 0 && kinds.available() && combat.available()
+                        && los.available() && idx < kinds.entityCount()
+                        && idx < combat.entityCount() && idx < los.entityCount()
+                        && kinds.player(idx) && kinds.living(idx)
+                        && !kinds.localPlayer(idx) && combat.alive(idx)
+                        && los.occluded(idx)
+                        && host.featureCatalog().killAura().active();
+                if (!stableOccluded) {
+                    acceptanceWallLifecycleDisabledSelectionTicks = 0;
+                    acceptanceWallLifecycleReenabledVetoTicks = 0;
+                } else if (acceptanceWallLifecyclePhase == 0) {
+                    if (!host.featureCatalog().wallCheck().active()
+                            || nearest.found() || target.available()) {
+                        throw new IllegalStateException(
+                                "wall lifecycle started without active occlusion veto");
+                    }
+                    host.featureCatalog()
+                            .disableWallCheckForOfficialLifecycleAcceptance();
+                    acceptanceWallLifecyclePhase = 1;
+                    System.out.println(
+                            "CUSTOMMC_189_WALL_LIFECYCLE_NORMAL_DISABLE_PASS=YES");
+                    System.out.flush();
+                } else if (acceptanceWallLifecyclePhase == 1) {
+                    if (host.featureCatalog().wallCheck().active()) {
+                        throw new IllegalStateException(
+                                "wall check reenabled too early");
+                    }
+                    if (nearest.found() && nearest.entityIndex() == idx
+                            && target.available() && target.entityIndex() == idx) {
+                        if (++acceptanceWallLifecycleDisabledSelectionTicks >= 20) {
+                            System.out.println(
+                                    "CUSTOMMC_189_WALL_LIFECYCLE_OCCLUDED_SELECT_WHEN_OFF_PASS=20");
+                            host.featureCatalog()
+                                    .reenableWallCheckForOfficialLifecycleAcceptance();
+                            acceptanceWallLifecyclePhase = 2;
+                            System.out.println(
+                                    "CUSTOMMC_189_WALL_LIFECYCLE_NORMAL_REENABLE_PASS=YES");
+                            System.out.flush();
+                        }
+                    } else {
+                        acceptanceWallLifecycleDisabledSelectionTicks = 0;
+                    }
+                } else {
+                    if (!host.featureCatalog().wallCheck().active()) {
+                        throw new IllegalStateException(
+                                "wall check was not reenabled");
+                    }
+                    if (nearest.found() || target.available()) {
+                        // A newly re-enabled wall check must invalidate the
+                        // once-selected but now occluded candidate; never
+                        // accept stale target as a completed veto.
+                        acceptanceWallLifecycleReenabledVetoTicks = 0;
+                    } else if (++acceptanceWallLifecycleReenabledVetoTicks >= 30) {
+                        acceptanceWallLifecyclePhase = 3;
+                        System.out.println(
+                                "CUSTOMMC_OFFICIAL_189_WALL_LIFECYCLE_STALE_TARGET_CLEARED_PASS=YES");
+                        System.out.flush();
+                    }
+                }
+            }
+            if ((Boolean.getBoolean(
                     "custommc.acceptance.reportKillAuraWallRecovery")
+                    || Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraWallLifecycle"))
                     && acceptanceAuraWallReported
                     && !acceptanceAuraWallRecoveryVisibleReported) {
                 final Minecraft189WorldEntityVisibilityState.Snapshot visibility =
@@ -1149,12 +1237,17 @@ public final class Minecraft189RuntimeBridge {
                             "real occluded player caused synthetic attack");
                 }
                 if (Boolean.getBoolean(
-                        "custommc.acceptance.reportKillAuraWallRecovery")) {
+                        "custommc.acceptance.reportKillAuraWallRecovery")
+                        || Boolean.getBoolean(
+                        "custommc.acceptance.reportKillAuraWallLifecycle")) {
                     final Minecraft189WorldEntityVisibilityState.Snapshot los =
                             host.worldEntityVisibilityState().snapshot();
                     final Minecraft189TargetRotationState.Snapshot selected =
                             host.targetRotationState().snapshot();
                     if (!acceptanceAuraWallReported
+                            || (Boolean.getBoolean(
+                                    "custommc.acceptance.reportKillAuraWallLifecycle")
+                                    && acceptanceWallLifecyclePhase != 3)
                             || !acceptanceAuraWallRecoveryVisibleReported
                             || !host.featureCatalog().wallCheck().active()
                             || !host.featureCatalog().killAura().active()
@@ -1319,7 +1412,9 @@ public final class Minecraft189RuntimeBridge {
                     "real occluded player reached native attackEntity");
         }
         if (Boolean.getBoolean(
-                "custommc.acceptance.reportKillAuraWallRecovery")) {
+                "custommc.acceptance.reportKillAuraWallRecovery")
+                || Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraWallLifecycle")) {
             if (!acceptanceAuraWallRecoveryClickReported
                     || controller == null || player == null || entity == null) {
                 throw new IllegalStateException(

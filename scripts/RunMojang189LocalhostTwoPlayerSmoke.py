@@ -39,6 +39,10 @@ WALL_VETO = b"CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_WALL_VETO_PASS=YES"
 WALL_RECOVERY_VISIBLE = b"CUSTOMMC_189_WALL_RECOVERY_NATIVE_VISIBLE_SELECTED_PASS=YES"
 WALL_RECOVERY_CLICK = b"CUSTOMMC_189_WALL_RECOVERY_OWNED_VISIBLE_ATTACK_PASS=YES"
 WALL_RECOVERY_CONTROLLER = b"CUSTOMMC_189_WALL_RECOVERY_NATIVE_CONTROLLER_ATTACK_PASS=YES"
+WALL_LIFECYCLE_DISABLED = b"CUSTOMMC_189_WALL_LIFECYCLE_NORMAL_DISABLE_PASS=YES"
+WALL_LIFECYCLE_SELECTED = b"CUSTOMMC_189_WALL_LIFECYCLE_OCCLUDED_SELECT_WHEN_OFF_PASS=20"
+WALL_LIFECYCLE_REENABLED = b"CUSTOMMC_189_WALL_LIFECYCLE_NORMAL_REENABLE_PASS=YES"
+WALL_LIFECYCLE_VETO = b"CUSTOMMC_OFFICIAL_189_WALL_LIFECYCLE_STALE_TARGET_CLEARED_PASS=YES"
 
 
 def local_port():
@@ -158,6 +162,12 @@ def actual_server_spawn_wall_fixture(server_log):
         ),
     )
 
+
+
+def actual_server_spawn_positive_pvp_fixture(server_log):
+    """Real in-range PvP positions without a wall, within loaded spawn chunk."""
+    host_tp, target_tp, _unused_wall = actual_server_spawn_wall_fixture(server_log)
+    return host_tp, target_tp
 
 
 def actual_server_clear_wall_command(wall_fill):
@@ -326,6 +336,9 @@ def client_command(args, game, username, uuid, port, remote):
     if remote and args.wall_recovery:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraWallRecovery=true")
+    if remote and args.wall_lifecycle:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportKillAuraWallLifecycle=true")
     if remote and args.fov_veto:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraFovVeto=true")
@@ -438,7 +451,7 @@ def run(args):
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
 
-        if args.wall_veto or args.wall_recovery:
+        if args.wall_veto or args.wall_recovery or args.wall_lifecycle:
             # Unmodified Mojang server places a real full-height stone wall.
             # Target is close and IN camera FOV; only native LOS can veto.
             send_server_command(server, server_log,
@@ -473,8 +486,26 @@ def run(args):
                                 expected=b"score 0 is in range 0 to 0")
             print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_WALL_SERVER_NO_DAMAGE_PASS=YES",
                   flush=True)
-            if args.wall_recovery:
-                # SAME genuine server + clients + unchanged modules.
+            if args.wall_lifecycle:
+                # The stone wall stays intact while the normal module
+                # controller disables and re-enables Wall Check. Production
+                # targeting may select occluded player only when OFF;
+                # raycast/controller must never actually attack through stone.
+                wait_for(host, host_log, WALL_LIFECYCLE_DISABLED, deadline,
+                         "Wall Check disabled with active Kill Aura")
+                wait_for(host, host_log, WALL_LIFECYCLE_SELECTED, deadline,
+                         "20 real hidden-player selections while Wall Check off")
+                wait_for(host, host_log, WALL_LIFECYCLE_REENABLED, deadline,
+                         "normal Wall Check reenable while Aura stays active")
+                wait_for(host, host_log, WALL_LIFECYCLE_VETO, deadline,
+                         "30 native hidden callbacks with stale player deselected")
+                send_server_command(server, server_log,
+                                    "scoreboard players test CITarget taken 0 0",
+                                    expected=b"score 0 is in range 0 to 0")
+                print("CUSTOMMC_OFFICIAL_189_WALL_LIFECYCLE_SERVER_ZERO_DAMAGE_PASS=YES",
+                      flush=True)
+            if args.wall_recovery or args.wall_lifecycle:
+                # SAME genuine server + clients + unchanged Aura settings.
                 # Remove only the barrier using the server's vanilla command.
                 # Never click manually or reset CITarget's scoreboard.
                 air_fill = actual_server_clear_wall_command(wall_fill)
@@ -616,10 +647,18 @@ def run(args):
             send_server_command(server, server_log, "gamemode 0 CIHost")
             send_server_command(server, server_log, "gamemode 0 CITarget")
             send_server_command(server, server_log, "gamerule naturalRegeneration false")
-            # Vanilla FLAT overworld with y=5. CIHost facing +Z.
-            # Stationary CITarget 2 blocks ahead, genuinely in PvP reach.
-            send_server_command(server, server_log, "tp CIHost 0 5 0 0 0")
-            send_server_command(server, server_log, "tp CITarget 0 5 2 180 0")
+            # The dedicated server generates a new FLAT spawn for each
+            # trial. Teleporting BOTH clients to 0,0 can leave the remote
+            # EntityPlayer outside the locally loaded entity inventory.
+            # Reuse the ACTUAL login spawn chunk and a genuine two-block
+            # separation, just as the certified wall controls do, without
+            # creating a wall or changing any attack/range checks.
+            host_tp, target_tp = actual_server_spawn_positive_pvp_fixture(
+                server_log)
+            send_server_command(server, server_log, host_tp)
+            send_server_command(server, server_log, target_tp)
+            print("CUSTOMMC_189_PVP_REAL_SERVER_SPAWN_CHUNK_PASS=YES",
+                  flush=True)
             print("CUSTOMMC_189_SERVER_REAL_PLAYER_PVP_POSITIONS_SET=YES",
                   flush=True)
             wait_for(host, host_log, AURA_DISABLED, deadline,
@@ -696,6 +735,9 @@ def run(args):
         elif args.range_veto:
             print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_RANGE_NEGATIVE_PASS=YES",
                   flush=True)
+        elif args.wall_lifecycle:
+            print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_WALL_LIFECYCLE_PASS=YES",
+                  flush=True)
         elif args.wall_recovery:
             print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_WALL_RECOVERY_PASS=YES",
                   flush=True)
@@ -740,6 +782,8 @@ def main():
                        help="prove native LOS-veto for in-range player behind server wall")
     group.add_argument("--wall-recovery", action="store_true",
                        help="prove stone wall veto then same server wall removal restores damage")
+    group.add_argument("--wall-lifecycle", action="store_true",
+                       help="verify real wall-check off/on invalidates occluded targets before damage recovery")
     group.add_argument("--fov-veto", action="store_true",
                        help="prove in-range real player behind camera is excluded")
     args = parser.parse_args()

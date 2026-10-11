@@ -1721,7 +1721,8 @@ public final class Minecraft189FeatureCatalog
     void enableWallCheckForOfficialWallVetoAcceptance() {
         requireOpen();
         if (!(Boolean.getBoolean("custommc.acceptance.reportKillAuraWallVeto")
-                || Boolean.getBoolean("custommc.acceptance.reportKillAuraWallRecovery"))) {
+                || Boolean.getBoolean("custommc.acceptance.reportKillAuraWallRecovery")
+                || Boolean.getBoolean("custommc.acceptance.reportKillAuraWallLifecycle"))) {
             throw new IllegalStateException("wall fixture not armed");
         }
         if (moduleController.stateOf(Minecraft189WallCheckModule.ID)
@@ -1741,7 +1742,8 @@ public final class Minecraft189FeatureCatalog
     void enableKillAuraForOfficialWallVetoAcceptance() {
         requireOpen();
         if (!(Boolean.getBoolean("custommc.acceptance.reportKillAuraWallVeto")
-                || Boolean.getBoolean("custommc.acceptance.reportKillAuraWallRecovery"))
+                || Boolean.getBoolean("custommc.acceptance.reportKillAuraWallRecovery")
+                || Boolean.getBoolean("custommc.acceptance.reportKillAuraWallLifecycle"))
                 || !wallCheck().active()
                 || moduleController.stateOf(Minecraft189KillAuraModule.ID)
                 != ModuleState.DISABLED) {
@@ -1752,6 +1754,39 @@ public final class Minecraft189FeatureCatalog
                 || moduleController.stateOf(Minecraft189KillAuraModule.ID)
                 != ModuleState.ENABLED) {
             throw new IllegalStateException("wall Aura lifecycle failed");
+        }
+    }
+
+    /** CI-only: exercise public ModuleController with Aura STILL enabled. */
+    void disableWallCheckForOfficialLifecycleAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraWallLifecycle")
+                || !wallCheck().active() || !killAura().active()
+                || moduleController.stateOf(Minecraft189WallCheckModule.ID)
+                    != ModuleState.ENABLED) {
+            throw new IllegalStateException("wall check disable lifecycle not armed");
+        }
+        moduleController.disable(Minecraft189WallCheckModule.ID);
+        if (wallCheck().active()
+                || moduleController.stateOf(Minecraft189WallCheckModule.ID)
+                    != ModuleState.DISABLED || !killAura().active()) {
+            throw new IllegalStateException("wall check disable lifecycle failed");
+        }
+    }
+
+    void reenableWallCheckForOfficialLifecycleAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraWallLifecycle")
+                || wallCheck().active() || !killAura().active()
+                || moduleController.stateOf(Minecraft189WallCheckModule.ID)
+                    != ModuleState.DISABLED) {
+            throw new IllegalStateException("wall check reenable not armed");
+        }
+        moduleController.enable(Minecraft189WallCheckModule.ID);
+        if (!wallCheck().active() || !killAura().active()
+                || moduleController.stateOf(Minecraft189WallCheckModule.ID)
+                    != ModuleState.ENABLED) {
+            throw new IllegalStateException("wall check reenable failed");
         }
     }
 
