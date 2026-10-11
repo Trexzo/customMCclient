@@ -35,6 +35,10 @@ public final class Minecraft189RuntimeBridge {
     private static boolean acceptanceAuraFarEnabled;
     private static boolean acceptanceAuraFarReported;
     private static int acceptanceAuraFarEvidenceChecks;
+    private static int acceptanceAuraFovDisabledTicks;
+    private static int acceptanceAuraFovEnabledTicks;
+    private static boolean acceptanceAuraFovEnabled;
+    private static boolean acceptanceAuraFovReported;
 
     private Minecraft189RuntimeBridge() {
     }
@@ -78,6 +82,10 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraFarEnabled = false;
         acceptanceAuraFarReported = false;
         acceptanceAuraFarEvidenceChecks = 0;
+        acceptanceAuraFovDisabledTicks = 0;
+        acceptanceAuraFovEnabledTicks = 0;
+        acceptanceAuraFovEnabled = false;
+        acceptanceAuraFovReported = false;
         return new Registration(next);
     }
 
@@ -676,6 +684,67 @@ public final class Minecraft189RuntimeBridge {
                 }
             }
             if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraFovVeto")
+                    && !acceptanceAuraFovReported) {
+                final Minecraft189PlayerRotationState.Snapshot rotation =
+                        host.playerRotationState().snapshot();
+                final Minecraft189TargetRotationState.Snapshot target =
+                        host.targetRotationState().snapshot();
+                final Minecraft189WorldEntityKindState.Snapshot kinds =
+                        host.worldEntityKindState().snapshot();
+                final Minecraft189PlayerPositionState.Snapshot local =
+                        host.playerPositionState().snapshot();
+                final Minecraft189WorldEntityPositionState.Snapshot positions =
+                        host.worldEntityPositionState().snapshot();
+                boolean valid = rotation.available() && target.available()
+                        && kinds.available() && positions.available()
+                        && local.available()
+                        && target.entityIndex() >= 0
+                        && target.entityIndex() < kinds.entityCount()
+                        && kinds.entityCount() == positions.entityCount();
+                if (valid) {
+                    final int index = target.entityIndex();
+                    final double dx = positions.x(index) - local.x();
+                    final double dy = positions.y(index) - local.y();
+                    final double dz = positions.z(index) - local.z();
+                    final double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                    double yawError = target.yaw() - rotation.yaw();
+                    yawError = ((yawError + 540.0D) % 360.0D) - 180.0D;
+                    valid = kinds.player(index) && kinds.living(index)
+                            && !kinds.localPlayer(index)
+                            && Double.isFinite(distance)
+                            && distance >= 1.5D && distance <= 3.25D
+                            && Double.isFinite(yawError)
+                            && Math.abs(yawError) >= 120.0D;
+                }
+                if (!valid) {
+                    acceptanceAuraFovDisabledTicks = 0;
+                    acceptanceAuraFovEnabledTicks = 0;
+                } else if (!acceptanceAuraFovEnabled) {
+                    if (host.featureCatalog().killAura().active())
+                        throw new IllegalStateException("FOV module pre-enabled");
+                    if (++acceptanceAuraFovDisabledTicks >= 20) {
+                        System.out.println(
+                                "CUSTOMMC_189_KILLAURA_FOV_DISABLED_TARGET_TICKS_PASS=20");
+                        host.featureCatalog()
+                                .enableKillAuraForOfficialFovVetoAcceptance();
+                        acceptanceAuraFovEnabled = true;
+                        System.out.println(
+                                "CUSTOMMC_189_KILLAURA_FOV_MODULE_ENABLE_PASS=YES");
+                        System.out.flush();
+                    }
+                } else {
+                    if (!host.featureCatalog().killAura().active())
+                        throw new IllegalStateException("FOV module disabled unexpectedly");
+                    if (++acceptanceAuraFovEnabledTicks >= 80) {
+                        acceptanceAuraFovReported = true;
+                        System.out.println(
+                                "CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_FOV_VETO_PASS=YES");
+                        System.out.flush();
+                    }
+                }
+            }
+            if (Boolean.getBoolean(
                     "custommc.acceptance.reportKillAuraRangeVeto")
                     && !acceptanceAuraFarReported) {
                 // Real-game fail-closed test: one genuinely server-owned
@@ -886,6 +955,11 @@ public final class Minecraft189RuntimeBridge {
                             "out-of-range real player caused synthetic attack");
                 }
                 if (Boolean.getBoolean(
+                        "custommc.acceptance.reportKillAuraFovVeto")) {
+                    throw new IllegalStateException(
+                            "out-of-FOV real player caused synthetic attack");
+                }
+                if (Boolean.getBoolean(
                         "custommc.acceptance.reportKillAuraLocalPvp")) {
                     if (!acceptanceAuraPlayerEnabled
                             || !host.featureCatalog().killAura().active()
@@ -1019,6 +1093,11 @@ public final class Minecraft189RuntimeBridge {
                 "custommc.acceptance.reportKillAuraRangeVeto")) {
             throw new IllegalStateException(
                     "out-of-range player reached vanilla attackEntity");
+        }
+        if (Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraFovVeto")) {
+            throw new IllegalStateException(
+                    "out-of-FOV player reached vanilla attackEntity");
         }
         Minecraft189VanillaMeleeAcceptance.onMojangControllerAttack(
                 controller, player, entity);
