@@ -6975,6 +6975,10 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "stopUsingCalls", "I");
         field(writer, "nativeReach", "F");
         field(writer, "nativeExtended", "Z");
+        // M406: actual mapped PlayerControllerMP.attackEntity must be
+        // represented in the generated bda fixture as well as signed CI.
+        field(writer, "attackEntityCalls", "I");
+        field(writer, "lastAttackedEntity", "Lpk;");
         field(
                 writer,
                 "g",
@@ -7021,6 +7025,24 @@ final class Minecraft189MappedHostTransformationTest {
         extended.visitInsn(Opcodes.IRETURN);
         extended.visitMaxs(1, 1);
         extended.visitEnd();
+        final MethodVisitor melee = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "a", "(Lwn;Lpk;)V", null, null);
+        melee.visitCode();
+        melee.visitVarInsn(Opcodes.ALOAD, 0);
+        melee.visitInsn(Opcodes.DUP);
+        melee.visitFieldInsn(
+                Opcodes.GETFIELD, "bda", "attackEntityCalls", "I");
+        melee.visitInsn(Opcodes.ICONST_1);
+        melee.visitInsn(Opcodes.IADD);
+        melee.visitFieldInsn(
+                Opcodes.PUTFIELD, "bda", "attackEntityCalls", "I");
+        melee.visitVarInsn(Opcodes.ALOAD, 0);
+        melee.visitVarInsn(Opcodes.ALOAD, 2);
+        melee.visitFieldInsn(
+                Opcodes.PUTFIELD, "bda", "lastAttackedEntity", "Lpk;");
+        melee.visitInsn(Opcodes.RETURN);
+        melee.visitMaxs(3, 3);
+        melee.visitEnd();
         writer.visitEnd();
         return writer.toByteArray();
     }
