@@ -433,6 +433,13 @@ def run(args):
             send_server_command(server, server_log, "gamemode 0 CITarget")
             send_server_command(server, server_log,
                                 "gamerule naturalRegeneration false")
+            # The second live player can walk ~0.6 blocks from its
+            # initial teleport before the 80-tick veto finishes, becoming
+            # legitimately in-range. Restrict target input/movement using
+            # the vanilla dedicated-server Slowness effect; never change
+            # any combat range, selector or damage gate.
+            send_server_command(server, server_log,
+                                "effect CITarget 2 600 255 true")
             host_tp, target_tp = actual_server_spawn_fixture(server_log)
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, target_tp)
