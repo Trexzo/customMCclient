@@ -320,7 +320,7 @@ def run(args):
         if args.range_veto:
             # Separate negative-only process. The second real signed client
             # must be in sight of world telemetry yet physically beyond
-            # Kill Aura's configured maximum (default 3.5 blocks).
+            # Kill Aura's configured reach (default 3.5 blocks).
             send_server_command(
                 server, server_log,
                 "scoreboard objectives add taken stat.damageTaken")
@@ -337,7 +337,7 @@ def run(args):
             send_server_command(server, server_log,
                                 "gamerule naturalRegeneration false")
             send_server_command(server, server_log, "tp CIHost 0 5 0 0 0")
-            send_server_command(server, server_log, "tp CITarget 0 5 10 180 0")
+            send_server_command(server, server_log, "tp CITarget 0 5 6 180 0")
             print("CUSTOMMC_189_REAL_PLAYER_OUTSIDE_AURA_REACH_POSITIONED=YES",
                   flush=True)
             wait_for(host, host_log, RANGE_DISABLED, deadline,
