@@ -903,6 +903,16 @@ public final class Minecraft189RuntimeBridge {
                 controller, player, entity);
     }
 
+    /**
+     * Records the genuine first integer operand read by vanilla clickMouse:
+     * Mojang leftClickCounter, without changing its value or branch.
+     */
+    public static synchronized void acceptanceVanillaClickGuard(
+            final int nativeLeftClickCounter) {
+        Minecraft189VanillaMeleeAcceptance.onNativeClickGuard(
+                nativeLeftClickCounter);
+    }
+
     public static synchronized void renderFrameStarted(
             final float partialTicks) {
         if (activeRuntime != null) {
