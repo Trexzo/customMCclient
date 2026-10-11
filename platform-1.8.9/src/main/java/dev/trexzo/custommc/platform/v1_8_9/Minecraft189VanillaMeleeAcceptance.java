@@ -26,6 +26,8 @@ final class Minecraft189VanillaMeleeAcceptance {
     private static boolean pendingAura;
     private static boolean auraRaycastLogged;
     private static boolean auraControllerReached;
+    private static boolean auraPositiveCounterReported;
+    private static boolean auraReadyCounterReported;
 
     private Minecraft189VanillaMeleeAcceptance() {
     }
@@ -44,6 +46,8 @@ final class Minecraft189VanillaMeleeAcceptance {
         pendingAura = false;
         auraRaycastLogged = false;
         auraControllerReached = false;
+        auraPositiveCounterReported = false;
+        auraReadyCounterReported = false;
     }
 
     static void tick() {
@@ -146,6 +150,24 @@ final class Minecraft189VanillaMeleeAcceptance {
         } catch (ReflectiveOperationException | SecurityException failure) {
             // An invalid exact game mapping cannot ever certify a hit.
             // Keep normal vanilla clickMouse behavior unchanged.
+        }
+    }
+
+    static void onNativeClickGuard(final int nativeCounter) {
+        if (!Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraLocalPvp")
+                || !syntheticAura) return;
+        if (nativeCounter > 0 && !auraPositiveCounterReported) {
+            auraPositiveCounterReported = true;
+            System.out.println(
+                    "CUSTOMMC_189_MOJANG_LEFT_CLICK_COUNTER_BLOCKED="
+                            + nativeCounter);
+            System.out.flush();
+        } else if (nativeCounter <= 0 && !auraReadyCounterReported) {
+            auraReadyCounterReported = true;
+            System.out.println(
+                    "CUSTOMMC_189_MOJANG_LEFT_CLICK_COUNTER_READY=YES");
+            System.out.flush();
         }
     }
 
