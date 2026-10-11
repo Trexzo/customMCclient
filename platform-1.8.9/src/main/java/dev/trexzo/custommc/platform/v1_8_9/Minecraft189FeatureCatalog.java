@@ -1684,6 +1684,21 @@ public final class Minecraft189FeatureCatalog
      */
     /** Dedicated CI only: normal controller activation for native UUID switch. */
     /** Real three-client CI, normal ModuleController lifecycle, no overrides. */
+    /** Official local game-only: same normal UI module with native UUID lock. */
+    void enableKillAuraForOfficialLockedTargetAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraLockedTarget")
+                || moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                    != ModuleState.DISABLED)
+            throw new IllegalStateException("locked target CI not armed");
+        killAura().lockTargetSetting().set(Boolean.TRUE);
+        moduleController.enable(Minecraft189KillAuraModule.ID);
+        if (!killAura().active() || !killAura().lockTargetSetting().get()
+                || moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                    != ModuleState.ENABLED)
+            throw new IllegalStateException("lock target lifecycle failed");
+    }
+
     void enableKillAuraForOfficialSimultaneousAcceptance() {
         requireOpen();
         if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraSimultaneous")
