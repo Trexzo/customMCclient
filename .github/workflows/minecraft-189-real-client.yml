@@ -84,6 +84,12 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
           MESA_GL_VERSION_OVERRIDE: '2.1'
         run: |
+          # This step precedes M412's three-client test, so install the
+          # authentic X11 focus/window manager dependencies here as needed.
+          if ! command -v xdotool >/dev/null 2>&1 || ! command -v openbox >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xdotool openbox
+          fi
           xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189LocalhostTwoPlayerSmoke.py \
             --java "$JAVA_HOME/bin/java" \
             --server "$RUNNER_TEMP/minecraft-1.8.9-dedicated-server.jar" \
