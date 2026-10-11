@@ -47,6 +47,10 @@ MULTI_READY = b"CUSTOMMC_189_MULTI_TWO_REAL_UUID_PLAYERS_PASS=YES"
 MULTI_HIT_A = b"CUSTOMMC_189_MULTI_UUID_A_OWNED_ATTACK_PASS=YES"
 MULTI_SWITCH = b"CUSTOMMC_189_MULTI_TARGET_SWITCH_TO_UUID_B_PASS=YES"
 MULTI_HIT_B = b"CUSTOMMC_189_MULTI_UUID_B_OWNED_ATTACK_PASS=YES"
+SIM_READY = b"CUSTOMMC_189_SIMULTANEOUS_TWO_NATIVE_ELIGIBLE_PLAYERS_PASS=20"
+SIM_HIT_A = b"CUSTOMMC_189_SIMULTANEOUS_UUID_A_OWNED_ATTACK_PASS=YES"
+SIM_SWITCH = b"CUSTOMMC_189_SIMULTANEOUS_NATIVE_UUID_B_PRIORITY_SWITCH_PASS=YES"
+SIM_HIT_B = b"CUSTOMMC_189_SIMULTANEOUS_UUID_B_OWNED_ATTACK_PASS=YES"
 
 
 def local_port():
@@ -198,6 +202,32 @@ def actual_server_three_client_target_switch_fixture(server_log):
     a_far = "tp CITarget {} {} {} 180 0".format(x + 5, y, z)
     b_near = "tp CITargetB {} {} {} 180 0".format(x, y, z)
     return host, a_near, b_far, a_far, b_near
+
+
+def actual_server_three_client_simultaneous_fixture(server_log):
+    """Both real remote players remain within combat reach before/after swap."""
+    host, a_near, _stone = actual_server_spawn_wall_fixture(server_log)
+    parts = a_near.split()
+    if len(parts) != 7 or parts[:2] != ["tp", "CITarget"]:
+        raise AssertionError("native A spawn command malformed")
+    x, y, z = (int(v) for v in parts[2:5])
+    sign = 1 if x % 16 <= 13 else -1
+    # Initial distances: A=2, B=sqrt(8), both in real attack reach.
+    # Move ONLY B once to a separate diagonal tile of sqrt(2) distance,
+    # making B nearer without overlapping or moving the already-hurt A.
+    # Actual native raycast still owns every possible player attack.
+    hvals = host.split()
+    if len(hvals) != 7 or hvals[:2] != ["tp", "CIHost"]:
+        raise AssertionError("native host spawn teleport malformed")
+    host_z = int(hvals[4])
+    zsign = 1 if z > host_z else -1
+    b_outer = "tp CITargetB {} {} {} 180 0".format(x + sign * 2, y, z)
+    b_near = "tp CITargetB {} {} {} 180 0".format(
+        x + sign, y, host_z + zsign)
+    if (x // 16 != (x + sign * 2) // 16
+            or host_z // 16 != (host_z + zsign) // 16):
+        raise AssertionError("native simultaneous fixture crossed spawn chunk")
+    return host, a_near, b_outer, b_near
 
 
 def official_offline_uuid(name):
@@ -385,6 +415,13 @@ def client_command(args, game, username, uuid, port, remote):
     if remote and args.fov_veto:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraFovVeto=true")
+    if remote and args.simultaneous:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportKillAuraSimultaneous=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.targetAUuid=" + official_offline_uuid("CITarget"))
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.targetBUuid=" + official_offline_uuid("CITargetB"))
     if remote and args.multi_target:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraMultiTarget=true")
@@ -430,7 +467,7 @@ def run(args):
     (server_dir / "eula.txt").write_text("eula=true\n", encoding="ascii")
     port = local_port()
     write_server_properties(server_dir / "server.properties", port,
-                            max_players=3 if args.multi_target else 2)
+                            max_players=3 if (args.multi_target or args.simultaneous) else 2)
 
     server_log = root / "server.log"
     host_log = root / "host.log"
@@ -438,7 +475,7 @@ def run(args):
     target_b_log = root / "target-b.log"
     logs = [("dedicated", server_log), ("host", host_log),
             ("target", target_log)]
-    if args.multi_target:
+    if args.multi_target or args.simultaneous:
         logs.append(("target_b", target_b_log))
     processes = []
     wm = None
@@ -496,7 +533,7 @@ def run(args):
             )
         processes.append(target)
         target_b = None
-        if args.multi_target:
+        if args.multi_target or args.simultaneous:
             cmd_b = client_command(
                 args, root / "target-b-game", "CITargetB",
                 "00000000000000000000000000000003", port, remote=False)
@@ -509,7 +546,7 @@ def run(args):
                  "dedicated server CIHost join")
         wait_for(server, server_log, TARGET_JOIN, deadline,
                  "dedicated server CITarget join")
-        if args.multi_target:
+        if args.multi_target or args.simultaneous:
             wait_for(server, server_log, b"CITargetB joined the game", deadline,
                      "real CITargetB dedicated-server join")
             wait_for(target_b, target_b_log, GRAPHICAL, deadline,
@@ -518,6 +555,53 @@ def run(args):
                  "target graphical client")
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
+
+        if args.simultaneous:
+            # BOTH actual remote EntityPlayers stay inside default 3.5 range.
+            # Movement uses the real server, not fabricated entity snapshots.
+            send_server_command(server, server_log,
+                                "scoreboard objectives add taken stat.damageTaken")
+            for player in ("CITarget", "CITargetB"):
+                send_server_command(server, server_log,
+                                    "scoreboard players set {} taken 0".format(player))
+                send_server_command(server, server_log,
+                                    "scoreboard players test {} taken 0 0".format(player),
+                                    expected=b"score 0 is in range 0 to 0")
+            for player in ("CIHost", "CITarget", "CITargetB"):
+                send_server_command(server, server_log, "gamemode 0 " + player)
+            send_server_command(server, server_log,
+                                "gamerule naturalRegeneration false")
+            host_tp, a_near, b_outer, b_near = (
+                actual_server_three_client_simultaneous_fixture(server_log))
+            send_server_command(server, server_log, b_outer)
+            send_server_command(server, server_log, host_tp)
+            send_server_command(server, server_log, a_near)
+            print("CUSTOMMC_189_SIMULTANEOUS_TWO_PLAYERS_IN_REACH_PASS=YES",
+                  flush=True)
+            wait_for(host, host_log, SIM_READY, deadline,
+                     "20 disabled callbacks: both genuine eligible, A nearer")
+            wait_for(host, host_log, SIM_HIT_A, deadline,
+                     "UUID A native-owned attack among two eligible players")
+            wait_for_real_score(server, server_log, "CITarget", deadline)
+            send_server_command(server, server_log,
+                                "scoreboard players test CITargetB taken 0 0",
+                                expected=b"score 0 is in range 0 to 0")
+            print("CUSTOMMC_189_SIMULTANEOUS_A_DAMAGED_B_STILL_ZERO_PASS=YES",
+                  flush=True)
+            # One server teleport, no movement of already-hurt A: B goes
+            # from sqrt(8) to sqrt(2) blocks, at a DIFFERENT diagonal tile.
+            # Both live native players are in reach before and after.
+            send_server_command(server, server_log, b_near)
+            wait_for(host, host_log, SIM_SWITCH, deadline,
+                     "genuine native UUID B becomes nearer than living A")
+            wait_for(host, host_log, SIM_HIT_B, deadline,
+                     "production Aura click is owned by real UUID B")
+            wait_for_real_score(server, server_log, "CITargetB", deadline)
+            send_server_command(server, server_log,
+                                "scoreboard players test CITarget taken 1 999999",
+                                expected=b"is in range 1 to 999999")
+            print("CUSTOMMC_OFFICIAL_189_SIMULTANEOUS_BOTH_SERVER_DAMAGE_PASS=YES",
+                  flush=True)
 
         if args.multi_target:
             # One genuine server and THREE separate Java 8 Minecraft clients.
@@ -839,7 +923,7 @@ def run(args):
                 ("target game", target)):
             check_process(proc, phase)
 
-        if args.multi_target:
+        if args.multi_target or args.simultaneous:
             check_process(target_b, "third native real player JVM")
             print("CUSTOMMC_OFFICIAL_189_THREE_REAL_CLIENTS_JOINED_PASS=YES",
                   flush=True)
@@ -848,6 +932,9 @@ def run(args):
               flush=True)
         print("CUSTOMMC_OFFICIAL_189_REMOTE_PLAYER_KIND_SUSTAINED_PASS=YES",
               flush=True)
+        if args.simultaneous:
+            print("CUSTOMMC_OFFICIAL_189_SIMULTANEOUS_REAL_UUID_ARBITRATION_PASS=YES",
+                  flush=True)
         if args.multi_target:
             print("CUSTOMMC_OFFICIAL_189_REAL_UUID_TARGET_SWITCH_PASS=YES",
                   flush=True)
@@ -896,6 +983,8 @@ def main():
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
     group = parser.add_mutually_exclusive_group()
+    group.add_argument("--simultaneous", action="store_true",
+                       help="two simultaneously eligible genuine UUID players; verify priority changes and server damage")
     group.add_argument("--multi-target", action="store_true",
                        help="three actual clients with two real UUID PvP targets")
     group.add_argument("--pvp", action="store_true",
