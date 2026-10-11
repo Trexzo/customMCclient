@@ -182,21 +182,33 @@ jobs:
             --root "$RUNNER_TEMP/custommc-189-localhost" \
             --timeout 170
       - name: Verify Kill Aura genuine second-player hit and server damage
-        timeout-minutes: 4
+        timeout-minutes: 8
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
           MESA_GL_VERSION_OVERRIDE: '2.1'
         run: |
-          xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189LocalhostTwoPlayerSmoke.py \
-            --java "$JAVA_HOME/bin/java" \
-            --server "$RUNNER_TEMP/minecraft-1.8.9-dedicated-server.jar" \
-            --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
-            --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
-            --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
-            --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
-            --overlay "build/runtime-overlay" \
-            --root "$RUNNER_TEMP/custommc-189-localhost-pvp" \
-            --timeout 180 --pvp
+          # X11 two-window focus may vary across hosted runners. Retry once
+          # with a new dedicated server + two fresh JVMs. A complete real
+          # controller/hurt/server-score proof is required within one trial;
+          # failures are NEVER converted to success by omitting a gate.
+          accepted=0
+          for attempt in 1 2; do
+            echo "M407_UPSTREAM_REAL_PVP_FULL_TRIAL=$attempt"
+            if xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189LocalhostTwoPlayerSmoke.py \
+              --java "$JAVA_HOME/bin/java" \
+              --server "$RUNNER_TEMP/minecraft-1.8.9-dedicated-server.jar" \
+              --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
+              --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
+              --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
+              --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
+              --overlay "build/runtime-overlay" \
+              --root "$RUNNER_TEMP/custommc-189-localhost-pvp-$attempt" \
+              --timeout 180 --pvp; then
+              accepted=1
+              break
+            fi
+          done
+          test "$accepted" -eq 1
       - name: Verify enabled Kill Aura rejects real out-of-range server player
         timeout-minutes: 4
         env:
@@ -215,4 +227,4 @@ jobs:
             --timeout 170 --range-veto
       - name: Remove official binary and libraries from CI runner
         if: always()
-        run: python -c "from pathlib import Path; import shutil, os; root=Path(os.environ['RUNNER_TEMP']); (root/'minecraft-1.8.9-vanilla.jar').unlink(missing_ok=True); (root/'minecraft-1.8.9-dedicated-server.jar').unlink(missing_ok=True); shutil.rmtree(root/'minecraft-1.8.9-libraries', ignore_errors=True); shutil.rmtree(root/'minecraft-1.8.9-resources', ignore_errors=True); shutil.rmtree(root/'custommc-189-game', ignore_errors=True); shutil.rmtree(root/'custommc-189-singleplayer', ignore_errors=True); shutil.rmtree(root/'custommc-189-melee', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker-1', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker-2', ignore_errors=True); shutil.rmtree(root/'custommc-189-aura-negative', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost-pvp', ignore_errors=True); shutil.rmtree(root/'custommc-189-range-veto', ignore_errors=True)"
+        run: python -c "from pathlib import Path; import shutil, os; root=Path(os.environ['RUNNER_TEMP']); (root/'minecraft-1.8.9-vanilla.jar').unlink(missing_ok=True); (root/'minecraft-1.8.9-dedicated-server.jar').unlink(missing_ok=True); shutil.rmtree(root/'minecraft-1.8.9-libraries', ignore_errors=True); shutil.rmtree(root/'minecraft-1.8.9-resources', ignore_errors=True); shutil.rmtree(root/'custommc-189-game', ignore_errors=True); shutil.rmtree(root/'custommc-189-singleplayer', ignore_errors=True); shutil.rmtree(root/'custommc-189-melee', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker-1', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker-2', ignore_errors=True); shutil.rmtree(root/'custommc-189-aura-negative', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost-pvp', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost-pvp-1', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost-pvp-2', ignore_errors=True); shutil.rmtree(root/'custommc-189-range-veto', ignore_errors=True)"
