@@ -1516,7 +1516,8 @@ public final class Minecraft189HostRuntime
     }
 
     private boolean identityRequired() {
-        return Boolean.getBoolean("custommc.acceptance.reportKillAuraSimultaneous")
+        return Boolean.getBoolean("custommc.acceptance.reportKillAuraLockedTarget")
+                || Boolean.getBoolean("custommc.acceptance.reportKillAuraSimultaneous")
                 || Boolean.getBoolean("custommc.acceptance.reportKillAuraMultiTarget")
                 || (featureCatalog.killAura().active()
                         && featureCatalog.killAura().lockTargetSetting().get())
