@@ -45,6 +45,7 @@ WALL_LIFECYCLE_REENABLED = b"CUSTOMMC_189_WALL_LIFECYCLE_NORMAL_REENABLE_PASS=YE
 WALL_LIFECYCLE_VETO = b"CUSTOMMC_OFFICIAL_189_WALL_LIFECYCLE_STALE_TARGET_CLEARED_PASS=YES"
 LOCK_READY = b"CUSTOMMC_189_LOCK_TWO_ELIGIBLE_INITIAL_A_PASS=20"
 LOCK_HIT_A = b"CUSTOMMC_189_LOCK_A_NATIVE_UUID_OWNED_ATTACK_PASS=YES"
+LOCK_ARMED = b"CUSTOMMC_189_LOCK_A_NATIVE_UUID_ARMED_PASS=10"
 LOCK_RETAINED = b"CUSTOMMC_189_LOCK_A_RETAINED_WITH_CLOSER_B_PASS=15"
 LOCK_RELEASE = b"CUSTOMMC_189_LOCK_A_INELIGIBLE_RELEASES_TO_B_PASS=YES"
 LOCK_HIT_B = b"CUSTOMMC_189_LOCK_B_NATIVE_UUID_OWNED_ATTACK_PASS=YES"
@@ -592,8 +593,13 @@ def run(args):
                 send_server_command(server, server_log,
                                     "scoreboard players test {} taken 0 0".format(player),
                                     expected=b"score 0 is in range 0 to 0")
-            for player in ("CIHost", "CITarget", "CITargetB"):
-                send_server_command(server, server_log, "gamemode 0 " + player)
+            # Creative A remains a genuine live selectable player but
+            # receives no PvP damage/knockback during the lock-only phase.
+            # After proving retention, restore survival and demand true
+            # server-authoritative PvP damage on A.
+            send_server_command(server, server_log, "gamemode 0 CIHost")
+            send_server_command(server, server_log, "gamemode 1 CITarget")
+            send_server_command(server, server_log, "gamemode 0 CITargetB")
             send_server_command(server, server_log,
                                 "gamerule naturalRegeneration false")
             host_tp, a_near, b_outer, b_near, a_far = (
@@ -602,23 +608,29 @@ def run(args):
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, a_near)
             wait_for(host, host_log, LOCK_READY, deadline,
-                     "20 actual two-eligible disabled-Aura callbacks selecting A")
+                     "20 disabled callbacks selecting genuine nearer A")
+            wait_for(host, host_log, LOCK_ARMED, deadline,
+                     "10 real active callbacks locking source-native A UUID")
+            # Move ONLY B closer, leave original A at its original tile.
+            send_server_command(server, server_log, b_near)
+            wait_for(host, host_log, LOCK_RETAINED, deadline,
+                     "15 callbacks holding source-native A while B nearer")
+            for player in ("CITarget", "CITargetB"):
+                send_server_command(server, server_log,
+                                    "scoreboard players test {} taken 0 0".format(player),
+                                    expected=b"score 0 is in range 0 to 0")
+            print("CUSTOMMC_OFFICIAL_189_LOCK_NEARER_B_STILL_ZERO_DAMAGE_PASS=YES",
+                  flush=True)
+            # A now enters normal survival, and real attacks MUST produce
+            # genuine positive server damage, not merely a creative click.
+            send_server_command(server, server_log, "gamemode 0 CITarget")
             wait_for(host, host_log, LOCK_HIT_A, deadline,
-                     "native-UUID-locked original Aura attack on A")
+                     "original native locked A click after survival")
             wait_for_real_score(server, server_log, "CITarget", deadline)
             send_server_command(server, server_log,
                                 "scoreboard players test CITargetB taken 0 0",
                                 expected=b"score 0 is in range 0 to 0")
             print("CUSTOMMC_189_LOCK_A_DAMAGE_B_ZERO_PASS=YES", flush=True)
-            # Real server makes B closer but does NOT invalidate A.
-            send_server_command(server, server_log, b_near)
-            wait_for(host, host_log, LOCK_RETAINED, deadline,
-                     "15 full callbacks retaining current A UUID while closer B eligible")
-            send_server_command(server, server_log,
-                                "scoreboard players test CITargetB taken 0 0",
-                                expected=b"score 0 is in range 0 to 0")
-            print("CUSTOMMC_OFFICIAL_189_LOCK_NEARER_B_STILL_ZERO_DAMAGE_PASS=YES",
-                  flush=True)
             # One server teleport makes previous locked A out of Aura range.
             send_server_command(server, server_log, a_far)
             wait_for(host, host_log, LOCK_RELEASE, deadline,
