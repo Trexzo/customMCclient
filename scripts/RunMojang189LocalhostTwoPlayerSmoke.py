@@ -27,6 +27,9 @@ AURA_ENABLED = b"CUSTOMMC_189_KILLAURA_PLAYER_MODULE_ENABLE_PASS=YES"
 AURA_ATTACK = b"CUSTOMMC_189_KILLAURA_SYNTHETIC_PLAYER_ATTACK_PASS=YES"
 CONTROLLER_ATTACK = b"CUSTOMMC_189_MOJANG_PLAYER_CONTROLLER_ATTACK_ENTITY_ENTERED=YES"
 AURA_HURT = b"CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HURT_PASS=YES"
+RANGE_DISABLED = b"CUSTOMMC_189_KILLAURA_RANGE_DISABLED_TICKS_PASS=20"
+RANGE_ENABLED = b"CUSTOMMC_189_KILLAURA_RANGE_MODULE_ENABLE_PASS=YES"
+RANGE_VETO = b"CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_RANGE_VETO_PASS=YES"
 
 
 def local_port():
@@ -56,6 +59,41 @@ def wait_for(proc, log, phrase, deadline, phase):
             return
         time.sleep(0.3)
     raise AssertionError("missing " + phase + " marker within deadline")
+
+
+def actual_server_spawn_fixture(server_log):
+    """Place both real players within one generated spawn chunk.
+
+    Dedicated-server 1.8.9 initial spawn varies per generated FLAT world.
+    Sending both clients to origin (0,0) detached the target from the
+    observed host-world entity inventory in consecutive genuine CI runs.
+    Instead use the exact server-recorded CIHost login position, keeping
+    a four-block separation inside the already-loaded spawn chunk.
+    """
+    data = log_tail(server_log, 250000)
+    match = re.search(
+        rb"CIHost\[/127\.0\.0\.1:\d+\] logged in with entity id \d+ at "
+        rb"\((-?\d+(?:\.\d+)?), (-?\d+(?:\.\d+)?), (-?\d+(?:\.\d+)?)\)",
+        data,
+    )
+    if not match:
+        raise AssertionError("actual dedicated-server CIHost spawn unknown")
+    import math
+    host_x = math.floor(float(match.group(1)))
+    host_y = math.floor(float(match.group(2))) + 1
+    host_z = math.floor(float(match.group(3)))
+    # Both real players stay within the same 16-block Z chunk so the
+    # test cannot pass from a stale or unloaded remote player placeholder.
+    dz = 4 if host_z % 16 <= 11 else -4
+    target_z = host_z + dz
+    if host_z // 16 != target_z // 16:
+        raise AssertionError("Mojang spawn-based fixture crossed chunk boundary")
+    yaw = 0 if dz > 0 else 180
+    return (
+        "tp CIHost {} {} {} {} 0".format(host_x, host_y, host_z, yaw),
+        "tp CITarget {} {} {} {} 0".format(host_x, host_y, target_z,
+                                          (yaw + 180) % 360),
+    )
 
 
 def write_server_properties(path, port):
@@ -202,6 +240,9 @@ def client_command(args, game, username, uuid, port, remote):
     if remote:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportRemotePlayer=true")
+    if remote and args.range_veto:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportKillAuraRangeVeto=true")
     if remote and args.pvp:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportVanillaMelee=true")
@@ -311,6 +352,48 @@ def run(args):
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
 
+        if args.range_veto:
+            # Separate negative-only process. The second real signed client
+            # must be in sight of world telemetry yet physically beyond
+            # Kill Aura's configured reach (default 3.5 blocks).
+            send_server_command(
+                server, server_log,
+                "scoreboard objectives add taken stat.damageTaken")
+            send_server_command(
+                server, server_log, "scoreboard players set CITarget taken 0")
+            send_server_command(
+                server, server_log,
+                "scoreboard players test CITarget taken 0 0",
+                expected=b"score 0 is in range 0 to 0")
+            print("CUSTOMMC_189_RANGE_TARGET_DAMAGE_BASELINE_ZERO_PASS=YES",
+                  flush=True)
+            send_server_command(server, server_log, "gamemode 0 CIHost")
+            send_server_command(server, server_log, "gamemode 0 CITarget")
+            send_server_command(server, server_log,
+                                "gamerule naturalRegeneration false")
+            host_tp, target_tp = actual_server_spawn_fixture(server_log)
+            send_server_command(server, server_log, host_tp)
+            send_server_command(server, server_log, target_tp)
+            print("CUSTOMMC_189_RANGE_ACTUAL_SERVER_SPAWN_CHUNK_PASS=YES",
+                  flush=True)
+            print("CUSTOMMC_189_REAL_PLAYER_OUTSIDE_AURA_REACH_POSITIONED=YES",
+                  flush=True)
+            wait_for(host, host_log, RANGE_DISABLED, deadline,
+                     "20 live far-player callbacks with Aura disabled")
+            wait_for(host, host_log, RANGE_ENABLED, deadline,
+                     "normal Aura activation with genuine far player")
+            wait_for(host, host_log, RANGE_VETO, deadline,
+                     "80 active Aura callbacks rejecting real distant player")
+            # Authoritative NEGATIVE proof: no server-accepted PvP damage.
+            # The bridge also throws immediately on any real controller
+            # attack or host synthetic attack, making fake passes impossible.
+            send_server_command(
+                server, server_log,
+                "scoreboard players test CITarget taken 0 0",
+                expected=b"score 0 is in range 0 to 0")
+            print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_OUT_OF_RANGE_SERVER_NO_DAMAGE_PASS=YES",
+                  flush=True)
+
         if args.pvp:
             # Launching the target's graphical JVM can unfocus CIHost.
             # Grab the real CIHost mouse BEFORE the authoritative baseline,
@@ -414,6 +497,9 @@ def run(args):
         if args.pvp:
             print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_PLAYER_PVP_PASS=YES",
                   flush=True)
+        elif args.range_veto:
+            print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_RANGE_NEGATIVE_PASS=YES",
+                  flush=True)
         else:
             print("CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HIT_TESTED=NO",
                   flush=True)
@@ -440,8 +526,11 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
-    parser.add_argument("--pvp", action="store_true",
-                        help="prove Kill Aura player click and real server damage statistic")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--pvp", action="store_true",
+                       help="prove Kill Aura attack and real server damage statistic")
+    group.add_argument("--range-veto", action="store_true",
+                       help="prove real out-of-range player cannot be attacked")
     args = parser.parse_args()
     run(args)
 

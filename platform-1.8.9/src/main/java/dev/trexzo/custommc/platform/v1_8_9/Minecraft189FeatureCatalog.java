@@ -1699,6 +1699,24 @@ public final class Minecraft189FeatureCatalog
         }
     }
 
+    /** Official CI only: normal lifecycle for real-player far-range veto. */
+    void enableKillAuraForOfficialRangeVetoAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraRangeVeto")) {
+            throw new IllegalStateException("genuine range-veto fixture not armed");
+        }
+        if (moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                != ModuleState.DISABLED) {
+            throw new IllegalStateException("Kill Aura was already enabled");
+        }
+        moduleController.enable(Minecraft189KillAuraModule.ID);
+        if (!killAura().active()
+                || moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                    != ModuleState.ENABLED) {
+            throw new IllegalStateException("range-veto module lifecycle failed");
+        }
+    }
+
     void enableKillAuraForOfficialNonPlayerAcceptance() {
         requireOpen();
         if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraNonPlayer")) {

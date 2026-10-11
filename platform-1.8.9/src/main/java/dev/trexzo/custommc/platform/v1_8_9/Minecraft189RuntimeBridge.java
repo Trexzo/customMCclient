@@ -29,6 +29,12 @@ public final class Minecraft189RuntimeBridge {
     private static int acceptanceAuraPlayerIndex = -1;
     private static boolean acceptanceAuraPlayerEnabled;
     private static boolean acceptanceAuraAttackReported;
+    private static int acceptanceAuraFarTargetIndex = -1;
+    private static int acceptanceAuraFarDisabledTicks;
+    private static int acceptanceAuraFarEnabledTicks;
+    private static boolean acceptanceAuraFarEnabled;
+    private static boolean acceptanceAuraFarReported;
+    private static int acceptanceAuraFarEvidenceChecks;
 
     private Minecraft189RuntimeBridge() {
     }
@@ -66,6 +72,12 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraPlayerIndex = -1;
         acceptanceAuraPlayerEnabled = false;
         acceptanceAuraAttackReported = false;
+        acceptanceAuraFarTargetIndex = -1;
+        acceptanceAuraFarDisabledTicks = 0;
+        acceptanceAuraFarEnabledTicks = 0;
+        acceptanceAuraFarEnabled = false;
+        acceptanceAuraFarReported = false;
+        acceptanceAuraFarEvidenceChecks = 0;
         return new Registration(next);
     }
 
@@ -664,6 +676,105 @@ public final class Minecraft189RuntimeBridge {
                 }
             }
             if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraRangeVeto")
+                    && !acceptanceAuraFarReported) {
+                // Real-game fail-closed test: one genuinely server-owned
+                // nonlocal player, alive and consistently 3.8..4.8 blocks from
+                // CIHost. With default Kill Aura range 3.5 this player must
+                // NEVER become an automated attack target.
+                final Minecraft189PlayerPositionState.Snapshot local =
+                        host.playerPositionState().snapshot();
+                final Minecraft189WorldEntityPositionState.Snapshot positions =
+                        host.worldEntityPositionState().snapshot();
+                final Minecraft189WorldEntityKindState.Snapshot kinds =
+                        host.worldEntityKindState().snapshot();
+                int farIndex = -1;
+                int realRemotePlayers = 0;
+                double lastRemoteDistanceSquared = Double.NaN;
+                if (local.available() && positions.available()
+                        && kinds.available()
+                        && kinds.entityCount() == positions.entityCount()) {
+                    boolean ambiguous = false;
+                    for (int i = 0; i < kinds.entityCount(); i++) {
+                        if (!kinds.player(i) || kinds.localPlayer(i))
+                            continue;
+                        realRemotePlayers++;
+                        final double dx = positions.x(i) - local.x();
+                        final double dy = positions.y(i) - local.y();
+                        final double dz = positions.z(i) - local.z();
+                        final double squared = dx * dx + dy * dy + dz * dz;
+                        lastRemoteDistanceSquared = squared;
+                        if (farIndex >= 0 || !kinds.living(i)
+                                || !Double.isFinite(squared)
+                                || squared < 14.44D || squared > 23.04D) {
+                            ambiguous = true;
+                            break;
+                        }
+                        farIndex = i;
+                    }
+                    if (ambiguous) farIndex = -1;
+                }
+                // Bounded read-only diagnostics for *why* a real
+                // server-connected player failed the far-range precondition.
+                // No pass marker, fabricated entity, or range adjustment.
+                if (++acceptanceAuraFarEvidenceChecks % 200 == 0) {
+                    System.out.println(
+                            "CUSTOMMC_189_RANGE_REAL_EVIDENCE"
+                            + " local=" + local.available()
+                            + " positions=" + positions.available()
+                            + " kinds=" + kinds.available()
+                            + " entities=" + positions.entityCount()
+                            + " remotePlayers=" + realRemotePlayers
+                            + " distanceSquared=" + lastRemoteDistanceSquared
+                            + " qualifyingIndex=" + farIndex);
+                    System.out.flush();
+                }
+                if (farIndex < 0
+                        || (acceptanceAuraFarTargetIndex >= 0
+                        && acceptanceAuraFarTargetIndex != farIndex)) {
+                    acceptanceAuraFarTargetIndex = -1;
+                    acceptanceAuraFarDisabledTicks = 0;
+                    acceptanceAuraFarEnabledTicks = 0;
+                } else {
+                    acceptanceAuraFarTargetIndex = farIndex;
+                    if (!acceptanceAuraFarEnabled) {
+                        if (host.featureCatalog().killAura().active())
+                            throw new IllegalStateException(
+                                    "out-of-range aura was pre-enabled");
+                        acceptanceAuraFarDisabledTicks++;
+                        if (acceptanceAuraFarDisabledTicks >= 20) {
+                            System.out.println(
+                                    "CUSTOMMC_189_KILLAURA_RANGE_DISABLED_TICKS_PASS=20");
+                            host.featureCatalog()
+                                    .enableKillAuraForOfficialRangeVetoAcceptance();
+                            acceptanceAuraFarEnabled = true;
+                            System.out.println(
+                                    "CUSTOMMC_189_KILLAURA_RANGE_MODULE_ENABLE_PASS=YES");
+                            System.out.flush();
+                        }
+                    } else {
+                        if (!host.featureCatalog().killAura().active())
+                            throw new IllegalStateException(
+                                    "out-of-range aura deactivated unexpectedly");
+                        // The first few callbacks may still contain a
+                        // pre-activation nearest snapshot; wait for live
+                        // WorldCombat to recompute with Aura's range.
+                        if (host.nearestPlayerTargetState().snapshot().found()
+                                || host.targetRotationState().snapshot().available()) {
+                            acceptanceAuraFarEnabledTicks = 0;
+                        } else {
+                            acceptanceAuraFarEnabledTicks++;
+                            if (acceptanceAuraFarEnabledTicks >= 80) {
+                                acceptanceAuraFarReported = true;
+                                System.out.println(
+                                        "CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_RANGE_VETO_PASS=YES");
+                                System.out.flush();
+                            }
+                        }
+                    }
+                }
+            }
+            if (Boolean.getBoolean(
                     "custommc.acceptance.reportKillAuraLocalPvp")) {
                 final Minecraft189NearestPlayerTargetState.Snapshot nearest =
                         host.nearestPlayerTargetState().snapshot();
@@ -769,6 +880,11 @@ public final class Minecraft189RuntimeBridge {
                             .customMcCrosshairHitboxBounds()
                     : null;
             if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.reportKillAuraRangeVeto")) {
+                    throw new IllegalStateException(
+                            "out-of-range real player caused synthetic attack");
+                }
                 if (Boolean.getBoolean(
                         "custommc.acceptance.reportKillAuraLocalPvp")) {
                     if (!acceptanceAuraPlayerEnabled
@@ -899,6 +1015,11 @@ public final class Minecraft189RuntimeBridge {
     public static synchronized void acceptanceControllerAttackEntity(
             final Object controller, final Object player,
             final Object entity) {
+        if (Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraRangeVeto")) {
+            throw new IllegalStateException(
+                    "out-of-range player reached vanilla attackEntity");
+        }
         Minecraft189VanillaMeleeAcceptance.onMojangControllerAttack(
                 controller, player, entity);
     }
