@@ -17,6 +17,7 @@ on:
       - 'bootstrap/src/main/java/dev/trexzo/custommc/bootstrap/TransformingTargetClassLoader.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RuntimeBridge.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FeatureCatalog.java'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HostRuntime.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityVisibilityState.java'
       - 'platform-1.8.9/build.gradle.kts'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClassTransformer.java'
