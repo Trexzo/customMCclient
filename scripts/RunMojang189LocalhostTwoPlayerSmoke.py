@@ -43,6 +43,11 @@ WALL_LIFECYCLE_DISABLED = b"CUSTOMMC_189_WALL_LIFECYCLE_NORMAL_DISABLE_PASS=YES"
 WALL_LIFECYCLE_SELECTED = b"CUSTOMMC_189_WALL_LIFECYCLE_OCCLUDED_SELECT_WHEN_OFF_PASS=20"
 WALL_LIFECYCLE_REENABLED = b"CUSTOMMC_189_WALL_LIFECYCLE_NORMAL_REENABLE_PASS=YES"
 WALL_LIFECYCLE_VETO = b"CUSTOMMC_OFFICIAL_189_WALL_LIFECYCLE_STALE_TARGET_CLEARED_PASS=YES"
+LOCK_READY = b"CUSTOMMC_189_LOCK_TWO_ELIGIBLE_INITIAL_A_PASS=20"
+LOCK_HIT_A = b"CUSTOMMC_189_LOCK_A_NATIVE_UUID_OWNED_ATTACK_PASS=YES"
+LOCK_RETAINED = b"CUSTOMMC_189_LOCK_A_RETAINED_WITH_CLOSER_B_PASS=15"
+LOCK_RELEASE = b"CUSTOMMC_189_LOCK_A_INELIGIBLE_RELEASES_TO_B_PASS=YES"
+LOCK_HIT_B = b"CUSTOMMC_189_LOCK_B_NATIVE_UUID_OWNED_ATTACK_PASS=YES"
 MULTI_READY = b"CUSTOMMC_189_MULTI_TWO_REAL_UUID_PLAYERS_PASS=YES"
 MULTI_HIT_A = b"CUSTOMMC_189_MULTI_UUID_A_OWNED_ATTACK_PASS=YES"
 MULTI_SWITCH = b"CUSTOMMC_189_MULTI_TARGET_SWITCH_TO_UUID_B_PASS=YES"
@@ -230,6 +235,18 @@ def actual_server_three_client_simultaneous_fixture(server_log):
     return host, a_near, b_outer, b_near
 
 
+def actual_server_three_client_locked_fixture(server_log):
+    """Native M413 simultaneous geometry plus real A range-expiration command."""
+    host, a_near, b_outer, b_near = (
+        actual_server_three_client_simultaneous_fixture(server_log))
+    coords = a_near.split()
+    if len(coords) != 7 or coords[:2] != ["tp", "CITarget"]:
+        raise AssertionError("invalid genuine A target teleport")
+    x, y, z = (int(v) for v in coords[2:5])
+    a_far = "tp CITarget {} {} {} 180 0".format(x + 5, y, z)
+    return host, a_near, b_outer, b_near, a_far
+
+
 def official_offline_uuid(name):
     """Java UUID.nameUUIDFromBytes('OfflinePlayer:' + actual username)."""
     import hashlib
@@ -415,6 +432,13 @@ def client_command(args, game, username, uuid, port, remote):
     if remote and args.fov_veto:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraFovVeto=true")
+    if remote and args.locked_target:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportKillAuraLockedTarget=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.targetAUuid=" + official_offline_uuid("CITarget"))
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.targetBUuid=" + official_offline_uuid("CITargetB"))
     if remote and args.simultaneous:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraSimultaneous=true")
@@ -467,7 +491,7 @@ def run(args):
     (server_dir / "eula.txt").write_text("eula=true\n", encoding="ascii")
     port = local_port()
     write_server_properties(server_dir / "server.properties", port,
-                            max_players=3 if (args.multi_target or args.simultaneous) else 2)
+                            max_players=3 if (args.multi_target or args.simultaneous or args.locked_target) else 2)
 
     server_log = root / "server.log"
     host_log = root / "host.log"
@@ -475,7 +499,7 @@ def run(args):
     target_b_log = root / "target-b.log"
     logs = [("dedicated", server_log), ("host", host_log),
             ("target", target_log)]
-    if args.multi_target or args.simultaneous:
+    if args.multi_target or args.simultaneous or args.locked_target:
         logs.append(("target_b", target_b_log))
     processes = []
     wm = None
@@ -533,7 +557,7 @@ def run(args):
             )
         processes.append(target)
         target_b = None
-        if args.multi_target or args.simultaneous:
+        if args.multi_target or args.simultaneous or args.locked_target:
             cmd_b = client_command(
                 args, root / "target-b-game", "CITargetB",
                 "00000000000000000000000000000003", port, remote=False)
@@ -546,7 +570,7 @@ def run(args):
                  "dedicated server CIHost join")
         wait_for(server, server_log, TARGET_JOIN, deadline,
                  "dedicated server CITarget join")
-        if args.multi_target or args.simultaneous:
+        if args.multi_target or args.simultaneous or args.locked_target:
             wait_for(server, server_log, b"CITargetB joined the game", deadline,
                      "real CITargetB dedicated-server join")
             wait_for(target_b, target_b_log, GRAPHICAL, deadline,
@@ -555,6 +579,58 @@ def run(args):
                  "target graphical client")
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
+
+        if args.locked_target:
+            # Genuine original 1.8.9 dedicated server with 3 Java 8 JVMs.
+            # A and B stay eligible while B overtakes A; only then A goes
+            # out-of-range. No fake hit, damage or target identity is used.
+            send_server_command(server, server_log,
+                                "scoreboard objectives add taken stat.damageTaken")
+            for player in ("CITarget", "CITargetB"):
+                send_server_command(server, server_log,
+                                    "scoreboard players set {} taken 0".format(player))
+                send_server_command(server, server_log,
+                                    "scoreboard players test {} taken 0 0".format(player),
+                                    expected=b"score 0 is in range 0 to 0")
+            for player in ("CIHost", "CITarget", "CITargetB"):
+                send_server_command(server, server_log, "gamemode 0 " + player)
+            send_server_command(server, server_log,
+                                "gamerule naturalRegeneration false")
+            host_tp, a_near, b_outer, b_near, a_far = (
+                actual_server_three_client_locked_fixture(server_log))
+            send_server_command(server, server_log, b_outer)
+            send_server_command(server, server_log, host_tp)
+            send_server_command(server, server_log, a_near)
+            wait_for(host, host_log, LOCK_READY, deadline,
+                     "20 actual two-eligible disabled-Aura callbacks selecting A")
+            wait_for(host, host_log, LOCK_HIT_A, deadline,
+                     "native-UUID-locked original Aura attack on A")
+            wait_for_real_score(server, server_log, "CITarget", deadline)
+            send_server_command(server, server_log,
+                                "scoreboard players test CITargetB taken 0 0",
+                                expected=b"score 0 is in range 0 to 0")
+            print("CUSTOMMC_189_LOCK_A_DAMAGE_B_ZERO_PASS=YES", flush=True)
+            # Real server makes B closer but does NOT invalidate A.
+            send_server_command(server, server_log, b_near)
+            wait_for(host, host_log, LOCK_RETAINED, deadline,
+                     "15 full callbacks retaining current A UUID while closer B eligible")
+            send_server_command(server, server_log,
+                                "scoreboard players test CITargetB taken 0 0",
+                                expected=b"score 0 is in range 0 to 0")
+            print("CUSTOMMC_OFFICIAL_189_LOCK_NEARER_B_STILL_ZERO_DAMAGE_PASS=YES",
+                  flush=True)
+            # One server teleport makes previous locked A out of Aura range.
+            send_server_command(server, server_log, a_far)
+            wait_for(host, host_log, LOCK_RELEASE, deadline,
+                     "A out-of-range; actual locked UUID and production target become B")
+            wait_for(host, host_log, LOCK_HIT_B, deadline,
+                     "original native attack on newly eligible UUID B")
+            wait_for_real_score(server, server_log, "CITargetB", deadline)
+            send_server_command(server, server_log,
+                                "scoreboard players test CITarget taken 1 999999",
+                                expected=b"is in range 1 to 999999")
+            print("CUSTOMMC_OFFICIAL_189_LOCK_RELEASE_BOTH_SERVER_DAMAGE_PASS=YES",
+                  flush=True)
 
         if args.simultaneous:
             # BOTH actual remote EntityPlayers stay inside default 3.5 range.
@@ -923,7 +999,7 @@ def run(args):
                 ("target game", target)):
             check_process(proc, phase)
 
-        if args.multi_target or args.simultaneous:
+        if args.multi_target or args.simultaneous or args.locked_target:
             check_process(target_b, "third native real player JVM")
             print("CUSTOMMC_OFFICIAL_189_THREE_REAL_CLIENTS_JOINED_PASS=YES",
                   flush=True)
@@ -932,6 +1008,9 @@ def run(args):
               flush=True)
         print("CUSTOMMC_OFFICIAL_189_REMOTE_PLAYER_KIND_SUSTAINED_PASS=YES",
               flush=True)
+        if args.locked_target:
+            print("CUSTOMMC_OFFICIAL_189_REAL_UUID_LOCK_RELEASE_PASS=YES",
+                  flush=True)
         if args.simultaneous:
             print("CUSTOMMC_OFFICIAL_189_SIMULTANEOUS_REAL_UUID_ARBITRATION_PASS=YES",
                   flush=True)
@@ -983,6 +1062,8 @@ def main():
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
     group = parser.add_mutually_exclusive_group()
+    group.add_argument("--locked-target", action="store_true",
+                       help="genuine three-player sticky UUID lock retained then released on invalid A")
     group.add_argument("--simultaneous", action="store_true",
                        help="two simultaneously eligible genuine UUID players; verify priority changes and server damage")
     group.add_argument("--multi-target", action="store_true",
