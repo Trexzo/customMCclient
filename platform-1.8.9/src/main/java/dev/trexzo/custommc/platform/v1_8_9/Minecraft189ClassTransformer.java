@@ -2305,6 +2305,7 @@ public final class Minecraft189ClassTransformer
                 new ClassWriter(
                         reader,
                         ClassWriter.COMPUTE_MAXS);
+        final boolean[] foundNativeAttackEntity = new boolean[]{false};
 
         reader.accept(
                 new ClassVisitor(
@@ -2331,6 +2332,43 @@ public final class Minecraft189ClassTransformer
                                                 BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME),
                                         BLOCK_MINING_CONTROL_INTERNAL_NAME),
                                 VANILLA_REACH_ACCESS_INTERNAL_NAME));
+                    }
+
+                    @Override
+                    public MethodVisitor visitMethod(
+                            final int access, final String name,
+                            final String descriptor, final String signature,
+                            final String[] exceptions) {
+                        final MethodVisitor delegate = super.visitMethod(
+                                access, name, descriptor, signature, exceptions);
+                        // Exact original 1.8.9 attackEntity(EntityPlayer,Entity)
+                        // descriptor in bda, proven by the official binary
+                        // preflight. Only adds a gated observation at entry;
+                        // never sends packets or changes vanilla reach.
+                        if ("(Lwn;Lpk;)V".equals(descriptor)
+                                && (access & Opcodes.ACC_STATIC) == 0) {
+                            if (foundNativeAttackEntity[0]) {
+                                throw new IllegalStateException(
+                                        "ambiguous Mojang PlayerController attackEntity");
+                            }
+                            foundNativeAttackEntity[0] = true;
+                            return new MethodVisitor(Opcodes.ASM9, delegate) {
+                                @Override
+                                public void visitCode() {
+                                    super.visitCode();
+                                    super.visitVarInsn(Opcodes.ALOAD, 0);
+                                    super.visitVarInsn(Opcodes.ALOAD, 1);
+                                    super.visitVarInsn(Opcodes.ALOAD, 2);
+                                    super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                            RUNTIME_BRIDGE_INTERNAL_NAME,
+                                            "acceptanceControllerAttackEntity",
+                                            "(Ljava/lang/Object;Ljava/lang/Object;"
+                                                    + "Ljava/lang/Object;)V",
+                                            false);
+                                }
+                            };
+                        }
+                        return delegate;
                     }
 
                     @Override
@@ -2365,7 +2403,10 @@ public final class Minecraft189ClassTransformer
                     }
                 },
                 0);
-
+        if (!foundNativeAttackEntity[0]) {
+            throw new IllegalStateException(
+                    "official Minecraft 1.8.9 PlayerController attackEntity absent");
+        }
         return writer.toByteArray();
     }
 
