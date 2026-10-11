@@ -866,6 +866,18 @@ public final class Minecraft189RuntimeBridge {
         Minecraft189VanillaMeleeAcceptance.onNativeClick(minecraft);
     }
 
+    /**
+     * Observation only: exact vanilla bda attackEntity(EntityPlayer, Entity)
+     * reached after clickMouse's left-click cooldown/focus guard. This does
+     * not generate an ATTACK packet or infer server-side damage.
+     */
+    public static synchronized void acceptanceControllerAttackEntity(
+            final Object controller, final Object player,
+            final Object entity) {
+        Minecraft189VanillaMeleeAcceptance.onMojangControllerAttack(
+                controller, player, entity);
+    }
+
     public static synchronized void renderFrameStarted(
             final float partialTicks) {
         if (activeRuntime != null) {
