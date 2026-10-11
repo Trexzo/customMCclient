@@ -146,8 +146,15 @@ def restore_real_attacker_focus(host, deadline):
     ).decode("ascii", "strict").strip()
     if int(focused) != int(window):
         raise AssertionError("host window not active after EWMH activation")
-    # No X11 click is issued. Vanilla's attack-key released path owns the
-    # click counter reset; only subsequent module-owned clicks may attack.
+    # Before any server damage baseline is armed and before the players are
+    # placed for PvP, physically grab the actual client mouse through X11.
+    # This invokes vanilla setIngameFocus; a later released-button tick
+    # clears its leftClickCounter using Mojang's own runTick logic.
+    subprocess.check_call(["xdotool", "mousemove", "--window", window,
+                           "427", "240"], timeout=4)
+    subprocess.check_call(["xdotool", "click", "--window", window, "1"],
+                          timeout=4)
+    print("CUSTOMMC_189_REAL_ATTACKER_PREARM_MOUSE_GRAB=YES", flush=True)
     print("CUSTOMMC_189_REAL_ATTACKER_X11_FOCUS_RESTORED=YES", flush=True)
     time.sleep(2.0)
     check_process(host, "CIHost refocused Minecraft game")
@@ -277,6 +284,13 @@ def run(args):
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
 
         if args.pvp:
+            # Launching the target's graphical JVM can unfocus CIHost.
+            # Grab the real CIHost mouse BEFORE the authoritative baseline,
+            # then overwrite both camera yaw and world positions by normal
+            # dedicated-server teleport commands below. There are no
+            # manual X11 attack clicks after arming.
+            restore_real_attacker_focus(
+                host, min(deadline, time.monotonic() + 12))
             # The same unmodified dedicated server owns BOTH real players
             # and the authoritative damage-taken scoreboard statistic.
             # Stat data is set to zero BEFORE the attack and never edited
@@ -301,13 +315,6 @@ def run(args):
             send_server_command(server, server_log, "tp CITarget 0 5 2 180 0")
             print("CUSTOMMC_189_SERVER_REAL_PLAYER_PVP_POSITIONS_SET=YES",
                   flush=True)
-            # The second client was launched last and may own X11 focus.
-            # Vanilla Minecraft leftClickCounter can suppress real packet
-            # dispatch when the attacker is unfocused. Restore actual
-            # host-window focus; never forge a packet or game state.
-            restore_real_attacker_focus(
-                host, min(deadline, time.monotonic() + 12))
-
             wait_for(host, host_log, AURA_DISABLED, deadline,
                      "20 disabled genuine nonlocal player target callbacks")
             wait_for(host, host_log, AURA_ENABLED, deadline,
