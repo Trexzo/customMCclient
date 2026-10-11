@@ -78,6 +78,26 @@ jobs:
           command -v xvfb-run
           command -v xrandr
           xvfb-run -a -s "-screen 0 1280x720x24" xrandr --query
+      - name: Verify two real remote UUID players switch and take independent PvP damage
+        timeout-minutes: 6
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '2.1'
+        run: |
+          if ! command -v xdotool >/dev/null 2>&1 || ! command -v openbox >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xdotool openbox
+          fi
+          xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189LocalhostTwoPlayerSmoke.py \
+            --java "$JAVA_HOME/bin/java" \
+            --server "$RUNNER_TEMP/minecraft-1.8.9-dedicated-server.jar" \
+            --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
+            --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
+            --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
+            --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
+            --overlay "build/runtime-overlay" \
+            --root "$RUNNER_TEMP/custommc-189-real-three-clients" \
+            --timeout 235 --multi-target
       - name: Run bounded genuine Minecraft 1.8.9 graphical smoke
         timeout-minutes: 3
         env:
@@ -265,22 +285,6 @@ jobs:
             --overlay "build/runtime-overlay" \
             --root "$RUNNER_TEMP/custommc-189-wall-lifecycle" \
             --timeout 235 --wall-lifecycle
-      - name: Verify two real remote UUID players switch and take independent PvP damage
-        timeout-minutes: 6
-        env:
-          LIBGL_ALWAYS_SOFTWARE: '1'
-          MESA_GL_VERSION_OVERRIDE: '2.1'
-        run: |
-          xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189LocalhostTwoPlayerSmoke.py \
-            --java "$JAVA_HOME/bin/java" \
-            --server "$RUNNER_TEMP/minecraft-1.8.9-dedicated-server.jar" \
-            --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
-            --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
-            --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
-            --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
-            --overlay "build/runtime-overlay" \
-            --root "$RUNNER_TEMP/custommc-189-real-three-clients" \
-            --timeout 235 --multi-target
       - name: Verify Kill Aura genuine second-player hit and server damage
         timeout-minutes: 8
         env:

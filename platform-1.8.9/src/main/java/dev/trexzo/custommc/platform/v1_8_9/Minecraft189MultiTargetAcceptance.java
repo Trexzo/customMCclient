@@ -118,10 +118,30 @@ final class Minecraft189MultiTargetAcceptance {
                 host.worldEntityUuidState().snapshot();
         final Minecraft189TargetRotationState.Snapshot selected =
                 host.targetRotationState().snapshot();
+        final Minecraft189NearestPlayerTargetState.Snapshot nearest =
+                host.nearestPlayerTargetState().snapshot();
+        final Minecraft189WorldEntityKindState.Snapshot kinds =
+                host.worldEntityKindState().snapshot();
+        final Minecraft189WorldEntityCombatState.Snapshot combat =
+                host.worldEntityCombatState().snapshot();
+        // The observer's chosenIndex can be temporarily unavailable when
+        // the genuine server moves TWO players between adjacent client
+        // callbacks. Never treat that cached witness as attack authority:
+        // revalidate current native UUID, real crosshair, living kind,
+        // production selector and rotation for THIS exact callback instead.
         if (!host.featureCatalog().killAura().active()
-                || !playerHit || playerIndex < 0 || chosenIndex != playerIndex
+                || !playerHit || playerIndex < 0
+                || (chosenIndex >= 0 && chosenIndex != playerIndex)
                 || !ids.available() || playerIndex >= ids.entityCount()
-                || !selected.available() || selected.entityIndex() != playerIndex) {
+                || !kinds.available() || playerIndex >= kinds.entityCount()
+                || !kinds.player(playerIndex) || kinds.localPlayer(playerIndex)
+                || !kinds.living(playerIndex)
+                || !combat.available() || playerIndex >= combat.entityCount()
+                || !combat.alive(playerIndex)
+                || !nearest.found() || nearest.entityIndex() != playerIndex
+                || !selected.available() || selected.entityIndex() != playerIndex
+                || !Double.isFinite(selected.distance())
+                || selected.distance() > 3.5D) {
             throw new IllegalStateException(
                     "multi-target click without native owner: stage=" + stage
                     + " aura=" + host.featureCatalog().killAura().active()
