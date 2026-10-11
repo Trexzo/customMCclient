@@ -61,6 +61,41 @@ def wait_for(proc, log, phrase, deadline, phase):
     raise AssertionError("missing " + phase + " marker within deadline")
 
 
+def actual_server_spawn_fixture(server_log):
+    """Place both real players within one generated spawn chunk.
+
+    Dedicated-server 1.8.9 initial spawn varies per generated FLAT world.
+    Sending both clients to origin (0,0) detached the target from the
+    observed host-world entity inventory in consecutive genuine CI runs.
+    Instead use the exact server-recorded CIHost login position, keeping
+    a four-block separation inside the already-loaded spawn chunk.
+    """
+    data = log_tail(server_log, 250000)
+    match = re.search(
+        rb"CIHost\[/127\.0\.0\.1:\d+\] logged in with entity id \d+ at "
+        rb"\((-?\d+(?:\.\d+)?), (-?\d+(?:\.\d+)?), (-?\d+(?:\.\d+)?)\)",
+        data,
+    )
+    if not match:
+        raise AssertionError("actual dedicated-server CIHost spawn unknown")
+    import math
+    host_x = math.floor(float(match.group(1)))
+    host_y = math.floor(float(match.group(2))) + 1
+    host_z = math.floor(float(match.group(3)))
+    # Both real players stay within the same 16-block Z chunk so the
+    # test cannot pass from a stale or unloaded remote player placeholder.
+    dz = 4 if host_z % 16 <= 11 else -4
+    target_z = host_z + dz
+    if host_z // 16 != target_z // 16:
+        raise AssertionError("Mojang spawn-based fixture crossed chunk boundary")
+    yaw = 0 if dz > 0 else 180
+    return (
+        "tp CIHost {} {} {} {} 0".format(host_x, host_y, host_z, yaw),
+        "tp CITarget {} {} {} {} 0".format(host_x, host_y, target_z,
+                                          (yaw + 180) % 360),
+    )
+
+
 def write_server_properties(path, port):
     if not (1024 < port < 65536):
         raise ValueError("invalid loopback fixture port")
@@ -336,8 +371,11 @@ def run(args):
             send_server_command(server, server_log, "gamemode 0 CITarget")
             send_server_command(server, server_log,
                                 "gamerule naturalRegeneration false")
-            send_server_command(server, server_log, "tp CIHost 0 5 0 0 0")
-            send_server_command(server, server_log, "tp CITarget 0 5 4 180 0")
+            host_tp, target_tp = actual_server_spawn_fixture(server_log)
+            send_server_command(server, server_log, host_tp)
+            send_server_command(server, server_log, target_tp)
+            print("CUSTOMMC_189_RANGE_ACTUAL_SERVER_SPAWN_CHUNK_PASS=YES",
+                  flush=True)
             print("CUSTOMMC_189_REAL_PLAYER_OUTSIDE_AURA_REACH_POSITIONED=YES",
                   flush=True)
             wait_for(host, host_log, RANGE_DISABLED, deadline,
