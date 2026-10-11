@@ -1010,6 +1010,20 @@ final class Minecraft189MappedHostTransformationTest {
                     .set(
                             minecraft,
                             player);
+            // M406: Kill Aura's native controller attack delegate must use
+            // the original live player and EXACT crosshair entity, not a
+            // fabricated packet or synthetic clickMouse bypass. Restore
+            // the original fixture crosshair only for this bounded check.
+            minecraftClass.getField("s").set(minecraft, hit);
+            ((Minecraft189ClickMouseControl) minecraft)
+                    .customMcAttackCrosshairEntity();
+            assertEquals(1,
+                    playerControllerClass.getField("attackEntityCalls")
+                            .getInt(playerController));
+            assertSame(playerHit,
+                    playerControllerClass.getField("lastAttackedEntity")
+                            .get(playerController));
+            minecraftClass.getField("s").set(minecraft, null);
             // Pinned native EntityPlayer.isUsingItem + controller stop-use.
             final Minecraft189SwordBlockControl swordBlock =
                     (Minecraft189SwordBlockControl) minecraft;
