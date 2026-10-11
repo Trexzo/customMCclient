@@ -211,8 +211,7 @@ class RealSimultaneousTargetFixtureTest(unittest.TestCase):
             ("tp CIHost 243 5 444 0 0",
              "tp CITarget 243 5 446 180 0",
              "tp CITargetB 245 5 446 180 0",
-             "tp CITarget 244 5 446 180 0",
-             "tp CITargetB 243 5 446 180 0"),
+             "tp CITargetB 244 5 445 180 0"),
         )
 
     def test_both_eligible_negative_direction_near_x_chunk_edge(self):
@@ -221,8 +220,7 @@ class RealSimultaneousTargetFixtureTest(unittest.TestCase):
             ("tp CIHost -34 5 -34 180 0",
              "tp CITarget -34 5 -36 0 0",
              "tp CITargetB -36 5 -36 180 0",
-             "tp CITarget -35 5 -36 180 0",
-             "tp CITargetB -34 5 -36 180 0"),
+             "tp CITargetB -35 5 -35 180 0"),
         )
 
     def test_real_server_login_required_for_simultaneous_fixture(self):

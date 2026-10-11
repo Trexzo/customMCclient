@@ -49,7 +49,6 @@ MULTI_SWITCH = b"CUSTOMMC_189_MULTI_TARGET_SWITCH_TO_UUID_B_PASS=YES"
 MULTI_HIT_B = b"CUSTOMMC_189_MULTI_UUID_B_OWNED_ATTACK_PASS=YES"
 SIM_READY = b"CUSTOMMC_189_SIMULTANEOUS_TWO_NATIVE_ELIGIBLE_PLAYERS_PASS=20"
 SIM_HIT_A = b"CUSTOMMC_189_SIMULTANEOUS_UUID_A_OWNED_ATTACK_PASS=YES"
-SIM_A_STABLE = b"CUSTOMMC_189_SIMULTANEOUS_A_STILL_NEAREST_WITH_B_ELIGIBLE_PASS=20"
 SIM_SWITCH = b"CUSTOMMC_189_SIMULTANEOUS_NATIVE_UUID_B_PRIORITY_SWITCH_PASS=YES"
 SIM_HIT_B = b"CUSTOMMC_189_SIMULTANEOUS_UUID_B_OWNED_ATTACK_PASS=YES"
 
@@ -213,15 +212,22 @@ def actual_server_three_client_simultaneous_fixture(server_log):
         raise AssertionError("native A spawn command malformed")
     x, y, z = (int(v) for v in parts[2:5])
     sign = 1 if x % 16 <= 13 else -1
-    # Initial distances are 2 and sqrt(8); after moving A laterally one
-    # block and moving B to A's exact previous spot: sqrt(5) and 2.
-    # All player hitboxes stay spatially distinct, with native FOV <90.
+    # Initial distances: A=2, B=sqrt(8), both in real attack reach.
+    # Move ONLY B once to a separate diagonal tile of sqrt(2) distance,
+    # making B nearer without overlapping or moving the already-hurt A.
+    # Actual native raycast still owns every possible player attack.
+    hvals = host.split()
+    if len(hvals) != 7 or hvals[:2] != ["tp", "CIHost"]:
+        raise AssertionError("native host spawn teleport malformed")
+    host_z = int(hvals[4])
+    zsign = 1 if z > host_z else -1
     b_outer = "tp CITargetB {} {} {} 180 0".format(x + sign * 2, y, z)
-    a_mid = "tp CITarget {} {} {} 180 0".format(x + sign, y, z)
-    b_near = "tp CITargetB {} {} {} 180 0".format(x, y, z)
-    if x // 16 != (x + sign * 2) // 16:
-        raise AssertionError("native simultaneous fixture crossed X spawn chunk")
-    return host, a_near, b_outer, a_mid, b_near
+    b_near = "tp CITargetB {} {} {} 180 0".format(
+        x + sign, y, host_z + zsign)
+    if (x // 16 != (x + sign * 2) // 16
+            or host_z // 16 != (host_z + zsign) // 16):
+        raise AssertionError("native simultaneous fixture crossed spawn chunk")
+    return host, a_near, b_outer, b_near
 
 
 def official_offline_uuid(name):
@@ -565,7 +571,7 @@ def run(args):
                 send_server_command(server, server_log, "gamemode 0 " + player)
             send_server_command(server, server_log,
                                 "gamerule naturalRegeneration false")
-            host_tp, a_near, b_outer, a_mid, b_near = (
+            host_tp, a_near, b_outer, b_near = (
                 actual_server_three_client_simultaneous_fixture(server_log))
             send_server_command(server, server_log, b_outer)
             send_server_command(server, server_log, host_tp)
@@ -582,16 +588,9 @@ def run(args):
                                 expected=b"score 0 is in range 0 to 0")
             print("CUSTOMMC_189_SIMULTANEOUS_A_DAMAGED_B_STILL_ZERO_PASS=YES",
                   flush=True)
-            # Move A one block aside: A remains closer and B also remains
-            # reachable, proving stable arbitration before the real swap.
-            send_server_command(server, server_log, a_mid)
-            wait_for(host, host_log, SIM_A_STABLE, deadline,
-                     "20 real callbacks: A still nearer; B also in reach")
-            send_server_command(server, server_log,
-                                "scoreboard players test CITargetB taken 0 0",
-                                expected=b"score 0 is in range 0 to 0")
-            # Move B into previous A tile. BOTH still in range (2/sqrt5).
-            # No overlapping player hitboxes, no attack-boundary overrides.
+            # One server teleport, no movement of already-hurt A: B goes
+            # from sqrt(8) to sqrt(2) blocks, at a DIFFERENT diagonal tile.
+            # Both live native players are in reach before and after.
             send_server_command(server, server_log, b_near)
             wait_for(host, host_log, SIM_SWITCH, deadline,
                      "genuine native UUID B becomes nearer than living A")

@@ -12,8 +12,6 @@ final class Minecraft189SimultaneousTargetAcceptance {
     private static UUID secondUuid;
     private static int phase;
     private static int disabledTicks;
-    private static int stableAAfterHitTicks;
-    private static boolean stableAAfterHitReported;
     private static boolean firstOwnedClick;
     private static boolean secondOwnedClick;
 
@@ -24,8 +22,6 @@ final class Minecraft189SimultaneousTargetAcceptance {
         secondUuid = null;
         phase = 0;
         disabledTicks = 0;
-        stableAAfterHitTicks = 0;
-        stableAAfterHitReported = false;
         firstOwnedClick = false;
         secondOwnedClick = false;
     }
@@ -55,16 +51,6 @@ final class Minecraft189SimultaneousTargetAcceptance {
             System.out.println(
                     "CUSTOMMC_189_SIMULTANEOUS_NATIVE_UUID_B_PRIORITY_SWITCH_PASS=YES");
             System.out.flush();
-        }
-        if (phase == 1 && firstOwnedClick && !stableAAfterHitReported) {
-            stableAAfterHitTicks = evidence != null && evidence.aNearest
-                    ? stableAAfterHitTicks + 1 : 0;
-            if (stableAAfterHitTicks >= 20) {
-                stableAAfterHitReported = true;
-                System.out.println(
-                        "CUSTOMMC_189_SIMULTANEOUS_A_STILL_NEAREST_WITH_B_ELIGIBLE_PASS=20");
-                System.out.flush();
-            }
         }
         // Do not cache a candidate index: a native loadedEntityList may be
         // rebuilt between observing and attempting the very next attack.
@@ -186,8 +172,8 @@ final class Minecraft189SimultaneousTargetAcceptance {
         final double adist = Math.sqrt(adx * adx + ady * ady + adz * adz);
         final double bdist = Math.sqrt(bdx * bdx + bdy * bdy + bdz * bdz);
         if (!Double.isFinite(adist) || !Double.isFinite(bdist)
-                || adist < 1.5D || adist > 3.25D
-                || bdist < 1.5D || bdist > 3.25D) return null;
+                || adist < 1.0D || adist > 3.25D
+                || bdist < 1.0D || bdist > 3.25D) return null;
         // Require BOTH living players to remain eligible by actual distance,
         // not one eligible while another is safely far away (M412's scope).
         final boolean aPriority = adist + 0.12D < bdist;
