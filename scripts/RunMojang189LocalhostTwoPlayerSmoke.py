@@ -30,6 +30,9 @@ AURA_HURT = b"CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HURT_PASS=YES"
 RANGE_DISABLED = b"CUSTOMMC_189_KILLAURA_RANGE_DISABLED_TICKS_PASS=20"
 RANGE_ENABLED = b"CUSTOMMC_189_KILLAURA_RANGE_MODULE_ENABLE_PASS=YES"
 RANGE_VETO = b"CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_RANGE_VETO_PASS=YES"
+FOV_DISABLED = b"CUSTOMMC_189_KILLAURA_FOV_DISABLED_TARGET_TICKS_PASS=20"
+FOV_ENABLED = b"CUSTOMMC_189_KILLAURA_FOV_MODULE_ENABLE_PASS=YES"
+FOV_VETO = b"CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_FOV_VETO_PASS=YES"
 
 
 def local_port():
@@ -93,6 +96,31 @@ def actual_server_spawn_fixture(server_log):
         "tp CIHost {} {} {} {} 0".format(host_x, host_y, host_z, yaw),
         "tp CITarget {} {} {} {} 0".format(host_x, host_y, target_z,
                                           (yaw + 180) % 360),
+    )
+
+
+def actual_server_spawn_fov_fixture(server_log):
+    """Position an actual nonlocal server player 2 blocks behind CIHost."""
+    import math
+    data = log_tail(server_log, 250000)
+    match = re.search(
+        rb"CIHost\[/127\.0\.0\.1:\d+\] logged in with entity id \d+ at "
+        rb"\((-?\d+(?:\.\d+)?), (-?\d+(?:\.\d+)?), (-?\d+(?:\.\d+)?)\)",
+        data,
+    )
+    if not match:
+        raise AssertionError("Mojang dedicated server actual host spawn unknown")
+    x = math.floor(float(match.group(1)))
+    y = math.floor(float(match.group(2))) + 1
+    z = math.floor(float(match.group(3)))
+    dz = 2 if z % 16 <= 13 else -2
+    if z // 16 != (z + dz) // 16:
+        raise AssertionError("FOV fixture crosses real loaded spawn chunk")
+    # Host looks away from the real target; never forge camera snapshots.
+    away_yaw = 180 if dz > 0 else 0
+    return (
+        "tp CIHost {} {} {} {} 0".format(x, y, z, away_yaw),
+        "tp CITarget {} {} {} {} 0".format(x, y, z + dz, (away_yaw + 180) % 360),
     )
 
 
@@ -243,6 +271,9 @@ def client_command(args, game, username, uuid, port, remote):
     if remote and args.range_veto:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraRangeVeto=true")
+    if remote and args.fov_veto:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportKillAuraFovVeto=true")
     if remote and args.pvp:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportVanillaMelee=true")
@@ -352,6 +383,37 @@ def run(args):
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
 
+        if args.fov_veto:
+            # The second player is genuinely close enough to hit, but the
+            # attacker looks away by ~180 degrees, exceeding default 90 FOV.
+            send_server_command(server, server_log,
+                                "scoreboard objectives add taken stat.damageTaken")
+            send_server_command(server, server_log,
+                                "scoreboard players set CITarget taken 0")
+            send_server_command(server, server_log,
+                                "scoreboard players test CITarget taken 0 0",
+                                expected=b"score 0 is in range 0 to 0")
+            send_server_command(server, server_log, "gamemode 0 CIHost")
+            send_server_command(server, server_log, "gamemode 0 CITarget")
+            send_server_command(server, server_log,
+                                "gamerule naturalRegeneration false")
+            host_tp, target_tp = actual_server_spawn_fov_fixture(server_log)
+            send_server_command(server, server_log, host_tp)
+            send_server_command(server, server_log, target_tp)
+            print("CUSTOMMC_189_FOV_REAL_SERVER_SPAWN_CHUNK_PASS=YES",
+                  flush=True)
+            wait_for(host, host_log, FOV_DISABLED, deadline,
+                     "20 real rear-player target callbacks with module disabled")
+            wait_for(host, host_log, FOV_ENABLED, deadline,
+                     "ordinary Kill Aura module enable")
+            wait_for(host, host_log, FOV_VETO, deadline,
+                     "80 real rear-player FOV veto callbacks")
+            send_server_command(server, server_log,
+                                "scoreboard players test CITarget taken 0 0",
+                                expected=b"score 0 is in range 0 to 0")
+            print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_FOV_SERVER_NO_DAMAGE_PASS=YES",
+                  flush=True)
+
         if args.range_veto:
             # Separate negative-only process. The second real signed client
             # must be in sight of world telemetry yet physically beyond
@@ -371,6 +433,13 @@ def run(args):
             send_server_command(server, server_log, "gamemode 0 CITarget")
             send_server_command(server, server_log,
                                 "gamerule naturalRegeneration false")
+            # The second live player can walk ~0.6 blocks from its
+            # initial teleport before the 80-tick veto finishes, becoming
+            # legitimately in-range. Restrict target input/movement using
+            # the vanilla dedicated-server Slowness effect; never change
+            # any combat range, selector or damage gate.
+            send_server_command(server, server_log,
+                                "effect CITarget 2 600 5 true")
             host_tp, target_tp = actual_server_spawn_fixture(server_log)
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, target_tp)
@@ -500,6 +569,9 @@ def run(args):
         elif args.range_veto:
             print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_RANGE_NEGATIVE_PASS=YES",
                   flush=True)
+        elif args.fov_veto:
+            print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_FOV_NEGATIVE_PASS=YES",
+                  flush=True)
         else:
             print("CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HIT_TESTED=NO",
                   flush=True)
@@ -531,6 +603,8 @@ def main():
                        help="prove Kill Aura attack and real server damage statistic")
     group.add_argument("--range-veto", action="store_true",
                        help="prove real out-of-range player cannot be attacked")
+    group.add_argument("--fov-veto", action="store_true",
+                       help="prove in-range real player behind camera is excluded")
     args = parser.parse_args()
     run(args)
 

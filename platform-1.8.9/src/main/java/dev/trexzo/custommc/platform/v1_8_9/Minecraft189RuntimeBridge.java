@@ -35,6 +35,11 @@ public final class Minecraft189RuntimeBridge {
     private static boolean acceptanceAuraFarEnabled;
     private static boolean acceptanceAuraFarReported;
     private static int acceptanceAuraFarEvidenceChecks;
+    private static int acceptanceAuraFovTargetIndex = -1;
+    private static int acceptanceAuraFovDisabledTicks;
+    private static int acceptanceAuraFovEnabledTicks;
+    private static boolean acceptanceAuraFovEnabled;
+    private static boolean acceptanceAuraFovReported;
 
     private Minecraft189RuntimeBridge() {
     }
@@ -78,6 +83,11 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraFarEnabled = false;
         acceptanceAuraFarReported = false;
         acceptanceAuraFarEvidenceChecks = 0;
+        acceptanceAuraFovTargetIndex = -1;
+        acceptanceAuraFovDisabledTicks = 0;
+        acceptanceAuraFovEnabledTicks = 0;
+        acceptanceAuraFovEnabled = false;
+        acceptanceAuraFovReported = false;
         return new Registration(next);
     }
 
@@ -676,6 +686,95 @@ public final class Minecraft189RuntimeBridge {
                 }
             }
             if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraFovVeto")
+                    && !acceptanceAuraFovReported) {
+                // Once enabled, the real Aura selector correctly clears its
+                // rejected target. Measure yaw from the unmodified native
+                // loaded-player position instead of requiring targetRotation.
+                final Minecraft189PlayerRotationState.Snapshot rotation =
+                        host.playerRotationState().snapshot();
+                final Minecraft189WorldEntityKindState.Snapshot kinds =
+                        host.worldEntityKindState().snapshot();
+                final Minecraft189PlayerPositionState.Snapshot local =
+                        host.playerPositionState().snapshot();
+                final Minecraft189WorldEntityPositionState.Snapshot positions =
+                        host.worldEntityPositionState().snapshot();
+                int remoteIndex = -1;
+                int remoteCount = 0;
+                boolean valid = rotation.available()
+                        && kinds.available() && positions.available()
+                        && local.available()
+                        && kinds.entityCount() == positions.entityCount();
+                if (valid) {
+                    for (int index = 0; index < kinds.entityCount(); index++) {
+                        if (kinds.player(index) && !kinds.localPlayer(index)) {
+                            remoteCount++;
+                            if (kinds.living(index))
+                                remoteIndex = index;
+                        }
+                    }
+                    valid = remoteCount == 1 && remoteIndex >= 0;
+                }
+                if (valid) {
+                    final double dx = positions.x(remoteIndex) - local.x();
+                    final double dy = positions.y(remoteIndex) - local.y();
+                    final double dz = positions.z(remoteIndex) - local.z();
+                    final double horizontal = Math.hypot(dx, dz);
+                    final double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                    final double targetYaw = Math.toDegrees(Math.atan2(dz, dx))
+                            - 90.0D;
+                    double yawError = targetYaw - rotation.yaw();
+                    yawError = ((yawError + 540.0D) % 360.0D) - 180.0D;
+                    valid = Double.isFinite(distance)
+                            && distance >= 1.5D && distance <= 3.25D
+                            && Double.isFinite(horizontal) && horizontal > 0.0D
+                            && Double.isFinite(yawError)
+                            && Math.abs(yawError) >= 120.0D;
+                }
+                if (!valid || (acceptanceAuraFovTargetIndex >= 0
+                        && remoteIndex != acceptanceAuraFovTargetIndex)) {
+                    acceptanceAuraFovTargetIndex = -1;
+                    acceptanceAuraFovDisabledTicks = 0;
+                    acceptanceAuraFovEnabledTicks = 0;
+                } else {
+                    acceptanceAuraFovTargetIndex = remoteIndex;
+                    if (Double.compare(host.featureCatalog().killAura()
+                            .fovSetting().get(), 90.0D) != 0) {
+                        throw new IllegalStateException(
+                                "FOV acceptance requires unchanged 90-degree setting");
+                    }
+                    if (!acceptanceAuraFovEnabled) {
+                        if (host.featureCatalog().killAura().active())
+                            throw new IllegalStateException("FOV module pre-enabled");
+                        if (++acceptanceAuraFovDisabledTicks >= 20) {
+                            System.out.println(
+                                    "CUSTOMMC_189_KILLAURA_FOV_DISABLED_TARGET_TICKS_PASS=20");
+                            host.featureCatalog()
+                                    .enableKillAuraForOfficialFovVetoAcceptance();
+                            acceptanceAuraFovEnabled = true;
+                            System.out.println(
+                                    "CUSTOMMC_189_KILLAURA_FOV_MODULE_ENABLE_PASS=YES");
+                            System.out.flush();
+                        }
+                    } else {
+                        if (!host.featureCatalog().killAura().active())
+                            throw new IllegalStateException(
+                                    "FOV module disabled unexpectedly");
+                        // An actual rejected remote player must remain absent
+                        // from BOTH selected player and attack rotation state.
+                        if (host.nearestPlayerTargetState().snapshot().found()
+                                || host.targetRotationState().snapshot().available()) {
+                            acceptanceAuraFovEnabledTicks = 0;
+                        } else if (++acceptanceAuraFovEnabledTicks >= 80) {
+                            acceptanceAuraFovReported = true;
+                            System.out.println(
+                                    "CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_FOV_VETO_PASS=YES");
+                            System.out.flush();
+                        }
+                    }
+                }
+            }
+            if (Boolean.getBoolean(
                     "custommc.acceptance.reportKillAuraRangeVeto")
                     && !acceptanceAuraFarReported) {
                 // Real-game fail-closed test: one genuinely server-owned
@@ -886,6 +985,11 @@ public final class Minecraft189RuntimeBridge {
                             "out-of-range real player caused synthetic attack");
                 }
                 if (Boolean.getBoolean(
+                        "custommc.acceptance.reportKillAuraFovVeto")) {
+                    throw new IllegalStateException(
+                            "out-of-FOV real player caused synthetic attack");
+                }
+                if (Boolean.getBoolean(
                         "custommc.acceptance.reportKillAuraLocalPvp")) {
                     if (!acceptanceAuraPlayerEnabled
                             || !host.featureCatalog().killAura().active()
@@ -1019,6 +1123,11 @@ public final class Minecraft189RuntimeBridge {
                 "custommc.acceptance.reportKillAuraRangeVeto")) {
             throw new IllegalStateException(
                     "out-of-range player reached vanilla attackEntity");
+        }
+        if (Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraFovVeto")) {
+            throw new IllegalStateException(
+                    "out-of-FOV player reached vanilla attackEntity");
         }
         Minecraft189VanillaMeleeAcceptance.onMojangControllerAttack(
                 controller, player, entity);
