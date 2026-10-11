@@ -2,8 +2,9 @@
 """Real 1.8.9 dedicated server and TWO real Minecraft clients on loopback only.
 
 Authenticates no accounts, opens no external listener, and uses no fake
-EntityPlayer. This acceptance checks actual server joins and real client
-nonlocal player-kind callbacks, NOT Kill Aura attack or PvP damage.
+EntityPlayer. Default mode proves real joins and nonlocal player-kind
+callbacks; opt-in --pvp additionally requires a native Kill Aura attack,
+same-player hurt-time and actual Mojang server damage-stat increase.
 """
 import argparse
 from pathlib import Path
@@ -272,9 +273,10 @@ def run(args):
             wait_for(host, host_log, AURA_ATTACK, deadline,
                      "host-owned Kill Aura synthetic rotated player attack")
             print("CUSTOMMC_189_CLIENT_AURA_CLICK_OBSERVED=YES", flush=True)
-            # The old checkpoint runs BEFORE calling Minecraft.clickMouse().
-            # A real attack requires getting through its leftClickCounter
-            # guard and entering the actual Mojang PlayerControllerMP method.
+            # The module-owned synthetic action is only an attempted hit.
+            # Kill Aura's mapped controller dispatch must enter the actual
+            # Mojang PlayerControllerMP.attackEntity method on that player;
+            # neither this callback nor client hurt-time alone proves damage.
             wait_for(host, host_log, CONTROLLER_ATTACK,
                      min(deadline, time.monotonic() + 10),
                      "actual Mojang PlayerControllerMP.attackEntity method")
