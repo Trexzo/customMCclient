@@ -2396,8 +2396,6 @@ public final class Minecraft189ClassTransformer
                         // preflight. Only adds a gated observation at entry;
                         // never sends packets or changes vanilla reach.
                         if (Minecraft189Mappings.PLAYER_CONTROLLER_ATTACK_ENTITY
-                                .obfuscatedName().equals(name)
-                                && Minecraft189Mappings.PLAYER_CONTROLLER_ATTACK_ENTITY
                                 .descriptor().equals(descriptor)
                                 && (access & Opcodes.ACC_STATIC) == 0) {
                             if (foundNativeAttackEntity[0]) {
