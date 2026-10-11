@@ -8,6 +8,7 @@ from RunMojang189LocalhostTwoPlayerSmoke import (
     actual_server_spawn_fov_fixture,
     actual_server_spawn_wall_fixture,
     actual_server_three_client_target_switch_fixture,
+    actual_server_three_client_simultaneous_fixture,
     official_offline_uuid,
     actual_server_spawn_positive_pvp_fixture,
     actual_server_clear_wall_command,
@@ -192,6 +193,44 @@ class RealThreePlayerFixtureTest(unittest.TestCase):
         self.assertNotEqual(a, b)
         self.assertEqual(uuid.UUID(a).version, 3)
         self.assertEqual(uuid.UUID(b).version, 3)
+
+
+class RealSimultaneousTargetFixtureTest(unittest.TestCase):
+    def check(self, raw, expected):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "server.log"
+            path.write_bytes(raw)
+            self.assertEqual(
+                actual_server_three_client_simultaneous_fixture(path),
+                expected,
+            )
+
+    def test_both_eligible_positive_direction_same_spawn_chunk(self):
+        self.check(
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\n",
+            ("tp CIHost 243 5 444 0 0",
+             "tp CITarget 243 5 446 180 0",
+             "tp CITargetB 245 5 446 180 0",
+             "tp CITarget 244 5 446 180 0",
+             "tp CITargetB 243 5 446 180 0"),
+        )
+
+    def test_both_eligible_negative_direction_near_x_chunk_edge(self):
+        self.check(
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (-33.5, 4.0, -33.5)\n",
+            ("tp CIHost -34 5 -34 180 0",
+             "tp CITarget -34 5 -36 0 0",
+             "tp CITargetB -36 5 -36 180 0",
+             "tp CITarget -35 5 -36 180 0",
+             "tp CITargetB -34 5 -36 180 0"),
+        )
+
+    def test_real_server_login_required_for_simultaneous_fixture(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "server.log"
+            path.write_bytes(b"CITargetB joined the game\n")
+            with self.assertRaisesRegex(AssertionError, "wall host spawn unknown"):
+                actual_server_three_client_simultaneous_fixture(path)
 
 
 if __name__ == "__main__":
