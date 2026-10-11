@@ -740,6 +740,34 @@ public final class Minecraft189ClassTransformer
                                             "acceptanceVanillaClick",
                                             "(Ljava/lang/Object;)V", false);
                                 }
+
+                                private boolean firstNativeClickCounter;
+
+                                @Override
+                                public void visitFieldInsn(
+                                        final int opcode, final String owner,
+                                        final String fieldName,
+                                        final String fieldDescriptor) {
+                                    super.visitFieldInsn(opcode, owner,
+                                            fieldName, fieldDescriptor);
+                                    // Exact vanilla clickMouse begins by
+                                    // reading Minecraft.leftClickCounter.
+                                    // Observe its real value on the operand
+                                    // stack; DUP preserves verifier semantics.
+                                    if (!firstNativeClickCounter
+                                            && opcode == Opcodes.GETFIELD
+                                            && Minecraft189Mappings.MINECRAFT
+                                                    .obfuscatedName().equals(owner)
+                                            && "I".equals(fieldDescriptor)) {
+                                        firstNativeClickCounter = true;
+                                        super.visitInsn(Opcodes.DUP);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "acceptanceVanillaClickGuard",
+                                                "(I)V", false);
+                                    }
+                                }
                             };
                         }
 
