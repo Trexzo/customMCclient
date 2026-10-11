@@ -264,7 +264,7 @@ jobs:
             --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
             --overlay "build/runtime-overlay" \
             --root "$RUNNER_TEMP/custommc-189-wall-lifecycle" \
-            --timeout 250 --wall-lifecycle
+            --timeout 235 --wall-lifecycle
       - name: Verify Kill Aura genuine second-player hit and server damage
         timeout-minutes: 8
         env:
