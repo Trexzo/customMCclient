@@ -34,6 +34,7 @@ public final class Minecraft189RuntimeBridge {
     private static int acceptanceAuraFarEnabledTicks;
     private static boolean acceptanceAuraFarEnabled;
     private static boolean acceptanceAuraFarReported;
+    private static int acceptanceAuraFarEvidenceChecks;
 
     private Minecraft189RuntimeBridge() {
     }
@@ -76,6 +77,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraFarEnabledTicks = 0;
         acceptanceAuraFarEnabled = false;
         acceptanceAuraFarReported = false;
+        acceptanceAuraFarEvidenceChecks = 0;
         return new Registration(next);
     }
 
@@ -687,6 +689,8 @@ public final class Minecraft189RuntimeBridge {
                 final Minecraft189WorldEntityKindState.Snapshot kinds =
                         host.worldEntityKindState().snapshot();
                 int farIndex = -1;
+                int realRemotePlayers = 0;
+                double lastRemoteDistanceSquared = Double.NaN;
                 if (local.available() && positions.available()
                         && kinds.available()
                         && kinds.entityCount() == positions.entityCount()) {
@@ -694,10 +698,12 @@ public final class Minecraft189RuntimeBridge {
                     for (int i = 0; i < kinds.entityCount(); i++) {
                         if (!kinds.player(i) || kinds.localPlayer(i))
                             continue;
+                        realRemotePlayers++;
                         final double dx = positions.x(i) - local.x();
                         final double dy = positions.y(i) - local.y();
                         final double dz = positions.z(i) - local.z();
                         final double squared = dx * dx + dy * dy + dz * dz;
+                        lastRemoteDistanceSquared = squared;
                         if (farIndex >= 0 || !kinds.living(i)
                                 || !Double.isFinite(squared)
                                 || squared < 64.0D || squared > 196.0D) {
@@ -707,6 +713,21 @@ public final class Minecraft189RuntimeBridge {
                         farIndex = i;
                     }
                     if (ambiguous) farIndex = -1;
+                }
+                // Bounded read-only diagnostics for *why* a real
+                // server-connected player failed the far-range precondition.
+                // No pass marker, fabricated entity, or range adjustment.
+                if (++acceptanceAuraFarEvidenceChecks % 200 == 0) {
+                    System.out.println(
+                            "CUSTOMMC_189_RANGE_REAL_EVIDENCE"
+                            + " local=" + local.available()
+                            + " positions=" + positions.available()
+                            + " kinds=" + kinds.available()
+                            + " entities=" + positions.entityCount()
+                            + " remotePlayers=" + realRemotePlayers
+                            + " distanceSquared=" + lastRemoteDistanceSquared
+                            + " qualifyingIndex=" + farIndex);
+                    System.out.flush();
                 }
                 if (farIndex < 0
                         || (acceptanceAuraFarTargetIndex >= 0
