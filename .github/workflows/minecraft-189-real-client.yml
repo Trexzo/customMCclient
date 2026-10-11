@@ -10,6 +10,7 @@ on:
       - 'scripts/FetchMojang189Libraries.py'
       - 'scripts/FetchMojang189NativeAssets.py'
       - 'scripts/test_mojang189_complete_assets.py'
+      - 'scripts/test_mojang189_server_spawn.py'
       - 'scripts/RunMojang189GraphicalSmoke.py'
       - 'scripts/RunMojang189SingleplayerSmoke.py'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189VanillaMeleeAcceptance.java'
@@ -42,7 +43,7 @@ jobs:
         with:
           gradle-version: '8.10.2'
       - name: Offline asset-integrity regression tests (no network)
-        run: python -m unittest discover -s scripts -p 'test_mojang189_complete_assets.py' -v
+        run: python -m unittest discover -s scripts -p 'test_mojang189_*.py' -v
       - name: Fetch and verify official Mojang 1.8.9 client
         run: python scripts/FetchMojang189Client.py --output "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar"
       - name: Fetch SHA1 pinned real Mojang 1.8.9 dedicated server
