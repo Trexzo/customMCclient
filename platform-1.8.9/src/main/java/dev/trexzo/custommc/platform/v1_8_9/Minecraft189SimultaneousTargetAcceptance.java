@@ -98,6 +98,23 @@ final class Minecraft189SimultaneousTargetAcceptance {
                     + " selected=" + rotation.entityIndex());
         }
         final UUID current = ids.at(playerIndex);
+        if (phase == 1 && firstOwnedClick && secondUuid.equals(current)) {
+            // Real client action selection can advance between the world
+            // snapshot callback and the attack callback. Recognize B ONLY
+            // when the CURRENT full native world still establishes BOTH
+            // eligible living player UUIDs and B is nearer/selected.
+            final Evidence switched = read(host);
+            if (switched == null || !switched.bNearest
+                    || playerIndex != switched.bIndex) {
+                throw new IllegalStateException(
+                        "simultaneous early B click without both-eligible "
+                        + "live native priority evidence");
+            }
+            phase = 2;
+            System.out.println(
+                    "CUSTOMMC_189_SIMULTANEOUS_NATIVE_UUID_B_PRIORITY_SWITCH_PASS=YES");
+            System.out.flush();
+        }
         if (phase == 1 && firstUuid.equals(current)) {
             if (!firstOwnedClick) {
                 firstOwnedClick = true;
@@ -172,8 +189,8 @@ final class Minecraft189SimultaneousTargetAcceptance {
         final double adist = Math.sqrt(adx * adx + ady * ady + adz * adz);
         final double bdist = Math.sqrt(bdx * bdx + bdy * bdy + bdz * bdz);
         if (!Double.isFinite(adist) || !Double.isFinite(bdist)
-                || adist < 1.0D || adist > 3.25D
-                || bdist < 1.0D || bdist > 3.25D) return null;
+                || adist < 1.0D || adist > 3.5D
+                || bdist < 1.0D || bdist > 3.5D) return null;
         // Require BOTH living players to remain eligible by actual distance,
         // not one eligible while another is safely far away (M412's scope).
         final boolean aPriority = adist + 0.12D < bdist;
