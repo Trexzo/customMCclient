@@ -255,7 +255,7 @@ def run(args):
                 expected=b"score 0 is in range 0 to 0")
             print("CUSTOMMC_189_SERVER_TARGET_DAMAGE_BASELINE_ZERO_PASS=YES",
                   flush=True)
-            send_server_command(server, server_log, "gamemode 1 CIHost")
+            send_server_command(server, server_log, "gamemode 0 CIHost")
             send_server_command(server, server_log, "gamemode 0 CITarget")
             send_server_command(server, server_log, "gamerule naturalRegeneration false")
             # Vanilla FLAT overworld with y=5. CIHost facing +Z.
