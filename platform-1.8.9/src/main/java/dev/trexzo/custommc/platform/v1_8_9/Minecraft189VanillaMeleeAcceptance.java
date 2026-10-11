@@ -25,6 +25,7 @@ final class Minecraft189VanillaMeleeAcceptance {
     private static boolean syntheticAura;
     private static boolean pendingAura;
     private static boolean auraRaycastLogged;
+    private static boolean auraControllerReached;
 
     private Minecraft189VanillaMeleeAcceptance() {
     }
@@ -42,6 +43,7 @@ final class Minecraft189VanillaMeleeAcceptance {
         syntheticAura = false;
         pendingAura = false;
         auraRaycastLogged = false;
+        auraControllerReached = false;
     }
 
     static void tick() {
@@ -145,6 +147,22 @@ final class Minecraft189VanillaMeleeAcceptance {
             // An invalid exact game mapping cannot ever certify a hit.
             // Keep normal vanilla clickMouse behavior unchanged.
         }
+    }
+
+    static void onMojangControllerAttack(final Object controller,
+            final Object player, final Object target) {
+        if (!Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraLocalPvp")
+                || auraControllerReached || !syntheticAura
+                || !pendingAura || pendingEntity == null
+                || target != pendingEntity || player == null
+                || controller == null) {
+            return;
+        }
+        auraControllerReached = true;
+        System.out.println(
+                "CUSTOMMC_189_MOJANG_PLAYER_CONTROLLER_ATTACK_ENTITY_ENTERED=YES");
+        System.out.flush();
     }
 
     static void onWorldCombat(final Minecraft189WorldEntityCombatAccess world) {
