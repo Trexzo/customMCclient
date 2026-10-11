@@ -123,7 +123,16 @@ final class Minecraft189MultiTargetAcceptance {
                 || !ids.available() || playerIndex >= ids.entityCount()
                 || !selected.available() || selected.entityIndex() != playerIndex) {
             throw new IllegalStateException(
-                    "multi-target click has no current source-native UUID owner");
+                    "multi-target click without native owner: stage=" + stage
+                    + " aura=" + host.featureCatalog().killAura().active()
+                    + " playerHit=" + playerHit + " hitIndex=" + playerIndex
+                    + " selectedIndex=" + chosenIndex
+                    + " idsAvailable=" + ids.available()
+                    + " idsCount=" + ids.entityCount()
+                    + " hitUuid=" + ids.at(playerIndex)
+                    + " targetAvailable=" + selected.available()
+                    + " targetIndex=" + selected.entityIndex()
+                    + " firstHit=" + firstHit);
         }
         final UUID current = ids.at(playerIndex);
         if (stage == 1 && firstUuid.equals(current)) {
