@@ -43,6 +43,10 @@ WALL_LIFECYCLE_DISABLED = b"CUSTOMMC_189_WALL_LIFECYCLE_NORMAL_DISABLE_PASS=YES"
 WALL_LIFECYCLE_SELECTED = b"CUSTOMMC_189_WALL_LIFECYCLE_OCCLUDED_SELECT_WHEN_OFF_PASS=20"
 WALL_LIFECYCLE_REENABLED = b"CUSTOMMC_189_WALL_LIFECYCLE_NORMAL_REENABLE_PASS=YES"
 WALL_LIFECYCLE_VETO = b"CUSTOMMC_OFFICIAL_189_WALL_LIFECYCLE_STALE_TARGET_CLEARED_PASS=YES"
+MULTI_READY = b"CUSTOMMC_189_MULTI_TWO_REAL_UUID_PLAYERS_PASS=YES"
+MULTI_HIT_A = b"CUSTOMMC_189_MULTI_UUID_A_OWNED_ATTACK_PASS=YES"
+MULTI_SWITCH = b"CUSTOMMC_189_MULTI_TARGET_SWITCH_TO_UUID_B_PASS=YES"
+MULTI_HIT_B = b"CUSTOMMC_189_MULTI_UUID_B_OWNED_ATTACK_PASS=YES"
 
 
 def local_port():
@@ -183,7 +187,46 @@ def actual_server_clear_wall_command(wall_fill):
     return " ".join(parts[:7] + ["air"])
 
 
-def write_server_properties(path, port):
+def actual_server_three_client_target_switch_fixture(server_log):
+    """Actual spawn-chunk A, B: only one player eligible at a time."""
+    host, a_near, _stone = actual_server_spawn_wall_fixture(server_log)
+    values = a_near.split()
+    if len(values) != 7 or values[:2] != ["tp", "CITarget"]:
+        raise AssertionError("malformed real spawn target")
+    x, y, z = (int(value) for value in values[2:5])
+    b_far = "tp CITargetB {} {} {} 180 0".format(x + 5, y, z)
+    a_far = "tp CITarget {} {} {} 180 0".format(x + 5, y, z)
+    b_near = "tp CITargetB {} {} {} 180 0".format(x, y, z)
+    return host, a_near, b_far, a_far, b_near
+
+
+def official_offline_uuid(name):
+    """Java UUID.nameUUIDFromBytes('OfflinePlayer:' + actual username)."""
+    import hashlib
+    import uuid
+    raw = bytearray(hashlib.md5(("OfflinePlayer:" + name).encode("utf-8")).digest())
+    raw[6] = (raw[6] & 0x0F) | 0x30
+    raw[8] = (raw[8] & 0x3F) | 0x80
+    return str(uuid.UUID(bytes=bytes(raw)))
+
+
+def wait_for_real_score(server, server_log, player, deadline):
+    if player not in ("CITarget", "CITargetB"):
+        raise AssertionError("unknown server-owned target")
+    while time.monotonic() < deadline:
+        try:
+            send_server_command(server, server_log,
+                "scoreboard players test {} taken 1 999999".format(player),
+                expected=b"is in range 1 to 999999", timeout=1.3)
+            return
+        except AssertionError as exc:
+            if "dedicated server unavailable" in str(exc):
+                raise
+            check_process(server, "server damage for " + player)
+    raise AssertionError("server did not record positive damage for " + player)
+
+
+def write_server_properties(path, port, max_players=2):
     if not (1024 < port < 65536):
         raise ValueError("invalid loopback fixture port")
     # Bind only to localhost; 1.8.9 offline-mode is *never* exposed to a
@@ -192,7 +235,7 @@ def write_server_properties(path, port):
         "server-ip=127.0.0.1\n"
         "server-port=" + str(port) + "\n"
         "online-mode=false\n"
-        "max-players=2\n"
+        "max-players=" + str(max_players) + "\n"
         "enable-rcon=false\n"
         "enable-query=false\n"
         "white-list=false\n"
@@ -342,6 +385,13 @@ def client_command(args, game, username, uuid, port, remote):
     if remote and args.fov_veto:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraFovVeto=true")
+    if remote and args.multi_target:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportKillAuraMultiTarget=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.targetAUuid=" + official_offline_uuid("CITarget"))
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.targetBUuid=" + official_offline_uuid("CITargetB"))
     if remote and args.pvp:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportVanillaMelee=true")
@@ -379,13 +429,17 @@ def run(args):
     server_dir.mkdir()
     (server_dir / "eula.txt").write_text("eula=true\n", encoding="ascii")
     port = local_port()
-    write_server_properties(server_dir / "server.properties", port)
+    write_server_properties(server_dir / "server.properties", port,
+                            max_players=3 if args.multi_target else 2)
 
     server_log = root / "server.log"
     host_log = root / "host.log"
     target_log = root / "target.log"
+    target_b_log = root / "target-b.log"
     logs = [("dedicated", server_log), ("host", host_log),
             ("target", target_log)]
+    if args.multi_target:
+        logs.append(("target_b", target_b_log))
     processes = []
     wm = None
     try:
@@ -441,15 +495,76 @@ def run(args):
                 stderr=subprocess.STDOUT, start_new_session=True
             )
         processes.append(target)
+        target_b = None
+        if args.multi_target:
+            cmd_b = client_command(
+                args, root / "target-b-game", "CITargetB",
+                "00000000000000000000000000000003", port, remote=False)
+            with target_b_log.open("wb") as out:
+                target_b = subprocess.Popen(cmd_b, env=env, stdout=out,
+                    stderr=subprocess.STDOUT, start_new_session=True)
+            processes.append(target_b)
 
         wait_for(server, server_log, HOST_JOIN, deadline,
                  "dedicated server CIHost join")
         wait_for(server, server_log, TARGET_JOIN, deadline,
                  "dedicated server CITarget join")
+        if args.multi_target:
+            wait_for(server, server_log, b"CITargetB joined the game", deadline,
+                     "real CITargetB dedicated-server join")
+            wait_for(target_b, target_b_log, GRAPHICAL, deadline,
+                     "third genuine graphical Minecraft client")
         wait_for(target, target_log, GRAPHICAL, deadline,
                  "target graphical client")
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
+
+        if args.multi_target:
+            # One genuine server and THREE separate Java 8 Minecraft clients.
+            # Exactly two living remotes stay in the real loadedEntityList.
+            send_server_command(server, server_log,
+                                "scoreboard objectives add taken stat.damageTaken")
+            for player in ("CITarget", "CITargetB"):
+                send_server_command(server, server_log,
+                                    "scoreboard players set {} taken 0".format(player))
+                send_server_command(server, server_log,
+                                    "scoreboard players test {} taken 0 0".format(player),
+                                    expected=b"score 0 is in range 0 to 0")
+            for player in ("CIHost", "CITarget", "CITargetB"):
+                send_server_command(server, server_log, "gamemode 0 " + player)
+            send_server_command(server, server_log,
+                                "gamerule naturalRegeneration false")
+            host_tp, a_near, b_far, a_far, b_near = (
+                actual_server_three_client_target_switch_fixture(server_log))
+            send_server_command(server, server_log, b_far)
+            send_server_command(server, server_log, host_tp)
+            send_server_command(server, server_log, a_near)
+            print("CUSTOMMC_189_MULTI_TWO_REAL_PLAYERS_POSITIONED_PASS=YES",
+                  flush=True)
+            wait_for(host, host_log, MULTI_READY, deadline,
+                     "20 native A candidate callbacks, second UUID out of range")
+            wait_for(host, host_log, MULTI_HIT_A, deadline,
+                     "native A UUID owned Kill Aura attack")
+            wait_for_real_score(server, server_log, "CITarget", deadline)
+            send_server_command(server, server_log,
+                                "scoreboard players test CITargetB taken 0 0",
+                                expected=b"score 0 is in range 0 to 0")
+            print("CUSTOMMC_189_MULTI_A_SERVER_DAMAGE_B_ZERO_PASS=YES",
+                  flush=True)
+            # Same server, unchanged Aura: move A outside 3.5 and put B at
+            # A's previous eligible location. No fake packets or GUI clicks.
+            send_server_command(server, server_log, a_far)
+            send_server_command(server, server_log, b_near)
+            wait_for(host, host_log, MULTI_SWITCH, deadline,
+                     "production selector switches to native UUID B")
+            wait_for(host, host_log, MULTI_HIT_B, deadline,
+                     "actual UUID B owned native player attack")
+            wait_for_real_score(server, server_log, "CITargetB", deadline)
+            send_server_command(server, server_log,
+                                "scoreboard players test CITarget taken 1 999999",
+                                expected=b"is in range 1 to 999999")
+            print("CUSTOMMC_OFFICIAL_189_MULTI_PER_TARGET_SERVER_DAMAGE_PASS=YES",
+                  flush=True)
 
         if args.wall_veto or args.wall_recovery or args.wall_lifecycle:
             # Unmodified Mojang server places a real full-height stone wall.
@@ -724,11 +839,18 @@ def run(args):
                 ("target game", target)):
             check_process(proc, phase)
 
+        if args.multi_target:
+            check_process(target_b, "third native real player JVM")
+            print("CUSTOMMC_OFFICIAL_189_THREE_REAL_CLIENTS_JOINED_PASS=YES",
+                  flush=True)
         print("CUSTOMMC_OFFICIAL_189_LOOPBACK_ONLY_SERVER=YES", flush=True)
         print("CUSTOMMC_OFFICIAL_189_TWO_REAL_CLIENTS_JOINED_PASS=YES",
               flush=True)
         print("CUSTOMMC_OFFICIAL_189_REMOTE_PLAYER_KIND_SUSTAINED_PASS=YES",
               flush=True)
+        if args.multi_target:
+            print("CUSTOMMC_OFFICIAL_189_REAL_UUID_TARGET_SWITCH_PASS=YES",
+                  flush=True)
         if args.pvp:
             print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_PLAYER_PVP_PASS=YES",
                   flush=True)
@@ -774,6 +896,8 @@ def main():
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
     group = parser.add_mutually_exclusive_group()
+    group.add_argument("--multi-target", action="store_true",
+                       help="three actual clients with two real UUID PvP targets")
     group.add_argument("--pvp", action="store_true",
                        help="prove Kill Aura attack and real server damage statistic")
     group.add_argument("--range-veto", action="store_true",

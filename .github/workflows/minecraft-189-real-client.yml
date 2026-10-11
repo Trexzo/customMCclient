@@ -265,6 +265,22 @@ jobs:
             --overlay "build/runtime-overlay" \
             --root "$RUNNER_TEMP/custommc-189-wall-lifecycle" \
             --timeout 235 --wall-lifecycle
+      - name: Verify two real remote UUID players switch and take independent PvP damage
+        timeout-minutes: 6
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '2.1'
+        run: |
+          xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189LocalhostTwoPlayerSmoke.py \
+            --java "$JAVA_HOME/bin/java" \
+            --server "$RUNNER_TEMP/minecraft-1.8.9-dedicated-server.jar" \
+            --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
+            --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
+            --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
+            --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
+            --overlay "build/runtime-overlay" \
+            --root "$RUNNER_TEMP/custommc-189-real-three-clients" \
+            --timeout 235 --multi-target
       - name: Verify Kill Aura genuine second-player hit and server damage
         timeout-minutes: 8
         env:
@@ -295,4 +311,4 @@ jobs:
           test "$accepted" -eq 1
       - name: Remove official binary and libraries from CI runner
         if: always()
-        run: python -c "from pathlib import Path; import shutil, os; root=Path(os.environ['RUNNER_TEMP']); (root/'minecraft-1.8.9-vanilla.jar').unlink(missing_ok=True); (root/'minecraft-1.8.9-dedicated-server.jar').unlink(missing_ok=True); shutil.rmtree(root/'minecraft-1.8.9-libraries', ignore_errors=True); shutil.rmtree(root/'minecraft-1.8.9-resources', ignore_errors=True); shutil.rmtree(root/'custommc-189-game', ignore_errors=True); shutil.rmtree(root/'custommc-189-singleplayer', ignore_errors=True); shutil.rmtree(root/'custommc-189-melee', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker-1', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker-2', ignore_errors=True); shutil.rmtree(root/'custommc-189-aura-negative', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost-pvp', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost-pvp-1', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost-pvp-2', ignore_errors=True); shutil.rmtree(root/'custommc-189-range-veto', ignore_errors=True); shutil.rmtree(root/'custommc-189-fov-veto', ignore_errors=True); shutil.rmtree(root/'custommc-189-wall-veto', ignore_errors=True); shutil.rmtree(root/'custommc-189-wall-recovery', ignore_errors=True); shutil.rmtree(root/'custommc-189-wall-lifecycle', ignore_errors=True)"
+        run: python -c "from pathlib import Path; import shutil, os; root=Path(os.environ['RUNNER_TEMP']); (root/'minecraft-1.8.9-vanilla.jar').unlink(missing_ok=True); (root/'minecraft-1.8.9-dedicated-server.jar').unlink(missing_ok=True); shutil.rmtree(root/'minecraft-1.8.9-libraries', ignore_errors=True); shutil.rmtree(root/'minecraft-1.8.9-resources', ignore_errors=True); shutil.rmtree(root/'custommc-189-game', ignore_errors=True); shutil.rmtree(root/'custommc-189-singleplayer', ignore_errors=True); shutil.rmtree(root/'custommc-189-melee', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker-1', ignore_errors=True); shutil.rmtree(root/'custommc-189-autoclicker-2', ignore_errors=True); shutil.rmtree(root/'custommc-189-aura-negative', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost-pvp', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost-pvp-1', ignore_errors=True); shutil.rmtree(root/'custommc-189-localhost-pvp-2', ignore_errors=True); shutil.rmtree(root/'custommc-189-range-veto', ignore_errors=True); shutil.rmtree(root/'custommc-189-fov-veto', ignore_errors=True); shutil.rmtree(root/'custommc-189-wall-veto', ignore_errors=True); shutil.rmtree(root/'custommc-189-wall-recovery', ignore_errors=True); shutil.rmtree(root/'custommc-189-wall-lifecycle', ignore_errors=True); shutil.rmtree(root/'custommc-189-real-three-clients', ignore_errors=True)"
