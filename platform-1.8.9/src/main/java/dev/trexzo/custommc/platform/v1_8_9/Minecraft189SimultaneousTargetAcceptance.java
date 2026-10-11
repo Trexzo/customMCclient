@@ -72,17 +72,47 @@ final class Minecraft189SimultaneousTargetAcceptance {
 
     static void verifyOwnedClick(final Minecraft189HostRuntime host,
             final boolean playerHit, final int playerIndex) {
-        final Evidence evidence = read(host);
+        // The other genuine client can temporarily disappear from the
+        // loaded list or move one tick before its new teleport packet.
+        // That cannot authorize ANY attack: verify the clicked owner against
+        // fresh native UUID, living player, actual crosshair, production
+        // selection/rotation and range ON THIS EXACT CALLBACK.
+        //
+        // Both-player eligibility and priority are established separately
+        // by consecutive observe() gates; an incomplete transition snapshot
+        // can never advance a milestone or certify a server hit.
+        final Minecraft189WorldEntityUuidState.Snapshot ids =
+                host.worldEntityUuidState().snapshot();
+        final Minecraft189WorldEntityKindState.Snapshot kinds =
+                host.worldEntityKindState().snapshot();
+        final Minecraft189WorldEntityCombatState.Snapshot combat =
+                host.worldEntityCombatState().snapshot();
+        final Minecraft189NearestPlayerTargetState.Snapshot nearest =
+                host.nearestPlayerTargetState().snapshot();
+        final Minecraft189TargetRotationState.Snapshot rotation =
+                host.targetRotationState().snapshot();
         if (!host.featureCatalog().killAura().active()
-                || !playerHit || evidence == null
-                || !evidence.currentValid(playerIndex)) {
+                || !playerHit || playerIndex < 0
+                || !ids.available() || playerIndex >= ids.entityCount()
+                || !kinds.available() || playerIndex >= kinds.entityCount()
+                || !kinds.player(playerIndex) || kinds.localPlayer(playerIndex)
+                || !kinds.living(playerIndex)
+                || !combat.available() || playerIndex >= combat.entityCount()
+                || !combat.alive(playerIndex)
+                || !nearest.found() || nearest.entityIndex() != playerIndex
+                || !rotation.available() || rotation.entityIndex() != playerIndex
+                || !Double.isFinite(rotation.distance())
+                || rotation.distance() > 3.5D) {
             throw new IllegalStateException(
-                    "simultaneous click lacks current living native UUID owner"
+                    "simultaneous native attack owner invalid"
                     + " phase=" + phase + " hit=" + playerHit
-                    + " hitIndex=" + playerIndex
-                    + " evidence=" + (evidence != null));
+                    + " index=" + playerIndex
+                    + " uuid=" + ids.at(playerIndex)
+                    + " nearest=" + nearest.entityIndex()
+                    + " selected=" + rotation.entityIndex());
         }
-        if (phase == 1 && evidence.aNearest && playerIndex == evidence.aIndex) {
+        final UUID current = ids.at(playerIndex);
+        if (phase == 1 && firstUuid.equals(current)) {
             if (!firstOwnedClick) {
                 firstOwnedClick = true;
                 System.out.println(
@@ -90,7 +120,7 @@ final class Minecraft189SimultaneousTargetAcceptance {
                 System.out.flush();
             }
         } else if (phase == 2 && firstOwnedClick
-                && evidence.bNearest && playerIndex == evidence.bIndex) {
+                && secondUuid.equals(current)) {
             if (!secondOwnedClick) {
                 secondOwnedClick = true;
                 phase = 3;
@@ -99,16 +129,13 @@ final class Minecraft189SimultaneousTargetAcceptance {
                 System.out.flush();
             }
         } else if (phase >= 3
-                && ((evidence.aNearest && playerIndex == evidence.aIndex)
-                    || (evidence.bNearest && playerIndex == evidence.bIndex))) {
-            // After both proved attacks, ordinary nearest arbitration may
-            // change as real hurt/knockback moves living native players.
+                && (firstUuid.equals(current) || secondUuid.equals(current))) {
+            // After proving both official server-owned attacks, real
+            // knockback may legitimately change the nearest eligible player.
         } else {
             throw new IllegalStateException(
-                    "simultaneous attack crossed UUID/priority phase=" + phase
-                    + " index=" + playerIndex
-                    + " aNear=" + evidence.aNearest
-                    + " bNear=" + evidence.bNearest);
+                    "simultaneous attack crossed source-native UUID/phase="
+                    + phase + " uuid=" + current);
         }
     }
 
