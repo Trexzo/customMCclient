@@ -7,6 +7,8 @@ from RunMojang189LocalhostTwoPlayerSmoke import (
     actual_server_spawn_fixture,
     actual_server_spawn_fov_fixture,
     actual_server_spawn_wall_fixture,
+    actual_server_three_client_target_switch_fixture,
+    official_offline_uuid,
     actual_server_spawn_positive_pvp_fixture,
     actual_server_clear_wall_command,
 )
@@ -160,6 +162,36 @@ class PositivePvpSpawnChunkFixtureTest(unittest.TestCase):
             path.write_bytes(b"CIHost joined the game\n")
             with self.assertRaisesRegex(AssertionError, "wall host spawn unknown"):
                 actual_server_spawn_positive_pvp_fixture(path)
+
+
+class RealThreePlayerFixtureTest(unittest.TestCase):
+    def test_two_native_candidates_and_position_switch(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "server.log"
+            path.write_bytes(
+                b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\n")
+            self.assertEqual(actual_server_three_client_target_switch_fixture(path), (
+                "tp CIHost 243 5 444 0 0",
+                "tp CITarget 243 5 446 180 0",
+                "tp CITargetB 248 5 446 180 0",
+                "tp CITarget 248 5 446 180 0",
+                "tp CITargetB 243 5 446 180 0",
+            ))
+
+    def test_three_player_fixture_fails_without_native_login(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "server.log"
+            path.write_bytes(b"CITargetB joined the game\n")
+            with self.assertRaises(AssertionError):
+                actual_server_three_client_target_switch_fixture(path)
+
+    def test_server_offline_names_derive_distinct_uuid_v3(self):
+        import uuid
+        a = official_offline_uuid("CITarget")
+        b = official_offline_uuid("CITargetB")
+        self.assertNotEqual(a, b)
+        self.assertEqual(uuid.UUID(a).version, 3)
+        self.assertEqual(uuid.UUID(b).version, 3)
 
 
 if __name__ == "__main__":

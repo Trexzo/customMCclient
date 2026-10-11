@@ -1682,6 +1682,22 @@ public final class Minecraft189FeatureCatalog
      * Uses the same normal module activation as the UI and does not change
      * any Kill Aura attack/rotation/target settings or allow fake players.
      */
+    /** Dedicated CI only: normal controller activation for native UUID switch. */
+    void enableKillAuraForOfficialMultiTargetAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraMultiTarget")
+                || moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                    != ModuleState.DISABLED) {
+            throw new IllegalStateException("multi-target Aura pre-enabled");
+        }
+        moduleController.enable(Minecraft189KillAuraModule.ID);
+        if (!killAura().active() ||
+                moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                    != ModuleState.ENABLED) {
+            throw new IllegalStateException("multi-target Aura enable failed");
+        }
+    }
+
     void enableKillAuraForOfficialLocalPvpAcceptance() {
         requireOpen();
         if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraLocalPvp")) {

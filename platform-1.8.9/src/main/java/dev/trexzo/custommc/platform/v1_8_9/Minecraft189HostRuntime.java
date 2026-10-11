@@ -462,6 +462,12 @@ public final class Minecraft189HostRuntime
         return worldEntityCombatState;
     }
 
+    /** Read-only native loaded entity UUID evidence for official acceptance. */
+    public Minecraft189WorldEntityUuidState worldEntityUuidState() {
+        requireOpen();
+        return worldEntityUuidState;
+    }
+
     /** Read-only native visibility evidence for opt-in acceptance. */
     public Minecraft189WorldEntityVisibilityState worldEntityVisibilityState() {
         requireOpen();
@@ -1510,7 +1516,8 @@ public final class Minecraft189HostRuntime
     }
 
     private boolean identityRequired() {
-        return (featureCatalog.killAura().active()
+        return Boolean.getBoolean("custommc.acceptance.reportKillAuraMultiTarget")
+                || (featureCatalog.killAura().active()
                         && featureCatalog.killAura().lockTargetSetting().get())
                 || featureCatalog.friendGuard().requiresIdentity()
                 || featureCatalog.wallCheck().active();
