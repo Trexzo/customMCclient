@@ -75,6 +75,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceWorldReported = false;
         acceptanceLastScreen = null;
         Minecraft189VanillaMeleeAcceptance.reset();
+        Minecraft189MultiTargetAcceptance.reset();
         acceptanceDisabledTargetTicks = 0;
         acceptanceAutoClickerEnabled = false;
         killAuraNonPlayerTarget = null;
@@ -1121,6 +1122,10 @@ public final class Minecraft189RuntimeBridge {
                 }
             }
             if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraMultiTarget")) {
+                Minecraft189MultiTargetAcceptance.observe(host);
+            }
+            if (Boolean.getBoolean(
                     "custommc.acceptance.reportKillAuraLocalPvp")) {
                 final Minecraft189NearestPlayerTargetState.Snapshot nearest =
                         host.nearestPlayerTargetState().snapshot();
@@ -1270,6 +1275,11 @@ public final class Minecraft189RuntimeBridge {
                         "custommc.acceptance.reportKillAuraFovVeto")) {
                     throw new IllegalStateException(
                             "out-of-FOV real player caused synthetic attack");
+                }
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.reportKillAuraMultiTarget")) {
+                    Minecraft189MultiTargetAcceptance.verifyOwnedClick(
+                            host, playerHit, playerIndex);
                 }
                 if (Boolean.getBoolean(
                         "custommc.acceptance.reportKillAuraLocalPvp")) {
