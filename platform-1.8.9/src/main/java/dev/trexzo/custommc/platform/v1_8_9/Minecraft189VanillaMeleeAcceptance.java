@@ -24,6 +24,7 @@ final class Minecraft189VanillaMeleeAcceptance {
     private static boolean pendingAutoClicker;
     private static boolean syntheticAura;
     private static boolean pendingAura;
+    private static boolean auraRaycastLogged;
 
     private Minecraft189VanillaMeleeAcceptance() {
     }
@@ -40,6 +41,7 @@ final class Minecraft189VanillaMeleeAcceptance {
         pendingAutoClicker = false;
         syntheticAura = false;
         pendingAura = false;
+        auraRaycastLogged = false;
     }
 
     static void tick() {
@@ -124,9 +126,12 @@ final class Minecraft189VanillaMeleeAcceptance {
                     pendingEntity = null;
                     return;
                 }
-                System.out.println(
-                        "CUSTOMMC_189_KILLAURA_REAL_PLAYER_RAYCAST_ARMED=YES");
-                System.out.flush();
+                if (!auraRaycastLogged) {
+                    auraRaycastLogged = true;
+                    System.out.println(
+                            "CUSTOMMC_189_KILLAURA_REAL_PLAYER_RAYCAST_ARMED=YES");
+                    System.out.flush();
+                }
             }
             pendingAutoClicker = syntheticCall
                     && Boolean.getBoolean("custommc.acceptance.reportAutoClicker");
