@@ -117,76 +117,6 @@ def send_server_command(server, log, command, expected=None, timeout=6):
                          + " log=" + after[-800:].decode("ascii", "replace"))
 
 
-def restore_real_attacker_focus(host, target, deadline):
-    """Reclaim real X11 active-window ownership after the second JVM starts.
-
-    Minecraft 1.8.9 suppresses clickMouse while leftClickCounter > 0.
-    Window activation can set leftClickCounter=10000, and vanilla clears
-    that guard in subsequent focused runTick cycles when attack is released.
-    Do not synthesize a manual attack or bypass the vanilla cooldown here.
-    """
-    window = None
-    while time.monotonic() < deadline:
-        check_process(host, "CIHost game focus")
-        result = subprocess.run(
-            ["xdotool", "search", "--onlyvisible", "--pid", str(host.pid),
-             "--name", "Minecraft"],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=4
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            window = result.stdout.decode("ascii", "strict").splitlines()[-1]
-            break
-        time.sleep(0.3)
-    if window is None:
-        raise AssertionError("genuine host JVM Minecraft X11 window not found")
-    subprocess.check_call(["xdotool", "windowactivate", "--sync", window],
-                          timeout=6)
-    focused = subprocess.check_output(
-        ["xdotool", "getactivewindow"], timeout=4
-    ).decode("ascii", "strict").strip()
-    if int(focused) != int(window):
-        raise AssertionError("host window not active after EWMH activation")
-    # Before any server damage baseline is armed and before the players are
-    # placed for PvP, physically grab the actual client mouse through X11.
-    # This invokes vanilla setIngameFocus; a later released-button tick
-    # clears its leftClickCounter using Mojang's own runTick logic.
-    subprocess.check_call(["xdotool", "mousemove", "--window", window,
-                           "427", "240"], timeout=4)
-    subprocess.check_call(["xdotool", "click", "--window", window, "1"],
-                          timeout=4)
-    print("CUSTOMMC_189_REAL_ATTACKER_PREARM_MOUSE_GRAB=YES", flush=True)
-    print("CUSTOMMC_189_REAL_ATTACKER_X11_FOCUS_RESTORED=YES", flush=True)
-    time.sleep(2.0)
-    check_process(host, "CIHost refocused Minecraft game")
-    # Put the target window back in the foreground BEFORE server teleport
-    # reorients CIHost. Otherwise the captured host mouse's X11 relative
-    # motion can continuously steer the crosshair off its actual target.
-    # A real vanilla mouse-release tick has already cleared the focus guard.
-    target_window = None
-    while time.monotonic() < deadline:
-        check_process(target, "CITarget game focus")
-        result = subprocess.run(
-            ["xdotool", "search", "--onlyvisible", "--pid",
-             str(target.pid), "--name", "Minecraft"],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=4
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            target_window = result.stdout.decode(
-                "ascii", "strict").splitlines()[-1]
-            break
-        time.sleep(0.3)
-    if target_window is None:
-        raise AssertionError("genuine target Minecraft X11 window not found")
-    subprocess.check_call(
-        ["xdotool", "windowactivate", "--sync", target_window], timeout=6)
-    if int(subprocess.check_output(
-            ["xdotool", "getactivewindow"], timeout=4
-    ).decode("ascii", "strict").strip()) != int(target_window):
-        raise AssertionError("target window not active after handoff")
-    print("CUSTOMMC_189_REAL_HOST_PREARM_MOUSE_RELEASE_COMPLETED=YES",
-          flush=True)
-
-
 def client_command(args, game, username, uuid, port, remote):
     if not re.fullmatch(r"[A-Za-z0-9_]{3,16}", username):
         raise ValueError("invalid offline fixture username")
@@ -311,13 +241,6 @@ def run(args):
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
 
         if args.pvp:
-            # Launching the target's graphical JVM can unfocus CIHost.
-            # Grab the real CIHost mouse BEFORE the authoritative baseline,
-            # then overwrite both camera yaw and world positions by normal
-            # dedicated-server teleport commands below. There are no
-            # manual X11 attack clicks after arming.
-            restore_real_attacker_focus(
-                host, target, min(deadline, time.monotonic() + 16))
             # The same unmodified dedicated server owns BOTH real players
             # and the authoritative damage-taken scoreboard statistic.
             # Stat data is set to zero BEFORE the attack and never edited
