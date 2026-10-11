@@ -272,6 +272,15 @@ def run(args):
             wait_for(host, host_log, AURA_ATTACK, deadline,
                      "host-owned Kill Aura synthetic rotated player attack")
             print("CUSTOMMC_189_CLIENT_AURA_CLICK_OBSERVED=YES", flush=True)
+            # Distinguish "module clicked but client never saw hurt" from
+            # "client saw hurt but the dedicated server never counted damage".
+            # The client marker alone never certifies PvP; both gates remain
+            # mandatory. Fail quickly when there is no native hurt response.
+            wait_for(host, host_log, AURA_HURT,
+                     min(deadline, time.monotonic() + 18),
+                     "same actual remote player receiving native hurt after Aura click")
+            print("CUSTOMMC_189_CLIENT_REAL_PLAYER_HURT_OBSERVED=YES",
+                  flush=True)
             # Server response comes first: determine whether real PvP damage
             # was accepted before interpreting any client animation/hurt flag.
             # Require a *server* stat.damageTaken objective change on the
@@ -298,8 +307,6 @@ def run(args):
                 raise AssertionError("no dedicated-server damage statistic for CITarget")
             print("CUSTOMMC_OFFICIAL_189_SERVER_ACCEPTED_PLAYER_DAMAGE_PASS=YES",
                   flush=True)
-            wait_for(host, host_log, AURA_HURT, deadline,
-                     "same native remote player hurt after server-accepted click")
 
         for phase, proc in (
                 ("dedicated server", server),
