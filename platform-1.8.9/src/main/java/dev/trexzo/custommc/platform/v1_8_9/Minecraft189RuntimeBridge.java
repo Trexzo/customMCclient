@@ -35,6 +35,12 @@ public final class Minecraft189RuntimeBridge {
     private static boolean acceptanceAuraFarEnabled;
     private static boolean acceptanceAuraFarReported;
     private static int acceptanceAuraFarEvidenceChecks;
+    private static int acceptanceAuraWallIndex = -1;
+    private static int acceptanceAuraWallDisabledTicks;
+    private static int acceptanceAuraWallEnabledTicks;
+    private static boolean acceptanceAuraWallCheckArmed;
+    private static boolean acceptanceAuraWallEnabled;
+    private static boolean acceptanceAuraWallReported;
     private static int acceptanceAuraFovTargetIndex = -1;
     private static int acceptanceAuraFovDisabledTicks;
     private static int acceptanceAuraFovEnabledTicks;
@@ -83,6 +89,12 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraFarEnabled = false;
         acceptanceAuraFarReported = false;
         acceptanceAuraFarEvidenceChecks = 0;
+        acceptanceAuraWallIndex = -1;
+        acceptanceAuraWallDisabledTicks = 0;
+        acceptanceAuraWallEnabledTicks = 0;
+        acceptanceAuraWallCheckArmed = false;
+        acceptanceAuraWallEnabled = false;
+        acceptanceAuraWallReported = false;
         acceptanceAuraFovTargetIndex = -1;
         acceptanceAuraFovDisabledTicks = 0;
         acceptanceAuraFovEnabledTicks = 0;
@@ -686,6 +698,116 @@ public final class Minecraft189RuntimeBridge {
                 }
             }
             if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraWallVeto")
+                    && !acceptanceAuraWallReported) {
+                // Use genuine player positions + the live vanilla LOS vector.
+                // 0 means native canEntityBeSeen confirmed occluded;
+                // -1 means unknown and must NEVER count as wall evidence.
+                if (!acceptanceAuraWallCheckArmed) {
+                    host.featureCatalog()
+                            .enableWallCheckForOfficialWallVetoAcceptance();
+                    acceptanceAuraWallCheckArmed = true;
+                }
+                final Minecraft189PlayerPositionState.Snapshot local =
+                        host.playerPositionState().snapshot();
+                final Minecraft189PlayerRotationState.Snapshot rotation =
+                        host.playerRotationState().snapshot();
+                final Minecraft189WorldEntityPositionState.Snapshot positions =
+                        host.worldEntityPositionState().snapshot();
+                final Minecraft189WorldEntityKindState.Snapshot kinds =
+                        host.worldEntityKindState().snapshot();
+                final Minecraft189WorldEntityCombatState.Snapshot combat =
+                        host.worldEntityCombatState().snapshot();
+                final Minecraft189WorldEntityVisibilityState.Snapshot visibility =
+                        host.worldEntityVisibilityState().snapshot();
+                int remoteIndex = -1;
+                int remoteCount = 0;
+                boolean valid = local.available() && rotation.available()
+                        && positions.available() && kinds.available()
+                        && combat.available() && visibility.available()
+                        && positions.entityCount() == kinds.entityCount()
+                        && positions.entityCount() == combat.entityCount()
+                        && positions.entityCount() == visibility.entityCount();
+                if (valid) {
+                    for (int index = 0; index < kinds.entityCount(); index++) {
+                        if (kinds.player(index) && !kinds.localPlayer(index)) {
+                            remoteCount++;
+                            if (kinds.living(index) && combat.alive(index))
+                                remoteIndex = index;
+                        }
+                    }
+                    valid = remoteCount == 1 && remoteIndex >= 0
+                            && visibility.occluded(remoteIndex);
+                }
+                if (valid) {
+                    final double dx = positions.x(remoteIndex) - local.x();
+                    final double dy = positions.y(remoteIndex) - local.y();
+                    final double dz = positions.z(remoteIndex) - local.z();
+                    final double horizontal = Math.hypot(dx, dz);
+                    final double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                    final double targetYaw =
+                            Math.toDegrees(Math.atan2(dz, dx)) - 90.0D;
+                    double yawError = targetYaw - rotation.yaw();
+                    yawError = ((yawError + 540.0D) % 360.0D) - 180.0D;
+                    valid = Double.isFinite(distance)
+                            && distance >= 1.5D && distance <= 3.25D
+                            && Double.isFinite(horizontal) && horizontal > 0.0D
+                            && Double.isFinite(yawError)
+                            && Math.abs(yawError) <= 30.0D;
+                }
+                if (!valid || (acceptanceAuraWallIndex >= 0
+                        && remoteIndex != acceptanceAuraWallIndex)) {
+                    acceptanceAuraWallIndex = -1;
+                    acceptanceAuraWallDisabledTicks = 0;
+                    acceptanceAuraWallEnabledTicks = 0;
+                } else {
+                    acceptanceAuraWallIndex = remoteIndex;
+                    if (!host.featureCatalog().wallCheck().active()) {
+                        throw new IllegalStateException(
+                                "wall-check module unexpectedly disabled");
+                    }
+                    if (Double.compare(host.featureCatalog().killAura()
+                            .rangeSetting().get(), 3.5D) != 0
+                            || Double.compare(host.featureCatalog().killAura()
+                                    .fovSetting().get(), 90.0D) != 0) {
+                        throw new IllegalStateException(
+                                "wall acceptance requires unchanged Aura settings");
+                    }
+                    if (!acceptanceAuraWallEnabled) {
+                        if (host.featureCatalog().killAura().active()) {
+                            throw new IllegalStateException(
+                                    "wall Aura was pre-enabled");
+                        }
+                        if (++acceptanceAuraWallDisabledTicks >= 20) {
+                            System.out.println(
+                                    "CUSTOMMC_189_KILLAURA_WALL_DISABLED_OCCLUDED_TICKS_PASS=20");
+                            host.featureCatalog()
+                                    .enableKillAuraForOfficialWallVetoAcceptance();
+                            acceptanceAuraWallEnabled = true;
+                            System.out.println(
+                                    "CUSTOMMC_189_KILLAURA_WALL_MODULE_ENABLE_PASS=YES");
+                            System.out.flush();
+                        }
+                    } else {
+                        if (!host.featureCatalog().killAura().active()) {
+                            throw new IllegalStateException(
+                                    "wall Aura unexpectedly disabled");
+                        }
+                        // Require 80 consecutive native hidden-player
+                        // callbacks with NO selectable attack target.
+                        if (host.nearestPlayerTargetState().snapshot().found()
+                                || host.targetRotationState().snapshot().available()) {
+                            acceptanceAuraWallEnabledTicks = 0;
+                        } else if (++acceptanceAuraWallEnabledTicks >= 80) {
+                            acceptanceAuraWallReported = true;
+                            System.out.println(
+                                    "CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_WALL_VETO_PASS=YES");
+                            System.out.flush();
+                        }
+                    }
+                }
+            }
+            if (Boolean.getBoolean(
                     "custommc.acceptance.reportKillAuraFovVeto")
                     && !acceptanceAuraFovReported) {
                 // Once enabled, the real Aura selector correctly clears its
@@ -985,6 +1107,11 @@ public final class Minecraft189RuntimeBridge {
                             "out-of-range real player caused synthetic attack");
                 }
                 if (Boolean.getBoolean(
+                        "custommc.acceptance.reportKillAuraWallVeto")) {
+                    throw new IllegalStateException(
+                            "real occluded player caused synthetic attack");
+                }
+                if (Boolean.getBoolean(
                         "custommc.acceptance.reportKillAuraFovVeto")) {
                     throw new IllegalStateException(
                             "out-of-FOV real player caused synthetic attack");
@@ -1123,6 +1250,11 @@ public final class Minecraft189RuntimeBridge {
                 "custommc.acceptance.reportKillAuraRangeVeto")) {
             throw new IllegalStateException(
                     "out-of-range player reached vanilla attackEntity");
+        }
+        if (Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraWallVeto")) {
+            throw new IllegalStateException(
+                    "real occluded player reached native attackEntity");
         }
         if (Boolean.getBoolean(
                 "custommc.acceptance.reportKillAuraFovVeto")) {

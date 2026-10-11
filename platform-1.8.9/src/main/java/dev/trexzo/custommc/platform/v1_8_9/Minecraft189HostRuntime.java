@@ -462,6 +462,12 @@ public final class Minecraft189HostRuntime
         return worldEntityCombatState;
     }
 
+    /** Read-only native visibility evidence for opt-in acceptance. */
+    public Minecraft189WorldEntityVisibilityState worldEntityVisibilityState() {
+        requireOpen();
+        return worldEntityVisibilityState;
+    }
+
     public Minecraft189NearestPlayerTargetState nearestPlayerTargetState() {
         requireOpen();
         return nearestPlayerTargetState;

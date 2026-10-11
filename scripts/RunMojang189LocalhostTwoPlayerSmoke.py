@@ -33,6 +33,9 @@ RANGE_VETO = b"CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_RANGE_VETO_PASS=YES"
 FOV_DISABLED = b"CUSTOMMC_189_KILLAURA_FOV_DISABLED_TARGET_TICKS_PASS=20"
 FOV_ENABLED = b"CUSTOMMC_189_KILLAURA_FOV_MODULE_ENABLE_PASS=YES"
 FOV_VETO = b"CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_FOV_VETO_PASS=YES"
+WALL_DISABLED = b"CUSTOMMC_189_KILLAURA_WALL_DISABLED_OCCLUDED_TICKS_PASS=20"
+WALL_ENABLED = b"CUSTOMMC_189_KILLAURA_WALL_MODULE_ENABLE_PASS=YES"
+WALL_VETO = b"CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_WALL_VETO_PASS=YES"
 
 
 def local_port():
@@ -121,6 +124,35 @@ def actual_server_spawn_fov_fixture(server_log):
     return (
         "tp CIHost {} {} {} {} 0".format(x, y, z, away_yaw),
         "tp CITarget {} {} {} {} 0".format(x, y, z + dz, (away_yaw + 180) % 360),
+    )
+
+
+
+def actual_server_spawn_wall_fixture(server_log):
+    """Genuine players are in reach/facing each other with solid server wall."""
+    import math
+    data = log_tail(server_log, 250000)
+    match = re.search(
+        rb"CIHost\[/127\.0\.0\.1:\d+\] logged in with entity id \d+ at "
+        rb"\((-?\d+(?:\.\d+)?), (-?\d+(?:\.\d+)?), (-?\d+(?:\.\d+)?)\)",
+        data,
+    )
+    if not match:
+        raise AssertionError("actual dedicated server wall host spawn unknown")
+    x = math.floor(float(match.group(1)))
+    y = math.floor(float(match.group(2))) + 1
+    z = math.floor(float(match.group(3)))
+    dz = 2 if z % 16 <= 13 else -2
+    if z // 16 != (z + dz) // 16:
+        raise AssertionError("wall fixture crossed genuine spawn chunk")
+    sign = 1 if dz > 0 else -1
+    yaw = 0 if sign > 0 else 180
+    return (
+        "tp CIHost {} {} {} {} 0".format(x, y, z, yaw),
+        "tp CITarget {} {} {} {} 0".format(x, y, z + dz, (yaw + 180) % 360),
+        "fill {} {} {} {} {} {} stone".format(
+            x - 1, y, z + sign, x + 1, y + 3, z + sign
+        ),
     )
 
 
@@ -271,6 +303,9 @@ def client_command(args, game, username, uuid, port, remote):
     if remote and args.range_veto:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraRangeVeto=true")
+    if remote and args.wall_veto:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportKillAuraWallVeto=true")
     if remote and args.fov_veto:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraFovVeto=true")
@@ -382,6 +417,42 @@ def run(args):
                  "target graphical client")
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
+
+        if args.wall_veto:
+            # Unmodified Mojang server places a real full-height stone wall.
+            # Target is close and IN camera FOV; only native LOS can veto.
+            send_server_command(server, server_log,
+                                "scoreboard objectives add taken stat.damageTaken")
+            send_server_command(server, server_log,
+                                "scoreboard players set CITarget taken 0")
+            send_server_command(server, server_log,
+                                "scoreboard players test CITarget taken 0 0",
+                                expected=b"score 0 is in range 0 to 0")
+            send_server_command(server, server_log, "gamemode 0 CIHost")
+            send_server_command(server, server_log, "gamemode 0 CITarget")
+            send_server_command(server, server_log,
+                                "gamerule naturalRegeneration false")
+            host_tp, target_tp, wall_fill = actual_server_spawn_wall_fixture(
+                server_log)
+            send_server_command(server, server_log, host_tp)
+            send_server_command(server, server_log, target_tp)
+            # Genuine Mojang 1.8.9 prints "12 blocks filled" for
+            # the 3-wide by 4-tall single-block-thick stone barrier.
+            send_server_command(server, server_log, wall_fill,
+                                expected=b"12 blocks filled")
+            print("CUSTOMMC_189_WALL_ACTUAL_SERVER_STONE_BARRIER_PASS=YES",
+                  flush=True)
+            wait_for(host, host_log, WALL_DISABLED, deadline,
+                     "20 live native-occluded player callbacks before Aura")
+            wait_for(host, host_log, WALL_ENABLED, deadline,
+                     "normal Wall Check plus Kill Aura activation")
+            wait_for(host, host_log, WALL_VETO, deadline,
+                     "80 genuine native-occluded Aura veto callbacks")
+            send_server_command(server, server_log,
+                                "scoreboard players test CITarget taken 0 0",
+                                expected=b"score 0 is in range 0 to 0")
+            print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_WALL_SERVER_NO_DAMAGE_PASS=YES",
+                  flush=True)
 
         if args.fov_veto:
             # The second player is genuinely close enough to hit, but the
@@ -569,6 +640,9 @@ def run(args):
         elif args.range_veto:
             print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_RANGE_NEGATIVE_PASS=YES",
                   flush=True)
+        elif args.wall_veto:
+            print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_WALL_NEGATIVE_PASS=YES",
+                  flush=True)
         elif args.fov_veto:
             print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_FOV_NEGATIVE_PASS=YES",
                   flush=True)
@@ -603,6 +677,8 @@ def main():
                        help="prove Kill Aura attack and real server damage statistic")
     group.add_argument("--range-veto", action="store_true",
                        help="prove real out-of-range player cannot be attacked")
+    group.add_argument("--wall-veto", action="store_true",
+                       help="prove native LOS-veto for in-range player behind server wall")
     group.add_argument("--fov-veto", action="store_true",
                        help="prove in-range real player behind camera is excluded")
     args = parser.parse_args()

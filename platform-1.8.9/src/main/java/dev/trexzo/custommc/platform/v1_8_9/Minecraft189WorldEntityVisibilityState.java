@@ -43,6 +43,11 @@ public final class Minecraft189WorldEntityVisibilityState {
 
         public boolean available() { return available; }
         public int entityCount() { return values.length; }
+        /** Only native 0 is proven occlusion; unknown (-1) is not proof. */
+        public boolean occluded(final int index) {
+            return available && index >= 0 && index < values.length
+                    && values[index] == 0;
+        }
         public boolean visible(final int index) {
             return available && index >= 0 && index < values.length
                     && values[index] == 1;
