@@ -679,7 +679,7 @@ public final class Minecraft189RuntimeBridge {
                     "custommc.acceptance.reportKillAuraRangeVeto")
                     && !acceptanceAuraFarReported) {
                 // Real-game fail-closed test: one genuinely server-owned
-                // nonlocal player, alive and consistently 8..14 blocks from
+                // nonlocal player, alive and consistently 5..8 blocks from
                 // CIHost. With default Kill Aura range 3.5 this player must
                 // NEVER become an automated attack target.
                 final Minecraft189PlayerPositionState.Snapshot local =
@@ -706,7 +706,7 @@ public final class Minecraft189RuntimeBridge {
                         lastRemoteDistanceSquared = squared;
                         if (farIndex >= 0 || !kinds.living(i)
                                 || !Double.isFinite(squared)
-                                || squared < 64.0D || squared > 196.0D) {
+                                || squared < 25.0D || squared > 64.0D) {
                             ambiguous = true;
                             break;
                         }
