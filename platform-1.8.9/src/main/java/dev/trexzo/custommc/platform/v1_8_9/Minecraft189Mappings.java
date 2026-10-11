@@ -625,6 +625,9 @@ public final class Minecraft189Mappings {
                     "rightClickMouse");
     // Pinned Minecraft 1.8.9 joined.srg source mapping.
     // Exact Minecraft 1.8.9 joined.srg native raycast dependencies.
+    public static final MappedMethod PLAYER_CONTROLLER_ATTACK_ENTITY =
+            new MappedMethod(PLAYER_CONTROLLER_MP, "a", "(Lwn;Lpk;)V",
+                    "func_78764_a", "attackEntity");
     public static final MappedMethod PLAYER_CONTROLLER_GET_BLOCK_REACH =
             new MappedMethod(PLAYER_CONTROLLER_MP, "d", "()F",
                     "func_78757_d", "getBlockReachDistance");

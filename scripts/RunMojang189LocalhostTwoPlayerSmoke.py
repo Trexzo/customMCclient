@@ -2,8 +2,9 @@
 """Real 1.8.9 dedicated server and TWO real Minecraft clients on loopback only.
 
 Authenticates no accounts, opens no external listener, and uses no fake
-EntityPlayer. This acceptance checks actual server joins and real client
-nonlocal player-kind callbacks, NOT Kill Aura attack or PvP damage.
+EntityPlayer. Default mode verifies real joins and nonlocal player-kind
+callbacks; opt-in --pvp requires the genuine Mojang attack controller,
+same-player hurt-time and server-side damage-stat increase.
 """
 import argparse
 from pathlib import Path
@@ -21,6 +22,11 @@ HOST_JOIN = b"CIHost joined the game"
 TARGET_JOIN = b"CITarget joined the game"
 REMOTE = b"CUSTOMMC_OFFICIAL_189_REMOTE_PLAYER_KIND_20_TICKS_PASS=YES"
 GRAPHICAL = b"CUSTOMMC_OFFICIAL_189_OPENGL_FRAME_PASS=YES"
+AURA_DISABLED = b"CUSTOMMC_189_KILLAURA_DISABLED_REAL_PLAYER_TICKS_PASS=20"
+AURA_ENABLED = b"CUSTOMMC_189_KILLAURA_PLAYER_MODULE_ENABLE_PASS=YES"
+AURA_ATTACK = b"CUSTOMMC_189_KILLAURA_SYNTHETIC_PLAYER_ATTACK_PASS=YES"
+CONTROLLER_ATTACK = b"CUSTOMMC_189_MOJANG_PLAYER_CONTROLLER_ATTACK_ENTITY_ENTERED=YES"
+AURA_HURT = b"CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HURT_PASS=YES"
 
 
 def local_port():
@@ -84,6 +90,104 @@ def write_server_properties(path, port):
     path.write_text(content, encoding="ascii")
 
 
+def send_server_command(server, log, command, expected=None, timeout=6):
+    """Run a genuine Mojang dedicated-server console command and check reply.
+
+    Only literal, source-controlled commands are passed; no remote RCON,
+    scripting plugins or direct health/NBT modification can prove damage.
+    """
+    if server.poll() is not None or server.stdin is None:
+        raise AssertionError("dedicated server unavailable for console command")
+    before = log.stat().st_size
+    server.stdin.write((command + "\n").encode("ascii"))
+    server.stdin.flush()
+    if expected is None:
+        time.sleep(0.30)
+        check_process(server, "dedicated server console " + command)
+        return
+    stop = time.monotonic() + timeout
+    while time.monotonic() < stop:
+        check_process(server, "dedicated server console " + command)
+        with log.open("rb") as reader:
+            reader.seek(before)
+            after = reader.read().lower()
+        if expected.lower() in after:
+            return
+        time.sleep(0.15)
+    raise AssertionError("server did not confirm console command: " + command
+                         + " log=" + after[-800:].decode("ascii", "replace"))
+
+
+def restore_real_attacker_focus(host, target, deadline):
+    """Reclaim real X11 active-window ownership after the second JVM starts.
+
+    Minecraft 1.8.9 suppresses clickMouse while leftClickCounter > 0.
+    Window activation can set leftClickCounter=10000, and vanilla clears
+    that guard in subsequent focused runTick cycles when attack is released.
+    Do not synthesize a manual attack or bypass the vanilla cooldown here.
+    """
+    window = None
+    while time.monotonic() < deadline:
+        check_process(host, "CIHost game focus")
+        result = subprocess.run(
+            ["xdotool", "search", "--onlyvisible", "--pid", str(host.pid),
+             "--name", "Minecraft"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=4
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            window = result.stdout.decode("ascii", "strict").splitlines()[-1]
+            break
+        time.sleep(0.3)
+    if window is None:
+        raise AssertionError("genuine host JVM Minecraft X11 window not found")
+    subprocess.check_call(["xdotool", "windowactivate", "--sync", window],
+                          timeout=6)
+    focused = subprocess.check_output(
+        ["xdotool", "getactivewindow"], timeout=4
+    ).decode("ascii", "strict").strip()
+    if int(focused) != int(window):
+        raise AssertionError("host window not active after EWMH activation")
+    # Before any server damage baseline is armed and before the players are
+    # placed for PvP, physically grab the actual client mouse through X11.
+    # This invokes vanilla setIngameFocus; a later released-button tick
+    # clears its leftClickCounter using Mojang's own runTick logic.
+    subprocess.check_call(["xdotool", "mousemove", "--window", window,
+                           "427", "240"], timeout=4)
+    subprocess.check_call(["xdotool", "click", "--window", window, "1"],
+                          timeout=4)
+    print("CUSTOMMC_189_REAL_ATTACKER_PREARM_MOUSE_GRAB=YES", flush=True)
+    print("CUSTOMMC_189_REAL_ATTACKER_X11_FOCUS_RESTORED=YES", flush=True)
+    time.sleep(2.0)
+    check_process(host, "CIHost refocused Minecraft game")
+    # Put the target window back in the foreground BEFORE server teleport
+    # reorients CIHost. Otherwise the captured host mouse's X11 relative
+    # motion can continuously steer the crosshair off its actual target.
+    # A real vanilla mouse-release tick has already cleared the focus guard.
+    target_window = None
+    while time.monotonic() < deadline:
+        check_process(target, "CITarget game focus")
+        result = subprocess.run(
+            ["xdotool", "search", "--onlyvisible", "--pid",
+             str(target.pid), "--name", "Minecraft"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=4
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            target_window = result.stdout.decode(
+                "ascii", "strict").splitlines()[-1]
+            break
+        time.sleep(0.3)
+    if target_window is None:
+        raise AssertionError("genuine target Minecraft X11 window not found")
+    subprocess.check_call(
+        ["xdotool", "windowactivate", "--sync", target_window], timeout=6)
+    if int(subprocess.check_output(
+            ["xdotool", "getactivewindow"], timeout=4
+    ).decode("ascii", "strict").strip()) != int(target_window):
+        raise AssertionError("target window not active after handoff")
+    print("CUSTOMMC_189_REAL_HOST_PREARM_MOUSE_RELEASE_COMPLETED=YES",
+          flush=True)
+
+
 def client_command(args, game, username, uuid, port, remote):
     if not re.fullmatch(r"[A-Za-z0-9_]{3,16}", username):
         raise ValueError("invalid offline fixture username")
@@ -98,6 +202,11 @@ def client_command(args, game, username, uuid, port, remote):
     if remote:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportRemotePlayer=true")
+    if remote and args.pvp:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportVanillaMelee=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportKillAuraLocalPvp=true")
     command += ["--server", "127.0.0.1", "--port", str(port)]
     # Limit GUI/test process heap so both instances and server fit CI RAM.
     command[command.index("-Xmx1536m")] = "-Xmx1024m"
@@ -202,6 +311,89 @@ def run(args):
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
 
+        if args.pvp:
+            # Launching the target's graphical JVM can unfocus CIHost.
+            # Grab the real CIHost mouse BEFORE the authoritative baseline,
+            # then overwrite both camera yaw and world positions by normal
+            # dedicated-server teleport commands below. There are no
+            # manual X11 attack clicks after arming.
+            restore_real_attacker_focus(
+                host, target, min(deadline, time.monotonic() + 16))
+            # The same unmodified dedicated server owns BOTH real players
+            # and the authoritative damage-taken scoreboard statistic.
+            # Stat data is set to zero BEFORE the attack and never edited
+            # after arming; only actual accepted server damage may raise it.
+            send_server_command(
+                server, server_log,
+                "scoreboard objectives add taken stat.damageTaken")
+            send_server_command(
+                server, server_log, "scoreboard players set CITarget taken 0")
+            send_server_command(
+                server, server_log,
+                "scoreboard players test CITarget taken 0 0",
+                expected=b"score 0 is in range 0 to 0")
+            print("CUSTOMMC_189_SERVER_TARGET_DAMAGE_BASELINE_ZERO_PASS=YES",
+                  flush=True)
+            send_server_command(server, server_log, "gamemode 0 CIHost")
+            send_server_command(server, server_log, "gamemode 0 CITarget")
+            send_server_command(server, server_log, "gamerule naturalRegeneration false")
+            # Vanilla FLAT overworld with y=5. CIHost facing +Z.
+            # Stationary CITarget 2 blocks ahead, genuinely in PvP reach.
+            send_server_command(server, server_log, "tp CIHost 0 5 0 0 0")
+            send_server_command(server, server_log, "tp CITarget 0 5 2 180 0")
+            print("CUSTOMMC_189_SERVER_REAL_PLAYER_PVP_POSITIONS_SET=YES",
+                  flush=True)
+            wait_for(host, host_log, AURA_DISABLED, deadline,
+                     "20 disabled genuine nonlocal player target callbacks")
+            wait_for(host, host_log, AURA_ENABLED, deadline,
+                     "normal real-player Kill Aura module enable")
+            wait_for(host, host_log, AURA_ATTACK, deadline,
+                     "host-owned Kill Aura synthetic rotated player attack")
+            print("CUSTOMMC_189_CLIENT_AURA_CLICK_OBSERVED=YES", flush=True)
+            # An owned synthetic action is only a potential hit. Real PvP
+            # must enter Mojang PlayerControllerMP.attackEntity and produce
+            # both native player hurt-time and server-authoritative damage.
+            wait_for(host, host_log, CONTROLLER_ATTACK,
+                     min(deadline, time.monotonic() + 10),
+                     "actual Mojang PlayerControllerMP.attackEntity method")
+            print("CUSTOMMC_189_NATIVE_ATTACK_DISPATCH_PATH_ENTERED=YES",
+                  flush=True)
+            # Distinguish "module clicked but client never saw hurt" from
+            # "client saw hurt but the dedicated server never counted damage".
+            # The client marker alone never certifies PvP; both gates remain
+            # mandatory. Fail quickly when there is no native hurt response.
+            wait_for(host, host_log, AURA_HURT,
+                     min(deadline, time.monotonic() + 18),
+                     "same actual remote player receiving native hurt after Aura click")
+            print("CUSTOMMC_189_CLIENT_REAL_PLAYER_HURT_OBSERVED=YES",
+                  flush=True)
+            # Server response comes first: determine whether real PvP damage
+            # was accepted before interpreting any client animation/hurt flag.
+            # Require a *server* stat.damageTaken objective change on the
+            # exact target. Never infer PvP success only from the host client.
+            verified_server_damage = False
+            while time.monotonic() < deadline and not verified_server_damage:
+                try:
+                    send_server_command(
+                        server, server_log,
+                        "scoreboard players test CITarget taken 1 999999",
+                        expected=b"is in range 1 to 999999", timeout=1.4)
+                    verified_server_damage = True
+                except AssertionError as error:
+                    if "dedicated server unavailable" in str(error):
+                        raise
+                    check_process(server, "server-authoritative damage probe")
+            if not verified_server_damage:
+                # Official server console diagnostics, never fabricated.
+                # This is a read-only scoreboard report, not a test bypass.
+                send_server_command(server, server_log,
+                                    "scoreboard players list CITarget")
+                print("CUSTOMMC_189_SERVER_DAMAGE_SCORE_NOT_POSITIVE=YES",
+                      flush=True)
+                raise AssertionError("no dedicated-server damage statistic for CITarget")
+            print("CUSTOMMC_OFFICIAL_189_SERVER_ACCEPTED_PLAYER_DAMAGE_PASS=YES",
+                  flush=True)
+
         for phase, proc in (
                 ("dedicated server", server),
                 ("host game", host),
@@ -219,10 +411,14 @@ def run(args):
               flush=True)
         print("CUSTOMMC_OFFICIAL_189_REMOTE_PLAYER_KIND_SUSTAINED_PASS=YES",
               flush=True)
-        print("CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HIT_TESTED=NO",
-              flush=True)
-        print("CUSTOMMC_OFFICIAL_189_SERVER_ACCEPTED_DAMAGE_TESTED=NO",
-              flush=True)
+        if args.pvp:
+            print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_PLAYER_PVP_PASS=YES",
+                  flush=True)
+        else:
+            print("CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HIT_TESTED=NO",
+                  flush=True)
+            print("CUSTOMMC_OFFICIAL_189_SERVER_ACCEPTED_DAMAGE_TESTED=NO",
+                  flush=True)
     except BaseException:
         for name, log in logs:
             print("M405_" + name.upper() + "_TAIL_START",
@@ -244,6 +440,8 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
+    parser.add_argument("--pvp", action="store_true",
+                        help="prove Kill Aura player click and real server damage statistic")
     args = parser.parse_args()
     run(args)
 

@@ -25,6 +25,10 @@ public final class Minecraft189RuntimeBridge {
     private static int acceptanceRemotePlayerKindTicks;
     private static boolean acceptanceRemotePlayerKindFresh;
     private static boolean acceptanceRemotePlayerKindReported;
+    private static int acceptanceAuraPlayerTargetTicks;
+    private static int acceptanceAuraPlayerIndex = -1;
+    private static boolean acceptanceAuraPlayerEnabled;
+    private static boolean acceptanceAuraAttackReported;
 
     private Minecraft189RuntimeBridge() {
     }
@@ -58,6 +62,10 @@ public final class Minecraft189RuntimeBridge {
         acceptanceRemotePlayerKindTicks = 0;
         acceptanceRemotePlayerKindFresh = false;
         acceptanceRemotePlayerKindReported = false;
+        acceptanceAuraPlayerTargetTicks = 0;
+        acceptanceAuraPlayerIndex = -1;
+        acceptanceAuraPlayerEnabled = false;
+        acceptanceAuraAttackReported = false;
         return new Registration(next);
     }
 
@@ -655,6 +663,48 @@ public final class Minecraft189RuntimeBridge {
                     }
                 }
             }
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraLocalPvp")) {
+                final Minecraft189NearestPlayerTargetState.Snapshot nearest =
+                        host.nearestPlayerTargetState().snapshot();
+                final Minecraft189TargetRotationState.Snapshot target =
+                        host.targetRotationState().snapshot();
+                final Minecraft189WorldEntityKindState.Snapshot kinds =
+                        host.worldEntityKindState().snapshot();
+                final int index = target.available() ? target.entityIndex() : -1;
+                final boolean genuinePlayer = nearest.found()
+                        && target.available() && index >= 0
+                        && nearest.entityIndex() == index
+                        && kinds.available()
+                        && kinds.player(index) && !kinds.localPlayer(index)
+                        && target.distance() <= 3.5D;
+                if (!acceptanceAuraPlayerEnabled) {
+                    if (host.featureCatalog().killAura().active()) {
+                        throw new IllegalStateException(
+                                "localhost aura pre-enabled unexpectedly");
+                    }
+                    if (genuinePlayer) {
+                        if (index != acceptanceAuraPlayerIndex) {
+                            acceptanceAuraPlayerIndex = index;
+                            acceptanceAuraPlayerTargetTicks = 0;
+                        }
+                        acceptanceAuraPlayerTargetTicks++;
+                    } else {
+                        acceptanceAuraPlayerIndex = -1;
+                        acceptanceAuraPlayerTargetTicks = 0;
+                    }
+                    if (acceptanceAuraPlayerTargetTicks >= 20) {
+                        System.out.println(
+                                "CUSTOMMC_189_KILLAURA_DISABLED_REAL_PLAYER_TICKS_PASS=20");
+                        host.featureCatalog()
+                                .enableKillAuraForOfficialLocalPvpAcceptance();
+                        acceptanceAuraPlayerEnabled = true;
+                        System.out.println(
+                                "CUSTOMMC_189_KILLAURA_PLAYER_MODULE_ENABLE_PASS=YES");
+                        System.out.flush();
+                    }
+                }
+            }
             final Minecraft189SwordBlockControl swordBlock =
                     minecraft instanceof Minecraft189SwordBlockControl
                     ? (Minecraft189SwordBlockControl) minecraft : null;
@@ -720,6 +770,25 @@ public final class Minecraft189RuntimeBridge {
                     : null;
             if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {
                 if (Boolean.getBoolean(
+                        "custommc.acceptance.reportKillAuraLocalPvp")) {
+                    if (!acceptanceAuraPlayerEnabled
+                            || !host.featureCatalog().killAura().active()
+                            || !playerHit || playerIndex < 0
+                            || playerIndex != host.targetRotationState()
+                                    .snapshot().entityIndex()) {
+                        throw new IllegalStateException(
+                                "localhost aura automatic attack failed owner/raycast");
+                    }
+                    if (!acceptanceAuraAttackReported) {
+                        acceptanceAuraAttackReported = true;
+                        System.out.println(
+                                "CUSTOMMC_189_KILLAURA_REAL_PLAYER_ROTATION_GATE_PASS=YES");
+                        System.out.println(
+                                "CUSTOMMC_189_KILLAURA_SYNTHETIC_PLAYER_ATTACK_PASS=YES");
+                        System.out.flush();
+                    }
+                }
+                if (Boolean.getBoolean(
                         "custommc.acceptance.reportKillAuraNonPlayer")) {
                     throw new IllegalStateException(
                             "Kill Aura nonplayer fixture attempted a synthetic attack");
@@ -743,9 +812,39 @@ public final class Minecraft189RuntimeBridge {
                         }
                         Minecraft189VanillaMeleeAcceptance.syntheticClickStarted();
                     }
+                    if (Boolean.getBoolean(
+                            "custommc.acceptance.reportKillAuraLocalPvp")) {
+                        Minecraft189VanillaMeleeAcceptance.syntheticAuraStarted();
+                    }
                     try {
-                        minecraft.customMcClickMouse();
+                        // A Kill Aura owned player attack is NOT a physical
+                        // left-click: Minecraft.clickMouse is guarded by the
+                        // focus/leftClickCounter (potentially 10000 ticks).
+                        // Invoke Mojang PlayerControllerMP.attackEntity using
+                        // the actual live crosshair entity instead. All
+                        // native target/rotation/range gating above remains.
+                        final boolean auraOwnedPlayerAttack =
+                                playerHit && playerIndex >= 0
+                                && host.featureCatalog().killAura().active()
+                                && host.targetRotationState().snapshot().available()
+                                && host.targetRotationState().snapshot()
+                                        .entityIndex() == playerIndex;
+                        if (auraOwnedPlayerAttack) {
+                            if (Boolean.getBoolean(
+                                    "custommc.acceptance.reportKillAuraLocalPvp")) {
+                                // Bind the exact same real entity and zero
+                                // hurt-time before calling the native attack.
+                                Minecraft189VanillaMeleeAcceptance.onNativeClick(
+                                        minecraft);
+                            }
+                            minecraft.customMcAttackCrosshairEntity();
+                        } else {
+                            // Manual mouse and Auto Clicker preserve vanilla
+                            // clickMouse semantics and their previous CI.
+                            minecraft.customMcClickMouse();
+                        }
                     } finally {
+                        Minecraft189VanillaMeleeAcceptance.syntheticAuraFinished();
                         Minecraft189VanillaMeleeAcceptance.syntheticClickFinished();
                     }
                     if (restoreSprint) {
@@ -790,6 +889,28 @@ public final class Minecraft189RuntimeBridge {
     public static synchronized void acceptanceVanillaClick(
             final Object minecraft) {
         Minecraft189VanillaMeleeAcceptance.onNativeClick(minecraft);
+    }
+
+    /**
+     * Observation only: exact vanilla bda attackEntity(EntityPlayer, Entity)
+     * reached after clickMouse's left-click cooldown/focus guard. This does
+     * not generate an ATTACK packet or infer server-side damage.
+     */
+    public static synchronized void acceptanceControllerAttackEntity(
+            final Object controller, final Object player,
+            final Object entity) {
+        Minecraft189VanillaMeleeAcceptance.onMojangControllerAttack(
+                controller, player, entity);
+    }
+
+    /**
+     * Records the genuine first integer operand read by vanilla clickMouse:
+     * Mojang leftClickCounter, without changing its value or branch.
+     */
+    public static synchronized void acceptanceVanillaClickGuard(
+            final int nativeLeftClickCounter) {
+        Minecraft189VanillaMeleeAcceptance.onNativeClickGuard(
+                nativeLeftClickCounter);
     }
 
     public static synchronized void renderFrameStarted(

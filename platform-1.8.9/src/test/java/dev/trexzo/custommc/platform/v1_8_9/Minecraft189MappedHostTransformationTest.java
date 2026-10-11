@@ -26,6 +26,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189MappedHostTransformationTest {
@@ -1010,6 +1011,20 @@ final class Minecraft189MappedHostTransformationTest {
                     .set(
                             minecraft,
                             player);
+            // M406: Kill Aura's native controller attack delegate must use
+            // the original live player and EXACT crosshair entity, not a
+            // fabricated packet or synthetic clickMouse bypass. Restore
+            // the original fixture crosshair only for this bounded check.
+            minecraftClass.getField("s").set(minecraft, hit);
+            ((Minecraft189ClickMouseControl) minecraft)
+                    .customMcAttackCrosshairEntity();
+            assertEquals(1,
+                    playerControllerClass.getField("attackEntityCalls")
+                            .getInt(playerController));
+            assertSame(playerHit,
+                    playerControllerClass.getField("lastAttackedEntity")
+                            .get(playerController));
+            minecraftClass.getField("s").set(minecraft, null);
             // Pinned native EntityPlayer.isUsingItem + controller stop-use.
             final Minecraft189SwordBlockControl swordBlock =
                     (Minecraft189SwordBlockControl) minecraft;
@@ -6975,6 +6990,10 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "stopUsingCalls", "I");
         field(writer, "nativeReach", "F");
         field(writer, "nativeExtended", "Z");
+        // M406: actual mapped PlayerControllerMP.attackEntity must be
+        // represented in the generated bda fixture as well as signed CI.
+        field(writer, "attackEntityCalls", "I");
+        field(writer, "lastAttackedEntity", "Lpk;");
         field(
                 writer,
                 "g",
@@ -7021,6 +7040,24 @@ final class Minecraft189MappedHostTransformationTest {
         extended.visitInsn(Opcodes.IRETURN);
         extended.visitMaxs(1, 1);
         extended.visitEnd();
+        final MethodVisitor melee = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "a", "(Lwn;Lpk;)V", null, null);
+        melee.visitCode();
+        melee.visitVarInsn(Opcodes.ALOAD, 0);
+        melee.visitInsn(Opcodes.DUP);
+        melee.visitFieldInsn(
+                Opcodes.GETFIELD, "bda", "attackEntityCalls", "I");
+        melee.visitInsn(Opcodes.ICONST_1);
+        melee.visitInsn(Opcodes.IADD);
+        melee.visitFieldInsn(
+                Opcodes.PUTFIELD, "bda", "attackEntityCalls", "I");
+        melee.visitVarInsn(Opcodes.ALOAD, 0);
+        melee.visitVarInsn(Opcodes.ALOAD, 2);
+        melee.visitFieldInsn(
+                Opcodes.PUTFIELD, "bda", "lastAttackedEntity", "Lpk;");
+        melee.visitInsn(Opcodes.RETURN);
+        melee.visitMaxs(3, 3);
+        melee.visitEnd();
         writer.visitEnd();
         return writer.toByteArray();
     }

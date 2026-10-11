@@ -740,6 +740,34 @@ public final class Minecraft189ClassTransformer
                                             "acceptanceVanillaClick",
                                             "(Ljava/lang/Object;)V", false);
                                 }
+
+                                private boolean firstNativeClickCounter;
+
+                                @Override
+                                public void visitFieldInsn(
+                                        final int opcode, final String owner,
+                                        final String fieldName,
+                                        final String fieldDescriptor) {
+                                    super.visitFieldInsn(opcode, owner,
+                                            fieldName, fieldDescriptor);
+                                    // Exact vanilla clickMouse begins by
+                                    // reading Minecraft.leftClickCounter.
+                                    // Observe its real value on the operand
+                                    // stack; DUP preserves verifier semantics.
+                                    if (!firstNativeClickCounter
+                                            && opcode == Opcodes.GETFIELD
+                                            && Minecraft189Mappings.MINECRAFT
+                                                    .obfuscatedInternalName().equals(owner)
+                                            && "I".equals(fieldDescriptor)) {
+                                        firstNativeClickCounter = true;
+                                        super.visitInsn(Opcodes.DUP);
+                                        super.visitMethodInsn(
+                                                Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "acceptanceVanillaClickGuard",
+                                                "(I)V", false);
+                                    }
+                                }
                             };
                         }
 
@@ -1616,6 +1644,7 @@ public final class Minecraft189ClassTransformer
                                 "customMcClickMouse",
                                 Minecraft189Mappings
                                         .MINECRAFT_CLICK_MOUSE);
+                        addNativeCrosshairAttackDelegate(cv);
                         addVoidMethodDelegate(cv,
                                 "customMcRightClickMouse",
                                 Minecraft189Mappings.MINECRAFT_RIGHT_CLICK_MOUSE);
@@ -2297,6 +2326,55 @@ public final class Minecraft189ClassTransformer
         return writer.toByteArray();
     }
 
+    /**
+     * Kill Aura's owned synthetic action must traverse the real Mojang
+     * PlayerControllerMP.attackEntity path, not Minecraft.clickMouse's
+     * physical left-button cooldown guard. This method is injected on the
+     * original Minecraft class and uses mapped vanilla fields and method.
+     * No packet is fabricated or emitted by CustomMC.
+     *
+     * The host action gate guarantees the target is a genuine live PLAYER
+     * raycast before calling this delegate. Null/stale state fails closed.
+     */
+    private static void addNativeCrosshairAttackDelegate(
+            final ClassVisitor owner) {
+        final MethodVisitor mv = owner.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcAttackCrosshairEntity",
+                "()V", null, null);
+        mv.visitCode();
+        // this.playerController
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitFieldInsn(Opcodes.GETFIELD,
+                Minecraft189Mappings.MINECRAFT.obfuscatedInternalName(),
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER.obfuscatedName(),
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER.descriptor());
+        // this.thePlayer
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitFieldInsn(Opcodes.GETFIELD,
+                Minecraft189Mappings.MINECRAFT.obfuscatedInternalName(),
+                Minecraft189Mappings.MINECRAFT_PLAYER.obfuscatedName(),
+                Minecraft189Mappings.MINECRAFT_PLAYER.descriptor());
+        // this.objectMouseOver.entityHit
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitFieldInsn(Opcodes.GETFIELD,
+                Minecraft189Mappings.MINECRAFT.obfuscatedInternalName(),
+                Minecraft189Mappings.MINECRAFT_OBJECT_MOUSE_OVER.obfuscatedName(),
+                Minecraft189Mappings.MINECRAFT_OBJECT_MOUSE_OVER.descriptor());
+        mv.visitFieldInsn(Opcodes.GETFIELD,
+                Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedInternalName(),
+                Minecraft189Mappings.MOVING_OBJECT_ENTITY_HIT.obfuscatedName(),
+                Minecraft189Mappings.MOVING_OBJECT_ENTITY_HIT.descriptor());
+        // Real, unmodified Mojang packet-producing attackEntity method.
+        mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                Minecraft189Mappings.PLAYER_CONTROLLER_MP.obfuscatedInternalName(),
+                Minecraft189Mappings.PLAYER_CONTROLLER_ATTACK_ENTITY.obfuscatedName(),
+                Minecraft189Mappings.PLAYER_CONTROLLER_ATTACK_ENTITY.descriptor(),
+                false);
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(3, 1);
+        mv.visitEnd();
+    }
+
     private static byte[] transformPlayerControllerMp(
             final byte[] input) {
         final ClassReader reader =
@@ -2305,6 +2383,7 @@ public final class Minecraft189ClassTransformer
                 new ClassWriter(
                         reader,
                         ClassWriter.COMPUTE_MAXS);
+        final boolean[] foundNativeAttackEntity = new boolean[]{false};
 
         reader.accept(
                 new ClassVisitor(
@@ -2331,6 +2410,44 @@ public final class Minecraft189ClassTransformer
                                                 BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME),
                                         BLOCK_MINING_CONTROL_INTERNAL_NAME),
                                 VANILLA_REACH_ACCESS_INTERNAL_NAME));
+                    }
+
+                    @Override
+                    public MethodVisitor visitMethod(
+                            final int access, final String name,
+                            final String descriptor, final String signature,
+                            final String[] exceptions) {
+                        final MethodVisitor delegate = super.visitMethod(
+                                access, name, descriptor, signature, exceptions);
+                        // Exact original 1.8.9 attackEntity(EntityPlayer,Entity)
+                        // descriptor in bda, proven by the official binary
+                        // preflight. Only adds a gated observation at entry;
+                        // never sends packets or changes vanilla reach.
+                        if (Minecraft189Mappings.PLAYER_CONTROLLER_ATTACK_ENTITY
+                                .descriptor().equals(descriptor)
+                                && (access & Opcodes.ACC_STATIC) == 0) {
+                            if (foundNativeAttackEntity[0]) {
+                                throw new IllegalStateException(
+                                        "ambiguous Mojang PlayerController attackEntity");
+                            }
+                            foundNativeAttackEntity[0] = true;
+                            return new MethodVisitor(Opcodes.ASM9, delegate) {
+                                @Override
+                                public void visitCode() {
+                                    super.visitCode();
+                                    super.visitVarInsn(Opcodes.ALOAD, 0);
+                                    super.visitVarInsn(Opcodes.ALOAD, 1);
+                                    super.visitVarInsn(Opcodes.ALOAD, 2);
+                                    super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                            RUNTIME_BRIDGE_INTERNAL_NAME,
+                                            "acceptanceControllerAttackEntity",
+                                            "(Ljava/lang/Object;Ljava/lang/Object;"
+                                                    + "Ljava/lang/Object;)V",
+                                            false);
+                                }
+                            };
+                        }
+                        return delegate;
                     }
 
                     @Override
@@ -2365,7 +2482,10 @@ public final class Minecraft189ClassTransformer
                     }
                 },
                 0);
-
+        if (!foundNativeAttackEntity[0]) {
+            throw new IllegalStateException(
+                    "official Minecraft 1.8.9 PlayerController attackEntity absent");
+        }
         return writer.toByteArray();
     }
 
