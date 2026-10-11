@@ -817,7 +817,32 @@ public final class Minecraft189RuntimeBridge {
                         Minecraft189VanillaMeleeAcceptance.syntheticAuraStarted();
                     }
                     try {
-                        minecraft.customMcClickMouse();
+                        // A Kill Aura owned player attack is NOT a physical
+                        // left-click: Minecraft.clickMouse is guarded by the
+                        // focus/leftClickCounter (potentially 10000 ticks).
+                        // Invoke Mojang PlayerControllerMP.attackEntity using
+                        // the actual live crosshair entity instead. All
+                        // native target/rotation/range gating above remains.
+                        final boolean auraOwnedPlayerAttack =
+                                playerHit && playerIndex >= 0
+                                && host.featureCatalog().killAura().active()
+                                && host.targetRotationState().snapshot().available()
+                                && host.targetRotationState().snapshot()
+                                        .entityIndex() == playerIndex;
+                        if (auraOwnedPlayerAttack) {
+                            if (Boolean.getBoolean(
+                                    "custommc.acceptance.reportKillAuraLocalPvp")) {
+                                // Bind the exact same real entity and zero
+                                // hurt-time before calling the native attack.
+                                Minecraft189VanillaMeleeAcceptance.onNativeClick(
+                                        minecraft);
+                            }
+                            minecraft.customMcAttackCrosshairEntity();
+                        } else {
+                            // Manual mouse and Auto Clicker preserve vanilla
+                            // clickMouse semantics and their previous CI.
+                            minecraft.customMcClickMouse();
+                        }
                     } finally {
                         Minecraft189VanillaMeleeAcceptance.syntheticAuraFinished();
                         Minecraft189VanillaMeleeAcceptance.syntheticClickFinished();
