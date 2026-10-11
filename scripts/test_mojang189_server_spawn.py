@@ -24,9 +24,9 @@ class SpawnChunkFixtureTest(unittest.TestCase):
 
     def test_spawn_near_low_z_chunk_start_uses_positive_four(self):
         self.check(
-            b"CIHost[/127.0.0.1:40000] logged in with entity id 2 at (-36.5, 4.0, -48.5)\n",
-            "tp CIHost -37 5 -49 0 0",
-            "tp CITarget -37 5 -45 180 0"
+            b"CIHost[/127.0.0.1:40000] logged in with entity id 2 at (-36.5, 4.0, -47.5)\n",
+            "tp CIHost -37 5 -48 0 0",
+            "tp CITarget -37 5 -44 180 0"
         )
 
     def test_missing_real_server_login_fails_closed(self):
