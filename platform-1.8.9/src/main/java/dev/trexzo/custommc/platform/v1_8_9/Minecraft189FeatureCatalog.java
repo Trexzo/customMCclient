@@ -1717,6 +1717,23 @@ public final class Minecraft189FeatureCatalog
         }
     }
 
+    void enableKillAuraForOfficialFovVetoAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraFovVeto")) {
+            throw new IllegalStateException("genuine FOV-veto fixture not armed");
+        }
+        if (moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                != ModuleState.DISABLED) {
+            throw new IllegalStateException("Kill Aura FOV fixture pre-enabled");
+        }
+        moduleController.enable(Minecraft189KillAuraModule.ID);
+        if (!killAura().active()
+                || moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                    != ModuleState.ENABLED) {
+            throw new IllegalStateException("FOV-veto module enable failed");
+        }
+    }
+
     void enableKillAuraForOfficialNonPlayerAcceptance() {
         requireOpen();
         if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraNonPlayer")) {
