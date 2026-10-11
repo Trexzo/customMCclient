@@ -24,6 +24,7 @@ GRAPHICAL = b"CUSTOMMC_OFFICIAL_189_OPENGL_FRAME_PASS=YES"
 AURA_DISABLED = b"CUSTOMMC_189_KILLAURA_DISABLED_REAL_PLAYER_TICKS_PASS=20"
 AURA_ENABLED = b"CUSTOMMC_189_KILLAURA_PLAYER_MODULE_ENABLE_PASS=YES"
 AURA_ATTACK = b"CUSTOMMC_189_KILLAURA_SYNTHETIC_PLAYER_ATTACK_PASS=YES"
+CONTROLLER_ATTACK = b"CUSTOMMC_189_MOJANG_PLAYER_CONTROLLER_ATTACK_ENTITY_ENTERED=YES"
 AURA_HURT = b"CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HURT_PASS=YES"
 
 
@@ -314,6 +315,14 @@ def run(args):
             wait_for(host, host_log, AURA_ATTACK, deadline,
                      "host-owned Kill Aura synthetic rotated player attack")
             print("CUSTOMMC_189_CLIENT_AURA_CLICK_OBSERVED=YES", flush=True)
+            # The old checkpoint runs BEFORE calling Minecraft.clickMouse().
+            # A real attack requires getting through its leftClickCounter
+            # guard and entering the actual Mojang PlayerControllerMP method.
+            wait_for(host, host_log, CONTROLLER_ATTACK,
+                     min(deadline, time.monotonic() + 10),
+                     "actual Mojang PlayerControllerMP.attackEntity method")
+            print("CUSTOMMC_189_NATIVE_ATTACK_DISPATCH_PATH_ENTERED=YES",
+                  flush=True)
             # Distinguish "module clicked but client never saw hurt" from
             # "client saw hurt but the dedicated server never counted damage".
             # The client marker alone never certifies PvP; both gates remain
