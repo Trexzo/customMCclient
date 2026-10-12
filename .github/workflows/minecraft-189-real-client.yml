@@ -78,7 +78,7 @@ jobs:
           command -v xvfb-run
           command -v xrandr
           xvfb-run -a -s "-screen 0 1280x720x24" xrandr --query
-      - name: Prove production Aura scoped outgoing UUID guard vetoes stale native B intent, then damages A
+      - name: Prove production Aura scoped outgoing UUID guard vetoes mismatched real A intent, then damages B
         timeout-minutes: 6
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
@@ -97,7 +97,7 @@ jobs:
             --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
             --overlay "build/runtime-overlay" \
             --root "$RUNNER_TEMP/custommc-189-scoped-aura-owner-veto" \
-            --timeout 235 --rejoin-release --require-index-reorder --require-wrong-target-veto --require-scoped-aura-owner-veto
+            --timeout 235 --rejoin-release --require-index-reorder --require-wrong-target-veto --require-rejoined-controller-b --require-controller-entity-uuid --require-scoped-aura-owner-veto
       - name: Veto retained real B intent at native controller after genuine B disconnect, then damage A
         timeout-minutes: 6
         env:
