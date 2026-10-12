@@ -32,7 +32,10 @@ final class Minecraft189WorldCameraFrameState {
         try {
             final FloatBuffer modelview = BufferUtils.createFloatBuffer(16);
             final FloatBuffer projection = BufferUtils.createFloatBuffer(16);
-            final IntBuffer viewport = BufferUtils.createIntBuffer(4);
+            // LWJGL 2 glGetIntegerv's Java buffer overload requires 16 ints
+            // regardless of GL_VIEWPORT's four returned components.
+            // Preserve only the first 4 native values in the snapshot.
+            final IntBuffer viewport = BufferUtils.createIntBuffer(16);
             GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, modelview);
             GL11.glGetFloat(GL11.GL_PROJECTION_MATRIX, projection);
             GL11.glGetInteger(GL11.GL_VIEWPORT, viewport);
