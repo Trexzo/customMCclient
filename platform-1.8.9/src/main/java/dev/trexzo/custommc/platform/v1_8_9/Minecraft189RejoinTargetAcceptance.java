@@ -16,6 +16,7 @@ final class Minecraft189RejoinTargetAcceptance {
     private static boolean realBControllerEntityUuidReported;
     private static UUID staleControllerIntentUuid;
     private static boolean staleDispatchVetoReported, freshDispatchAllowedReported;
+    private static boolean scopedOwnerVetoReported, scopedOwnerFreshReported;
 
     private Minecraft189RejoinTargetAcceptance() {}
 
@@ -29,6 +30,7 @@ final class Minecraft189RejoinTargetAcceptance {
         realBControllerEntityUuidReported = false;
         staleControllerIntentUuid = null;
         staleDispatchVetoReported = freshDispatchAllowedReported = false;
+        scopedOwnerVetoReported = scopedOwnerFreshReported = false;
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
@@ -186,6 +188,44 @@ final class Minecraft189RejoinTargetAcceptance {
                 }
             } else releasedTicks=0;
         }
+    }
+
+    /**
+     * M422: a real B-locked phase-4 Aura dispatch has current native UUID
+     * B. In one opt-in acceptance attempt, present the genuine *rejoined*
+     * and still visible A UUID as its deliberately stale scope owner.
+     * The outgoing Entity argument is never changed or forged.
+     */
+    static UUID scopedOwnerIntentForAcceptance(final UUID nativeOwner) {
+        if (phase == 4 && !scopedOwnerVetoReported
+                && survivorUuid.equals(nativeOwner))
+            return originalUuid;
+        return nativeOwner;
+    }
+
+    static void verifyScopedOwnerVeto(final UUID expected, final UUID actual) {
+        // Other genuine crosshair/selection divergence MUST still be
+        // rejected by the production controller gate without fabricating
+        // a passing test marker or crashing the host.
+        if (phase != 4 || scopedOwnerVetoReported
+                || !originalUuid.equals(expected)
+                || !survivorUuid.equals(actual)) return;
+        scopedOwnerVetoReported = true;
+        System.out.println(
+                "CUSTOMMC_189_SCOPED_NATIVE_A_INTENT_REAL_B_DISPATCH_VETO_PASS=YES");
+        System.out.flush();
+    }
+
+    static void verifyScopedOwnerAccepted(final UUID expected, final UUID actual) {
+        if (phase != 4 || !scopedOwnerVetoReported
+                || scopedOwnerFreshReported) return;
+        if (!survivorUuid.equals(expected) || !survivorUuid.equals(actual))
+            throw new IllegalStateException(
+                    "M422 fresh native controller B owner mismatch");
+        scopedOwnerFreshReported = true;
+        System.out.println(
+                "CUSTOMMC_189_SCOPED_NATIVE_FRESH_B_DISPATCH_PASS=YES");
+        System.out.flush();
     }
 
     /**

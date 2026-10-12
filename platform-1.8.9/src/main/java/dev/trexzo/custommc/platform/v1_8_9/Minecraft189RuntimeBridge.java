@@ -5,9 +5,14 @@ import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import java.util.Objects;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.UUID;
 
 public final class Minecraft189RuntimeBridge {
     private static Minecraft189BootstrapRuntime activeRuntime;
+    // True production-owned, synchronous game-thread scope. Manual clickMouse
+    // and Auto Clicker attacks do not set it; every Aura call clears in finally.
+    private static final ThreadLocal<UUID> auraDispatchUuid =
+            new ThreadLocal<UUID>();
     private static int graphicalAcceptanceFrames;
     private static boolean graphicalAcceptanceReported;
     private static boolean acceptancePlayerObserved;
@@ -67,6 +72,7 @@ public final class Minecraft189RuntimeBridge {
                     "minecraft 1.8.9 runtime bridge is already active");
         }
         activeRuntime = next;
+        auraDispatchUuid.remove();
         graphicalAcceptanceFrames = 0;
         graphicalAcceptanceReported = false;
         acceptancePlayerObserved = false;
@@ -1379,7 +1385,25 @@ public final class Minecraft189RuntimeBridge {
                                 Minecraft189VanillaMeleeAcceptance.onNativeClick(
                                         minecraft);
                             }
-                            minecraft.customMcAttackCrosshairEntity();
+                            // Capture the already source-mapped, native UUID
+                            // at the LAST owner-gated point before dispatch.
+                            // The original controller checks the ACTUAL entity
+                            // argument against this synchronous intent before
+                            // it can send any vanilla attack packet.
+                            UUID ownerUuid = host.worldEntityUuidState()
+                                    .snapshot().at(playerIndex);
+                            if (Boolean.getBoolean(
+                                    "custommc.acceptance.requireScopedAuraOwnerVeto"))
+                                ownerUuid = Minecraft189RejoinTargetAcceptance
+                                        .scopedOwnerIntentForAcceptance(ownerUuid);
+                            if (ownerUuid != null) {
+                                auraDispatchUuid.set(ownerUuid);
+                                try {
+                                    minecraft.customMcAttackCrosshairEntity();
+                                } finally {
+                                    auraDispatchUuid.remove();
+                                }
+                            }
                         } else {
                             // Manual mouse and Auto Clicker preserve vanilla
                             // clickMouse semantics and their previous CI.
@@ -1445,6 +1469,26 @@ public final class Minecraft189RuntimeBridge {
     public static synchronized boolean acceptanceControllerDispatchAllowed(
             final Object controller, final Object player,
             final Object entity) {
+        final UUID expected = auraDispatchUuid.get();
+        if (expected != null) {
+            // This is the real mapped outgoing method ARGUMENT, not a
+            // reconstructed crosshair list index or rotation projection.
+            final UUID actual =
+                    entity instanceof Minecraft189NativeEntityUuidAccess
+                    ? ((Minecraft189NativeEntityUuidAccess) entity)
+                            .customMcNativeEntityUuid() : null;
+            if (!expected.equals(actual)) {
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.requireScopedAuraOwnerVeto"))
+                    Minecraft189RejoinTargetAcceptance
+                            .verifyScopedOwnerVeto(expected, actual);
+                return false; // BEFORE vanilla ATTACK packet side effects.
+            }
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireScopedAuraOwnerVeto"))
+                Minecraft189RejoinTargetAcceptance
+                        .verifyScopedOwnerAccepted(expected, actual);
+        }
         if (!Boolean.getBoolean(
                 "custommc.acceptance.requireStaleDispatchVeto"))
             return true;
