@@ -552,6 +552,10 @@ public final class Minecraft189Mappings {
                     "()Z",
                     "func_70093_af",
                     "isSneaking");
+    // Exact original 1.8.9 joined.srg: pk/d(DDD)V is Entity.moveEntity.
+    public static final MappedMethod ENTITY_MOVE_ENTITY =
+            new MappedMethod(ENTITY, "d", "(DDD)V",
+                    "func_70091_d", "moveEntity");
     public static final MappedMethod ENTITY_IS_SPRINTING =
             new MappedMethod(
                     ENTITY,

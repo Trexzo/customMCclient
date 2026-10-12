@@ -27,6 +27,10 @@ on:
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldCameraFrameState.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ProjectedPlayerFrame.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxEspModule.java'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SafeWalkModule.java'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SafeWalkFeature.java'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189LocalPlayerSafeWalkMarker.java'
+      - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SafeWalkModuleTest.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxPixelProbe.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxPixelProbeTest.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxEspFeature.java'
@@ -109,7 +113,7 @@ jobs:
             --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
             --overlay "build/runtime-overlay" \
             --game "$RUNNER_TEMP/custommc-189-singleplayer" \
-            --timeout 120 --native-world-camera
+            --timeout 120 --native-world-camera --native-safe-walk
       - name: V9 prove genuine remote Box ESP framebuffer cyan pixel and source UUID
         timeout-minutes: 5
         env:
