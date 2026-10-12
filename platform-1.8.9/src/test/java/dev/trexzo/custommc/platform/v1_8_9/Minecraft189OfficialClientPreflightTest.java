@@ -350,7 +350,7 @@ final class Minecraft189OfficialClientPreflightTest {
 
         final Map<String, byte[]> raw = new LinkedHashMap<String, byte[]>();
         try (JarFile jar = new JarFile(jarPath.toFile())) {
-            for (String name : Arrays.asList("bfk", "bda", "pk", "aug")) {
+            for (String name : Arrays.asList("bfk", "bda", "pk", "aug", "adm")) {
                 final JarEntry entry = jar.getJarEntry(name + ".class");
                 assertNotNull(entry, "official obfuscated class missing: " + name);
                 final byte[] bytes;
@@ -544,6 +544,67 @@ final class Minecraft189OfficialClientPreflightTest {
         assertArrayEquals(new int[]{1, 1, 1, 1}, originSequence,
                 "world camera origin bridge follows exact source-native render-view entity");
         System.out.println("REAL_189_WORLD_CAMERA_NATIVE_ORIGIN_HOOK_PASS=YES");
+
+        final byte[] nativeWorld = transformer.transform("adm", raw.get("adm"));
+        final int[] sourceObjects = new int[3];
+        new ClassReader(nativeWorld).accept(
+                new ClassVisitor(Opcodes.ASM9) {
+                    @Override public MethodVisitor visitMethod(
+                            final int access, final String name,
+                            final String descriptor, final String signature,
+                            final String[] exceptions) {
+                        if (!"customMcLoadedEntityObjects".equals(name)
+                                || !"()[Ljava/lang/Object;".equals(descriptor)) return null;
+                        sourceObjects[0]++;
+                        return new MethodVisitor(Opcodes.ASM9) {
+                            @Override public void visitFieldInsn(
+                                    final int opcode, final String owner,
+                                    final String name, final String descriptor) {
+                                if (opcode == Opcodes.GETFIELD && "adm".equals(owner)
+                                        && "f".equals(name)
+                                        && "Ljava/util/List;".equals(descriptor))
+                                    sourceObjects[1]++;
+                            }
+                            @Override public void visitMethodInsn(
+                                    final int opcode, final String owner,
+                                    final String name, final String descriptor,
+                                    final boolean itf) {
+                                if (opcode == Opcodes.INVOKEINTERFACE && itf
+                                        && "java/util/List".equals(owner)
+                                        && "toArray".equals(name)
+                                        && "()[Ljava/lang/Object;".equals(descriptor))
+                                    sourceObjects[2]++;
+                            }
+                        };
+                    }
+                }, 0);
+        assertArrayEquals(new int[]{1, 1, 1}, sourceObjects,
+                "original Mojang world.loadedEntityList must back exact live Entity references");
+        final int[] sourceBridge = new int[1];
+        new ClassReader(transformedRenderer).accept(
+                new ClassVisitor(Opcodes.ASM9) {
+                    @Override public MethodVisitor visitMethod(
+                            final int access, final String name,
+                            final String descriptor, final String signature,
+                            final String[] exceptions) {
+                        if (!"a".equals(name) || !"(IFJ)V".equals(descriptor)) return null;
+                        return new MethodVisitor(Opcodes.ASM9) {
+                            @Override public void visitMethodInsn(
+                                    final int opcode, final String owner,
+                                    final String method, final String descriptor,
+                                    final boolean itf) {
+                                if (opcode == Opcodes.INVOKESTATIC
+                                        && owner.endsWith("/Minecraft189RuntimeBridge")
+                                        && "worldCameraLoadedEntitiesCaptured".equals(method)
+                                        && "(Ljava/lang/Object;IF)V".equals(descriptor))
+                                    sourceBridge[0]++;
+                            }
+                        };
+                    }
+                }, 0);
+        assertEquals(1, sourceBridge[0],
+                "original renderer must supply native world after frame camera origin");
+        System.out.println("REAL_189_WORLD_CAMERA_NATIVE_ENTITY_AABB_HOOK_PASS=YES");
 
         for (String name : Arrays.asList("bda", "pk", "aug")) {
             final byte[] transformed = transformer.transform(name, raw.get(name));
