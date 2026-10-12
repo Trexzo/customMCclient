@@ -10,6 +10,7 @@ from RunMojang189LocalhostTwoPlayerSmoke import (
     actual_server_three_client_target_switch_fixture,
     actual_server_three_client_simultaneous_fixture,
     actual_server_three_client_locked_fixture,
+    actual_server_three_client_rejoin_fixture,
     official_offline_uuid,
     actual_server_spawn_positive_pvp_fixture,
     actual_server_clear_wall_command,
@@ -265,6 +266,37 @@ class RealLockedTargetFixtureTest(unittest.TestCase):
             log.write_bytes(b"CITargetB joined the game\n")
             with self.assertRaises(AssertionError):
                 actual_server_three_client_locked_fixture(log)
+
+
+class RealReconnectNativeIdentityFixtureTest(unittest.TestCase):
+    def test_real_forward_spawn_keeps_survivor_in_loaded_chunk(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "server.log"
+            path.write_bytes(
+                b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\n")
+            self.assertEqual(actual_server_three_client_rejoin_fixture(path), (
+                "tp CIHost 243 5 444 0 0",
+                "tp CITarget 243 5 446 180 0",
+                "tp CITargetB 245 5 446 180 0",
+            ))
+
+    def test_real_reverse_spawn_keeps_survivor_in_loaded_chunk(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "server.log"
+            path.write_bytes(
+                b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (-33.5, 4.0, -33.5)\n")
+            self.assertEqual(actual_server_three_client_rejoin_fixture(path), (
+                "tp CIHost -34 5 -34 180 0",
+                "tp CITarget -34 5 -36 0 0",
+                "tp CITargetB -36 5 -36 180 0",
+            ))
+
+    def test_server_spawn_unknown_cannot_fake_rejoin_fixture(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "server.log"
+            path.write_bytes(b"CITarget left the game\nCITarget joined the game\n")
+            with self.assertRaises(AssertionError):
+                actual_server_three_client_rejoin_fixture(path)
 
 
 if __name__ == "__main__":
