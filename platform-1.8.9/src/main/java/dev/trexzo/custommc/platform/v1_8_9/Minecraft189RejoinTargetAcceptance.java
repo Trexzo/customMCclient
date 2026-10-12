@@ -152,7 +152,10 @@ final class Minecraft189RejoinTargetAcceptance {
             // Original A is creative, never counted as genuine server damage.
         } else if (phase>=2 && survivorUuid.equals(id) && index==e.b
                 && e.a==-1 && e.bInRange()) {
-            if (!survivorClicked) {
+            // Selection-only creative B clicks never prove server damage.
+            // Record a positive-owned click only once the required
+            // 15-callback survivor-lock gate reaches phase 3.
+            if (phase>=3 && !survivorClicked) {
                 survivorClicked=true;
                 System.out.println("CUSTOMMC_189_REJOIN_B_NATIVE_OWNED_ATTACK_PASS=YES");
                 System.out.flush();

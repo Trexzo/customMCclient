@@ -630,7 +630,10 @@ def run(args):
                                     expected=b"score 0 is in range 0 to 0")
             send_server_command(server, server_log, "gamemode 0 CIHost")
             send_server_command(server, server_log, "gamemode 1 CITarget")
-            send_server_command(server, server_log, "gamemode 0 CITargetB")
+            # Both targets remain genuine living, selectable native players.
+            # Creative B cannot be knocked out of reach during the mandatory
+            # 15-callback A-disappeared / B-UUID-lock proof.
+            send_server_command(server, server_log, "gamemode 1 CITargetB")
             send_server_command(server, server_log,
                                 "gamerule naturalRegeneration false")
             host_tp, a_near, b_outer = (
@@ -649,7 +652,16 @@ def run(args):
                      "original real Minecraft target left dedicated server")
             print("CUSTOMMC_189_REJOIN_REAL_A_DISCONNECTED_PASS=YES", flush=True)
             wait_for(host, host_log, REJOIN_B_LOCK, deadline,
-                     "native A unloaded; only real surviving B locked")
+                     "15 genuine native A-absent snapshots retaining locked B")
+            for player in ("CITarget", "CITargetB"):
+                send_server_command(server, server_log,
+                                    "scoreboard players test {} taken 0 0".format(player),
+                                    expected=b"score 0 is in range 0 to 0")
+            print("CUSTOMMC_189_REJOIN_B_ONLY_STABLE_NO_DAMAGE_PASS=YES",
+                  flush=True)
+            # Only AFTER the survivor's native lock and list-index change
+            # are established, permit true survival PvP knockback/damage.
+            send_server_command(server, server_log, "gamemode 0 CITargetB")
             wait_for(host, host_log, REJOIN_B_HIT, deadline,
                      "genuine surviving UUID B original combat click")
             wait_for_real_score(server, server_log, "CITargetB", deadline)
