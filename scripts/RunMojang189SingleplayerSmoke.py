@@ -344,8 +344,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 start = time.monotonic()
                 while time.monotonic() - start < 8:
                     readings = native_safe_walk_positions(log)
-                    if readings and abs(readings[-1][0] - 0.5) < 0.3 \\
-                            and abs(readings[-1][1] - 100.0) < 0.2 \\
+                    if readings and abs(readings[-1][0] - 0.5) < 0.3 \
+                            and abs(readings[-1][1] - 100.0) < 0.2 \
                             and abs(readings[-1][2] - 0.5) < 0.3:
                         break
                     require_running(process, "native ledge preflight")
