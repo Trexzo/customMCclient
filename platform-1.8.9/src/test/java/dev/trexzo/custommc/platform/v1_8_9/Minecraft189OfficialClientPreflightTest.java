@@ -420,6 +420,54 @@ final class Minecraft189OfficialClientPreflightTest {
         assertArrayEquals(new int[]{1, 1, 1, 1}, bridgeHooks,
                 "expected exact native Reach + Hitbox bridge injection counts");
 
+        // V3 native original-Mojang world camera proof: setupCameraTransform
+        // MUST occur once inside the real renderWorldPass, and the patched
+        // bridge MUST run directly after that very invocation. Never accept
+        // capture from updateCameraAndRender, HUD or GUI ortho matrices.
+        final int[] worldCamera = new int[3]; // original, patched, ordering
+        for (int bytecode = 0; bytecode < 2; bytecode++) {
+            final boolean patched = bytecode == 1;
+            new ClassReader(patched ? transformedRenderer : raw.get("bfk")).accept(
+                    new ClassVisitor(Opcodes.ASM9) {
+                        @Override public MethodVisitor visitMethod(
+                                final int access, final String method,
+                                final String descriptor, final String signature,
+                                final String[] exceptions) {
+                            if (!"a".equals(method) || !"(IFJ)V".equals(descriptor))
+                                return null;
+                            return new MethodVisitor(Opcodes.ASM9) {
+                                private boolean cameraSetupJustCalled;
+                                @Override public void visitMethodInsn(
+                                        final int opcode, final String owner,
+                                        final String called, final String desc,
+                                        final boolean itf) {
+                                    if (opcode == Opcodes.INVOKESPECIAL && !itf
+                                            && owner.equals("bfk") && called.equals("a")
+                                            && desc.equals("(FI)V")) {
+                                        worldCamera[0] += patched ? 0 : 1;
+                                        cameraSetupJustCalled = true;
+                                    } else if (patched
+                                            && opcode == Opcodes.INVOKESTATIC
+                                            && owner.endsWith("/Minecraft189RuntimeBridge")
+                                            && called.equals("worldCameraSetupCaptured")
+                                            && desc.equals("(IF)V")) {
+                                        worldCamera[1]++;
+                                        if (cameraSetupJustCalled) worldCamera[2]++;
+                                        cameraSetupJustCalled = false;
+                                    } else if (patched) {
+                                        // Any intervening method call invalidates
+                                        // the claimed immediate native camera seam.
+                                        cameraSetupJustCalled = false;
+                                    }
+                                }
+                            };
+                        }
+                    }, 0);
+        }
+        assertArrayEquals(new int[]{1, 1, 1}, worldCamera,
+                "real 1.8.9 renderWorldPass camera seam must be native and exact");
+        System.out.println("REAL_189_WORLD_CAMERA_NATIVE_RENDER_HOOK_PASS=YES");
+
         for (String name : Arrays.asList("bda", "pk", "aug")) {
             final byte[] transformed = transformer.transform(name, raw.get(name));
             assertEquals(name, new ClassReader(transformed).getClassName(),

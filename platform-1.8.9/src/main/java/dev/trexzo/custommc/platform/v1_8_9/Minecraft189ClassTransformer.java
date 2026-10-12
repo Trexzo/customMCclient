@@ -2108,6 +2108,10 @@ public final class Minecraft189ClassTransformer
         final int[] changedRaycastCalls = new int[2];
         final int[] changedExtendedConstants = new int[1];
         final int[] changedHitboxCalls = new int[1];
+        // Native read-only camera snapshot is only admissible after the
+        // world pass calls Mojang's original setupCameraTransform.
+        final boolean[] foundWorldPass = new boolean[1];
+        final int[] capturedCameraSetupCalls = new int[1];
 
         reader.accept(
                 new ClassVisitor(
@@ -2127,6 +2131,42 @@ public final class Minecraft189ClassTransformer
                                         descriptor,
                                         signature,
                                         exceptions);
+                        final Minecraft189Mappings.MappedMethod worldPass =
+                                Minecraft189Mappings.ENTITY_RENDERER_RENDER_WORLD_PASS;
+                        if (worldPass.obfuscatedName().equals(name)
+                                && worldPass.descriptor().equals(descriptor)) {
+                            if (foundWorldPass[0]) throw new IllegalStateException(
+                                    "duplicate native world camera pass");
+                            foundWorldPass[0] = true;
+                            return new MethodVisitor(Opcodes.ASM9, delegate) {
+                                @Override public void visitMethodInsn(
+                                        final int opcode, final String owner,
+                                        final String methodName, final String methodDesc,
+                                        final boolean isInterface) {
+                                    super.visitMethodInsn(opcode, owner,
+                                            methodName, methodDesc, isInterface);
+                                    final Minecraft189Mappings.MappedMethod camera =
+                                            Minecraft189Mappings
+                                                    .ENTITY_RENDERER_SETUP_CAMERA_TRANSFORM;
+                                    if (opcode == Opcodes.INVOKESPECIAL && !isInterface
+                                            && owner.equals(camera.owner().obfuscatedInternalName())
+                                            && methodName.equals(camera.obfuscatedName())
+                                            && methodDesc.equals(camera.descriptor())) {
+                                        if (++capturedCameraSetupCalls[0] != 1)
+                                            throw new IllegalStateException(
+                                                    "world pass has duplicate native camera setup");
+                                        // After original call: actual world projection
+                                        // and view rotation are bound in current GL.
+                                        // Local args of a(IFJ)V: ILOAD 1, FLOAD 2.
+                                        super.visitVarInsn(Opcodes.ILOAD, 1);
+                                        super.visitVarInsn(Opcodes.FLOAD, 2);
+                                        super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "worldCameraSetupCaptured", "(IF)V", false);
+                                    }
+                                }
+                            };
+                        }
                         final Minecraft189Mappings.MappedMethod mouseOver =
                                 Minecraft189Mappings.ENTITY_RENDERER_GET_MOUSE_OVER;
                         if (mouseOver.obfuscatedName().equals(name)
@@ -2259,6 +2299,9 @@ public final class Minecraft189ClassTransformer
                 },
                 0);
 
+        if (foundWorldPass[0] && capturedCameraSetupCalls[0] != 1)
+            throw new IllegalStateException(
+                    "original 1.8.9 world pass missing exact camera setup anchor");
         if (!foundRaycast[0] || changedRaycastCalls[0] != 1
                 || changedRaycastCalls[1] != 1
                 || changedExtendedConstants[0] != 1

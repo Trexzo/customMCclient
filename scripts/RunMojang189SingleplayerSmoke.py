@@ -150,15 +150,23 @@ def send_command(process, log, window, command):
 
 
 def run(command, game, timeout, attack=False, auto_clicker=False,
-        kill_aura_nonplayer=False):
+        kill_aura_nonplayer=False, native_world_camera=False):
     if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer)) > 1:
         raise ValueError("manual and module combat tests are exclusive")
     controlled_combat = attack or auto_clicker or kill_aura_nonplayer
+    # A real rendered world camera requires a focused Minecraft window;
+    # vanilla singleplayer otherwise automatically opens the pause GUI.
+    needs_active_window = controlled_combat or native_world_camera
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
         raise ValueError("singleplayer timeout must be 70..240 seconds")
     # Java flags must precede the class name.
+    if native_world_camera:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.visuals.captureNativeWorldCamera=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireNativeWorldCamera=true")
     command.insert(command.index("-cp"), "-Dcustommc.acceptance.reportLiveWorld=true")
     if controlled_combat:
         command.insert(command.index("-cp"),
@@ -188,7 +196,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
     with tempfile.TemporaryDirectory(prefix="custommc-189-world-") as temp:
         log = Path(temp) / "minecraft.txt"
         try:
-            if controlled_combat:
+            if needs_active_window:
                 # Xvfb alone has no EWMH window manager; LWJGL2 may lose
                 # active focus and auto-pause the integrated server. Openbox
                 # supplies real X11 activation without patching Minecraft.
@@ -211,7 +219,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                          "actual graphical frame")
             window = find_window(min(deadline, time.monotonic() + 15))
             print("CUSTOMMC_189_REAL_X11_WINDOW_FOUND=YES", flush=True)
-            if controlled_combat:
+            if needs_active_window:
                 xdotool("windowactivate", "--sync", window)
             geometry = xdotool("getwindowgeometry", "--shell", window)
             print("CUSTOMMC_189_WINDOW_GEOMETRY="
@@ -254,6 +262,15 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
             click(window, 346, 462)
             print("CUSTOMMC_189_NEW_WORLD_GUI_REQUEST_SENT=YES", flush=True)
             await_marker(process, log, WORLD, deadline, "real player/world-tick")
+            if native_world_camera:
+                # An already-created world can be paused by focus transition.
+                # Resume using genuine GuiIngameMenu input, never fake ticks.
+                resume_if_paused(process, log, window)
+                await_marker(process, log,
+                             b"CUSTOMMC_OFFICIAL_189_NATIVE_WORLD_CAMERA_GL_PASS=YES",
+                             deadline, "source-mapped original perspective world camera")
+                print("CUSTOMMC_OFFICIAL_189_REAL_WORLD_CAMERA_CAPTURE_PASS=YES",
+                      flush=True)
             require_running(process, "post world checkpoint")
             time.sleep(2)
             require_running(process, "world stability")
@@ -370,6 +387,8 @@ if __name__ == "__main__":
                         help="verify enabled Auto Clicker causes offline entity hurt without X11 attack")
     parser.add_argument("--kill-aura-nonplayer", action="store_true",
                         help="verify enabled player-only Kill Aura vetoes genuine passive mob")
+    parser.add_argument("--native-world-camera", action="store_true",
+                        help="require actual OpenGL perspective camera matrix from vanilla world pass")
     args = parser.parse_args()
     try:
         command = build_command(
@@ -378,7 +397,8 @@ if __name__ == "__main__":
         )
         run(command, args.game, args.timeout, attack=args.attack,
             auto_clicker=args.auto_clicker,
-            kill_aura_nonplayer=args.kill_aura_nonplayer)
+            kill_aura_nonplayer=args.kill_aura_nonplayer,
+            native_world_camera=args.native_world_camera)
     except Exception as failure:
         print("CUSTOMMC_189_SINGLEPLAYER_WORLD_FAILED: " + str(failure),
               file=sys.stderr)

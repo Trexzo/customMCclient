@@ -48,6 +48,9 @@ public final class Minecraft189BootstrapRuntime
     private long nextTickIndex;
     private long nextFrameIndex;
     private long currentFrameIndex = -1L;
+    private final Minecraft189WorldCameraFrameState worldCamera =
+            new Minecraft189WorldCameraFrameState();
+    private boolean acceptanceNativeWorldCameraReported;
     private boolean closed;
 
     private Minecraft189BootstrapRuntime(
@@ -327,9 +330,48 @@ public final class Minecraft189BootstrapRuntime
                 Math.addExact(
                         nextFrameIndex,
                         1L);
+        worldCamera.clear();
         hostRuntime.frameStarted(
                 currentFrameIndex,
                 partialTicks);
+    }
+
+    synchronized void captureNativeWorldCamera(
+            final int worldPass, final float partialTicks) {
+        if (closed || hostRuntime == null || hostRuntime.closed()
+                || currentFrameIndex < 0L
+                || !Boolean.getBoolean("custommc.visuals.captureNativeWorldCamera"))
+            return;
+        // Purely observational, read-only GL state sampling.
+        worldCamera.captureNative(currentFrameIndex, worldPass, partialTicks);
+        if (!acceptanceNativeWorldCameraReported
+                && Boolean.getBoolean("custommc.acceptance.requireNativeWorldCamera")
+                && worldPass >= 0 && worldPass <= 2) {
+            final Minecraft189WorldCameraFrameState.Snapshot snapshot =
+                    worldCamera.snapshot();
+            if (snapshot != null && snapshot.frame() == currentFrameIndex
+                    && snapshot.pass() == worldPass
+                    && Math.abs(snapshot.partialTicks() - partialTicks) <= 0.0001F) {
+                final double[] projection = snapshot.projection();
+                final int[] viewport = snapshot.viewport();
+                // OpenGL perspective has w'=-z, unlike the HUD's
+                // orthographic w'=1. Require actual window-sized GL state.
+                if (Math.abs(projection[11] + 1.0D) < 0.0001D
+                        && Math.abs(projection[15]) < 0.0001D
+                        && viewport[2] >= 640 && viewport[3] >= 400) {
+                    acceptanceNativeWorldCameraReported = true;
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_NATIVE_WORLD_CAMERA_GL_PASS=YES pass="
+                                    + worldPass);
+                    System.out.flush();
+                }
+            }
+        }
+    }
+
+    synchronized Minecraft189WorldCameraFrameState.Snapshot worldCameraSnapshot() {
+        if (closed || currentFrameIndex < 0L) return null;
+        return worldCamera.snapshot();
     }
 
     synchronized void renderHudFrame(
@@ -359,6 +401,7 @@ public final class Minecraft189BootstrapRuntime
                     currentFrameIndex,
                     partialTicks);
         } finally {
+            worldCamera.clear();
             currentFrameIndex = -1L;
         }
     }
