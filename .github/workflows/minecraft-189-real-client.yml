@@ -334,7 +334,7 @@ jobs:
             --overlay "build/runtime-overlay" \
             --game "$RUNNER_TEMP/custommc-189-singleplayer" \
             --timeout 120
-      - name: Verify real offline vanilla melee click and native entity hurtTime
+      - name: M425 verify real vanilla manual melee is unscoped from Aura UUID and hurts native entity
         timeout-minutes: 4
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
