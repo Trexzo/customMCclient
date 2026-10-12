@@ -1293,7 +1293,7 @@ def run(args):
                 wait_for(host, host_log, REMOTE_PAIR_SCOPE_FRESH, deadline,
                          "fresh native controller A argument matches actual selected A owner")
             if args.unlocked_scoped_veto:
-                wait_for(host, host_log, UNLOCKED_SCOPE_VETO,
+                wait_for(host, host_log, UNLOCKED_SCOPE_VETO, deadline,
                          "original native controller rejected genuine local UUID scoped as remote")
                 send_server_command(server, server_log,
                                     "scoreboard players test CITarget taken 0 0",
