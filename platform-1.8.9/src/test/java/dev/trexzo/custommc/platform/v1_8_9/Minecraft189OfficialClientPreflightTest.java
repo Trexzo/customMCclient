@@ -424,9 +424,10 @@ final class Minecraft189OfficialClientPreflightTest {
                         && call.getOpcode() == Opcodes.INVOKEVIRTUAL) {
                     nativeItemUse++;
                 }
-                // Require real NetHandlerPlayClient packet dispatch semantics,
-                // rather than claiming a constructor by itself sent a packet.
-                if (call.name.equals("a") && call.desc.equals("(Lff;)V")
+                // Source-mapped NetHandlerPlayClient.addToSendQueue(Packet):
+                // bcy/a(Lff;)V. Constructor alone is not packet dispatch.
+                if ("bcy".equals(call.owner) && "a".equals(call.name)
+                        && "(Lff;)V".equals(call.desc)
                         && call.getOpcode() == Opcodes.INVOKEVIRTUAL) {
                     nativePacketDispatch++;
                 }
@@ -442,8 +443,8 @@ final class Minecraft189OfficialClientPreflightTest {
                 "original controller must invoke ItemStack.onItemUse in creative/survival branches");
         assertTrue(nativeStackField >= 2,
                 "original creative path must preserve native ItemStack.stackSize");
-        // NetHandlerPlayClient obfuscated invocation verified separately once
-        // the exact pinned packet dispatch descriptor has been resolved.
+        assertEquals(1, nativePacketDispatch,
+                "original controller must dispatch exactly one C08 packet via real NetHandlerPlayClient");
         assertEquals("ja", placementPacket.name);
         System.out.println("REAL_189_SCAFFOLD_NATIVE_RIGHT_CLICK_CONTROLLER_PASS=YES");
         System.out.println("REAL_189_SCAFFOLD_NATIVE_C08_CONSTRUCT_AND_ITEM_USE_PASS=YES");
