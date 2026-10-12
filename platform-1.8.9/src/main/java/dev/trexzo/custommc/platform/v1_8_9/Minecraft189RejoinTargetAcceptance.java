@@ -16,6 +16,7 @@ final class Minecraft189RejoinTargetAcceptance {
     private static boolean realBControllerEntityUuidReported;
     private static UUID staleControllerIntentUuid;
     private static boolean staleDispatchVetoReported, freshDispatchAllowedReported;
+    private static boolean scopedOwnerVetoReported, scopedOwnerFreshReported;
 
     private Minecraft189RejoinTargetAcceptance() {}
 
@@ -29,6 +30,7 @@ final class Minecraft189RejoinTargetAcceptance {
         realBControllerEntityUuidReported = false;
         staleControllerIntentUuid = null;
         staleDispatchVetoReported = freshDispatchAllowedReported = false;
+        scopedOwnerVetoReported = scopedOwnerFreshReported = false;
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
@@ -159,7 +161,9 @@ final class Minecraft189RejoinTargetAcceptance {
                             "custommc.acceptance.requireRejoinWrongTargetVeto"))
                         proveWrongTargetProposalRejected(host, e);
                     if (Boolean.getBoolean(
-                            "custommc.acceptance.requireStaleDispatchVeto")) {
+                            "custommc.acceptance.requireStaleDispatchVeto")
+                            || Boolean.getBoolean(
+                                    "custommc.acceptance.requireScopedAuraOwnerVeto")) {
                         if (!survivorUuid.equals(e.ids.at(e.b))
                                 || !survivorUuid.equals(aura.lockedTargetUuid()))
                             throw new IllegalStateException(
@@ -186,6 +190,49 @@ final class Minecraft189RejoinTargetAcceptance {
                 }
             } else releasedTicks=0;
         }
+    }
+
+    /**
+     * M422: for one isolated negative exercise, substitute the PREVIOUSLY
+     * genuine selected/locked B UUID into the real Aura dispatch scope after
+     * actual B disconnects and A is reselected. The entity ARGUMENT remains
+     * the real source-native A instance. The production scope guard must
+     * reject it. No entity, packet or native identity is forged.
+     */
+    static UUID scopedOwnerIntentForAcceptance(final UUID nativeOwner) {
+        if (phase >= 5 && !scopedOwnerVetoReported
+                && nativeOwner != null && originalUuid.equals(nativeOwner)) {
+            if (!survivorUuid.equals(staleControllerIntentUuid))
+                throw new IllegalStateException(
+                        "M422 source-native prior B intent unavailable");
+            return staleControllerIntentUuid;
+        }
+        return nativeOwner;
+    }
+
+    static void verifyScopedOwnerVeto(final UUID expected, final UUID actual) {
+        if (phase != 5 || scopedOwnerVetoReported
+                || !survivorUuid.equals(expected)
+                || !originalUuid.equals(actual))
+            throw new IllegalStateException(
+                    "M422 unexpected native controller mismatch "
+                    + expected + " versus " + actual);
+        scopedOwnerVetoReported = true;
+        System.out.println(
+                "CUSTOMMC_189_SCOPED_NATIVE_B_INTENT_REAL_A_DISPATCH_VETO_PASS=YES");
+        System.out.flush();
+    }
+
+    static void verifyScopedOwnerAccepted(final UUID expected, final UUID actual) {
+        if (phase != 5 || !scopedOwnerVetoReported
+                || scopedOwnerFreshReported) return;
+        if (!originalUuid.equals(expected) || !originalUuid.equals(actual))
+            throw new IllegalStateException(
+                    "M422 fresh native controller A owner mismatch");
+        scopedOwnerFreshReported = true;
+        System.out.println(
+                "CUSTOMMC_189_SCOPED_NATIVE_FRESH_A_DISPATCH_PASS=YES");
+        System.out.flush();
     }
 
     /**

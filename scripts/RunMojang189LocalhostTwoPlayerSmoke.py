@@ -64,6 +64,8 @@ REJOIN_CONTROLLER_ARGUMENT_UUID_B = b"CUSTOMMC_189_REJOIN_NATIVE_CONTROLLER_ENTI
 REJOIN_STALE_INTENT = b"CUSTOMMC_189_REAL_B_PRE_EXIT_INTENT_CAPTURED_PASS=YES"
 REJOIN_STALE_DISPATCH_VETO = b"CUSTOMMC_189_REAL_B_EXIT_STALE_CONTROLLER_DISPATCH_VETO_PASS=YES"
 REJOIN_FRESH_A_DISPATCH = b"CUSTOMMC_189_REAL_A_FRESH_CONTROLLER_DISPATCH_PASS=YES"
+REJOIN_SCOPED_VETO = b"CUSTOMMC_189_SCOPED_NATIVE_B_INTENT_REAL_A_DISPATCH_VETO_PASS=YES"
+REJOIN_SCOPED_FRESH = b"CUSTOMMC_189_SCOPED_NATIVE_FRESH_A_DISPATCH_PASS=YES"
 MULTI_READY = b"CUSTOMMC_189_MULTI_TWO_REAL_UUID_PLAYERS_PASS=YES"
 MULTI_HIT_A = b"CUSTOMMC_189_MULTI_UUID_A_OWNED_ATTACK_PASS=YES"
 MULTI_SWITCH = b"CUSTOMMC_189_MULTI_TARGET_SWITCH_TO_UUID_B_PASS=YES"
@@ -488,6 +490,9 @@ def client_command(args, game, username, uuid, port, remote):
         if args.require_stale_dispatch_veto:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireStaleDispatchVeto=true")
+        if args.require_scoped_aura_owner_veto:
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.requireScopedAuraOwnerVeto=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.targetAUuid=" + official_offline_uuid("CITarget"))
         command.insert(command.index("-cp"),
@@ -749,7 +754,7 @@ def run(args):
             if args.require_wrong_target_veto:
                 wait_for(host, host_log, REJOIN_WRONG_UUID_VETO, deadline,
                          "in-range wrong native A UUID proposal rejected while B locked")
-            if args.require_stale_dispatch_veto:
+            if args.require_stale_dispatch_veto or args.require_scoped_aura_owner_veto:
                 wait_for(host, host_log, REJOIN_STALE_INTENT, deadline,
                          "genuine locked B UUID retained as pre-exit attack intent")
             if args.require_rejoined_controller_b:
@@ -835,6 +840,12 @@ def run(args):
                     send_server_command(server, server_log,
                                         "scoreboard players test CITarget taken 0 0",
                                         expected=b"score 0 is in range 0 to 0")
+                if args.require_scoped_aura_owner_veto:
+                    wait_for(host, host_log, REJOIN_SCOPED_VETO,
+                             deadline, "production Aura scope rejects genuine old B UUID against real A argument")
+                    send_server_command(server, server_log,
+                                        "scoreboard players test CITarget taken 0 0",
+                                        expected=b"score 0 is in range 0 to 0")
                 send_server_command(server, server_log,
                                     "gamemode 0 CITarget")
                 wait_for(host, host_log, REJOIN_A_HIT, deadline,
@@ -842,6 +853,9 @@ def run(args):
                 if args.require_stale_dispatch_veto:
                     wait_for(host, host_log, REJOIN_FRESH_A_DISPATCH,
                              deadline, "fresh native controller dispatch owns actual A UUID")
+                if args.require_scoped_aura_owner_veto:
+                    wait_for(host, host_log, REJOIN_SCOPED_FRESH,
+                             deadline, "production Aura scope permits fresh real A native controller")
                 wait_for_real_score(server, server_log, "CITarget", deadline)
                 send_server_command(server, server_log,
                                     "scoreboard players test CITargetB taken 1 999999",
@@ -1298,6 +1312,9 @@ def run(args):
             if args.require_stale_dispatch_veto:
                 print("CUSTOMMC_OFFICIAL_189_REAL_EXIT_STALE_B_DISPATCH_VETO_AND_FRESH_A_DAMAGE_PASS=YES",
                       flush=True)
+            if args.require_scoped_aura_owner_veto:
+                print("CUSTOMMC_OFFICIAL_189_PRODUCTION_SCOPED_AURA_OWNER_UUID_VETO_AND_FRESH_A_DAMAGE_PASS=YES",
+                      flush=True)
         if args.require_wrong_target_veto:
             print("CUSTOMMC_OFFICIAL_189_REJOIN_WRONG_UUID_CLICK_VETO_PASS=YES",
                   flush=True)
@@ -1365,6 +1382,8 @@ def main():
                         help="prove genuine vanilla controller B attack and fresh B server damage while A survival remains undamaged")
     parser.add_argument("--require-controller-entity-uuid", action="store_true",
                         help="require actual Mojang controller attackEntity argument UUID equals locked native B")
+    parser.add_argument("--require-scoped-aura-owner-veto", action="store_true",
+                        help="verify production scoped Aura outgoing UUID veto using real stale B intent and fresh A damage")
     parser.add_argument("--require-stale-dispatch-veto", action="store_true",
                         help="veto once at real controller boundary using retained genuine B intent after B disconnect and fresh A reacquire")
     group = parser.add_mutually_exclusive_group()
@@ -1406,6 +1425,11 @@ def main():
             not args.rejoin_release or not args.require_index_reorder
             or not args.require_wrong_target_veto or args.require_rejoined_controller_b):
         parser.error("--require-stale-dispatch-veto requires --rejoin-release --require-index-reorder --require-wrong-target-veto and excludes --require-rejoined-controller-b")
+    if args.require_scoped_aura_owner_veto and (
+            not args.rejoin_release or not args.require_index_reorder
+            or not args.require_wrong_target_veto
+            or args.require_stale_dispatch_veto or args.require_rejoined_controller_b):
+        parser.error("--require-scoped-aura-owner-veto needs --rejoin-release --require-index-reorder --require-wrong-target-veto; excludes other scoped controller tests")
     run(args)
 
 
