@@ -337,7 +337,7 @@ jobs:
             --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
             --overlay "build/runtime-overlay" \
             --game "$RUNNER_TEMP/custommc-189-singleplayer" \
-            --timeout 120
+            --timeout 120 --native-world-camera
       - name: M425 verify real vanilla manual melee is unscoped from Aura UUID and hurts native entity
         timeout-minutes: 4
         env:
