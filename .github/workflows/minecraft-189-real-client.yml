@@ -89,6 +89,25 @@ jobs:
           command -v xvfb-run
           command -v xrandr
           xvfb-run -a -s "-screen 0 1280x720x24" xrandr --query
+      - name: Run offline singleplayer with genuine player and world Combat snapshots
+        timeout-minutes: 4
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '2.1'
+        run: |
+          if ! command -v xdotool >/dev/null 2>&1 || ! command -v openbox >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xdotool openbox
+          fi
+          xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189SingleplayerSmoke.py \
+            --java "$JAVA_HOME/bin/java" \
+            --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
+            --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
+            --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
+            --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
+            --overlay "build/runtime-overlay" \
+            --game "$RUNNER_TEMP/custommc-189-singleplayer" \
+            --timeout 120 --native-world-camera
       - name: Prove production Aura scoped outgoing UUID guard vetoes mismatched real A intent, then damages B
         timeout-minutes: 6
         env:
@@ -326,25 +345,6 @@ jobs:
             --overlay "build/runtime-overlay" \
             --game "$RUNNER_TEMP/custommc-189-game" \
             --timeout 90
-      - name: Run offline singleplayer with genuine player and world Combat snapshots
-        timeout-minutes: 4
-        env:
-          LIBGL_ALWAYS_SOFTWARE: '1'
-          MESA_GL_VERSION_OVERRIDE: '2.1'
-        run: |
-          if ! command -v xdotool >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y xdotool
-          fi
-          xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189SingleplayerSmoke.py \
-            --java "$JAVA_HOME/bin/java" \
-            --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
-            --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
-            --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
-            --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
-            --overlay "build/runtime-overlay" \
-            --game "$RUNNER_TEMP/custommc-189-singleplayer" \
-            --timeout 120 --native-world-camera
       - name: M425 verify real vanilla manual melee is unscoped from Aura UUID and hurts native entity
         timeout-minutes: 4
         env:

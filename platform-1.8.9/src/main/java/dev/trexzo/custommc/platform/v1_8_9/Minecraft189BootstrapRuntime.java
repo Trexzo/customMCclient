@@ -54,6 +54,8 @@ public final class Minecraft189BootstrapRuntime
     private boolean acceptanceNativeWorldCameraReported;
     private boolean acceptanceNativeWorldOriginReported;
     private boolean acceptanceNativePlayerBoxesReported;
+    private boolean acceptanceCameraFrameStartReported;
+    private int acceptanceCameraDiagnosticsPrinted;
     private boolean closed;
 
     private Minecraft189BootstrapRuntime(
@@ -350,6 +352,16 @@ public final class Minecraft189BootstrapRuntime
         hostRuntime.frameStarted(
                 currentFrameIndex,
                 partialTicks);
+        if (!acceptanceCameraFrameStartReported
+                && Boolean.getBoolean("custommc.acceptance.requireNativeWorldCamera")) {
+            acceptanceCameraFrameStartReported = true;
+            System.out.println("CUSTOMMC_CAMERA_DIAG_FRAME_STARTED=YES frame="
+                    + currentFrameIndex
+                    + " captureProperty="
+                    + Boolean.getBoolean("custommc.visuals.captureNativeWorldCamera")
+                    + " hostInstalled=" + hostInstalled());
+            System.out.flush();
+        }
     }
 
     /** Normal 2D ESP module lifecycle enables capture without global flags. */
@@ -361,12 +373,18 @@ public final class Minecraft189BootstrapRuntime
 
     synchronized void captureNativeWorldCamera(
             final int worldPass, final float partialTicks) {
-        if (closed || hostRuntime == null || hostRuntime.closed()
-                || currentFrameIndex < 0L
-                || !shouldCaptureNativeWorldCamera())
+        final boolean gated = closed || hostRuntime == null
+                || hostRuntime.closed() || currentFrameIndex < 0L
+                || !shouldCaptureNativeWorldCamera();
+        if (gated) {
+            printAcceptanceCameraDiagnostic("gated", worldPass, partialTicks,
+                    null);
             return;
+        }
         // Purely observational, read-only GL state sampling.
         worldCamera.captureNative(currentFrameIndex, worldPass, partialTicks);
+        printAcceptanceCameraDiagnostic("captured", worldPass, partialTicks,
+                worldCamera.snapshot());
         if (!acceptanceNativeWorldCameraReported
                 && Boolean.getBoolean("custommc.acceptance.requireNativeWorldCamera")
                 && worldPass >= 0 && worldPass <= 2) {
@@ -390,6 +408,26 @@ public final class Minecraft189BootstrapRuntime
                 }
             }
         }
+    }
+
+    /** Limited to first four calls in explicit original-game camera acceptance. */
+    private void printAcceptanceCameraDiagnostic(final String stage,
+            final int pass, final float partialTicks,
+            final Minecraft189WorldCameraFrameState.Snapshot snapshot) {
+        if (!Boolean.getBoolean("custommc.acceptance.requireNativeWorldCamera")
+                || acceptanceCameraDiagnosticsPrinted++ >= 4) return;
+        final double[] projection = snapshot == null ? null : snapshot.projection();
+        final int[] viewport = snapshot == null ? null : snapshot.viewport();
+        System.out.println("CUSTOMMC_CAMERA_DIAG_CAPTURE stage=" + stage
+                + " frame=" + currentFrameIndex
+                + " pass=" + pass
+                + " partial=" + partialTicks
+                + " outcome=" + worldCamera.captureStatus()
+                + " projection11=" + (projection == null ? "n/a" : projection[11])
+                + " projection15=" + (projection == null ? "n/a" : projection[15])
+                + " viewport=" + (viewport == null ? "n/a" :
+                        java.util.Arrays.toString(viewport)));
+        System.out.flush();
     }
 
     synchronized void captureNativeWorldOrigin(final Object nativeEntity,

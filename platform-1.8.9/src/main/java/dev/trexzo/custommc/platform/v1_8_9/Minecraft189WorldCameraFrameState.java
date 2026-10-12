@@ -16,6 +16,9 @@ import org.lwjgl.opengl.GL11;
 final class Minecraft189WorldCameraFrameState {
     private Snapshot snapshot;
     private Minecraft189ProjectedPlayerFrame projectedPlayers;
+    private String captureStatus = "not-invoked";
+
+    synchronized String captureStatus() { return captureStatus; }
 
     synchronized void clear() {
         snapshot = null;
@@ -97,6 +100,7 @@ final class Minecraft189WorldCameraFrameState {
                 || !Float.isFinite(partialTicks)
                 || partialTicks < 0.0F || partialTicks > 1.0F
                 || !Display.isCreated()) {
+            captureStatus = "invalid-frame-pass-or-display";
             clear();
             return;
         }
@@ -123,8 +127,12 @@ final class Minecraft189WorldCameraFrameState {
             vp[1] = Math.subtractExact(Display.getHeight(),
                     Math.addExact(vp[1], vp[3]));
             accept(frame, pass, partialTicks, view, proj, vp);
+            captureStatus = snapshot == null
+                    ? "invalid-native-gl-snapshot" : "accepted";
         } catch (RuntimeException | LinkageError invalidContext) {
             // No guessed matrices and no crash if native display state fails.
+            captureStatus = "native-gl-exception:"
+                    + invalidContext.getClass().getSimpleName();
             clear();
         }
     }

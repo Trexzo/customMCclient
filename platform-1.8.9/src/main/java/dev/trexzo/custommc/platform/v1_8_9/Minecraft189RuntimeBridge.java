@@ -1767,8 +1767,17 @@ public final class Minecraft189RuntimeBridge {
      * Exact source-mapped original world pass, *after* Mojang camera setup.
      * No GL capture without explicit visual opt-in and owned render frame.
      */
+    private static boolean acceptanceCameraHookReported;
+
     public static synchronized void worldCameraSetupCaptured(
             final int worldPass, final float partialTicks) {
+        if (!acceptanceCameraHookReported
+                && Boolean.getBoolean("custommc.acceptance.requireNativeWorldCamera")) {
+            acceptanceCameraHookReported = true;
+            System.out.println("CUSTOMMC_CAMERA_DIAG_HOOK=INVOKED pass="
+                    + worldPass + " activeRuntime=" + (activeRuntime != null));
+            System.out.flush();
+        }
         if (activeRuntime != null) {
             activeRuntime.captureNativeWorldCamera(worldPass, partialTicks);
         }
