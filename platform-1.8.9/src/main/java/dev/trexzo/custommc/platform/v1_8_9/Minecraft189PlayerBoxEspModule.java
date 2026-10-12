@@ -11,6 +11,9 @@ import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import java.util.List;
 import java.util.Objects;
+import java.nio.ByteBuffer;
+import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.GL11;
 
 /**
  * Genuine source-AABB 2D Box ESP, registered disabled by default.
@@ -29,6 +32,8 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
             SettingCodecs.INTEGER);
     private RenderPipeline.Registration registration;
     private boolean acceptanceRemoteBoxReported;
+    private boolean acceptancePixelReported;
+    private int acceptancePixelFailureSamples;
 
     public Minecraft189PlayerBoxEspModule(
             final Minecraft189WorldCameraFrameState state,
@@ -92,6 +97,7 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
             final String expected = System.getProperty(
                     "custommc.acceptance.expectedRealRemotePlayerBoxUuid");
             String realRemoteDrawn = null;
+            int[] sample = null;
             host.beginUi(new UiViewport(fw, fh, scale));
             RuntimeException failure = null;
             try {
@@ -114,7 +120,15 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
                     if (!acceptanceRemoteBoxReported && expected != null
                             && expected.equals(p.uuid.toString())
                             && width > 1.0F && height > 1.0F)
-                        realRemoteDrawn = p.uuid.toString();
+                        {
+                            realRemoteDrawn = p.uuid.toString();
+                            if (Boolean.getBoolean(
+                                    "custommc.acceptance.requireRealRemoteBoxPixel")) {
+                                sample = Minecraft189PlayerBoxPixelProbe.sampleTopStroke(
+                                        left, top, width, height, t,
+                                        scale, fw, fh);
+                            }
+                        }
                 }
             } catch (RuntimeException error) {
                 failure = error;
@@ -134,6 +148,42 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
                         "CUSTOMMC_OFFICIAL_189_REAL_REMOTE_PLAYER_BOX_HUD_DRAW_PASS=YES uuid="
                                 + realRemoteDrawn);
                 System.out.flush();
+            }
+            // Exact expected UUID's outline was genuinely drawn into the
+            // CURRENT native GL render target; only the explicit acceptance
+            // test uses glReadPixels. No screenshot/pixel read in normal play.
+            if (realRemoteDrawn != null && sample != null
+                    && !acceptancePixelReported
+                    && Boolean.getBoolean("custommc.acceptance.requireRealRemoteBoxPixel")) {
+                try {
+                    final ByteBuffer rgba = BufferUtils.createByteBuffer(4);
+                    GL11.glReadPixels(sample[0], sample[1], 1, 1,
+                            GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, rgba);
+                    final int red = rgba.get(0) & 0xFF;
+                    final int green = rgba.get(1) & 0xFF;
+                    final int blue = rgba.get(2) & 0xFF;
+                    if (Minecraft189PlayerBoxPixelProbe.isForegroundColor(
+                            red, green, blue)) {
+                        acceptancePixelReported = true;
+                        System.out.println(
+                                "CUSTOMMC_OFFICIAL_189_REAL_REMOTE_BOX_FRAMEBUFFER_PIXEL_PASS=YES uuid="
+                                        + realRemoteDrawn
+                                        + " rgba=" + red + "," + green + ","
+                                        + blue + "," + (rgba.get(3) & 0xFF));
+                        System.out.flush();
+                    } else if (acceptancePixelFailureSamples++ < 4) {
+                        System.out.println("CUSTOMMC_BOX_PIXEL_DIAG expected=112,217,255"
+                                + " actual=" + red + "," + green + "," + blue
+                                + " sample=" + sample[0] + "," + sample[1]);
+                        System.out.flush();
+                    }
+                } catch (RuntimeException | LinkageError readError) {
+                    if (acceptancePixelFailureSamples++ < 4) {
+                        System.out.println("CUSTOMMC_BOX_PIXEL_DIAG error="
+                                + readError.getClass().getSimpleName());
+                        System.out.flush();
+                    }
+                }
             }
         }
 

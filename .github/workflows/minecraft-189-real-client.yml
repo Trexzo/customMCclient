@@ -27,6 +27,8 @@ on:
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldCameraFrameState.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ProjectedPlayerFrame.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxEspModule.java'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxPixelProbe.java'
+      - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxPixelProbeTest.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxEspFeature.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxEspModuleTest.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldLoadedEntityObjectsAccess.java'
@@ -108,7 +110,7 @@ jobs:
             --overlay "build/runtime-overlay" \
             --game "$RUNNER_TEMP/custommc-189-singleplayer" \
             --timeout 120 --native-world-camera
-      - name: V8 prove real nonlocal native UUID Player Box ESP HUD draw
+      - name: V9 prove genuine remote Box ESP framebuffer cyan pixel and source UUID
         timeout-minutes: 5
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'

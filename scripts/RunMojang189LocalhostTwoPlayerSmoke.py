@@ -464,6 +464,8 @@ def client_command(args, game, username, uuid, port, remote):
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.expectedRealRemotePlayerBoxUuid="
                        + official_offline_uuid("CITarget"))
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireRealRemoteBoxPixel=true")
     if remote and args.range_veto:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraRangeVeto=true")
@@ -677,6 +679,12 @@ def run(args):
                      + official_offline_uuid("CITarget").encode("ascii"),
                      deadline, "actual native UUID-matched remote 2D ESP HUD draw")
             print("CUSTOMMC_OFFICIAL_189_REMOTE_PLAYER_NATIVE_BOX_VISUAL_CALLBACK_PASS=YES",
+                  flush=True)
+            wait_for(host, host_log,
+                     b"CUSTOMMC_OFFICIAL_189_REAL_REMOTE_BOX_FRAMEBUFFER_PIXEL_PASS=YES uuid="
+                     + official_offline_uuid("CITarget").encode("ascii"),
+                     deadline, "actual original OpenGL framebuffer pixel from exact remote AABB")
+            print("CUSTOMMC_OFFICIAL_189_REMOTE_PLAYER_NATIVE_BOX_RGB_PIXEL_PASS=YES",
                   flush=True)
 
         if args.rejoin_target or args.rejoin_release:
