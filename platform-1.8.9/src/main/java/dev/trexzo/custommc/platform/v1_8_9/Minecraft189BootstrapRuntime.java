@@ -302,6 +302,8 @@ public final class Minecraft189BootstrapRuntime
                     worldCamera, renderPipeline, hostCallbacks);
             safeWalkFeature = Minecraft189SafeWalkFeature.install(
                     modules, moduleController, modulePresentations);
+            if (Boolean.getBoolean("custommc.acceptance.requireNativeSafeWalk"))
+                moduleController.enable(Minecraft189SafeWalkModule.ID);
             // Explicit CI-only opt-in; production module starts DISABLED.
             if (Boolean.getBoolean("custommc.acceptance.enableRealRemotePlayerBoxEsp"))
                 moduleController.enable(Minecraft189PlayerBoxEspModule.ID);

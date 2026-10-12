@@ -155,12 +155,25 @@ public final class Minecraft189RuntimeBridge {
      * Vanilla's own onGround/player/collision tests remain authoritative.
      * Remote Entities never implement the local player marker.
      */
+    private static boolean acceptanceRealSafeWalkReported;
+
     public static synchronized boolean nativeSafeWalkSneaking(
             final boolean originalSneaking, final Object nativeEntity) {
         if (originalSneaking || activeRuntime == null)
             return originalSneaking;
-        return activeRuntime.nativeSafeWalkSneaking(
+        final boolean adjusted = activeRuntime.nativeSafeWalkSneaking(
                 originalSneaking, nativeEntity);
+        // Original Entity.moveEntity invoked the exact vanilla edge branch
+        // with a source-mapped EntityPlayerSP, module ON, and no user sneak.
+        if (adjusted && !acceptanceRealSafeWalkReported
+                && Boolean.getBoolean("custommc.acceptance.requireNativeSafeWalk")
+                && nativeEntity instanceof Minecraft189LocalPlayerSafeWalkMarker) {
+            acceptanceRealSafeWalkReported = true;
+            System.out.println(
+                    "CUSTOMMC_OFFICIAL_189_NATIVE_LOCAL_SAFEWALK_BRANCH_PASS=YES");
+            System.out.flush();
+        }
+        return adjusted;
     }
 
     public static synchronized boolean active() {

@@ -150,18 +150,22 @@ def send_command(process, log, window, command):
 
 
 def run(command, game, timeout, attack=False, auto_clicker=False,
-        kill_aura_nonplayer=False, native_world_camera=False):
+        kill_aura_nonplayer=False, native_world_camera=False,
+        native_safe_walk=False):
     if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer)) > 1:
         raise ValueError("manual and module combat tests are exclusive")
     controlled_combat = attack or auto_clicker or kill_aura_nonplayer
     # A real rendered world camera requires a focused Minecraft window;
     # vanilla singleplayer otherwise automatically opens the pause GUI.
-    needs_active_window = controlled_combat or native_world_camera
+    needs_active_window = controlled_combat or native_world_camera or native_safe_walk
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
         raise ValueError("singleplayer timeout must be 70..240 seconds")
     # Java flags must precede the class name.
+    if native_safe_walk:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireNativeSafeWalk=true")
     if native_world_camera:
         command.insert(command.index("-cp"),
                        "-Dcustommc.visuals.captureNativeWorldCamera=true")
@@ -285,6 +289,19 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                              deadline, "actual native loaded-entity UUID/kind/AABB frame")
                 print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_AABB_FRAME_PASS=YES",
                       flush=True)
+            if native_safe_walk:
+                # Real original local Entity.moveEntity only: press actual
+                # movement input briefly on a native onGround world tile.
+                xdotool("windowactivate", "--sync", window)
+                xdotool("keydown", "--window", window, "w")
+                try:
+                    await_marker(process, log,
+                                 b"CUSTOMMC_OFFICIAL_189_NATIVE_LOCAL_SAFEWALK_BRANCH_PASS=YES",
+                                 deadline, "genuine on-ground local moveEntity Sneak branch")
+                finally:
+                    xdotool("keyup", "--window", window, "w")
+                print("CUSTOMMC_OFFICIAL_189_ORIGINAL_SAFEWALK_MOVEMENT_HOOK_PASS=YES",
+                      flush=True)
             require_running(process, "post world checkpoint")
             time.sleep(2)
             require_running(process, "world stability")
@@ -403,6 +420,8 @@ if __name__ == "__main__":
                         help="verify enabled player-only Kill Aura vetoes genuine passive mob")
     parser.add_argument("--native-world-camera", action="store_true",
                         help="require actual OpenGL perspective camera matrix from vanilla world pass")
+    parser.add_argument("--native-safe-walk", action="store_true",
+                        help="prove native local moveEntity collision branch with module active")
     args = parser.parse_args()
     try:
         command = build_command(
@@ -412,7 +431,8 @@ if __name__ == "__main__":
         run(command, args.game, args.timeout, attack=args.attack,
             auto_clicker=args.auto_clicker,
             kill_aura_nonplayer=args.kill_aura_nonplayer,
-            native_world_camera=args.native_world_camera)
+            native_world_camera=args.native_world_camera,
+            native_safe_walk=args.native_safe_walk)
     except Exception as failure:
         print("CUSTOMMC_189_SINGLEPLAYER_WORLD_FAILED: " + str(failure),
               file=sys.stderr)
