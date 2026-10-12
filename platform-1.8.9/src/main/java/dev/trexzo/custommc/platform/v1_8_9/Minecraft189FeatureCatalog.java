@@ -1685,6 +1685,23 @@ public final class Minecraft189FeatureCatalog
     /** Dedicated CI only: normal controller activation for native UUID switch. */
     /** Real three-client CI, normal ModuleController lifecycle, no overrides. */
     /** Official local game-only: same normal UI module with native UUID lock. */
+    /** Opt-in original-client localhost: enable sticky UUID only through normal module lifecycle. */
+    void enableKillAuraForOfficialRejoinAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraRejoin")
+                || moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                    != ModuleState.DISABLED) {
+            throw new IllegalStateException("rejoin native UUID acceptance not armed");
+        }
+        killAura().lockTargetSetting().set(Boolean.TRUE);
+        moduleController.enable(Minecraft189KillAuraModule.ID);
+        if (!killAura().active() || !killAura().lockTargetSetting().get()
+                || moduleController.stateOf(Minecraft189KillAuraModule.ID)
+                    != ModuleState.ENABLED) {
+            throw new IllegalStateException("rejoin Kill Aura enable failed");
+        }
+    }
+
     void enableKillAuraForOfficialLockedTargetAcceptance() {
         requireOpen();
         if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraLockedTarget")
