@@ -128,6 +128,25 @@ final class Minecraft189RejoinTargetAcceptance {
                     System.out.println("CUSTOMMC_189_REJOIN_STICKY_B_RETAINED_PASS=20");
                     System.out.println("CUSTOMMC_189_REJOIN_OLD_A_INDEX="
                             + firstOriginalIndex + " NEW_A_INDEX=" + e.a);
+                    if (Boolean.getBoolean(
+                            "custommc.acceptance.requireRejoinIndexReorder")) {
+                        // M415/M416 did not certify index reordering. This
+                        // optional M417 gate must witness a DIFFERENT real
+                        // current index for the SAME source-native UUID.
+                        if (firstOriginalIndex < 0 || e.a < 0
+                                || firstOriginalIndex == e.a)
+                            throw new IllegalStateException(
+                                    "real rejoin did not actually reorder A index"
+                                    + " original=" + firstOriginalIndex
+                                    + " current=" + e.a);
+                        if (!originalUuid.equals(e.ids.at(e.a))
+                                || !e.kinds.player(e.a)
+                                || e.kinds.localPlayer(e.a))
+                            throw new IllegalStateException(
+                                    "reordered entity index has wrong native UUID");
+                        System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_REJOIN_ACTUAL_INDEX_REORDER_PASS=YES");
+                    }
                     System.out.flush();
                 }
             } else rejoinedTicks=0;
