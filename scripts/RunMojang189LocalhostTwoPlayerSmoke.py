@@ -781,7 +781,7 @@ def run(args):
                                 expected=b"is in range 1 to 999999")
             print("CUSTOMMC_OFFICIAL_189_REJOIN_A_ZERO_B_POSITIVE_DAMAGE_PASS=YES",
                   flush=True)
-            if args.rejoin_release:
+            if args.rejoin_release and not args.require_rejoined_controller_b:
                 # Reverse direction: B's ORIGINAL graphical client disconnects
                 # while A remains a genuine, freshly rejoined living player.
                 # No local entity list is manipulated by our fixture.
@@ -1251,7 +1251,7 @@ def run(args):
         if args.rejoin_target or args.rejoin_release:
             print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_REJOIN_UUID_LOCK_PASS=YES",
                   flush=True)
-        if args.rejoin_release:
+        if args.rejoin_release and not args.require_rejoined_controller_b:
             print("CUSTOMMC_OFFICIAL_189_SURVIVOR_DISCONNECT_UUID_REACQUIRE_PASS=YES",
                   flush=True)
         if args.require_wrong_target_veto:
