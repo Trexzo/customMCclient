@@ -12,6 +12,7 @@ final class Minecraft189RejoinTargetAcceptance {
     private static boolean reacquiredClicked;
     private static boolean survivorClicked;
     private static int firstOriginalIndex = -1;
+    private static boolean realBControllerReported;
 
     private Minecraft189RejoinTargetAcceptance() {}
 
@@ -21,6 +22,7 @@ final class Minecraft189RejoinTargetAcceptance {
         reacquiredClicked = false;
         survivorClicked = false;
         firstOriginalIndex = -1;
+        realBControllerReported = false;
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
@@ -167,6 +169,36 @@ final class Minecraft189RejoinTargetAcceptance {
                     System.out.flush();
                 }
             } else releasedTicks=0;
+        }
+    }
+
+    /**
+     * M419: the ORIGINAL mapped Mojang PlayerControllerMP.attackEntity
+     * callback was entered in a genuine three-client session. Revalidate
+     * both real UUIDs, their current native indices and sticky B ownership
+     * at the actual controller boundary. No synthetic packet is injected.
+     * The dedicated server independently validates fresh B damage, A zero.
+     */
+    static void verifyRealControllerB(
+            Minecraft189HostRuntime host,
+            Object controller, Object player, Object entity) {
+        if (!Boolean.getBoolean(
+                "custommc.acceptance.requireRejoinedControllerB")
+                || phase!=4) return;
+        Evidence e=read(host);
+        Minecraft189KillAuraModule aura=host.featureCatalog().killAura();
+        if (e==null || !e.aCloserButBSelected() || !e.bInRange()
+                || !survivorUuid.equals(e.ids.at(e.b))
+                || !originalUuid.equals(e.ids.at(e.a))
+                || !survivorUuid.equals(aura.lockedTargetUuid())
+                || controller==null || player==null || entity==null)
+            throw new IllegalStateException(
+                    "M419 real outgoing controller not owned by live locked B UUID");
+        if (!realBControllerReported) {
+            realBControllerReported=true;
+            System.out.println(
+                "CUSTOMMC_189_REJOIN_REAL_B_NATIVE_CONTROLLER_UUID_PASS=YES");
+            System.out.flush();
         }
     }
 
