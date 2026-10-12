@@ -2522,6 +2522,7 @@ public final class Minecraft189ClassTransformer
                                 withInterface(
                                         withInterface(
                                         withInterface(
+                                        withInterface(
                                                 withInterface(
                                                         withInterface(
                                                                 withInterface(
