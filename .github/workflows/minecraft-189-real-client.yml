@@ -24,6 +24,8 @@ on:
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClassShapeVerifier.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189Mappings.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldToScreenProjection.java'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldCameraFrameState.java'
+      - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldCameraFrameStateTest.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldToScreenProjectionTest.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OfficialClientPreflightTest.java'
   workflow_dispatch:

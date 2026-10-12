@@ -686,6 +686,14 @@ public final class Minecraft189Mappings {
                     "(FJ)V",
                     "func_181560_a",
                     "updateCameraAndRender");
+    // 1.8.9 world pass: native setupCameraTransform(F,I) called once
+    // inside renderWorldPass(I,F,J), before HUD projection can replace it.
+    public static final MappedMethod ENTITY_RENDERER_RENDER_WORLD_PASS =
+            new MappedMethod(ENTITY_RENDERER, "a", "(IFJ)V",
+                    "func_175068_a", "renderWorldPass");
+    public static final MappedMethod ENTITY_RENDERER_SETUP_CAMERA_TRANSFORM =
+            new MappedMethod(ENTITY_RENDERER, "a", "(FI)V",
+                    "func_78479_a", "setupCameraTransform");
     public static final MappedMethod ENTITY_LIVING_BASE_GET_HEALTH =
             new MappedMethod(
                     ENTITY_LIVING_BASE,

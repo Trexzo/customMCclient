@@ -1763,6 +1763,17 @@ public final class Minecraft189RuntimeBridge {
                 nativeLeftClickCounter);
     }
 
+    /**
+     * Exact source-mapped original world pass, *after* Mojang camera setup.
+     * No GL capture without explicit visual opt-in and owned render frame.
+     */
+    public static synchronized void worldCameraSetupCaptured(
+            final int worldPass, final float partialTicks) {
+        if (activeRuntime != null) {
+            activeRuntime.captureNativeWorldCamera(worldPass, partialTicks);
+        }
+    }
+
     public static synchronized void renderFrameStarted(
             final float partialTicks) {
         if (activeRuntime != null) {

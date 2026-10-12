@@ -48,6 +48,8 @@ public final class Minecraft189BootstrapRuntime
     private long nextTickIndex;
     private long nextFrameIndex;
     private long currentFrameIndex = -1L;
+    private final Minecraft189WorldCameraFrameState worldCamera =
+            new Minecraft189WorldCameraFrameState();
     private boolean closed;
 
     private Minecraft189BootstrapRuntime(
@@ -327,9 +329,25 @@ public final class Minecraft189BootstrapRuntime
                 Math.addExact(
                         nextFrameIndex,
                         1L);
+        worldCamera.clear();
         hostRuntime.frameStarted(
                 currentFrameIndex,
                 partialTicks);
+    }
+
+    synchronized void captureNativeWorldCamera(
+            final int worldPass, final float partialTicks) {
+        if (closed || hostRuntime == null || hostRuntime.closed()
+                || currentFrameIndex < 0L
+                || !Boolean.getBoolean("custommc.visuals.captureNativeWorldCamera"))
+            return;
+        // Purely observational, read-only GL state sampling.
+        worldCamera.captureNative(currentFrameIndex, worldPass, partialTicks);
+    }
+
+    synchronized Minecraft189WorldCameraFrameState.Snapshot worldCameraSnapshot() {
+        if (closed || currentFrameIndex < 0L) return null;
+        return worldCamera.snapshot();
     }
 
     synchronized void renderHudFrame(
@@ -359,6 +377,7 @@ public final class Minecraft189BootstrapRuntime
                     currentFrameIndex,
                     partialTicks);
         } finally {
+            worldCamera.clear();
             currentFrameIndex = -1L;
         }
     }
