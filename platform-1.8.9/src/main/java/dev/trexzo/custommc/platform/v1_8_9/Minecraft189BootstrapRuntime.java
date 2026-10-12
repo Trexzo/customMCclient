@@ -306,6 +306,28 @@ public final class Minecraft189BootstrapRuntime
             if (Boolean.getBoolean("custommc.acceptance.enableRealRemotePlayerBoxEsp"))
                 moduleController.enable(Minecraft189PlayerBoxEspModule.ID);
         } catch (RuntimeException installationFailure) {
+            // SafeWalk is installed after Box ESP. Roll back both module
+            // registrations before closing the host, including partial
+            // autoenable failures. Do not leak either module into a
+            // half-initialized runtime.
+            if (safeWalkFeature != null) {
+                try {
+                    safeWalkFeature.close();
+                } catch (RuntimeException closeFailure) {
+                    installationFailure.addSuppressed(closeFailure);
+                } finally {
+                    safeWalkFeature = null;
+                }
+            }
+            if (playerBoxEspFeature != null) {
+                try {
+                    playerBoxEspFeature.close();
+                } catch (RuntimeException closeFailure) {
+                    installationFailure.addSuppressed(closeFailure);
+                } finally {
+                    playerBoxEspFeature = null;
+                }
+            }
             try {
                 installed.close();
             } catch (RuntimeException closeFailure) {
