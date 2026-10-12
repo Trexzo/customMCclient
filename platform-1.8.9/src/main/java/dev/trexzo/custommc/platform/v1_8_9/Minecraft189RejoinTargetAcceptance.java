@@ -8,7 +8,8 @@ import java.util.UUID;
  */
 final class Minecraft189RejoinTargetAcceptance {
     private static UUID originalUuid, survivorUuid;
-    private static int phase, disabledTicks, armedTicks, aloneTicks, rejoinedTicks;
+    private static int phase, disabledTicks, armedTicks, aloneTicks, rejoinedTicks, releasedTicks;
+    private static boolean reacquiredClicked;
     private static boolean survivorClicked;
     private static int firstOriginalIndex = -1;
 
@@ -16,7 +17,8 @@ final class Minecraft189RejoinTargetAcceptance {
 
     static void reset() {
         originalUuid = survivorUuid = null;
-        phase = disabledTicks = armedTicks = aloneTicks = rejoinedTicks = 0;
+        phase = disabledTicks = armedTicks = aloneTicks = rejoinedTicks = releasedTicks = 0;
+        reacquiredClicked = false;
         survivorClicked = false;
         firstOriginalIndex = -1;
     }
@@ -58,17 +60,20 @@ final class Minecraft189RejoinTargetAcceptance {
             else if (survivorUuid.equals(id)) b=i;
             else other++;
         }
-        if (other!=0 || b<0) return null;
+        if (other!=0 || (b<0 && !(phase>=4 && a>=0))) return null;
         double da=Double.POSITIVE_INFINITY,db;
         if (a>=0) {
             double dx=positions.x(a)-local.x(),dy=positions.y(a)-local.y(),
                     dz=positions.z(a)-local.z();
             da=Math.sqrt(dx*dx+dy*dy+dz*dz);
         }
-        double bx=positions.x(b)-local.x(),by=positions.y(b)-local.y(),
-                bz=positions.z(b)-local.z();
-        db=Math.sqrt(bx*bx+by*by+bz*bz);
-        if (!Double.isFinite(db) || (a>=0 && !Double.isFinite(da))) return null;
+        if (b>=0) {
+            double bx=positions.x(b)-local.x(),by=positions.y(b)-local.y(),
+                    bz=positions.z(b)-local.z();
+            db=Math.sqrt(bx*bx+by*by+bz*bz);
+        } else db=Double.POSITIVE_INFINITY;
+        if ((b>=0 && !Double.isFinite(db)) || (a>=0 && !Double.isFinite(da)))
+            return null;
         return new Evidence(ids,kinds,combat,nearest,rotation,a,b,da,db);
     }
 
@@ -112,12 +117,12 @@ final class Minecraft189RejoinTargetAcceptance {
                     System.out.flush();
                 }
             } else aloneTicks=0;
-        } else if (phase>=3) {
-            // The fresh A entity can reuse any index. Its actual offline UUID
-            // must be recovered from the CURRENT native list every tick.
+        } else if (phase==3) {
+            // Original A has a new real EntityPlayer instance and source-native
+            // list index. Re-acquire by UUID, never a stored index.
             if (e!=null && e.aCloserButBSelected()
                     && survivorUuid.equals(aura.lockedTargetUuid())) {
-                if (++rejoinedTicks>=20 && phase==3) {
+                if (++rejoinedTicks>=20) {
                     phase=4;
                     System.out.println("CUSTOMMC_189_REJOIN_ORIGINAL_UUID_REVALIDATED_PASS=YES");
                     System.out.println("CUSTOMMC_189_REJOIN_STICKY_B_RETAINED_PASS=20");
@@ -126,6 +131,20 @@ final class Minecraft189RejoinTargetAcceptance {
                     System.out.flush();
                 }
             } else rejoinedTicks=0;
+        } else if (Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraRejoinRelease")
+                && phase==4) {
+            // Real B player MUST disappear, not merely move away. Source-native
+            // lock/selection then falls back to the fresh living A UUID.
+            if (e!=null && e.b==-1 && e.aOnlySelected()
+                    && originalUuid.equals(aura.lockedTargetUuid())) {
+                if (++releasedTicks>=15) {
+                    phase=5;
+                    System.out.println(
+                            "CUSTOMMC_189_REJOIN_SURVIVOR_B_UNLOADED_A_RELOCKED_PASS=15");
+                    System.out.flush();
+                }
+            } else releasedTicks=0;
         }
     }
 
@@ -160,9 +179,21 @@ final class Minecraft189RejoinTargetAcceptance {
                 System.out.println("CUSTOMMC_189_REJOIN_B_NATIVE_OWNED_ATTACK_PASS=YES");
                 System.out.flush();
             }
-        } else if (phase>=3 && survivorUuid.equals(id)
+        } else if (phase>=3 && phase<5 && survivorUuid.equals(id)
                 && index==e.b && e.bInRange()) {
-            // After A rejoins, B remains true locked UUID even if A is closer.
+            // Fresh A rejoined; original B remains the true owner until
+            // vanilla B actually leaves, without reusing any stale index.
+        } else if (Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraRejoinRelease")
+                && phase>=5 && originalUuid.equals(id)
+                && index==e.a && e.b==-1 && e.aInRange()) {
+            if (!reacquiredClicked) {
+                reacquiredClicked=true;
+                phase=6;
+                System.out.println(
+                        "CUSTOMMC_189_REJOIN_FRESH_A_NATIVE_OWNED_ATTACK_PASS=YES");
+                System.out.flush();
+            }
         } else {
             throw new IllegalStateException("rejoin stale or wrong UUID attack phase="
                     +phase+" actual="+id);
@@ -191,7 +222,9 @@ final class Minecraft189RejoinTargetAcceptance {
             return i>=0 && nearest.found() && nearest.entityIndex()==i
                     && rotation.available() && rotation.entityIndex()==i;
         }
-        boolean bInRange() { return db>=1.0D && db<=3.5D; }
+        boolean bInRange() { return b>=0 && db>=1.0D && db<=3.5D; }
+        boolean aInRange() { return a>=0 && da>=1.0D && da<=3.5D; }
+        boolean aOnlySelected() { return b<0 && aInRange() && selected(a); }
         boolean aPreferred() {
             return a>=0 && da>=1.0D && da<=3.25D && bInRange()
                     && da+0.12D<db && selected(a);
