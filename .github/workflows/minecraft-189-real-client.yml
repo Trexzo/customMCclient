@@ -353,7 +353,7 @@ jobs:
             --overlay "build/runtime-overlay" \
             --game "$RUNNER_TEMP/custommc-189-melee" \
             --timeout 140 --attack
-      - name: Verify real offline Auto Clicker synthetic attack and entity hurtTime
+      - name: M426 verify real Auto Clicker native attack is unscoped from Aura UUID and hurts entity
         timeout-minutes: 7
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
