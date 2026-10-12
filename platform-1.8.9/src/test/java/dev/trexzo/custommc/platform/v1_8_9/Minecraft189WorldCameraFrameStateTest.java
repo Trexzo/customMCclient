@@ -35,6 +35,55 @@ final class Minecraft189WorldCameraFrameStateTest {
         assertNull(state.snapshot());
     }
 
+    @Test void originalWorldRenderEntityInterpolationIsFrameLocked() {
+        final Minecraft189WorldCameraFrameState state =
+                new Minecraft189WorldCameraFrameState();
+        final Minecraft189PlayerPositionAccess entity =
+                new Minecraft189PlayerPositionAccess() {
+                    public double customMcPositionX() { return 200; }
+                    public double customMcPositionY() { return 70; }
+                    public double customMcPositionZ() { return -30; }
+                    public double customMcLastTickPositionX() { return 198; }
+                    public double customMcLastTickPositionY() { return 66; }
+                    public double customMcLastTickPositionZ() { return -26; }
+                };
+        state.accept(7, 2, 0.5F, IDENTITY, IDENTITY,
+                new int[]{0,0,800,600});
+        state.captureOrigin(7, 2, 0.5F, entity);
+        final Minecraft189WorldCameraFrameState.Snapshot s = state.snapshot();
+        assertNotNull(s);
+        assertTrue(s.originAvailable());
+        assertEquals(199.0D, s.originX(), 0.00001D);
+        assertEquals(68.0D, s.originY(), 0.00001D);
+        assertEquals(-28.0D, s.originZ(), 0.00001D);
+        assertEquals(198.0D, Minecraft189WorldCameraFrameState.lerp(
+                198.0D, 200.0D, 0.0F));
+        assertEquals(200.0D, Minecraft189WorldCameraFrameState.lerp(
+                198.0D, 200.0D, 1.0F));
+        assertTrue(Double.isNaN(Minecraft189WorldCameraFrameState.lerp(
+                Double.NaN, 200, 0.5F)));
+        state.clear();
+        assertNull(state.snapshot());
+        state.accept(8, 2, 0.5F, IDENTITY, IDENTITY,
+                new int[]{0,0,800,600});
+        state.captureOrigin(7, 2, 0.5F, entity);
+        assertNull(state.snapshot(), "stale frame must invalidate camera");
+        state.accept(9, 2, 0.5F, IDENTITY, IDENTITY,
+                new int[]{0,0,800,600});
+        state.captureOrigin(9, 1, 0.5F, entity);
+        assertNull(state.snapshot(), "wrong render pass must invalidate camera");
+        state.accept(10, 2, 0.5F, IDENTITY, IDENTITY,
+                new int[]{0,0,800,600});
+        state.captureOrigin(10, 2, 0.5F,
+                new Minecraft189PlayerPositionAccess() {
+                    public double customMcPositionX() { return 1; }
+                    public double customMcPositionY() { return 1; }
+                    public double customMcPositionZ() { return 1; }
+                });
+        assertNull(state.snapshot(),
+                "unmapped last-tick fields must never authorize origin");
+    }
+
     @Test void invalidNativeStateNeverLeaksAnEarlierCamera() {
         Minecraft189WorldCameraFrameState state =
                 new Minecraft189WorldCameraFrameState();

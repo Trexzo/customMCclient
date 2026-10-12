@@ -167,6 +167,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                        "-Dcustommc.visuals.captureNativeWorldCamera=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireNativeWorldCamera=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireNativeWorldOrigin=true")
     command.insert(command.index("-cp"), "-Dcustommc.acceptance.reportLiveWorld=true")
     if controlled_combat:
         command.insert(command.index("-cp"),
@@ -269,7 +271,12 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_NATIVE_WORLD_CAMERA_GL_PASS=YES",
                              deadline, "source-mapped original perspective world camera")
+                await_marker(process, log,
+                             b"CUSTOMMC_OFFICIAL_189_NATIVE_RENDER_ORIGIN_PASS=YES",
+                             deadline, "same-frame native lastTickPos render-view origin")
                 print("CUSTOMMC_OFFICIAL_189_REAL_WORLD_CAMERA_CAPTURE_PASS=YES",
+                      flush=True)
+                print("CUSTOMMC_OFFICIAL_189_REAL_RENDER_ORIGIN_PASS=YES",
                       flush=True)
             require_running(process, "post world checkpoint")
             time.sleep(2)

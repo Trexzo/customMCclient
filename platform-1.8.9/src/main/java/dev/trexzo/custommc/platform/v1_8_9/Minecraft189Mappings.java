@@ -320,6 +320,14 @@ public final class Minecraft189Mappings {
                     "D",
                     "field_70161_v",
                     "posZ");
+    // Exact original 1.8.9 MCP joined.srg pk/P, pk/Q, pk/R.
+    // These belong to native Entity.lastTickPos, not prevPos or tick snapshots.
+    public static final MappedField ENTITY_LAST_TICK_POS_X =
+            new MappedField(ENTITY, "P", "D", "field_70142_S", "lastTickPosX");
+    public static final MappedField ENTITY_LAST_TICK_POS_Y =
+            new MappedField(ENTITY, "Q", "D", "field_70137_T", "lastTickPosY");
+    public static final MappedField ENTITY_LAST_TICK_POS_Z =
+            new MappedField(ENTITY, "R", "D", "field_70136_U", "lastTickPosZ");
     public static final MappedField ENTITY_ROTATION_YAW =
             new MappedField(
                     ENTITY,
@@ -694,6 +702,12 @@ public final class Minecraft189Mappings {
     public static final MappedMethod ENTITY_RENDERER_SETUP_CAMERA_TRANSFORM =
             new MappedMethod(ENTITY_RENDERER, "a", "(FI)V",
                     "func_78479_a", "setupCameraTransform");
+    public static final MappedField ENTITY_RENDERER_MINECRAFT =
+            new MappedField(ENTITY_RENDERER, "h", "Lave;",
+                    "field_78531_r", "mc");
+    public static final MappedMethod MINECRAFT_GET_RENDER_VIEW_ENTITY =
+            new MappedMethod(MINECRAFT, "ac", "()Lpk;",
+                    "func_175606_aa", "getRenderViewEntity");
     public static final MappedMethod ENTITY_LIVING_BASE_GET_HEALTH =
             new MappedMethod(
                     ENTITY_LIVING_BASE,

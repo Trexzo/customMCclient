@@ -6,4 +6,11 @@ public interface Minecraft189PlayerPositionAccess {
     double customMcPositionY();
 
     double customMcPositionZ();
+
+    /** Native source-mapped Entity.lastTickPos*, NOT previous render-frame state.
+     *  Default missing values veto interpolation on untransformed test doubles.
+     */
+    default double customMcLastTickPositionX() { return Double.NaN; }
+    default double customMcLastTickPositionY() { return Double.NaN; }
+    default double customMcLastTickPositionZ() { return Double.NaN; }
 }

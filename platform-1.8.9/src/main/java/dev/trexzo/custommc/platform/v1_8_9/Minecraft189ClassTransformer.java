@@ -2163,6 +2163,30 @@ public final class Minecraft189ClassTransformer
                                         super.visitMethodInsn(Opcodes.INVOKESTATIC,
                                                 RUNTIME_BRIDGE_INTERNAL_NAME,
                                                 "worldCameraSetupCaptured", "(IF)V", false);
+                                        // Read the ORIGINAL render-view entity,
+                                        // not the local player or a synthetic
+                                        // target UUID/list-index snapshot.
+                                        super.visitVarInsn(Opcodes.ALOAD, 0);
+                                        super.visitFieldInsn(Opcodes.GETFIELD,
+                                                Minecraft189Mappings.ENTITY_RENDERER_MINECRAFT
+                                                        .owner().obfuscatedInternalName(),
+                                                Minecraft189Mappings.ENTITY_RENDERER_MINECRAFT
+                                                        .obfuscatedName(),
+                                                Minecraft189Mappings.ENTITY_RENDERER_MINECRAFT
+                                                        .descriptor());
+                                        super.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                                                Minecraft189Mappings.MINECRAFT_GET_RENDER_VIEW_ENTITY
+                                                        .owner().obfuscatedInternalName(),
+                                                Minecraft189Mappings.MINECRAFT_GET_RENDER_VIEW_ENTITY
+                                                        .obfuscatedName(),
+                                                Minecraft189Mappings.MINECRAFT_GET_RENDER_VIEW_ENTITY
+                                                        .descriptor(), false);
+                                        super.visitVarInsn(Opcodes.ILOAD, 1);
+                                        super.visitVarInsn(Opcodes.FLOAD, 2);
+                                        super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "worldCameraViewEntityCaptured",
+                                                "(Ljava/lang/Object;IF)V", false);
                                     }
                                 }
                             };
@@ -2623,6 +2647,15 @@ public final class Minecraft189ClassTransformer
                                 cv,
                                 "customMcPositionZ",
                                 Minecraft189Mappings.ENTITY_POS_Z);
+                        addDoubleFieldGetter(
+                                cv, "customMcLastTickPositionX",
+                                Minecraft189Mappings.ENTITY_LAST_TICK_POS_X);
+                        addDoubleFieldGetter(
+                                cv, "customMcLastTickPositionY",
+                                Minecraft189Mappings.ENTITY_LAST_TICK_POS_Y);
+                        addDoubleFieldGetter(
+                                cv, "customMcLastTickPositionZ",
+                                Minecraft189Mappings.ENTITY_LAST_TICK_POS_Z);
                         addFloatFieldGetter(
                                 cv,
                                 "customMcRotationYaw",
