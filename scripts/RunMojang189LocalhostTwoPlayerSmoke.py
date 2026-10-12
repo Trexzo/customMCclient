@@ -786,8 +786,6 @@ def run(args):
                 print("CUSTOMMC_OFFICIAL_189_REJOIN_CONTROLLER_B_SERVER_DAMAGE_PASS=YES",
                       flush=True)
                 return
-                send_server_command(server,server_log,"gamemode 1 CITargetB")
-                send_server_command(server,server_log,b_outer)
             send_server_command(server, server_log,
                                 "scoreboard players test CITarget taken 0 0",
                                 expected=b"score 0 is in range 0 to 0")
