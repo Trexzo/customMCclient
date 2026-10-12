@@ -346,11 +346,11 @@ public final class Minecraft189BootstrapRuntime
         worldCamera.captureNative(currentFrameIndex, worldPass, partialTicks);
         if (!acceptanceNativeWorldCameraReported
                 && Boolean.getBoolean("custommc.acceptance.requireNativeWorldCamera")
-                && worldPass == 2) {
+                && worldPass >= 0 && worldPass <= 2) {
             final Minecraft189WorldCameraFrameState.Snapshot snapshot =
                     worldCamera.snapshot();
             if (snapshot != null && snapshot.frame() == currentFrameIndex
-                    && snapshot.pass() == 2
+                    && snapshot.pass() == worldPass
                     && Math.abs(snapshot.partialTicks() - partialTicks) <= 0.0001F) {
                 final double[] projection = snapshot.projection();
                 final int[] viewport = snapshot.viewport();
@@ -361,7 +361,8 @@ public final class Minecraft189BootstrapRuntime
                         && viewport[2] >= 640 && viewport[3] >= 400) {
                     acceptanceNativeWorldCameraReported = true;
                     System.out.println(
-                            "CUSTOMMC_OFFICIAL_189_NATIVE_WORLD_CAMERA_GL_PASS=YES");
+                            "CUSTOMMC_OFFICIAL_189_NATIVE_WORLD_CAMERA_GL_PASS=YES pass="
+                                    + worldPass);
                     System.out.flush();
                 }
             }
