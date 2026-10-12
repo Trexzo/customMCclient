@@ -19,6 +19,11 @@ public final class Minecraft189RuntimeBridge {
     private static boolean acceptanceUnlockedOwnerFreshReported;
     private static UUID acceptanceUnlockedRemoteUuid;
     private static UUID acceptanceUnlockedLocalUuid;
+    // M424 acceptance witness: both are genuine remote player UUIDs.
+    private static boolean acceptanceRemotePairVetoReported;
+    private static boolean acceptanceRemotePairFreshReported;
+    private static UUID acceptanceRemotePairSelectedUuid;
+    private static UUID acceptanceRemotePairOtherUuid;
     private static int graphicalAcceptanceFrames;
     private static boolean graphicalAcceptanceReported;
     private static boolean acceptancePlayerObserved;
@@ -83,6 +88,10 @@ public final class Minecraft189RuntimeBridge {
         acceptanceUnlockedOwnerFreshReported = false;
         acceptanceUnlockedRemoteUuid = null;
         acceptanceUnlockedLocalUuid = null;
+        acceptanceRemotePairVetoReported = false;
+        acceptanceRemotePairFreshReported = false;
+        acceptanceRemotePairSelectedUuid = null;
+        acceptanceRemotePairOtherUuid = null;
         graphicalAcceptanceFrames = 0;
         graphicalAcceptanceReported = false;
         acceptancePlayerObserved = false;
@@ -1410,6 +1419,10 @@ public final class Minecraft189RuntimeBridge {
                                     "custommc.acceptance.requireUnlockedAuraOwnerVeto"))
                                 ownerUuid = acceptanceUnlockedOwnerForNativeProof(
                                         host, ownerUuid);
+                            if (Boolean.getBoolean(
+                                    "custommc.acceptance.requireRemotePairAuraOwnerVeto"))
+                                ownerUuid = acceptanceRemotePairOwnerForNativeProof(
+                                        host, ownerUuid);
                             if (ownerUuid != null) {
                                 auraDispatchUuid.set(ownerUuid);
                                 try {
@@ -1517,6 +1530,46 @@ public final class Minecraft189RuntimeBridge {
         return local;
     }
 
+    /**
+     * M424: source-native unlocked Aura is selecting remote A while a distinct
+     * genuine remote B is still loaded. One opt-in negative scope substitutes
+     * B's real UUID. The original controller's Entity stays A, unmodified.
+     */
+    private static UUID acceptanceRemotePairOwnerForNativeProof(
+            final Minecraft189HostRuntime host, final UUID selected) {
+        if (acceptanceRemotePairVetoReported) return selected;
+        final Minecraft189WorldEntityUuidState.Snapshot ids =
+                host.worldEntityUuidState().snapshot();
+        final Minecraft189WorldEntityKindState.Snapshot kinds =
+                host.worldEntityKindState().snapshot();
+        if (!ids.available() || !kinds.available()
+                || ids.entityCount() != kinds.entityCount()
+                || selected == null
+                || host.featureCatalog().killAura().lockTargetSetting().get())
+            throw new IllegalStateException(
+                    "M424 unlocked two-remote native evidence unavailable");
+        UUID other = null;
+        boolean selectedPlayer = false;
+        for (int i=0; i<ids.entityCount(); i++) {
+            final UUID id = ids.at(i);
+            if (!kinds.player(i) || kinds.localPlayer(i)) continue;
+            if (selected.equals(id)) {
+                selectedPlayer = true;
+            } else {
+                if (other != null)
+                    throw new IllegalStateException(
+                            "M424 ambiguous alternate remote player UUID");
+                other = id;
+            }
+        }
+        if (!selectedPlayer || other == null || other.equals(selected))
+            throw new IllegalStateException(
+                    "M424 two distinct source-native remote UUIDs unavailable");
+        acceptanceRemotePairSelectedUuid = selected;
+        acceptanceRemotePairOtherUuid = other;
+        return other;
+    }
+
     public static synchronized boolean acceptanceControllerDispatchAllowed(
             final Object controller, final Object player,
             final Object entity) {
@@ -1529,6 +1582,20 @@ public final class Minecraft189RuntimeBridge {
                     ? ((Minecraft189NativeEntityUuidAccess) entity)
                             .customMcNativeEntityUuid() : null;
             if (!expected.equals(actual)) {
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.requireRemotePairAuraOwnerVeto")
+                        && !acceptanceRemotePairVetoReported) {
+                    if (actual == null
+                            || !expected.equals(acceptanceRemotePairOtherUuid)
+                            || !actual.equals(acceptanceRemotePairSelectedUuid))
+                        throw new IllegalStateException(
+                                "M424 unexpected real remote-pair mismatch"
+                                + " expected=" + expected + " actual=" + actual);
+                    acceptanceRemotePairVetoReported = true;
+                    System.out.println(
+                            "CUSTOMMC_189_UNLOCKED_TWO_REAL_REMOTE_UUID_MISMATCH_VETO_PASS=YES");
+                    System.out.flush();
+                }
                 if (Boolean.getBoolean(
                         "custommc.acceptance.requireUnlockedAuraOwnerVeto")
                         && !acceptanceUnlockedOwnerVetoReported) {
@@ -1548,6 +1615,20 @@ public final class Minecraft189RuntimeBridge {
                     Minecraft189RejoinTargetAcceptance
                             .verifyScopedOwnerVeto(expected, actual);
                 return false; // BEFORE vanilla ATTACK packet side effects.
+            }
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireRemotePairAuraOwnerVeto")
+                    && acceptanceRemotePairVetoReported
+                    && !acceptanceRemotePairFreshReported) {
+                if (actual == null
+                        || !actual.equals(acceptanceRemotePairSelectedUuid)
+                        || !expected.equals(acceptanceRemotePairSelectedUuid))
+                    throw new IllegalStateException(
+                            "M424 fresh unlocked remote A dispatch mismatch");
+                acceptanceRemotePairFreshReported = true;
+                System.out.println(
+                        "CUSTOMMC_189_UNLOCKED_TWO_REAL_REMOTE_FRESH_A_DISPATCH_PASS=YES");
+                System.out.flush();
             }
             if (Boolean.getBoolean(
                     "custommc.acceptance.requireUnlockedAuraOwnerVeto")
