@@ -60,6 +60,7 @@ public final class Minecraft189FeatureCatalog
     private final Minecraft189DirectionFeature directionFeature;
     private final Minecraft189TargetHudFeature targetHudFeature;
     private final Minecraft189NearbyPlayersFeature nearbyPlayersFeature;
+    private final Minecraft189PlayerIndicatorsFeature playerIndicatorsFeature;
     private final Minecraft189DimensionFeature dimensionFeature;
     private final Minecraft189MovementStatusFeature movementStatusFeature;
     private final Minecraft189HealthFeature healthFeature;
@@ -165,6 +166,7 @@ public final class Minecraft189FeatureCatalog
             final Minecraft189DirectionFeature directionFeature,
             final Minecraft189TargetHudFeature targetHudFeature,
             final Minecraft189NearbyPlayersFeature nearbyPlayersFeature,
+            final Minecraft189PlayerIndicatorsFeature playerIndicatorsFeature,
             final Minecraft189DimensionFeature dimensionFeature,
             final Minecraft189MovementStatusFeature movementStatusFeature,
             final Minecraft189HealthFeature healthFeature,
@@ -264,6 +266,7 @@ public final class Minecraft189FeatureCatalog
         this.directionFeature = directionFeature;
         this.targetHudFeature = targetHudFeature;
         this.nearbyPlayersFeature = nearbyPlayersFeature;
+        this.playerIndicatorsFeature = playerIndicatorsFeature;
         this.dimensionFeature = dimensionFeature;
         this.movementStatusFeature = movementStatusFeature;
         this.healthFeature = healthFeature;
@@ -426,6 +429,7 @@ public final class Minecraft189FeatureCatalog
         Minecraft189DirectionFeature directionFeature = null;
         Minecraft189TargetHudFeature targetHudFeature = null;
         Minecraft189NearbyPlayersFeature nearbyPlayersFeature = null;
+        Minecraft189PlayerIndicatorsFeature playerIndicatorsFeature = null;
         Minecraft189DimensionFeature dimensionFeature = null;
         Minecraft189MovementStatusFeature movementStatusFeature = null;
         Minecraft189HealthFeature healthFeature = null;
@@ -1073,6 +1077,12 @@ public final class Minecraft189FeatureCatalog
                     renderPipeline,
                     hostCallbacks);
 
+            playerIndicatorsFeature = Minecraft189PlayerIndicatorsFeature.install(
+                    modules, moduleController, presentations, moduleSettings,
+                    settings, settingPresentations, playerPositionState,
+                    worldEntityPositionState, worldEntityKindState,
+                    playerRotationState, renderPipeline, hostCallbacks);
+
             dimensionFeature =
                     Minecraft189DimensionFeature.install(
                             modules,
@@ -1296,6 +1306,7 @@ public final class Minecraft189FeatureCatalog
                     directionFeature,
                     targetHudFeature,
                     nearbyPlayersFeature,
+                    playerIndicatorsFeature,
                     dimensionFeature,
                     movementStatusFeature,
                     healthFeature,
@@ -1435,6 +1446,7 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(healthFeature, failure);
             closeQuietly(movementStatusFeature, failure);
             closeQuietly(dimensionFeature, failure);
+            closeQuietly(playerIndicatorsFeature, failure);
             closeQuietly(nearbyPlayersFeature, failure);
             closeQuietly(targetHudFeature, failure);
             closeQuietly(directionFeature, failure);
@@ -1505,6 +1517,11 @@ public final class Minecraft189FeatureCatalog
     public Minecraft189NearbyPlayersModule nearbyPlayers() {
         requireOpen();
         return nearbyPlayersFeature.module();
+    }
+
+    public Minecraft189PlayerIndicatorsModule playerIndicators() {
+        requireOpen();
+        return playerIndicatorsFeature.module();
     }
 
     public Minecraft189DimensionModule dimension() {
@@ -2738,6 +2755,12 @@ public final class Minecraft189FeatureCatalog
             failure = append(
                     failure,
                     closeFailure);
+        }
+
+        try {
+            playerIndicatorsFeature.close();
+        } catch (RuntimeException closeFailure) {
+            failure = append(failure, closeFailure);
         }
 
         try {
