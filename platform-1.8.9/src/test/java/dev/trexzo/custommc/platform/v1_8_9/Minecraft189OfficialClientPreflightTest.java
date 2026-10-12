@@ -350,7 +350,7 @@ final class Minecraft189OfficialClientPreflightTest {
 
         final Map<String, byte[]> raw = new LinkedHashMap<String, byte[]>();
         try (JarFile jar = new JarFile(jarPath.toFile())) {
-            for (String name : Arrays.asList("bfk", "bda", "pk", "aug", "adm")) {
+            for (String name : Arrays.asList("bfk", "bda", "pk", "aug", "adm", "bew")) {
                 final JarEntry entry = jar.getJarEntry(name + ".class");
                 assertNotNull(entry, "official obfuscated class missing: " + name);
                 final byte[] bytes;
@@ -605,6 +605,63 @@ final class Minecraft189OfficialClientPreflightTest {
         assertEquals(1, sourceBridge[0],
                 "original renderer must supply native world after frame camera origin");
         System.out.println("REAL_189_WORLD_CAMERA_NATIVE_ENTITY_AABB_HOOK_PASS=YES");
+
+        // V10: the ORIGINAL binary (not a reduced synthetic test class)
+        // must contain exactly one moveEntity sneak-collision branch, and
+        // the transformer must inject exactly one effective Sneak bridge.
+        final byte[] nativeEntity = transformer.transform("pk", raw.get("pk"));
+        final int[] originalMove = new int[2];
+        final int[] mappedMove = new int[2];
+        final ClassVisitor originalScan = new ClassVisitor(Opcodes.ASM9) {
+            @Override public MethodVisitor visitMethod(
+                    final int access, final String name, final String desc,
+                    final String signature, final String[] exceptions) {
+                if (!"d".equals(name) || !"(DDD)V".equals(desc))
+                    return null;
+                originalMove[0]++;
+                return new MethodVisitor(Opcodes.ASM9) {
+                    @Override public void visitMethodInsn(final int opcode,
+                            final String owner, final String name,
+                            final String desc, final boolean itf) {
+                        if (opcode == Opcodes.INVOKEVIRTUAL && !itf
+                                && "pk".equals(owner) && "av".equals(name)
+                                && "()Z".equals(desc))
+                            originalMove[1]++;
+                    }
+                };
+            }
+        };
+        new ClassReader(raw.get("pk")).accept(originalScan, 0);
+        new ClassReader(nativeEntity).accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override public MethodVisitor visitMethod(
+                    final int access, final String name, final String desc,
+                    final String signature, final String[] exceptions) {
+                if (!"d".equals(name) || !"(DDD)V".equals(desc))
+                    return null;
+                mappedMove[0]++;
+                return new MethodVisitor(Opcodes.ASM9) {
+                    @Override public void visitMethodInsn(final int opcode,
+                            final String owner, final String name,
+                            final String desc, final boolean itf) {
+                        if (opcode == Opcodes.INVOKESTATIC && !itf
+                                && owner.endsWith("/Minecraft189RuntimeBridge")
+                                && "nativeSafeWalkSneaking".equals(name)
+                                && "(ZLjava/lang/Object;)Z".equals(desc))
+                            mappedMove[1]++;
+                    }
+                };
+            }
+        }, 0);
+        assertArrayEquals(new int[]{1,1}, originalMove,
+                "original Mojang moveEntity must have exactly one native sneak branch");
+        assertArrayEquals(new int[]{1,1}, mappedMove,
+                "transformed original Mojang moveEntity must bridge exactly once");
+        final byte[] localClass = transformer.transform("bew", raw.get("bew"));
+        assertTrue(Arrays.asList(new ClassReader(localClass).getInterfaces())
+                        .contains("dev/trexzo/custommc/platform/v1_8_9/"
+                                + "Minecraft189LocalPlayerSafeWalkMarker"),
+                "only original EntityPlayerSP carries local SafeWalk marker");
+        System.out.println("REAL_189_NATIVE_VANILLA_SAFEWALK_HOOK_PASS=YES");
 
         for (String name : Arrays.asList("bda", "pk", "aug")) {
             final byte[] transformed = transformer.transform(name, raw.get(name));
