@@ -32,6 +32,7 @@ AUTO_DISABLED = b"CUSTOMMC_189_AUTOCLICKER_DISABLED_TARGET_TICKS_PASS=20"
 AUTO_ENABLED = b"CUSTOMMC_189_AUTOCLICKER_NORMAL_MODULE_ENABLE_PASS=YES"
 AUTO_ARMED = b"CUSTOMMC_189_AUTOCLICKER_REAL_TARGET_ARMED=YES"
 AUTO_NATIVE_UNSCOPED = b"CUSTOMMC_189_AUTOCLICKER_NATIVE_CONTROLLER_UNSCOPED_UUID_PASS=YES"
+AUTO_NATIVE_EXACT_REMOTE = b"CUSTOMMC_189_AUTOCLICKER_NATIVE_EXACT_REMOTE_PLAYER_UUID_PASS=YES"
 AUTO_HURT = b"CUSTOMMC_OFFICIAL_189_AUTOCLICKER_SAME_ENTITY_HURT_PASS=YES"
 UNLOCKED_SCOPE_VETO = b"CUSTOMMC_189_UNLOCKED_AURA_NATIVE_LOCAL_INTENT_REMOTE_ARGUMENT_VETO_PASS=YES"
 UNLOCKED_SCOPE_FRESH = b"CUSTOMMC_189_UNLOCKED_AURA_FRESH_NATIVE_REMOTE_DISPATCH_PASS=YES"
@@ -558,6 +559,12 @@ def client_command(args, game, username, uuid, port, remote):
                            "-Dcustommc.acceptance.reportAutoClicker=true")
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireAutoClickerUnscopedNativeController=true")
+            if args.autoclicker_pvp_exact_uuid:
+                command.insert(command.index("-cp"),
+                               "-Dcustommc.acceptance.requireAutoClickerExactRemoteUuid=true")
+                command.insert(command.index("-cp"),
+                               "-Dcustommc.acceptance.expectedAutoClickerRemoteUuid="
+                               + official_offline_uuid("CITarget"))
         else:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.reportKillAuraLocalPvp=true")
@@ -1345,6 +1352,9 @@ def run(args):
                          "actual native remote player Auto Clicker raycast")
                 wait_for(host, host_log, AUTO_NATIVE_UNSCOPED,
                          deadline, "real Mojang attackEntity UUID with no Aura ownership")
+                if args.autoclicker_pvp_exact_uuid:
+                    wait_for(host, host_log, AUTO_NATIVE_EXACT_REMOTE,
+                             deadline, "exact genuine nonlocal CITarget controller argument UUID")
                 wait_for(host, host_log, AUTO_HURT,
                          min(deadline, time.monotonic() + 18),
                          "same genuine remote player hurt after Auto Clicker")
@@ -1454,6 +1464,9 @@ def run(args):
             if args.autoclicker_pvp:
                 print("CUSTOMMC_OFFICIAL_189_REAL_AUTOCLICKER_PLAYER_PVP_SERVER_DAMAGE_PASS=YES",
                       flush=True)
+                if args.autoclicker_pvp_exact_uuid:
+                    print("CUSTOMMC_OFFICIAL_189_AUTOCLICKER_EXACT_REMOTE_UUID_AND_SERVER_DAMAGE_PASS=YES",
+                          flush=True)
             else:
                 print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_PLAYER_PVP_PASS=YES",
                       flush=True)
@@ -1504,6 +1517,8 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
+    parser.add_argument("--autoclicker-pvp-exact-uuid", action="store_true",
+                        help="require real original Mojang controller target to be exactly the dedicated-server CITarget UUID")
     parser.add_argument("--require-index-reorder", action="store_true",
                         help="fail-closed actual native entity-index change on fresh A rejoin")
     parser.add_argument("--require-wrong-target-veto", action="store_true",
@@ -1546,6 +1561,8 @@ def main():
     group.add_argument("--fov-veto", action="store_true",
                        help="prove in-range real player behind camera is excluded")
     args = parser.parse_args()
+    if args.autoclicker_pvp_exact_uuid and not args.autoclicker_pvp:
+        parser.error("--autoclicker-pvp-exact-uuid requires --autoclicker-pvp")
     if args.unlocked_scoped_veto and not args.pvp:
         parser.error("--unlocked-scoped-veto requires --pvp")
     if args.unlocked_remote_owner_veto and (

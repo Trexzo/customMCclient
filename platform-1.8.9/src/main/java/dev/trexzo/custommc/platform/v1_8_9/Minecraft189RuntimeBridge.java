@@ -28,6 +28,8 @@ public final class Minecraft189RuntimeBridge {
     private static boolean acceptanceManualUnscopedNativeReported;
     // M426 isolated Auto Clicker controller proof; no production behavior.
     private static boolean acceptanceAutoClickerUnscopedNativeReported;
+    // M428 opt-in exact remote player UUID witness; never game logic.
+    private static boolean acceptanceAutoClickerExactRemoteReported;
     private static int graphicalAcceptanceFrames;
     private static boolean graphicalAcceptanceReported;
     private static boolean acceptancePlayerObserved;
@@ -98,6 +100,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceRemotePairOtherUuid = null;
         acceptanceManualUnscopedNativeReported = false;
         acceptanceAutoClickerUnscopedNativeReported = false;
+        acceptanceAutoClickerExactRemoteReported = false;
         graphicalAcceptanceFrames = 0;
         graphicalAcceptanceReported = false;
         acceptancePlayerObserved = false;
@@ -1621,6 +1624,60 @@ public final class Minecraft189RuntimeBridge {
                 acceptanceAutoClickerUnscopedNativeReported = true;
                 System.out.println(
                         "CUSTOMMC_189_AUTOCLICKER_NATIVE_CONTROLLER_UNSCOPED_UUID_PASS=YES");
+                System.out.flush();
+            }
+        }
+        // M428: prove that the actual original Mojang controller target is
+        // precisely the genuine nonlocal server-connected player, not merely
+        // any UUID-bearing living entity. The host-side expected UUID is the
+        // deterministic offline UUID of the dedicated server login name.
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireAutoClickerExactRemoteUuid")) {
+            if (expected != null
+                    || activeRuntime == null || !activeRuntime.hostInstalled()
+                    || !activeRuntime.requireHostRuntime()
+                            .featureCatalog().autoClicker().active()
+                    || activeRuntime.requireHostRuntime()
+                            .featureCatalog().killAura().active()
+                    || !(entity instanceof Minecraft189NativeEntityUuidAccess))
+                throw new IllegalStateException(
+                        "M428 wrong native Auto Clicker dispatch ownership");
+            final UUID actual =
+                    ((Minecraft189NativeEntityUuidAccess) entity)
+                            .customMcNativeEntityUuid();
+            final String expectedText = System.getProperty(
+                    "custommc.acceptance.expectedAutoClickerRemoteUuid");
+            if (actual == null || expectedText == null
+                    || !actual.equals(UUID.fromString(expectedText)))
+                throw new IllegalStateException(
+                        "M428 controller entity UUID not exact server player");
+            final Minecraft189WorldEntityUuidState.Snapshot ids =
+                    activeRuntime.requireHostRuntime()
+                            .worldEntityUuidState().snapshot();
+            final Minecraft189WorldEntityKindState.Snapshot kinds =
+                    activeRuntime.requireHostRuntime()
+                            .worldEntityKindState().snapshot();
+            if (!ids.available() || !kinds.available()
+                    || ids.entityCount() != kinds.entityCount())
+                throw new IllegalStateException(
+                        "M428 source-native player inventory unavailable");
+            int matchingRemotePlayers = 0;
+            for (int i = 0; i < ids.entityCount(); i++) {
+                if (actual.equals(ids.at(i))) {
+                    if (!kinds.player(i) || !kinds.living(i)
+                            || kinds.localPlayer(i))
+                        throw new IllegalStateException(
+                                "M428 exact target UUID is not remote player");
+                    matchingRemotePlayers++;
+                }
+            }
+            if (matchingRemotePlayers != 1)
+                throw new IllegalStateException(
+                        "M428 target UUID not uniquely loaded remote player");
+            if (!acceptanceAutoClickerExactRemoteReported) {
+                acceptanceAutoClickerExactRemoteReported = true;
+                System.out.println(
+                        "CUSTOMMC_189_AUTOCLICKER_NATIVE_EXACT_REMOTE_PLAYER_UUID_PASS=YES");
                 System.out.flush();
             }
         }
