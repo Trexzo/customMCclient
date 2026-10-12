@@ -50,6 +50,7 @@ public final class Minecraft189BootstrapRuntime
     private long currentFrameIndex = -1L;
     private final Minecraft189WorldCameraFrameState worldCamera =
             new Minecraft189WorldCameraFrameState();
+    private Minecraft189PlayerBoxEspFeature playerBoxEspFeature;
     private boolean acceptanceNativeWorldCameraReported;
     private boolean acceptanceNativeWorldOriginReported;
     private boolean acceptanceNativePlayerBoxesReported;
@@ -291,6 +292,19 @@ public final class Minecraft189BootstrapRuntime
                         Objects.requireNonNull(
                                 hostCallbacks,
                                 "hostCallbacks"));
+        try {
+            playerBoxEspFeature = Minecraft189PlayerBoxEspFeature.install(
+                    modules, moduleController, modulePresentations,
+                    moduleSettings, settings, settingPresentations,
+                    worldCamera, renderPipeline, hostCallbacks);
+        } catch (RuntimeException installationFailure) {
+            try {
+                installed.close();
+            } catch (RuntimeException closeFailure) {
+                installationFailure.addSuppressed(closeFailure);
+            }
+            throw installationFailure;
+        }
         hostRuntime = installed;
         return installed;
     }
@@ -338,11 +352,18 @@ public final class Minecraft189BootstrapRuntime
                 partialTicks);
     }
 
+    /** Normal 2D ESP module lifecycle enables capture without global flags. */
+    private boolean shouldCaptureNativeWorldCamera() {
+        return Boolean.getBoolean("custommc.visuals.captureNativeWorldCamera")
+                || (playerBoxEspFeature != null
+                        && playerBoxEspFeature.module().renderPassInstalled());
+    }
+
     synchronized void captureNativeWorldCamera(
             final int worldPass, final float partialTicks) {
         if (closed || hostRuntime == null || hostRuntime.closed()
                 || currentFrameIndex < 0L
-                || !Boolean.getBoolean("custommc.visuals.captureNativeWorldCamera"))
+                || !shouldCaptureNativeWorldCamera())
             return;
         // Purely observational, read-only GL state sampling.
         worldCamera.captureNative(currentFrameIndex, worldPass, partialTicks);
@@ -375,7 +396,7 @@ public final class Minecraft189BootstrapRuntime
             final int pass, final float partialTicks) {
         if (closed || hostRuntime == null || hostRuntime.closed()
                 || currentFrameIndex < 0L
-                || !Boolean.getBoolean("custommc.visuals.captureNativeWorldCamera"))
+                || !shouldCaptureNativeWorldCamera())
             return;
         final Minecraft189PlayerPositionAccess typed =
                 nativeEntity instanceof Minecraft189PlayerPositionAccess
@@ -400,7 +421,7 @@ public final class Minecraft189BootstrapRuntime
             final int pass, final float partialTicks) {
         if (closed || hostRuntime == null || hostRuntime.closed()
                 || currentFrameIndex < 0L
-                || !Boolean.getBoolean("custommc.visuals.captureNativeWorldCamera"))
+                || !shouldCaptureNativeWorldCamera())
             return;
         if (!(nativeWorld instanceof Minecraft189WorldLoadedEntityObjectsAccess)
                 || !(nativeWorld instanceof Minecraft189WorldEntityKindsAccess)
@@ -516,6 +537,16 @@ public final class Minecraft189BootstrapRuntime
                         new IllegalStateException(
                                 "failed closing Minecraft 1.8.9 target loader",
                                 closeFailure));
+            }
+        }
+
+        if (playerBoxEspFeature != null) {
+            try {
+                playerBoxEspFeature.close();
+            } catch (RuntimeException closeFailure) {
+                failure = append(failure, closeFailure);
+            } finally {
+                playerBoxEspFeature = null;
             }
         }
 
