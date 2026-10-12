@@ -185,6 +185,13 @@ final class Minecraft189RejoinTargetAcceptance {
             // vanilla B actually leaves, without reusing any stale index.
         } else if (Boolean.getBoolean(
                 "custommc.acceptance.reportKillAuraRejoinRelease")
+                && phase==4 && originalUuid.equals(id)
+                && index==e.a && e.b==-1 && e.aOnlySelected()) {
+            // A is still genuine CREATIVE while the actual B-disconnected
+            // 15-callback UUID lock proof runs. This callback never certifies
+            // positive damage, and cannot skip the full phase gate.
+        } else if (Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraRejoinRelease")
                 && phase>=5 && originalUuid.equals(id)
                 && index==e.a && e.b==-1 && e.aInRange()) {
             if (!reacquiredClicked) {
