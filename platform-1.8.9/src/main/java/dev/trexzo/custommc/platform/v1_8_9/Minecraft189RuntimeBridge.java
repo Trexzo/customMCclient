@@ -1472,6 +1472,12 @@ public final class Minecraft189RuntimeBridge {
             throw new IllegalStateException(
                     "out-of-FOV player reached vanilla attackEntity");
         }
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireRejoinedControllerB")
+                && activeRuntime != null && activeRuntime.hostInstalled()) {
+            Minecraft189RejoinTargetAcceptance.verifyRealControllerB(
+                    activeRuntime.requireHostRuntime(), controller, player, entity);
+        }
         Minecraft189VanillaMeleeAcceptance.onMojangControllerAttack(
                 controller, player, entity);
     }

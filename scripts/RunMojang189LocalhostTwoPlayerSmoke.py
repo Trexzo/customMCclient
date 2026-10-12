@@ -7,6 +7,7 @@ callbacks; opt-in --pvp requires the genuine Mojang attack controller,
 same-player hurt-time and server-side damage-stat increase.
 """
 import argparse
+import math
 from pathlib import Path
 import re
 import socket
@@ -58,6 +59,7 @@ REJOIN_A_RELOCK = b"CUSTOMMC_189_REJOIN_SURVIVOR_B_UNLOADED_A_RELOCKED_PASS=15"
 REJOIN_A_HIT = b"CUSTOMMC_189_REJOIN_FRESH_A_NATIVE_OWNED_ATTACK_PASS=YES"
 REJOIN_REAL_INDEX_REORDER = b"CUSTOMMC_OFFICIAL_189_REJOIN_ACTUAL_INDEX_REORDER_PASS=YES"
 REJOIN_WRONG_UUID_VETO = b"CUSTOMMC_189_REJOIN_WRONG_IN_RANGE_UUID_PROPOSAL_VETO_PASS=YES"
+REJOIN_REAL_CONTROLLER_B = b"CUSTOMMC_189_REJOIN_REAL_B_NATIVE_CONTROLLER_UUID_PASS=YES"
 MULTI_READY = b"CUSTOMMC_189_MULTI_TWO_REAL_UUID_PLAYERS_PASS=YES"
 MULTI_HIT_A = b"CUSTOMMC_189_MULTI_UUID_A_OWNED_ATTACK_PASS=YES"
 MULTI_SWITCH = b"CUSTOMMC_189_MULTI_TARGET_SWITCH_TO_UUID_B_PASS=YES"
@@ -473,6 +475,9 @@ def client_command(args, game, username, uuid, port, remote):
         if args.require_wrong_target_veto:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireRejoinWrongTargetVeto=true")
+        if args.require_rejoined_controller_b:
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.requireRejoinedControllerB=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.targetAUuid=" + official_offline_uuid("CITarget"))
         command.insert(command.index("-cp"),
@@ -734,6 +739,53 @@ def run(args):
             if args.require_wrong_target_veto:
                 wait_for(host, host_log, REJOIN_WRONG_UUID_VETO, deadline,
                          "in-range wrong native A UUID proposal rejected while B locked")
+            if args.require_rejoined_controller_b:
+                # Prior genuine B positive damage is already certified here.
+                # Reset the REAL B scoreboard to zero, make both real remote
+                # players vulnerable, then demand a FRESH native controller
+                # invocation and NEW authoritative damage only to locked B.
+                # Survival A stands on 4 genuine stone blocks (no gravity
+                # drift; B remains separately visible and eligible).
+                ap=a_near.split()
+                if len(ap)!=7 or ap[:2]!=["tp","CITarget"]:
+                    raise AssertionError("invalid native A floor coordinate")
+                ax, ay, az=(float(v) for v in ap[2:5])
+                fx, fz=math.floor(ax), math.floor(az)
+                floor="fill {} {} {} {} {} {} stone".format(
+                    fx,int(ay)-1,fz,fx+1,int(ay)-1,fz+1)
+                send_server_command(server,server_log,floor,
+                                    expected=b"4 blocks filled")
+                send_server_command(server,server_log,"gamemode 0 CITarget")
+                send_server_command(server,server_log,a_near)
+                send_server_command(server,server_log,
+                                    "scoreboard players set CITargetB taken 0")
+                send_server_command(server,server_log,
+                                    "scoreboard players test CITargetB taken 0 0",
+                                    expected=b"score 0 is in range 0 to 0")
+                send_server_command(server,server_log,"gamemode 0 CITargetB")
+                wait_for(host,host_log,REJOIN_REAL_CONTROLLER_B,deadline,
+                         "original vanilla player controller owns rejoined-phase UUID B")
+                wait_for_real_score(server,server_log,"CITargetB",deadline)
+                send_server_command(server,server_log,
+                                    "scoreboard players test CITarget taken 0 0",
+                                    expected=b"score 0 is in range 0 to 0")
+                print("CUSTOMMC_189_REJOIN_POSTRECONNECT_B_DAMAGE_A_ZERO_PASS=YES",
+                      flush=True)
+                # M419 ends at its independently proven real controller B
+                # callback + fresh positive B / zero A server damage. The
+                # new PvP hit legitimately knocks B out of its former native
+                # selection geometry. Do not keep an enabled, phase-4-only
+                # test guard running across unrelated post-proof teleports:
+                # those can select A and falsely convert a completed
+                # isolated proof into a stale-target crash. Independent M418
+                # and M416 tests still cover the full reverse-disconnect path.
+                check_process(host, "M419 genuine attacker after server damage proof")
+                check_process(target, "M419 rejoined real A after damage proof")
+                check_process(target_b, "M419 genuine B after server damage proof")
+                check_process(server, "M419 dedicated server after damage proof")
+                print("CUSTOMMC_OFFICIAL_189_REJOIN_CONTROLLER_B_SERVER_DAMAGE_PASS=YES",
+                      flush=True)
+                return
             send_server_command(server, server_log,
                                 "scoreboard players test CITarget taken 0 0",
                                 expected=b"score 0 is in range 0 to 0")
@@ -742,7 +794,7 @@ def run(args):
                                 expected=b"is in range 1 to 999999")
             print("CUSTOMMC_OFFICIAL_189_REJOIN_A_ZERO_B_POSITIVE_DAMAGE_PASS=YES",
                   flush=True)
-            if args.rejoin_release:
+            if args.rejoin_release and not args.require_rejoined_controller_b:
                 # Reverse direction: B's ORIGINAL graphical client disconnects
                 # while A remains a genuine, freshly rejoined living player.
                 # No local entity list is manipulated by our fixture.
@@ -1212,11 +1264,14 @@ def run(args):
         if args.rejoin_target or args.rejoin_release:
             print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_REJOIN_UUID_LOCK_PASS=YES",
                   flush=True)
-        if args.rejoin_release:
+        if args.rejoin_release and not args.require_rejoined_controller_b:
             print("CUSTOMMC_OFFICIAL_189_SURVIVOR_DISCONNECT_UUID_REACQUIRE_PASS=YES",
                   flush=True)
         if args.require_wrong_target_veto:
             print("CUSTOMMC_OFFICIAL_189_REJOIN_WRONG_UUID_CLICK_VETO_PASS=YES",
+                  flush=True)
+        if args.require_rejoined_controller_b:
+            print("CUSTOMMC_OFFICIAL_189_REJOIN_CONTROLLER_B_SERVER_DAMAGE_PASS=YES",
                   flush=True)
         if args.locked_target:
             print("CUSTOMMC_OFFICIAL_189_REAL_UUID_LOCK_RELEASE_PASS=YES",
@@ -1275,6 +1330,8 @@ def main():
                         help="fail-closed actual native entity-index change on fresh A rejoin")
     parser.add_argument("--require-wrong-target-veto", action="store_true",
                         help="exercise original native click gate against in-range wrong UUID after rejoin")
+    parser.add_argument("--require-rejoined-controller-b", action="store_true",
+                        help="prove genuine vanilla controller B attack and fresh B server damage while A survival remains undamaged")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--rejoin-release", action="store_true",
                        help="real A disconnect/rejoin, then real B disconnect; reacquire fresh A UUID and damage")
@@ -1304,6 +1361,10 @@ def main():
     if args.require_wrong_target_veto and (
             not args.rejoin_release or not args.require_index_reorder):
         parser.error("--require-wrong-target-veto requires --rejoin-release and --require-index-reorder")
+    if args.require_rejoined_controller_b and (
+            not args.rejoin_release or not args.require_index_reorder
+            or not args.require_wrong_target_veto):
+        parser.error("--require-rejoined-controller-b requires --rejoin-release --require-index-reorder --require-wrong-target-veto")
     run(args)
 
 
