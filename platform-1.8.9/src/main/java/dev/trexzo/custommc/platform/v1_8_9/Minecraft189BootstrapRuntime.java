@@ -51,6 +51,7 @@ public final class Minecraft189BootstrapRuntime
     private final Minecraft189WorldCameraFrameState worldCamera =
             new Minecraft189WorldCameraFrameState();
     private boolean acceptanceNativeWorldCameraReported;
+    private boolean acceptanceNativeWorldOriginReported;
     private boolean closed;
 
     private Minecraft189BootstrapRuntime(
@@ -366,6 +367,31 @@ public final class Minecraft189BootstrapRuntime
                     System.out.flush();
                 }
             }
+        }
+    }
+
+    synchronized void captureNativeWorldOrigin(final Object nativeEntity,
+            final int pass, final float partialTicks) {
+        if (closed || hostRuntime == null || hostRuntime.closed()
+                || currentFrameIndex < 0L
+                || !Boolean.getBoolean("custommc.visuals.captureNativeWorldCamera"))
+            return;
+        final Minecraft189PlayerPositionAccess typed =
+                nativeEntity instanceof Minecraft189PlayerPositionAccess
+                        ? (Minecraft189PlayerPositionAccess) nativeEntity : null;
+        worldCamera.captureOrigin(currentFrameIndex, pass, partialTicks, typed);
+        final Minecraft189WorldCameraFrameState.Snapshot result =
+                worldCamera.snapshot();
+        if (!acceptanceNativeWorldOriginReported
+                && Boolean.getBoolean("custommc.acceptance.requireNativeWorldOrigin")
+                && result != null && result.originAvailable()
+                && result.frame() == currentFrameIndex
+                && result.pass() == pass
+                && Math.abs(result.partialTicks() - partialTicks) <= 0.0001F) {
+            acceptanceNativeWorldOriginReported = true;
+            System.out.println(
+                    "CUSTOMMC_OFFICIAL_189_NATIVE_RENDER_ORIGIN_PASS=YES");
+            System.out.flush();
         }
     }
 

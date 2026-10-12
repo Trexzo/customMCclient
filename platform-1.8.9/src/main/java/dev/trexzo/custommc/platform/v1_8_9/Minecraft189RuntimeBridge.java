@@ -1774,6 +1774,16 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    /** Exact original EntityRenderer.mc.getRenderViewEntity() after camera setup. */
+    public static synchronized void worldCameraViewEntityCaptured(
+            final Object actualRenderViewEntity,
+            final int worldPass, final float partialTicks) {
+        if (activeRuntime != null) {
+            activeRuntime.captureNativeWorldOrigin(
+                    actualRenderViewEntity, worldPass, partialTicks);
+        }
+    }
+
     public static synchronized void renderFrameStarted(
             final float partialTicks) {
         if (activeRuntime != null) {

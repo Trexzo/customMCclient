@@ -20,6 +20,49 @@ final class Minecraft189WorldCameraFrameState {
 
     synchronized Snapshot snapshot() { return snapshot; }
 
+    /**
+     * Exact original world-render entity interpolation, same frame/pass.
+     * Native projection is camera-relative: subtract this origin from
+     * native world-coordinate AABB corners BEFORE applying GL matrices.
+     */
+    synchronized void captureOrigin(final long frame, final int pass,
+            final float partialTicks,
+            final Minecraft189PlayerPositionAccess entity) {
+        if (snapshot == null || snapshot.frame() != frame
+                || snapshot.pass() != pass
+                || Math.abs(snapshot.partialTicks() - partialTicks) > 0.0001F
+                || entity == null) {
+            clear();
+            return;
+        }
+        try {
+            final double x = lerp(entity.customMcLastTickPositionX(),
+                    entity.customMcPositionX(), partialTicks);
+            final double y = lerp(entity.customMcLastTickPositionY(),
+                    entity.customMcPositionY(), partialTicks);
+            final double z = lerp(entity.customMcLastTickPositionZ(),
+                    entity.customMcPositionZ(), partialTicks);
+            if (!Double.isFinite(x) || !Double.isFinite(y)
+                    || !Double.isFinite(z)) {
+                clear();
+                return;
+            }
+            snapshot = snapshot.withOrigin(x, y, z);
+        } catch (RuntimeException | LinkageError invalidNativeEntity) {
+            clear();
+        }
+    }
+
+    static double lerp(final double lastTick, final double current,
+            final float partialTicks) {
+        if (!Double.isFinite(lastTick) || !Double.isFinite(current)
+                || !Float.isFinite(partialTicks)
+                || partialTicks < 0.0F || partialTicks > 1.0F)
+            return Double.NaN;
+        final double out = lastTick + (current - lastTick) * partialTicks;
+        return Double.isFinite(out) ? out : Double.NaN;
+    }
+
     synchronized void captureNative(
             final long frame, final int pass, final float partialTicks) {
         if (frame < 0 || pass < 0 || pass > 2
@@ -88,16 +131,36 @@ final class Minecraft189WorldCameraFrameState {
         private final float partialTicks;
         private final double[] view, projection;
         private final int[] viewport;
+        private final boolean originAvailable;
+        private final double originX, originY, originZ;
 
         Snapshot(final long frame, final int pass, final float partialTicks,
                 final double[] view, final double[] projection,
                 final int[] viewport) {
+            this(frame, pass, partialTicks, view, projection, viewport,
+                    false, 0, 0, 0);
+        }
+
+        private Snapshot(final long frame, final int pass,
+                final float partialTicks, final double[] view,
+                final double[] projection, final int[] viewport,
+                final boolean originAvailable, final double originX,
+                final double originY, final double originZ) {
             this.frame = frame;
             this.pass = pass;
             this.partialTicks = partialTicks;
             this.view = Arrays.copyOf(view, 16);
             this.projection = Arrays.copyOf(projection, 16);
             this.viewport = Arrays.copyOf(viewport, 4);
+            this.originAvailable = originAvailable;
+            this.originX = originX;
+            this.originY = originY;
+            this.originZ = originZ;
+        }
+
+        Snapshot withOrigin(final double x, final double y, final double z) {
+            return new Snapshot(frame, pass, partialTicks, view, projection,
+                    viewport, true, x, y, z);
         }
 
         long frame() { return frame; }
@@ -106,5 +169,9 @@ final class Minecraft189WorldCameraFrameState {
         double[] view() { return Arrays.copyOf(view, 16); }
         double[] projection() { return Arrays.copyOf(projection, 16); }
         int[] viewport() { return Arrays.copyOf(viewport, 4); }
+        boolean originAvailable() { return originAvailable; }
+        double originX() { return originX; }
+        double originY() { return originY; }
+        double originZ() { return originZ; }
     }
 }

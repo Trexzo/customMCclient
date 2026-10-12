@@ -467,6 +467,83 @@ final class Minecraft189OfficialClientPreflightTest {
         assertArrayEquals(new int[]{1, 1, 1}, worldCamera,
                 "real 1.8.9 renderWorldPass camera seam must be native and exact");
         System.out.println("REAL_189_WORLD_CAMERA_NATIVE_RENDER_HOOK_PASS=YES");
+        // Validate ORIGINAL Mojang pk/P,Q,R last-tick fields independently
+        // of generated accessor bytecode. Any wrong SRG mapping is a veto.
+        final int[] lastTick = new int[3];
+        new ClassReader(raw.get("pk")).accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override public org.objectweb.asm.FieldVisitor visitField(
+                    final int access, final String name, final String descriptor,
+                    final String signature, final Object value) {
+                if ("D".equals(descriptor)) {
+                    if ("P".equals(name)) lastTick[0]++;
+                    if ("Q".equals(name)) lastTick[1]++;
+                    if ("R".equals(name)) lastTick[2]++;
+                }
+                return null;
+            }
+        }, 0);
+        assertArrayEquals(new int[]{1, 1, 1}, lastTick,
+                "original 1.8.9 pk/P,Q,R double last-tick origin fields");
+
+        // These original Minecraft methods are *already called* throughout
+        // the render pass. Count only the direct injected call chain after
+        // worldCameraSetupCaptured, never unrelated vanilla mc/getView reads.
+        final int[] originSequence = new int[4];
+        new ClassReader(transformedRenderer).accept(
+                new ClassVisitor(Opcodes.ASM9) {
+                    @Override public MethodVisitor visitMethod(
+                            final int access, final String name,
+                            final String descriptor, final String signature,
+                            final String[] exceptions) {
+                        if (!"a".equals(name) || !"(IFJ)V".equals(descriptor))
+                            return null;
+                        return new MethodVisitor(Opcodes.ASM9) {
+                            private int phase;
+                            @Override public void visitFieldInsn(
+                                    final int opcode, final String owner,
+                                    final String name, final String descriptor) {
+                                if (phase == 1 && opcode == Opcodes.GETFIELD
+                                        && "bfk".equals(owner) && "h".equals(name)
+                                        && "Lave;".equals(descriptor)) {
+                                    originSequence[1]++;
+                                    phase = 2;
+                                } else if (phase != 0) {
+                                    phase = 0;
+                                }
+                            }
+                            @Override public void visitMethodInsn(
+                                    final int opcode, final String owner,
+                                    final String name, final String desc,
+                                    final boolean itf) {
+                                if (opcode == Opcodes.INVOKESTATIC
+                                        && owner.endsWith("/Minecraft189RuntimeBridge")
+                                        && "worldCameraSetupCaptured".equals(name)
+                                        && "(IF)V".equals(desc)) {
+                                    originSequence[0]++;
+                                    phase = 1;
+                                } else if (phase == 2
+                                        && opcode == Opcodes.INVOKEVIRTUAL
+                                        && "ave".equals(owner) && "ac".equals(name)
+                                        && "()Lpk;".equals(desc)) {
+                                    originSequence[2]++;
+                                    phase = 3;
+                                } else if (phase == 3
+                                        && opcode == Opcodes.INVOKESTATIC
+                                        && owner.endsWith("/Minecraft189RuntimeBridge")
+                                        && "worldCameraViewEntityCaptured".equals(name)
+                                        && "(Ljava/lang/Object;IF)V".equals(desc)) {
+                                    originSequence[3]++;
+                                    phase = 0;
+                                } else if (phase != 0) {
+                                    phase = 0;
+                                }
+                            }
+                        };
+                    }
+                }, 0);
+        assertArrayEquals(new int[]{1, 1, 1, 1}, originSequence,
+                "world camera origin bridge follows exact source-native render-view entity");
+        System.out.println("REAL_189_WORLD_CAMERA_NATIVE_ORIGIN_HOOK_PASS=YES");
 
         for (String name : Arrays.asList("bda", "pk", "aug")) {
             final byte[] transformed = transformer.transform(name, raw.get(name));
