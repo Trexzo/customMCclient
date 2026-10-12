@@ -49,6 +49,11 @@ LOCK_ARMED = b"CUSTOMMC_189_LOCK_A_NATIVE_UUID_ARMED_PASS=10"
 LOCK_RETAINED = b"CUSTOMMC_189_LOCK_A_RETAINED_WITH_CLOSER_B_PASS=15"
 LOCK_RELEASE = b"CUSTOMMC_189_LOCK_A_INELIGIBLE_RELEASES_TO_B_PASS=YES"
 LOCK_HIT_B = b"CUSTOMMC_189_LOCK_B_NATIVE_UUID_OWNED_ATTACK_PASS=YES"
+REJOIN_READY = b"CUSTOMMC_189_REJOIN_ORIGINAL_UUID_LOCK_ARMED=10"
+REJOIN_B_LOCK = b"CUSTOMMC_189_REJOIN_OLD_A_UNLOADED_B_LOCKED_PASS=15"
+REJOIN_B_HIT = b"CUSTOMMC_189_REJOIN_B_NATIVE_OWNED_ATTACK_PASS=YES"
+REJOIN_UUID = b"CUSTOMMC_189_REJOIN_ORIGINAL_UUID_REVALIDATED_PASS=YES"
+REJOIN_B_RETAINED = b"CUSTOMMC_189_REJOIN_STICKY_B_RETAINED_PASS=20"
 MULTI_READY = b"CUSTOMMC_189_MULTI_TWO_REAL_UUID_PLAYERS_PASS=YES"
 MULTI_HIT_A = b"CUSTOMMC_189_MULTI_UUID_A_OWNED_ATTACK_PASS=YES"
 MULTI_SWITCH = b"CUSTOMMC_189_MULTI_TARGET_SWITCH_TO_UUID_B_PASS=YES"
@@ -234,6 +239,25 @@ def actual_server_three_client_simultaneous_fixture(server_log):
             or host_z // 16 != (host_z + zsign) // 16):
         raise AssertionError("native simultaneous fixture crossed spawn chunk")
     return host, a_near, b_outer, b_near
+
+
+def actual_server_three_client_rejoin_fixture(server_log):
+    """Server-observed real spawn: A initially nearer; B survives disconnect."""
+    host, a_near, b_outer, _b_near = (
+        actual_server_three_client_simultaneous_fixture(server_log))
+    return host, a_near, b_outer
+
+
+def wait_for_log_occurrences(proc, log, phrase, minimum, deadline, context):
+    """Require an additional actual native server event, not a stale first join."""
+    if minimum < 1 or not phrase:
+        raise AssertionError("invalid native server occurrence requirement")
+    while time.monotonic() < deadline:
+        check_process(proc, context)
+        if log.read_bytes().count(phrase) >= minimum:
+            return
+        time.sleep(0.3)
+    raise AssertionError("missing repeated native event: " + context)
 
 
 def actual_server_three_client_locked_fixture(server_log):
@@ -433,6 +457,13 @@ def client_command(args, game, username, uuid, port, remote):
     if remote and args.fov_veto:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraFovVeto=true")
+    if remote and args.rejoin_target:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportKillAuraRejoin=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.targetAUuid=" + official_offline_uuid("CITarget"))
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.targetBUuid=" + official_offline_uuid("CITargetB"))
     if remote and args.locked_target:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraLockedTarget=true")
@@ -492,16 +523,19 @@ def run(args):
     (server_dir / "eula.txt").write_text("eula=true\n", encoding="ascii")
     port = local_port()
     write_server_properties(server_dir / "server.properties", port,
-                            max_players=3 if (args.multi_target or args.simultaneous or args.locked_target) else 2)
+                            max_players=3 if (args.multi_target or args.simultaneous or args.locked_target or args.rejoin_target) else 2)
 
     server_log = root / "server.log"
     host_log = root / "host.log"
     target_log = root / "target.log"
     target_b_log = root / "target-b.log"
+    target_rejoin_log = root / "target-rejoin.log"
     logs = [("dedicated", server_log), ("host", host_log),
             ("target", target_log)]
-    if args.multi_target or args.simultaneous or args.locked_target:
+    if args.multi_target or args.simultaneous or args.locked_target or args.rejoin_target:
         logs.append(("target_b", target_b_log))
+    if args.rejoin_target:
+        logs.append(("target_rejoin", target_rejoin_log))
     processes = []
     wm = None
     try:
@@ -558,7 +592,7 @@ def run(args):
             )
         processes.append(target)
         target_b = None
-        if args.multi_target or args.simultaneous or args.locked_target:
+        if args.multi_target or args.simultaneous or args.locked_target or args.rejoin_target:
             cmd_b = client_command(
                 args, root / "target-b-game", "CITargetB",
                 "00000000000000000000000000000003", port, remote=False)
@@ -571,7 +605,7 @@ def run(args):
                  "dedicated server CIHost join")
         wait_for(server, server_log, TARGET_JOIN, deadline,
                  "dedicated server CITarget join")
-        if args.multi_target or args.simultaneous or args.locked_target:
+        if args.multi_target or args.simultaneous or args.locked_target or args.rejoin_target:
             wait_for(server, server_log, b"CITargetB joined the game", deadline,
                      "real CITargetB dedicated-server join")
             wait_for(target_b, target_b_log, GRAPHICAL, deadline,
@@ -580,6 +614,96 @@ def run(args):
                  "target graphical client")
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
+
+        if args.rejoin_target:
+            # THREE original Mojang 1.8.9 client JVMs + genuine localhost
+            # dedicated server. The old CITarget client is later terminated,
+            # then a NEW graphical Minecraft JVM rejoins with the SAME
+            # username/offline server UUID. No synthetic entity/packet.
+            send_server_command(server, server_log,
+                                "scoreboard objectives add taken stat.damageTaken")
+            for player in ("CITarget", "CITargetB"):
+                send_server_command(server, server_log,
+                                    "scoreboard players set {} taken 0".format(player))
+                send_server_command(server, server_log,
+                                    "scoreboard players test {} taken 0 0".format(player),
+                                    expected=b"score 0 is in range 0 to 0")
+            send_server_command(server, server_log, "gamemode 0 CIHost")
+            send_server_command(server, server_log, "gamemode 1 CITarget")
+            # Both targets remain genuine living, selectable native players.
+            # Creative B cannot be knocked out of reach during the mandatory
+            # 15-callback A-disappeared / B-UUID-lock proof.
+            send_server_command(server, server_log, "gamemode 1 CITargetB")
+            send_server_command(server, server_log,
+                                "gamerule naturalRegeneration false")
+            host_tp, a_near, b_outer = (
+                actual_server_three_client_rejoin_fixture(server_log))
+            send_server_command(server, server_log, b_outer)
+            send_server_command(server, server_log, host_tp)
+            send_server_command(server, server_log, a_near)
+            wait_for(host, host_log, REJOIN_READY, deadline,
+                     "original genuine A UUID locked before disconnect")
+            for player in ("CITarget", "CITargetB"):
+                send_server_command(server, server_log,
+                                    "scoreboard players test {} taken 0 0".format(player),
+                                    expected=b"score 0 is in range 0 to 0")
+            close_process(target)
+            wait_for(server, server_log, b"CITarget left the game", deadline,
+                     "original real Minecraft target left dedicated server")
+            print("CUSTOMMC_189_REJOIN_REAL_A_DISCONNECTED_PASS=YES", flush=True)
+            wait_for(host, host_log, REJOIN_B_LOCK, deadline,
+                     "15 genuine native A-absent snapshots retaining locked B")
+            for player in ("CITarget", "CITargetB"):
+                send_server_command(server, server_log,
+                                    "scoreboard players test {} taken 0 0".format(player),
+                                    expected=b"score 0 is in range 0 to 0")
+            print("CUSTOMMC_189_REJOIN_B_ONLY_STABLE_NO_DAMAGE_PASS=YES",
+                  flush=True)
+            # Only AFTER the survivor's native lock and list-index change
+            # are established, permit true survival PvP knockback/damage.
+            send_server_command(server, server_log, "gamemode 0 CITargetB")
+            wait_for(host, host_log, REJOIN_B_HIT, deadline,
+                     "genuine surviving UUID B original combat click")
+            wait_for_real_score(server, server_log, "CITargetB", deadline)
+            send_server_command(server, server_log,
+                                "scoreboard players test CITarget taken 0 0",
+                                expected=b"score 0 is in range 0 to 0")
+            print("CUSTOMMC_189_REJOIN_B_DAMAGE_A_STILL_ZERO_PASS=YES",
+                  flush=True)
+            # Suppress further knockback ONLY after positive B server damage.
+            # Both players will be CREATIVE during the final lock-retention
+            # state proof, and B's genuine original damage score remains.
+            send_server_command(server, server_log, "gamemode 1 CITargetB")
+            send_server_command(server, server_log, b_outer)
+            cmd_rejoin = client_command(
+                args, root / "target-rejoin-game", "CITarget",
+                "00000000000000000000000000000002", port, remote=False)
+            with target_rejoin_log.open("wb") as out:
+                target = subprocess.Popen(
+                    cmd_rejoin, env=env, stdout=out,
+                    stderr=subprocess.STDOUT, start_new_session=True)
+            processes.append(target)
+            wait_for(target, target_rejoin_log, GRAPHICAL, deadline,
+                     "brand-new same-UUID genuine Minecraft graphical client")
+            wait_for_log_occurrences(
+                server, server_log, TARGET_JOIN, 2, deadline,
+                "same real CITarget username second dedicated-server join")
+            send_server_command(server, server_log, "gamemode 1 CITarget")
+            send_server_command(server, server_log, a_near)
+            print("CUSTOMMC_189_REJOIN_REAL_A_NEW_JVM_RECONNECTED_PASS=YES",
+                  flush=True)
+            wait_for(host, host_log, REJOIN_UUID, deadline,
+                     "actual same original UUID revalidated after new login")
+            wait_for(host, host_log, REJOIN_B_RETAINED, deadline,
+                     "20 callbacks current B UUID retained while rejoined A closer")
+            send_server_command(server, server_log,
+                                "scoreboard players test CITarget taken 0 0",
+                                expected=b"score 0 is in range 0 to 0")
+            send_server_command(server, server_log,
+                                "scoreboard players test CITargetB taken 1 999999",
+                                expected=b"is in range 1 to 999999")
+            print("CUSTOMMC_OFFICIAL_189_REJOIN_A_ZERO_B_POSITIVE_DAMAGE_PASS=YES",
+                  flush=True)
 
         if args.locked_target:
             # Genuine original 1.8.9 dedicated server with 3 Java 8 JVMs.
@@ -1011,7 +1135,7 @@ def run(args):
                 ("target game", target)):
             check_process(proc, phase)
 
-        if args.multi_target or args.simultaneous or args.locked_target:
+        if args.multi_target or args.simultaneous or args.locked_target or args.rejoin_target:
             check_process(target_b, "third native real player JVM")
             print("CUSTOMMC_OFFICIAL_189_THREE_REAL_CLIENTS_JOINED_PASS=YES",
                   flush=True)
@@ -1020,6 +1144,9 @@ def run(args):
               flush=True)
         print("CUSTOMMC_OFFICIAL_189_REMOTE_PLAYER_KIND_SUSTAINED_PASS=YES",
               flush=True)
+        if args.rejoin_target:
+            print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_REJOIN_UUID_LOCK_PASS=YES",
+                  flush=True)
         if args.locked_target:
             print("CUSTOMMC_OFFICIAL_189_REAL_UUID_LOCK_RELEASE_PASS=YES",
                   flush=True)
@@ -1074,6 +1201,8 @@ def main():
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
     group = parser.add_mutually_exclusive_group()
+    group.add_argument("--rejoin-target", action="store_true",
+                       help="genuine old player exits and fresh JVM rejoins same UUID; verify native B ownership")
     group.add_argument("--locked-target", action="store_true",
                        help="genuine three-player sticky UUID lock retained then released on invalid A")
     group.add_argument("--simultaneous", action="store_true",

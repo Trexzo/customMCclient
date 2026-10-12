@@ -78,6 +78,7 @@ public final class Minecraft189RuntimeBridge {
         Minecraft189MultiTargetAcceptance.reset();
         Minecraft189SimultaneousTargetAcceptance.reset();
         Minecraft189LockedTargetAcceptance.reset();
+        Minecraft189RejoinTargetAcceptance.reset();
         acceptanceDisabledTargetTicks = 0;
         acceptanceAutoClickerEnabled = false;
         killAuraNonPlayerTarget = null;
@@ -1136,6 +1137,10 @@ public final class Minecraft189RuntimeBridge {
                 Minecraft189LockedTargetAcceptance.observe(host);
             }
             if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraRejoin")) {
+                Minecraft189RejoinTargetAcceptance.observe(host);
+            }
+            if (Boolean.getBoolean(
                     "custommc.acceptance.reportKillAuraLocalPvp")) {
                 final Minecraft189NearestPlayerTargetState.Snapshot nearest =
                         host.nearestPlayerTargetState().snapshot();
@@ -1299,6 +1304,11 @@ public final class Minecraft189RuntimeBridge {
                 if (Boolean.getBoolean(
                         "custommc.acceptance.reportKillAuraLockedTarget")) {
                     Minecraft189LockedTargetAcceptance.verifyOwnedClick(
+                            host, playerHit, playerIndex);
+                }
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.reportKillAuraRejoin")) {
+                    Minecraft189RejoinTargetAcceptance.verifyOwnedClick(
                             host, playerHit, playerIndex);
                 }
                 if (Boolean.getBoolean(
