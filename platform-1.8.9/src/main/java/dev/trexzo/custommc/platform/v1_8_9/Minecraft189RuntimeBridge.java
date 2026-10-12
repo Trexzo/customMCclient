@@ -1784,6 +1784,16 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    /**
+     * Exact original EntityRenderer.mc.theWorld, after native world camera
+     * and source-derived render-view origin have both been captured.
+     */
+    public static synchronized void worldCameraLoadedEntitiesCaptured(
+            final Object actualWorld, final int pass, final float partialTicks) {
+        if (activeRuntime != null)
+            activeRuntime.captureNativePlayerBoxes(actualWorld, pass, partialTicks);
+    }
+
     public static synchronized void renderFrameStarted(
             final float partialTicks) {
         if (activeRuntime != null) {

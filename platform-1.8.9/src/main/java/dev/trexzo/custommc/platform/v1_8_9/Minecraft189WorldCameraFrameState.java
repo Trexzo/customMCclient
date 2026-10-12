@@ -15,10 +15,37 @@ import org.lwjgl.opengl.GL11;
  */
 final class Minecraft189WorldCameraFrameState {
     private Snapshot snapshot;
+    private Minecraft189ProjectedPlayerFrame projectedPlayers;
 
-    synchronized void clear() { snapshot = null; }
+    synchronized void clear() {
+        snapshot = null;
+        projectedPlayers = null;
+    }
 
     synchronized Snapshot snapshot() { return snapshot; }
+
+    synchronized Minecraft189ProjectedPlayerFrame projectedPlayers() {
+        return projectedPlayers;
+    }
+
+    synchronized void captureNativePlayerBoxes(final long frame, final int pass,
+            final float partialTicks, final Object[] objects,
+            final int[] kinds, final java.util.UUID[] uuids) {
+        if (snapshot == null || !snapshot.originAvailable()
+                || snapshot.frame() != frame || snapshot.pass() != pass
+                || Math.abs(snapshot.partialTicks() - partialTicks) > 0.0001F) {
+            clear();
+            return;
+        }
+        final Minecraft189ProjectedPlayerFrame next =
+                Minecraft189ProjectedPlayerFrame.collect(
+                        frame, snapshot, objects, kinds, uuids);
+        if (next == null) {
+            clear();
+            return;
+        }
+        projectedPlayers = next;
+    }
 
     /**
      * Exact original world-render entity interpolation, same frame/pass.
@@ -48,6 +75,7 @@ final class Minecraft189WorldCameraFrameState {
                 return;
             }
             snapshot = snapshot.withOrigin(x, y, z);
+            projectedPlayers = null;
         } catch (RuntimeException | LinkageError invalidNativeEntity) {
             clear();
         }
@@ -117,6 +145,7 @@ final class Minecraft189WorldCameraFrameState {
         }
         snapshot = new Snapshot(frame, pass, partialTicks, view, projection,
                 viewport);
+        projectedPlayers = null;
     }
 
     private static boolean valid(final double[] values, final int n) {

@@ -169,6 +169,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                        "-Dcustommc.acceptance.requireNativeWorldCamera=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireNativeWorldOrigin=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireNativePlayerBoxFrame=true")
     command.insert(command.index("-cp"), "-Dcustommc.acceptance.reportLiveWorld=true")
     if controlled_combat:
         command.insert(command.index("-cp"),
@@ -277,6 +279,11 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 print("CUSTOMMC_OFFICIAL_189_REAL_WORLD_CAMERA_CAPTURE_PASS=YES",
                       flush=True)
                 print("CUSTOMMC_OFFICIAL_189_REAL_RENDER_ORIGIN_PASS=YES",
+                      flush=True)
+                await_marker(process, log,
+                             b"CUSTOMMC_OFFICIAL_189_NATIVE_PLAYER_BOX_FRAME_PASS=YES",
+                             deadline, "actual native loaded-entity UUID/kind/AABB frame")
+                print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_AABB_FRAME_PASS=YES",
                       flush=True)
             require_running(process, "post world checkpoint")
             time.sleep(2)

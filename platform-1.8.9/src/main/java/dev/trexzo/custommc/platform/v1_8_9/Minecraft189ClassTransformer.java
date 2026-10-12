@@ -2187,6 +2187,29 @@ public final class Minecraft189ClassTransformer
                                                 RUNTIME_BRIDGE_INTERNAL_NAME,
                                                 "worldCameraViewEntityCaptured",
                                                 "(Ljava/lang/Object;IF)V", false);
+                                        // Same native world, sampled on the *same*
+                                        // original GL world-render pass.
+                                        super.visitVarInsn(Opcodes.ALOAD, 0);
+                                        super.visitFieldInsn(Opcodes.GETFIELD,
+                                                Minecraft189Mappings.ENTITY_RENDERER_MINECRAFT
+                                                        .owner().obfuscatedInternalName(),
+                                                Minecraft189Mappings.ENTITY_RENDERER_MINECRAFT
+                                                        .obfuscatedName(),
+                                                Minecraft189Mappings.ENTITY_RENDERER_MINECRAFT
+                                                        .descriptor());
+                                        super.visitFieldInsn(Opcodes.GETFIELD,
+                                                Minecraft189Mappings.MINECRAFT_WORLD
+                                                        .owner().obfuscatedInternalName(),
+                                                Minecraft189Mappings.MINECRAFT_WORLD
+                                                        .obfuscatedName(),
+                                                Minecraft189Mappings.MINECRAFT_WORLD
+                                                        .descriptor());
+                                        super.visitVarInsn(Opcodes.ILOAD, 1);
+                                        super.visitVarInsn(Opcodes.FLOAD, 2);
+                                        super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "worldCameraLoadedEntitiesCaptured",
+                                                "(Ljava/lang/Object;IF)V", false);
                                     }
                                 }
                             };
@@ -3439,6 +3462,7 @@ public final class Minecraft189ClassTransformer
                                 signature,
                                 superName,
                                 withInterface(
+                                withInterface(
                                         withInterface(
                                         withInterface(
                                         withInterface(
@@ -3452,7 +3476,8 @@ public final class Minecraft189ClassTransformer
                                         WORLD_ENTITY_KINDS_ACCESS_INTERNAL_NAME),
                                 WORLD_ENTITY_COMBAT_ACCESS_INTERNAL_NAME),
                                 WORLD_ENTITY_UUID_ACCESS_INTERNAL_NAME),
-                                WORLD_ENTITY_VISIBILITY_ACCESS_INTERNAL_NAME));
+                                WORLD_ENTITY_VISIBILITY_ACCESS_INTERNAL_NAME),
+                                "dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldLoadedEntityObjectsAccess"));
                     }
 
                     @Override
@@ -3479,12 +3504,35 @@ public final class Minecraft189ClassTransformer
                         addLoadedEntityCombatSnapshot(cv);
                         addLoadedEntityUuidSnapshot(cv);
                         addLoadedEntityVisibilitySnapshot(cv);
+                        addLoadedEntityObjectReferences(cv);
                         super.visitEnd();
                     }
                 },
                 0);
 
         return writer.toByteArray();
+    }
+
+    /**
+     * Source-mapped World.loadedEntityList in exactly native iteration order.
+     * Copies the collection but does not fabricate any Entity or UUID.
+     * It is read only in an opt-in same-frame world render callback.
+     */
+    private static void addLoadedEntityObjectReferences(final ClassVisitor visitor) {
+        final MethodVisitor m = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcLoadedEntityObjects",
+                "()[Ljava/lang/Object;", null, null);
+        m.visitCode();
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitFieldInsn(Opcodes.GETFIELD,
+                Minecraft189Mappings.WORLD.obfuscatedInternalName(),
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST.obfuscatedName(),
+                Minecraft189Mappings.WORLD_LOADED_ENTITY_LIST.descriptor());
+        m.visitMethodInsn(Opcodes.INVOKEINTERFACE, "java/util/List",
+                "toArray", "()[Ljava/lang/Object;", true);
+        m.visitInsn(Opcodes.ARETURN);
+        m.visitMaxs(0, 0);
+        m.visitEnd();
     }
 
     private static byte[] transformServerData(

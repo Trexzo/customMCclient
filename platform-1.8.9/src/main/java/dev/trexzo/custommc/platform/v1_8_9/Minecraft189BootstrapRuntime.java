@@ -52,6 +52,7 @@ public final class Minecraft189BootstrapRuntime
             new Minecraft189WorldCameraFrameState();
     private boolean acceptanceNativeWorldCameraReported;
     private boolean acceptanceNativeWorldOriginReported;
+    private boolean acceptanceNativePlayerBoxesReported;
     private boolean closed;
 
     private Minecraft189BootstrapRuntime(
@@ -392,6 +393,47 @@ public final class Minecraft189BootstrapRuntime
             System.out.println(
                     "CUSTOMMC_OFFICIAL_189_NATIVE_RENDER_ORIGIN_PASS=YES");
             System.out.flush();
+        }
+    }
+
+    synchronized void captureNativePlayerBoxes(final Object nativeWorld,
+            final int pass, final float partialTicks) {
+        if (closed || hostRuntime == null || hostRuntime.closed()
+                || currentFrameIndex < 0L
+                || !Boolean.getBoolean("custommc.visuals.captureNativeWorldCamera"))
+            return;
+        if (!(nativeWorld instanceof Minecraft189WorldLoadedEntityObjectsAccess)
+                || !(nativeWorld instanceof Minecraft189WorldEntityKindsAccess)
+                || !(nativeWorld instanceof Minecraft189WorldEntityUuidAccess)) {
+            worldCamera.clear();
+            return;
+        }
+        try {
+            final Object[] entities =
+                    ((Minecraft189WorldLoadedEntityObjectsAccess)nativeWorld)
+                            .customMcLoadedEntityObjects();
+            final int[] kinds =
+                    ((Minecraft189WorldEntityKindsAccess)nativeWorld)
+                            .customMcLoadedEntityKinds();
+            final java.util.UUID[] uuids =
+                    ((Minecraft189WorldEntityUuidAccess)nativeWorld)
+                            .customMcLoadedEntityUuids();
+            worldCamera.captureNativePlayerBoxes(currentFrameIndex, pass,
+                    partialTicks, entities, kinds, uuids);
+            final Minecraft189ProjectedPlayerFrame witnessed =
+                    worldCamera.projectedPlayers();
+            if (!acceptanceNativePlayerBoxesReported
+                    && Boolean.getBoolean("custommc.acceptance.requireNativePlayerBoxFrame")
+                    && witnessed != null && witnessed.frame() == currentFrameIndex) {
+                acceptanceNativePlayerBoxesReported = true;
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_NATIVE_PLAYER_BOX_FRAME_PASS=YES remote="
+                                + witnessed.remoteCount()
+                                + " visible=" + witnessed.visible().size());
+                System.out.flush();
+            }
+        } catch (RuntimeException | LinkageError invalidSource) {
+            worldCamera.clear();
         }
     }
 
