@@ -150,6 +150,19 @@ public final class Minecraft189RuntimeBridge {
         return new Registration(next);
     }
 
+    /**
+     * Invoked solely after the genuine Entity.moveEntity isSneaking call.
+     * Vanilla's own onGround/player/collision tests remain authoritative.
+     * Remote Entities never implement the local player marker.
+     */
+    public static synchronized boolean nativeSafeWalkSneaking(
+            final boolean originalSneaking, final Object nativeEntity) {
+        if (originalSneaking || activeRuntime == null)
+            return originalSneaking;
+        return activeRuntime.nativeSafeWalkSneaking(
+                originalSneaking, nativeEntity);
+    }
+
     public static synchronized boolean active() {
         return activeRuntime != null
                 && !activeRuntime.closed();

@@ -2606,6 +2606,8 @@ public final class Minecraft189ClassTransformer
                 new ClassWriter(
                         reader,
                         ClassWriter.COMPUTE_MAXS);
+        final int[] nativeSafeWalkCalls = new int[1];
+        final boolean[] nativeMoveEntityFound = new boolean[1];
 
         reader.accept(
                 new ClassVisitor(
@@ -2654,6 +2656,50 @@ public final class Minecraft189ClassTransformer
                                         PLAYER_ROTATION_CONTROL_INTERNAL_NAME),
                                 HITBOX_BOUNDS_ACCESS_INTERNAL_NAME),
                                 NATIVE_ENTITY_UUID_ACCESS_INTERNAL_NAME));
+                    }
+
+                    @Override
+                    public MethodVisitor visitMethod(
+                            final int access, final String name,
+                            final String descriptor, final String signature,
+                            final String[] exceptions) {
+                        final MethodVisitor delegate = super.visitMethod(
+                                access, name, descriptor, signature, exceptions);
+                        final Minecraft189Mappings.MappedMethod move =
+                                Minecraft189Mappings.ENTITY_MOVE_ENTITY;
+                        if (!move.obfuscatedName().equals(name)
+                                || !move.descriptor().equals(descriptor))
+                            return delegate;
+                        if (nativeMoveEntityFound[0])
+                            throw new IllegalStateException(
+                                    "duplicate native Entity.moveEntity");
+                        nativeMoveEntityFound[0] = true;
+                        return new MethodVisitor(Opcodes.ASM9, delegate) {
+                            @Override public void visitMethodInsn(
+                                    final int opcode, final String owner,
+                                    final String method, final String desc,
+                                    final boolean itf) {
+                                super.visitMethodInsn(
+                                        opcode, owner, method, desc, itf);
+                                final Minecraft189Mappings.MappedMethod sneak =
+                                        Minecraft189Mappings.ENTITY_IS_SNEAKING;
+                                if (opcode == Opcodes.INVOKEVIRTUAL && !itf
+                                        && owner.equals(sneak.owner().obfuscatedInternalName())
+                                        && method.equals(sneak.obfuscatedName())
+                                        && desc.equals(sneak.descriptor())) {
+                                    if (++nativeSafeWalkCalls[0] != 1)
+                                        throw new IllegalStateException(
+                                                "native moveEntity duplicate sneak branch");
+                                    // Preserve original boolean, then supply
+                                    // source-native receiver for LOCAL-only gate.
+                                    super.visitVarInsn(Opcodes.ALOAD, 0);
+                                    super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                            RUNTIME_BRIDGE_INTERNAL_NAME,
+                                            "nativeSafeWalkSneaking",
+                                            "(ZLjava/lang/Object;)Z", false);
+                                }
+                            }
+                        };
                     }
 
                     @Override
@@ -2782,6 +2828,11 @@ public final class Minecraft189ClassTransformer
                 },
                 0);
 
+        if (!nativeMoveEntityFound[0] || nativeSafeWalkCalls[0] != 1)
+            throw new IllegalStateException(
+                    "original 1.8.9 Entity.moveEntity must have exactly one "
+                            + "vanilla isSneaking collision-branch call; found "
+                            + nativeSafeWalkCalls[0]);
         return writer.toByteArray();
     }
 
@@ -2989,6 +3040,16 @@ public final class Minecraft189ClassTransformer
                 new ClassVisitor(
                         Opcodes.ASM9,
                         writer) {
+                    @Override
+                    public void visit(final int version, final int access,
+                            final String name, final String signature,
+                            final String superName, final String[] interfaces) {
+                        super.visit(version, access, name, signature, superName,
+                                withInterface(interfaces,
+                                        "dev/trexzo/custommc/platform/v1_8_9/"
+                                                + "Minecraft189LocalPlayerSafeWalkMarker"));
+                    }
+
                     @Override
                     public MethodVisitor visitMethod(
                             final int access,

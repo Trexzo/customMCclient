@@ -51,6 +51,7 @@ public final class Minecraft189BootstrapRuntime
     private final Minecraft189WorldCameraFrameState worldCamera =
             new Minecraft189WorldCameraFrameState();
     private Minecraft189PlayerBoxEspFeature playerBoxEspFeature;
+    private Minecraft189SafeWalkFeature safeWalkFeature;
     private boolean acceptanceNativeWorldCameraReported;
     private boolean acceptanceNativeWorldOriginReported;
     private boolean acceptanceNativePlayerBoxesReported;
@@ -299,6 +300,8 @@ public final class Minecraft189BootstrapRuntime
                     modules, moduleController, modulePresentations,
                     moduleSettings, settings, settingPresentations,
                     worldCamera, renderPipeline, hostCallbacks);
+            safeWalkFeature = Minecraft189SafeWalkFeature.install(
+                    modules, moduleController, modulePresentations);
             // Explicit CI-only opt-in; production module starts DISABLED.
             if (Boolean.getBoolean("custommc.acceptance.enableRealRemotePlayerBoxEsp"))
                 moduleController.enable(Minecraft189PlayerBoxEspModule.ID);
@@ -318,6 +321,14 @@ public final class Minecraft189BootstrapRuntime
         return !closed
                 && hostRuntime != null
                 && !hostRuntime.closed();
+    }
+
+    synchronized boolean nativeSafeWalkSneaking(
+            final boolean originalSneaking, final Object entity) {
+        return !closed && hostRuntime != null && !hostRuntime.closed()
+                && safeWalkFeature != null
+                && safeWalkFeature.module().effectiveSneaking(
+                        originalSneaking, entity);
     }
 
     synchronized void publishGameTick() {
@@ -578,6 +589,16 @@ public final class Minecraft189BootstrapRuntime
                         new IllegalStateException(
                                 "failed closing Minecraft 1.8.9 target loader",
                                 closeFailure));
+            }
+        }
+
+        if (safeWalkFeature != null) {
+            try {
+                safeWalkFeature.close();
+            } catch (RuntimeException closeFailure) {
+                failure = append(failure, closeFailure);
+            } finally {
+                safeWalkFeature = null;
             }
         }
 
