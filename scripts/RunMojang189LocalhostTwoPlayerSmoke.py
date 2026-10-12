@@ -57,6 +57,7 @@ REJOIN_B_RETAINED = b"CUSTOMMC_189_REJOIN_STICKY_B_RETAINED_PASS=20"
 REJOIN_A_RELOCK = b"CUSTOMMC_189_REJOIN_SURVIVOR_B_UNLOADED_A_RELOCKED_PASS=15"
 REJOIN_A_HIT = b"CUSTOMMC_189_REJOIN_FRESH_A_NATIVE_OWNED_ATTACK_PASS=YES"
 REJOIN_REAL_INDEX_REORDER = b"CUSTOMMC_OFFICIAL_189_REJOIN_ACTUAL_INDEX_REORDER_PASS=YES"
+REJOIN_WRONG_UUID_VETO = b"CUSTOMMC_189_REJOIN_WRONG_IN_RANGE_UUID_PROPOSAL_VETO_PASS=YES"
 MULTI_READY = b"CUSTOMMC_189_MULTI_TWO_REAL_UUID_PLAYERS_PASS=YES"
 MULTI_HIT_A = b"CUSTOMMC_189_MULTI_UUID_A_OWNED_ATTACK_PASS=YES"
 MULTI_SWITCH = b"CUSTOMMC_189_MULTI_TARGET_SWITCH_TO_UUID_B_PASS=YES"
@@ -469,6 +470,9 @@ def client_command(args, game, username, uuid, port, remote):
         if args.require_index_reorder:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireRejoinIndexReorder=true")
+        if args.require_wrong_target_veto:
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.requireRejoinWrongTargetVeto=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.targetAUuid=" + official_offline_uuid("CITarget"))
         command.insert(command.index("-cp"),
@@ -684,6 +688,25 @@ def run(args):
             # state proof, and B's genuine original damage score remains.
             send_server_command(server, server_log, "gamemode 1 CITargetB")
             send_server_command(server, server_log, b_outer)
+            if args.require_index_reorder:
+                # M417's native list position changed naturally in the
+                # certified run, but a later identical-world rerun could
+                # reuse A's exact prior numeric index. Place one genuine,
+                # inert vanilla server ArmorStand in the loaded chunk
+                # BEFORE the new A client reconnects. This tests an actual
+                # list reorder caused by normal world/entity events, not
+                # a fabricated client array or a weakened equality check.
+                parts = a_near.split()
+                if len(parts) != 7 or parts[:2] != ["tp", "CITarget"]:
+                    raise AssertionError("cannot derive real spawn sentinel")
+                ax, ay, az = (int(value) for value in parts[2:5])
+                sentinel = "summon ArmorStand {} {} {}".format(
+                    ax + 6, ay, az + 6)
+                send_server_command(server, server_log, sentinel,
+                                    expected=b"Object successfully summoned")
+                print("CUSTOMMC_189_REJOIN_NATIVE_SERVER_SENTINEL_SUMMONED=YES",
+                      flush=True)
+                time.sleep(0.8)
             cmd_rejoin = client_command(
                 args, root / "target-rejoin-game", "CITarget",
                 "00000000000000000000000000000002", port, remote=False)
@@ -708,6 +731,9 @@ def run(args):
             if args.require_index_reorder:
                 wait_for(host, host_log, REJOIN_REAL_INDEX_REORDER, deadline,
                          "actual live rejoined UUID A changes native entity list index")
+            if args.require_wrong_target_veto:
+                wait_for(host, host_log, REJOIN_WRONG_UUID_VETO, deadline,
+                         "in-range wrong native A UUID proposal rejected while B locked")
             send_server_command(server, server_log,
                                 "scoreboard players test CITarget taken 0 0",
                                 expected=b"score 0 is in range 0 to 0")
@@ -1189,6 +1215,9 @@ def run(args):
         if args.rejoin_release:
             print("CUSTOMMC_OFFICIAL_189_SURVIVOR_DISCONNECT_UUID_REACQUIRE_PASS=YES",
                   flush=True)
+        if args.require_wrong_target_veto:
+            print("CUSTOMMC_OFFICIAL_189_REJOIN_WRONG_UUID_CLICK_VETO_PASS=YES",
+                  flush=True)
         if args.locked_target:
             print("CUSTOMMC_OFFICIAL_189_REAL_UUID_LOCK_RELEASE_PASS=YES",
                   flush=True)
@@ -1244,6 +1273,8 @@ def main():
     parser.add_argument("--timeout", type=int, default=150)
     parser.add_argument("--require-index-reorder", action="store_true",
                         help="fail-closed actual native entity-index change on fresh A rejoin")
+    parser.add_argument("--require-wrong-target-veto", action="store_true",
+                        help="exercise original native click gate against in-range wrong UUID after rejoin")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--rejoin-release", action="store_true",
                        help="real A disconnect/rejoin, then real B disconnect; reacquire fresh A UUID and damage")
@@ -1270,6 +1301,9 @@ def main():
     args = parser.parse_args()
     if args.require_index_reorder and not args.rejoin_release:
         parser.error("--require-index-reorder requires --rejoin-release")
+    if args.require_wrong_target_veto and (
+            not args.rejoin_release or not args.require_index_reorder):
+        parser.error("--require-wrong-target-veto requires --rejoin-release and --require-index-reorder")
     run(args)
 
 

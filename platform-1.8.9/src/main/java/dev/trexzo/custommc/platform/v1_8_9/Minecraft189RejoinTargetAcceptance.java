@@ -147,6 +147,9 @@ final class Minecraft189RejoinTargetAcceptance {
                         System.out.println(
                             "CUSTOMMC_OFFICIAL_189_REJOIN_ACTUAL_INDEX_REORDER_PASS=YES");
                     }
+                    if (Boolean.getBoolean(
+                            "custommc.acceptance.requireRejoinWrongTargetVeto"))
+                        proveWrongTargetProposalRejected(host, e);
                     System.out.flush();
                 }
             } else rejoinedTicks=0;
@@ -165,6 +168,36 @@ final class Minecraft189RejoinTargetAcceptance {
                 }
             } else releasedTicks=0;
         }
+    }
+
+    /**
+     * M418 test-only negative proposal. A is genuinely in reach and closer,
+     * but the real current selected and locked UUID is B. Send NO attack or
+     * packet: exercise the same fail-closed original click ownership gate
+     * against A's actual current native index and require explicit rejection.
+     */
+    private static void proveWrongTargetProposalRejected(
+            Minecraft189HostRuntime host, Evidence e) {
+        Minecraft189KillAuraModule aura=host.featureCatalog().killAura();
+        if (!e.aCloserButBSelected() || e.a==e.b || !e.aInRange()
+                || !originalUuid.equals(e.ids.at(e.a))
+                || !survivorUuid.equals(e.ids.at(e.b))
+                || !survivorUuid.equals(aura.lockedTargetUuid()))
+            throw new IllegalStateException(
+                    "wrong-target veto fixture lacks real native A/B ownership");
+        try {
+            verifyOwnedClick(host, true, e.a);
+        } catch (IllegalStateException rejected) {
+            String message=rejected.getMessage();
+            if (message==null
+                    || !message.startsWith("rejoin click invalid source-native owner"))
+                throw rejected;
+            System.out.println(
+                    "CUSTOMMC_189_REJOIN_WRONG_IN_RANGE_UUID_PROPOSAL_VETO_PASS=YES");
+            return;
+        }
+        throw new IllegalStateException(
+                "real wrong UUID proposal was NOT vetoed by original click gate");
     }
 
     static void verifyOwnedClick(Minecraft189HostRuntime host,
