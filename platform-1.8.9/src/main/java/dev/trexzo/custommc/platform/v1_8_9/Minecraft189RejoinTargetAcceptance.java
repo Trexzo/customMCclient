@@ -13,6 +13,7 @@ final class Minecraft189RejoinTargetAcceptance {
     private static boolean survivorClicked;
     private static int firstOriginalIndex = -1;
     private static boolean realBControllerReported;
+    private static boolean realBControllerEntityUuidReported;
 
     private Minecraft189RejoinTargetAcceptance() {}
 
@@ -23,6 +24,7 @@ final class Minecraft189RejoinTargetAcceptance {
         survivorClicked = false;
         firstOriginalIndex = -1;
         realBControllerReported = false;
+        realBControllerEntityUuidReported = false;
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
@@ -194,6 +196,33 @@ final class Minecraft189RejoinTargetAcceptance {
                 || controller==null || player==null || entity==null)
             throw new IllegalStateException(
                     "M419 real outgoing controller not owned by live locked B UUID");
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireRejoinedControllerEntityUuid")) {
+            if (!(entity instanceof Minecraft189NativeEntityUuidAccess))
+                throw new IllegalStateException(
+                        "M420 native attackEntity argument lacks mapped UUID access");
+            // This is the ACTUAL third argument passed to Mojang's mapped
+            // PlayerControllerMP.attackEntity, not a selected index, rotation
+            // prediction, loaded-list lookup or fabricated player identity.
+            UUID argumentUuid =
+                    ((Minecraft189NativeEntityUuidAccess) entity)
+                            .customMcNativeEntityUuid();
+            if (argumentUuid == null
+                    || !survivorUuid.equals(argumentUuid)
+                    || originalUuid.equals(argumentUuid)
+                    || !argumentUuid.equals(e.ids.at(e.b)))
+                throw new IllegalStateException(
+                        "M420 native attackEntity argument UUID does not equal"
+                        + " current living locked B UUID argument=" + argumentUuid
+                        + " locked=" + aura.lockedTargetUuid()
+                        + " B=" + e.ids.at(e.b));
+            if (!realBControllerEntityUuidReported) {
+                realBControllerEntityUuidReported = true;
+                System.out.println(
+                        "CUSTOMMC_189_REJOIN_NATIVE_CONTROLLER_ENTITY_UUID_B_PASS=YES");
+                System.out.flush();
+            }
+        }
         if (!realBControllerReported) {
             realBControllerReported=true;
             System.out.println(

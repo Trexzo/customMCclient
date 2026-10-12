@@ -205,6 +205,9 @@ public final class Minecraft189ClassTransformer
     private static final String WORLD_ENTITY_UUID_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189WorldEntityUuidAccess";
+    private static final String NATIVE_ENTITY_UUID_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189NativeEntityUuidAccess";
     private static final String SERVER_DATA_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189ServerDataAccess";
@@ -2519,6 +2522,7 @@ public final class Minecraft189ClassTransformer
                                 withInterface(
                                         withInterface(
                                         withInterface(
+                                        withInterface(
                                                 withInterface(
                                                         withInterface(
                                                                 withInterface(
@@ -2542,7 +2546,8 @@ public final class Minecraft189ClassTransformer
                                                         PLAYER_NO_CLIP_CONTROL_INTERNAL_NAME),
                                                 PLAYER_MOTION_CONTROL_INTERNAL_NAME),
                                         PLAYER_ROTATION_CONTROL_INTERNAL_NAME),
-                                HITBOX_BOUNDS_ACCESS_INTERNAL_NAME));
+                                HITBOX_BOUNDS_ACCESS_INTERNAL_NAME),
+                                NATIVE_ENTITY_UUID_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -2656,6 +2661,7 @@ public final class Minecraft189ClassTransformer
                                 "customMcSetMotionZ",
                                 Minecraft189Mappings.ENTITY_MOTION_Z);
                         addNativeEntityHitboxBoundsGetter(cv);
+                        addNativeEntityUuidGetter(cv);
                         super.visitEnd();
                     }
                 },
@@ -2669,6 +2675,26 @@ public final class Minecraft189ClassTransformer
      * Actual vanilla Entity.getEntityBoundingBox() six-component double AABB.
      * Read-only; no hitbox mutation and no raycast extension.
      */
+    /**
+     * Read-only exact mapped Mojang Entity.getUniqueID() on the actual
+     * outgoing PlayerControllerMP.attackEntity entity argument. No synthetic
+     * packet, injected UUID, or loaded-list index substitution.
+     */
+    private static void addNativeEntityUuidGetter(final ClassVisitor visitor) {
+        final MethodVisitor m = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcNativeEntityUuid",
+                "()Ljava/util/UUID;", null, null);
+        m.visitCode();
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                Minecraft189Mappings.ENTITY.obfuscatedInternalName(),
+                Minecraft189Mappings.ENTITY_GET_UNIQUE_ID.obfuscatedName(),
+                Minecraft189Mappings.ENTITY_GET_UNIQUE_ID.descriptor(), false);
+        m.visitInsn(Opcodes.ARETURN);
+        m.visitMaxs(0, 0);
+        m.visitEnd();
+    }
+
     private static void addNativeEntityHitboxBoundsGetter(final ClassVisitor visitor) {
         final MethodVisitor m = visitor.visitMethod(
                 Opcodes.ACC_PUBLIC, "customMcHitboxBounds", "()[D", null, null);
