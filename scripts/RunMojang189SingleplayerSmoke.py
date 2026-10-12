@@ -24,6 +24,7 @@ AUTO_DISABLED = b"CUSTOMMC_189_AUTOCLICKER_DISABLED_TARGET_TICKS_PASS=20"
 AUTO_ENABLED = b"CUSTOMMC_189_AUTOCLICKER_NORMAL_MODULE_ENABLE_PASS=YES"
 AUTO_ARMED = b"CUSTOMMC_189_AUTOCLICKER_REAL_TARGET_ARMED=YES"
 AUTO_HURT = b"CUSTOMMC_OFFICIAL_189_AUTOCLICKER_SAME_ENTITY_HURT_PASS=YES"
+AUTO_NATIVE_UNSCOPED = b"CUSTOMMC_189_AUTOCLICKER_NATIVE_CONTROLLER_UNSCOPED_UUID_PASS=YES"
 AURA_DISABLED = b"CUSTOMMC_189_KILLAURA_DISABLED_NONPLAYER_TICKS_PASS=20"
 AURA_ENABLED = b"CUSTOMMC_189_KILLAURA_NORMAL_MODULE_ENABLE_PASS=YES"
 AURA_VETO = b"CUSTOMMC_OFFICIAL_189_KILLAURA_NONPLAYER_VETO_PASS=YES"
@@ -168,6 +169,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
     if auto_clicker:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportAutoClicker=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireAutoClickerUnscopedNativeController=true")
     if kill_aura_nonplayer:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraNonPlayer=true")
@@ -304,7 +307,11 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                                  deadline, "module-owned click on real entity")
                     await_marker(process, log, AUTO_HURT,
                                  deadline, "same entity hurt after module-owned click")
+                    await_marker(process, log, AUTO_NATIVE_UNSCOPED,
+                                 deadline, "genuine Auto Clicker native UUID with no Aura owner scope")
                     print("CUSTOMMC_OFFICIAL_189_REAL_AUTOCLICKER_DAMAGE_PASS=YES",
+                          flush=True)
+                    print("CUSTOMMC_OFFICIAL_189_AUTOCLICKER_UNSCOPED_UUID_AND_HURT_PASS=YES",
                           flush=True)
                 else:
                     # M402 legacy manual vanilla X11 attack acceptance.

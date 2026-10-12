@@ -26,6 +26,8 @@ public final class Minecraft189RuntimeBridge {
     private static UUID acceptanceRemotePairOtherUuid;
     // M425 opt-in genuine manual melee witness, never production behavior.
     private static boolean acceptanceManualUnscopedNativeReported;
+    // M426 isolated Auto Clicker controller proof; no production behavior.
+    private static boolean acceptanceAutoClickerUnscopedNativeReported;
     private static int graphicalAcceptanceFrames;
     private static boolean graphicalAcceptanceReported;
     private static boolean acceptancePlayerObserved;
@@ -95,6 +97,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceRemotePairSelectedUuid = null;
         acceptanceRemotePairOtherUuid = null;
         acceptanceManualUnscopedNativeReported = false;
+        acceptanceAutoClickerUnscopedNativeReported = false;
         graphicalAcceptanceFrames = 0;
         graphicalAcceptanceReported = false;
         acceptancePlayerObserved = false;
@@ -1595,6 +1598,29 @@ public final class Minecraft189RuntimeBridge {
                 acceptanceManualUnscopedNativeReported = true;
                 System.out.println(
                         "CUSTOMMC_189_MANUAL_NATIVE_CONTROLLER_UNSCOPED_UUID_PASS=YES");
+                System.out.flush();
+            }
+        }
+        // The existing genuine Auto Clicker acceptance performs NO X11
+        // attack presses. When its synthetic click reaches Mojang's native
+        // controller, require an unscoped, source-mapped actual entity UUID.
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireAutoClickerUnscopedNativeController")) {
+            if (expected != null
+                    || activeRuntime == null || !activeRuntime.hostInstalled()
+                    || !activeRuntime.requireHostRuntime()
+                            .featureCatalog().autoClicker().active()
+                    || activeRuntime.requireHostRuntime()
+                            .featureCatalog().killAura().active()
+                    || !(entity instanceof Minecraft189NativeEntityUuidAccess)
+                    || ((Minecraft189NativeEntityUuidAccess) entity)
+                            .customMcNativeEntityUuid() == null)
+                throw new IllegalStateException(
+                        "M426 native Auto Clicker escaped unscoped controller evidence");
+            if (!acceptanceAutoClickerUnscopedNativeReported) {
+                acceptanceAutoClickerUnscopedNativeReported = true;
+                System.out.println(
+                        "CUSTOMMC_189_AUTOCLICKER_NATIVE_CONTROLLER_UNSCOPED_UUID_PASS=YES");
                 System.out.flush();
             }
         }
