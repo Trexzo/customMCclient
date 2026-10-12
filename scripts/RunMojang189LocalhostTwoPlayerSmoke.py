@@ -771,6 +771,21 @@ def run(args):
                                     expected=b"score 0 is in range 0 to 0")
                 print("CUSTOMMC_189_REJOIN_POSTRECONNECT_B_DAMAGE_A_ZERO_PASS=YES",
                       flush=True)
+                # M419 ends at its independently proven real controller B
+                # callback + fresh positive B / zero A server damage. The
+                # new PvP hit legitimately knocks B out of its former native
+                # selection geometry. Do not keep an enabled, phase-4-only
+                # test guard running across unrelated post-proof teleports:
+                # those can select A and falsely convert a completed
+                # isolated proof into a stale-target crash. Independent M418
+                # and M416 tests still cover the full reverse-disconnect path.
+                check_process(host, "M419 genuine attacker after server damage proof")
+                check_process(target, "M419 rejoined real A after damage proof")
+                check_process(target_b, "M419 genuine B after server damage proof")
+                check_process(server, "M419 dedicated server after damage proof")
+                print("CUSTOMMC_OFFICIAL_189_REJOIN_CONTROLLER_B_SERVER_DAMAGE_PASS=YES",
+                      flush=True)
+                return
                 send_server_command(server,server_log,"gamemode 1 CITargetB")
                 send_server_command(server,server_log,b_outer)
             send_server_command(server, server_log,
