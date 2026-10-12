@@ -28,6 +28,11 @@ AURA_ENABLED = b"CUSTOMMC_189_KILLAURA_PLAYER_MODULE_ENABLE_PASS=YES"
 AURA_ATTACK = b"CUSTOMMC_189_KILLAURA_SYNTHETIC_PLAYER_ATTACK_PASS=YES"
 CONTROLLER_ATTACK = b"CUSTOMMC_189_MOJANG_PLAYER_CONTROLLER_ATTACK_ENTITY_ENTERED=YES"
 AURA_HURT = b"CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HURT_PASS=YES"
+AUTO_DISABLED = b"CUSTOMMC_189_AUTOCLICKER_DISABLED_TARGET_TICKS_PASS=20"
+AUTO_ENABLED = b"CUSTOMMC_189_AUTOCLICKER_NORMAL_MODULE_ENABLE_PASS=YES"
+AUTO_ARMED = b"CUSTOMMC_189_AUTOCLICKER_REAL_TARGET_ARMED=YES"
+AUTO_NATIVE_UNSCOPED = b"CUSTOMMC_189_AUTOCLICKER_NATIVE_CONTROLLER_UNSCOPED_UUID_PASS=YES"
+AUTO_HURT = b"CUSTOMMC_OFFICIAL_189_AUTOCLICKER_SAME_ENTITY_HURT_PASS=YES"
 UNLOCKED_SCOPE_VETO = b"CUSTOMMC_189_UNLOCKED_AURA_NATIVE_LOCAL_INTENT_REMOTE_ARGUMENT_VETO_PASS=YES"
 UNLOCKED_SCOPE_FRESH = b"CUSTOMMC_189_UNLOCKED_AURA_FRESH_NATIVE_REMOTE_DISPATCH_PASS=YES"
 REMOTE_PAIR_SCOPE_VETO = b"CUSTOMMC_189_UNLOCKED_TWO_REAL_REMOTE_UUID_MISMATCH_VETO_PASS=YES"
@@ -522,7 +527,7 @@ def client_command(args, game, username, uuid, port, remote):
                        "-Dcustommc.acceptance.targetAUuid=" + official_offline_uuid("CITarget"))
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.targetBUuid=" + official_offline_uuid("CITargetB"))
-    if remote and args.pvp:
+    if remote and (args.pvp or args.autoclicker_pvp):
         if args.unlocked_scoped_veto:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireUnlockedAuraOwnerVeto=true")
@@ -531,8 +536,14 @@ def client_command(args, game, username, uuid, port, remote):
                            "-Dcustommc.acceptance.requireRemotePairAuraOwnerVeto=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportVanillaMelee=true")
-        command.insert(command.index("-cp"),
-                       "-Dcustommc.acceptance.reportKillAuraLocalPvp=true")
+        if args.autoclicker_pvp:
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.reportAutoClicker=true")
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.requireAutoClickerUnscopedNativeController=true")
+        else:
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.reportKillAuraLocalPvp=true")
     command += ["--server", "127.0.0.1", "--port", str(port)]
     # Limit GUI/test process heap so both instances and server fit CI RAM.
     command[command.index("-Xmx1536m")] = "-Xmx1024m"
@@ -1210,7 +1221,7 @@ def run(args):
             print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_OUT_OF_RANGE_SERVER_NO_DAMAGE_PASS=YES",
                   flush=True)
 
-        if args.pvp:
+        if args.pvp or args.autoclicker_pvp:
             # Launching the target's graphical JVM can unfocus CIHost.
             # Grab the real CIHost mouse BEFORE the authoritative baseline,
             # then overwrite both camera yaw and world positions by normal
@@ -1272,14 +1283,22 @@ def run(args):
                                         bx + 7, by, bz))
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, target_tp)
+            if args.autoclicker_pvp:
+                # Keep the genuine remote's position stable in the native
+                # crosshair while 20 real disabled callbacks are measured.
+                # This is a vanilla server effect, not a synthetic attack.
+                send_server_command(server, server_log,
+                                    "effect CITarget 2 600 5 true")
             print("CUSTOMMC_189_PVP_REAL_SERVER_SPAWN_CHUNK_PASS=YES",
                   flush=True)
             print("CUSTOMMC_189_SERVER_REAL_PLAYER_PVP_POSITIONS_SET=YES",
                   flush=True)
-            wait_for(host, host_log, AURA_DISABLED, deadline,
-                     "20 disabled genuine nonlocal player target callbacks")
-            wait_for(host, host_log, AURA_ENABLED, deadline,
-                     "normal real-player Kill Aura module enable")
+            wait_for(host, host_log,
+                     AUTO_DISABLED if args.autoclicker_pvp else AURA_DISABLED,
+                     deadline, "20 genuine disabled module target callbacks")
+            wait_for(host, host_log,
+                     AUTO_ENABLED if args.autoclicker_pvp else AURA_ENABLED,
+                     deadline, "normal combat module activation")
             if args.unlocked_remote_owner_veto:
                 wait_for(host, host_log, REMOTE_PAIR_SCOPE_VETO, deadline,
                          "native controller A argument vetoes real remote B owner")
@@ -1301,26 +1320,39 @@ def run(args):
                 send_server_command(server, server_log, "gamemode 0 CITarget")
                 wait_for(host, host_log, UNLOCKED_SCOPE_FRESH, deadline,
                          "original controller dispatch accepted real remote native UUID")
-            wait_for(host, host_log, AURA_ATTACK, deadline,
-                     "host-owned Kill Aura synthetic rotated player attack")
-            print("CUSTOMMC_189_CLIENT_AURA_CLICK_OBSERVED=YES", flush=True)
-            # An owned synthetic action is only a potential hit. Real PvP
-            # must enter Mojang PlayerControllerMP.attackEntity and produce
-            # both native player hurt-time and server-authoritative damage.
-            wait_for(host, host_log, CONTROLLER_ATTACK,
-                     min(deadline, time.monotonic() + 10),
-                     "actual Mojang PlayerControllerMP.attackEntity method")
-            print("CUSTOMMC_189_NATIVE_ATTACK_DISPATCH_PATH_ENTERED=YES",
-                  flush=True)
-            # Distinguish "module clicked but client never saw hurt" from
-            # "client saw hurt but the dedicated server never counted damage".
-            # The client marker alone never certifies PvP; both gates remain
-            # mandatory. Fail quickly when there is no native hurt response.
-            wait_for(host, host_log, AURA_HURT,
-                     min(deadline, time.monotonic() + 18),
-                     "same actual remote player receiving native hurt after Aura click")
-            print("CUSTOMMC_189_CLIENT_REAL_PLAYER_HURT_OBSERVED=YES",
-                  flush=True)
+            if args.autoclicker_pvp:
+                # No post-arm X11 click and no Kill Aura: the same genuine
+                # native crosshair target must be attacked by Auto Clicker.
+                wait_for(host, host_log, AUTO_ARMED, deadline,
+                         "actual native remote player Auto Clicker raycast")
+                wait_for(host, host_log, AUTO_NATIVE_UNSCOPED,
+                         deadline, "real Mojang attackEntity UUID with no Aura ownership")
+                wait_for(host, host_log, AUTO_HURT,
+                         min(deadline, time.monotonic() + 18),
+                         "same genuine remote player hurt after Auto Clicker")
+                print("CUSTOMMC_189_REAL_AUTOCLICKER_REMOTE_NATIVE_HURT_AND_UUID_PASS=YES",
+                      flush=True)
+            else:
+                wait_for(host, host_log, AURA_ATTACK, deadline,
+                         "host-owned Kill Aura synthetic rotated player attack")
+                print("CUSTOMMC_189_CLIENT_AURA_CLICK_OBSERVED=YES", flush=True)
+                # An owned synthetic action is only a potential hit. Real PvP
+                # must enter Mojang PlayerControllerMP.attackEntity and produce
+                # both native player hurt-time and server-authoritative damage.
+                wait_for(host, host_log, CONTROLLER_ATTACK,
+                         min(deadline, time.monotonic() + 10),
+                         "actual Mojang PlayerControllerMP.attackEntity method")
+                print("CUSTOMMC_189_NATIVE_ATTACK_DISPATCH_PATH_ENTERED=YES",
+                      flush=True)
+                # Distinguish "module clicked but client never saw hurt" from
+                # "client saw hurt but the dedicated server never counted damage".
+                # The client marker alone never certifies PvP; both gates remain
+                # mandatory. Fail quickly when there is no native hurt response.
+                wait_for(host, host_log, AURA_HURT,
+                         min(deadline, time.monotonic() + 18),
+                         "same actual remote player receiving native hurt after Aura click")
+                print("CUSTOMMC_189_CLIENT_REAL_PLAYER_HURT_OBSERVED=YES",
+                      flush=True)
             # Server response comes first: determine whether real PvP damage
             # was accepted before interpreting any client animation/hurt flag.
             # Require a *server* stat.damageTaken objective change on the
@@ -1400,9 +1432,13 @@ def run(args):
         if args.multi_target:
             print("CUSTOMMC_OFFICIAL_189_REAL_UUID_TARGET_SWITCH_PASS=YES",
                   flush=True)
-        if args.pvp:
-            print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_PLAYER_PVP_PASS=YES",
-                  flush=True)
+        if args.pvp or args.autoclicker_pvp:
+            if args.autoclicker_pvp:
+                print("CUSTOMMC_OFFICIAL_189_REAL_AUTOCLICKER_PLAYER_PVP_SERVER_DAMAGE_PASS=YES",
+                      flush=True)
+            else:
+                print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_PLAYER_PVP_PASS=YES",
+                      flush=True)
             if args.unlocked_scoped_veto:
                 print("CUSTOMMC_OFFICIAL_189_UNLOCKED_AURA_NATIVE_UUID_VETO_AND_FRESH_REMOTE_DAMAGE_PASS=YES",
                       flush=True)
@@ -1479,6 +1515,8 @@ def main():
                        help="three actual clients with two real UUID PvP targets")
     group.add_argument("--pvp", action="store_true",
                        help="prove Kill Aura attack and real server damage statistic")
+    group.add_argument("--autoclicker-pvp", action="store_true",
+                       help="two real Java 8 players: Auto Clicker with Aura disabled, native unscoped UUID and accepted server PvP damage")
     group.add_argument("--range-veto", action="store_true",
                        help="prove real out-of-range player cannot be attacked")
     group.add_argument("--wall-veto", action="store_true",
