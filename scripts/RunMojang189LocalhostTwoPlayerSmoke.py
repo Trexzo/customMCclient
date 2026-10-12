@@ -56,6 +56,7 @@ REJOIN_UUID = b"CUSTOMMC_189_REJOIN_ORIGINAL_UUID_REVALIDATED_PASS=YES"
 REJOIN_B_RETAINED = b"CUSTOMMC_189_REJOIN_STICKY_B_RETAINED_PASS=20"
 REJOIN_A_RELOCK = b"CUSTOMMC_189_REJOIN_SURVIVOR_B_UNLOADED_A_RELOCKED_PASS=15"
 REJOIN_A_HIT = b"CUSTOMMC_189_REJOIN_FRESH_A_NATIVE_OWNED_ATTACK_PASS=YES"
+REJOIN_REAL_INDEX_REORDER = b"CUSTOMMC_OFFICIAL_189_REJOIN_ACTUAL_INDEX_REORDER_PASS=YES"
 MULTI_READY = b"CUSTOMMC_189_MULTI_TWO_REAL_UUID_PLAYERS_PASS=YES"
 MULTI_HIT_A = b"CUSTOMMC_189_MULTI_UUID_A_OWNED_ATTACK_PASS=YES"
 MULTI_SWITCH = b"CUSTOMMC_189_MULTI_TARGET_SWITCH_TO_UUID_B_PASS=YES"
@@ -465,6 +466,9 @@ def client_command(args, game, username, uuid, port, remote):
         if args.rejoin_release:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.reportKillAuraRejoinRelease=true")
+        if args.require_index_reorder:
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.requireRejoinIndexReorder=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.targetAUuid=" + official_offline_uuid("CITarget"))
         command.insert(command.index("-cp"),
@@ -701,6 +705,9 @@ def run(args):
                      "actual same original UUID revalidated after new login")
             wait_for(host, host_log, REJOIN_B_RETAINED, deadline,
                      "20 callbacks current B UUID retained while rejoined A closer")
+            if args.require_index_reorder:
+                wait_for(host, host_log, REJOIN_REAL_INDEX_REORDER, deadline,
+                         "actual live rejoined UUID A changes native entity list index")
             send_server_command(server, server_log,
                                 "scoreboard players test CITarget taken 0 0",
                                 expected=b"score 0 is in range 0 to 0")
@@ -1235,6 +1242,8 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
+    parser.add_argument("--require-index-reorder", action="store_true",
+                        help="fail-closed actual native entity-index change on fresh A rejoin")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--rejoin-release", action="store_true",
                        help="real A disconnect/rejoin, then real B disconnect; reacquire fresh A UUID and damage")
@@ -1259,6 +1268,8 @@ def main():
     group.add_argument("--fov-veto", action="store_true",
                        help="prove in-range real player behind camera is excluded")
     args = parser.parse_args()
+    if args.require_index_reorder and not args.rejoin_release:
+        parser.error("--require-index-reorder requires --rejoin-release")
     run(args)
 
 
