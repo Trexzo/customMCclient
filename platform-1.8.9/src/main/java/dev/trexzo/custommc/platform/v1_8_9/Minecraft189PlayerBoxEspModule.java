@@ -28,6 +28,7 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
             value -> value != null && value >= 1 && value <= 4,
             SettingCodecs.INTEGER);
     private RenderPipeline.Registration registration;
+    private boolean acceptanceRemoteBoxReported;
 
     public Minecraft189PlayerBoxEspModule(
             final Minecraft189WorldCameraFrameState state,
@@ -88,6 +89,9 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
             final List<Minecraft189ProjectedPlayerFrame.Player> boxes =
                     evidence.visible();
             final float stroke = borderWidth.get().intValue();
+            final String expected = System.getProperty(
+                    "custommc.acceptance.expectedRealRemotePlayerBoxUuid");
+            String realRemoteDrawn = null;
             host.beginUi(new UiViewport(fw, fh, scale));
             RuntimeException failure = null;
             try {
@@ -107,6 +111,10 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
                     final int underlay = 0xC0101422, color = 0xFF70D9FF;
                     drawOutline(left-1, top-1, width+2, height+2, t+1, underlay);
                     drawOutline(left, top, width, height, t, color);
+                    if (!acceptanceRemoteBoxReported && expected != null
+                            && expected.equals(p.uuid.toString())
+                            && width > 1.0F && height > 1.0F)
+                        realRemoteDrawn = p.uuid.toString();
                 }
             } catch (RuntimeException error) {
                 failure = error;
@@ -117,6 +125,15 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
                     if (failure != null) failure.addSuppressed(closeError);
                     else throw closeError;
                 }
+            }
+            // Evidence requires original native per-frame UUID/AABB projection
+            // AND a completed real HUD begin/draw/end callback sequence.
+            if (realRemoteDrawn != null && !acceptanceRemoteBoxReported) {
+                acceptanceRemoteBoxReported = true;
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_REAL_REMOTE_PLAYER_BOX_HUD_DRAW_PASS=YES uuid="
+                                + realRemoteDrawn);
+                System.out.flush();
             }
         }
 
