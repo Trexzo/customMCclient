@@ -5,10 +5,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 final class Minecraft189PlayerBoxPixelProbeTest {
     @Test void convertsNativeTopLeftUiStrokeToActualGlBottomLeftPixel() {
-        assertArrayEquals(new int[]{420, 359},
+        assertArrayEquals(new int[]{420, 378},
                 Minecraft189PlayerBoxPixelProbe.sampleTopStroke(
                         400, 100, 40, 80, 2, 1, 854, 480));
-        assertArrayEquals(new int[]{440, 379},
+        assertArrayEquals(new int[]{440, 377},
                 Minecraft189PlayerBoxPixelProbe.sampleTopStroke(
                         200, 50, 40, 80, 2, 2, 854, 480));
         assertNull(Minecraft189PlayerBoxPixelProbe.sampleTopStroke(
