@@ -458,6 +458,12 @@ def client_command(args, game, username, uuid, port, remote):
     if remote:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportRemotePlayer=true")
+    if remote and args.esp_visual:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.enableRealRemotePlayerBoxEsp=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.expectedRealRemotePlayerBoxUuid="
+                       + official_offline_uuid("CITarget"))
     if remote and args.range_veto:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportKillAuraRangeVeto=true")
@@ -657,6 +663,21 @@ def run(args):
                  "target graphical client")
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
+
+        if args.esp_visual:
+            # Two ORIGINAL native clients on a real dedicated server.
+            # Use the actual login chunk and forward native player camera.
+            host_tp, target_tp = actual_server_spawn_fixture(server_log)
+            send_server_command(server, server_log, "gamemode 1 CITarget")
+            send_server_command(server, server_log, "effect CITarget 2 600 5 true")
+            send_server_command(server, server_log, host_tp)
+            send_server_command(server, server_log, target_tp)
+            wait_for(host, host_log,
+                     b"CUSTOMMC_OFFICIAL_189_REAL_REMOTE_PLAYER_BOX_HUD_DRAW_PASS=YES uuid="
+                     + official_offline_uuid("CITarget").encode("ascii"),
+                     deadline, "actual native UUID-matched remote 2D ESP HUD draw")
+            print("CUSTOMMC_OFFICIAL_189_REMOTE_PLAYER_NATIVE_BOX_VISUAL_CALLBACK_PASS=YES",
+                  flush=True)
 
         if args.rejoin_target or args.rejoin_release:
             # THREE original Mojang 1.8.9 client JVMs + genuine localhost
@@ -1489,6 +1510,8 @@ def main():
                        help="verify real wall-check off/on invalidates occluded targets before damage recovery")
     group.add_argument("--fov-veto", action="store_true",
                        help="prove in-range real player behind camera is excluded")
+    group.add_argument("--esp-visual", action="store_true",
+                       help="require exact remote Mojang UUID actual Box ESP HUD draw")
     args = parser.parse_args()
     if args.unlocked_scoped_veto and not args.pvp:
         parser.error("--unlocked-scoped-veto requires --pvp")

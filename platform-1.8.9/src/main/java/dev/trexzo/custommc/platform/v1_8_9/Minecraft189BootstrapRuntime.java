@@ -299,6 +299,9 @@ public final class Minecraft189BootstrapRuntime
                     modules, moduleController, modulePresentations,
                     moduleSettings, settings, settingPresentations,
                     worldCamera, renderPipeline, hostCallbacks);
+            // Explicit CI-only opt-in; production module starts DISABLED.
+            if (Boolean.getBoolean("custommc.acceptance.enableRealRemotePlayerBoxEsp"))
+                moduleController.enable(Minecraft189PlayerBoxEspModule.ID);
         } catch (RuntimeException installationFailure) {
             try {
                 installed.close();
