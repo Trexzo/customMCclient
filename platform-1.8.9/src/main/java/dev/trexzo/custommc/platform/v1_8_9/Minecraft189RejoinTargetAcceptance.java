@@ -14,6 +14,8 @@ final class Minecraft189RejoinTargetAcceptance {
     private static int firstOriginalIndex = -1;
     private static boolean realBControllerReported;
     private static boolean realBControllerEntityUuidReported;
+    private static UUID staleControllerIntentUuid;
+    private static boolean staleDispatchVetoReported, freshDispatchAllowedReported;
 
     private Minecraft189RejoinTargetAcceptance() {}
 
@@ -25,6 +27,8 @@ final class Minecraft189RejoinTargetAcceptance {
         firstOriginalIndex = -1;
         realBControllerReported = false;
         realBControllerEntityUuidReported = false;
+        staleControllerIntentUuid = null;
+        staleDispatchVetoReported = freshDispatchAllowedReported = false;
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
@@ -154,6 +158,16 @@ final class Minecraft189RejoinTargetAcceptance {
                     if (Boolean.getBoolean(
                             "custommc.acceptance.requireRejoinWrongTargetVeto"))
                         proveWrongTargetProposalRejected(host, e);
+                    if (Boolean.getBoolean(
+                            "custommc.acceptance.requireStaleDispatchVeto")) {
+                        if (!survivorUuid.equals(e.ids.at(e.b))
+                                || !survivorUuid.equals(aura.lockedTargetUuid()))
+                            throw new IllegalStateException(
+                                    "M421 captured stale owner must be real locked B");
+                        staleControllerIntentUuid = e.ids.at(e.b);
+                        System.out.println(
+                                "CUSTOMMC_189_REAL_B_PRE_EXIT_INTENT_CAPTURED_PASS=YES");
+                    }
                     System.out.flush();
                 }
             } else rejoinedTicks=0;
@@ -172,6 +186,50 @@ final class Minecraft189RejoinTargetAcceptance {
                 }
             } else releasedTicks=0;
         }
+    }
+
+    /**
+     * M421: retain a genuine B intent while B remains locked. After real B
+     * disconnect and genuine A reacquisition, exercise one deliberately
+     * delayed B intent at the ORIGINAL controller's entry using the real
+     * current A argument. The original vanilla method returns BEFORE any
+     * attack packet. The next fresh A controller call is permitted.
+     * This tests a bounded delayed-intent identity switch across ticks,
+     * not every possible in-frame race or a fabricated network packet.
+     */
+    static boolean allowStaleDispatchAfterRealExit(
+            Minecraft189HostRuntime host,
+            Object controller, Object player, Object entity) {
+        if (phase < 5) return true;
+        Evidence e = read(host);
+        Minecraft189KillAuraModule aura = host.featureCatalog().killAura();
+        UUID actual = entity instanceof Minecraft189NativeEntityUuidAccess
+                ? ((Minecraft189NativeEntityUuidAccess) entity)
+                        .customMcNativeEntityUuid() : null;
+        if (controller == null || player == null || e == null
+                || e.a < 0 || e.b != -1 || !e.aOnlySelected()
+                || !aura.active() || !aura.lockTargetSetting().get()
+                || !originalUuid.equals(e.ids.at(e.a))
+                || !originalUuid.equals(aura.lockedTargetUuid())
+                || !originalUuid.equals(actual)
+                || !survivorUuid.equals(staleControllerIntentUuid))
+            throw new IllegalStateException(
+                    "M421 real B-to-A native dispatch invalid phase=" + phase
+                    + " argument=" + actual + " oldB=" + staleControllerIntentUuid);
+        if (!staleDispatchVetoReported) {
+            staleDispatchVetoReported = true;
+            System.out.println(
+                    "CUSTOMMC_189_REAL_B_EXIT_STALE_CONTROLLER_DISPATCH_VETO_PASS=YES");
+            System.out.flush();
+            return false;
+        }
+        if (!freshDispatchAllowedReported) {
+            freshDispatchAllowedReported = true;
+            System.out.println(
+                    "CUSTOMMC_189_REAL_A_FRESH_CONTROLLER_DISPATCH_PASS=YES");
+            System.out.flush();
+        }
+        return true;
     }
 
     /**
