@@ -296,6 +296,10 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    // CI-only, bounded samples of the actual transformed local player.
+    // Strictly observational: never touches vanilla collision or controls.
+    private static int acceptanceSafeWalkPositionTicks;
+
     public static synchronized void playerPosition(
             final Minecraft189PlayerPositionAccess player) {
         if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")) {
@@ -306,6 +310,19 @@ public final class Minecraft189RuntimeBridge {
             if (player == null) {
                 acceptanceWorldTicks = 0;
             }
+        }
+        if (Boolean.getBoolean("custommc.acceptance.reportNativeSafeWalkPosition")
+                && player instanceof Minecraft189LocalPlayerSafeWalkMarker
+                && acceptanceSafeWalkPositionTicks++ < 900
+                && acceptanceSafeWalkPositionTicks % 3 == 0
+                && Double.isFinite(player.customMcPositionX())
+                && Double.isFinite(player.customMcPositionY())
+                && Double.isFinite(player.customMcPositionZ())) {
+            System.out.println("CUSTOMMC_189_NATIVE_LOCAL_POS=x="
+                    + player.customMcPositionX() + " y="
+                    + player.customMcPositionY() + " z="
+                    + player.customMcPositionZ());
+            System.out.flush();
         }
         final Minecraft189HostRuntime host =
                 activeHost();
