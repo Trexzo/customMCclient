@@ -13,6 +13,12 @@ public final class Minecraft189RuntimeBridge {
     // and Auto Clicker attacks do not set it; every Aura call clears in finally.
     private static final ThreadLocal<UUID> auraDispatchUuid =
             new ThreadLocal<UUID>();
+    // M423 acceptance witness only; the ordinary production gate below
+    // remains unchanged and active for both locked and unlocked Aura.
+    private static boolean acceptanceUnlockedOwnerVetoReported;
+    private static boolean acceptanceUnlockedOwnerFreshReported;
+    private static UUID acceptanceUnlockedRemoteUuid;
+    private static UUID acceptanceUnlockedLocalUuid;
     private static int graphicalAcceptanceFrames;
     private static boolean graphicalAcceptanceReported;
     private static boolean acceptancePlayerObserved;
@@ -73,6 +79,10 @@ public final class Minecraft189RuntimeBridge {
         }
         activeRuntime = next;
         auraDispatchUuid.remove();
+        acceptanceUnlockedOwnerVetoReported = false;
+        acceptanceUnlockedOwnerFreshReported = false;
+        acceptanceUnlockedRemoteUuid = null;
+        acceptanceUnlockedLocalUuid = null;
         graphicalAcceptanceFrames = 0;
         graphicalAcceptanceReported = false;
         acceptancePlayerObserved = false;
@@ -1396,6 +1406,10 @@ public final class Minecraft189RuntimeBridge {
                                     "custommc.acceptance.requireScopedAuraOwnerVeto"))
                                 ownerUuid = Minecraft189RejoinTargetAcceptance
                                         .scopedOwnerIntentForAcceptance(ownerUuid);
+                            if (Boolean.getBoolean(
+                                    "custommc.acceptance.requireUnlockedAuraOwnerVeto"))
+                                ownerUuid = acceptanceUnlockedOwnerForNativeProof(
+                                        host, ownerUuid);
                             if (ownerUuid != null) {
                                 auraDispatchUuid.set(ownerUuid);
                                 try {
@@ -1466,6 +1480,43 @@ public final class Minecraft189RuntimeBridge {
      * Opt-in M421 native controller dispatch veto, before any vanilla
      * outgoing attack side effects. Ordinary gameplay always returns true.
      */
+    /**
+     * M423 isolated opt-in negative fixture: replace one valid, genuine
+     * unlocked Aura remote UUID intent with the actual *local player's*
+     * source-native UUID. No new Entity/UUID/packet is fabricated.
+     * The real Mojang attackEntity argument remains the remote player.
+     * The production controller mismatch guard must reject it first.
+     */
+    private static UUID acceptanceUnlockedOwnerForNativeProof(
+            final Minecraft189HostRuntime host, final UUID nativeRemoteUuid) {
+        if (acceptanceUnlockedOwnerVetoReported) return nativeRemoteUuid;
+        final Minecraft189WorldEntityUuidState.Snapshot ids =
+                host.worldEntityUuidState().snapshot();
+        final Minecraft189WorldEntityKindState.Snapshot kinds =
+                host.worldEntityKindState().snapshot();
+        if (!ids.available() || !kinds.available()
+                || nativeRemoteUuid == null
+                || ids.entityCount() != kinds.entityCount()
+                || host.featureCatalog().killAura().lockTargetSetting().get())
+            throw new IllegalStateException(
+                    "M423 native unlocked Aura identity evidence unavailable");
+        UUID local = null;
+        for (int i = 0; i < ids.entityCount(); i++) {
+            if (kinds.localPlayer(i)) {
+                if (local != null)
+                    throw new IllegalStateException(
+                            "M423 ambiguous native local player");
+                local = ids.at(i);
+            }
+        }
+        if (local == null || local.equals(nativeRemoteUuid))
+            throw new IllegalStateException(
+                    "M423 distinct genuine native local UUID missing");
+        acceptanceUnlockedRemoteUuid = nativeRemoteUuid;
+        acceptanceUnlockedLocalUuid = local;
+        return local;
+    }
+
     public static synchronized boolean acceptanceControllerDispatchAllowed(
             final Object controller, final Object player,
             final Object entity) {
@@ -1479,10 +1530,38 @@ public final class Minecraft189RuntimeBridge {
                             .customMcNativeEntityUuid() : null;
             if (!expected.equals(actual)) {
                 if (Boolean.getBoolean(
+                        "custommc.acceptance.requireUnlockedAuraOwnerVeto")
+                        && !acceptanceUnlockedOwnerVetoReported) {
+                    if (!expected.equals(acceptanceUnlockedLocalUuid)
+                            || actual == null
+                            || !actual.equals(acceptanceUnlockedRemoteUuid))
+                        throw new IllegalStateException(
+                                "M423 unexpected native unlocked mismatch"
+                                + " expected=" + expected + " actual=" + actual);
+                    acceptanceUnlockedOwnerVetoReported = true;
+                    System.out.println(
+                            "CUSTOMMC_189_UNLOCKED_AURA_NATIVE_LOCAL_INTENT_REMOTE_ARGUMENT_VETO_PASS=YES");
+                    System.out.flush();
+                }
+                if (Boolean.getBoolean(
                         "custommc.acceptance.requireScopedAuraOwnerVeto"))
                     Minecraft189RejoinTargetAcceptance
                             .verifyScopedOwnerVeto(expected, actual);
                 return false; // BEFORE vanilla ATTACK packet side effects.
+            }
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireUnlockedAuraOwnerVeto")
+                    && acceptanceUnlockedOwnerVetoReported
+                    && !acceptanceUnlockedOwnerFreshReported) {
+                if (actual == null
+                        || !actual.equals(acceptanceUnlockedRemoteUuid)
+                        || !expected.equals(acceptanceUnlockedRemoteUuid))
+                    throw new IllegalStateException(
+                            "M423 fresh unlocked remote UUID mismatch");
+                acceptanceUnlockedOwnerFreshReported = true;
+                System.out.println(
+                        "CUSTOMMC_189_UNLOCKED_AURA_FRESH_NATIVE_REMOTE_DISPATCH_PASS=YES");
+                System.out.flush();
             }
             if (Boolean.getBoolean(
                     "custommc.acceptance.requireScopedAuraOwnerVeto"))
