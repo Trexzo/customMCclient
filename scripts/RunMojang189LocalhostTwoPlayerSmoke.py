@@ -688,6 +688,25 @@ def run(args):
             # state proof, and B's genuine original damage score remains.
             send_server_command(server, server_log, "gamemode 1 CITargetB")
             send_server_command(server, server_log, b_outer)
+            if args.require_index_reorder:
+                # M417's native list position changed naturally in the
+                # certified run, but a later identical-world rerun could
+                # reuse A's exact prior numeric index. Place one genuine,
+                # inert vanilla server ArmorStand in the loaded chunk
+                # BEFORE the new A client reconnects. This tests an actual
+                # list reorder caused by normal world/entity events, not
+                # a fabricated client array or a weakened equality check.
+                parts = a_near.split()
+                if len(parts) != 7 or parts[:2] != ["tp", "CITarget"]:
+                    raise AssertionError("cannot derive real spawn sentinel")
+                ax, ay, az = (int(value) for value in parts[2:5])
+                sentinel = "summon ArmorStand {} {} {}".format(
+                    ax + 6, ay, az + 6)
+                send_server_command(server, server_log, sentinel,
+                                    expected=b"Object successfully summoned")
+                print("CUSTOMMC_189_REJOIN_NATIVE_SERVER_SENTINEL_SUMMONED=YES",
+                      flush=True)
+                time.sleep(0.8)
             cmd_rejoin = client_command(
                 args, root / "target-rejoin-game", "CITarget",
                 "00000000000000000000000000000002", port, remote=False)
