@@ -28,6 +28,8 @@ AURA_ENABLED = b"CUSTOMMC_189_KILLAURA_PLAYER_MODULE_ENABLE_PASS=YES"
 AURA_ATTACK = b"CUSTOMMC_189_KILLAURA_SYNTHETIC_PLAYER_ATTACK_PASS=YES"
 CONTROLLER_ATTACK = b"CUSTOMMC_189_MOJANG_PLAYER_CONTROLLER_ATTACK_ENTITY_ENTERED=YES"
 AURA_HURT = b"CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HURT_PASS=YES"
+UNLOCKED_SCOPE_VETO = b"CUSTOMMC_189_UNLOCKED_AURA_NATIVE_LOCAL_INTENT_REMOTE_ARGUMENT_VETO_PASS=YES"
+UNLOCKED_SCOPE_FRESH = b"CUSTOMMC_189_UNLOCKED_AURA_FRESH_NATIVE_REMOTE_DISPATCH_PASS=YES"
 RANGE_DISABLED = b"CUSTOMMC_189_KILLAURA_RANGE_DISABLED_TICKS_PASS=20"
 RANGE_ENABLED = b"CUSTOMMC_189_KILLAURA_RANGE_MODULE_ENABLE_PASS=YES"
 RANGE_VETO = b"CUSTOMMC_OFFICIAL_189_KILLAURA_REAL_PLAYER_RANGE_VETO_PASS=YES"
@@ -519,6 +521,9 @@ def client_command(args, game, username, uuid, port, remote):
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.targetBUuid=" + official_offline_uuid("CITargetB"))
     if remote and args.pvp:
+        if args.unlocked_scoped_veto:
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.requireUnlockedAuraOwnerVeto=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportVanillaMelee=true")
         command.insert(command.index("-cp"),
@@ -1224,7 +1229,12 @@ def run(args):
             print("CUSTOMMC_189_SERVER_TARGET_DAMAGE_BASELINE_ZERO_PASS=YES",
                   flush=True)
             send_server_command(server, server_log, "gamemode 0 CIHost")
-            send_server_command(server, server_log, "gamemode 0 CITarget")
+            # Hold the real remote player in vanilla creative until the
+            # required mismatched original controller attempt was rejected.
+            # The authoritative scoreboard must remain zero at the veto.
+            send_server_command(server, server_log,
+                                "gamemode 1 CITarget" if args.unlocked_scoped_veto
+                                else "gamemode 0 CITarget")
             send_server_command(server, server_log, "gamerule naturalRegeneration false")
             # The dedicated server generates a new FLAT spawn for each
             # trial. Teleporting BOTH clients to 0,0 can leave the remote
@@ -1244,6 +1254,15 @@ def run(args):
                      "20 disabled genuine nonlocal player target callbacks")
             wait_for(host, host_log, AURA_ENABLED, deadline,
                      "normal real-player Kill Aura module enable")
+            if args.unlocked_scoped_veto:
+                wait_for(host, host_log, UNLOCKED_SCOPE_VETO, deadline,
+                         "original native controller rejected genuine local UUID scoped as remote")
+                send_server_command(server, server_log,
+                                    "scoreboard players test CITarget taken 0 0",
+                                    expected=b"score 0 is in range 0 to 0")
+                send_server_command(server, server_log, "gamemode 0 CITarget")
+                wait_for(host, host_log, UNLOCKED_SCOPE_FRESH, deadline,
+                         "original controller dispatch accepted real remote native UUID")
             wait_for(host, host_log, AURA_ATTACK, deadline,
                      "host-owned Kill Aura synthetic rotated player attack")
             print("CUSTOMMC_189_CLIENT_AURA_CLICK_OBSERVED=YES", flush=True)
@@ -1340,6 +1359,9 @@ def run(args):
         if args.pvp:
             print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_PLAYER_PVP_PASS=YES",
                   flush=True)
+            if args.unlocked_scoped_veto:
+                print("CUSTOMMC_OFFICIAL_189_UNLOCKED_AURA_NATIVE_UUID_VETO_AND_FRESH_REMOTE_DAMAGE_PASS=YES",
+                      flush=True)
         elif args.range_veto:
             print("CUSTOMMC_OFFICIAL_189_REAL_KILLAURA_RANGE_NEGATIVE_PASS=YES",
                   flush=True)
@@ -1389,6 +1411,8 @@ def main():
                         help="prove genuine vanilla controller B attack and fresh B server damage while A survival remains undamaged")
     parser.add_argument("--require-controller-entity-uuid", action="store_true",
                         help="require actual Mojang controller attackEntity argument UUID equals locked native B")
+    parser.add_argument("--unlocked-scoped-veto", action="store_true",
+                        help="isolated real local-UUID owner negative on unlocked Aura plus fresh remote server damage")
     parser.add_argument("--require-scoped-aura-owner-veto", action="store_true",
                         help="verify production scoped Aura outgoing UUID veto using real stale B intent and fresh A damage")
     parser.add_argument("--require-stale-dispatch-veto", action="store_true",
@@ -1417,6 +1441,8 @@ def main():
     group.add_argument("--fov-veto", action="store_true",
                        help="prove in-range real player behind camera is excluded")
     args = parser.parse_args()
+    if args.unlocked_scoped_veto and not args.pvp:
+        parser.error("--unlocked-scoped-veto requires --pvp")
     if args.require_index_reorder and not args.rejoin_release:
         parser.error("--require-index-reorder requires --rejoin-release")
     if args.require_wrong_target_veto and (
