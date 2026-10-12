@@ -24,6 +24,8 @@ public final class Minecraft189RuntimeBridge {
     private static boolean acceptanceRemotePairFreshReported;
     private static UUID acceptanceRemotePairSelectedUuid;
     private static UUID acceptanceRemotePairOtherUuid;
+    // M425 opt-in genuine manual melee witness, never production behavior.
+    private static boolean acceptanceManualUnscopedNativeReported;
     private static int graphicalAcceptanceFrames;
     private static boolean graphicalAcceptanceReported;
     private static boolean acceptancePlayerObserved;
@@ -92,6 +94,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceRemotePairFreshReported = false;
         acceptanceRemotePairSelectedUuid = null;
         acceptanceRemotePairOtherUuid = null;
+        acceptanceManualUnscopedNativeReported = false;
         graphicalAcceptanceFrames = 0;
         graphicalAcceptanceReported = false;
         acceptancePlayerObserved = false;
@@ -1574,6 +1577,27 @@ public final class Minecraft189RuntimeBridge {
             final Object controller, final Object player,
             final Object entity) {
         final UUID expected = auraDispatchUuid.get();
+        // A real vanilla mouse click must reach the native controller
+        // WITHOUT the Kill Aura-only thread-local owner. Do not claim this
+        // from the click callback alone: require the actual mapped entity.
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireManualUnscopedNativeController")) {
+            if (expected != null
+                    || activeRuntime == null || !activeRuntime.hostInstalled()
+                    || activeRuntime.requireHostRuntime()
+                            .featureCatalog().killAura().active()
+                    || !(entity instanceof Minecraft189NativeEntityUuidAccess)
+                    || ((Minecraft189NativeEntityUuidAccess) entity)
+                            .customMcNativeEntityUuid() == null)
+                throw new IllegalStateException(
+                        "M425 native manual melee escaped unscoped controller evidence");
+            if (!acceptanceManualUnscopedNativeReported) {
+                acceptanceManualUnscopedNativeReported = true;
+                System.out.println(
+                        "CUSTOMMC_189_MANUAL_NATIVE_CONTROLLER_UNSCOPED_UUID_PASS=YES");
+                System.out.flush();
+            }
+        }
         if (expected != null) {
             // This is the real mapped outgoing method ARGUMENT, not a
             // reconstructed crosshair list index or rotation projection.

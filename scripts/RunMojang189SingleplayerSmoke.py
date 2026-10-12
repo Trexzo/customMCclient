@@ -19,6 +19,7 @@ FRAME = b"CUSTOMMC_OFFICIAL_189_OPENGL_FRAME_PASS=YES"
 WORLD = b"CUSTOMMC_OFFICIAL_189_LIVE_WORLD_TICKS_PASS=YES"
 MELEE_ARMED = b"CUSTOMMC_189_VANILLA_MELEE_TARGET_ARMED=YES"
 MELEE_HURT = b"CUSTOMMC_OFFICIAL_189_REAL_ENTITY_HURT_AFTER_VANILLA_CLICK_PASS=YES"
+MANUAL_NATIVE_UNSCOPED = b"CUSTOMMC_189_MANUAL_NATIVE_CONTROLLER_UNSCOPED_UUID_PASS=YES"
 AUTO_DISABLED = b"CUSTOMMC_189_AUTOCLICKER_DISABLED_TARGET_TICKS_PASS=20"
 AUTO_ENABLED = b"CUSTOMMC_189_AUTOCLICKER_NORMAL_MODULE_ENABLE_PASS=YES"
 AUTO_ARMED = b"CUSTOMMC_189_AUTOCLICKER_REAL_TARGET_ARMED=YES"
@@ -161,6 +162,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
     if controlled_combat:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportVanillaMelee=true")
+    if attack:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireManualUnscopedNativeController=true")
     if auto_clicker:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportAutoClicker=true")
@@ -316,7 +320,12 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                     await_marker(process, log, MELEE_HURT,
                                  min(deadline, time.monotonic() + 12),
                                  "same real loaded entity becoming hurt")
+                    await_marker(process, log, MANUAL_NATIVE_UNSCOPED,
+                                 min(deadline, time.monotonic() + 8),
+                                 "genuine vanilla manual attackEntity UUID with no Aura scope")
                     print("CUSTOMMC_OFFICIAL_189_REAL_VANILLA_MELEE_DAMAGE_PASS=YES",
+                          flush=True)
+                    print("CUSTOMMC_OFFICIAL_189_MANUAL_UNSCOPED_UUID_AND_HURT_PASS=YES",
                           flush=True)
             else:
                 print("CUSTOMMC_OFFICIAL_189_COMBAT_DAMAGE_TESTED=NO")
