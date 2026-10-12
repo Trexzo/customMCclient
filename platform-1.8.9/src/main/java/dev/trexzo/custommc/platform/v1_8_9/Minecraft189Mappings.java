@@ -90,6 +90,18 @@ public final class Minecraft189Mappings {
     // Official MCP 1.8.9 aug = AxisAlignedBB (not a guessed collision shape).
     public static final MappedClass AXIS_ALIGNED_BB =
             new MappedClass("aug", "net/minecraft/util/AxisAlignedBB");
+    // V12: source-pinned vanilla right-click block-placement authority.
+    // Coordinates/face/hit vector are real original Minecraft 1.8.9 types;
+    // these mappings are NOT a synthetic Scaffold placement interface.
+    public static final MappedClass BLOCK_POS =
+            new MappedClass("cj", "net/minecraft/util/BlockPos");
+    public static final MappedClass ENUM_FACING =
+            new MappedClass("cq", "net/minecraft/util/EnumFacing");
+    public static final MappedClass VEC3 =
+            new MappedClass("aui", "net/minecraft/util/Vec3");
+    public static final MappedClass C08_PACKET_PLAYER_BLOCK_PLACEMENT =
+            new MappedClass("ja",
+                    "net/minecraft/network/play/client/C08PacketPlayerBlockPlacement");
     public static final MappedClass ITEM_STACK =
             new MappedClass(
                     "zx",
@@ -635,6 +647,14 @@ public final class Minecraft189Mappings {
                     "()V",
                     "func_147121_ag",
                     "rightClickMouse");
+    // V12: exact original Minecraft -> PlayerControllerMP placement seam.
+    // PlayerControllerMP.a(EntityPlayerSP,WorldClient,ItemStack,
+    // BlockPos,EnumFacing,Vec3):boolean. No new packet generation here.
+    public static final MappedMethod PLAYER_CONTROLLER_RIGHT_CLICK_BLOCK =
+            new MappedMethod(PLAYER_CONTROLLER_MP, "a",
+                    "(Lbew;Lbdb;Lzx;Lcj;Lcq;Laui;)Z",
+                    "func_178890_a", "onPlayerRightClick");
+
     // Pinned Minecraft 1.8.9 joined.srg source mapping.
     // Exact Minecraft 1.8.9 joined.srg native raycast dependencies.
     public static final MappedMethod PLAYER_CONTROLLER_ATTACK_ENTITY =
