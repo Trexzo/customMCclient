@@ -333,12 +333,20 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # Vanilla yaw=0 faces +Z; W approaches the missing support.
                 resume_if_paused(process, log, window)
                 send_command(process, log, window, "/time set 1000")
+                # Vanilla /fill refuses chunks outside the loaded world.
+                # Move the real player to the destination before modifying it.
+                # A high staging Y keeps the player above the future platform.
+                send_command(process, log, window,
+                             "/tp 0.5 120 0.5 0 0")
+                time.sleep(2.0)
                 send_command(process, log, window,
                              "/fill -4 99 -2 4 99 2 stone")
                 send_command(process, log, window,
                              "/fill -4 99 3 4 99 10 air")
                 send_command(process, log, window,
                              "/fill -4 100 -2 4 104 10 air")
+                if b"Cannot place blocks outside of the world" in read_tail(log):
+                    raise AssertionError("actual vanilla /fill rejected unloaded target chunks")
                 send_command(process, log, window,
                              "/tp 0.5 100 0.5 0 0")
                 start = time.monotonic()
@@ -352,6 +360,12 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                     time.sleep(0.15)
                 else:
                     raise AssertionError("actual local player never reached ledge start")
+                # Require continuous real solid support before sending W;
+                # a one-tick /tp coordinate is not evidence of a block.
+                time.sleep(0.7)
+                stationary = native_safe_walk_positions(log)[-5:]
+                if len(stationary) < 3 or any(y < 99.95 for _, y, _ in stationary):
+                    raise AssertionError("no stable native collision support on the actual stone platform")
                 start_count = len(native_safe_walk_positions(log))
                 xdotool("windowactivate", "--sync", window)
                 resume_if_paused(process, log, window)
