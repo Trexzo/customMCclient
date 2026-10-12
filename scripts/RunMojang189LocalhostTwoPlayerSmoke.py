@@ -61,6 +61,9 @@ REJOIN_REAL_INDEX_REORDER = b"CUSTOMMC_OFFICIAL_189_REJOIN_ACTUAL_INDEX_REORDER_
 REJOIN_WRONG_UUID_VETO = b"CUSTOMMC_189_REJOIN_WRONG_IN_RANGE_UUID_PROPOSAL_VETO_PASS=YES"
 REJOIN_REAL_CONTROLLER_B = b"CUSTOMMC_189_REJOIN_REAL_B_NATIVE_CONTROLLER_UUID_PASS=YES"
 REJOIN_CONTROLLER_ARGUMENT_UUID_B = b"CUSTOMMC_189_REJOIN_NATIVE_CONTROLLER_ENTITY_UUID_B_PASS=YES"
+REJOIN_STALE_INTENT = b"CUSTOMMC_189_REAL_B_PRE_EXIT_INTENT_CAPTURED_PASS=YES"
+REJOIN_STALE_DISPATCH_VETO = b"CUSTOMMC_189_REAL_B_EXIT_STALE_CONTROLLER_DISPATCH_VETO_PASS=YES"
+REJOIN_FRESH_A_DISPATCH = b"CUSTOMMC_189_REAL_A_FRESH_CONTROLLER_DISPATCH_PASS=YES"
 MULTI_READY = b"CUSTOMMC_189_MULTI_TWO_REAL_UUID_PLAYERS_PASS=YES"
 MULTI_HIT_A = b"CUSTOMMC_189_MULTI_UUID_A_OWNED_ATTACK_PASS=YES"
 MULTI_SWITCH = b"CUSTOMMC_189_MULTI_TARGET_SWITCH_TO_UUID_B_PASS=YES"
@@ -482,6 +485,9 @@ def client_command(args, game, username, uuid, port, remote):
         if args.require_controller_entity_uuid:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireRejoinedControllerEntityUuid=true")
+        if args.require_stale_dispatch_veto:
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.requireStaleDispatchVeto=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.targetAUuid=" + official_offline_uuid("CITarget"))
         command.insert(command.index("-cp"),
@@ -743,6 +749,9 @@ def run(args):
             if args.require_wrong_target_veto:
                 wait_for(host, host_log, REJOIN_WRONG_UUID_VETO, deadline,
                          "in-range wrong native A UUID proposal rejected while B locked")
+            if args.require_stale_dispatch_veto:
+                wait_for(host, host_log, REJOIN_STALE_INTENT, deadline,
+                         "genuine locked B UUID retained as pre-exit attack intent")
             if args.require_rejoined_controller_b:
                 # Prior genuine B positive damage is already certified here.
                 # Reset the REAL B scoreboard to zero, make both real remote
@@ -820,10 +829,19 @@ def run(args):
                                     expected=b"score 0 is in range 0 to 0")
                 # The fresh player A is creative for the identity gate only.
                 # Switch to vanilla survival and require REAL server damage.
+                if args.require_stale_dispatch_veto:
+                    wait_for(host, host_log, REJOIN_STALE_DISPATCH_VETO,
+                             deadline, "original attackEntity rejects stale B intent after real exit")
+                    send_server_command(server, server_log,
+                                        "scoreboard players test CITarget taken 0 0",
+                                        expected=b"score 0 is in range 0 to 0")
                 send_server_command(server, server_log,
                                     "gamemode 0 CITarget")
                 wait_for(host, host_log, REJOIN_A_HIT, deadline,
                          "fresh source-native A UUID owns real Aura click")
+                if args.require_stale_dispatch_veto:
+                    wait_for(host, host_log, REJOIN_FRESH_A_DISPATCH,
+                             deadline, "fresh native controller dispatch owns actual A UUID")
                 wait_for_real_score(server, server_log, "CITarget", deadline)
                 send_server_command(server, server_log,
                                     "scoreboard players test CITargetB taken 1 999999",
@@ -1277,6 +1295,9 @@ def run(args):
         if args.rejoin_release and not args.require_rejoined_controller_b:
             print("CUSTOMMC_OFFICIAL_189_SURVIVOR_DISCONNECT_UUID_REACQUIRE_PASS=YES",
                   flush=True)
+            if args.require_stale_dispatch_veto:
+                print("CUSTOMMC_OFFICIAL_189_REAL_EXIT_STALE_B_DISPATCH_VETO_AND_FRESH_A_DAMAGE_PASS=YES",
+                      flush=True)
         if args.require_wrong_target_veto:
             print("CUSTOMMC_OFFICIAL_189_REJOIN_WRONG_UUID_CLICK_VETO_PASS=YES",
                   flush=True)
@@ -1344,6 +1365,8 @@ def main():
                         help="prove genuine vanilla controller B attack and fresh B server damage while A survival remains undamaged")
     parser.add_argument("--require-controller-entity-uuid", action="store_true",
                         help="require actual Mojang controller attackEntity argument UUID equals locked native B")
+    parser.add_argument("--require-stale-dispatch-veto", action="store_true",
+                        help="veto once at real controller boundary using retained genuine B intent after B disconnect and fresh A reacquire")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--rejoin-release", action="store_true",
                        help="real A disconnect/rejoin, then real B disconnect; reacquire fresh A UUID and damage")
@@ -1379,6 +1402,10 @@ def main():
         parser.error("--require-rejoined-controller-b requires --rejoin-release --require-index-reorder --require-wrong-target-veto")
     if args.require_controller_entity_uuid and not args.require_rejoined_controller_b:
         parser.error("--require-controller-entity-uuid requires --require-rejoined-controller-b")
+    if args.require_stale_dispatch_veto and (
+            not args.rejoin_release or not args.require_index_reorder
+            or not args.require_wrong_target_veto or args.require_rejoined_controller_b):
+        parser.error("--require-stale-dispatch-veto requires --rejoin-release --require-index-reorder --require-wrong-target-veto and excludes --require-rejoined-controller-b")
     run(args)
 
 

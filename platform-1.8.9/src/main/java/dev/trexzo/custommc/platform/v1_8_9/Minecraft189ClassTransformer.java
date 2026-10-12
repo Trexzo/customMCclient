@@ -2438,6 +2438,22 @@ public final class Minecraft189ClassTransformer
                                 @Override
                                 public void visitCode() {
                                     super.visitCode();
+                                    // M421: opt-in early veto at ORIGINAL Mojang
+                                    // attackEntity entry, before packet effects.
+                                    final Label permitted = new Label();
+                                    super.visitVarInsn(Opcodes.ALOAD, 0);
+                                    super.visitVarInsn(Opcodes.ALOAD, 1);
+                                    super.visitVarInsn(Opcodes.ALOAD, 2);
+                                    super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                            RUNTIME_BRIDGE_INTERNAL_NAME,
+                                            "acceptanceControllerDispatchAllowed",
+                                            "(Ljava/lang/Object;Ljava/lang/Object;"
+                                                    + "Ljava/lang/Object;)Z",
+                                            false);
+                                    super.visitJumpInsn(Opcodes.IFNE, permitted);
+                                    super.visitInsn(Opcodes.RETURN);
+                                    super.visitLabel(permitted);
+                                    super.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
                                     super.visitVarInsn(Opcodes.ALOAD, 0);
                                     super.visitVarInsn(Opcodes.ALOAD, 1);
                                     super.visitVarInsn(Opcodes.ALOAD, 2);

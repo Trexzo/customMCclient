@@ -1438,6 +1438,23 @@ public final class Minecraft189RuntimeBridge {
      * reached after clickMouse's left-click cooldown/focus guard. This does
      * not generate an ATTACK packet or infer server-side damage.
      */
+    /**
+     * Opt-in M421 native controller dispatch veto, before any vanilla
+     * outgoing attack side effects. Ordinary gameplay always returns true.
+     */
+    public static synchronized boolean acceptanceControllerDispatchAllowed(
+            final Object controller, final Object player,
+            final Object entity) {
+        if (!Boolean.getBoolean(
+                "custommc.acceptance.requireStaleDispatchVeto"))
+            return true;
+        if (activeRuntime == null || !activeRuntime.hostInstalled())
+            throw new IllegalStateException(
+                    "M421 controller missing genuine installed host");
+        return Minecraft189RejoinTargetAcceptance.allowStaleDispatchAfterRealExit(
+                activeRuntime.requireHostRuntime(), controller, player, entity);
+    }
+
     public static synchronized void acceptanceControllerAttackEntity(
             final Object controller, final Object player,
             final Object entity) {
