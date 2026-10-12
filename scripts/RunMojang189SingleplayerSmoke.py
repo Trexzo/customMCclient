@@ -149,23 +149,48 @@ def send_command(process, log, window, command):
           flush=True)
 
 
+def native_safe_walk_positions(log):
+    """Native per-tick positions from source-mapped local player, never GUI guesses."""
+    prefix = b"CUSTOMMC_189_NATIVE_LOCAL_POS="
+    samples = []
+    for line in read_tail(log).splitlines():
+        if prefix not in line:
+            continue
+        parts = line.split(prefix, 1)[1].decode("ascii", "strict").split()
+        if len(parts) != 3 or not all(part.startswith(
+                key) for part, key in zip(parts, ("x=", "y=", "z="))):
+            raise AssertionError("malformed native SafeWalk position witness")
+        xyz = tuple(float(part[2:]) for part in parts)
+        if any(not (-30000000.0 < value < 30000000.0) for value in xyz):
+            raise AssertionError("invalid native SafeWalk player coordinates")
+        samples.append(xyz)
+    return samples
+
+
 def run(command, game, timeout, attack=False, auto_clicker=False,
         kill_aura_nonplayer=False, native_world_camera=False,
-        native_safe_walk=False):
+        native_safe_walk=False, safe_walk_edge=None):
     if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer)) > 1:
         raise ValueError("manual and module combat tests are exclusive")
     controlled_combat = attack or auto_clicker or kill_aura_nonplayer
+    if safe_walk_edge not in (None, "enabled", "disabled"):
+        raise ValueError("invalid SafeWalk edge control")
+    if safe_walk_edge and (controlled_combat or native_safe_walk):
+        raise ValueError("SafeWalk ledge fixture must be independent")
     # A real rendered world camera requires a focused Minecraft window;
     # vanilla singleplayer otherwise automatically opens the pause GUI.
-    needs_active_window = controlled_combat or native_world_camera or native_safe_walk
+    needs_active_window = controlled_combat or native_world_camera or native_safe_walk or bool(safe_walk_edge)
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
         raise ValueError("singleplayer timeout must be 70..240 seconds")
     # Java flags must precede the class name.
-    if native_safe_walk:
+    if native_safe_walk or safe_walk_edge == "enabled":
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireNativeSafeWalk=true")
+    if safe_walk_edge:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true")
     if native_world_camera:
         command.insert(command.index("-cp"),
                        "-Dcustommc.visuals.captureNativeWorldCamera=true")
@@ -259,7 +284,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
             # Actual 1.8.9 GuiCreateWorld Game Mode button is centered
             # at x427,y125. Survival -> Hardcore -> Creative; Creative
             # enables commands unless explicitly overridden.
-            if controlled_combat:
+            if controlled_combat or safe_walk_edge:
                 if create_screen != b"axb":
                     raise AssertionError("unexpected create-world GUI")
                 click(window, 427, 125)
@@ -302,6 +327,60 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                     xdotool("keyup", "--window", window, "w")
                 print("CUSTOMMC_OFFICIAL_189_ORIGINAL_SAFEWALK_MOVEMENT_HOOK_PASS=YES",
                       flush=True)
+            if safe_walk_edge:
+                # Genuine offline integrated-server terrain, not a fake
+                # collision AABB. A thin elevated solid ledge ends at z=3.
+                # Vanilla yaw=0 faces +Z; W approaches the missing support.
+                resume_if_paused(process, log, window)
+                send_command(process, log, window, "/time set 1000")
+                send_command(process, log, window,
+                             "/fill -4 99 -2 4 99 2 stone")
+                send_command(process, log, window,
+                             "/fill -4 99 3 4 99 10 air")
+                send_command(process, log, window,
+                             "/fill -4 100 -2 4 104 10 air")
+                send_command(process, log, window,
+                             "/tp 0.5 100 0.5 0 0")
+                start = time.monotonic()
+                while time.monotonic() - start < 8:
+                    readings = native_safe_walk_positions(log)
+                    if readings and abs(readings[-1][0] - 0.5) < 0.3 \\
+                            and abs(readings[-1][1] - 100.0) < 0.2 \\
+                            and abs(readings[-1][2] - 0.5) < 0.3:
+                        break
+                    require_running(process, "native ledge preflight")
+                    time.sleep(0.15)
+                else:
+                    raise AssertionError("actual local player never reached ledge start")
+                start_count = len(native_safe_walk_positions(log))
+                xdotool("windowactivate", "--sync", window)
+                resume_if_paused(process, log, window)
+                xdotool("keydown", "--window", window, "w")
+                try:
+                    time.sleep(2.5)
+                finally:
+                    xdotool("keyup", "--window", window, "w")
+                readings = native_safe_walk_positions(log)[start_count:]
+                if len(readings) < 5:
+                    raise AssertionError("not enough genuine local movement samples")
+                maximum_z = max(z for _, _, z in readings)
+                minimum_y = min(y for _, y, _ in readings)
+                print("CUSTOMMC_189_SAFEWALK_LEDGE_OBSERVED_MAX_Z="
+                      + str(maximum_z) + " MIN_Y=" + str(minimum_y),
+                      flush=True)
+                if safe_walk_edge == "enabled":
+                    await_marker(process, log,
+                                 b"CUSTOMMC_OFFICIAL_189_NATIVE_LOCAL_SAFEWALK_BRANCH_PASS=YES",
+                                 deadline, "true original native SafeWalk branch")
+                    if not 1.4 <= maximum_z < 3.5 or minimum_y < 99.95:
+                        raise AssertionError("SafeWalk did not keep the local player on the real ledge")
+                    print("CUSTOMMC_OFFICIAL_189_SAFEWALK_REAL_LEDGE_GUARD_PASS=YES",
+                          flush=True)
+                else:
+                    if maximum_z < 4.0:
+                        raise AssertionError("disabled SafeWalk negative control did not cross real ledge")
+                    print("CUSTOMMC_OFFICIAL_189_SAFEWALK_DISABLED_REAL_EDGE_EXIT_PASS=YES",
+                          flush=True)
             require_running(process, "post world checkpoint")
             time.sleep(2)
             require_running(process, "world stability")
@@ -422,6 +501,8 @@ if __name__ == "__main__":
                         help="require actual OpenGL perspective camera matrix from vanilla world pass")
     parser.add_argument("--native-safe-walk", action="store_true",
                         help="prove native local moveEntity collision branch with module active")
+    parser.add_argument("--safe-walk-edge", choices=("enabled", "disabled"),
+                        help="test genuine elevated block ledge with local SafeWalk on/off")
     args = parser.parse_args()
     try:
         command = build_command(
@@ -432,7 +513,8 @@ if __name__ == "__main__":
             auto_clicker=args.auto_clicker,
             kill_aura_nonplayer=args.kill_aura_nonplayer,
             native_world_camera=args.native_world_camera,
-            native_safe_walk=args.native_safe_walk)
+            native_safe_walk=args.native_safe_walk,
+            safe_walk_edge=args.safe_walk_edge)
     except Exception as failure:
         print("CUSTOMMC_189_SINGLEPLAYER_WORLD_FAILED: " + str(failure),
               file=sys.stderr)
