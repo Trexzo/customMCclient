@@ -1520,8 +1520,11 @@ public final class Minecraft189HostRuntime
                 || Boolean.getBoolean("custommc.acceptance.reportKillAuraLockedTarget")
                 || Boolean.getBoolean("custommc.acceptance.reportKillAuraSimultaneous")
                 || Boolean.getBoolean("custommc.acceptance.reportKillAuraMultiTarget")
-                || (featureCatalog.killAura().active()
-                        && featureCatalog.killAura().lockTargetSetting().get())
+                // M422 native outgoing UUID guard needs the exact-world UUID
+                // evidence for EVERY active Aura-owned attack, even when
+                // sticky target locking is disabled (default local PvP).
+                // Without it, an unlocked Aura would fail closed forever.
+                || featureCatalog.killAura().active()
                 || featureCatalog.friendGuard().requiresIdentity()
                 || featureCatalog.wallCheck().active();
     }
