@@ -60,6 +60,7 @@ REJOIN_A_HIT = b"CUSTOMMC_189_REJOIN_FRESH_A_NATIVE_OWNED_ATTACK_PASS=YES"
 REJOIN_REAL_INDEX_REORDER = b"CUSTOMMC_OFFICIAL_189_REJOIN_ACTUAL_INDEX_REORDER_PASS=YES"
 REJOIN_WRONG_UUID_VETO = b"CUSTOMMC_189_REJOIN_WRONG_IN_RANGE_UUID_PROPOSAL_VETO_PASS=YES"
 REJOIN_REAL_CONTROLLER_B = b"CUSTOMMC_189_REJOIN_REAL_B_NATIVE_CONTROLLER_UUID_PASS=YES"
+REJOIN_CONTROLLER_ARGUMENT_UUID_B = b"CUSTOMMC_189_REJOIN_NATIVE_CONTROLLER_ENTITY_UUID_B_PASS=YES"
 MULTI_READY = b"CUSTOMMC_189_MULTI_TWO_REAL_UUID_PLAYERS_PASS=YES"
 MULTI_HIT_A = b"CUSTOMMC_189_MULTI_UUID_A_OWNED_ATTACK_PASS=YES"
 MULTI_SWITCH = b"CUSTOMMC_189_MULTI_TARGET_SWITCH_TO_UUID_B_PASS=YES"
@@ -478,6 +479,9 @@ def client_command(args, game, username, uuid, port, remote):
         if args.require_rejoined_controller_b:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireRejoinedControllerB=true")
+        if args.require_controller_entity_uuid:
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.requireRejoinedControllerEntityUuid=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.targetAUuid=" + official_offline_uuid("CITarget"))
         command.insert(command.index("-cp"),
@@ -765,6 +769,9 @@ def run(args):
                 send_server_command(server,server_log,"gamemode 0 CITargetB")
                 wait_for(host,host_log,REJOIN_REAL_CONTROLLER_B,deadline,
                          "original vanilla player controller owns rejoined-phase UUID B")
+                if args.require_controller_entity_uuid:
+                    wait_for(host,host_log,REJOIN_CONTROLLER_ARGUMENT_UUID_B,deadline,
+                             "actual original Mojang attackEntity argument exact B UUID")
                 wait_for_real_score(server,server_log,"CITargetB",deadline)
                 send_server_command(server,server_log,
                                     "scoreboard players test CITarget taken 0 0",
@@ -785,6 +792,9 @@ def run(args):
                 check_process(server, "M419 dedicated server after damage proof")
                 print("CUSTOMMC_OFFICIAL_189_REJOIN_CONTROLLER_B_SERVER_DAMAGE_PASS=YES",
                       flush=True)
+                if args.require_controller_entity_uuid:
+                    print("CUSTOMMC_OFFICIAL_189_NATIVE_CONTROLLER_ENTITY_UUID_B_SERVER_DAMAGE_PASS=YES",
+                          flush=True)
                 return
             send_server_command(server, server_log,
                                 "scoreboard players test CITarget taken 0 0",
@@ -1332,6 +1342,8 @@ def main():
                         help="exercise original native click gate against in-range wrong UUID after rejoin")
     parser.add_argument("--require-rejoined-controller-b", action="store_true",
                         help="prove genuine vanilla controller B attack and fresh B server damage while A survival remains undamaged")
+    parser.add_argument("--require-controller-entity-uuid", action="store_true",
+                        help="require actual Mojang controller attackEntity argument UUID equals locked native B")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--rejoin-release", action="store_true",
                        help="real A disconnect/rejoin, then real B disconnect; reacquire fresh A UUID and damage")
@@ -1365,6 +1377,8 @@ def main():
             not args.rejoin_release or not args.require_index_reorder
             or not args.require_wrong_target_veto):
         parser.error("--require-rejoined-controller-b requires --rejoin-release --require-index-reorder --require-wrong-target-veto")
+    if args.require_controller_entity_uuid and not args.require_rejoined_controller_b:
+        parser.error("--require-controller-entity-uuid requires --require-rejoined-controller-b")
     run(args)
 
 
