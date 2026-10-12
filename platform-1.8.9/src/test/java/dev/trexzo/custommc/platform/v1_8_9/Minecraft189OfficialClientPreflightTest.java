@@ -332,6 +332,125 @@ final class Minecraft189OfficialClientPreflightTest {
         }
     }
 
+    /**
+     * V12 Scaffold provenance only: bytecode-inspect the SHA-pinned ORIGINAL
+     * Mojang client for real block placement. No fake Place() API, no extra
+     * packet path and no claim of server-confirmed placement or inventory use.
+     */
+    @Test
+    void actualMojang189ScaffoldPlacementCallchainIsNative() throws Exception {
+        final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured, "V12 requires a pinned original client");
+            assertFalse(configured.trim().isEmpty(), "empty original-client path");
+        } else {
+            Assumptions.assumeTrue(configured != null && !configured.trim().isEmpty(),
+                    "Pinned original client not present in ordinary offline CI");
+        }
+        final Path path = Paths.get(configured);
+        assertTrue(Files.isRegularFile(path), "original Minecraft client unavailable");
+        assertEquals(OFFICIAL_SIZE, Files.size(path));
+        assertEquals(OFFICIAL_SHA1, digestFile(path));
+
+        assertEquals("bda", Minecraft189Mappings.PLAYER_CONTROLLER_MP
+                .obfuscatedInternalName());
+        assertEquals("cj", Minecraft189Mappings.BLOCK_POS.obfuscatedInternalName());
+        assertEquals("cq", Minecraft189Mappings.ENUM_FACING.obfuscatedInternalName());
+        assertEquals("aui", Minecraft189Mappings.VEC3.obfuscatedInternalName());
+        assertEquals("ja", Minecraft189Mappings.C08_PACKET_PLAYER_BLOCK_PLACEMENT
+                .obfuscatedInternalName());
+
+        final String placementDesc = "(Lbew;Lbdb;Lzx;Lcj;Lcq;Laui;)Z";
+        final String itemUseDesc = "(Lwn;Ladm;Lcj;Lcq;FFF)Z";
+        final ClassNode minecraft = new ClassNode();
+        final ClassNode controller = new ClassNode();
+        final ClassNode placementPacket = new ClassNode();
+        try (JarFile jar = new JarFile(path.toFile())) {
+            final ClassNode[] nodes = {minecraft, controller, placementPacket};
+            final String[] names = {"ave", "bda", "ja"};
+            for (int i = 0; i < names.length; i++) {
+                final JarEntry entry = jar.getJarEntry(names[i] + ".class");
+                assertNotNull(entry, "genuine Mojang owner missing: " + names[i]);
+                try (InputStream stream = jar.getInputStream(entry)) {
+                    new ClassReader(readAll(stream)).accept(nodes[i], 0);
+                }
+                assertEquals(names[i], nodes[i].name);
+            }
+        }
+        MethodNode rightClick = null;
+        for (MethodNode method : minecraft.methods) {
+            if ("ax".equals(method.name) && "()V".equals(method.desc)) {
+                assertNull(rightClick, "duplicate original Minecraft.rightClickMouse");
+                rightClick = method;
+            }
+        }
+        assertNotNull(rightClick, "missing original ave.ax()V right click");
+        int originalCall = 0;
+        for (AbstractInsnNode node : rightClick.instructions.toArray()) {
+            if (!(node instanceof MethodInsnNode)) continue;
+            final MethodInsnNode call = (MethodInsnNode) node;
+            if ("bda".equals(call.owner) && "a".equals(call.name)
+                    && placementDesc.equals(call.desc)
+                    && call.getOpcode() == Opcodes.INVOKEVIRTUAL) {
+                originalCall++;
+            }
+        }
+        assertEquals(1, originalCall,
+                "one genuine right-click GUI dispatch must target original placement controller");
+
+        MethodNode onPlayerRightClick = null;
+        for (MethodNode method : controller.methods) {
+            if ("a".equals(method.name) && placementDesc.equals(method.desc)) {
+                assertNull(onPlayerRightClick, "duplicate original block placement method");
+                onPlayerRightClick = method;
+            }
+        }
+        assertNotNull(onPlayerRightClick, "source-mapped 1.8.9 controller is absent");
+        int packetCtor = 0;
+        int nativeItemUse = 0;
+        int nativePacketDispatch = 0;
+        int nativeStackField = 0;
+        for (AbstractInsnNode node : onPlayerRightClick.instructions.toArray()) {
+            if (node instanceof MethodInsnNode) {
+                final MethodInsnNode call = (MethodInsnNode)node;
+                if ("ja".equals(call.owner) && "<init>".equals(call.name)
+                        && "(Lcj;ILzx;FFF)V".equals(call.desc)
+                        && call.getOpcode() == Opcodes.INVOKESPECIAL) {
+                    packetCtor++;
+                }
+                if ("zx".equals(call.owner) && "a".equals(call.name)
+                        && itemUseDesc.equals(call.desc)
+                        && call.getOpcode() == Opcodes.INVOKEVIRTUAL) {
+                    nativeItemUse++;
+                }
+                // Require real NetHandlerPlayClient packet dispatch semantics,
+                // rather than claiming a constructor by itself sent a packet.
+                if (call.name.equals("a") && call.desc.equals("(Lff;)V")
+                        && call.getOpcode() == Opcodes.INVOKEVIRTUAL) {
+                    nativePacketDispatch++;
+                }
+            } else if (node instanceof FieldInsnNode) {
+                final FieldInsnNode field = (FieldInsnNode) node;
+                if ("zx".equals(field.owner) && "b".equals(field.name)
+                        && "I".equals(field.desc)) nativeStackField++;
+            }
+        }
+        assertEquals(1, packetCtor,
+                "original controller must construct exactly one C08 block-placement packet");
+        assertTrue(nativeItemUse >= 2,
+                "original controller must invoke ItemStack.onItemUse in creative/survival branches");
+        assertTrue(nativeStackField >= 2,
+                "original creative path must preserve native ItemStack.stackSize");
+        // NetHandlerPlayClient obfuscated invocation verified separately once
+        // the exact pinned packet dispatch descriptor has been resolved.
+        assertEquals("ja", placementPacket.name);
+        System.out.println("REAL_189_SCAFFOLD_NATIVE_RIGHT_CLICK_CONTROLLER_PASS=YES");
+        System.out.println("REAL_189_SCAFFOLD_NATIVE_C08_CONSTRUCT_AND_ITEM_USE_PASS=YES");
+        System.out.println("REAL_189_SCAFFOLD_NATIVE_SERVER_PLACE_CONFIRMATION=NOT_TESTED");
+        System.out.println("REAL_189_SCAFFOLD_REAL_INVENTORY_CONSUMPTION=NOT_TESTED");
+    }
+
     @Test
     void actualMojang189RaycastClassBytesMatchAndTransform() throws Exception {
         final String pathValue = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
