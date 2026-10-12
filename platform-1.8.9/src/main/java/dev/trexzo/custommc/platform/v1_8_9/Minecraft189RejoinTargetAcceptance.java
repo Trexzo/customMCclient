@@ -211,11 +211,18 @@ final class Minecraft189RejoinTargetAcceptance {
     }
 
     static void verifyScopedOwnerVeto(final UUID expected, final UUID actual) {
-        if (phase != 5 || scopedOwnerVetoReported
+        // Genuine native crosshair/selection divergence can already occur
+        // while B remains selected (phase 4). Production MUST silently
+        // veto that mismatched real A argument too, before vanilla packets.
+        // Do not mistake that earlier, correctly rejected race for the
+        // separate post-disconnect M422 acceptance milestone.
+        if (phase != 5) return;
+        if (scopedOwnerVetoReported
+                || !survivorUuid.equals(staleControllerIntentUuid)
                 || !survivorUuid.equals(expected)
                 || !originalUuid.equals(actual))
             throw new IllegalStateException(
-                    "M422 unexpected native controller mismatch "
+                    "M422 post-disconnect scoped veto mismatch "
                     + expected + " versus " + actual);
         scopedOwnerVetoReported = true;
         System.out.println(
