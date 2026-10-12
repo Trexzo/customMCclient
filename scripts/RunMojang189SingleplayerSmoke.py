@@ -154,6 +154,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
     if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer)) > 1:
         raise ValueError("manual and module combat tests are exclusive")
     controlled_combat = attack or auto_clicker or kill_aura_nonplayer
+    # A real rendered world camera requires a focused Minecraft window;
+    # vanilla singleplayer otherwise automatically opens the pause GUI.
+    needs_active_window = controlled_combat or native_world_camera
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
@@ -193,7 +196,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
     with tempfile.TemporaryDirectory(prefix="custommc-189-world-") as temp:
         log = Path(temp) / "minecraft.txt"
         try:
-            if controlled_combat:
+            if needs_active_window:
                 # Xvfb alone has no EWMH window manager; LWJGL2 may lose
                 # active focus and auto-pause the integrated server. Openbox
                 # supplies real X11 activation without patching Minecraft.
@@ -216,7 +219,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                          "actual graphical frame")
             window = find_window(min(deadline, time.monotonic() + 15))
             print("CUSTOMMC_189_REAL_X11_WINDOW_FOUND=YES", flush=True)
-            if controlled_combat:
+            if needs_active_window:
                 xdotool("windowactivate", "--sync", window)
             geometry = xdotool("getwindowgeometry", "--shell", window)
             print("CUSTOMMC_189_WINDOW_GEOMETRY="
@@ -260,6 +263,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
             print("CUSTOMMC_189_NEW_WORLD_GUI_REQUEST_SENT=YES", flush=True)
             await_marker(process, log, WORLD, deadline, "real player/world-tick")
             if native_world_camera:
+                # An already-created world can be paused by focus transition.
+                # Resume using genuine GuiIngameMenu input, never fake ticks.
+                resume_if_paused(process, log, window)
                 await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_NATIVE_WORLD_CAMERA_GL_PASS=YES",
                              deadline, "source-mapped original perspective world camera")
