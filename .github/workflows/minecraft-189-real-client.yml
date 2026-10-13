@@ -32,6 +32,8 @@ on:
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldSelectedHotbar.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldWorldReadAccess.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeWorldEvidence.java'
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldWorldLease.java'
+      - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldWorldLeaseTest.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeWorldEvidenceTest.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ItemStackAccess.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldSelectedHotbarTest.java'
