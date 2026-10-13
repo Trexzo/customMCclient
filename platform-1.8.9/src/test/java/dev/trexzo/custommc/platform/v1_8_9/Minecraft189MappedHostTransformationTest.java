@@ -7936,6 +7936,16 @@ final class Minecraft189MappedHostTransformationTest {
                 1);
         getFoodStats.visitEnd();
 
+        // Test-only source-shaped original wn/aS()F eye-height override.
+        // Production correctness remains SHA-pinned to the genuine JAR.
+        final MethodVisitor originalEyeHeight = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "aS", "()F", null, null);
+        originalEyeHeight.visitCode();
+        originalEyeHeight.visitLdcInsn(Float.valueOf(1.62F));
+        originalEyeHeight.visitInsn(Opcodes.FRETURN);
+        originalEyeHeight.visitMaxs(1, 1);
+        originalEyeHeight.visitEnd();
+
         final MethodVisitor xpBarCap =
                 writer.visitMethod(
                         Opcodes.ACC_PUBLIC,

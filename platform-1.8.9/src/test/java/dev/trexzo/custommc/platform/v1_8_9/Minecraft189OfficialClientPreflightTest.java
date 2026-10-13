@@ -99,6 +99,70 @@ final class Minecraft189OfficialClientPreflightTest {
      * render thread, OS window, account or native libraries.
      */
     /**
+     * V24: original joined.srg wn/aS()F, not guessed constant/field.
+     * Verifies the exact original vanilla override and read-only delegate.
+     */
+    @Test
+    void originalMinecraftPlayerEyeHeightMethodIsSourceNative() throws Exception {
+        final String configured=System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured, "native player eye mapping requires official jar");
+        } else {
+            Assumptions.assumeTrue(configured!=null && !configured.trim().isEmpty(),
+                    "no original Mojang 1.8.9 available in offline CI");
+        }
+        final Path path=Paths.get(configured);
+        assertTrue(Files.isRegularFile(path));
+        assertEquals(OFFICIAL_SIZE,Files.size(path));
+        assertEquals(OFFICIAL_SHA1,digestFile(path));
+        final byte[] vanilla;
+        try(JarFile jar=new JarFile(path.toFile())) {
+            final JarEntry entry=jar.getJarEntry("wn.class");
+            assertNotNull(entry);
+            try(InputStream in=jar.getInputStream(entry)) {
+                vanilla=readAll(in);
+            }
+        }
+        final ClassNode original=new ClassNode();
+        new ClassReader(vanilla).accept(original,0);
+        assertEquals("wn",original.name);
+        int sourceMethods=0;
+        for(MethodNode method:original.methods)
+            if("aS".equals(method.name) && "()F".equals(method.desc))
+                sourceMethods++;
+        assertEquals(1,sourceMethods,
+                "MCP 1.8.9 original EntityPlayer getEyeHeight override absent");
+        final ClassNode changed=new ClassNode();
+        new ClassReader(new Minecraft189ClassTransformer()
+                .transform("wn",vanilla)).accept(changed,0);
+        assertTrue(changed.interfaces.contains(
+                "dev/trexzo/custommc/platform/v1_8_9/"
+                        +"Minecraft189ScaffoldNativeEyeAccess"));
+        MethodNode getter=null;
+        for(MethodNode method:changed.methods)
+            if("customMcOriginalEyeHeight".equals(method.name)
+                    && "()F".equals(method.desc)) {
+                assertNull(getter,"duplicate eye-height accessor");
+                getter=method;
+            }
+        assertNotNull(getter);
+        int calls=0;
+        for(AbstractInsnNode node:getter.instructions.toArray()) {
+            assertFalse(node instanceof FieldInsnNode,
+                    "never estimate original player height from mutable fields");
+            if(!(node instanceof MethodInsnNode)) continue;
+            final MethodInsnNode method=(MethodInsnNode)node;
+            calls++;
+            assertEquals(Opcodes.INVOKEVIRTUAL,method.getOpcode());
+            assertEquals("wn",method.owner);
+            assertEquals("aS",method.name);
+            assertEquals("()F",method.desc);
+        }
+        assertEquals(1,calls,"single original native getEyeHeight call");
+    }
+
+    /**
      * V23: the original ave.s()V must dispatch one observational callback
      * using its current `this`, with no fake singleton or captured World.
      */

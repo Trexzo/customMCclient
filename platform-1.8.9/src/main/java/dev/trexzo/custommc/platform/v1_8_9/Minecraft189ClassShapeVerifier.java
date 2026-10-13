@@ -298,6 +298,7 @@ public final class Minecraft189ClassShapeVerifier {
                         Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_PROGRESS
                 },
                 new Minecraft189Mappings.MappedMethod[]{
+                        Minecraft189Mappings.ENTITY_PLAYER_GET_EYE_HEIGHT,
                         Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS,
                         Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP,
                         Minecraft189Mappings.ENTITY_PLAYER_IS_USING_ITEM

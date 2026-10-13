@@ -594,6 +594,11 @@ public final class Minecraft189Mappings {
             new MappedMethod(ENTITY, "aK", "()Ljava/util/UUID;",
                     "func_110124_au", "getUniqueID");
 
+    // MCP 1.8.9 joined.srg: wn/aS ()F = EntityPlayer.getEyeHeight().
+    // Do not replace sleeping/sneaking native logic with 1.62 constant.
+    public static final MappedMethod ENTITY_PLAYER_GET_EYE_HEIGHT =
+            new MappedMethod(ENTITY_PLAYER, "aS", "()F",
+                    "func_70047_e", "getEyeHeight");
     public static final MappedMethod ENTITY_IS_SNEAKING =
             new MappedMethod(
                     ENTITY,

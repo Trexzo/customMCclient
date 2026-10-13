@@ -218,6 +218,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                        "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true")
     if native_scaffold_context:
         command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireOriginalScaffoldEye=true")
+        command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireOriginalScaffoldContext=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true")
@@ -526,9 +528,12 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 else:
                     raise AssertionError("native original Scaffold context player not grounded")
                 tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_TICK_CONTEXT_PASS=YES"
-                if tag in read_tail(log):
-                    raise AssertionError("original h/f/s context claimed before vanilla ItemBlock")
+                eye_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_PLAYER_EYE_PASS=YES"
+                if tag in read_tail(log) or eye_tag in read_tail(log):
+                    raise AssertionError("original h/f/s or native eye claimed before vanilla ItemBlock")
                 send_command(process, log, window, "/give CIProbe stone 8")
+                await_marker(process, log, eye_tag, deadline,
+                             "source-native player dynamic eye method on original runTick")
                 await_marker(process, log, tag, deadline,
                              "real Minecraft tick has original player/World/cursor/ItemBlock")
                 print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_SOURCE_TICK_CONTEXT_PASS=YES",
