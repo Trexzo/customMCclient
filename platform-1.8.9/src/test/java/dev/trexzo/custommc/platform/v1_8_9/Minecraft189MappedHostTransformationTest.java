@@ -61,6 +61,10 @@ final class Minecraft189MappedHostTransformationTest {
             loader.put("pr", transformer.transform("pr", entityLivingBaseShape()));
             loader.put("wn", transformer.transform("wn", entityPlayerShape()));
             loader.put("bda", transformer.transform("bda", playerControllerShape()));
+            loader.put("df", scaffoldVec3iShape());
+            loader.put("cj", scaffoldBlockPosShape());
+            loader.put("cq", scaffoldFacingShape());
+            loader.put("aui", scaffoldVec3Shape());
             loader.put("auh$a", movingObjectTypeShape());
             loader.put("auh", transformer.transform("auh", movingObjectShape()));
             loader.put("avo", guiIngameShape());
@@ -329,6 +333,10 @@ final class Minecraft189MappedHostTransformationTest {
         loader.put(
                 "bdb",
                 worldClientShape());
+        loader.put("df", scaffoldVec3iShape());
+        loader.put("cj", scaffoldBlockPosShape());
+        loader.put("cq", scaffoldFacingShape());
+        loader.put("aui", scaffoldVec3Shape());
         loader.put(
                 "auh",
                 transformer.transform("auh", movingObjectShape()));
@@ -7058,6 +7066,60 @@ final class Minecraft189MappedHostTransformationTest {
         melee.visitInsn(Opcodes.RETURN);
         melee.visitMaxs(3, 3);
         melee.visitEnd();
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+
+    /** Original obfuscated ray-hit dependencies for executable JVM verifier
+     * fixtures; these are NOT the production native Minecraft ray classes. */
+    private static byte[] scaffoldVec3iShape() {
+        final ClassWriter writer=classWriter("df");
+        endDefaultConstructor(writer,"df");
+        for(String method:new String[]{"n","o","p"}) {
+            final MethodVisitor mv=writer.visitMethod(Opcodes.ACC_PUBLIC,
+                    method,"()I",null,null);
+            mv.visitCode();
+            mv.visitInsn(Opcodes.ICONST_0);
+            mv.visitInsn(Opcodes.IRETURN);
+            mv.visitMaxs(1,1);
+            mv.visitEnd();
+        }
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+    private static byte[] scaffoldBlockPosShape() {
+        final ClassWriter writer=new ClassWriter(0);
+        writer.visit(Opcodes.V1_8,Opcodes.ACC_PUBLIC,"cj",null,"df",null);
+        final MethodVisitor mv=writer.visitMethod(Opcodes.ACC_PUBLIC,
+                "<init>","()V",null,null);
+        mv.visitCode();
+        mv.visitVarInsn(Opcodes.ALOAD,0);
+        mv.visitMethodInsn(Opcodes.INVOKESPECIAL,"df","<init>","()V",false);
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(1,1);
+        mv.visitEnd();
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+    private static byte[] scaffoldFacingShape() {
+        final ClassWriter writer=classWriter("cq");
+        endDefaultConstructor(writer,"cq");
+        final MethodVisitor mv=writer.visitMethod(Opcodes.ACC_PUBLIC,
+                "a","()I",null,null);
+        mv.visitCode();
+        mv.visitInsn(Opcodes.ICONST_1);
+        mv.visitInsn(Opcodes.IRETURN);
+        mv.visitMaxs(1,1);
+        mv.visitEnd();
+        writer.visitEnd();
+        return writer.toByteArray();
+    }
+    private static byte[] scaffoldVec3Shape() {
+        final ClassWriter writer=classWriter("aui");
+        field(writer,"a","D");
+        field(writer,"b","D");
+        field(writer,"c","D");
+        endDefaultConstructor(writer,"aui");
         writer.visitEnd();
         return writer.toByteArray();
     }
