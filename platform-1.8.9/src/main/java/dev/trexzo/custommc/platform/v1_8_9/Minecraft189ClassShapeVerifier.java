@@ -52,7 +52,10 @@ public final class Minecraft189ClassShapeVerifier {
         verify(classBytes, Minecraft189Mappings.MOVING_OBJECT_POSITION,
                 new Minecraft189Mappings.MappedField[]{
                         Minecraft189Mappings.MOVING_OBJECT_TYPE_OF_HIT,
-                        Minecraft189Mappings.MOVING_OBJECT_ENTITY_HIT
+                        Minecraft189Mappings.MOVING_OBJECT_ENTITY_HIT,
+                        Minecraft189Mappings.MOVING_OBJECT_SIDE_HIT,
+                        Minecraft189Mappings.MOVING_OBJECT_HIT_VEC,
+                        Minecraft189Mappings.MOVING_OBJECT_BLOCK_POS
                 },
                 new Minecraft189Mappings.MappedMethod[0]);
     }
@@ -61,7 +64,8 @@ public final class Minecraft189ClassShapeVerifier {
             final byte[] classBytes) {
         verify(classBytes, Minecraft189Mappings.MOVING_OBJECT_TYPE,
                 new Minecraft189Mappings.MappedField[]{
-                        Minecraft189Mappings.MOVING_OBJECT_TYPE_ENTITY
+                        Minecraft189Mappings.MOVING_OBJECT_TYPE_ENTITY,
+                        Minecraft189Mappings.MOVING_OBJECT_TYPE_BLOCK
                 }, new Minecraft189Mappings.MappedMethod[0]);
     }
 
