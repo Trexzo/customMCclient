@@ -53,7 +53,7 @@ final class Minecraft189ScaffoldRayCandidateGateTest {
             rays++;
             if (revokeDuringRay) lease.invalidate();
             return rayValid && sx==.5 && sy==101.62 && sz==.5
-                    && ex==.5 && ey<99.0 && ez==.5
+                    && ex==.5 && ey>=98.5 && ey<=98.9 && ez==.5
                     && x==0 && y==98 && z==0 && face==1;
         }
     }
