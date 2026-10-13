@@ -3604,8 +3604,15 @@ public final class Minecraft189ClassTransformer
      * => FULL_SOLID, all other loaded blocks => OTHER. No world writes.
      */
     private static void addScaffoldNativeCellRead(final ClassVisitor visitor) {
+        addScaffoldNativeCellReadVariant(visitor, false);
+        addScaffoldNativeCellReadVariant(visitor, true);
+    }
+
+    private static void addScaffoldNativeCellReadVariant(
+            final ClassVisitor visitor, final boolean trace) {
         final MethodVisitor m = visitor.visitMethod(Opcodes.ACC_PUBLIC,
-                "customMcScaffoldCellCode", "(III)I", null, null);
+                trace ? "customMcScaffoldCellTrace" : "customMcScaffoldCellCode",
+                "(III)I", null, null);
         final String world = Minecraft189Mappings.WORLD.obfuscatedInternalName();
         final String blockPos = Minecraft189Mappings.BLOCK_POS.obfuscatedInternalName();
         final String state = Minecraft189Mappings.I_BLOCK_STATE.obfuscatedInternalName();
@@ -3632,7 +3639,7 @@ public final class Minecraft189ClassTransformer
                 Minecraft189Mappings.WORLD_IS_BLOCK_LOADED.obfuscatedName(),
                 Minecraft189Mappings.WORLD_IS_BLOCK_LOADED.descriptor(), false);
         m.visitJumpInsn(Opcodes.IFNE, loaded);
-        m.visitInsn(Opcodes.ICONST_0);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 10 : 0);
         m.visitInsn(Opcodes.IRETURN);
 
         m.visitLabel(loaded);
@@ -3643,7 +3650,7 @@ public final class Minecraft189ClassTransformer
                 Minecraft189Mappings.WORLD_IS_AIR_BLOCK.obfuscatedName(),
                 Minecraft189Mappings.WORLD_IS_AIR_BLOCK.descriptor(), false);
         m.visitJumpInsn(Opcodes.IFEQ, notAir);
-        m.visitInsn(Opcodes.ICONST_1);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 11 : 1);
         m.visitInsn(Opcodes.IRETURN);
 
         m.visitLabel(notAir);
@@ -3656,7 +3663,7 @@ public final class Minecraft189ClassTransformer
         m.visitInsn(Opcodes.DUP);
         m.visitJumpInsn(Opcodes.IFNONNULL, validState);
         m.visitInsn(Opcodes.POP);
-        m.visitInsn(Opcodes.ICONST_0);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 12 : 0);
         m.visitInsn(Opcodes.IRETURN);
 
         m.visitLabel(validState);
@@ -3667,7 +3674,7 @@ public final class Minecraft189ClassTransformer
         m.visitInsn(Opcodes.DUP);
         m.visitJumpInsn(Opcodes.IFNONNULL, validBlock);
         m.visitInsn(Opcodes.POP);
-        m.visitInsn(Opcodes.ICONST_0);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 13 : 0);
         m.visitInsn(Opcodes.IRETURN);
 
         m.visitLabel(validBlock);
@@ -3676,11 +3683,11 @@ public final class Minecraft189ClassTransformer
                 Minecraft189Mappings.BLOCK_IS_FULL_CUBE.obfuscatedName(),
                 Minecraft189Mappings.BLOCK_IS_FULL_CUBE.descriptor(), false);
         m.visitJumpInsn(Opcodes.IFEQ, notSolid);
-        m.visitInsn(Opcodes.ICONST_2);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 14 : 2);
         m.visitInsn(Opcodes.IRETURN);
         m.visitLabel(notSolid);
         m.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-        m.visitInsn(Opcodes.ICONST_3);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 15 : 3);
         m.visitInsn(Opcodes.IRETURN);
         m.visitMaxs(0, 0);
         m.visitEnd();
