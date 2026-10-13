@@ -41,6 +41,10 @@ public final class Minecraft189HostRuntime
     private final Minecraft189WorldTimeState worldTimeState;
     private final Minecraft189WorldWeatherState worldWeatherState;
     private final Minecraft189WorldEntityPositionState worldEntityPositionState;
+    // V17: owner of a single original World cell source per active host.
+    private final Minecraft189ScaffoldWorldOwnership scaffoldWorldOwnership =
+            new Minecraft189ScaffoldWorldOwnership();
+    private boolean acceptanceScaffoldWorldOwnershipReported;
     private final Minecraft189WorldEntityKindState worldEntityKindState;
     private final Minecraft189WorldEntityCombatState worldEntityCombatState =
             new Minecraft189WorldEntityCombatState();
@@ -1204,6 +1208,17 @@ public final class Minecraft189HostRuntime
     void worldEntityPositions(
             final Minecraft189WorldEntityPositionsAccess world) {
         requireOpen();
+        scaffoldWorldOwnership.observe(world);
+        if (Boolean.getBoolean("custommc.acceptance.requireNativeScaffoldWorldCell")
+                && !acceptanceScaffoldWorldOwnershipReported
+                && scaffoldWorldOwnership.owns(world)) {
+            if (scaffoldWorldOwnership.generation() <= 0L)
+                throw new IllegalStateException("original World epoch missing");
+            acceptanceScaffoldWorldOwnershipReported = true;
+            System.out.println(
+                    "CUSTOMMC_OFFICIAL_189_SCAFFOLD_RUNTIME_WORLD_EPOCH_OWNED_PASS=YES");
+            System.out.flush();
+        }
         // Begin a new entity-list snapshot; never pair old combat evidence
         // with positions that may have reordered across world ticks.
         worldEntityCombatState.clear();
@@ -1253,6 +1268,13 @@ public final class Minecraft189HostRuntime
         }
         worldEntityPositionState.update(
                 packedPositions);
+    }
+
+    // Read-only world identity is owned by the host and immediately
+    // revoked when the World object changes or the host closes.
+    Minecraft189ScaffoldNativeWorldEvidence scaffoldWorldEvidence() {
+        requireOpen();
+        return scaffoldWorldOwnership.current();
     }
 
     void worldEntityKinds(
@@ -1977,6 +1999,7 @@ public final class Minecraft189HostRuntime
         worldTimeState.clear();
         worldWeatherState.clear();
         worldEntityPositionState.clear();
+        scaffoldWorldOwnership.close();
         criticalsEvidence.reset();
         tickSprintControl = null;
         tickHotbarControl = null;
