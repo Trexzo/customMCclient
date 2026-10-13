@@ -62,9 +62,22 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
         double[] sample={1,0,99,0,5,1.0,99.5,.5};
         public double[] customMcScaffoldNativeBlockHit(){return sample;}
     }
-    private static final class Controller implements Minecraft189VanillaReachAccess {
+    private static final class Controller implements Minecraft189VanillaReachAccess,
+            Minecraft189ScaffoldVanillaPlaceAccess {
+        int clicks;
+        boolean originalReturn=true;
+        Object lastPlayer,lastWorld,lastStack,lastHit;
         public float customMcVanillaBlockReachDistance(){return 5.0F;}
         public boolean customMcVanillaExtendedReach(){return true;}
+        public boolean customMcOriginalRightClick(Object player,Object world,
+                Object stack,Object hit) {
+            clicks++;
+            lastPlayer=player;
+            lastWorld=world;
+            lastStack=stack;
+            lastHit=hit;
+            return originalReturn;
+        }
     }
     private static final class Minecraft implements Minecraft189ScaffoldNativeContextAccess,
             Minecraft189ScaffoldNativeControllerAccess {
@@ -98,6 +111,52 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
         assertEquals(0,game.player.inventory.writes);
         assertEquals(8,stone.count,"candidate observation must not place or consume");
     }
+    @Test void nativeControllerIsInvokedOnlyForExplicitlyEnabledVerifiedSources(){
+        Minecraft game=new Minecraft();
+        Stack stone=new Stack();
+        game.player.inventory.contents[0]=stone;
+        Controller nativeController=(Controller)game.controller;
+        assertNull(Minecraft189ScaffoldNativePlacementAttempt.attempt(game,false));
+        assertEquals(0,nativeController.clicks,"disabled never reaches vanilla controller");
+        Minecraft189ScaffoldNativePlacementAttempt.Result result =
+                Minecraft189ScaffoldNativePlacementAttempt.attempt(game,true);
+        assertNotNull(result);
+        assertTrue(result.originalControllerAccepted);
+        assertEquals(1,result.targetX);
+        assertEquals(99,result.targetY);
+        assertEquals(0,result.supportX);
+        assertEquals(8,result.originalStackSize);
+        assertEquals(1,nativeController.clicks);
+        assertSame(game.player,nativeController.lastPlayer);
+        assertSame(game.world,nativeController.lastWorld);
+        assertSame(stone,nativeController.lastStack);
+        assertSame(game.cursor,nativeController.lastHit);
+        assertEquals(8,stone.count,"synthetic source never invents server stack consumption");
+        assertEquals(0,game.player.inventory.writes);
+        nativeController.originalReturn=false;
+        Minecraft189ScaffoldNativePlacementAttempt.Result veto =
+                Minecraft189ScaffoldNativePlacementAttempt.attempt(game,true);
+        assertNotNull(veto);
+        assertFalse(veto.originalControllerAccepted,
+                "controller returning false is not server block proof");
+        assertEquals(2,nativeController.clicks);
+        game.world.rayValid=false;
+        assertNull(Minecraft189ScaffoldNativePlacementAttempt.attempt(game,true));
+        assertEquals(2,nativeController.clicks,"failed re-ray must not call controller");
+        game.world.rayValid=true;
+        game.cursor.sample[4]=4;
+        assertNull(Minecraft189ScaffoldNativePlacementAttempt.attempt(game,true));
+        assertEquals(2,nativeController.clicks,"wrong source face must not place");
+        game.cursor.sample[4]=5;
+        game.player.onGround=false;
+        assertNull(Minecraft189ScaffoldNativePlacementAttempt.attempt(game,true));
+        assertEquals(2,nativeController.clicks);
+        game.player.onGround=true;
+        game.player.inventory.contents[0]=null;
+        assertNull(Minecraft189ScaffoldNativePlacementAttempt.attempt(game,true));
+        assertEquals(2,nativeController.clicks);
+    }
+
     @Test void noOriginalItemWrongRayOrWorldMustVeto(){
         Minecraft game=new Minecraft();
         assertNull(Minecraft189ScaffoldOriginalCandidateProbe.observe(game));
