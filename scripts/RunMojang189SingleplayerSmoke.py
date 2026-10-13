@@ -319,7 +319,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
             # Actual 1.8.9 GuiCreateWorld Game Mode button is centered
             # at x427,y125. Survival -> Hardcore -> Creative; Creative
             # enables commands unless explicitly overridden.
-            if controlled_combat or safe_walk_edge or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace:
+            if controlled_combat or safe_walk_edge or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context:
                 if create_screen != b"axb":
                     raise AssertionError("unexpected create-world GUI")
                 click(window, 427, 125)
