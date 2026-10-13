@@ -11,6 +11,9 @@ public interface Minecraft189ItemStackAccess {
 
     default boolean customMcIsSword() { return false; }
 
+    /** Exact native ItemStack.item instanceof source-mapped ItemBlock. */
+    default boolean customMcIsBlockItem() { return false; }
+
     /** Base sword damage only; NaN when not a verified ItemSword. */
     default float customMcSwordBaseDamage() { return Float.NaN; }
 

@@ -3352,6 +3352,9 @@ public final class Minecraft189ClassTransformer
                         addItemStackTypeGetter(cv, "customMcIsSword",
                                 sourceItemField,
                                 Minecraft189Mappings.ITEM_SWORD);
+                        addItemStackTypeGetter(cv, "customMcIsBlockItem",
+                                sourceItemField,
+                                Minecraft189Mappings.ITEM_BLOCK);
                         addSwordBaseDamageGetter(cv, sourceItemField);
                         addItemStackTypeGetter(cv, "customMcIsFishingRod",
                                 sourceItemField,
