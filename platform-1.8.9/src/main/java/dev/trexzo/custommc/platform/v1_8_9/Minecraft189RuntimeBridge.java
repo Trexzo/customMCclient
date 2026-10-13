@@ -561,6 +561,7 @@ public final class Minecraft189RuntimeBridge {
     private static int acceptanceScaffoldWorldProbeCount;
     private static int acceptanceScaffoldWorldLastCode = -999;
     private static int acceptanceScaffoldWorldDiagTick;
+    private static boolean acceptanceScaffoldFarChunkVetoReported;
 
     public static synchronized void worldEntityPositions(
             final Minecraft189WorldEntityPositionsAccess world) {
@@ -632,6 +633,21 @@ public final class Minecraft189RuntimeBridge {
             }
             if (acceptanceScaffoldWorldCellPhase == 0
                     && cell == Minecraft189ScaffoldWorldReadAccess.AIR) {
+                // A separate genuine unloaded distant chunk MUST remain
+                // UNKNOWN even when vanilla allowEmpty is true. Never
+                // create a fake permissive air result from unloaded space.
+                final int far = source.customMcScaffoldCellCode(
+                        1048576, 99, 1048576);
+                if (far != Minecraft189ScaffoldWorldReadAccess.UNKNOWN)
+                    throw new IllegalStateException(
+                            "Scaffold source World leaked unloaded far chunk code="
+                                    + far);
+                if (!acceptanceScaffoldFarChunkVetoReported) {
+                    acceptanceScaffoldFarChunkVetoReported = true;
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_SCAFFOLD_UNLOADED_CHUNK_VETO_PASS=YES");
+                    System.out.flush();
+                }
                 acceptanceScaffoldWorldCellPhase = 1;
                 System.out.println(
                         "CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_AIR_PASS=YES");
