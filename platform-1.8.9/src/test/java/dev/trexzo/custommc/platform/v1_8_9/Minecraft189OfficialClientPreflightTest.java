@@ -529,7 +529,8 @@ final class Minecraft189OfficialClientPreflightTest {
         final String[] expected = {
             "cj.<init>(III)V",
             "adm.N()Lamv;",
-            "amv.a(II)Z",
+            "amv.d(II)Lamy;",
+            "amy.f()Z",
             "adm.d(Lcj;Z)Z",
             "adm.d(Lcj;)Z",
             "adm.p(Lcj;)Lalz;",
@@ -550,15 +551,20 @@ final class Minecraft189OfficialClientPreflightTest {
             callOrder.add(call.owner + "." + call.name + call.desc);
         }
         assertTrue(callOrder.indexOf("adm.N()Lamv;") <
-                        callOrder.indexOf("amv.a(II)Z"),
-                "native World must resolve chunk provider before existence probe");
-        assertTrue(callOrder.indexOf("amv.a(II)Z") <
+                        callOrder.indexOf("amv.d(II)Lamy;"),
+                "native World must resolve client chunk provider before cache read");
+        assertTrue(callOrder.indexOf("amv.d(II)Lamy;") <
+                        callOrder.indexOf("amy.f()Z"),
+                "source-native provided Chunk must be verified not an EmptyChunk");
+        assertTrue(callOrder.indexOf("amy.f()Z") <
                         callOrder.indexOf("adm.d(Lcj;Z)Z"),
-                "fail-closed chunk existence MUST precede allowEmpty air");
+                "real nonempty Chunk MUST precede allowEmpty air");
+        assertFalse(callOrder.contains("amv.a(II)Z"),
+                "Minecraft 1.8.9 client chunkExists always true and cannot prove residency");
         assertTrue(callOrder.indexOf("adm.d(Lcj;Z)Z") <
                         callOrder.indexOf("adm.d(Lcj;)Z"),
                 "actual original air classification only after chunk presence");
-        System.out.println("REAL_189_SCAFFOLD_NATIVE_CHUNK_EXISTS_BEFORE_AIR_PASS=YES");
+        System.out.println("REAL_189_SCAFFOLD_NATIVE_NONEMPTY_CHUNK_BEFORE_AIR_PASS=YES");
         System.out.println("REAL_189_SCAFFOLD_NATIVE_LOADED_AIR_FULL_CUBE_READ_PASS=YES");
         System.out.println("REAL_189_SCAFFOLD_NATIVE_READ_ONLY_WORLD_ADAPTER_PASS=YES");
         System.out.println("REAL_189_SCAFFOLD_LIVE_WORLD_COORDINATE_READ=NOT_TESTED");
