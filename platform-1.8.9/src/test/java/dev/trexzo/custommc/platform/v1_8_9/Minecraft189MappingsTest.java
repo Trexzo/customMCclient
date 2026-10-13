@@ -692,6 +692,10 @@ final class Minecraft189MappingsTest {
                 "func_71024_bL",
                 "getFoodStats");
         assertMethod(
+                Minecraft189Mappings.ENTITY_PLAYER_GET_EYE_HEIGHT,
+                Minecraft189Mappings.ENTITY_PLAYER,
+                "aS", "()F", "func_70047_e", "getEyeHeight");
+        assertMethod(
                 Minecraft189Mappings.ENTITY_PLAYER_XP_BAR_CAP,
                 Minecraft189Mappings.ENTITY_PLAYER,
                 "ck",
@@ -2636,6 +2640,9 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_PROGRESS);
         addMethod(
                 writer,
+                Minecraft189Mappings.ENTITY_PLAYER_GET_EYE_HEIGHT);
+        addMethod(
+                writer,
                 Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS);
 
         final IllegalStateException failure =
@@ -2809,6 +2816,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_PROGRESS);
+        addMethod(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_GET_EYE_HEIGHT);
         addMethod(
                 writer,
                 Minecraft189Mappings.ENTITY_PLAYER_GET_FOOD_STATS);
