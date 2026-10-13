@@ -458,6 +458,97 @@ final class Minecraft189OfficialClientPreflightTest {
      * These APIs are prerequisites for future implementation only.
      */
     /**
+     * V19: genuine original World rayTraceBlocks/block hit and face authority.
+     * No simulated voxel queries, placement packets, or synthetic cast paths.
+     */
+    @Test
+    void realMojang189ScaffoldRayTraceUsesExactNativeBlockAndFacing() throws Exception {
+        final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured, "original binary required for V19");
+        } else {
+            Assumptions.assumeTrue(configured != null && !configured.trim().isEmpty(),
+                    "original Minecraft JAR absent in ordinary offline tests");
+        }
+        final Path client = Paths.get(configured);
+        assertTrue(Files.isRegularFile(client));
+        assertEquals(OFFICIAL_SIZE, Files.size(client));
+        assertEquals(OFFICIAL_SHA1, digestFile(client));
+        final byte[] vanillaWorld;
+        try (JarFile jar = new JarFile(client.toFile())) {
+            for (String classname : Arrays.asList("adm","aui","auh","auh$a","cq","cj")) {
+                assertNotNull(jar.getJarEntry(classname + ".class"),
+                        "missing original Minecraft raytrace class " + classname);
+            }
+            try (InputStream in = jar.getInputStream(jar.getJarEntry("adm.class"))) {
+                vanillaWorld=readAll(in);
+            }
+        }
+        final ClassNode source = new ClassNode();
+        new ClassReader(vanillaWorld).accept(source,0);
+        int vanillaWorldMethods = 0;
+        for (MethodNode method : source.methods)
+            if ("a".equals(method.name) &&
+                    "(Laui;Laui;ZZZ)Lauh;".equals(method.desc))
+                vanillaWorldMethods++;
+        assertEquals(1,vanillaWorldMethods,
+                "exact original World.rayTraceBlocks source method required");
+
+        final ClassNode transformed = new ClassNode();
+        new ClassReader(new Minecraft189ClassTransformer()
+                .transform("adm", vanillaWorld)).accept(transformed,0);
+        assertTrue(transformed.interfaces.contains(
+                "dev/trexzo/custommc/platform/v1_8_9/"
+                + "Minecraft189ScaffoldWorldRayTraceAccess"));
+        MethodNode bridge=null;
+        for (MethodNode m : transformed.methods)
+            if ("customMcScaffoldRayTraceSupport".equals(m.name)
+                    && "(DDDDDDIIII)Z".equals(m.desc)) {
+                assertNull(bridge,"duplicate source World raytrace");
+                bridge=m;
+            }
+        assertNotNull(bridge,"source World raytrace injection absent");
+        final Map<String,Integer> calls=new LinkedHashMap<String,Integer>();
+        final Map<String,Integer> fields=new LinkedHashMap<String,Integer>();
+        int falseReturns=0;
+        for (AbstractInsnNode n : bridge.instructions.toArray()) {
+            if (n instanceof MethodInsnNode) {
+                final MethodInsnNode m=(MethodInsnNode)n;
+                final String key=m.owner+"."+m.name+m.desc;
+                calls.put(key,calls.containsKey(key)?calls.get(key)+1:1);
+                assertFalse("bcy".equals(m.owner) || "ja".equals(m.owner),
+                        "V19 read-only raytrace must never dispatch or construct C08");
+            } else if (n instanceof FieldInsnNode) {
+                final FieldInsnNode f=(FieldInsnNode)n;
+                final String key=f.owner+"."+f.name+":"+f.desc;
+                fields.put(key,fields.containsKey(key)?fields.get(key)+1:1);
+            } else if (n.getOpcode()==Opcodes.ICONST_0) falseReturns++;
+        }
+        final String[] expectedCalls={
+            "aui.<init>(DDD)V",
+            "adm.a(Laui;Laui;ZZZ)Lauh;",
+            "cq.a()I",
+            "cj.<init>(III)V",
+            "auh.a()Lcj;",
+            "cj.equals(Ljava/lang/Object;)Z"
+        };
+        assertEquals(expectedCalls.length,calls.size(),
+                "exact native-only call set required");
+        for (String key : expectedCalls)
+            assertEquals(Integer.valueOf("aui.<init>(DDD)V".equals(key)?2:1),
+                    calls.get(key),"source-native raytrace call " + key);
+        for (String field : Arrays.asList("auh.a:Lauh$a;",
+                "auh$a.b:Lauh$a;","auh.b:Lcq;"))
+            assertEquals(Integer.valueOf(1),fields.get(field),
+                    "exact Mojang block type/face field " + field);
+        assertEquals(3,fields.size(),"no unrelated access via raytrace adapter");
+        assertTrue(falseReturns>=4, "native raytrace must fail closed on null/miss/wrong face");
+        System.out.println("REAL_189_SCAFFOLD_NATIVE_RAYTRACE_BLOCK_FACE_PASS=YES");
+        System.out.println("REAL_189_SCAFFOLD_SOURCE_RAYTRACE_SERVER_PLACEMENT=NOT_TESTED");
+    }
+
+    /**
      * V15 original binary acceptance: source native World reads, emitted
      * bytecode semantics, and no packet/world-mutating calls in the adapter.
      */

@@ -187,6 +187,9 @@ public final class Minecraft189ClassTransformer
     private static final String SCAFFOLD_WORLD_READ_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189ScaffoldWorldReadAccess";
+    private static final String SCAFFOLD_RAY_TRACE_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189ScaffoldWorldRayTraceAccess";
     private static final String WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189WorldEntityPositionsAccess";
@@ -3512,7 +3515,7 @@ public final class Minecraft189ClassTransformer
         // Reduced old unit-test World fixtures lack source-original block
         // reads. Never claim their synthetic bytes implement native evidence.
         // The exact original-Mojang preflight separately REQUIRES this seam.
-        final int[] nativeReads = new int[3];
+        final int[] nativeReads = new int[4];
         reader.accept(new ClassVisitor(Opcodes.ASM9) {
             @Override public MethodVisitor visitMethod(
                     final int access, final String name, final String desc,
@@ -3520,11 +3523,15 @@ public final class Minecraft189ClassTransformer
                 if ("d".equals(name) && "(Lcj;Z)Z".equals(desc)) nativeReads[0]++;
                 if ("d".equals(name) && "(Lcj;)Z".equals(desc)) nativeReads[1]++;
                 if ("p".equals(name) && "(Lcj;)Lalz;".equals(desc)) nativeReads[2]++;
+                if ("a".equals(name) && "(Laui;Laui;ZZZ)Lauh;".equals(desc))
+                    nativeReads[3]++;
                 return null;
             }
         }, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
         final boolean genuineScaffoldReads = nativeReads[0] == 1
                 && nativeReads[1] == 1 && nativeReads[2] == 1;
+        final boolean genuineScaffoldRay = genuineScaffoldReads
+                && nativeReads[3] == 1;
         final ClassWriter writer =
                 new ClassWriter(
                         reader,
@@ -3558,6 +3565,9 @@ public final class Minecraft189ClassTransformer
                         if (genuineScaffoldReads)
                             mappedInterfaces = withInterface(mappedInterfaces,
                                     SCAFFOLD_WORLD_READ_ACCESS_INTERNAL_NAME);
+                        if (genuineScaffoldRay)
+                            mappedInterfaces = withInterface(mappedInterfaces,
+                                    SCAFFOLD_RAY_TRACE_ACCESS_INTERNAL_NAME);
                         super.visit(version, access, name, signature, superName,
                                 mappedInterfaces);
                     }
@@ -3566,6 +3576,8 @@ public final class Minecraft189ClassTransformer
                     public void visitEnd() {
                         if (genuineScaffoldReads)
                             addScaffoldNativeCellRead(cv);
+                        if (genuineScaffoldRay)
+                            addScaffoldNativeRayTraceSupport(cv);
                         addLongMethodDelegate(
                                 cv,
                                 "customMcWorldTime",
@@ -3595,6 +3607,107 @@ public final class Minecraft189ClassTransformer
                 0);
 
         return writer.toByteArray();
+    }
+
+    /**
+     * V19: original World.rayTraceBlocks between exact start/end coordinates.
+     * Return true ONLY for source-original BLOCK hit at the expected
+     * BlockPos and original face. Never constructs any C08 or mutates World.
+     */
+    private static void addScaffoldNativeRayTraceSupport(final ClassVisitor cv) {
+        final MethodVisitor m = cv.visitMethod(Opcodes.ACC_PUBLIC,
+                "customMcScaffoldRayTraceSupport", "(DDDDDDIIII)Z", null, null);
+        final String world = Minecraft189Mappings.WORLD.obfuscatedInternalName();
+        final String vec = Minecraft189Mappings.VEC3.obfuscatedInternalName();
+        final String hit = Minecraft189Mappings.MOVING_OBJECT_POSITION
+                .obfuscatedInternalName();
+        final String hitType = Minecraft189Mappings.MOVING_OBJECT_TYPE
+                .obfuscatedInternalName();
+        final String face = Minecraft189Mappings.ENUM_FACING.obfuscatedInternalName();
+        final String pos = Minecraft189Mappings.BLOCK_POS.obfuscatedInternalName();
+        final Label hitExists = new Label();
+        final Label hitIsBlock = new Label();
+        final Label facingExists = new Label();
+        final Label rightFace = new Label();
+        m.visitCode();
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitTypeInsn(Opcodes.NEW, vec);
+        m.visitInsn(Opcodes.DUP);
+        m.visitVarInsn(Opcodes.DLOAD, 1);
+        m.visitVarInsn(Opcodes.DLOAD, 3);
+        m.visitVarInsn(Opcodes.DLOAD, 5);
+        m.visitMethodInsn(Opcodes.INVOKESPECIAL, vec, "<init>", "(DDD)V", false);
+        m.visitTypeInsn(Opcodes.NEW, vec);
+        m.visitInsn(Opcodes.DUP);
+        m.visitVarInsn(Opcodes.DLOAD, 7);
+        m.visitVarInsn(Opcodes.DLOAD, 9);
+        m.visitVarInsn(Opcodes.DLOAD, 11);
+        m.visitMethodInsn(Opcodes.INVOKESPECIAL, vec, "<init>", "(DDD)V", false);
+        // stopOnLiquid=false, ignoreBlockWithoutBoundingBox=true,
+        // returnLastUncollidableBlock=false. This ray can only confirm
+        // native block-hit evidence, never create a placement side effect.
+        m.visitInsn(Opcodes.ICONST_0);
+        m.visitInsn(Opcodes.ICONST_1);
+        m.visitInsn(Opcodes.ICONST_0);
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, world,
+                Minecraft189Mappings.WORLD_RAY_TRACE_BLOCKS.obfuscatedName(),
+                Minecraft189Mappings.WORLD_RAY_TRACE_BLOCKS.descriptor(), false);
+        m.visitVarInsn(Opcodes.ASTORE, 17);
+        m.visitVarInsn(Opcodes.ALOAD, 17);
+        m.visitJumpInsn(Opcodes.IFNONNULL, hitExists);
+        m.visitInsn(Opcodes.ICONST_0);
+        m.visitInsn(Opcodes.IRETURN);
+        m.visitLabel(hitExists);
+        m.visitFrame(Opcodes.F_APPEND, 1, new Object[]{hit}, 0, null);
+        m.visitVarInsn(Opcodes.ALOAD, 17);
+        m.visitFieldInsn(Opcodes.GETFIELD, hit,
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_OF_HIT.obfuscatedName(),
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_OF_HIT.descriptor());
+        m.visitFieldInsn(Opcodes.GETSTATIC, hitType,
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_BLOCK.obfuscatedName(),
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_BLOCK.descriptor());
+        m.visitJumpInsn(Opcodes.IF_ACMPEQ, hitIsBlock);
+        m.visitInsn(Opcodes.ICONST_0);
+        m.visitInsn(Opcodes.IRETURN);
+        m.visitLabel(hitIsBlock);
+        m.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+        m.visitVarInsn(Opcodes.ALOAD, 17);
+        m.visitFieldInsn(Opcodes.GETFIELD, hit,
+                Minecraft189Mappings.MOVING_OBJECT_SIDE_HIT.obfuscatedName(),
+                Minecraft189Mappings.MOVING_OBJECT_SIDE_HIT.descriptor());
+        m.visitVarInsn(Opcodes.ASTORE, 18);
+        m.visitVarInsn(Opcodes.ALOAD, 18);
+        m.visitJumpInsn(Opcodes.IFNONNULL, facingExists);
+        m.visitInsn(Opcodes.ICONST_0);
+        m.visitInsn(Opcodes.IRETURN);
+        m.visitLabel(facingExists);
+        m.visitFrame(Opcodes.F_APPEND, 1, new Object[]{face}, 0, null);
+        m.visitVarInsn(Opcodes.ALOAD, 18);
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, face,
+                Minecraft189Mappings.ENUM_FACING_GET_INDEX.obfuscatedName(),
+                Minecraft189Mappings.ENUM_FACING_GET_INDEX.descriptor(), false);
+        m.visitVarInsn(Opcodes.ILOAD, 16);
+        m.visitJumpInsn(Opcodes.IF_ICMPEQ, rightFace);
+        m.visitInsn(Opcodes.ICONST_0);
+        m.visitInsn(Opcodes.IRETURN);
+        m.visitLabel(rightFace);
+        m.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+        m.visitTypeInsn(Opcodes.NEW, pos);
+        m.visitInsn(Opcodes.DUP);
+        m.visitVarInsn(Opcodes.ILOAD, 13);
+        m.visitVarInsn(Opcodes.ILOAD, 14);
+        m.visitVarInsn(Opcodes.ILOAD, 15);
+        m.visitMethodInsn(Opcodes.INVOKESPECIAL, pos,
+                "<init>", "(III)V", false);
+        m.visitVarInsn(Opcodes.ALOAD, 17);
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, hit,
+                Minecraft189Mappings.MOVING_OBJECT_GET_BLOCK_POS.obfuscatedName(),
+                Minecraft189Mappings.MOVING_OBJECT_GET_BLOCK_POS.descriptor(), false);
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, pos,
+                "equals", "(Ljava/lang/Object;)Z", false);
+        m.visitInsn(Opcodes.IRETURN);
+        m.visitMaxs(0,0);
+        m.visitEnd();
     }
 
     /**
