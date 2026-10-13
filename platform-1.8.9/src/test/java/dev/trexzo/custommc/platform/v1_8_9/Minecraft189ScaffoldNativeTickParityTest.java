@@ -14,7 +14,7 @@ final class Minecraft189ScaffoldNativeTickParityTest {
         public boolean customMcIsBlockItem() { return isBlock; }
     }
     private static final class Hotbar implements Minecraft189InventoryHotbarItemsAccess {
-        final Minecraft189ItemStackAccess[] slots = new Minecraft189ItemStackAccess[9];
+        final Minecraft189ItemStackAccess[] slots = new Minecraft189ItemStackAccess[36];
         int selected;
         int mutations;
         public Minecraft189ItemStackAccess[] customMcHotbarItems() { return slots; }
