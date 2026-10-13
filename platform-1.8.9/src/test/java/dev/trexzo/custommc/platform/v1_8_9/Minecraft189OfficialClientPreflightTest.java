@@ -98,6 +98,79 @@ final class Minecraft189OfficialClientPreflightTest {
      * normal clients continue into Minecraft, while this test never needs a
      * render thread, OS window, account or native libraries.
      */
+    /**
+     * V22: source-pin ave.h/f/s and the transformed snapshot body to
+     * the genuine Mojang JAR. This does not assert a live cursor in game.
+     */
+    @Test
+    void realMojang189MinecraftContextReadsOnlyOriginalFields() throws Exception {
+        final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured, "V22 original binary is required");
+        } else {
+            Assumptions.assumeTrue(configured != null && !configured.trim().isEmpty(),
+                    "original Mojang JAR unavailable in offline unit CI");
+        }
+        final Path path = Paths.get(configured);
+        assertTrue(Files.isRegularFile(path));
+        assertEquals(OFFICIAL_SIZE, Files.size(path));
+        assertEquals(OFFICIAL_SHA1, digestFile(path));
+        final byte[] original;
+        try (JarFile jar = new JarFile(path.toFile())) {
+            final JarEntry entry = jar.getJarEntry("ave.class");
+            assertNotNull(entry, "original Minecraft singleton class absent");
+            try (InputStream in = jar.getInputStream(entry)) {
+                original = readAll(in);
+            }
+        }
+        final ClassNode vanilla = new ClassNode();
+        new ClassReader(original).accept(vanilla, 0);
+        assertEquals("ave", vanilla.name);
+        final String[] fields = {"h:Lbew;", "f:Lbdb;", "s:Lauh;"};
+        for (String required : fields) {
+            int count = 0;
+            for (FieldNode field : vanilla.fields)
+                if ((field.name + ":" + field.desc).equals(required))
+                    count++;
+            assertEquals(1, count, "missing exact original ave field " + required);
+        }
+        final ClassNode changed = new ClassNode();
+        new ClassReader(new Minecraft189ClassTransformer()
+                .transform("ave", original)).accept(changed, 0);
+        assertTrue(changed.interfaces.contains(
+                "dev/trexzo/custommc/platform/v1_8_9/"
+                        + "Minecraft189ScaffoldNativeContextAccess"),
+                "snapshot interface must be on actual original ave");
+        MethodNode snapshot = null;
+        for (MethodNode method : changed.methods)
+            if ("customMcScaffoldNativeContext".equals(method.name)
+                    && "()[Ljava/lang/Object;".equals(method.desc)) {
+                assertNull(snapshot, "duplicate native Minecraft snapshot");
+                snapshot = method;
+            }
+        assertNotNull(snapshot, "original Minecraft context accessor absent");
+        final List<String> reads = new ArrayList<String>();
+        int writes = 0, calls = 0, allocations = 0;
+        for (AbstractInsnNode instruction : snapshot.instructions.toArray()) {
+            if (instruction instanceof FieldInsnNode) {
+                final FieldInsnNode field = (FieldInsnNode) instruction;
+                if (field.getOpcode() != Opcodes.GETFIELD) writes++;
+                reads.add(field.owner + "." + field.name + ":" + field.desc);
+            } else if (instruction instanceof MethodInsnNode) {
+                calls++;
+            } else if (instruction.getOpcode() == Opcodes.ANEWARRAY) {
+                allocations++;
+            }
+        }
+        assertEquals(Arrays.asList("ave.h:Lbew;", "ave.f:Lbdb;",
+                        "ave.s:Lauh;"), reads,
+                "read-only original field order/identity changed");
+        assertEquals(0, writes, "native snapshot must never change game fields");
+        assertEquals(0, calls, "native snapshot must not invoke or dispatch");
+        assertEquals(1, allocations, "native snapshot should allocate one array");
+    }
+
     @Test
     void officialMinecraftMainEntersLiveBootstrapBeforeGraphics() throws Exception {
         final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
