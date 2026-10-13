@@ -663,18 +663,18 @@ final class Minecraft189OfficialClientPreflightTest {
             }
         }
         for(String expected:new String[]{
-                "auh.aLauh$a;","auh$b.placeholder",
-                "auh.bLcq;","auh.cLaui;","auh.eLcj;",
+                "auh.aLauh$a;","auh.bLcq;","auh.cLaui;","auh.eLcj;",
                 "auh$a.bLauh$a;","aui.aD","aui.bD","aui.cD"}) {
-            if(expected.endsWith(".placeholder")) continue;
             assertTrue(reads.contains(expected),"missing original ray source "+expected);
         }
         for(String expected:new String[]{
                 "df.n()I","df.o()I","df.p()I","cq.a()I",
                 "java/lang/Object.equals(Ljava/lang/Object;)Z"})
             assertTrue(calls.contains(expected),"missing source-native ray getter "+expected);
-        assertEquals(8,reads.size()+0-3,
-                "ray evidence includes 3 repeats for BlockPos and Vec3");
+        assertEquals(12,reads.size(),
+                "native ray evidence reads exactly the verified original fields");
+        assertEquals(5,calls.size(),
+                "native ray evidence calls exactly three original Vec3i getters, Facing.getIndex and equals");
         System.out.println("REAL_189_SCAFFOLD_NATIVE_BLOCK_FACE_HITVECTOR_PASS=YES");
         System.out.println("REAL_189_SCAFFOLD_NATIVE_RAY_HIT_READ_ONLY_TRANSFORM_PASS=YES");
         System.out.println("REAL_189_SCAFFOLD_AUTOMATIC_PLACEMENT=NOT_TESTED");
