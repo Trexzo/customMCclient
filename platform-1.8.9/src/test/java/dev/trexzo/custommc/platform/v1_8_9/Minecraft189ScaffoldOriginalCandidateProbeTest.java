@@ -81,8 +81,8 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
     }
     private static final class Minecraft implements Minecraft189ScaffoldNativeContextAccess,
             Minecraft189ScaffoldNativeControllerAccess {
-        final Player player=new Player();
-        final World world=new World();
+        Player player=new Player();
+        World world=new World();
         final Cursor cursor=new Cursor();
         Object controller=new Controller();
         public Object[] customMcScaffoldNativeContext(){
@@ -190,6 +190,70 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
         assertFalse(Minecraft189ScaffoldPlacementReadback
                 .confirmsClientWorldAndSurvivalStack(game,attempted),
                 "different selected hotbar source may not claim old debit");
+    }
+
+    @Test void sourceEpochForbidsCrossWorldAndCrossPlayerReceiptReuse(){
+        Minecraft game=new Minecraft();
+        Stack stone=new Stack();
+        game.player.inventory.contents[0]=stone;
+        Minecraft189ScaffoldSourceEpoch epoch=new Minecraft189ScaffoldSourceEpoch();
+        long receiptGeneration=epoch.observe(game);
+        assertTrue(receiptGeneration>0);
+        assertEquals(receiptGeneration,epoch.observe(game));
+
+        Minecraft189ScaffoldNativePlacementAttempt.Result receipt =
+                Minecraft189ScaffoldNativePlacementAttempt.attempt(game,true);
+        assertNotNull(receipt);
+        assertTrue(receipt.originalControllerAccepted);
+        stone.count=7;
+        game.world.placed=true;
+        assertTrue(epoch.confirmsSameSourceReadback(game,receiptGeneration,receipt),
+                "same original World/player source can prove a real one-item receipt");
+
+        final World originalWorld=game.world;
+        game.world=new World();
+        game.world.placed=true;
+        assertTrue(Minecraft189ScaffoldPlacementReadback
+                .confirmsClientWorldAndSurvivalStack(game,receipt),
+                "identical block coordinates alone cannot identify original World");
+        assertFalse(epoch.confirmsSameSourceReadback(game,receiptGeneration,receipt),
+                "a different World with identical stone and inventory is not the same receipt");
+        game.world=originalWorld;
+        assertFalse(epoch.confirmsSameSourceReadback(game,receiptGeneration,receipt),
+                "returning to a former World must not resurrect an expired receipt");
+
+        long secondGeneration=epoch.observe(game);
+        assertTrue(secondGeneration>receiptGeneration);
+        game.player=new Player();
+        Stack otherStack=new Stack();
+        otherStack.count=7;
+        game.player.inventory.contents[0]=otherStack;
+        assertTrue(Minecraft189ScaffoldPlacementReadback
+                .confirmsClientWorldAndSurvivalStack(game,receipt));
+        assertFalse(epoch.confirmsSameSourceReadback(game,secondGeneration,receipt),
+                "replacement player with matching inventory may not inherit receipt");
+    }
+
+    @Test void missingSourceAndReconnectInvalidateOriginalGeneration(){
+        Minecraft game=new Minecraft();
+        game.player.inventory.contents[0]=new Stack();
+        Minecraft189ScaffoldSourceEpoch epoch=new Minecraft189ScaffoldSourceEpoch();
+        long first=epoch.observe(game);
+        assertTrue(first>0);
+        World original=game.world;
+        game.world=null;
+        assertEquals(0L,epoch.observe(game),
+                "disconnect produces no valid original World source");
+        game.world=original;
+        long reconnected=epoch.observe(game);
+        assertTrue(reconnected>first,
+                "old original World reference after disconnect gets new generation");
+        epoch.invalidate();
+        assertTrue(epoch.observe(game)>reconnected,
+                "owner-runtime close/reinstall cannot reuse a pending receipt generation");
+        game.player.inventory.contents[0]=null;
+        assertEquals(0L,epoch.observe(game),
+                "missing native selected ItemBlock revokes pending source");
     }
 
     @Test void noOriginalItemWrongRayOrWorldMustVeto(){
