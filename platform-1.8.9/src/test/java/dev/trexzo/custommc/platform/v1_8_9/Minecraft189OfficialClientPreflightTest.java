@@ -457,6 +457,72 @@ final class Minecraft189OfficialClientPreflightTest {
      * Mojang JAR, not synthetic block samples or fictional placement success.
      * These APIs are prerequisites for future implementation only.
      */
+    /**
+     * V14: exact original ItemStack Item field is inspected with INSTANCEOF
+     * original ItemBlock (yo), never an item name or an icon/texture match.
+     */
+    @Test
+    void realMojang189ItemStackNativeItemBlockTypeHookIsExact() throws Exception {
+        final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured, "original 1.8.9 binary required for V14");
+        } else {
+            Assumptions.assumeTrue(configured != null && !configured.trim().isEmpty(),
+                    "No original Minecraft JAR in ordinary offline CI");
+        }
+        final Path path = Paths.get(configured);
+        assertTrue(Files.isRegularFile(path));
+        assertEquals(OFFICIAL_SIZE, Files.size(path));
+        assertEquals(OFFICIAL_SHA1, digestFile(path));
+        final byte[] original;
+        try (JarFile jar = new JarFile(path.toFile())) {
+            final JarEntry entry = jar.getJarEntry("zx.class");
+            assertNotNull(entry,"source-native ItemStack absent");
+            try (InputStream stream = jar.getInputStream(entry)) {
+                original = readAll(stream);
+            }
+        }
+        final ClassNode originalNode = new ClassNode();
+        new ClassReader(original).accept(originalNode,0);
+        String itemField = null;
+        int itemFields = 0;
+        for (FieldNode field : originalNode.fields)
+            if ("Lzw;".equals(field.desc)
+                    && (field.access & Opcodes.ACC_STATIC) == 0) {
+                itemFields++;
+                itemField = field.name;
+            }
+        assertEquals(1,itemFields, "original ItemStack must own exactly one Item field");
+        final ClassNode transformed = new ClassNode();
+        new ClassReader(new Minecraft189ClassTransformer()
+                .transform("zx",original)).accept(transformed,0);
+        int hookCount = 0;
+        for (MethodNode method : transformed.methods) {
+            if (!"customMcIsBlockItem".equals(method.name)
+                    || !"()Z".equals(method.desc)) continue;
+            hookCount++;
+            int fieldReads=0, genuineChecks=0;
+            for (AbstractInsnNode instruction : method.instructions.toArray()) {
+                if (instruction instanceof FieldInsnNode) {
+                    final FieldInsnNode field=(FieldInsnNode)instruction;
+                    if (field.getOpcode()==Opcodes.GETFIELD
+                            && "zx".equals(field.owner) && itemField.equals(field.name)
+                            && "Lzw;".equals(field.desc)) fieldReads++;
+                }
+                if (instruction.getOpcode()==Opcodes.INSTANCEOF
+                        && instruction instanceof org.objectweb.asm.tree.TypeInsnNode
+                        && "yo".equals(((org.objectweb.asm.tree.TypeInsnNode)instruction).desc))
+                    genuineChecks++;
+            }
+            assertEquals(1,fieldReads,"getter must read the native Item field");
+            assertEquals(1,genuineChecks,"getter must check exact genuine ItemBlock yo");
+        }
+        assertEquals(1,hookCount,"one real ItemBlock type getter on transformed ItemStack");
+        System.out.println("REAL_189_SCAFFOLD_SOURCE_ITEMBLOCK_INSTANCEOF_PASS=YES");
+        System.out.println("REAL_189_SCAFFOLD_SELECTED_HOTBAR_SERVER_PLACEMENT=NOT_TESTED");
+    }
+
     @Test
     void realMojang189ScaffoldWorldSupportAndItemBlockMethodsExist() throws Exception {
         final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
