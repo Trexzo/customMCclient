@@ -196,6 +196,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
     if native_scaffold_world:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireNativeScaffoldWorldCell=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true")
     if native_world_camera:
         command.insert(command.index("-cp"),
                        "-Dcustommc.visuals.captureNativeWorldCamera=true")
@@ -406,15 +408,39 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # original client's World via normal world packets.
                 resume_if_paused(process, log, window)
                 send_command(process, log, window, "/time set 1000")
+                # Load destination first; vanilla /setblock rejects unloaded
+                # chunks. A permanent separate stone support prevents the
+                # original player falling out of loaded range while observing.
                 send_command(process, log, window, "/tp 0.5 120 0.5 0 0")
+                time.sleep(2.0)
+                send_command(process, log, window, "/setblock 0 99 0 stone")
+                send_command(process, log, window, "/setblock 1 99 0 air")
+                if b"Cannot place blocks outside of the world" in read_tail(log):
+                    raise AssertionError("vanilla original world setup rejected unloaded chunk")
+                send_command(process, log, window, "/tp 0.5 100 0.5 0 0")
+                # Actually observe the source-native player's stable support,
+                # not simply successful execution of the /tp command.
+                stable_start = time.monotonic()
+                while time.monotonic() - stable_start < 10:
+                    actual = native_safe_walk_positions(log)[-5:]
+                    if len(actual) >= 3 and all(
+                            abs(x - 0.5) < 0.3 and abs(y - 100.0) < 0.2
+                            and abs(z - 0.5) < 0.3 for x, y, z in actual[-3:]):
+                        break
+                    require_running(process, "real native Scaffold fixture grounding")
+                    time.sleep(0.15)
+                else:
+                    raise AssertionError("vanilla player lacks sustained stone support at (0,99,0)")
+                print("CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_SUPPORT_GROUNDED=YES",
+                      flush=True)
                 await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_AIR_PASS=YES",
-                             deadline, "actual native source-world air at (0,99,0)")
-                send_command(process, log, window, "/setblock 0 99 0 stone")
+                             deadline, "actual original World AIR at adjacent (1,99,0)")
+                send_command(process, log, window, "/setblock 1 99 0 stone")
                 await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_SOLID_PASS=YES",
-                             deadline, "genuine integrated-server stone read by original World")
-                send_command(process, log, window, "/setblock 0 99 0 air")
+                             deadline, "genuine vanilla stone at adjacent (1,99,0)")
+                send_command(process, log, window, "/setblock 1 99 0 air")
                 await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_REVERTED_AIR_PASS=YES",
                              deadline, "original World observes real stone-to-air server update")
