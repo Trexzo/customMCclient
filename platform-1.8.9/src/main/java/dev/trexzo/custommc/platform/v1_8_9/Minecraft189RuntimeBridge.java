@@ -602,8 +602,17 @@ public final class Minecraft189RuntimeBridge {
                 try {
                     final int floor = source.customMcScaffoldCellCode(0, 99, 0);
                     final int above = source.customMcScaffoldCellCode(0, 101, 0);
+                    final int targetBranch =
+                            source.customMcScaffoldCellTrace(1, 99, 0);
+                    final int floorBranch =
+                            source.customMcScaffoldCellTrace(0, 99, 0);
+                    final int aboveBranch =
+                            source.customMcScaffoldCellTrace(0, 101, 0);
                     System.out.println("CUSTOMMC_SCAFFOLD_WORLD_DIAG_TRIPLE=target:"
                             + cell + ",floor:" + floor + ",above:" + above
+                            + ",branchTarget:" + targetBranch
+                            + ",branchFloor:" + floorBranch
+                            + ",branchAbove:" + aboveBranch
                             + ",tick:" + acceptanceScaffoldWorldDiagTick
                             + ",type:" + world.getClass().getName());
                     System.out.flush();
