@@ -243,6 +243,9 @@ public final class Minecraft189ClassTransformer
     private static final String SCAFFOLD_NATIVE_EYE_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189ScaffoldNativeEyeAccess";
+    private static final String SCAFFOLD_NATIVE_CONTROLLER_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189ScaffoldNativeControllerAccess";
     private static final String SCAFFOLD_NATIVE_CONTEXT_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189ScaffoldNativeContextAccess";
@@ -717,11 +720,13 @@ public final class Minecraft189ClassTransformer
                                 withInterface(
                                         withInterface(
                                                 withInterface(
-                                                        withInterface(interfaces,
-                                                                CLICK_MOUSE_CONTROL_INTERNAL_NAME),
-                                                        SWORD_BLOCK_CONTROL_INTERNAL_NAME),
-                                                CROSSHAIR_HIT_ACCESS_INTERNAL_NAME),
-                                        SCAFFOLD_NATIVE_CONTEXT_ACCESS_INTERNAL_NAME));
+                                                        withInterface(
+                                                                withInterface(interfaces,
+                                                                        CLICK_MOUSE_CONTROL_INTERNAL_NAME),
+                                                                SWORD_BLOCK_CONTROL_INTERNAL_NAME),
+                                                        CROSSHAIR_HIT_ACCESS_INTERNAL_NAME),
+                                                SCAFFOLD_NATIVE_CONTEXT_ACCESS_INTERNAL_NAME),
+                                        SCAFFOLD_NATIVE_CONTROLLER_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1679,6 +1684,7 @@ public final class Minecraft189ClassTransformer
                         addCrosshairPlayerIndexAccessor(cv);
                         addCrosshairHitboxBoundsAccessor(cv);
                         addScaffoldNativeContextAccessor(cv);
+                        addScaffoldNativeControllerAccessor(cv);
                         super.visitEnd();
                     }
                 },
@@ -2456,6 +2462,22 @@ public final class Minecraft189ClassTransformer
      * V22: source-original ave fields read into an immediate, unretained
      * reference triple. No source cursor construction and no side effects.
      */
+    /** V25: one original Minecraft ave.c:Lbda; source read, never a click. */
+    private static void addScaffoldNativeControllerAccessor(final ClassVisitor cv) {
+        final MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC,
+                "customMcScaffoldNativeController", "()Ljava/lang/Object;",
+                null, null);
+        mv.visitCode();
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitFieldInsn(Opcodes.GETFIELD,
+                Minecraft189Mappings.MINECRAFT.obfuscatedInternalName(),
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER.obfuscatedName(),
+                Minecraft189Mappings.MINECRAFT_PLAYER_CONTROLLER.descriptor());
+        mv.visitInsn(Opcodes.ARETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+    }
+
     private static void addScaffoldNativeContextAccessor(final ClassVisitor cv) {
         final MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC,
                 "customMcScaffoldNativeContext", "()[Ljava/lang/Object;",

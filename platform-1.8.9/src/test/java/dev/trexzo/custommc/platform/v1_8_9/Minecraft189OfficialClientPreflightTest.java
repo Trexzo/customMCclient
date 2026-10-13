@@ -99,6 +99,80 @@ final class Minecraft189OfficialClientPreflightTest {
      * render thread, OS window, account or native libraries.
      */
     /**
+     * V25 source-pin the original ave.c:Lbda; and bda reach methods.
+     * Generated code may only GETFIELD the original controller reference.
+     */
+    @Test
+    void originalMinecraftControllerReachIsSourceNative() throws Exception {
+        final String configured=System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured, "real Minecraft player controller required");
+        } else {
+            Assumptions.assumeTrue(configured!=null && !configured.trim().isEmpty(),
+                    "official JAR not available offline");
+        }
+        final Path path=Paths.get(configured);
+        assertTrue(Files.isRegularFile(path));
+        assertEquals(OFFICIAL_SIZE, Files.size(path));
+        assertEquals(OFFICIAL_SHA1, digestFile(path));
+        final byte[][] classBytes=new byte[2][];
+        try(JarFile jar=new JarFile(path.toFile())) {
+            int idx=0;
+            for(String className:Arrays.asList("ave","bda")) {
+                final JarEntry entry=jar.getJarEntry(className+".class");
+                assertNotNull(entry);
+                try(InputStream in=jar.getInputStream(entry)) {
+                    classBytes[idx++]=readAll(in);
+                }
+            }
+        }
+        final ClassNode vanillaGame=new ClassNode();
+        final ClassNode vanillaController=new ClassNode();
+        new ClassReader(classBytes[0]).accept(vanillaGame,0);
+        new ClassReader(classBytes[1]).accept(vanillaController,0);
+        int sourceControllerFields=0;
+        for(FieldNode field:vanillaGame.fields)
+            if("c".equals(field.name) && "Lbda;".equals(field.desc))
+                sourceControllerFields++;
+        assertEquals(1,sourceControllerFields,"missing original ave.c field");
+        for(String methodId:Arrays.asList("d()F","i()Z")) {
+            int count=0;
+            for(MethodNode method:vanillaController.methods)
+                if((method.name+method.desc).equals(methodId))
+                    count++;
+            assertEquals(1,count,"missing original bda reach method "+methodId);
+        }
+        final ClassNode changed=new ClassNode();
+        new ClassReader(new Minecraft189ClassTransformer()
+                .transform("ave",classBytes[0])).accept(changed,0);
+        assertTrue(changed.interfaces.contains(
+                "dev/trexzo/custommc/platform/v1_8_9/"
+                        +"Minecraft189ScaffoldNativeControllerAccess"));
+        MethodNode getter=null;
+        for(MethodNode method:changed.methods)
+            if("customMcScaffoldNativeController".equals(method.name)
+                    && "()Ljava/lang/Object;".equals(method.desc)) {
+                assertNull(getter,"duplicate original controller accessor");
+                getter=method;
+            }
+        assertNotNull(getter);
+        int reads=0;
+        for(AbstractInsnNode node:getter.instructions.toArray()) {
+            if(node instanceof MethodInsnNode)
+                fail("original controller accessor must never invoke methods");
+            if(!(node instanceof FieldInsnNode)) continue;
+            final FieldInsnNode field=(FieldInsnNode)node;
+            assertEquals(Opcodes.GETFIELD, field.getOpcode());
+            assertEquals("ave",field.owner);
+            assertEquals("c",field.name);
+            assertEquals("Lbda;",field.desc);
+            reads++;
+        }
+        assertEquals(1,reads,"one source original controller field read");
+    }
+
+    /**
      * V24: original joined.srg wn/aS()F, not guessed constant/field.
      * Verifies the exact original vanilla override and read-only delegate.
      */

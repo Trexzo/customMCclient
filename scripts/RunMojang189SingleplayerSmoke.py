@@ -218,6 +218,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                        "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true")
     if native_scaffold_context:
         command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireOriginalScaffoldReach=true")
+        command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireOriginalScaffoldEye=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireOriginalScaffoldContext=true")
@@ -529,11 +531,14 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                     raise AssertionError("native original Scaffold context player not grounded")
                 tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_TICK_CONTEXT_PASS=YES"
                 eye_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_PLAYER_EYE_PASS=YES"
-                if tag in read_tail(log) or eye_tag in read_tail(log):
-                    raise AssertionError("original h/f/s or native eye claimed before vanilla ItemBlock")
+                reach_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_REACH_PASS=YES"
+                if any(marker in read_tail(log) for marker in (tag, eye_tag, reach_tag)):
+                    raise AssertionError("original context/eye/reach claimed before vanilla ItemBlock")
                 send_command(process, log, window, "/give CIProbe stone 8")
                 await_marker(process, log, eye_tag, deadline,
                              "source-native player dynamic eye method on original runTick")
+                await_marker(process, log, reach_tag, deadline,
+                             "source-native controller conservative reach in original runTick")
                 await_marker(process, log, tag, deadline,
                              "real Minecraft tick has original player/World/cursor/ItemBlock")
                 print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_SOURCE_TICK_CONTEXT_PASS=YES",

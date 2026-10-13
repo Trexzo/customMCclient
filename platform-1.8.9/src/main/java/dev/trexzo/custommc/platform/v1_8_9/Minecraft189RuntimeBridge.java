@@ -261,6 +261,12 @@ public final class Minecraft189RuntimeBridge {
                 ? Minecraft189ScaffoldSourceEye.currentEyeY(witness.player)
                 : Double.NaN;
         if (requireNativeEye && !Double.isFinite(sourceEyeY)) return;
+        final boolean requireNativeReach = Boolean.getBoolean(
+                "custommc.acceptance.requireOriginalScaffoldReach");
+        final double conservativeReach = requireNativeReach
+                ? Minecraft189ScaffoldSourceReach.conservativeReach(minecraft)
+                : Double.NaN;
+        if (requireNativeReach && !Double.isFinite(conservativeReach)) return;
         // A valid reference triple and selected genuine ItemBlock do not
         // establish a clicked BLOCK or a legal Scaffold candidate. The
         // original current ray may be MISS/ENTITY. No placement occurs.
@@ -269,6 +275,11 @@ public final class Minecraft189RuntimeBridge {
             System.out.println(
                     "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_PLAYER_EYE_PASS=YES"
                     + " eyeY=" + sourceEyeY);
+        }
+        if (requireNativeReach) {
+            System.out.println(
+                    "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_REACH_PASS=YES"
+                    + " conservativeReach=" + conservativeReach);
         }
         System.out.println(
                 "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_TICK_CONTEXT_PASS=YES");
