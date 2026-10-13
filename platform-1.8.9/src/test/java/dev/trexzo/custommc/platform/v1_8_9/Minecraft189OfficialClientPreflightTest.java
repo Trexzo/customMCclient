@@ -531,7 +531,6 @@ final class Minecraft189OfficialClientPreflightTest {
             "adm.N()Lamv;",
             "amv.d(II)Lamy;",
             "amy.f()Z",
-            "adm.d(Lcj;Z)Z",
             "adm.d(Lcj;)Z",
             "adm.p(Lcj;)Lalz;",
             "alz.c()Lafh;",
@@ -557,13 +556,12 @@ final class Minecraft189OfficialClientPreflightTest {
                         callOrder.indexOf("amy.f()Z"),
                 "source-native provided Chunk must be verified not an EmptyChunk");
         assertTrue(callOrder.indexOf("amy.f()Z") <
-                        callOrder.indexOf("adm.d(Lcj;Z)Z"),
-                "real nonempty Chunk MUST precede allowEmpty air");
-        assertFalse(callOrder.contains("amv.a(II)Z"),
-                "Minecraft 1.8.9 client chunkExists always true and cannot prove residency");
-        assertTrue(callOrder.indexOf("adm.d(Lcj;Z)Z") <
                         callOrder.indexOf("adm.d(Lcj;)Z"),
-                "actual original air classification only after chunk presence");
+                "source-native non-EmptyChunk proof MUST precede air read");
+        assertFalse(callOrder.contains("amv.a(II)Z"),
+                "Minecraft 1.8.9 client chunkExists always true");
+        assertFalse(callOrder.contains("adm.d(Lcj;Z)Z"),
+                "redundant vanilla loaded-block test must not suppress verified air");
         System.out.println("REAL_189_SCAFFOLD_NATIVE_NONEMPTY_CHUNK_BEFORE_AIR_PASS=YES");
         System.out.println("REAL_189_SCAFFOLD_NATIVE_LOADED_AIR_FULL_CUBE_READ_PASS=YES");
         System.out.println("REAL_189_SCAFFOLD_NATIVE_READ_ONLY_WORLD_ADAPTER_PASS=YES");
