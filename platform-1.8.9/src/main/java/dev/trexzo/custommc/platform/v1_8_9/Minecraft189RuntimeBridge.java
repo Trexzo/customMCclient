@@ -253,10 +253,23 @@ public final class Minecraft189RuntimeBridge {
                 Minecraft189ScaffoldNativeContext.capture(
                         (Minecraft189ScaffoldNativeContextAccess)minecraft);
         if (witness == null) return;
+        // V24: if explicitly requested, the same original player must also
+        // provide its source-native dynamic wn/aS()F eye height. No constant.
+        final boolean requireNativeEye = Boolean.getBoolean(
+                "custommc.acceptance.requireOriginalScaffoldEye");
+        final double sourceEyeY = requireNativeEye
+                ? Minecraft189ScaffoldSourceEye.currentEyeY(witness.player)
+                : Double.NaN;
+        if (requireNativeEye && !Double.isFinite(sourceEyeY)) return;
         // A valid reference triple and selected genuine ItemBlock do not
         // establish a clicked BLOCK or a legal Scaffold candidate. The
         // original current ray may be MISS/ENTITY. No placement occurs.
         scaffoldOriginalContextReported = true;
+        if (requireNativeEye) {
+            System.out.println(
+                    "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_PLAYER_EYE_PASS=YES"
+                    + " eyeY=" + sourceEyeY);
+        }
         System.out.println(
                 "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_TICK_CONTEXT_PASS=YES");
         System.out.flush();
