@@ -99,6 +99,59 @@ final class Minecraft189OfficialClientPreflightTest {
      * render thread, OS window, account or native libraries.
      */
     /**
+     * V27: source-pin real vanilla PlayerControllerMP.onPlayerRightClick.
+     * This checks ONLY exact Mojang method authority; it does NOT call the
+     * method, send C08, mutate the world or claim server block placement.
+     */
+    @Test
+    void originalMinecraftNativeBlockPlacementControllerMethodExists() throws Exception {
+        final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured, "real native placement method requires Mojang binary");
+        } else {
+            Assumptions.assumeTrue(configured != null && !configured.trim().isEmpty(),
+                    "original Minecraft 1.8.9 binary unavailable in offline tests");
+        }
+        final Path originalPath = Paths.get(configured);
+        assertTrue(Files.isRegularFile(originalPath));
+        assertEquals(OFFICIAL_SIZE, Files.size(originalPath));
+        assertEquals(OFFICIAL_SHA1, digestFile(originalPath));
+        final byte[] source;
+        try (JarFile jar = new JarFile(originalPath.toFile())) {
+            final JarEntry entry = jar.getJarEntry("bda.class");
+            assertNotNull(entry, "original PlayerControllerMP bda absent");
+            try (InputStream input = jar.getInputStream(entry)) {
+                source = readAll(input);
+            }
+        }
+        final ClassNode vanilla = new ClassNode();
+        new ClassReader(source).accept(vanilla, 0);
+        assertEquals("bda", vanilla.name);
+        final Minecraft189Mappings.MappedMethod nativeClick =
+                Minecraft189Mappings.PLAYER_CONTROLLER_ON_PLAYER_RIGHT_CLICK;
+        assertEquals("a", nativeClick.obfuscatedName());
+        assertEquals("(Lbew;Lbdb;Lzx;Lcj;Lcq;Laui;)Z",
+                nativeClick.descriptor());
+        int sourceMatches = 0;
+        for (MethodNode method : vanilla.methods) {
+            if (nativeClick.obfuscatedName().equals(method.name)
+                    && nativeClick.descriptor().equals(method.desc)) {
+                sourceMatches++;
+                assertFalse((method.access & Opcodes.ACC_ABSTRACT) != 0,
+                        "native vanilla placement method must contain implementation");
+                assertFalse((method.access & Opcodes.ACC_NATIVE) != 0,
+                        "native Java controller must be a regular vanilla method");
+                assertTrue(method.instructions != null
+                        && method.instructions.size() > 10,
+                        "vanilla placement method body must not be a synthetic stub");
+            }
+        }
+        assertEquals(1, sourceMatches,
+                "exact original source right-click signature must occur once");
+    }
+
+    /**
      * V25 source-pin the original ave.c:Lbda; and bda reach methods.
      * Generated code may only GETFIELD the original controller reference.
      */
