@@ -3650,7 +3650,7 @@ public final class Minecraft189ClassTransformer
         m.visitInsn(Opcodes.IRETURN);
 
         m.visitLabel(providerAvailable);
-        m.visitFrame(Opcodes.F_FULL, 1,
+        m.visitFrame(Opcodes.F_FULL, 5,
                 new Object[]{world, Opcodes.INTEGER, Opcodes.INTEGER,
                         Opcodes.INTEGER, blockPos},
                 1, new Object[]{provider});
