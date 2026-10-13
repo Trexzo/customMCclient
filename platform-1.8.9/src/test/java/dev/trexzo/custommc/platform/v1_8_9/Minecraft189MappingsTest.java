@@ -2060,15 +2060,45 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedInternalName());
         addField(good, Minecraft189Mappings.MOVING_OBJECT_TYPE_OF_HIT);
         addField(good, Minecraft189Mappings.MOVING_OBJECT_ENTITY_HIT);
+        addField(good, Minecraft189Mappings.MOVING_OBJECT_SIDE_HIT);
+        addField(good, Minecraft189Mappings.MOVING_OBJECT_HIT_VEC);
+        addField(good, Minecraft189Mappings.MOVING_OBJECT_BLOCK_POS);
         final byte[] correct = finish(good);
         Minecraft189ClassShapeVerifier.verifyMovingObjectPosition(correct);
         final Minecraft189ClassTransformer transformer =
                 new Minecraft189ClassTransformer();
         assertEquals(true, transformer.handles(
                 Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedBinaryName()));
-        org.junit.jupiter.api.Assertions.assertArrayEquals(correct, transformer.transform(
+        final byte[] transformed=transformer.transform(
                 Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedBinaryName(),
-                correct));
+                correct);
+        final boolean[] exactNativeRayGetter={false};
+        final boolean[] originalRayInterface={false};
+        new org.objectweb.asm.ClassReader(transformed).accept(
+                new org.objectweb.asm.ClassVisitor(Opcodes.ASM9) {
+                    @Override public void visit(final int version,
+                            final int access, final String name,
+                            final String signature, final String superName,
+                            final String[] interfaces) {
+                        for(String candidate:interfaces)
+                            if("dev/trexzo/custommc/platform/v1_8_9/"
+                                    .concat("Minecraft189ScaffoldNativeBlockHitAccess")
+                                    .equals(candidate)) originalRayInterface[0]=true;
+                    }
+                    @Override public org.objectweb.asm.MethodVisitor visitMethod(
+                            final int access,final String name,final String desc,
+                            final String signature,final String[] exceptions) {
+                        if("customMcScaffoldNativeBlockHit".equals(name)
+                                && "()[D".equals(desc)) exactNativeRayGetter[0]=true;
+                        return null;
+                    }
+                },org.objectweb.asm.ClassReader.SKIP_CODE
+                        |org.objectweb.asm.ClassReader.SKIP_DEBUG
+                        |org.objectweb.asm.ClassReader.SKIP_FRAMES);
+        assertEquals(true,originalRayInterface[0],
+                "mapped original ray fixture must get source hit-only interface");
+        assertEquals(true,exactNativeRayGetter[0],
+                "mapped original ray must get read-only primitive snapshot getter");
 
         final ClassWriter missing = writer(
                 Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedInternalName());
@@ -2099,6 +2129,7 @@ final class Minecraft189MappingsTest {
         final ClassWriter valid = writer(
                 Minecraft189Mappings.MOVING_OBJECT_TYPE.obfuscatedInternalName());
         addField(valid, Minecraft189Mappings.MOVING_OBJECT_TYPE_ENTITY);
+        addField(valid, Minecraft189Mappings.MOVING_OBJECT_TYPE_BLOCK);
         Minecraft189ClassShapeVerifier.verifyMovingObjectType(finish(valid));
         final ClassWriter invalid = writer(
                 Minecraft189Mappings.MOVING_OBJECT_TYPE.obfuscatedInternalName());
