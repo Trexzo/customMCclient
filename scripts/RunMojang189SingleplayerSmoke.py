@@ -530,6 +530,17 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 print("CUSTOMMC_OFFICIAL_189_COMBAT_DAMAGE_TESTED=NO")
             print("CUSTOMMC_OFFICIAL_189_MULTIPLAYER_TESTED=NO")
         except BaseException:
+            if native_scaffold_world:
+                # Native per-world diagnostics can be earlier than the last
+                # 12KB of very frequent player-position samples. Preserve
+                # bounded, exact tagged lines from the real game process.
+                tagged = [line for line in log.read_bytes().splitlines()
+                          if b"CUSTOMMC_SCAFFOLD_WORLD_DIAG_" in line
+                          or b"CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_" in line]
+                print("SCAFFOLD_SOURCE_WORLD_DIAGNOSTICS_START", file=sys.stderr)
+                for line in tagged[-45:]:
+                    print(line.decode("utf-8", "replace"), file=sys.stderr)
+                print("SCAFFOLD_SOURCE_WORLD_DIAGNOSTICS_END", file=sys.stderr)
             print("SINGLEPLAYER_SMOKE_OUTPUT_TAIL_START", file=sys.stderr)
             print(read_tail(log)[-12000:].decode("utf-8", "replace"), file=sys.stderr)
             print("SINGLEPLAYER_SMOKE_OUTPUT_TAIL_END", file=sys.stderr)
