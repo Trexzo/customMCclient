@@ -102,6 +102,13 @@ public final class Minecraft189Mappings {
     public static final MappedClass C08_PACKET_PLAYER_BLOCK_PLACEMENT =
             new MappedClass("ja",
                     "net/minecraft/network/play/client/C08PacketPlayerBlockPlacement");
+    // V13: exact original world, IBlockState and real ItemBlock provenance.
+    public static final MappedClass BLOCK =
+            new MappedClass("afh", "net/minecraft/block/Block");
+    public static final MappedClass I_BLOCK_STATE =
+            new MappedClass("alz", "net/minecraft/block/state/IBlockState");
+    public static final MappedClass ITEM_BLOCK =
+            new MappedClass("yo", "net/minecraft/item/ItemBlock");
     public static final MappedClass ITEM_STACK =
             new MappedClass(
                     "zx",
@@ -589,6 +596,30 @@ public final class Minecraft189Mappings {
                     "(Z)V",
                     "func_70095_a",
                     "setSneaking");
+
+    // V13 read-only support evidence: never assume unknown/unloaded is air.
+    public static final MappedMethod WORLD_IS_BLOCK_LOADED =
+            new MappedMethod(WORLD, "d", "(Lcj;Z)Z",
+                    "func_175677_d", "isBlockLoaded");
+    public static final MappedMethod WORLD_GET_BLOCK_STATE =
+            new MappedMethod(WORLD, "p", "(Lcj;)Lalz;",
+                    "func_180495_p", "getBlockState");
+    public static final MappedMethod WORLD_IS_AIR_BLOCK =
+            new MappedMethod(WORLD, "d", "(Lcj;)Z",
+                    "func_175623_d", "isAirBlock");
+    public static final MappedMethod STATE_GET_BLOCK =
+            new MappedMethod(I_BLOCK_STATE, "c", "()Lafh;",
+                    "func_177230_c", "getBlock");
+    public static final MappedMethod BLOCK_IS_FULL_CUBE =
+            new MappedMethod(BLOCK, "o", "()Z",
+                    "func_149730_j", "isFullCube");
+    public static final MappedMethod INVENTORY_GET_STACK_IN_SLOT =
+            new MappedMethod(INVENTORY_PLAYER, "a", "(I)Lzx;",
+                    "func_70301_a", "getStackInSlot");
+    public static final MappedMethod ITEM_BLOCK_ON_ITEM_USE =
+            new MappedMethod(ITEM_BLOCK, "a",
+                    "(Lzx;Lwn;Ladm;Lcj;Lcq;FFF)Z",
+                    "func_180614_a", "onItemUse");
 
     public static final MappedMethod WORLD_GET_WORLD_TIME =
             new MappedMethod(
