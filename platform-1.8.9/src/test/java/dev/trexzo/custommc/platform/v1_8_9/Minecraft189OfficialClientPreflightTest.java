@@ -458,6 +458,87 @@ final class Minecraft189OfficialClientPreflightTest {
      * These APIs are prerequisites for future implementation only.
      */
     /**
+     * V15 original binary acceptance: source native World reads, emitted
+     * bytecode semantics, and no packet/world-mutating calls in the adapter.
+     */
+    @Test
+    void realMojang189ScaffoldWorldAdapterHasExactNativeReadOnlyCalls() throws Exception {
+        final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured,"original client required for World read proof");
+        } else {
+            Assumptions.assumeTrue(configured != null && !configured.trim().isEmpty(),
+                    "No pinned Mojang client in offline unit run");
+        }
+        final Path original = Paths.get(configured);
+        assertTrue(Files.isRegularFile(original));
+        assertEquals(OFFICIAL_SIZE, Files.size(original));
+        assertEquals(OFFICIAL_SHA1, digestFile(original));
+        final byte[] raw;
+        try (JarFile jar = new JarFile(original.toFile())) {
+            final JarEntry entry = jar.getJarEntry("adm.class");
+            assertNotNull(entry,"native World absent");
+            try (InputStream input = jar.getInputStream(entry)) {
+                raw = readAll(input);
+            }
+        }
+        final ClassNode source = new ClassNode();
+        new ClassReader(raw).accept(source, 0);
+        final String[][] originals = {
+            {"d","(Lcj;Z)Z"}, {"d","(Lcj;)Z"}, {"p","(Lcj;)Lalz;"}
+        };
+        for (String[] symbol : originals) {
+            int count = 0;
+            for (MethodNode n : source.methods)
+                if (symbol[0].equals(n.name) && symbol[1].equals(n.desc)) count++;
+            assertEquals(1,count,"exact native World symbol "+Arrays.toString(symbol));
+        }
+        final byte[] patched = new Minecraft189ClassTransformer()
+                .transform("adm", raw);
+        final ClassNode transformed = new ClassNode();
+        new ClassReader(patched).accept(transformed,0);
+        assertTrue(transformed.interfaces.contains(
+                "dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldWorldReadAccess"),
+                "only source-authentic World may provide Scaffold read adapter");
+        MethodNode method = null;
+        for (MethodNode n : transformed.methods)
+            if ("customMcScaffoldCellCode".equals(n.name)
+                    && "(III)I".equals(n.desc)) {
+                assertNull(method,"duplicate native Scaffold read method");
+                method = n;
+            }
+        assertNotNull(method,"original World missing read-only native cell method");
+        final Map<String,Integer> seen = new LinkedHashMap<String,Integer>();
+        for (AbstractInsnNode insn : method.instructions.toArray()) {
+            if (!(insn instanceof MethodInsnNode)) continue;
+            final MethodInsnNode call = (MethodInsnNode)insn;
+            final String key=call.owner+"."+call.name+call.desc;
+            seen.put(key,seen.containsKey(key)?seen.get(key)+1:1);
+            assertFalse(key.contains("func_175656_a"),
+                    "Scaffold world read cannot set original block state");
+            assertFalse("bcy".equals(call.owner) || "ja".equals(call.owner),
+                    "Scaffold world read cannot dispatch placement packets");
+        }
+        final String[] expected = {
+            "cj.<init>(III)V",
+            "adm.d(Lcj;Z)Z",
+            "adm.d(Lcj;)Z",
+            "adm.p(Lcj;)Lalz;",
+            "alz.c()Lafh;",
+            "afh.o()Z"
+        };
+        assertEquals(expected.length,seen.size(),
+                "native World cell probe must contain no unverified calls");
+        for (String key : expected)
+            assertEquals(Integer.valueOf(1),seen.get(key),
+                    "exact native Minecraft block evidence required: "+key);
+        System.out.println("REAL_189_SCAFFOLD_NATIVE_LOADED_AIR_FULL_CUBE_READ_PASS=YES");
+        System.out.println("REAL_189_SCAFFOLD_NATIVE_READ_ONLY_WORLD_ADAPTER_PASS=YES");
+        System.out.println("REAL_189_SCAFFOLD_LIVE_WORLD_COORDINATE_READ=NOT_TESTED");
+    }
+
+    /**
      * V14: exact original ItemStack Item field is inspected with INSTANCEOF
      * original ItemBlock (yo), never an item name or an icon/texture match.
      */
