@@ -243,6 +243,9 @@ public final class Minecraft189ClassTransformer
     private static final String SCAFFOLD_NATIVE_EYE_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189ScaffoldNativeEyeAccess";
+    private static final String SCAFFOLD_NATIVE_PLACEMENT_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189ScaffoldNativePlacementAccess";
     private static final String SCAFFOLD_NATIVE_CONTROLLER_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189ScaffoldNativeControllerAccess";
@@ -2545,6 +2548,40 @@ public final class Minecraft189ClassTransformer
         mv.visitEnd();
     }
 
+    /**
+     * V28: exact original bda.a(bew,bdb,zx,cj,cq,aui)Z.
+     * Not called from production until server-effect checks exist.
+     */
+    private static void addScaffoldNativePlacementDelegate(final ClassVisitor cv) {
+        final MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC,
+                "customMcOriginalControllerPlace",
+                "(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;"
+                        + "Ljava/lang/Object;Ljava/lang/Object;"
+                        + "Ljava/lang/Object;)Z", null, null);
+        mv.visitCode();
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        final String[] types = {
+                Minecraft189Mappings.ENTITY_PLAYER_SP.obfuscatedInternalName(),
+                Minecraft189Mappings.WORLD_CLIENT.obfuscatedInternalName(),
+                Minecraft189Mappings.ITEM_STACK.obfuscatedInternalName(),
+                Minecraft189Mappings.BLOCK_POS.obfuscatedInternalName(),
+                Minecraft189Mappings.ENUM_FACING.obfuscatedInternalName(),
+                Minecraft189Mappings.VEC3.obfuscatedInternalName()
+        };
+        for (int i = 0; i < types.length; i++) {
+            mv.visitVarInsn(Opcodes.ALOAD, i + 1);
+            mv.visitTypeInsn(Opcodes.CHECKCAST, types[i]);
+        }
+        mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                Minecraft189Mappings.PLAYER_CONTROLLER_MP.obfuscatedInternalName(),
+                Minecraft189Mappings.PLAYER_CONTROLLER_ON_PLAYER_RIGHT_CLICK.obfuscatedName(),
+                Minecraft189Mappings.PLAYER_CONTROLLER_ON_PLAYER_RIGHT_CLICK.descriptor(),
+                false);
+        mv.visitInsn(Opcodes.IRETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+    }
+
     private static byte[] transformPlayerControllerMp(
             final byte[] input) {
         final ClassReader reader =
@@ -2575,11 +2612,13 @@ public final class Minecraft189ClassTransformer
                                 superName,
                                 withInterface(
                                         withInterface(
-                                        withInterface(
-                                                interfaces,
-                                                BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME),
-                                        BLOCK_MINING_CONTROL_INTERNAL_NAME),
-                                VANILLA_REACH_ACCESS_INTERNAL_NAME));
+                                                withInterface(
+                                                        withInterface(
+                                                                interfaces,
+                                                                BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME),
+                                                        BLOCK_MINING_CONTROL_INTERNAL_NAME),
+                                                VANILLA_REACH_ACCESS_INTERNAL_NAME),
+                                        SCAFFOLD_NATIVE_PLACEMENT_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -2638,6 +2677,7 @@ public final class Minecraft189ClassTransformer
 
                     @Override
                     public void visitEnd() {
+                        addScaffoldNativePlacementDelegate(cv);
                         addFloatMethodDelegate(cv,
                                 "customMcVanillaBlockReachDistance",
                                 Minecraft189Mappings.PLAYER_CONTROLLER_GET_BLOCK_REACH);
