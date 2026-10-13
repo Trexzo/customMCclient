@@ -3622,7 +3622,6 @@ public final class Minecraft189ClassTransformer
         final Label providerAvailable = new Label();
         final Label originalChunkNotNull = new Label();
         final Label actualChunkExists = new Label();
-        final Label loaded = new Label();
         final Label notAir = new Label();
         final Label validState = new Label();
         final Label validBlock = new Label();
@@ -3682,20 +3681,10 @@ public final class Minecraft189ClassTransformer
 
         m.visitLabel(actualChunkExists);
         m.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-        m.visitVarInsn(Opcodes.ALOAD, 0);
-        m.visitVarInsn(Opcodes.ALOAD, 4);
-        // Secondary vanilla read check; never substitutes for original
-        // provider-backed, non-EmptyChunk identity proven above.
-        m.visitInsn(Opcodes.ICONST_1);
-        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, world,
-                Minecraft189Mappings.WORLD_IS_BLOCK_LOADED.obfuscatedName(),
-                Minecraft189Mappings.WORLD_IS_BLOCK_LOADED.descriptor(), false);
-        m.visitJumpInsn(Opcodes.IFNE, loaded);
-        m.visitIntInsn(Opcodes.BIPUSH, trace ? 23 : 0);
-        m.visitInsn(Opcodes.IRETURN);
-
-        m.visitLabel(loaded);
-        m.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+        // The genuine client provider returned a non-EmptyChunk above.
+        // In original 1.8.9 a redundant World.isBlockLoaded check may
+        // still reject air here; it is not additional cache authority.
+        // The original native block-state/air getter remains unchanged.
         m.visitVarInsn(Opcodes.ALOAD, 0);
         m.visitVarInsn(Opcodes.ALOAD, 4);
         m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, world,
