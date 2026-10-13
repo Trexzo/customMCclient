@@ -747,6 +747,15 @@ public final class Minecraft189Mappings {
     public static final MappedMethod PLAYER_CONTROLLER_ATTACK_ENTITY =
             new MappedMethod(PLAYER_CONTROLLER_MP, "a", "(Lwn;Lpk;)V",
                     "func_78764_a", "attackEntity");
+    // Exact original Minecraft 1.8.9 joined.srg, used only as a
+    // source-authority preflight in V27. This is vanilla controller
+    // onPlayerRightClick, NOT client packet placement or a module hook.
+    // Invocation is deliberately absent until server/inventory ownership
+    // and the enabled/disabled acceptance gates are established.
+    public static final MappedMethod PLAYER_CONTROLLER_ON_PLAYER_RIGHT_CLICK =
+            new MappedMethod(PLAYER_CONTROLLER_MP, "a",
+                    "(Lbew;Lbdb;Lzx;Lcj;Lcq;Laui;)Z",
+                    "func_178890_a", "onPlayerRightClick");
     public static final MappedMethod PLAYER_CONTROLLER_GET_BLOCK_REACH =
             new MappedMethod(PLAYER_CONTROLLER_MP, "d", "()F",
                     "func_78757_d", "getBlockReachDistance");
