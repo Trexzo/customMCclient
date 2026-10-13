@@ -278,10 +278,21 @@ public final class Minecraft189RuntimeBridge {
                         ? Minecraft189ScaffoldSelectedHotbar.from(
                                 (Minecraft189InventoryHotbarItemsAccess)inventory)
                         : null;
+                // Source original player feet/World, not a hardcoded
+                // integrated-server coordinate. Dedicated server worlds
+                // generate their spawn at different absolute coordinates.
+                final int targetX =
+                        (int)Math.floor(disabledSource.player.customMcPositionX());
+                final int targetY =
+                        (int)Math.floor(disabledSource.player.customMcPositionY()) - 1;
+                final int targetZ =
+                        (int)Math.floor(disabledSource.player.customMcPositionZ());
                 if (selected != null && selected.sourceStackSize == 8
-                        && disabledSource.world.customMcScaffoldCellCode(1,99,0)
+                        && disabledSource.world.customMcScaffoldCellCode(
+                                targetX,targetY,targetZ)
                                 == Minecraft189ScaffoldWorldReadAccess.AIR
-                        && disabledSource.world.customMcScaffoldCellCode(0,99,0)
+                        && disabledSource.world.customMcScaffoldCellCode(
+                                targetX-1,targetY,targetZ)
                                 == Minecraft189ScaffoldWorldReadAccess.FULL_SOLID) {
                     if (++scaffoldDisabledProofTicks >= 60) {
                         scaffoldDisabledProofReported = true;

@@ -458,6 +458,19 @@ def client_command(args, game, username, uuid, port, remote):
     if remote:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportRemotePlayer=true")
+    if remote and args.scaffold_placement:
+        for value in (
+                "-Dcustommc.acceptance.requireOriginalScaffoldContext=true",
+                "-Dcustommc.acceptance.requireOriginalScaffoldEye=true",
+                "-Dcustommc.acceptance.requireOriginalScaffoldReach=true",
+                "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true"):
+            command.insert(command.index("-cp"), value)
+        if args.scaffold_placement == "enabled":
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.requireOriginalScaffoldPlacement=true")
+        else:
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.requireOriginalScaffoldDisabledControl=true")
     if remote and args.esp_visual:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.enableRealRemotePlayerBoxEsp=true")
@@ -665,6 +678,69 @@ def run(args):
                  "target graphical client")
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
+
+        if args.scaffold_placement:
+            # V30: actual dedicated ORIGINAL 1.8.9 server owns both clients,
+            # target block and survival inventory. No client-owned fixture
+            # can satisfy testforblock or clear-stone readback in server.log.
+            host_tp, far_target_tp = actual_server_spawn_fixture(server_log)
+            parts = host_tp.split()
+            if len(parts) != 7 or parts[:2] != ["tp", "CIHost"]:
+                raise AssertionError("unsupported original spawn-derived fixture")
+            x, z = int(parts[2]), int(parts[4])
+            y = 100
+            support = (x, y-1, z)
+            target_xyz = (x+1, y-1, z)
+            send_server_command(server, server_log, far_target_tp)
+            send_server_command(server, server_log,
+                                "setblock {} {} {} stone".format(*support))
+            send_server_command(server, server_log,
+                                "setblock {} {} {} air".format(*target_xyz))
+            send_server_command(server, server_log, "gamemode 0 CIHost")
+            send_server_command(server, server_log,
+                                "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                    x+1.05, y, z+.5))
+            send_server_command(server, server_log,
+                                "testforblock {} {} {} air".format(*target_xyz),
+                                expected=b"successfully found the block")
+            attempt=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
+            receipt=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK_PASS=YES"
+            disabled=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES"
+            if attempt in log_tail(host_log) or receipt in log_tail(host_log):
+                raise AssertionError("native placement before real dedicated server grant")
+            send_server_command(server, server_log,"give CIHost stone 8")
+            # A legitimate enabled client may place the first block the
+            # very next original runTick. Requiring a server count of 8
+            # after grant in the enabled mode races the intended 8 -> 7
+            # survival decrement. Only the disabled control may retain
+            # an eight-item post-grant baseline.
+            if args.scaffold_placement == "enabled":
+                wait_for(host,host_log,attempt,deadline,
+                         "real vanilla right click controller on dedicated server")
+                wait_for(host,host_log,receipt,deadline,
+                         "original client World stone + one survival stack decrement")
+                send_server_command(server,server_log,
+                                    "testforblock {} {} {} stone".format(*target_xyz),
+                                    expected=b"successfully found the block")
+                send_server_command(server,server_log,
+                                    "clear CIHost stone 0 0",
+                                    expected=b"has 7 items that match the criteria")
+                print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_DEDICATED_SERVER_STONE_AND_SEVEN_ITEMS_PASS=YES",
+                      flush=True)
+            else:
+                wait_for(host,host_log,disabled,deadline,
+                         "disabled current World air and same eight-block original hotbar")
+                if attempt in log_tail(host_log) or receipt in log_tail(host_log):
+                    raise AssertionError("disabled module reached native vanilla controller")
+                send_server_command(server,server_log,
+                                    "testforblock {} {} {} air".format(*target_xyz),
+                                    expected=b"successfully found the block")
+                send_server_command(server,server_log,
+                                    "clear CIHost stone 0 0",
+                                    expected=b"has 8 items that match the criteria")
+                print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_DEDICATED_SERVER_DISABLED_NEGATIVE_PASS=YES",
+                      flush=True)
+            return
 
         if args.esp_visual:
             # Two ORIGINAL native clients on a real dedicated server.
@@ -1479,6 +1555,8 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
+    parser.add_argument("--scaffold-placement", choices=("enabled","disabled"),
+                        help="dedicated Mojang server-authoritative Scaffold placement/disabled proof")
     parser.add_argument("--require-index-reorder", action="store_true",
                         help="fail-closed actual native entity-index change on fresh A rejoin")
     parser.add_argument("--require-wrong-target-veto", action="store_true",
