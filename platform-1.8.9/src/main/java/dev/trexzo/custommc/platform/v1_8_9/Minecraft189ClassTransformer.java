@@ -507,8 +507,9 @@ public final class Minecraft189ClassTransformer
                 .obfuscatedBinaryName()
                 .equals(binaryClassName)) {
             Minecraft189ClassShapeVerifier.verifyMovingObjectPosition(input);
-            // Shape-only authority: no speculative raytrace mutation.
-            return input;
+            // V19: read-only ORIGINAL hit-result fields; native geometry
+            // remains owned by vanilla getMouseOver, never recomputed here.
+            return transformNativeScaffoldBlockHit(input);
         }
         if (Minecraft189Mappings.POTION_EFFECT
                 .obfuscatedBinaryName()
@@ -2599,6 +2600,114 @@ public final class Minecraft189ClassTransformer
                     "official Minecraft 1.8.9 PlayerController attackEntity absent");
         }
         return writer.toByteArray();
+    }
+
+    /**
+     * V19 native read-only MovingObjectPosition source ray witness.
+     * Emits only GETFIELD / native getters and one immutable primitive
+     * snapshot; no raycast, right-click, packet or world mutation.
+     */
+    private static byte[] transformNativeScaffoldBlockHit(final byte[] original) {
+        final ClassReader reader = new ClassReader(original);
+        final ClassWriter writer = new ClassWriter(reader, ClassWriter.COMPUTE_MAXS);
+        reader.accept(new ClassVisitor(Opcodes.ASM9, writer) {
+            @Override public void visit(final int version, final int access,
+                    final String name, final String signature, final String superName,
+                    final String[] interfaces) {
+                super.visit(version, access, name, signature, superName,
+                        withInterface(interfaces,
+                                "dev/trexzo/custommc/platform/v1_8_9/"
+                                        + "Minecraft189ScaffoldNativeBlockHitAccess"));
+            }
+            @Override public void visitEnd() {
+                addNativeScaffoldBlockHitSnapshot(cv);
+                super.visitEnd();
+            }
+        }, 0);
+        return writer.toByteArray();
+    }
+
+    /** Unconditional original-native getters; unavailable fields fail on
+     * native dereference and the external guard rejects the witness. */
+    private static void addNativeScaffoldBlockHitSnapshot(final ClassVisitor cv) {
+        final MethodVisitor m = cv.visitMethod(Opcodes.ACC_PUBLIC,
+                "customMcScaffoldNativeBlockHit", "()[D", null, null);
+        final String hit = Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedInternalName();
+        final String type = Minecraft189Mappings.MOVING_OBJECT_TYPE.obfuscatedInternalName();
+        final String vec3i = Minecraft189Mappings.VEC3I.obfuscatedInternalName();
+        final String facing = Minecraft189Mappings.ENUM_FACING.obfuscatedInternalName();
+        final String vec3 = Minecraft189Mappings.VEC3.obfuscatedInternalName();
+        m.visitCode();
+        m.visitIntInsn(Opcodes.BIPUSH, 8);
+        m.visitIntInsn(Opcodes.NEWARRAY, Opcodes.T_DOUBLE);
+        m.visitVarInsn(Opcodes.ASTORE, 1);
+
+        nativeScaffoldWriteArrayStart(m, 0);
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitFieldInsn(Opcodes.GETFIELD, hit,
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_OF_HIT.obfuscatedName(),
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_OF_HIT.descriptor());
+        m.visitFieldInsn(Opcodes.GETSTATIC, type,
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_BLOCK.obfuscatedName(),
+                Minecraft189Mappings.MOVING_OBJECT_TYPE_BLOCK.descriptor());
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/Object",
+                "equals", "(Ljava/lang/Object;)Z", false);
+        m.visitInsn(Opcodes.I2D);
+        m.visitInsn(Opcodes.DASTORE);
+
+        final Minecraft189Mappings.MappedMethod[] axis = {
+                Minecraft189Mappings.VEC3I_GET_X,
+                Minecraft189Mappings.VEC3I_GET_Y,
+                Minecraft189Mappings.VEC3I_GET_Z
+        };
+        for (int i = 0; i < 3; i++) {
+            nativeScaffoldWriteArrayStart(m, i + 1);
+            m.visitVarInsn(Opcodes.ALOAD, 0);
+            m.visitFieldInsn(Opcodes.GETFIELD, hit,
+                    Minecraft189Mappings.MOVING_OBJECT_BLOCK_POS.obfuscatedName(),
+                    Minecraft189Mappings.MOVING_OBJECT_BLOCK_POS.descriptor());
+            m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, vec3i,
+                    axis[i].obfuscatedName(), axis[i].descriptor(), false);
+            m.visitInsn(Opcodes.I2D);
+            m.visitInsn(Opcodes.DASTORE);
+        }
+
+        nativeScaffoldWriteArrayStart(m, 4);
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitFieldInsn(Opcodes.GETFIELD, hit,
+                Minecraft189Mappings.MOVING_OBJECT_SIDE_HIT.obfuscatedName(),
+                Minecraft189Mappings.MOVING_OBJECT_SIDE_HIT.descriptor());
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, facing,
+                Minecraft189Mappings.ENUM_FACING_GET_INDEX.obfuscatedName(),
+                Minecraft189Mappings.ENUM_FACING_GET_INDEX.descriptor(), false);
+        m.visitInsn(Opcodes.I2D);
+        m.visitInsn(Opcodes.DASTORE);
+
+        final Minecraft189Mappings.MappedField[] vecAxis = {
+                Minecraft189Mappings.VEC3_X,
+                Minecraft189Mappings.VEC3_Y,
+                Minecraft189Mappings.VEC3_Z
+        };
+        for (int i = 0; i < 3; i++) {
+            nativeScaffoldWriteArrayStart(m, i + 5);
+            m.visitVarInsn(Opcodes.ALOAD, 0);
+            m.visitFieldInsn(Opcodes.GETFIELD, hit,
+                    Minecraft189Mappings.MOVING_OBJECT_HIT_VEC.obfuscatedName(),
+                    Minecraft189Mappings.MOVING_OBJECT_HIT_VEC.descriptor());
+            m.visitFieldInsn(Opcodes.GETFIELD, vec3,
+                    vecAxis[i].obfuscatedName(), vecAxis[i].descriptor());
+            m.visitInsn(Opcodes.DASTORE);
+        }
+        m.visitVarInsn(Opcodes.ALOAD, 1);
+        m.visitInsn(Opcodes.ARETURN);
+        m.visitMaxs(0, 0);
+        m.visitEnd();
+    }
+
+    private static void nativeScaffoldWriteArrayStart(
+            final MethodVisitor m, final int index) {
+        m.visitVarInsn(Opcodes.ALOAD, 1);
+        m.visitIntInsn(Opcodes.BIPUSH, index);
     }
 
     private static byte[] transformEntity(

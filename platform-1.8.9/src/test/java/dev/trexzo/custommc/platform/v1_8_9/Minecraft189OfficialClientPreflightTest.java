@@ -569,6 +569,118 @@ final class Minecraft189OfficialClientPreflightTest {
     }
 
     /**
+     * V19: the exact SHA-pinned original Mojang ray-hit owns BLOCK, BlockPos,
+     * EnumFacing and Vec3. Verify native getters and the read-only generated
+     * snapshot, not a fabricated raycast or a patched placement click.
+     */
+    @Test
+    void realMojang189ScaffoldBlockFaceAndVectorSourcesAreExact() throws Exception {
+        final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured, "genuine original ray-hit binary required");
+        } else {
+            Assumptions.assumeTrue(configured != null && !configured.trim().isEmpty(),
+                    "No original 1.8.9 binary for ordinary offline unit CI");
+        }
+        final Path original=Paths.get(configured);
+        assertTrue(Files.isRegularFile(original));
+        assertEquals(OFFICIAL_SIZE,Files.size(original));
+        assertEquals(OFFICIAL_SHA1,digestFile(original));
+        final Map<String,ClassNode> source = new LinkedHashMap<String,ClassNode>();
+        byte[] nativeHit=null;
+        try (JarFile jar=new JarFile(original.toFile())) {
+            for (String name : Arrays.asList("auh","auh$a","cq","aui","cj","df")) {
+                final JarEntry entry=jar.getJarEntry(name+".class");
+                assertNotNull(entry,"original Minecraft missing ray source "+name);
+                final byte[] bytes;
+                try(InputStream stream=jar.getInputStream(entry)) { bytes=readAll(stream); }
+                final ClassNode node=new ClassNode();
+                new ClassReader(bytes).accept(node,0);
+                assertEquals(name,node.name);
+                source.put(name,node);
+                if ("auh".equals(name)) nativeHit=bytes;
+            }
+        }
+        assertEquals("df",source.get("cj").superName,
+                "vanilla BlockPos must inherit source original Vec3i methods");
+        final String[][] nativeFields = {
+            {"auh","a","Lauh$a;"}, {"auh","b","Lcq;"},
+            {"auh","c","Laui;"}, {"auh","e","Lcj;"},
+            {"auh$a","b","Lauh$a;"},
+            {"aui","a","D"}, {"aui","b","D"}, {"aui","c","D"}
+        };
+        for(String[] expected:nativeFields) {
+            int count=0;
+            for(FieldNode field:source.get(expected[0]).fields)
+                if(expected[1].equals(field.name)&&expected[2].equals(field.desc))
+                    count++;
+            assertEquals(1,count,"original native ray field "+Arrays.toString(expected));
+        }
+        final String[][] nativeMethods = {
+            {"df","n","()I"}, {"df","o","()I"}, {"df","p","()I"},
+            {"cq","a","()I"}
+        };
+        for(String[] expected:nativeMethods) {
+            int count=0;
+            for(MethodNode method:source.get(expected[0]).methods)
+                if(expected[1].equals(method.name)&&expected[2].equals(method.desc))
+                    count++;
+            assertEquals(1,count,"original native ray method "+Arrays.toString(expected));
+        }
+        assertNotNull(nativeHit);
+        final ClassNode transformed=new ClassNode();
+        new ClassReader(new Minecraft189ClassTransformer()
+                .transform("auh",nativeHit)).accept(transformed,0);
+        assertTrue(transformed.interfaces.contains(
+                "dev/trexzo/custommc/platform/v1_8_9/"
+                        +"Minecraft189ScaffoldNativeBlockHitAccess"));
+        MethodNode nativeSnapshot=null;
+        for(MethodNode method:transformed.methods) {
+            if("customMcScaffoldNativeBlockHit".equals(method.name)
+                    && "()[D".equals(method.desc)) {
+                assertNull(nativeSnapshot,"duplicate native ray evidence method");
+                nativeSnapshot=method;
+            }
+        }
+        assertNotNull(nativeSnapshot,"original MovingObjectPosition not augmented");
+        final java.util.List<String> reads=new java.util.ArrayList<String>();
+        final java.util.List<String> calls=new java.util.ArrayList<String>();
+        for(AbstractInsnNode instruction:nativeSnapshot.instructions.toArray()) {
+            if(instruction instanceof FieldInsnNode) {
+                final FieldInsnNode field=(FieldInsnNode)instruction;
+                reads.add(field.owner+"."+field.name+field.desc);
+                assertTrue(field.getOpcode()==Opcodes.GETFIELD
+                                || field.getOpcode()==Opcodes.GETSTATIC,
+                        "V19 ray evidence must never mutate original fields");
+            } else if(instruction instanceof MethodInsnNode) {
+                final MethodInsnNode call=(MethodInsnNode)instruction;
+                calls.add(call.owner+"."+call.name+call.desc);
+                assertFalse("ja".equals(call.owner)||"bcy".equals(call.owner),
+                        "V19 ray evidence never constructs or sends placement packets");
+                assertFalse(call.getOpcode()==Opcodes.INVOKESTATIC,
+                        "V19 ray evidence must use source-native instance getters only");
+            }
+        }
+        for(String expected:new String[]{
+                "auh.aLauh$a;","auh.bLcq;","auh.cLaui;","auh.eLcj;",
+                "auh$a.bLauh$a;","aui.aD","aui.bD","aui.cD"}) {
+            assertTrue(reads.contains(expected),"missing original ray source "+expected);
+        }
+        for(String expected:new String[]{
+                "df.n()I","df.o()I","df.p()I","cq.a()I",
+                "java/lang/Object.equals(Ljava/lang/Object;)Z"})
+            assertTrue(calls.contains(expected),"missing source-native ray getter "+expected);
+        assertEquals(12,reads.size(),
+                "native ray evidence reads exactly the verified original fields");
+        assertEquals(5,calls.size(),
+                "native ray evidence calls exactly three original Vec3i getters, Facing.getIndex and equals");
+        System.out.println("REAL_189_SCAFFOLD_NATIVE_BLOCK_FACE_HITVECTOR_PASS=YES");
+        System.out.println("REAL_189_SCAFFOLD_NATIVE_RAY_HIT_READ_ONLY_TRANSFORM_PASS=YES");
+        System.out.println("REAL_189_SCAFFOLD_AUTOMATIC_PLACEMENT=NOT_TESTED");
+    }
+
+    /**
      * V14: exact original ItemStack Item field is inspected with INSTANCEOF
      * original ItemBlock (yo), never an item name or an icon/texture match.
      */

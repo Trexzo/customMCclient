@@ -99,6 +99,9 @@ public final class Minecraft189Mappings {
             new MappedClass("cq", "net/minecraft/util/EnumFacing");
     public static final MappedClass VEC3 =
             new MappedClass("aui", "net/minecraft/util/Vec3");
+    // V19 exact MCP 1.8.9 original BlockPos superclass for x/y/z.
+    public static final MappedClass VEC3I =
+            new MappedClass("df", "net/minecraft/util/Vec3i");
     public static final MappedClass C08_PACKET_PLAYER_BLOCK_PLACEMENT =
             new MappedClass("ja",
                     "net/minecraft/network/play/client/C08PacketPlayerBlockPlacement");
@@ -186,6 +189,25 @@ public final class Minecraft189Mappings {
                     "Lauh$a;",
                     "field_72313_a",
                     "typeOfHit");
+    // V19 native MovingObjectPosition BLOCK ray result, never an inferred
+    // click direction or synthetic raycast solution.
+    public static final MappedField MOVING_OBJECT_TYPE_BLOCK =
+            new MappedField(MOVING_OBJECT_TYPE, "b", "Lauh$a;", "BLOCK", "BLOCK");
+    public static final MappedField MOVING_OBJECT_SIDE_HIT =
+            new MappedField(MOVING_OBJECT_POSITION, "b", "Lcq;",
+                    "field_178784_b", "sideHit");
+    public static final MappedField MOVING_OBJECT_HIT_VEC =
+            new MappedField(MOVING_OBJECT_POSITION, "c", "Laui;",
+                    "field_72307_f", "hitVec");
+    public static final MappedField MOVING_OBJECT_BLOCK_POS =
+            new MappedField(MOVING_OBJECT_POSITION, "e", "Lcj;",
+                    "field_178783_e", "blockPos");
+    public static final MappedField VEC3_X =
+            new MappedField(VEC3, "a", "D", "field_72450_a", "xCoord");
+    public static final MappedField VEC3_Y =
+            new MappedField(VEC3, "b", "D", "field_72448_b", "yCoord");
+    public static final MappedField VEC3_Z =
+            new MappedField(VEC3, "c", "D", "field_72449_c", "zCoord");
     public static final MappedField MOVING_OBJECT_ENTITY_HIT =
             new MappedField(
                     MOVING_OBJECT_POSITION,
@@ -719,6 +741,14 @@ public final class Minecraft189Mappings {
     public static final MappedMethod PLAYER_CONTROLLER_EXTENDED_REACH =
             new MappedMethod(PLAYER_CONTROLLER_MP, "i", "()Z",
                     "func_78749_i", "extendedReach");
+    public static final MappedMethod VEC3I_GET_X =
+            new MappedMethod(VEC3I, "n", "()I", "func_177958_n", "getX");
+    public static final MappedMethod VEC3I_GET_Y =
+            new MappedMethod(VEC3I, "o", "()I", "func_177956_o", "getY");
+    public static final MappedMethod VEC3I_GET_Z =
+            new MappedMethod(VEC3I, "p", "()I", "func_177952_p", "getZ");
+    public static final MappedMethod ENUM_FACING_GET_INDEX =
+            new MappedMethod(ENUM_FACING, "a", "()I", "func_176745_a", "getIndex");
     public static final MappedMethod ENTITY_RAY_TRACE =
             new MappedMethod(ENTITY, "a", "(DF)Lauh;",
                     "func_174822_a", "rayTrace");
