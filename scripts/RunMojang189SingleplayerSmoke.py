@@ -436,6 +436,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_AIR_PASS=YES",
                              deadline, "actual original World AIR at adjacent (1,99,0)")
+                await_marker(process, log,
+                             b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_UNLOADED_CHUNK_VETO_PASS=YES",
+                             deadline, "source native remote unloaded chunk rejects false AIR")
                 send_command(process, log, window, "/setblock 1 99 0 stone")
                 await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_SOLID_PASS=YES",
