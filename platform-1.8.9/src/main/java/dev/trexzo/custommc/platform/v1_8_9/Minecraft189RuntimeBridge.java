@@ -149,6 +149,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraFovReported = false;
         scaffoldOriginalContextReported = false;
         scaffoldOriginalCandidateReported = false;
+        scaffoldOriginalCandidateDiagTicks = 0;
         return new Registration(next);
     }
 
@@ -243,6 +244,7 @@ public final class Minecraft189RuntimeBridge {
     // a cached singleton, source position estimate or fake mouse-over hit.
     private static boolean scaffoldOriginalContextReported;
     private static boolean scaffoldOriginalCandidateReported;
+    private static int scaffoldOriginalCandidateDiagTicks;
 
     public static synchronized void originalScaffoldContextAtTick(final Object minecraft) {
         if (activeRuntime != null && !scaffoldOriginalCandidateReported
@@ -250,6 +252,15 @@ public final class Minecraft189RuntimeBridge {
                         "custommc.acceptance.requireOriginalScaffoldCandidate")) {
             final Minecraft189ScaffoldOriginalCandidateProbe.Observation candidate =
                     Minecraft189ScaffoldOriginalCandidateProbe.observe(minecraft);
+            if (candidate == null) {
+                // Acceptance-only bounded original Minecraft diagnostics.
+                // Never changes cursor, player, original World or module state.
+                if (++scaffoldOriginalCandidateDiagTicks % 60 == 0) {
+                    System.out.println("CUSTOMMC_V26_SOURCE_REJECTION="
+                            + Minecraft189ScaffoldOriginalCandidateProbe.diagnose(minecraft));
+                    System.out.flush();
+                }
+            }
             if (candidate != null) {
                 scaffoldOriginalCandidateReported = true;
                 System.out.println(
