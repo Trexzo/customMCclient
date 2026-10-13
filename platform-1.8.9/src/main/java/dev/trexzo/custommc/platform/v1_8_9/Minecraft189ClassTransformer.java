@@ -3648,7 +3648,7 @@ public final class Minecraft189ClassTransformer
         m.visitInsn(Opcodes.DUP);
         m.visitJumpInsn(Opcodes.IFNONNULL, providerAvailable);
         m.visitInsn(Opcodes.POP);
-        m.visitIntInsn(Opcodes.BIPUSH, trace ? 10 : 0);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 20 : 0);
         m.visitInsn(Opcodes.IRETURN);
 
         m.visitLabel(providerAvailable);
@@ -3668,7 +3668,7 @@ public final class Minecraft189ClassTransformer
         m.visitInsn(Opcodes.DUP);
         m.visitJumpInsn(Opcodes.IFNONNULL, originalChunkNotNull);
         m.visitInsn(Opcodes.POP);
-        m.visitIntInsn(Opcodes.BIPUSH, trace ? 10 : 0);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 21 : 0);
         m.visitInsn(Opcodes.IRETURN);
 
         m.visitLabel(originalChunkNotNull);
@@ -3677,7 +3677,7 @@ public final class Minecraft189ClassTransformer
                 Minecraft189Mappings.CHUNK_IS_EMPTY.obfuscatedName(),
                 Minecraft189Mappings.CHUNK_IS_EMPTY.descriptor(), false);
         m.visitJumpInsn(Opcodes.IFEQ, actualChunkExists);
-        m.visitIntInsn(Opcodes.BIPUSH, trace ? 10 : 0);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 22 : 0);
         m.visitInsn(Opcodes.IRETURN);
 
         m.visitLabel(actualChunkExists);
@@ -3691,7 +3691,7 @@ public final class Minecraft189ClassTransformer
                 Minecraft189Mappings.WORLD_IS_BLOCK_LOADED.obfuscatedName(),
                 Minecraft189Mappings.WORLD_IS_BLOCK_LOADED.descriptor(), false);
         m.visitJumpInsn(Opcodes.IFNE, loaded);
-        m.visitIntInsn(Opcodes.BIPUSH, trace ? 10 : 0);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 23 : 0);
         m.visitInsn(Opcodes.IRETURN);
 
         m.visitLabel(loaded);
