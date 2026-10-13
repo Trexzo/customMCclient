@@ -7067,6 +7067,8 @@ final class Minecraft189MappedHostTransformationTest {
         // Enum constants are static singleton fields in the real class.
         writer.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
                 "c", "Lauh$a;", null, null).visitEnd();
+        writer.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC,
+                "b", "Lauh$a;", null, null).visitEnd();
         endDefaultConstructor(writer, "auh$a");
         writer.visitEnd();
         return writer.toByteArray();
@@ -7076,6 +7078,9 @@ final class Minecraft189MappedHostTransformationTest {
         final ClassWriter writer = classWriter("auh");
         field(writer, "a", "Lauh$a;");
         field(writer, "d", "Lpk;");
+        field(writer, "b", "Lcq;");
+        field(writer, "c", "Laui;");
+        field(writer, "e", "Lcj;");
         endDefaultConstructor(writer, "auh");
         writer.visitEnd();
         return writer.toByteArray();
