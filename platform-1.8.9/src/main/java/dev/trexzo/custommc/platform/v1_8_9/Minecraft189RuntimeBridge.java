@@ -153,6 +153,8 @@ public final class Minecraft189RuntimeBridge {
         scaffoldOriginalPlacementAttempted = false;
         scaffoldOriginalPlacementReadback = null;
         scaffoldOriginalPlacementReadbackTicks = 0;
+        scaffoldOriginalPlacementReadbackEpoch = 0L;
+        scaffoldOriginalSourceEpoch.invalidate();
         scaffoldOriginalPlacementReadbackReported = false;
         scaffoldDisabledProofTicks = 0;
         scaffoldDisabledProofReported = false;
@@ -252,6 +254,9 @@ public final class Minecraft189RuntimeBridge {
     private static boolean scaffoldOriginalCandidateReported;
     private static int scaffoldOriginalCandidateDiagTicks;
     private static boolean scaffoldOriginalPlacementAttempted;
+    private static final Minecraft189ScaffoldSourceEpoch scaffoldOriginalSourceEpoch =
+            new Minecraft189ScaffoldSourceEpoch();
+    private static long scaffoldOriginalPlacementReadbackEpoch;
     private static Minecraft189ScaffoldNativePlacementAttempt.Result
             scaffoldOriginalPlacementReadback;
     private static int scaffoldOriginalPlacementReadbackTicks;
@@ -260,6 +265,20 @@ public final class Minecraft189RuntimeBridge {
     private static boolean scaffoldDisabledProofReported;
 
     public static synchronized void originalScaffoldContextAtTick(final Object minecraft) {
+        if (activeRuntime == null || activeRuntime.closed()) {
+            scaffoldOriginalPlacementReadback = null;
+            scaffoldOriginalPlacementReadbackEpoch = 0L;
+            scaffoldOriginalSourceEpoch.invalidate();
+            return;
+        }
+        // Track exact original Minecraft/World/player identities only while
+        // the opt-in placement proof is active or a receipt is outstanding.
+        final boolean receiptPending = scaffoldOriginalPlacementReadback != null;
+        final boolean candidateRequested = !scaffoldOriginalPlacementAttempted
+                && Boolean.getBoolean(
+                        "custommc.acceptance.requireOriginalScaffoldPlacement");
+        final long sourceEpoch = receiptPending || candidateRequested
+                ? scaffoldOriginalSourceEpoch.observe(minecraft) : 0L;
         if (activeRuntime != null && !scaffoldDisabledProofReported
                 && !Boolean.getBoolean(
                         "custommc.acceptance.requireOriginalScaffoldPlacement")
@@ -307,9 +326,16 @@ public final class Minecraft189RuntimeBridge {
         }
         if (scaffoldOriginalPlacementReadback != null
                 && !scaffoldOriginalPlacementReadbackReported) {
-            if (Minecraft189ScaffoldPlacementReadback
-                    .confirmsClientWorldAndSurvivalStack(
-                            minecraft,scaffoldOriginalPlacementReadback)) {
+            if (sourceEpoch == 0L
+                    || sourceEpoch != scaffoldOriginalPlacementReadbackEpoch) {
+                // A new World/player or disconnected original client cannot
+                // complete a receipt from a prior source generation.
+                scaffoldOriginalPlacementReadback = null;
+                scaffoldOriginalPlacementReadbackEpoch = 0L;
+                scaffoldOriginalPlacementReadbackTicks = 0;
+            } else if (scaffoldOriginalSourceEpoch.confirmsSameSourceReadback(
+                    minecraft, scaffoldOriginalPlacementReadbackEpoch,
+                    scaffoldOriginalPlacementReadback)) {
                 scaffoldOriginalPlacementReadbackReported = true;
                 System.out.println(
                         "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK_PASS=YES"
@@ -322,10 +348,12 @@ public final class Minecraft189RuntimeBridge {
                         + (scaffoldOriginalPlacementReadback.originalStackSize - 1));
                 System.out.flush();
                 scaffoldOriginalPlacementReadback = null;
+                scaffoldOriginalPlacementReadbackEpoch = 0L;
             } else if (++scaffoldOriginalPlacementReadbackTicks >= 120) {
                 // A positive client controller return is not enough:
                 // missing original target block/decrement is a failure.
                 scaffoldOriginalPlacementReadback = null;
+                scaffoldOriginalPlacementReadbackEpoch = 0L;
             }
         }
         // V28 deliberately acceptance-only until the vanilla multiplayer
@@ -340,8 +368,10 @@ public final class Minecraft189RuntimeBridge {
                             minecraft, true);
             if (attempted != null) {
                 scaffoldOriginalPlacementAttempted = true;
-                if (attempted.originalControllerAccepted) {
+                if (attempted.originalControllerAccepted && sourceEpoch > 0L
+                        && scaffoldOriginalSourceEpoch.observe(minecraft) == sourceEpoch) {
                     scaffoldOriginalPlacementReadback = attempted;
+                    scaffoldOriginalPlacementReadbackEpoch = sourceEpoch;
                     scaffoldOriginalPlacementReadbackTicks = 0;
                 }
                 System.out.println(
@@ -2404,6 +2434,9 @@ public final class Minecraft189RuntimeBridge {
                 }
                 if (activeRuntime == owner) {
                     activeRuntime = null;
+                    scaffoldOriginalPlacementReadback = null;
+                    scaffoldOriginalPlacementReadbackEpoch = 0L;
+                    scaffoldOriginalSourceEpoch.invalidate();
                 }
                 closed = true;
             }
