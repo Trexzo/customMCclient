@@ -240,6 +240,9 @@ public final class Minecraft189ClassTransformer
     private static final String SWORD_BLOCK_CONTROL_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189SwordBlockControl";
+    private static final String SCAFFOLD_NATIVE_CONTEXT_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189ScaffoldNativeContextAccess";
     private static final String CROSSHAIR_HIT_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189CrosshairHitAccess";
@@ -710,10 +713,12 @@ public final class Minecraft189ClassTransformer
                                 superName,
                                 withInterface(
                                         withInterface(
-                                                withInterface(interfaces,
-                                                        CLICK_MOUSE_CONTROL_INTERNAL_NAME),
-                                                SWORD_BLOCK_CONTROL_INTERNAL_NAME),
-                                        CROSSHAIR_HIT_ACCESS_INTERNAL_NAME));
+                                                withInterface(
+                                                        withInterface(interfaces,
+                                                                CLICK_MOUSE_CONTROL_INTERNAL_NAME),
+                                                        SWORD_BLOCK_CONTROL_INTERNAL_NAME),
+                                                CROSSHAIR_HIT_ACCESS_INTERNAL_NAME),
+                                        SCAFFOLD_NATIVE_CONTEXT_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -1663,6 +1668,7 @@ public final class Minecraft189ClassTransformer
                         addCrosshairHitAccessor(cv);
                         addCrosshairPlayerIndexAccessor(cv);
                         addCrosshairHitboxBoundsAccessor(cv);
+                        addScaffoldNativeContextAccessor(cv);
                         super.visitEnd();
                     }
                 },
@@ -2436,6 +2442,38 @@ public final class Minecraft189ClassTransformer
      * The host action gate guarantees the target is a genuine live PLAYER
      * raycast before calling this delegate. Null/stale state fails closed.
      */
+    /**
+     * V22: source-original ave fields read into an immediate, unretained
+     * reference triple. No source cursor construction and no side effects.
+     */
+    private static void addScaffoldNativeContextAccessor(final ClassVisitor cv) {
+        final MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC,
+                "customMcScaffoldNativeContext", "()[Ljava/lang/Object;",
+                null, null);
+        mv.visitCode();
+        mv.visitInsn(Opcodes.ICONST_3);
+        mv.visitTypeInsn(Opcodes.ANEWARRAY, "java/lang/Object");
+        mv.visitVarInsn(Opcodes.ASTORE, 1);
+        final Minecraft189Mappings.MappedField[] fields = {
+                Minecraft189Mappings.MINECRAFT_PLAYER,
+                Minecraft189Mappings.MINECRAFT_WORLD,
+                Minecraft189Mappings.MINECRAFT_OBJECT_MOUSE_OVER
+        };
+        for (int i = 0; i < fields.length; i++) {
+            mv.visitVarInsn(Opcodes.ALOAD, 1);
+            mv.visitInsn(Opcodes.ICONST_0 + i);
+            mv.visitVarInsn(Opcodes.ALOAD, 0);
+            mv.visitFieldInsn(Opcodes.GETFIELD,
+                    Minecraft189Mappings.MINECRAFT.obfuscatedInternalName(),
+                    fields[i].obfuscatedName(), fields[i].descriptor());
+            mv.visitInsn(Opcodes.AASTORE);
+        }
+        mv.visitVarInsn(Opcodes.ALOAD, 1);
+        mv.visitInsn(Opcodes.ARETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+    }
+
     private static void addNativeCrosshairAttackDelegate(
             final ClassVisitor owner) {
         final MethodVisitor mv = owner.visitMethod(
