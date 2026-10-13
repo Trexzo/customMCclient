@@ -614,6 +614,11 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.ENTITY_RENDERER,
                 "a", "(F)V", "func_78473_a", "getMouseOver");
         assertMethod(
+                Minecraft189Mappings.PLAYER_CONTROLLER_ON_PLAYER_RIGHT_CLICK,
+                Minecraft189Mappings.PLAYER_CONTROLLER_MP,
+                "a", "(Lbew;Lbdb;Lzx;Lcj;Lcq;Laui;)Z",
+                "func_178890_a", "onPlayerRightClick");
+        assertMethod(
                 Minecraft189Mappings.PLAYER_CONTROLLER_GET_BLOCK_REACH,
                 Minecraft189Mappings.PLAYER_CONTROLLER_MP,
                 "d", "()F", "func_78757_d", "getBlockReachDistance");
