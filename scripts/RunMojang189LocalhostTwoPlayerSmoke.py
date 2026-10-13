@@ -709,9 +709,11 @@ def run(args):
             if attempt in log_tail(host_log) or receipt in log_tail(host_log):
                 raise AssertionError("native placement before real dedicated server grant")
             send_server_command(server, server_log,"give CIHost stone 8")
-            send_server_command(server, server_log,
-                                "clear CIHost stone 0 0",
-                                expected=b"found 8 matching items")
+            # A legitimate enabled client may place the first block the
+            # very next original runTick. Requiring a server count of 8
+            # after grant in the enabled mode races the intended 8 -> 7
+            # survival decrement. Only the disabled control may retain
+            # an eight-item post-grant baseline.
             if args.scaffold_placement == "enabled":
                 wait_for(host,host_log,attempt,deadline,
                          "real vanilla right click controller on dedicated server")
