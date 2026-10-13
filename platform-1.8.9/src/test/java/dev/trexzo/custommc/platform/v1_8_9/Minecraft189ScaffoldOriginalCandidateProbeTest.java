@@ -105,6 +105,10 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
         game.cursor.sample[4]=1;
         assertNull(Minecraft189ScaffoldOriginalCandidateProbe.observe(game));
         game.cursor.sample[4]=5;
+        game.cursor.sample[6]=99.05D;
+        assertNull(Minecraft189ScaffoldOriginalCandidateProbe.observe(game),
+                "native eye ray leaving solid support below stone must veto");
+        game.cursor.sample[6]=99.5D;
         game.world.rayValid=false;
         assertNull(Minecraft189ScaffoldOriginalCandidateProbe.observe(game));
         game.world.rayValid=true;
