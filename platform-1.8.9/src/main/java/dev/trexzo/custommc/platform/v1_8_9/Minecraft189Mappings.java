@@ -186,6 +186,13 @@ public final class Minecraft189Mappings {
                     "Lauh$a;",
                     "field_72313_a",
                     "typeOfHit");
+    // V19: source-original world raycast result MUST prove native BLOCK,
+    // exact support BlockPos and exact hit EnumFacing, not proximity alone.
+    public static final MappedField MOVING_OBJECT_TYPE_BLOCK =
+            new MappedField(MOVING_OBJECT_TYPE, "b", "Lauh$a;", "BLOCK", "BLOCK");
+    public static final MappedField MOVING_OBJECT_SIDE_HIT =
+            new MappedField(MOVING_OBJECT_POSITION, "b", "Lcq;",
+                    "field_178784_b", "sideHit");
     public static final MappedField MOVING_OBJECT_ENTITY_HIT =
             new MappedField(
                     MOVING_OBJECT_POSITION,
@@ -623,6 +630,16 @@ public final class Minecraft189Mappings {
     public static final MappedMethod WORLD_IS_BLOCK_LOADED =
             new MappedMethod(WORLD, "d", "(Lcj;Z)Z",
                     "func_175677_d", "isBlockLoaded");
+    public static final MappedMethod WORLD_RAY_TRACE_BLOCKS =
+            new MappedMethod(WORLD, "a",
+                    "(Laui;Laui;ZZZ)Lauh;",
+                    "func_147447_a", "rayTraceBlocks");
+    public static final MappedMethod MOVING_OBJECT_GET_BLOCK_POS =
+            new MappedMethod(MOVING_OBJECT_POSITION, "a", "()Lcj;",
+                    "func_178782_a", "getBlockPos");
+    public static final MappedMethod ENUM_FACING_GET_INDEX =
+            new MappedMethod(ENUM_FACING, "a", "()I",
+                    "func_176745_a", "getIndex");
     public static final MappedMethod WORLD_GET_BLOCK_STATE =
             new MappedMethod(WORLD, "p", "(Lcj;)Lalz;",
                     "func_180495_p", "getBlockState");
