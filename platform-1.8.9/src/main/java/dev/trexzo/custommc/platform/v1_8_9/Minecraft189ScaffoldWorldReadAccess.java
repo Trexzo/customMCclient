@@ -13,4 +13,9 @@ public interface Minecraft189ScaffoldWorldReadAccess {
 
     /** Return only source-native cell evidence; UNKNOWN if not loaded. */
     int customMcScaffoldCellCode(int x, int y, int z);
+    /** Optional acceptance-only diagnosis; production never uses it.
+     * 10=unloaded,11=air,12=null-state,13=null-block,
+     * 14=full-solid,15=other; -1=unsupported source.
+     */
+    default int customMcScaffoldCellTrace(int x, int y, int z) { return -1; }
 }
