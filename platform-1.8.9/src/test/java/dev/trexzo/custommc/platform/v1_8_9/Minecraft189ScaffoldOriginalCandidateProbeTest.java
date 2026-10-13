@@ -54,7 +54,8 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
                 int x,int y,int z,int face){
             rays++;
             return rayValid && x==0 && y==99 && z==0 && face==5
-                    && sx==1.05D && ey>99 && ey<100;
+                    && sx==1.05D && ex<0.998D && ex>0.98D
+                    && ey>99 && ey<100;
         }
     }
     private static final class Cursor implements Minecraft189ScaffoldNativeBlockHitAccess {
