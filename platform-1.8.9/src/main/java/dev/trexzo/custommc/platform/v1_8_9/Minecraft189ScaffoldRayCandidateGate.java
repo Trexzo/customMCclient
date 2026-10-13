@@ -69,15 +69,31 @@ final class Minecraft189ScaffoldRayCandidateGate {
                     frozenHit, candidate, x, nativeEyeY, z, nativeReach))
                 return null;
 
-            // Trace slightly past the original hit point, INTO the support
-            // block, so vanilla World.rayTraceBlocks sees the clicked face.
+            // Confirm the original cursor by independently ray-tracing
+            // through its hit point and unambiguously INTO the same support.
+            // At a nearly grazing side face a 0.01-block ray extension only
+            // penetrates about 0.00024 blocks: native DDA can terminate at
+            // the boundary without reporting the expected stone. Extend by
+            // 0.25 along the SAME original eye-to-cursor ray instead, then
+            // fail closed if the endpoint left the candidate support cell.
+            // Never modify the original cursor, eye, view or world.
             final double dx = hit[5] - x;
             final double dy = hit[6] - nativeEyeY;
             final double dz = hit[7] - z;
             final double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (!Double.isFinite(distance) || distance <= 0.001D)
                 return null;
-            final double advance = 0.01D / distance;
+            final double advance = 0.25D / distance;
+            final double traceEndX = hit[5] + dx * advance;
+            final double traceEndY = hit[6] + dy * advance;
+            final double traceEndZ = hit[7] + dz * advance;
+            if (!Double.isFinite(traceEndX)
+                    || !Double.isFinite(traceEndY)
+                    || !Double.isFinite(traceEndZ)
+                    || (int)Math.floor(traceEndX) != candidate.supportX
+                    || (int)Math.floor(traceEndY) != candidate.supportY
+                    || (int)Math.floor(traceEndZ) != candidate.supportZ)
+                return null;
             final int face;
             switch (candidate.face) {
                 case UP:    face = 1; break;
@@ -90,9 +106,7 @@ final class Minecraft189ScaffoldRayCandidateGate {
             if (!((Minecraft189ScaffoldWorldRayTraceAccess)sourceWorld)
                     .customMcScaffoldRayTraceSupport(
                             x, nativeEyeY, z,
-                            hit[5] + dx * advance,
-                            hit[6] + dy * advance,
-                            hit[7] + dz * advance,
+                            traceEndX, traceEndY, traceEndZ,
                             candidate.supportX, candidate.supportY,
                             candidate.supportZ, face))
                 return null;
