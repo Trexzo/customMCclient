@@ -688,6 +688,15 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 print("CUSTOMMC_OFFICIAL_189_COMBAT_DAMAGE_TESTED=NO")
             print("CUSTOMMC_OFFICIAL_189_MULTIPLAYER_TESTED=NO")
         except BaseException:
+            if native_scaffold_candidate:
+                tagged = [line for line in log.read_bytes().splitlines()
+                          if b"CUSTOMMC_V26_SOURCE_REJECTION=" in line
+                          or b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_NATIVE_CANDIDATE_PASS" in line
+                          or b"CHAT" in line and b"permission" in line]
+                print("V26_NATIVE_REJECTION_DIAGNOSTICS_START", file=sys.stderr)
+                for line in tagged[-24:]:
+                    print(line.decode("utf-8", "replace"), file=sys.stderr)
+                print("V26_NATIVE_REJECTION_DIAGNOSTICS_END", file=sys.stderr)
             if native_scaffold_world:
                 # Native per-world diagnostics can be earlier than the last
                 # 12KB of very frequent player-position samples. Preserve
