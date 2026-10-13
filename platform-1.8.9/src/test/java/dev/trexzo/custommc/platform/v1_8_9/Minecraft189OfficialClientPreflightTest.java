@@ -515,6 +515,12 @@ final class Minecraft189OfficialClientPreflightTest {
             final MethodInsnNode call = (MethodInsnNode)insn;
             final String key=call.owner+"."+call.name+call.desc;
             seen.put(key,seen.containsKey(key)?seen.get(key)+1:1);
+            if ("adm.d(Lcj;Z)Z".equals(key)) {
+                assertNotNull(call.getPrevious(),
+                        "native loaded-chunk check must have explicit allowEmpty");
+                assertEquals(Opcodes.ICONST_1,call.getPrevious().getOpcode(),
+                        "allowEmpty must still require original chunkExists, not reject empty loaded chunks");
+            }
             assertFalse(key.contains("func_175656_a"),
                     "Scaffold world read cannot set original block state");
             assertFalse("bcy".equals(call.owner) || "ja".equals(call.owner),
@@ -522,7 +528,9 @@ final class Minecraft189OfficialClientPreflightTest {
         }
         final String[] expected = {
             "cj.<init>(III)V",
-            "adm.d(Lcj;Z)Z",
+            "adm.N()Lamv;",
+            "amv.d(II)Lamy;",
+            "amy.f()Z",
             "adm.d(Lcj;)Z",
             "adm.p(Lcj;)Lalz;",
             "alz.c()Lafh;",
@@ -533,6 +541,28 @@ final class Minecraft189OfficialClientPreflightTest {
         for (String key : expected)
             assertEquals(Integer.valueOf(1),seen.get(key),
                     "exact native Minecraft block evidence required: "+key);
+        // No empty/absent chunk may be classified AIR: provider existence
+        // must precede the secondary allowEmpty loaded guard and air check.
+        java.util.List<String> callOrder = new java.util.ArrayList<String>();
+        for (AbstractInsnNode insn : method.instructions.toArray()) {
+            if (!(insn instanceof MethodInsnNode)) continue;
+            final MethodInsnNode call = (MethodInsnNode)insn;
+            callOrder.add(call.owner + "." + call.name + call.desc);
+        }
+        assertTrue(callOrder.indexOf("adm.N()Lamv;") <
+                        callOrder.indexOf("amv.d(II)Lamy;"),
+                "native World must resolve client chunk provider before cache read");
+        assertTrue(callOrder.indexOf("amv.d(II)Lamy;") <
+                        callOrder.indexOf("amy.f()Z"),
+                "source-native provided Chunk must be verified not an EmptyChunk");
+        assertTrue(callOrder.indexOf("amy.f()Z") <
+                        callOrder.indexOf("adm.d(Lcj;)Z"),
+                "source-native non-EmptyChunk proof MUST precede air read");
+        assertFalse(callOrder.contains("amv.a(II)Z"),
+                "Minecraft 1.8.9 client chunkExists always true");
+        assertFalse(callOrder.contains("adm.d(Lcj;Z)Z"),
+                "redundant vanilla loaded-block test must not suppress verified air");
+        System.out.println("REAL_189_SCAFFOLD_NATIVE_NONEMPTY_CHUNK_BEFORE_AIR_PASS=YES");
         System.out.println("REAL_189_SCAFFOLD_NATIVE_LOADED_AIR_FULL_CUBE_READ_PASS=YES");
         System.out.println("REAL_189_SCAFFOLD_NATIVE_READ_ONLY_WORLD_ADAPTER_PASS=YES");
         System.out.println("REAL_189_SCAFFOLD_LIVE_WORLD_COORDINATE_READ=NOT_TESTED");

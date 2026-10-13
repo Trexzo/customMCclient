@@ -554,12 +554,118 @@ public final class Minecraft189RuntimeBridge {
         }
     }
 
+    // V16 acceptance only: observe one exact original World cell as the
+    // integrated vanilla server changes it air -> stone -> air. This never
+    // changes a block, touches packets or enables in regular gameplay.
+    private static int acceptanceScaffoldWorldCellPhase;
+    private static int acceptanceScaffoldWorldProbeCount;
+    private static int acceptanceScaffoldWorldLastCode = -999;
+    private static int acceptanceScaffoldWorldDiagTick;
+    private static boolean acceptanceScaffoldFarChunkVetoReported;
+
     public static synchronized void worldEntityPositions(
             final Minecraft189WorldEntityPositionsAccess world) {
         final Minecraft189HostRuntime host =
                 activeHost();
         if (host != null) {
             host.worldEntityPositions(world);
+        }
+        if (Boolean.getBoolean("custommc.acceptance.requireNativeScaffoldWorldCell")
+                && acceptanceScaffoldWorldProbeCount == 0) {
+            System.out.println("CUSTOMMC_SCAFFOLD_WORLD_DIAG_CALLBACK=YES host="
+                    + (host != null) + " transformed="
+                    + (world instanceof Minecraft189ScaffoldWorldReadAccess));
+            System.out.flush();
+            acceptanceScaffoldWorldProbeCount++;
+        }
+        if (host != null
+                && acceptanceScaffoldWorldCellPhase < 3
+                && Boolean.getBoolean("custommc.acceptance.requireNativeScaffoldWorldCell")
+                && world instanceof Minecraft189ScaffoldWorldReadAccess) {
+            final Minecraft189ScaffoldWorldReadAccess source =
+                    (Minecraft189ScaffoldWorldReadAccess)world;
+            final int cell;
+            try {
+                // Adjacent cell (1,99,0) beside source-server stone
+                // support at (0,99,0). This keeps the actual player's
+                // chunk loaded and their feet stably on ground during
+                // independent vanilla air -> stone -> air transitions.
+                cell = source.customMcScaffoldCellCode(1, 99, 0);
+            } catch (RuntimeException nativeWorldUnavailable) {
+                return;
+            }
+            // Native original-world read diagnostics are bounded and
+            // acceptance-only. Compare a real server-set floor, the target
+            // neighbor and air above player, without changing the test.
+            if (acceptanceScaffoldWorldCellPhase == 0
+                    && ++acceptanceScaffoldWorldDiagTick % 100 == 0
+                    && acceptanceScaffoldWorldDiagTick <= 3000) {
+                try {
+                    final int floor = source.customMcScaffoldCellCode(0, 99, 0);
+                    final int above = source.customMcScaffoldCellCode(0, 101, 0);
+                    final int targetBranch =
+                            source.customMcScaffoldCellTrace(1, 99, 0);
+                    final int floorBranch =
+                            source.customMcScaffoldCellTrace(0, 99, 0);
+                    final int aboveBranch =
+                            source.customMcScaffoldCellTrace(0, 101, 0);
+                    System.out.println("CUSTOMMC_SCAFFOLD_WORLD_DIAG_TRIPLE=target:"
+                            + cell + ",floor:" + floor + ",above:" + above
+                            + ",branchTarget:" + targetBranch
+                            + ",branchFloor:" + floorBranch
+                            + ",branchAbove:" + aboveBranch
+                            + ",tick:" + acceptanceScaffoldWorldDiagTick
+                            + ",type:" + world.getClass().getName());
+                    System.out.flush();
+                } catch (RuntimeException diagnosticUnavailable) {
+                    System.out.println("CUSTOMMC_SCAFFOLD_WORLD_DIAG_ERROR="
+                            + diagnosticUnavailable.getClass().getName());
+                    System.out.flush();
+                }
+            }
+            if (cell != acceptanceScaffoldWorldLastCode
+                    && acceptanceScaffoldWorldProbeCount < 12) {
+                acceptanceScaffoldWorldLastCode = cell;
+                acceptanceScaffoldWorldProbeCount++;
+                System.out.println("CUSTOMMC_SCAFFOLD_WORLD_DIAG_NATIVE_CELL=" + cell
+                        + " phase=" + acceptanceScaffoldWorldCellPhase);
+                System.out.flush();
+            }
+            if (acceptanceScaffoldWorldCellPhase == 0
+                    && cell == Minecraft189ScaffoldWorldReadAccess.AIR) {
+                // A separate genuine unloaded distant chunk MUST remain
+                // UNKNOWN even when vanilla allowEmpty is true. Never
+                // create a fake permissive air result from unloaded space.
+                final int far = source.customMcScaffoldCellCode(
+                        1048576, 99, 1048576);
+                if (far != Minecraft189ScaffoldWorldReadAccess.UNKNOWN)
+                    throw new IllegalStateException(
+                            "Scaffold source World leaked unloaded far chunk code="
+                                    + far);
+                if (!acceptanceScaffoldFarChunkVetoReported) {
+                    acceptanceScaffoldFarChunkVetoReported = true;
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_SCAFFOLD_UNLOADED_CHUNK_VETO_PASS=YES");
+                    System.out.flush();
+                }
+                acceptanceScaffoldWorldCellPhase = 1;
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_AIR_PASS=YES");
+            } else if (acceptanceScaffoldWorldCellPhase == 1
+                    && cell == Minecraft189ScaffoldWorldReadAccess.FULL_SOLID) {
+                acceptanceScaffoldWorldCellPhase = 2;
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_SOLID_PASS=YES");
+            } else if (acceptanceScaffoldWorldCellPhase == 2
+                    && cell == Minecraft189ScaffoldWorldReadAccess.AIR) {
+                acceptanceScaffoldWorldCellPhase = 3;
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_REVERTED_AIR_PASS=YES");
+            }
+            if (acceptanceScaffoldWorldCellPhase == 3
+                    || acceptanceScaffoldWorldCellPhase == 1
+                    || acceptanceScaffoldWorldCellPhase == 2)
+                System.out.flush();
         }
     }
 

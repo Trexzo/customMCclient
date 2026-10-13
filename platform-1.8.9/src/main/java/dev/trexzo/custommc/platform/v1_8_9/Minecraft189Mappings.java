@@ -105,6 +105,14 @@ public final class Minecraft189Mappings {
     // V13: exact original world, IBlockState and real ItemBlock provenance.
     public static final MappedClass BLOCK =
             new MappedClass("afh", "net/minecraft/block/Block");
+    // Original MCP 1.8.9: chunk-provider existence is independent of
+    // allowEmpty block classification and MUST reject missing chunks.
+    public static final MappedClass I_CHUNK_PROVIDER =
+            new MappedClass("amv", "net/minecraft/world/chunk/IChunkProvider");
+    public static final MappedClass CHUNK =
+            new MappedClass("amy", "net/minecraft/world/chunk/Chunk");
+    public static final MappedClass EMPTY_CHUNK =
+            new MappedClass("amx", "net/minecraft/world/chunk/EmptyChunk");
     public static final MappedClass I_BLOCK_STATE =
             new MappedClass("alz", "net/minecraft/block/state/IBlockState");
     public static final MappedClass ITEM_BLOCK =
@@ -598,6 +606,20 @@ public final class Minecraft189Mappings {
                     "setSneaking");
 
     // V13 read-only support evidence: never assume unknown/unloaded is air.
+    public static final MappedMethod WORLD_GET_CHUNK_PROVIDER =
+            new MappedMethod(WORLD, "N", "()Lamv;",
+                    "func_72863_F", "getChunkProvider");
+    public static final MappedMethod CHUNK_PROVIDER_CHUNK_EXISTS =
+            new MappedMethod(I_CHUNK_PROVIDER, "a", "(II)Z",
+                    "func_73149_a", "chunkExists");
+    // 1.8.9 ChunkProviderClient.chunkExists() is always true, so use
+    // provideChunk (returns native EmptyChunk for absent) + isEmpty().
+    public static final MappedMethod CHUNK_PROVIDER_PROVIDE_CHUNK =
+            new MappedMethod(I_CHUNK_PROVIDER, "d", "(II)Lamy;",
+                    "func_73154_d", "provideChunk");
+    public static final MappedMethod CHUNK_IS_EMPTY =
+            new MappedMethod(CHUNK, "f", "()Z",
+                    "func_76621_g", "isEmpty");
     public static final MappedMethod WORLD_IS_BLOCK_LOADED =
             new MappedMethod(WORLD, "d", "(Lcj;Z)Z",
                     "func_175677_d", "isBlockLoaded");

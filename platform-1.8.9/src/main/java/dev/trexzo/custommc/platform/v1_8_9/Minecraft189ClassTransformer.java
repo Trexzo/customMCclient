@@ -3604,13 +3604,24 @@ public final class Minecraft189ClassTransformer
      * => FULL_SOLID, all other loaded blocks => OTHER. No world writes.
      */
     private static void addScaffoldNativeCellRead(final ClassVisitor visitor) {
+        addScaffoldNativeCellReadVariant(visitor, false);
+        addScaffoldNativeCellReadVariant(visitor, true);
+    }
+
+    private static void addScaffoldNativeCellReadVariant(
+            final ClassVisitor visitor, final boolean trace) {
         final MethodVisitor m = visitor.visitMethod(Opcodes.ACC_PUBLIC,
-                "customMcScaffoldCellCode", "(III)I", null, null);
+                trace ? "customMcScaffoldCellTrace" : "customMcScaffoldCellCode",
+                "(III)I", null, null);
         final String world = Minecraft189Mappings.WORLD.obfuscatedInternalName();
         final String blockPos = Minecraft189Mappings.BLOCK_POS.obfuscatedInternalName();
         final String state = Minecraft189Mappings.I_BLOCK_STATE.obfuscatedInternalName();
         final String block = Minecraft189Mappings.BLOCK.obfuscatedInternalName();
-        final Label loaded = new Label();
+        final String provider = Minecraft189Mappings.I_CHUNK_PROVIDER.obfuscatedInternalName();
+        final String chunk = Minecraft189Mappings.CHUNK.obfuscatedInternalName();
+        final Label providerAvailable = new Label();
+        final Label originalChunkNotNull = new Label();
+        final Label actualChunkExists = new Label();
         final Label notAir = new Label();
         final Label validState = new Label();
         final Label validBlock = new Label();
@@ -3625,25 +3636,62 @@ public final class Minecraft189ClassTransformer
                 "<init>", "(III)V", false);
         m.visitVarInsn(Opcodes.ASTORE, 4);
 
+        // In original MC 1.8.9 ChunkProviderClient.chunkExists is a
+        // constant true, including for absent chunks. Use its native
+        // provideChunk instead: missing data yields EmptyChunk, whose
+        // isEmpty() returns true. This is a read-only cache lookup.
         m.visitVarInsn(Opcodes.ALOAD, 0);
-        m.visitVarInsn(Opcodes.ALOAD, 4);
-        m.visitInsn(Opcodes.ICONST_0);
         m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, world,
-                Minecraft189Mappings.WORLD_IS_BLOCK_LOADED.obfuscatedName(),
-                Minecraft189Mappings.WORLD_IS_BLOCK_LOADED.descriptor(), false);
-        m.visitJumpInsn(Opcodes.IFNE, loaded);
-        m.visitInsn(Opcodes.ICONST_0);
+                Minecraft189Mappings.WORLD_GET_CHUNK_PROVIDER.obfuscatedName(),
+                Minecraft189Mappings.WORLD_GET_CHUNK_PROVIDER.descriptor(), false);
+        m.visitInsn(Opcodes.DUP);
+        m.visitJumpInsn(Opcodes.IFNONNULL, providerAvailable);
+        m.visitInsn(Opcodes.POP);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 20 : 0);
         m.visitInsn(Opcodes.IRETURN);
 
-        m.visitLabel(loaded);
-        m.visitFrame(Opcodes.F_APPEND, 1, new Object[]{blockPos}, 0, null);
+        m.visitLabel(providerAvailable);
+        m.visitFrame(Opcodes.F_FULL, 5,
+                new Object[]{world, Opcodes.INTEGER, Opcodes.INTEGER,
+                        Opcodes.INTEGER, blockPos},
+                1, new Object[]{provider});
+        m.visitVarInsn(Opcodes.ILOAD, 1);
+        m.visitInsn(Opcodes.ICONST_4);
+        m.visitInsn(Opcodes.ISHR);
+        m.visitVarInsn(Opcodes.ILOAD, 3);
+        m.visitInsn(Opcodes.ICONST_4);
+        m.visitInsn(Opcodes.ISHR);
+        m.visitMethodInsn(Opcodes.INVOKEINTERFACE, provider,
+                Minecraft189Mappings.CHUNK_PROVIDER_PROVIDE_CHUNK.obfuscatedName(),
+                Minecraft189Mappings.CHUNK_PROVIDER_PROVIDE_CHUNK.descriptor(), true);
+        m.visitInsn(Opcodes.DUP);
+        m.visitJumpInsn(Opcodes.IFNONNULL, originalChunkNotNull);
+        m.visitInsn(Opcodes.POP);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 21 : 0);
+        m.visitInsn(Opcodes.IRETURN);
+
+        m.visitLabel(originalChunkNotNull);
+        m.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[]{chunk});
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, chunk,
+                Minecraft189Mappings.CHUNK_IS_EMPTY.obfuscatedName(),
+                Minecraft189Mappings.CHUNK_IS_EMPTY.descriptor(), false);
+        m.visitJumpInsn(Opcodes.IFEQ, actualChunkExists);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 22 : 0);
+        m.visitInsn(Opcodes.IRETURN);
+
+        m.visitLabel(actualChunkExists);
+        m.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+        // The genuine client provider returned a non-EmptyChunk above.
+        // In original 1.8.9 a redundant World.isBlockLoaded check may
+        // still reject air here; it is not additional cache authority.
+        // The original native block-state/air getter remains unchanged.
         m.visitVarInsn(Opcodes.ALOAD, 0);
         m.visitVarInsn(Opcodes.ALOAD, 4);
         m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, world,
                 Minecraft189Mappings.WORLD_IS_AIR_BLOCK.obfuscatedName(),
                 Minecraft189Mappings.WORLD_IS_AIR_BLOCK.descriptor(), false);
         m.visitJumpInsn(Opcodes.IFEQ, notAir);
-        m.visitInsn(Opcodes.ICONST_1);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 11 : 1);
         m.visitInsn(Opcodes.IRETURN);
 
         m.visitLabel(notAir);
@@ -3656,7 +3704,7 @@ public final class Minecraft189ClassTransformer
         m.visitInsn(Opcodes.DUP);
         m.visitJumpInsn(Opcodes.IFNONNULL, validState);
         m.visitInsn(Opcodes.POP);
-        m.visitInsn(Opcodes.ICONST_0);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 12 : 0);
         m.visitInsn(Opcodes.IRETURN);
 
         m.visitLabel(validState);
@@ -3667,7 +3715,7 @@ public final class Minecraft189ClassTransformer
         m.visitInsn(Opcodes.DUP);
         m.visitJumpInsn(Opcodes.IFNONNULL, validBlock);
         m.visitInsn(Opcodes.POP);
-        m.visitInsn(Opcodes.ICONST_0);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 13 : 0);
         m.visitInsn(Opcodes.IRETURN);
 
         m.visitLabel(validBlock);
@@ -3676,11 +3724,11 @@ public final class Minecraft189ClassTransformer
                 Minecraft189Mappings.BLOCK_IS_FULL_CUBE.obfuscatedName(),
                 Minecraft189Mappings.BLOCK_IS_FULL_CUBE.descriptor(), false);
         m.visitJumpInsn(Opcodes.IFEQ, notSolid);
-        m.visitInsn(Opcodes.ICONST_2);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 14 : 2);
         m.visitInsn(Opcodes.IRETURN);
         m.visitLabel(notSolid);
         m.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
-        m.visitInsn(Opcodes.ICONST_3);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 15 : 3);
         m.visitInsn(Opcodes.IRETURN);
         m.visitMaxs(0, 0);
         m.visitEnd();

@@ -169,7 +169,7 @@ def native_safe_walk_positions(log):
 
 def run(command, game, timeout, attack=False, auto_clicker=False,
         kill_aura_nonplayer=False, native_world_camera=False,
-        native_safe_walk=False, safe_walk_edge=None):
+        native_safe_walk=False, safe_walk_edge=None, native_scaffold_world=False):
     if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer)) > 1:
         raise ValueError("manual and module combat tests are exclusive")
     controlled_combat = attack or auto_clicker or kill_aura_nonplayer
@@ -177,9 +177,11 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         raise ValueError("invalid SafeWalk edge control")
     if safe_walk_edge and (controlled_combat or native_safe_walk):
         raise ValueError("SafeWalk ledge fixture must be independent")
+    if native_scaffold_world and (controlled_combat or safe_walk_edge or native_safe_walk):
+        raise ValueError("Scaffold world cell fixture must be independent")
     # A real rendered world camera requires a focused Minecraft window;
     # vanilla singleplayer otherwise automatically opens the pause GUI.
-    needs_active_window = controlled_combat or native_world_camera or native_safe_walk or bool(safe_walk_edge)
+    needs_active_window = controlled_combat or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
@@ -189,6 +191,11 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireNativeSafeWalk=true")
     if safe_walk_edge:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true")
+    if native_scaffold_world:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireNativeScaffoldWorldCell=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true")
     if native_world_camera:
@@ -284,7 +291,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
             # Actual 1.8.9 GuiCreateWorld Game Mode button is centered
             # at x427,y125. Survival -> Hardcore -> Creative; Creative
             # enables commands unless explicitly overridden.
-            if controlled_combat or safe_walk_edge:
+            if controlled_combat or safe_walk_edge or native_scaffold_world:
                 if create_screen != b"axb":
                     raise AssertionError("unexpected create-world GUI")
                 click(window, 427, 125)
@@ -395,6 +402,53 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                         raise AssertionError("disabled SafeWalk negative control did not cross real ledge")
                     print("CUSTOMMC_OFFICIAL_189_SAFEWALK_DISABLED_REAL_EDGE_EXIT_PASS=YES",
                           flush=True)
+            if native_scaffold_world:
+                # No synthetic block state or client-side mutation.
+                # Real vanilla integrated server /setblock updates the native
+                # original client's World via normal world packets.
+                resume_if_paused(process, log, window)
+                send_command(process, log, window, "/time set 1000")
+                # Load destination first; vanilla /setblock rejects unloaded
+                # chunks. A permanent separate stone support prevents the
+                # original player falling out of loaded range while observing.
+                send_command(process, log, window, "/tp 0.5 120 0.5 0 0")
+                time.sleep(2.0)
+                send_command(process, log, window, "/setblock 0 99 0 stone")
+                send_command(process, log, window, "/setblock 1 99 0 air")
+                if b"Cannot place blocks outside of the world" in read_tail(log):
+                    raise AssertionError("vanilla original world setup rejected unloaded chunk")
+                send_command(process, log, window, "/tp 0.5 100 0.5 0 0")
+                # Actually observe the source-native player's stable support,
+                # not simply successful execution of the /tp command.
+                stable_start = time.monotonic()
+                while time.monotonic() - stable_start < 10:
+                    actual = native_safe_walk_positions(log)[-5:]
+                    if len(actual) >= 3 and all(
+                            abs(x - 0.5) < 0.3 and abs(y - 100.0) < 0.2
+                            and abs(z - 0.5) < 0.3 for x, y, z in actual[-3:]):
+                        break
+                    require_running(process, "real native Scaffold fixture grounding")
+                    time.sleep(0.15)
+                else:
+                    raise AssertionError("vanilla player lacks sustained stone support at (0,99,0)")
+                print("CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_SUPPORT_GROUNDED=YES",
+                      flush=True)
+                await_marker(process, log,
+                             b"CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_AIR_PASS=YES",
+                             deadline, "actual original World AIR at adjacent (1,99,0)")
+                await_marker(process, log,
+                             b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_UNLOADED_CHUNK_VETO_PASS=YES",
+                             deadline, "source native remote unloaded chunk rejects false AIR")
+                send_command(process, log, window, "/setblock 1 99 0 stone")
+                await_marker(process, log,
+                             b"CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_SOLID_PASS=YES",
+                             deadline, "genuine vanilla stone at adjacent (1,99,0)")
+                send_command(process, log, window, "/setblock 1 99 0 air")
+                await_marker(process, log,
+                             b"CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_REVERTED_AIR_PASS=YES",
+                             deadline, "original World observes real stone-to-air server update")
+                print("CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_REAL_WORLD_TRANSITIONS_PASS=YES",
+                      flush=True)
             require_running(process, "post world checkpoint")
             time.sleep(2)
             require_running(process, "world stability")
@@ -479,6 +533,17 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 print("CUSTOMMC_OFFICIAL_189_COMBAT_DAMAGE_TESTED=NO")
             print("CUSTOMMC_OFFICIAL_189_MULTIPLAYER_TESTED=NO")
         except BaseException:
+            if native_scaffold_world:
+                # Native per-world diagnostics can be earlier than the last
+                # 12KB of very frequent player-position samples. Preserve
+                # bounded, exact tagged lines from the real game process.
+                tagged = [line for line in log.read_bytes().splitlines()
+                          if b"CUSTOMMC_SCAFFOLD_WORLD_DIAG_" in line
+                          or b"CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_" in line]
+                print("SCAFFOLD_SOURCE_WORLD_DIAGNOSTICS_START", file=sys.stderr)
+                for line in tagged[-45:]:
+                    print(line.decode("utf-8", "replace"), file=sys.stderr)
+                print("SCAFFOLD_SOURCE_WORLD_DIAGNOSTICS_END", file=sys.stderr)
             print("SINGLEPLAYER_SMOKE_OUTPUT_TAIL_START", file=sys.stderr)
             print(read_tail(log)[-12000:].decode("utf-8", "replace"), file=sys.stderr)
             print("SINGLEPLAYER_SMOKE_OUTPUT_TAIL_END", file=sys.stderr)
@@ -517,6 +582,8 @@ if __name__ == "__main__":
                         help="prove native local moveEntity collision branch with module active")
     parser.add_argument("--safe-walk-edge", choices=("enabled", "disabled"),
                         help="test genuine elevated block ledge with local SafeWalk on/off")
+    parser.add_argument("--native-scaffold-world", action="store_true",
+                        help="verify original World sees vanilla server air-stone-air cell updates")
     args = parser.parse_args()
     try:
         command = build_command(
@@ -528,7 +595,8 @@ if __name__ == "__main__":
             kill_aura_nonplayer=args.kill_aura_nonplayer,
             native_world_camera=args.native_world_camera,
             native_safe_walk=args.native_safe_walk,
-            safe_walk_edge=args.safe_walk_edge)
+            safe_walk_edge=args.safe_walk_edge,
+            native_scaffold_world=args.native_scaffold_world)
     except Exception as failure:
         print("CUSTOMMC_189_SINGLEPLAYER_WORLD_FAILED: " + str(failure),
               file=sys.stderr)
