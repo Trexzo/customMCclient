@@ -240,6 +240,9 @@ public final class Minecraft189ClassTransformer
     private static final String SWORD_BLOCK_CONTROL_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189SwordBlockControl";
+    private static final String SCAFFOLD_NATIVE_EYE_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189ScaffoldNativeEyeAccess";
     private static final String SCAFFOLD_NATIVE_CONTEXT_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189ScaffoldNativeContextAccess";
@@ -4150,11 +4153,16 @@ public final class Minecraft189ClassTransformer
                                                         interfaces,
                                                         PLAYER_HUNGER_ACCESS_INTERNAL_NAME),
                                                 PLAYER_EXPERIENCE_ACCESS_INTERNAL_NAME),
-                                        PLAYER_INVENTORY_ACCESS_INTERNAL_NAME));
+                                        withInterface(
+                                                interfaces,
+                                                SCAFFOLD_NATIVE_EYE_ACCESS_INTERNAL_NAME)));
                     }
 
                     @Override
                     public void visitEnd() {
+                        addFloatMethodDelegate(cv,
+                                "customMcOriginalEyeHeight",
+                                Minecraft189Mappings.ENTITY_PLAYER_GET_EYE_HEIGHT);
                         addFoodLevelGetter(
                                 cv,
                                 "customMcFoodLevel");
