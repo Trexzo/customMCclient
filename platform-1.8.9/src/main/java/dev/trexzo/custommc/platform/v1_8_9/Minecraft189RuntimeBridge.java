@@ -150,6 +150,7 @@ public final class Minecraft189RuntimeBridge {
         scaffoldOriginalContextReported = false;
         scaffoldOriginalCandidateReported = false;
         scaffoldOriginalCandidateDiagTicks = 0;
+        scaffoldOriginalPlacementAttempted = false;
         return new Registration(next);
     }
 
@@ -245,8 +246,32 @@ public final class Minecraft189RuntimeBridge {
     private static boolean scaffoldOriginalContextReported;
     private static boolean scaffoldOriginalCandidateReported;
     private static int scaffoldOriginalCandidateDiagTicks;
+    private static boolean scaffoldOriginalPlacementAttempted;
 
     public static synchronized void originalScaffoldContextAtTick(final Object minecraft) {
+        // V28 deliberately acceptance-only until the vanilla multiplayer
+        // server persistence and survival stack negative tests are certified.
+        // Source callback runs on original Minecraft.runTick and never
+        // creates C08 itself or rewrites the original cursor.
+        if (activeRuntime != null && !scaffoldOriginalPlacementAttempted
+                && Boolean.getBoolean(
+                        "custommc.acceptance.requireOriginalScaffoldPlacement")) {
+            final Minecraft189ScaffoldNativePlacementAttempt.Result attempted =
+                    Minecraft189ScaffoldNativePlacementAttempt.attempt(
+                            minecraft, true);
+            if (attempted != null) {
+                scaffoldOriginalPlacementAttempted = true;
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
+                        + " accepted=" + attempted.originalControllerAccepted
+                        + " target=" + attempted.targetX + ","
+                        + attempted.targetY + "," + attempted.targetZ
+                        + " support=" + attempted.supportX + ","
+                        + attempted.supportY + "," + attempted.supportZ
+                        + " selectedBefore=" + attempted.originalStackSize);
+                System.out.flush();
+            }
+        }
         if (activeRuntime != null && !scaffoldOriginalCandidateReported
                 && Boolean.getBoolean(
                         "custommc.acceptance.requireOriginalScaffoldCandidate")) {

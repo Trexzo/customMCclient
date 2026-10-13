@@ -260,6 +260,9 @@ public final class Minecraft189ClassTransformer
     private static final String BLOCK_MINING_CONTROL_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189BlockMiningControl";
+    private static final String SCAFFOLD_NATIVE_PLACE_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189ScaffoldVanillaPlaceAccess";
     private static final String VANILLA_REACH_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189VanillaReachAccess";
@@ -2575,11 +2578,13 @@ public final class Minecraft189ClassTransformer
                                 superName,
                                 withInterface(
                                         withInterface(
-                                        withInterface(
-                                                interfaces,
-                                                BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME),
-                                        BLOCK_MINING_CONTROL_INTERNAL_NAME),
-                                VANILLA_REACH_ACCESS_INTERNAL_NAME));
+                                                withInterface(
+                                                        withInterface(
+                                                                interfaces,
+                                                                BLOCK_HIT_DELAY_CONTROL_INTERNAL_NAME),
+                                                        BLOCK_MINING_CONTROL_INTERNAL_NAME),
+                                                VANILLA_REACH_ACCESS_INTERNAL_NAME),
+                                        SCAFFOLD_NATIVE_PLACE_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -2638,6 +2643,7 @@ public final class Minecraft189ClassTransformer
 
                     @Override
                     public void visitEnd() {
+                        addScaffoldOriginalVanillaRightClick(cv);
                         addFloatMethodDelegate(cv,
                                 "customMcVanillaBlockReachDistance",
                                 Minecraft189Mappings.PLAYER_CONTROLLER_GET_BLOCK_REACH);
@@ -2673,6 +2679,61 @@ public final class Minecraft189ClassTransformer
                     "official Minecraft 1.8.9 PlayerController attackEntity absent");
         }
         return writer.toByteArray();
+    }
+
+    /**
+     * V28 exactly delegates to source ORIGINAL bda/a, using the original
+     * MOP's BlockPos, EnumFacing and hitVec. Does NOT construct placement
+     * coordinates, packet messages or fake controller operations.
+     *
+     * Side-effecting: the caller must independently verify same-tick
+     * original ItemBlock + native ray/World + enabled action ownership.
+     */
+    private static void addScaffoldOriginalVanillaRightClick(
+            final ClassVisitor cv) {
+        final MethodVisitor mv = cv.visitMethod(Opcodes.ACC_PUBLIC,
+                "customMcOriginalRightClick",
+                "(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;"
+                        + "Ljava/lang/Object;)Z", null, null);
+        final String player =
+                Minecraft189Mappings.ENTITY_PLAYER_SP.obfuscatedInternalName();
+        final String world =
+                Minecraft189Mappings.WORLD_CLIENT.obfuscatedInternalName();
+        final String stack =
+                Minecraft189Mappings.ITEM_STACK.obfuscatedInternalName();
+        final String hit =
+                Minecraft189Mappings.MOVING_OBJECT_POSITION.obfuscatedInternalName();
+        mv.visitCode();
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitVarInsn(Opcodes.ALOAD, 1);
+        mv.visitTypeInsn(Opcodes.CHECKCAST, player);
+        mv.visitVarInsn(Opcodes.ALOAD, 2);
+        mv.visitTypeInsn(Opcodes.CHECKCAST, world);
+        mv.visitVarInsn(Opcodes.ALOAD, 3);
+        mv.visitTypeInsn(Opcodes.CHECKCAST, stack);
+        mv.visitVarInsn(Opcodes.ALOAD, 4);
+        mv.visitTypeInsn(Opcodes.CHECKCAST, hit);
+        mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, hit,
+                Minecraft189Mappings.MOVING_OBJECT_GET_BLOCK_POS.obfuscatedName(),
+                Minecraft189Mappings.MOVING_OBJECT_GET_BLOCK_POS.descriptor(), false);
+        mv.visitVarInsn(Opcodes.ALOAD, 4);
+        mv.visitTypeInsn(Opcodes.CHECKCAST, hit);
+        mv.visitFieldInsn(Opcodes.GETFIELD, hit,
+                Minecraft189Mappings.MOVING_OBJECT_SIDE_HIT.obfuscatedName(),
+                Minecraft189Mappings.MOVING_OBJECT_SIDE_HIT.descriptor());
+        mv.visitVarInsn(Opcodes.ALOAD, 4);
+        mv.visitTypeInsn(Opcodes.CHECKCAST, hit);
+        mv.visitFieldInsn(Opcodes.GETFIELD, hit,
+                Minecraft189Mappings.MOVING_OBJECT_HIT_VEC.obfuscatedName(),
+                Minecraft189Mappings.MOVING_OBJECT_HIT_VEC.descriptor());
+        mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                Minecraft189Mappings.PLAYER_CONTROLLER_MP.obfuscatedInternalName(),
+                Minecraft189Mappings.PLAYER_CONTROLLER_ON_PLAYER_RIGHT_CLICK.obfuscatedName(),
+                Minecraft189Mappings.PLAYER_CONTROLLER_ON_PLAYER_RIGHT_CLICK.descriptor(),
+                false);
+        mv.visitInsn(Opcodes.IRETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
     }
 
     /**
