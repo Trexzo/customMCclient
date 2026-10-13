@@ -560,6 +560,7 @@ public final class Minecraft189RuntimeBridge {
     private static int acceptanceScaffoldWorldCellPhase;
     private static int acceptanceScaffoldWorldProbeCount;
     private static int acceptanceScaffoldWorldLastCode = -999;
+    private static int acceptanceScaffoldWorldDiagTick;
 
     public static synchronized void worldEntityPositions(
             final Minecraft189WorldEntityPositionsAccess world) {
@@ -591,6 +592,26 @@ public final class Minecraft189RuntimeBridge {
                 cell = source.customMcScaffoldCellCode(1, 99, 0);
             } catch (RuntimeException nativeWorldUnavailable) {
                 return;
+            }
+            // Native original-world read diagnostics are bounded and
+            // acceptance-only. Compare a real server-set floor, the target
+            // neighbor and air above player, without changing the test.
+            if (acceptanceScaffoldWorldCellPhase == 0
+                    && ++acceptanceScaffoldWorldDiagTick % 100 == 0
+                    && acceptanceScaffoldWorldDiagTick <= 3000) {
+                try {
+                    final int floor = source.customMcScaffoldCellCode(0, 99, 0);
+                    final int above = source.customMcScaffoldCellCode(0, 101, 0);
+                    System.out.println("CUSTOMMC_SCAFFOLD_WORLD_DIAG_TRIPLE=target:"
+                            + cell + ",floor:" + floor + ",above:" + above
+                            + ",tick:" + acceptanceScaffoldWorldDiagTick
+                            + ",type:" + world.getClass().getName());
+                    System.out.flush();
+                } catch (RuntimeException diagnosticUnavailable) {
+                    System.out.println("CUSTOMMC_SCAFFOLD_WORLD_DIAG_ERROR="
+                            + diagnosticUnavailable.getClass().getName());
+                    System.out.flush();
+                }
             }
             if (cell != acceptanceScaffoldWorldLastCode
                     && acceptanceScaffoldWorldProbeCount < 12) {
