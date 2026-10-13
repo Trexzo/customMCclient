@@ -99,6 +99,69 @@ final class Minecraft189OfficialClientPreflightTest {
      * render thread, OS window, account or native libraries.
      */
     /**
+     * V23: the original ave.s()V must dispatch one observational callback
+     * using its current `this`, with no fake singleton or captured World.
+     */
+    @Test
+    void realMojang189RunTickPublishesItsOwnSourceContext() throws Exception {
+        final String configured=System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured);
+        } else {
+            Assumptions.assumeTrue(configured!=null && !configured.trim().isEmpty(),
+                    "official 1.8.9 absent offline");
+        }
+        final Path path=Paths.get(configured);
+        assertTrue(Files.isRegularFile(path));
+        assertEquals(OFFICIAL_SIZE,Files.size(path));
+        assertEquals(OFFICIAL_SHA1,digestFile(path));
+        final byte[] original;
+        try (JarFile jar=new JarFile(path.toFile());
+             InputStream stream=jar.getInputStream(jar.getJarEntry("ave.class"))) {
+            original=readAll(stream);
+        }
+        final ClassNode source=new ClassNode();
+        new ClassReader(original).accept(source,0);
+        MethodNode nativeTick=null;
+        for (MethodNode method:source.methods)
+            if ("s".equals(method.name)&&"()V".equals(method.desc)) {
+                assertNull(nativeTick,"duplicate original runTick");
+                nativeTick=method;
+            }
+        assertNotNull(nativeTick,"missing source Mojang 1.8.9 runTick");
+        final ClassNode changed=new ClassNode();
+        new ClassReader(new Minecraft189ClassTransformer()
+                .transform("ave",original)).accept(changed,0);
+        MethodNode tick=null;
+        for(MethodNode method:changed.methods)
+            if("s".equals(method.name)&&"()V".equals(method.desc)) {
+                assertNull(tick,"multiple transformed runTick methods");
+                tick=method;
+            }
+        assertNotNull(tick);
+        int callbacks=0;
+        for(AbstractInsnNode node:tick.instructions.toArray()) {
+            if(!(node instanceof MethodInsnNode)) continue;
+            final MethodInsnNode call=(MethodInsnNode)node;
+            if (!"originalScaffoldContextAtTick".equals(call.name)) continue;
+            callbacks++;
+            assertEquals(Opcodes.INVOKESTATIC,call.getOpcode());
+            assertEquals("dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189RuntimeBridge",call.owner);
+            assertEquals("(Ljava/lang/Object;)V",call.desc);
+            AbstractInsnNode preceding=node.getPrevious();
+            while(preceding!=null && preceding.getOpcode()<0)
+                preceding=preceding.getPrevious();
+            assertNotNull(preceding);
+            assertEquals(Opcodes.ALOAD,preceding.getOpcode());
+            assertEquals(0,((org.objectweb.asm.tree.VarInsnNode)preceding).var,
+                    "runTick must pass its actual Minecraft self reference");
+        }
+        assertEquals(1,callbacks,"one native source callback per original runTick");
+    }
+
+    /**
      * V22: source-pin ave.h/f/s and the transformed snapshot body to
      * the genuine Mojang JAR. This does not assert a live cursor in game.
      */

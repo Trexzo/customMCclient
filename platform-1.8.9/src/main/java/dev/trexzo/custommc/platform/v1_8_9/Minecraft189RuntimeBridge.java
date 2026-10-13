@@ -147,6 +147,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraFovEnabledTicks = 0;
         acceptanceAuraFovEnabled = false;
         acceptanceAuraFovReported = false;
+        scaffoldOriginalContextReported = false;
         return new Registration(next);
     }
 
@@ -233,6 +234,31 @@ public final class Minecraft189RuntimeBridge {
                 + " originalStackSize=" + witness.originalStackSize
                 + " floor=" + witness.playerX + "," + witness.supportY + ","
                 + witness.playerZ);
+        System.out.flush();
+    }
+
+    // V23 original-game acceptance only. A source-original Minecraft object
+    // is passed directly from its runTick RETURN, never reconstructed from
+    // a cached singleton, source position estimate or fake mouse-over hit.
+    private static boolean scaffoldOriginalContextReported;
+
+    public static synchronized void originalScaffoldContextAtTick(final Object minecraft) {
+        if (scaffoldOriginalContextReported || activeRuntime == null
+                || !Boolean.getBoolean(
+                        "custommc.acceptance.requireOriginalScaffoldContext"))
+            return;
+        if (!(minecraft instanceof Minecraft189ScaffoldNativeContextAccess))
+            return;
+        final Minecraft189ScaffoldNativeContext.Witness witness =
+                Minecraft189ScaffoldNativeContext.capture(
+                        (Minecraft189ScaffoldNativeContextAccess)minecraft);
+        if (witness == null) return;
+        // A valid reference triple and selected genuine ItemBlock do not
+        // establish a clicked BLOCK or a legal Scaffold candidate. The
+        // original current ray may be MISS/ENTITY. No placement occurs.
+        scaffoldOriginalContextReported = true;
+        System.out.println(
+                "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_TICK_CONTEXT_PASS=YES");
         System.out.flush();
     }
 

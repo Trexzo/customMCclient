@@ -842,6 +842,13 @@ public final class Minecraft189ClassTransformer
                                 public void visitInsn(
                                         final int opcode) {
                                     if (opcode == Opcodes.RETURN) {
+                                        // V23 read-only source Minecraft h/f/s
+                                        // snapshot at original runTick RETURN.
+                                        super.visitVarInsn(Opcodes.ALOAD, 0);
+                                        super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                                RUNTIME_BRIDGE_INTERNAL_NAME,
+                                                "originalScaffoldContextAtTick",
+                                                "(Ljava/lang/Object;)V", false);
                                         final Minecraft189Mappings.MappedField player =
                                                 Minecraft189Mappings
                                                         .MINECRAFT_PLAYER;

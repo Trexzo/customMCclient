@@ -170,7 +170,8 @@ def native_safe_walk_positions(log):
 def run(command, game, timeout, attack=False, auto_clicker=False,
         kill_aura_nonplayer=False, native_world_camera=False,
         native_safe_walk=False, safe_walk_edge=None, native_scaffold_world=False,
-        native_scaffold_tick=False, native_scaffold_raytrace=False):
+        native_scaffold_tick=False, native_scaffold_raytrace=False,
+        native_scaffold_context=False):
     if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer)) > 1:
         raise ValueError("manual and module combat tests are exclusive")
     controlled_combat = attack or auto_clicker or kill_aura_nonplayer
@@ -185,11 +186,15 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         raise ValueError("native Scaffold tick fixture must be independent")
     if native_scaffold_raytrace and (controlled_combat or safe_walk_edge
                                     or native_safe_walk or native_scaffold_world
-                                    or native_scaffold_tick):
+                                    or native_scaffold_tick or native_scaffold_context):
         raise ValueError("native Scaffold raytrace fixture must be independent")
+    if native_scaffold_context and (controlled_combat or safe_walk_edge
+                                    or native_safe_walk or native_scaffold_world
+                                    or native_scaffold_tick):
+        raise ValueError("original Scaffold context fixture must be independent")
     # A real rendered world camera requires a focused Minecraft window;
     # vanilla singleplayer otherwise automatically opens the pause GUI.
-    needs_active_window = controlled_combat or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace
+    needs_active_window = controlled_combat or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
@@ -209,6 +214,11 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
     if native_scaffold_tick:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireNativeScaffoldTickParity=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true")
+    if native_scaffold_context:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireOriginalScaffoldContext=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true")
     if native_scaffold_raytrace:
@@ -309,7 +319,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
             # Actual 1.8.9 GuiCreateWorld Game Mode button is centered
             # at x427,y125. Survival -> Hardcore -> Creative; Creative
             # enables commands unless explicitly overridden.
-            if controlled_combat or safe_walk_edge or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace:
+            if controlled_combat or safe_walk_edge or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context:
                 if create_screen != b"axb":
                     raise AssertionError("unexpected create-world GUI")
                 click(window, 427, 125)
@@ -495,6 +505,34 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                              "source-native same-tick local player/World/ItemBlock parity")
                 print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_NATIVE_ITEM_WORLD_PARITY_PASS=YES",
                       flush=True)
+            if native_scaffold_context:
+                # V23: Minecraft.runTick itself publishes original h/f/s.
+                # No complete witness before genuine vanilla ItemBlock delivery.
+                resume_if_paused(process, log, window)
+                send_command(process, log, window, "/time set 1000")
+                send_command(process, log, window, "/tp 0.5 120 0.5 0 0")
+                time.sleep(2.0)
+                send_command(process, log, window, "/setblock 0 99 0 stone")
+                send_command(process, log, window, "/tp 0.5 100 0.5 0 0")
+                stable_start = time.monotonic()
+                while time.monotonic() - stable_start < 12:
+                    readings = native_safe_walk_positions(log)[-5:]
+                    if len(readings) >= 3 and all(
+                            abs(x - .5) < .3 and abs(y - 100.0) < .2
+                            and abs(z - .5) < .3 for x, y, z in readings[-3:]):
+                        break
+                    require_running(process, "original context source grounding")
+                    time.sleep(.15)
+                else:
+                    raise AssertionError("native original Scaffold context player not grounded")
+                tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_TICK_CONTEXT_PASS=YES"
+                if tag in read_tail(log):
+                    raise AssertionError("original h/f/s context claimed before vanilla ItemBlock")
+                send_command(process, log, window, "/give CIProbe stone 8")
+                await_marker(process, log, tag, deadline,
+                             "real Minecraft tick has original player/World/cursor/ItemBlock")
+                print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_SOURCE_TICK_CONTEXT_PASS=YES",
+                      flush=True)
             if native_scaffold_raytrace:
                 # Original Minecraft integrated-server stone support, never
                 # a synthetic collision cube or client-side placement.
@@ -654,6 +692,8 @@ if __name__ == "__main__":
                         help="verify genuine original local player/World/selected ItemBlock same-tick source parity")
     parser.add_argument("--native-scaffold-raytrace", action="store_true",
                         help="original World.rayTraceBlocks positive face and wrong-block/face negative controls")
+    parser.add_argument("--native-scaffold-context", action="store_true",
+                        help="original Minecraft.runTick h/f/s context after native ItemBlock delivery")
     args = parser.parse_args()
     try:
         command = build_command(
@@ -668,7 +708,8 @@ if __name__ == "__main__":
             safe_walk_edge=args.safe_walk_edge,
             native_scaffold_world=args.native_scaffold_world,
             native_scaffold_tick=args.native_scaffold_tick,
-            native_scaffold_raytrace=args.native_scaffold_raytrace)
+            native_scaffold_raytrace=args.native_scaffold_raytrace,
+            native_scaffold_context=args.native_scaffold_context)
     except Exception as failure:
         print("CUSTOMMC_189_SINGLEPLAYER_WORLD_FAILED: " + str(failure),
               file=sys.stderr)
