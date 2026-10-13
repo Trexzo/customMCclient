@@ -149,6 +149,43 @@ final class Minecraft189OfficialClientPreflightTest {
         }
         assertEquals(1, sourceMatches,
                 "exact original source right-click signature must occur once");
+        // V28: the generated delegate must call exactly the original
+        // vanilla method with all SIX original typed Minecraft references.
+        final ClassNode transformed = new ClassNode();
+        new ClassReader(new Minecraft189ClassTransformer()
+                .transform("bda", source)).accept(transformed, 0);
+        assertTrue(transformed.interfaces.contains(
+                "dev/trexzo/custommc/platform/v1_8_9/"
+                        + "Minecraft189ScaffoldNativePlacementAccess"));
+        MethodNode delegate = null;
+        for (MethodNode method : transformed.methods) {
+            if ("customMcOriginalControllerPlace".equals(method.name)) {
+                assertNull(delegate, "duplicate original controller placement bridge");
+                delegate = method;
+            }
+        }
+        assertNotNull(delegate);
+        int invokeCount = 0, castCount = 0;
+        final String[] castOrder = {"bew", "bdb", "zx", "cj", "cq", "aui"};
+        for (AbstractInsnNode instruction : delegate.instructions.toArray()) {
+            assertFalse(instruction instanceof FieldInsnNode,
+                    "native placement delegate must not directly write original fields");
+            if (instruction instanceof org.objectweb.asm.tree.TypeInsnNode
+                    && instruction.getOpcode() == Opcodes.CHECKCAST) {
+                assertEquals(castOrder[castCount++],
+                        ((org.objectweb.asm.tree.TypeInsnNode)instruction).desc);
+            }
+            if (instruction instanceof MethodInsnNode) {
+                final MethodInsnNode nativeInvoke = (MethodInsnNode) instruction;
+                assertEquals(Opcodes.INVOKEVIRTUAL, nativeInvoke.getOpcode());
+                assertEquals("bda", nativeInvoke.owner);
+                assertEquals(nativeClick.obfuscatedName(), nativeInvoke.name);
+                assertEquals(nativeClick.descriptor(), nativeInvoke.desc);
+                invokeCount++;
+            }
+        }
+        assertEquals(6, castCount, "all source-native arguments must be typed");
+        assertEquals(1, invokeCount, "only one vanilla controller call permitted");
     }
 
     /**
