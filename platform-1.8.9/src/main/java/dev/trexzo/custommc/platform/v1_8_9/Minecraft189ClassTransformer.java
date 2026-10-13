@@ -184,6 +184,9 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189WorldWeatherAccess";
     private static final String WORLD_WEATHER_ACCESS_DESCRIPTOR =
             "L" + WORLD_WEATHER_ACCESS_INTERNAL_NAME + ";";
+    private static final String SCAFFOLD_WORLD_READ_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189ScaffoldWorldReadAccess";
     private static final String WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189WorldEntityPositionsAccess";
@@ -3506,6 +3509,22 @@ public final class Minecraft189ClassTransformer
             final byte[] input) {
         final ClassReader reader =
                 new ClassReader(input);
+        // Reduced old unit-test World fixtures lack source-original block
+        // reads. Never claim their synthetic bytes implement native evidence.
+        // The exact original-Mojang preflight separately REQUIRES this seam.
+        final int[] nativeReads = new int[3];
+        reader.accept(new ClassVisitor(Opcodes.ASM9) {
+            @Override public MethodVisitor visitMethod(
+                    final int access, final String name, final String desc,
+                    final String signature, final String[] exceptions) {
+                if ("d".equals(name) && "(Lcj;Z)Z".equals(desc)) nativeReads[0]++;
+                if ("d".equals(name) && "(Lcj;)Z".equals(desc)) nativeReads[1]++;
+                if ("p".equals(name) && "(Lcj;)Lalz;".equals(desc)) nativeReads[2]++;
+                return null;
+            }
+        }, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+        final boolean genuineScaffoldReads = nativeReads[0] == 1
+                && nativeReads[1] == 1 && nativeReads[2] == 1;
         final ClassWriter writer =
                 new ClassWriter(
                         reader,
@@ -3545,11 +3564,17 @@ public final class Minecraft189ClassTransformer
                                 WORLD_ENTITY_COMBAT_ACCESS_INTERNAL_NAME),
                                 WORLD_ENTITY_UUID_ACCESS_INTERNAL_NAME),
                                 WORLD_ENTITY_VISIBILITY_ACCESS_INTERNAL_NAME),
+                                genuineScaffoldReads
+                                        ? withInterface(interfaces,
+                                                SCAFFOLD_WORLD_READ_ACCESS_INTERNAL_NAME)
+                                        : interfaces,
                                 "dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldLoadedEntityObjectsAccess"));
                     }
 
                     @Override
                     public void visitEnd() {
+                        if (genuineScaffoldReads)
+                            addScaffoldNativeCellRead(cv);
                         addLongMethodDelegate(
                                 cv,
                                 "customMcWorldTime",
@@ -3579,6 +3604,95 @@ public final class Minecraft189ClassTransformer
                 0);
 
         return writer.toByteArray();
+    }
+
+    /**
+     * Source-native World cell evidence for the initial conservative Scaffold
+     * planner. Only original Mojang World methods and class identities are
+     * used; unloaded => UNKNOWN, native air => REPLACEABLE, genuine full cube
+     * => FULL_SOLID, all other loaded blocks => OTHER. No world writes.
+     */
+    private static void addScaffoldNativeCellRead(final ClassVisitor visitor) {
+        final MethodVisitor m = visitor.visitMethod(Opcodes.ACC_PUBLIC,
+                "customMcScaffoldCellCode", "(III)I", null, null);
+        final String world = Minecraft189Mappings.WORLD.obfuscatedInternalName();
+        final String blockPos = Minecraft189Mappings.BLOCK_POS.obfuscatedInternalName();
+        final String state = Minecraft189Mappings.I_BLOCK_STATE.obfuscatedInternalName();
+        final String block = Minecraft189Mappings.BLOCK.obfuscatedInternalName();
+        final Label loaded = new Label();
+        final Label notAir = new Label();
+        final Label validState = new Label();
+        final Label validBlock = new Label();
+        final Label notSolid = new Label();
+        m.visitCode();
+        m.visitTypeInsn(Opcodes.NEW, blockPos);
+        m.visitInsn(Opcodes.DUP);
+        m.visitVarInsn(Opcodes.ILOAD, 1);
+        m.visitVarInsn(Opcodes.ILOAD, 2);
+        m.visitVarInsn(Opcodes.ILOAD, 3);
+        m.visitMethodInsn(Opcodes.INVOKESPECIAL, blockPos,
+                "<init>", "(III)V", false);
+        m.visitVarInsn(Opcodes.ASTORE, 4);
+
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitVarInsn(Opcodes.ALOAD, 4);
+        m.visitInsn(Opcodes.ICONST_0);
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, world,
+                Minecraft189Mappings.WORLD_IS_BLOCK_LOADED.obfuscatedName(),
+                Minecraft189Mappings.WORLD_IS_BLOCK_LOADED.descriptor(), false);
+        m.visitJumpInsn(Opcodes.IFNE, loaded);
+        m.visitInsn(Opcodes.ICONST_0);
+        m.visitInsn(Opcodes.IRETURN);
+
+        m.visitLabel(loaded);
+        m.visitFrame(Opcodes.F_APPEND, 1, new Object[]{blockPos}, 0, null);
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitVarInsn(Opcodes.ALOAD, 4);
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, world,
+                Minecraft189Mappings.WORLD_IS_AIR_BLOCK.obfuscatedName(),
+                Minecraft189Mappings.WORLD_IS_AIR_BLOCK.descriptor(), false);
+        m.visitJumpInsn(Opcodes.IFEQ, notAir);
+        m.visitInsn(Opcodes.ICONST_1);
+        m.visitInsn(Opcodes.IRETURN);
+
+        m.visitLabel(notAir);
+        m.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitVarInsn(Opcodes.ALOAD, 4);
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, world,
+                Minecraft189Mappings.WORLD_GET_BLOCK_STATE.obfuscatedName(),
+                Minecraft189Mappings.WORLD_GET_BLOCK_STATE.descriptor(), false);
+        m.visitInsn(Opcodes.DUP);
+        m.visitJumpInsn(Opcodes.IFNONNULL, validState);
+        m.visitInsn(Opcodes.POP);
+        m.visitInsn(Opcodes.ICONST_0);
+        m.visitInsn(Opcodes.IRETURN);
+
+        m.visitLabel(validState);
+        m.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[]{state});
+        m.visitMethodInsn(Opcodes.INVOKEINTERFACE, state,
+                Minecraft189Mappings.STATE_GET_BLOCK.obfuscatedName(),
+                Minecraft189Mappings.STATE_GET_BLOCK.descriptor(), true);
+        m.visitInsn(Opcodes.DUP);
+        m.visitJumpInsn(Opcodes.IFNONNULL, validBlock);
+        m.visitInsn(Opcodes.POP);
+        m.visitInsn(Opcodes.ICONST_0);
+        m.visitInsn(Opcodes.IRETURN);
+
+        m.visitLabel(validBlock);
+        m.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[]{block});
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, block,
+                Minecraft189Mappings.BLOCK_IS_FULL_CUBE.obfuscatedName(),
+                Minecraft189Mappings.BLOCK_IS_FULL_CUBE.descriptor(), false);
+        m.visitJumpInsn(Opcodes.IFEQ, notSolid);
+        m.visitInsn(Opcodes.ICONST_2);
+        m.visitInsn(Opcodes.IRETURN);
+        m.visitLabel(notSolid);
+        m.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+        m.visitInsn(Opcodes.ICONST_3);
+        m.visitInsn(Opcodes.IRETURN);
+        m.visitMaxs(0, 0);
+        m.visitEnd();
     }
 
     /**
