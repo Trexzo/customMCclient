@@ -211,8 +211,37 @@ public final class Minecraft189RuntimeBridge {
                                 "hostCallbacks"));
     }
 
+    // V18: original-game acceptance ONLY. Three independent source-native
+    // callbacks must publish inside the same explicit tick-owned window.
+    private static final Minecraft189ScaffoldNativeTickParity scaffoldTickParity =
+            new Minecraft189ScaffoldNativeTickParity();
+    private static boolean scaffoldTickParityReported;
+
+    private static void reportScaffoldTickParity() {
+        if (scaffoldTickParityReported
+                || !Boolean.getBoolean(
+                        "custommc.acceptance.requireNativeScaffoldTickParity"))
+            return;
+        final Minecraft189ScaffoldNativeTickParity.Witness witness =
+                scaffoldTickParity.consume();
+        if (witness == null) return;
+        scaffoldTickParityReported = true;
+        System.out.println(
+                "CUSTOMMC_OFFICIAL_189_SCAFFOLD_NATIVE_TICK_PARITY_PASS=YES"
+                + " tick=" + witness.tick
+                + " selectedSlot=" + witness.selectedSlot
+                + " originalStackSize=" + witness.originalStackSize
+                + " floor=" + witness.playerX + "," + witness.supportY + ","
+                + witness.playerZ);
+        System.out.flush();
+    }
+
     public static synchronized void gameTick() {
         if (activeRuntime != null) {
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireNativeScaffoldTickParity")) {
+                scaffoldTickParity.beginTick();
+            }
             Minecraft189VanillaMeleeAcceptance.tick();
             activeRuntime.publishGameTick();
             if (Boolean.getBoolean("custommc.acceptance.reportRemotePlayer")
@@ -328,6 +357,11 @@ public final class Minecraft189RuntimeBridge {
                 activeHost();
         if (host != null) {
             host.playerPosition(player);
+        }
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireNativeScaffoldTickParity")) {
+            scaffoldTickParity.observePlayer(player);
+            reportScaffoldTickParity();
         }
     }
 
@@ -534,6 +568,11 @@ public final class Minecraft189RuntimeBridge {
         if (host != null) {
             host.playerHotbarSlot(player);
         }
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireNativeScaffoldTickParity")) {
+            scaffoldTickParity.observeInventory(player);
+            reportScaffoldTickParity();
+        }
     }
 
     public static synchronized void worldTime(
@@ -569,6 +608,11 @@ public final class Minecraft189RuntimeBridge {
                 activeHost();
         if (host != null) {
             host.worldEntityPositions(world);
+        }
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireNativeScaffoldTickParity")) {
+            scaffoldTickParity.observeWorld(world);
+            reportScaffoldTickParity();
         }
         if (Boolean.getBoolean("custommc.acceptance.requireNativeScaffoldWorldCell")
                 && acceptanceScaffoldWorldProbeCount == 0) {
