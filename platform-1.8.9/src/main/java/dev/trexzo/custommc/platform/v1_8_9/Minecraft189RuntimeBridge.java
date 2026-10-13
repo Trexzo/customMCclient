@@ -602,12 +602,61 @@ public final class Minecraft189RuntimeBridge {
     private static int acceptanceScaffoldWorldDiagTick;
     private static boolean acceptanceScaffoldFarChunkVetoReported;
 
+    // V19 original-game-only authoritative raytrace proof. No clicked block.
+    private static boolean scaffoldNativeRayTraceReported;
+    private static boolean scaffoldNativeRayTraceNegativeReported;
+
     public static synchronized void worldEntityPositions(
             final Minecraft189WorldEntityPositionsAccess world) {
         final Minecraft189HostRuntime host =
                 activeHost();
         if (host != null) {
             host.worldEntityPositions(world);
+        }
+        if (!scaffoldNativeRayTraceReported
+                && Boolean.getBoolean("custommc.acceptance.requireNativeScaffoldRayTrace")
+                && world instanceof Minecraft189ScaffoldWorldReadAccess
+                && world instanceof Minecraft189ScaffoldWorldRayTraceAccess) {
+            final Minecraft189ScaffoldWorldReadAccess cells =
+                    (Minecraft189ScaffoldWorldReadAccess)world;
+            final Minecraft189ScaffoldWorldRayTraceAccess trace =
+                    (Minecraft189ScaffoldWorldRayTraceAccess)world;
+            try {
+                // Genuinely loaded original vanilla stone support is first
+                // required, then use source World.rayTraceBlocks from above
+                // through its UP face. The ray endpoint is 0.5 inside stone
+                // to avoid an endpoint exactly at an ambiguous voxel border.
+                if (cells.customMcScaffoldCellCode(0, 99, 0)
+                        == Minecraft189ScaffoldWorldReadAccess.FULL_SOLID) {
+                    final boolean correct=trace.customMcScaffoldRayTraceSupport(
+                            0.5D,102.0D,0.5D,0.5D,99.5D,0.5D,
+                            0,99,0,1);
+                    final boolean wrongFace=trace.customMcScaffoldRayTraceSupport(
+                            0.5D,102.0D,0.5D,0.5D,99.5D,0.5D,
+                            0,99,0,2);
+                    final boolean wrongBlock=trace.customMcScaffoldRayTraceSupport(
+                            0.5D,102.0D,0.5D,0.5D,99.5D,0.5D,
+                            1,99,0,1);
+                    if (wrongFace || wrongBlock)
+                        throw new IllegalStateException(
+                                "original Scaffold raytrace accepted wrong face/BlockPos");
+                    if (!scaffoldNativeRayTraceNegativeReported) {
+                        scaffoldNativeRayTraceNegativeReported=true;
+                        System.out.println(
+                                "CUSTOMMC_OFFICIAL_189_SCAFFOLD_RAYTRACE_WRONG_FACE_BLOCK_VETO_PASS=YES");
+                    }
+                    if (correct) {
+                        scaffoldNativeRayTraceReported=true;
+                        System.out.println(
+                                "CUSTOMMC_OFFICIAL_189_SCAFFOLD_NATIVE_WORLD_UP_FACE_RAYTRACE_PASS=YES");
+                    }
+                    System.out.flush();
+                }
+            } catch (RuntimeException sourceRayUnavailable) {
+                throw new IllegalStateException(
+                        "original Scaffold World raytrace source failure",
+                        sourceRayUnavailable);
+            }
         }
         if (Boolean.getBoolean(
                 "custommc.acceptance.requireNativeScaffoldTickParity")) {

@@ -645,6 +645,13 @@ public final class Minecraft189Mappings {
     public static final MappedMethod WORLD_IS_BLOCK_LOADED =
             new MappedMethod(WORLD, "d", "(Lcj;Z)Z",
                     "func_175677_d", "isBlockLoaded");
+    public static final MappedMethod WORLD_RAY_TRACE_BLOCKS =
+            new MappedMethod(WORLD, "a",
+                    "(Laui;Laui;ZZZ)Lauh;",
+                    "func_147447_a", "rayTraceBlocks");
+    public static final MappedMethod MOVING_OBJECT_GET_BLOCK_POS =
+            new MappedMethod(MOVING_OBJECT_POSITION, "a", "()Lcj;",
+                    "func_178782_a", "getBlockPos");
     public static final MappedMethod WORLD_GET_BLOCK_STATE =
             new MappedMethod(WORLD, "p", "(Lcj;)Lalz;",
                     "func_180495_p", "getBlockState");
