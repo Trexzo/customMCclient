@@ -151,6 +151,9 @@ public final class Minecraft189RuntimeBridge {
         scaffoldOriginalCandidateReported = false;
         scaffoldOriginalCandidateDiagTicks = 0;
         scaffoldOriginalPlacementAttempted = false;
+        scaffoldOriginalPlacementReadback = null;
+        scaffoldOriginalPlacementReadbackTicks = 0;
+        scaffoldOriginalPlacementReadbackReported = false;
         return new Registration(next);
     }
 
@@ -247,8 +250,35 @@ public final class Minecraft189RuntimeBridge {
     private static boolean scaffoldOriginalCandidateReported;
     private static int scaffoldOriginalCandidateDiagTicks;
     private static boolean scaffoldOriginalPlacementAttempted;
+    private static Minecraft189ScaffoldNativePlacementAttempt.Result
+            scaffoldOriginalPlacementReadback;
+    private static int scaffoldOriginalPlacementReadbackTicks;
+    private static boolean scaffoldOriginalPlacementReadbackReported;
 
     public static synchronized void originalScaffoldContextAtTick(final Object minecraft) {
+        if (scaffoldOriginalPlacementReadback != null
+                && !scaffoldOriginalPlacementReadbackReported) {
+            if (Minecraft189ScaffoldPlacementReadback
+                    .confirmsClientWorldAndSurvivalStack(
+                            minecraft,scaffoldOriginalPlacementReadback)) {
+                scaffoldOriginalPlacementReadbackReported = true;
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK_PASS=YES"
+                        + " target=" + scaffoldOriginalPlacementReadback.targetX
+                        + "," + scaffoldOriginalPlacementReadback.targetY
+                        + "," + scaffoldOriginalPlacementReadback.targetZ
+                        + " stackBefore="
+                        + scaffoldOriginalPlacementReadback.originalStackSize
+                        + " stackAfter="
+                        + (scaffoldOriginalPlacementReadback.originalStackSize - 1));
+                System.out.flush();
+                scaffoldOriginalPlacementReadback = null;
+            } else if (++scaffoldOriginalPlacementReadbackTicks >= 120) {
+                // A positive client controller return is not enough:
+                // missing original target block/decrement is a failure.
+                scaffoldOriginalPlacementReadback = null;
+            }
+        }
         // V28 deliberately acceptance-only until the vanilla multiplayer
         // server persistence and survival stack negative tests are certified.
         // Source callback runs on original Minecraft.runTick and never
@@ -261,6 +291,10 @@ public final class Minecraft189RuntimeBridge {
                             minecraft, true);
             if (attempted != null) {
                 scaffoldOriginalPlacementAttempted = true;
+                if (attempted.originalControllerAccepted) {
+                    scaffoldOriginalPlacementReadback = attempted;
+                    scaffoldOriginalPlacementReadbackTicks = 0;
+                }
                 System.out.println(
                         "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
                         + " accepted=" + attempted.originalControllerAccepted
