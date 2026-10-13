@@ -171,7 +171,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         kill_aura_nonplayer=False, native_world_camera=False,
         native_safe_walk=False, safe_walk_edge=None, native_scaffold_world=False,
         native_scaffold_tick=False, native_scaffold_raytrace=False,
-        native_scaffold_context=False, native_scaffold_candidate=False):
+        native_scaffold_context=False, native_scaffold_candidate=False,
+        native_scaffold_placement=None):
     if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer)) > 1:
         raise ValueError("manual and module combat tests are exclusive")
     controlled_combat = attack or auto_clicker or kill_aura_nonplayer
@@ -194,11 +195,20 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         raise ValueError("original Scaffold context fixture must be independent")
     if native_scaffold_candidate and (controlled_combat or safe_walk_edge
                                       or native_safe_walk or native_scaffold_world
-                                      or native_scaffold_tick or native_scaffold_raytrace):
+                                      or native_scaffold_tick or native_scaffold_raytrace
+                                      or native_scaffold_placement):
         raise ValueError("native candidate fixture must be independent")
+    if native_scaffold_placement not in (None, "enabled", "disabled"):
+        raise ValueError("invalid native original controller placement mode")
+    if native_scaffold_placement and (
+            controlled_combat or safe_walk_edge or native_safe_walk
+            or native_scaffold_world or native_scaffold_tick
+            or native_scaffold_raytrace or native_scaffold_context
+            or native_scaffold_candidate):
+        raise ValueError("native survival placement must run in an isolated world")
     # A real rendered world camera requires a focused Minecraft window;
     # vanilla singleplayer otherwise automatically opens the pause GUI.
-    needs_active_window = controlled_combat or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate
+    needs_active_window = controlled_combat or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or bool(native_scaffold_placement)
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
@@ -220,6 +230,21 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                        "-Dcustommc.acceptance.requireNativeScaffoldTickParity=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true")
+    if native_scaffold_placement:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireOriginalScaffoldContext=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireOriginalScaffoldReach=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireOriginalScaffoldEye=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true")
+        if native_scaffold_placement == "enabled":
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.requireOriginalScaffoldPlacement=true")
+        else:
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.requireOriginalScaffoldDisabledControl=true")
     if native_scaffold_candidate:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireOriginalScaffoldCandidate=true")
@@ -332,7 +357,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
             # Actual 1.8.9 GuiCreateWorld Game Mode button is centered
             # at x427,y125. Survival -> Hardcore -> Creative; Creative
             # enables commands unless explicitly overridden.
-            if controlled_combat or safe_walk_edge or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate:
+            if controlled_combat or safe_walk_edge or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or native_scaffold_placement:
                 if create_screen != b"axb":
                     raise AssertionError("unexpected create-world GUI")
                 click(window, 427, 125)
@@ -552,6 +577,51 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                              "real Minecraft tick has original player/World/cursor/ItemBlock")
                 print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_SOURCE_TICK_CONTEXT_PASS=YES",
                       flush=True)
+            if native_scaffold_placement:
+                # V29: actual integrated-server vanilla survival block placement.
+                # The WorldClient+stack receipt is NOT yet an independent
+                # dedicated-server persistence certification.
+                resume_if_paused(process, log, window)
+                send_command(process, log, window, "/time set 1000")
+                send_command(process, log, window, "/tp 0.5 120 0.5 0 0")
+                time.sleep(2.0)
+                send_command(process, log, window, "/setblock 0 99 0 stone")
+                send_command(process, log, window, "/setblock 1 99 0 air")
+                send_command(process, log, window, "/tp 1.05 100 0.5 90 88.6")
+                send_command(process, log, window, "/gamemode 0")
+                stable_start = time.monotonic()
+                while time.monotonic() - stable_start < 12:
+                    readings = native_safe_walk_positions(log)[-5:]
+                    if len(readings) >= 3 and all(
+                            abs(x - 1.05) < .05 and abs(y - 100.0) < .15
+                            and abs(z - .5) < .05 for x, y, z in readings[-3:]):
+                        break
+                    require_running(process, "source-native survival ledge grounding")
+                    time.sleep(.15)
+                else:
+                    raise AssertionError("original Survival player not grounded on real support")
+                attempt_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
+                readback_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK_PASS=YES"
+                disabled_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES"
+                if any(tag in read_tail(log) for tag in (attempt_tag, readback_tag, disabled_tag)):
+                    raise AssertionError("native placement witness appeared before server ItemBlock grant")
+                send_command(process, log, window, "/give CIProbe stone 8")
+                if native_scaffold_placement == "enabled":
+                    await_marker(process, log, attempt_tag, deadline,
+                                 "vanilla onPlayerRightClick admitted by original source gate")
+                    if b"accepted=true" not in read_tail(log):
+                        raise AssertionError("vanilla native onPlayerRightClick returned false")
+                    await_marker(process, log, readback_tag, deadline,
+                                 "source WorldClient stone target and one survival stack debit")
+                    print("CUSTOMMC_OFFICIAL_189_SURVIVAL_VANILLA_CONTROLLER_CLIENT_READBACK_PASS=YES",
+                          flush=True)
+                else:
+                    await_marker(process, log, disabled_tag, deadline,
+                                 "original World air and unchanged eight-stack while disabled")
+                    if attempt_tag in read_tail(log) or readback_tag in read_tail(log):
+                        raise AssertionError("disabled placement entered native controller")
+                    print("CUSTOMMC_OFFICIAL_189_DISABLED_SURVIVAL_SCAFFOLD_NEGATIVE_PASS=YES",
+                          flush=True)
             if native_scaffold_candidate:
                 # Original vanilla 1.8.9 stone support at (0,99,0), air below
                 # edge position (1,99,0), original mouse/camera from real game.
@@ -688,6 +758,16 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 print("CUSTOMMC_OFFICIAL_189_COMBAT_DAMAGE_TESTED=NO")
             print("CUSTOMMC_OFFICIAL_189_MULTIPLAYER_TESTED=NO")
         except BaseException:
+            if native_scaffold_placement:
+                lines = [line for line in log.read_bytes().splitlines()
+                         if b"SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT" in line
+                         or b"SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK" in line
+                         or b"SCAFFOLD_DISABLED_SURVIVAL" in line
+                         or b"SCAFFOLD_ORIGINAL_TICK_CONTEXT" in line]
+                print("V29_ORIGINAL_PLACEMENT_DIAGNOSTICS_START", file=sys.stderr)
+                for line in lines[-24:]:
+                    print(line.decode("utf-8","replace"), file=sys.stderr)
+                print("V29_ORIGINAL_PLACEMENT_DIAGNOSTICS_END", file=sys.stderr)
             if native_scaffold_candidate:
                 tagged = [line for line in log.read_bytes().splitlines()
                           if b"CUSTOMMC_V26_SOURCE_REJECTION=" in line
@@ -756,6 +836,8 @@ if __name__ == "__main__":
                         help="original Minecraft.runTick h/f/s context after native ItemBlock delivery")
     parser.add_argument("--native-scaffold-candidate", action="store_true",
                         help="genuine original loaded air target, side support, cursor/eye/reach/item proof")
+    parser.add_argument("--native-scaffold-placement", choices=("enabled","disabled"),
+                        help="isolated genuine survival onPlayerRightClick and disabled readback")
     args = parser.parse_args()
     try:
         command = build_command(
@@ -772,7 +854,8 @@ if __name__ == "__main__":
             native_scaffold_tick=args.native_scaffold_tick,
             native_scaffold_raytrace=args.native_scaffold_raytrace,
             native_scaffold_context=args.native_scaffold_context,
-            native_scaffold_candidate=args.native_scaffold_candidate)
+            native_scaffold_candidate=args.native_scaffold_candidate,
+            native_scaffold_placement=args.native_scaffold_placement)
     except Exception as failure:
         print("CUSTOMMC_189_SINGLEPLAYER_WORLD_FAILED: " + str(failure),
               file=sys.stderr)

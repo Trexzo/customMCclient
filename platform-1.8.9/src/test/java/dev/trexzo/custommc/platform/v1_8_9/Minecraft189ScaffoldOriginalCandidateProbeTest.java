@@ -40,12 +40,12 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
     }
     private static final class World implements Minecraft189ScaffoldWorldReadAccess,
             Minecraft189ScaffoldWorldRayTraceAccess {
-        boolean loaded=true,rayValid=true;
+        boolean loaded=true,rayValid=true,placed;
         int reads,rays;
         public int customMcScaffoldCellCode(int x,int y,int z){
             reads++;
             if(!loaded)return UNKNOWN;
-            if(x==1&&y==99&&z==0)return AIR;
+            if(x==1&&y==99&&z==0)return placed?FULL_SOLID:AIR;
             if(x==0&&y==99&&z==0)return FULL_SOLID;
             return UNKNOWN;
         }
@@ -155,6 +155,41 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
         game.player.inventory.contents[0]=null;
         assertNull(Minecraft189ScaffoldNativePlacementAttempt.attempt(game,true));
         assertEquals(2,nativeController.clicks);
+    }
+
+    @Test void originalClientReadbackNeedsBothPlacedTargetAndExactlyOneItemUsed(){
+        Minecraft game=new Minecraft();
+        Stack stack=new Stack();
+        game.player.inventory.contents[0]=stack;
+        Minecraft189ScaffoldNativePlacementAttempt.Result attempted =
+                Minecraft189ScaffoldNativePlacementAttempt.attempt(game,true);
+        assertNotNull(attempted);
+        assertTrue(attempted.originalControllerAccepted);
+        assertFalse(Minecraft189ScaffoldPlacementReadback
+                .confirmsClientWorldAndSurvivalStack(game,attempted),
+                "successful native controller return is NOT server outcome");
+        game.world.placed=true;
+        assertFalse(Minecraft189ScaffoldPlacementReadback
+                .confirmsClientWorldAndSurvivalStack(game,attempted),
+                "WorldClient stone alone cannot certify survival consumption");
+        game.world.placed=false;
+        stack.count=7;
+        assertFalse(Minecraft189ScaffoldPlacementReadback
+                .confirmsClientWorldAndSurvivalStack(game,attempted),
+                "stack decrement alone cannot certify block placement");
+        game.world.placed=true;
+        assertTrue(Minecraft189ScaffoldPlacementReadback
+                .confirmsClientWorldAndSurvivalStack(game,attempted));
+        stack.count=6;
+        assertFalse(Minecraft189ScaffoldPlacementReadback
+                .confirmsClientWorldAndSurvivalStack(game,attempted),
+                "two items consumed must not count as exactly one placement");
+        stack.count=7;
+        game.player.inventory.slot=1;
+        game.player.inventory.contents[1]=new Stack();
+        assertFalse(Minecraft189ScaffoldPlacementReadback
+                .confirmsClientWorldAndSurvivalStack(game,attempted),
+                "different selected hotbar source may not claim old debit");
     }
 
     @Test void noOriginalItemWrongRayOrWorldMustVeto(){

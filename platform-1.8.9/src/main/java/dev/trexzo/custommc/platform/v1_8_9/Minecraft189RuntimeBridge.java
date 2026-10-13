@@ -151,6 +151,11 @@ public final class Minecraft189RuntimeBridge {
         scaffoldOriginalCandidateReported = false;
         scaffoldOriginalCandidateDiagTicks = 0;
         scaffoldOriginalPlacementAttempted = false;
+        scaffoldOriginalPlacementReadback = null;
+        scaffoldOriginalPlacementReadbackTicks = 0;
+        scaffoldOriginalPlacementReadbackReported = false;
+        scaffoldDisabledProofTicks = 0;
+        scaffoldDisabledProofReported = false;
         return new Registration(next);
     }
 
@@ -247,8 +252,71 @@ public final class Minecraft189RuntimeBridge {
     private static boolean scaffoldOriginalCandidateReported;
     private static int scaffoldOriginalCandidateDiagTicks;
     private static boolean scaffoldOriginalPlacementAttempted;
+    private static Minecraft189ScaffoldNativePlacementAttempt.Result
+            scaffoldOriginalPlacementReadback;
+    private static int scaffoldOriginalPlacementReadbackTicks;
+    private static boolean scaffoldOriginalPlacementReadbackReported;
+    private static int scaffoldDisabledProofTicks;
+    private static boolean scaffoldDisabledProofReported;
 
     public static synchronized void originalScaffoldContextAtTick(final Object minecraft) {
+        if (activeRuntime != null && !scaffoldDisabledProofReported
+                && !Boolean.getBoolean(
+                        "custommc.acceptance.requireOriginalScaffoldPlacement")
+                && Boolean.getBoolean(
+                        "custommc.acceptance.requireOriginalScaffoldDisabledControl")
+                && minecraft instanceof Minecraft189ScaffoldNativeContextAccess) {
+            final Minecraft189ScaffoldNativeContext.Witness disabledSource =
+                    Minecraft189ScaffoldNativeContext.capture(
+                            (Minecraft189ScaffoldNativeContextAccess)minecraft);
+            if (disabledSource != null) {
+                final Minecraft189InventoryHotbarAccess inventory =
+                        ((Minecraft189PlayerInventoryAccess)disabledSource.player)
+                                .customMcInventory();
+                final Minecraft189ScaffoldSelectedHotbar.Evidence selected =
+                        inventory instanceof Minecraft189InventoryHotbarItemsAccess
+                        ? Minecraft189ScaffoldSelectedHotbar.from(
+                                (Minecraft189InventoryHotbarItemsAccess)inventory)
+                        : null;
+                if (selected != null && selected.sourceStackSize == 8
+                        && disabledSource.world.customMcScaffoldCellCode(1,99,0)
+                                == Minecraft189ScaffoldWorldReadAccess.AIR
+                        && disabledSource.world.customMcScaffoldCellCode(0,99,0)
+                                == Minecraft189ScaffoldWorldReadAccess.FULL_SOLID) {
+                    if (++scaffoldDisabledProofTicks >= 60) {
+                        scaffoldDisabledProofReported = true;
+                        System.out.println(
+                                "CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES");
+                        System.out.flush();
+                    }
+                } else {
+                    scaffoldDisabledProofTicks = 0;
+                }
+            }
+        }
+        if (scaffoldOriginalPlacementReadback != null
+                && !scaffoldOriginalPlacementReadbackReported) {
+            if (Minecraft189ScaffoldPlacementReadback
+                    .confirmsClientWorldAndSurvivalStack(
+                            minecraft,scaffoldOriginalPlacementReadback)) {
+                scaffoldOriginalPlacementReadbackReported = true;
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK_PASS=YES"
+                        + " target=" + scaffoldOriginalPlacementReadback.targetX
+                        + "," + scaffoldOriginalPlacementReadback.targetY
+                        + "," + scaffoldOriginalPlacementReadback.targetZ
+                        + " stackBefore="
+                        + scaffoldOriginalPlacementReadback.originalStackSize
+                        + " stackAfter="
+                        + (scaffoldOriginalPlacementReadback.originalStackSize - 1));
+                System.out.flush();
+                scaffoldOriginalPlacementReadback = null;
+            } else if (++scaffoldOriginalPlacementReadbackTicks >= 120) {
+                // A positive client controller return is not enough:
+                // missing original target block/decrement is a failure.
+                scaffoldOriginalPlacementReadback = null;
+            }
+        }
         // V28 deliberately acceptance-only until the vanilla multiplayer
         // server persistence and survival stack negative tests are certified.
         // Source callback runs on original Minecraft.runTick and never
@@ -261,6 +329,10 @@ public final class Minecraft189RuntimeBridge {
                             minecraft, true);
             if (attempted != null) {
                 scaffoldOriginalPlacementAttempted = true;
+                if (attempted.originalControllerAccepted) {
+                    scaffoldOriginalPlacementReadback = attempted;
+                    scaffoldOriginalPlacementReadbackTicks = 0;
+                }
                 System.out.println(
                         "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
                         + " accepted=" + attempted.originalControllerAccepted
