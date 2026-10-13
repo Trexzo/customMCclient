@@ -154,6 +154,8 @@ public final class Minecraft189RuntimeBridge {
         scaffoldOriginalPlacementReadback = null;
         scaffoldOriginalPlacementReadbackTicks = 0;
         scaffoldOriginalPlacementReadbackReported = false;
+        scaffoldDisabledProofTicks = 0;
+        scaffoldDisabledProofReported = false;
         return new Registration(next);
     }
 
@@ -254,8 +256,44 @@ public final class Minecraft189RuntimeBridge {
             scaffoldOriginalPlacementReadback;
     private static int scaffoldOriginalPlacementReadbackTicks;
     private static boolean scaffoldOriginalPlacementReadbackReported;
+    private static int scaffoldDisabledProofTicks;
+    private static boolean scaffoldDisabledProofReported;
 
     public static synchronized void originalScaffoldContextAtTick(final Object minecraft) {
+        if (activeRuntime != null && !scaffoldDisabledProofReported
+                && !Boolean.getBoolean(
+                        "custommc.acceptance.requireOriginalScaffoldPlacement")
+                && Boolean.getBoolean(
+                        "custommc.acceptance.requireOriginalScaffoldDisabledControl")
+                && minecraft instanceof Minecraft189ScaffoldNativeContextAccess) {
+            final Minecraft189ScaffoldNativeContext.Witness disabledSource =
+                    Minecraft189ScaffoldNativeContext.capture(
+                            (Minecraft189ScaffoldNativeContextAccess)minecraft);
+            if (disabledSource != null) {
+                final Minecraft189InventoryHotbarAccess inventory =
+                        ((Minecraft189PlayerInventoryAccess)disabledSource.player)
+                                .customMcInventory();
+                final Minecraft189ScaffoldSelectedHotbar.Evidence selected =
+                        inventory instanceof Minecraft189InventoryHotbarItemsAccess
+                        ? Minecraft189ScaffoldSelectedHotbar.from(
+                                (Minecraft189InventoryHotbarItemsAccess)inventory)
+                        : null;
+                if (selected != null && selected.sourceStackSize == 8
+                        && disabledSource.world.customMcScaffoldCellCode(1,99,0)
+                                == Minecraft189ScaffoldWorldReadAccess.AIR
+                        && disabledSource.world.customMcScaffoldCellCode(0,99,0)
+                                == Minecraft189ScaffoldWorldReadAccess.FULL_SOLID) {
+                    if (++scaffoldDisabledProofTicks >= 60) {
+                        scaffoldDisabledProofReported = true;
+                        System.out.println(
+                                "CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES");
+                        System.out.flush();
+                    }
+                } else {
+                    scaffoldDisabledProofTicks = 0;
+                }
+            }
+        }
         if (scaffoldOriginalPlacementReadback != null
                 && !scaffoldOriginalPlacementReadbackReported) {
             if (Minecraft189ScaffoldPlacementReadback
