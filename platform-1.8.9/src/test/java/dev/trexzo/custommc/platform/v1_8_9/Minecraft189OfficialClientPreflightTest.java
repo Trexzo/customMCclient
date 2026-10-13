@@ -515,6 +515,12 @@ final class Minecraft189OfficialClientPreflightTest {
             final MethodInsnNode call = (MethodInsnNode)insn;
             final String key=call.owner+"."+call.name+call.desc;
             seen.put(key,seen.containsKey(key)?seen.get(key)+1:1);
+            if ("adm.d(Lcj;Z)Z".equals(key)) {
+                assertNotNull(call.getPrevious(),
+                        "native loaded-chunk check must have explicit allowEmpty");
+                assertEquals(Opcodes.ICONST_1,call.getPrevious().getOpcode(),
+                        "allowEmpty must still require original chunkExists, not reject empty loaded chunks");
+            }
             assertFalse(key.contains("func_175656_a"),
                     "Scaffold world read cannot set original block state");
             assertFalse("bcy".equals(call.owner) || "ja".equals(call.owner),
