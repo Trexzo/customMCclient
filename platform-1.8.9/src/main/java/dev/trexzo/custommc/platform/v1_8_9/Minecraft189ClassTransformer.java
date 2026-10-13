@@ -3634,7 +3634,10 @@ public final class Minecraft189ClassTransformer
 
         m.visitVarInsn(Opcodes.ALOAD, 0);
         m.visitVarInsn(Opcodes.ALOAD, 4);
-        m.visitInsn(Opcodes.ICONST_0);
+        // Vanilla World.isBlockLoaded(pos, allowEmpty=true) still requires
+        // a source-native present chunk. The prior false rejected empty
+        // chunks, which the real client demonstrably needs to classify AIR.
+        m.visitInsn(Opcodes.ICONST_1);
         m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, world,
                 Minecraft189Mappings.WORLD_IS_BLOCK_LOADED.obfuscatedName(),
                 Minecraft189Mappings.WORLD_IS_BLOCK_LOADED.descriptor(), false);
