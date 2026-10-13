@@ -434,6 +434,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 print("CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_SUPPORT_GROUNDED=YES",
                       flush=True)
                 await_marker(process, log,
+                             b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_RUNTIME_WORLD_EPOCH_OWNED_PASS=YES",
+                             deadline, "real original World identity captured by active host owner")
+                await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_AIR_PASS=YES",
                              deadline, "actual original World AIR at adjacent (1,99,0)")
                 await_marker(process, log,
