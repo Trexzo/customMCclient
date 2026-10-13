@@ -584,9 +584,11 @@ public final class Minecraft189RuntimeBridge {
                     (Minecraft189ScaffoldWorldReadAccess)world;
             final int cell;
             try {
-                // Exact fixture-selected position: source-original BlockPos
-                // (0,99,0) in the loaded, player-owned creative world.
-                cell = source.customMcScaffoldCellCode(0, 99, 0);
+                // Adjacent cell (1,99,0) beside source-server stone
+                // support at (0,99,0). This keeps the actual player's
+                // chunk loaded and their feet stably on ground during
+                // independent vanilla air -> stone -> air transitions.
+                cell = source.customMcScaffoldCellCode(1, 99, 0);
             } catch (RuntimeException nativeWorldUnavailable) {
                 return;
             }
