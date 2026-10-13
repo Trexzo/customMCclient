@@ -558,6 +558,8 @@ public final class Minecraft189RuntimeBridge {
     // integrated vanilla server changes it air -> stone -> air. This never
     // changes a block, touches packets or enables in regular gameplay.
     private static int acceptanceScaffoldWorldCellPhase;
+    private static int acceptanceScaffoldWorldProbeCount;
+    private static int acceptanceScaffoldWorldLastCode = -999;
 
     public static synchronized void worldEntityPositions(
             final Minecraft189WorldEntityPositionsAccess world) {
@@ -565,6 +567,14 @@ public final class Minecraft189RuntimeBridge {
                 activeHost();
         if (host != null) {
             host.worldEntityPositions(world);
+        }
+        if (Boolean.getBoolean("custommc.acceptance.requireNativeScaffoldWorldCell")
+                && acceptanceScaffoldWorldProbeCount == 0) {
+            System.out.println("CUSTOMMC_SCAFFOLD_WORLD_DIAG_CALLBACK=YES host="
+                    + (host != null) + " transformed="
+                    + (world instanceof Minecraft189ScaffoldWorldReadAccess));
+            System.out.flush();
+            acceptanceScaffoldWorldProbeCount++;
         }
         if (host != null
                 && acceptanceScaffoldWorldCellPhase < 3
@@ -579,6 +589,14 @@ public final class Minecraft189RuntimeBridge {
                 cell = source.customMcScaffoldCellCode(0, 99, 0);
             } catch (RuntimeException nativeWorldUnavailable) {
                 return;
+            }
+            if (cell != acceptanceScaffoldWorldLastCode
+                    && acceptanceScaffoldWorldProbeCount < 12) {
+                acceptanceScaffoldWorldLastCode = cell;
+                acceptanceScaffoldWorldProbeCount++;
+                System.out.println("CUSTOMMC_SCAFFOLD_WORLD_DIAG_NATIVE_CELL=" + cell
+                        + " phase=" + acceptanceScaffoldWorldCellPhase);
+                System.out.flush();
             }
             if (acceptanceScaffoldWorldCellPhase == 0
                     && cell == Minecraft189ScaffoldWorldReadAccess.AIR) {
