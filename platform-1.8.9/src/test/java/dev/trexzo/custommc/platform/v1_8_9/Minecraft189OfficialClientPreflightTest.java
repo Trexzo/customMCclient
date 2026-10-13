@@ -99,6 +99,82 @@ final class Minecraft189OfficialClientPreflightTest {
      * render thread, OS window, account or native libraries.
      */
     /**
+     * V28 proves the generated native adapter uses exactly the source MOP's
+     * BlockPos / sideHit / hitVec and invokes the one unmodified vanilla
+     * PlayerControllerMP.onPlayerRightClick. No raw placement C08.
+     */
+    @Test
+    void originalMinecraftControllerScaffoldBridgeOnlyDelegatesNativeHit()
+            throws Exception {
+        final String configured=System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured);
+        } else {
+            Assumptions.assumeTrue(configured!=null && !configured.trim().isEmpty(),
+                    "original Mojang source is unavailable offline");
+        }
+        final Path path=Paths.get(configured);
+        assertTrue(Files.isRegularFile(path));
+        assertEquals(OFFICIAL_SIZE,Files.size(path));
+        assertEquals(OFFICIAL_SHA1,digestFile(path));
+        final byte[] source;
+        try (JarFile jar=new JarFile(path.toFile())) {
+            final JarEntry entry=jar.getJarEntry("bda.class");
+            assertNotNull(entry);
+            try(InputStream in=jar.getInputStream(entry)){source=readAll(in);}
+        }
+        final ClassNode transformed=new ClassNode();
+        new ClassReader(new Minecraft189ClassTransformer()
+                .transform("bda",source)).accept(transformed,0);
+        assertTrue(transformed.interfaces.contains(
+                "dev/trexzo/custommc/platform/v1_8_9/"
+                        +"Minecraft189ScaffoldVanillaPlaceAccess"));
+        MethodNode adapter=null;
+        for(MethodNode m:transformed.methods)
+            if("customMcOriginalRightClick".equals(m.name)
+                    && "(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;"
+                        .concat("Ljava/lang/Object;)Z").equals(m.desc)) {
+                assertNull(adapter,"duplicate source controller adapter");
+                adapter=m;
+            }
+        assertNotNull(adapter);
+        int originalClicks=0,originalHitPosition=0;
+        int sourceFaceReads=0,sourceVecReads=0;
+        for(AbstractInsnNode instruction:adapter.instructions.toArray()){
+            if(instruction.getOpcode()==Opcodes.NEW)
+                fail("placement bridge may not fabricate BlockPos/Vec3/C08");
+            if(instruction instanceof FieldInsnNode){
+                final FieldInsnNode field=(FieldInsnNode)instruction;
+                assertEquals(Opcodes.GETFIELD,field.getOpcode());
+                assertEquals("auh",field.owner);
+                if("b".equals(field.name)&&"Lcq;".equals(field.desc))
+                    sourceFaceReads++;
+                else if("c".equals(field.name)&&"Laui;".equals(field.desc))
+                    sourceVecReads++;
+                else fail("unexpected original MOP field "+field.name);
+            }
+            if(!(instruction instanceof MethodInsnNode))continue;
+            final MethodInsnNode method=(MethodInsnNode)instruction;
+            assertEquals(Opcodes.INVOKEVIRTUAL,method.getOpcode());
+            if("bda".equals(method.owner)) {
+                originalClicks++;
+                assertEquals("a",method.name);
+                assertEquals("(Lbew;Lbdb;Lzx;Lcj;Lcq;Laui;)Z",method.desc);
+            }else{
+                originalHitPosition++;
+                assertEquals("auh",method.owner);
+                assertEquals("a",method.name);
+                assertEquals("()Lcj;",method.desc);
+            }
+        }
+        assertEquals(1,originalClicks);
+        assertEquals(1,originalHitPosition);
+        assertEquals(1,sourceFaceReads);
+        assertEquals(1,sourceVecReads);
+    }
+
+    /**
      * V27: source-pin real vanilla PlayerControllerMP.onPlayerRightClick.
      * This checks ONLY exact Mojang method authority; it does NOT call the
      * method, send C08, mutate the world or claim server block placement.
