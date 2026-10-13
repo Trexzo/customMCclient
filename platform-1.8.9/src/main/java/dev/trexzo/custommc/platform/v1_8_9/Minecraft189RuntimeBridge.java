@@ -147,6 +147,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraFovEnabledTicks = 0;
         acceptanceAuraFovEnabled = false;
         acceptanceAuraFovReported = false;
+        scaffoldOriginalContextReported = false;
         return new Registration(next);
     }
 
