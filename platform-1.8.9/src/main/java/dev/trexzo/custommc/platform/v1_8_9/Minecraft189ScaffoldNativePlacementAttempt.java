@@ -15,9 +15,10 @@ final class Minecraft189ScaffoldNativePlacementAttempt {
         final int supportX, supportY, supportZ;
         final Minecraft189ScaffoldSupportPlanner.Face face;
         final int originalStackSize;
+        final int originalSlot;
         final boolean originalControllerAccepted;
         Result(Minecraft189ScaffoldSupportPlanner.Candidate source,
-                int originalStackSize, boolean accepted) {
+                int originalStackSize, int originalSlot, boolean accepted) {
             targetX=source.targetX;
             targetY=source.targetY;
             targetZ=source.targetZ;
@@ -26,6 +27,7 @@ final class Minecraft189ScaffoldNativePlacementAttempt {
             supportZ=source.supportZ;
             face=source.face;
             this.originalStackSize=originalStackSize;
+            this.originalSlot=originalSlot;
             originalControllerAccepted=accepted;
         }
     }
@@ -93,7 +95,8 @@ final class Minecraft189ScaffoldNativePlacementAttempt {
                     ((Minecraft189ScaffoldVanillaPlaceAccess)controller)
                             .customMcOriginalRightClick(context.player, context.world,
                                     selected.sourceItemStack, context.nativeCursor);
-            return new Result(candidate, selected.sourceStackSize, accepted);
+            return new Result(candidate, selected.sourceStackSize,
+                    selected.sourceSlot, accepted);
         } catch (RuntimeException invalidOrReplacedNativeSource) {
             return null;
         } finally {
