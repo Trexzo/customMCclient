@@ -22,12 +22,14 @@ final class Minecraft189ScaffoldSelectedHotbar {
     static Evidence from(final Minecraft189InventoryHotbarItemsAccess inventory) {
         if (inventory == null) return null;
         try {
-            // Exactly nine source-native InventoryPlayer.mainInventory hotbar
-            // references, not another GUI window or menu-slot index.
+            // Original Minecraft 1.8.9 InventoryPlayer.mainInventory has
+            // 36 entries; ONLY indices 0..8 are the selected hotbar. The
+            // source-pinned getter returns the full original 36-slot array,
+            // never a 9-slot copy or an inventory GUI window index.
             final Minecraft189ItemStackAccess[] slots =
                     inventory.customMcHotbarItems();
             final int selected = inventory.customMcSelectedHotbarSlot();
-            if (slots == null || slots.length != 9 || selected < 0 || selected >= 9)
+            if (slots == null || slots.length != 36 || selected < 0 || selected >= 9)
                 return null;
             final Minecraft189ItemStackAccess stack = slots[selected];
             if (stack == null || !stack.customMcIsBlockItem()
