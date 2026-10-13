@@ -724,7 +724,7 @@ def run(args):
                                     expected=b"successfully found the block")
                 send_server_command(server,server_log,
                                     "clear CIHost stone 0 0",
-                                    expected=b"found 7 matching items")
+                                    expected=b"has 7 items that match the criteria")
                 print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_DEDICATED_SERVER_STONE_AND_SEVEN_ITEMS_PASS=YES",
                       flush=True)
             else:
@@ -737,7 +737,7 @@ def run(args):
                                     expected=b"successfully found the block")
                 send_server_command(server,server_log,
                                     "clear CIHost stone 0 0",
-                                    expected=b"found 8 matching items")
+                                    expected=b"has 8 items that match the criteria")
                 print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_DEDICATED_SERVER_DISABLED_NEGATIVE_PASS=YES",
                       flush=True)
             return
