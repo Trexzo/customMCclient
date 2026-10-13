@@ -3617,6 +3617,9 @@ public final class Minecraft189ClassTransformer
         final String blockPos = Minecraft189Mappings.BLOCK_POS.obfuscatedInternalName();
         final String state = Minecraft189Mappings.I_BLOCK_STATE.obfuscatedInternalName();
         final String block = Minecraft189Mappings.BLOCK.obfuscatedInternalName();
+        final String provider = Minecraft189Mappings.I_CHUNK_PROVIDER.obfuscatedInternalName();
+        final Label providerAvailable = new Label();
+        final Label actualChunkExists = new Label();
         final Label loaded = new Label();
         final Label notAir = new Label();
         final Label validState = new Label();
@@ -3632,9 +3635,43 @@ public final class Minecraft189ClassTransformer
                 "<init>", "(III)V", false);
         m.visitVarInsn(Opcodes.ASTORE, 4);
 
+        // Vanilla allowEmpty=true can classify unloaded empty blocks as air
+        // on WorldClient. Require genuine original chunk-provider existence
+        // before ANY air classification. The actual source-native client
+        // chunk provider remains responsible for positive proof.
+        m.visitVarInsn(Opcodes.ALOAD, 0);
+        m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, world,
+                Minecraft189Mappings.WORLD_GET_CHUNK_PROVIDER.obfuscatedName(),
+                Minecraft189Mappings.WORLD_GET_CHUNK_PROVIDER.descriptor(), false);
+        m.visitInsn(Opcodes.DUP);
+        m.visitJumpInsn(Opcodes.IFNONNULL, providerAvailable);
+        m.visitInsn(Opcodes.POP);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 10 : 0);
+        m.visitInsn(Opcodes.IRETURN);
+
+        m.visitLabel(providerAvailable);
+        m.visitFrame(Opcodes.F_FULL, 1,
+                new Object[]{world, Opcodes.INTEGER, Opcodes.INTEGER,
+                        Opcodes.INTEGER, blockPos},
+                1, new Object[]{provider});
+        m.visitVarInsn(Opcodes.ILOAD, 1);
+        m.visitInsn(Opcodes.ICONST_4);
+        m.visitInsn(Opcodes.ISHR);
+        m.visitVarInsn(Opcodes.ILOAD, 3);
+        m.visitInsn(Opcodes.ICONST_4);
+        m.visitInsn(Opcodes.ISHR);
+        m.visitMethodInsn(Opcodes.INVOKEINTERFACE, provider,
+                Minecraft189Mappings.CHUNK_PROVIDER_CHUNK_EXISTS.obfuscatedName(),
+                Minecraft189Mappings.CHUNK_PROVIDER_CHUNK_EXISTS.descriptor(), true);
+        m.visitJumpInsn(Opcodes.IFNE, actualChunkExists);
+        m.visitIntInsn(Opcodes.BIPUSH, trace ? 10 : 0);
+        m.visitInsn(Opcodes.IRETURN);
+
+        m.visitLabel(actualChunkExists);
+        m.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
         m.visitVarInsn(Opcodes.ALOAD, 0);
         m.visitVarInsn(Opcodes.ALOAD, 4);
-        // Vanilla World.isBlockLoaded(pos, allowEmpty=true) still requires
+        // World.isBlockLoaded(pos, allowEmpty=true) is a secondary check.
         // a source-native present chunk. The prior false rejected empty
         // chunks, which the real client demonstrably needs to classify AIR.
         m.visitInsn(Opcodes.ICONST_1);
@@ -3646,7 +3683,7 @@ public final class Minecraft189ClassTransformer
         m.visitInsn(Opcodes.IRETURN);
 
         m.visitLabel(loaded);
-        m.visitFrame(Opcodes.F_APPEND, 1, new Object[]{blockPos}, 0, null);
+        m.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
         m.visitVarInsn(Opcodes.ALOAD, 0);
         m.visitVarInsn(Opcodes.ALOAD, 4);
         m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, world,
