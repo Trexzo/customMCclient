@@ -3542,33 +3542,24 @@ public final class Minecraft189ClassTransformer
                             final String signature,
                             final String superName,
                             final String[] interfaces) {
-                        super.visit(
-                                version,
-                                access,
-                                name,
-                                signature,
-                                superName,
-                                withInterface(
-                                withInterface(
-                                        withInterface(
-                                        withInterface(
-                                        withInterface(
-                                                withInterface(
-                                                        withInterface(
-                                                                withInterface(
-                                                                        interfaces,
-                                                                        WORLD_TIME_ACCESS_INTERNAL_NAME),
-                                                        WORLD_WEATHER_ACCESS_INTERNAL_NAME),
-                                                WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME),
-                                        WORLD_ENTITY_KINDS_ACCESS_INTERNAL_NAME),
-                                WORLD_ENTITY_COMBAT_ACCESS_INTERNAL_NAME),
-                                WORLD_ENTITY_UUID_ACCESS_INTERNAL_NAME),
-                                WORLD_ENTITY_VISIBILITY_ACCESS_INTERNAL_NAME),
-                                genuineScaffoldReads
-                                        ? withInterface(interfaces,
-                                                SCAFFOLD_WORLD_READ_ACCESS_INTERNAL_NAME)
-                                        : interfaces,
-                                "dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldLoadedEntityObjectsAccess"));
+                        String[] mappedInterfaces = interfaces;
+                        for (String sourceInterface : new String[]{
+                                WORLD_TIME_ACCESS_INTERNAL_NAME,
+                                WORLD_WEATHER_ACCESS_INTERNAL_NAME,
+                                WORLD_ENTITY_POSITIONS_ACCESS_INTERNAL_NAME,
+                                WORLD_ENTITY_KINDS_ACCESS_INTERNAL_NAME,
+                                WORLD_ENTITY_COMBAT_ACCESS_INTERNAL_NAME,
+                                WORLD_ENTITY_UUID_ACCESS_INTERNAL_NAME,
+                                WORLD_ENTITY_VISIBILITY_ACCESS_INTERNAL_NAME,
+                                "dev/trexzo/custommc/platform/v1_8_9/"
+                                        + "Minecraft189WorldLoadedEntityObjectsAccess"}) {
+                            mappedInterfaces = withInterface(mappedInterfaces, sourceInterface);
+                        }
+                        if (genuineScaffoldReads)
+                            mappedInterfaces = withInterface(mappedInterfaces,
+                                    SCAFFOLD_WORLD_READ_ACCESS_INTERNAL_NAME);
+                        super.visit(version, access, name, signature, superName,
+                                mappedInterfaces);
                     }
 
                     @Override
