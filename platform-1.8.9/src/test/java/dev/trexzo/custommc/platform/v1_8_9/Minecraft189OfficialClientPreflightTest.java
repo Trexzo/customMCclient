@@ -452,6 +452,69 @@ final class Minecraft189OfficialClientPreflightTest {
         System.out.println("REAL_189_SCAFFOLD_REAL_INVENTORY_CONSUMPTION=NOT_TESTED");
     }
 
+    /**
+     * V13: a world-read/ItemBlock authority check on the actual original
+     * Mojang JAR, not synthetic block samples or fictional placement success.
+     * These APIs are prerequisites for future implementation only.
+     */
+    @Test
+    void realMojang189ScaffoldWorldSupportAndItemBlockMethodsExist() throws Exception {
+        final String configured = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured, "real client path required for V13");
+            assertFalse(configured.trim().isEmpty());
+        } else {
+            Assumptions.assumeTrue(configured != null && !configured.trim().isEmpty(),
+                    "No genuine original client for ordinary offline CI");
+        }
+        final Path path = Paths.get(configured);
+        assertTrue(Files.isRegularFile(path));
+        assertEquals(OFFICIAL_SIZE, Files.size(path));
+        assertEquals(OFFICIAL_SHA1, digestFile(path));
+        final Map<String,ClassNode> originals = new LinkedHashMap<String,ClassNode>();
+        try (JarFile jar = new JarFile(path.toFile())) {
+            for (String owner : Arrays.asList("adm", "alz", "afh", "wm", "yo", "zx")) {
+                final JarEntry entry = jar.getJarEntry(owner + ".class");
+                assertNotNull(entry, "original native Scaffold prerequisite missing: " + owner);
+                final ClassNode node = new ClassNode();
+                try (InputStream stream = jar.getInputStream(entry)) {
+                    new ClassReader(readAll(stream)).accept(node, 0);
+                }
+                assertEquals(owner,node.name);
+                originals.put(owner,node);
+            }
+        }
+        final String[][] required = {
+            {"adm","d","(Lcj;Z)Z"},         // World.isBlockLoaded
+            {"adm","p","(Lcj;)Lalz;"},      // World.getBlockState
+            {"adm","d","(Lcj;)Z"},         // World.isAirBlock
+            {"alz","c","()Lafh;"},         // IBlockState.getBlock
+            {"afh","o","()Z"},             // Block.isFullCube
+            {"wm","a","(I)Lzx;"},          // InventoryPlayer.getStackInSlot
+            {"yo","a","(Lzx;Lwn;Ladm;Lcj;Lcq;FFF)Z"} // ItemBlock.onItemUse
+        };
+        for (String[] method : required) {
+            int count = 0;
+            for (MethodNode nativeMethod : originals.get(method[0]).methods)
+                if (method[1].equals(nativeMethod.name)
+                        && method[2].equals(nativeMethod.desc)) count++;
+            assertEquals(1, count, "expected exactly one genuine original API "
+                    + Arrays.toString(method));
+        }
+        assertEquals("zw", originals.get("yo").superName,
+                "source-mapped ItemBlock must subclass original Item");
+        int nativeStackFields = 0;
+        for (FieldNode nativeField : originals.get("zx").fields)
+            if ("b".equals(nativeField.name) && "I".equals(nativeField.desc))
+                nativeStackFields++;
+        assertEquals(1,nativeStackFields,
+                "native ItemStack.stackSize required for later server delta evidence");
+        System.out.println("REAL_189_SCAFFOLD_WORLD_LOADED_STATE_AND_ITEMBLOCK_PASS=YES");
+        System.out.println("REAL_189_SCAFFOLD_CANDIDATE_NATIVE_ADAPTER=NOT_YET_CONNECTED");
+        System.out.println("REAL_189_SCAFFOLD_SERVER_PLACEMENT_AND_STACK_CONSUMPTION=NOT_TESTED");
+    }
+
     @Test
     void actualMojang189RaycastClassBytesMatchAndTransform() throws Exception {
         final String pathValue = System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
