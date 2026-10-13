@@ -4150,12 +4150,12 @@ public final class Minecraft189ClassTransformer
                                 withInterface(
                                         withInterface(
                                                 withInterface(
-                                                        interfaces,
-                                                        PLAYER_HUNGER_ACCESS_INTERNAL_NAME),
-                                                PLAYER_EXPERIENCE_ACCESS_INTERNAL_NAME),
-                                        withInterface(
-                                                interfaces,
-                                                SCAFFOLD_NATIVE_EYE_ACCESS_INTERNAL_NAME)));
+                                                        withInterface(
+                                                                interfaces,
+                                                                PLAYER_HUNGER_ACCESS_INTERNAL_NAME),
+                                                        PLAYER_EXPERIENCE_ACCESS_INTERNAL_NAME),
+                                                PLAYER_INVENTORY_ACCESS_INTERNAL_NAME),
+                                        SCAFFOLD_NATIVE_EYE_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
