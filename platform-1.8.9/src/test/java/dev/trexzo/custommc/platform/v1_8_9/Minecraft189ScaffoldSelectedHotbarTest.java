@@ -17,7 +17,7 @@ final class Minecraft189ScaffoldSelectedHotbarTest {
 
     private static final class Inventory implements Minecraft189InventoryHotbarItemsAccess {
         final Minecraft189ItemStackAccess[] slots =
-                new Minecraft189ItemStackAccess[9];
+                new Minecraft189ItemStackAccess[36];
         int selected = 2;
         boolean throwOnRead;
         int setterCalls;
