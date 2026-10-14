@@ -234,6 +234,53 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
                 "replacement player with matching inventory may not inherit receipt");
     }
 
+    @Test void realScaffoldModuleMustBeEnabledAndConsumesOnlyOneAttemptPerEnable(){
+        Minecraft game=new Minecraft();
+        Stack stone=new Stack();
+        game.player.inventory.contents[0]=stone;
+        Controller nativeController=(Controller)game.controller;
+        Minecraft189ScaffoldModule module=new Minecraft189ScaffoldModule();
+        assertEquals("movement.scaffold",module.id());
+        assertFalse(module.active());
+        assertFalse(module.armed());
+        assertNull(module.attemptOnce(game));
+        assertEquals(0,nativeController.clicks,"disabled module never calls vanilla");
+
+        module.onEnable();
+        assertTrue(module.active());
+        assertTrue(module.armed());
+        final long firstActivation=module.activation();
+        assertTrue(firstActivation>0);
+        game.world.rayValid=false;
+        assertNull(module.attemptOnce(game),
+                "invalid original ray must not consume the arm");
+        assertTrue(module.armed());
+        assertEquals(0,nativeController.clicks);
+        game.world.rayValid=true;
+        assertNotNull(module.attemptOnce(game));
+        assertFalse(module.armed());
+        assertEquals(1,nativeController.clicks);
+        assertNull(module.attemptOnce(game));
+        assertEquals(1,nativeController.clicks,
+                "a second runTick cannot place again on one enable");
+
+        module.onDisable();
+        assertFalse(module.active());
+        assertEquals(0L,module.activation());
+        assertNull(module.attemptOnce(game));
+        assertEquals(1,nativeController.clicks);
+        module.onEnable();
+        assertTrue(module.activation()>firstActivation,
+                "new enable must never reuse an outstanding receipt generation");
+        nativeController.originalReturn=false;
+        Minecraft189ScaffoldNativePlacementAttempt.Result veto=module.attemptOnce(game);
+        assertNotNull(veto);
+        assertFalse(veto.originalControllerAccepted);
+        assertFalse(module.armed(),
+                "vanilla false is a consumed attempt, never a retry loop");
+        assertEquals(2,nativeController.clicks);
+    }
+
     @Test void missingSourceAndReconnectInvalidateOriginalGeneration(){
         Minecraft game=new Minecraft();
         game.player.inventory.contents[0]=new Stack();
