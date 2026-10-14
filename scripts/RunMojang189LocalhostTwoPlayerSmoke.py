@@ -752,20 +752,47 @@ def run(args):
                                 "setblock {} {} {} stone".format(*support))
             send_server_command(server, server_log,
                                 "setblock {} {} {} air".format(*target_xyz))
+            # Capture a byte-precise diagnostic boundary for menu-negative
+            # CI only; older startup OPEN reports are never authority to
+            # press Escape in the currently running original Minecraft UI.
+            menu_diag_start = (
+                host_log.stat().st_size
+                if args.scaffold_placement == "menu-open" else None)
             send_server_command(server, server_log, "gamemode 0 CIHost")
             if args.scaffold_placement == "menu-open":
-                # The module is already enabled but has no selected ItemBlock.
-                # Open actual vanilla inventory via its OWN X11 host window.
-                # The original client must first confirm a GUI-clear World
-                # and a single legitimate module-controller activation,
-                # without any selected ItemBlock or prior GUI veto.
-                wait_for(host,host_log,
-                         b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_GUI_ARMED_IN_WORLD=YES",
-                         deadline,"original in-world module enabled before GUI keypress")
+                # A genuinely OPEN vanilla startup/menu GUI cannot satisfy
+                # V35's 60 consecutive original GUI-CLEAR ticks. Dismiss a
+                # persistent pre-existing original screen with one real Esc
+                # before attempting a CI-only module enable. A single
+                # transient/stale OPEN diagnostic must NOT trigger Escape:
+                # on a CLEAR screen, Escape itself would open pause.
+                original_open = (
+                    b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ARM_WAIT screen=OPEN")
+                armed = (
+                    b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_GUI_ARMED_IN_WORLD=YES")
+                dismissed_startup_menu = False
+                while time.monotonic() < deadline:
+                    check_process(host, "original host GUI-clear startup")
+                    with host_log.open("rb") as observed:
+                        observed.seek(menu_diag_start)
+                        fresh_host_log = observed.read()
+                    if armed in fresh_host_log:
+                        break
+                    if (not dismissed_startup_menu
+                            and fresh_host_log.count(original_open) >= 2):
+                        send_real_host_key(host, host_window, "Escape")
+                        dismissed_startup_menu = True
+                        print(
+                            "CUSTOMMC_189_SCAFFOLD_STARTUP_MENU_DISMISSED_BY_REAL_ESCAPE=YES",
+                            flush=True)
+                    time.sleep(0.25)
+                wait_for(host,host_log,armed,deadline,
+                         "stable original GUI-clear World armed before inventory key")
                 if b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_GUI_VETO=YES" in log_tail(host_log):
                     raise AssertionError("GUI was vetoed before actual inventory E keypress")
-                # The source-observed GUI field must become non-null after
-                # real X11 E. Only then do we grant a block on the server.
+                # Open actual vanilla inventory with E on original host XID.
+                # Only THIS new real inventory-open transition may revoke
+                # the arm; the server must later prove air and eight items.
                 send_real_host_key(host, host_window, "e")
                 wait_for(host,host_log,
                          b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_GUI_VETO=YES state=OPEN",
