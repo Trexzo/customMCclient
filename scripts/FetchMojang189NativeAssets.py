@@ -15,6 +15,9 @@ from pathlib import Path
 import re
 import shutil
 import sys
+import time
+from urllib.error import HTTPError, URLError
+from http.client import IncompleteRead
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 from zipfile import ZipFile, BadZipFile
@@ -151,7 +154,7 @@ def stage_natives(metadata, root):
     return native_root
 
 
-def _download_one_complete_asset(destination_root, sha1, expected_size):
+def _download_one_complete_asset_once(destination_root, sha1, expected_size):
     """Stream one *unique* official object to an exclusive temporary file."""
     path = destination_root / sha1[:2] / sha1
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -196,6 +199,26 @@ def _download_one_complete_asset(destination_root, sha1, expected_size):
         return expected_size
     finally:
         staging.unlink(missing_ok=True)
+
+
+def _download_one_complete_asset(destination_root, sha1, expected_size):
+    """Retry only transient transport failures; never retry a bad asset proof.
+
+    Each attempt uses a fresh exclusive .partial file, hash and byte counter.
+    The _once finally clause removes interrupted partials before retry.
+    The caller still independently verifies all final file SHA-1 digests.
+    """
+    for attempt in range(3):
+        try:
+            return _download_one_complete_asset_once(
+                destination_root, sha1, expected_size)
+        except HTTPError:
+            raise  # HTTP rejection is not a temporary transport drop.
+        except (URLError, TimeoutError, ConnectionError, IncompleteRead):
+            if attempt == 2:
+                raise
+            time.sleep(1 if attempt == 0 else 3)
+    raise AssertionError("unreachable verified object retry state")
 
 
 def _stage_complete_asset_collection(objects, asset_root):
