@@ -191,6 +191,83 @@ final class Minecraft189KillAuraTargetSelectorTest {
     }
 
     @Test
+    void liveUuidLockVetoesOtherPlayerWhenOriginalTemporarilyIneligible() {
+        final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
+        final Minecraft189PlayerPositionState local = new Minecraft189PlayerPositionState();
+        final Minecraft189PlayerRotationState rotation = new Minecraft189PlayerRotationState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        final Minecraft189WorldEntityCombatState combat =
+                new Minecraft189WorldEntityCombatState();
+        final Minecraft189WorldEntityUuidState identities =
+                new Minecraft189WorldEntityUuidState();
+        final Minecraft189NearestPlayerTargetState selected =
+                new Minecraft189NearestPlayerTargetState();
+        final java.util.UUID a =
+                java.util.UUID.fromString("00000000-0000-4000-8000-00000000000a");
+        final java.util.UUID b =
+                java.util.UUID.fromString("00000000-0000-4000-8000-00000000000b");
+        local.update(0, 0, 0);
+        rotation.update(0, 0);
+        positions.update(new double[]{0, 0, 2, 0, 0, 3});
+        kinds.update(new int[]{3, 3});
+        combat.update(new int[]{1, 1});
+        identities.update(new java.util.UUID[]{a, b});
+        aura.lockTargetSetting().set(true);
+        aura.onEnable();
+        try {
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, identities.snapshot(), selected);
+            assertEquals(0, selected.snapshot().entityIndex());
+            assertEquals(a, aura.lockedTargetUuid());
+
+            // Real A still exists/alive but is briefly out of reach. Never
+            // attack the still-valid B as a replacement before A exits.
+            positions.update(new double[]{0, 0, 12, 0, 0, 3});
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, identities.snapshot(), selected);
+            assertFalse(selected.snapshot().found());
+            assertEquals(a, aura.lockedTargetUuid());
+
+            // Native selection must resume the same UUID if A returns.
+            positions.update(new double[]{0, 0, 2, 0, 0, 3});
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, identities.snapshot(), selected);
+            assertEquals(0, selected.snapshot().entityIndex());
+            assertEquals(a, aura.lockedTargetUuid());
+
+            // Temporary FOV loss is also NOT proof of real disconnect.
+            aura.fovSetting().set(45.0D);
+            rotation.update(180.0F, 0.0F);
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, identities.snapshot(), selected);
+            assertFalse(selected.snapshot().found());
+            assertEquals(a, aura.lockedTargetUuid());
+            rotation.update(0.0F, 0.0F);
+
+            // Only an actual source UUID disappearance permits B takeover.
+            identities.update(new java.util.UUID[]{b});
+            positions.update(new double[]{0, 0, 3});
+            kinds.update(new int[]{3});
+            combat.update(new int[]{1});
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, identities.snapshot(), selected);
+            assertTrue(selected.snapshot().found());
+            assertEquals(0, selected.snapshot().entityIndex());
+            assertEquals(b, aura.lockedTargetUuid());
+        } finally {
+            aura.onDisable();
+        }
+    }
+
+    @Test
     void standaloneTeamGuardFiltersAuraWithoutAntiBotEnabled() {
         final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
         final Minecraft189AntiBotModule bot = new Minecraft189AntiBotModule();
