@@ -14,6 +14,14 @@ public interface Minecraft189ItemStackAccess {
     /** Exact native ItemStack.item instanceof source-mapped ItemBlock. */
     default boolean customMcIsBlockItem() { return false; }
 
+    /**
+     * Exact source-mapped vanilla ItemStack.item reference, not a display name,
+     * registry guess or a reusable ItemStack object. Original 1.8.9 server
+     * inventory synchronization may replace an ItemStack while the Item
+     * singleton remains unchanged. Null means identity cannot be proven.
+     */
+    default Object customMcOriginalItemIdentity() { return null; }
+
     /** Base sword damage only; NaN when not a verified ItemSword. */
     default float customMcSwordBaseDamage() { return Float.NaN; }
 

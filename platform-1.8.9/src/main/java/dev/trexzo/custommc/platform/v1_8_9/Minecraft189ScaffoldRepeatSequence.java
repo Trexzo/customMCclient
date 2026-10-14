@@ -27,7 +27,12 @@ final class Minecraft189ScaffoldRepeatSequence {
     // controller action and its pending original WorldClient receipt.
     private final Minecraft189ScaffoldActivationSource identity =
             new Minecraft189ScaffoldActivationSource();
-    private WeakReference<Object> selectedStack = new WeakReference<Object>(null);
+    // Pin the source-mapped *Item* singleton, not ItemStack wrapper identity.
+    // Vanilla server synchronization may allocate a fresh ItemStack after an
+    // acknowledged placement. Neither the selected slot, item subtype nor
+    // item-damage metadata may change before the next native controller call.
+    private WeakReference<Object> selectedItem = new WeakReference<Object>(null);
+    private int selectedItemDamage;
     private long sourceGeneration;
     private long activation;
     private int selectedSlot;
@@ -48,6 +53,15 @@ final class Minecraft189ScaffoldRepeatSequence {
                 selectedFromCurrentSource(originalMinecraft);
         if (selected == null || selected.sourceStackSize < maximumAttempts)
             return false;
+        final Object exactItem;
+        final int exactDamage;
+        try {
+            exactItem = selected.sourceItemStack.customMcOriginalItemIdentity();
+            exactDamage = selected.sourceItemStack.customMcItemDamage();
+        } catch (RuntimeException unsupportedNativeItem) {
+            return false;
+        }
+        if (exactItem == null) return false;
         final long observed = source.observe(originalMinecraft);
         if (observed <= 0L
                 || identity.observe(originalMinecraft)
@@ -61,7 +75,8 @@ final class Minecraft189ScaffoldRepeatSequence {
         sourceGeneration = observed;
         selectedSlot = selected.sourceSlot;
         expectedCount = selected.sourceStackSize;
-        selectedStack = new WeakReference<Object>(selected.sourceItemStack);
+        selectedItemDamage = exactDamage;
+        selectedItem = new WeakReference<Object>(exactItem);
         return true;
     }
 
@@ -117,6 +132,21 @@ final class Minecraft189ScaffoldRepeatSequence {
         }
     }
 
+    private boolean sameOriginalSelectedItem(
+            final Minecraft189ScaffoldSelectedHotbar.Evidence selected) {
+        if (selected == null || selected.sourceSlot != selectedSlot)
+            return false;
+        try {
+            final Object currentItem =
+                    selected.sourceItemStack.customMcOriginalItemIdentity();
+            return currentItem != null && currentItem == selectedItem.get()
+                    && selected.sourceItemStack.customMcItemDamage()
+                            == selectedItemDamage;
+        } catch (RuntimeException unavailableNativeItem) {
+            return false;
+        }
+    }
+
     private boolean sameOwner(final Object originalMinecraft,
             final long activationGeneration) {
         if (activationGeneration <= 0 || activationGeneration != activation
@@ -138,9 +168,7 @@ final class Minecraft189ScaffoldRepeatSequence {
 
         final Minecraft189ScaffoldSelectedHotbar.Evidence stillSelected =
                 selectedWithoutPlacementReadiness(originalMinecraft);
-        if (stillSelected == null
-                || stillSelected.sourceItemStack != selectedStack.get()
-                || stillSelected.sourceSlot != selectedSlot
+        if (!sameOriginalSelectedItem(stillSelected)
                 || stillSelected.sourceStackSize != expectedCount) {
             invalidate();
             return null;
@@ -201,6 +229,14 @@ final class Minecraft189ScaffoldRepeatSequence {
         if (!source.confirmsSameSourceReadback(
                 originalMinecraft, sourceGeneration, pending))
             return false; // A lagging original WorldClient may still catch up.
+        // The V29 World/stack readback proves exactly one debit, but it does
+        // not compare actual Item identity. Require the ORIGINAL native Item
+        // and damage to still match before accepting this sequence receipt.
+        if (!sameOriginalSelectedItem(
+                selectedWithoutPlacementReadiness(originalMinecraft))) {
+            invalidate();
+            return false;
+        }
 
         final Minecraft189ScaffoldNativePlacementAttempt.Result proven = pending;
         if (!cadence.receipt(activationGeneration, tick, true)) {
@@ -227,14 +263,14 @@ final class Minecraft189ScaffoldRepeatSequence {
                 selectedWithoutPlacementReadiness(originalMinecraft);
         final String selectedState;
         if (selected == null) selectedState = "native_selected_stack_unavailable";
-        else if (selected.sourceItemStack != selectedStack.get())
-            selectedState = "original_stack_identity_changed";
         else if (selected.sourceSlot != selectedSlot)
             selectedState = "original_selected_slot_changed";
+        else if (!sameOriginalSelectedItem(selected))
+            selectedState = "original_item_identity_or_damage_changed";
         else if (selected.sourceStackSize != expectedCount)
             selectedState = "original_stack_count_changed expected="
                     + expectedCount + " current=" + selected.sourceStackSize;
-        else selectedState = "same_original_stack_and_expected_count=" + expectedCount;
+        else selectedState = "same_original_item_and_expected_count=" + expectedCount;
         final Minecraft189ScaffoldOriginalCandidateProbe.Observation candidate =
                 Minecraft189ScaffoldOriginalCandidateProbe.observe(originalMinecraft);
         final String target;
@@ -262,8 +298,9 @@ final class Minecraft189ScaffoldRepeatSequence {
         cadence.invalidate();
         source.invalidate();
         identity.reset();
-        selectedStack.clear();
-        selectedStack = new WeakReference<Object>(null);
+        selectedItem.clear();
+        selectedItem = new WeakReference<Object>(null);
+        selectedItemDamage = 0;
         activation = sourceGeneration = 0L;
         pending = null;
         hasPriorTarget = false;
