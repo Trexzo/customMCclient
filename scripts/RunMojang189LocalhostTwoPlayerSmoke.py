@@ -563,36 +563,52 @@ def client_command(args, game, username, uuid, port, remote):
     return command
 
 
-def send_real_host_key(host, key):
-    """Press only a whitelisted vanilla key on the original host JVM X11 window."""
-    if key not in ("e", "1"):
-        raise ValueError("invalid original host Minecraft key")
-    check_process(host, "host X11 key")
+def identify_original_host_window_before_target(host):
+    """Capture the sole Minecraft X11 window before any second client starts.
+
+    Vanilla LWJGL2 sometimes omits _NET_WM_PID, so xdotool getwindowpid is
+    NOT a reliable ownership proof. The fixture owns a fresh Xvfb display,
+    starts CIHost first, and must see exactly one visible Minecraft window
+    BEFORE launching CITarget. Never pick one among multiple windows.
+    """
+    check_process(host, "host-only X11 window discovery")
     result = subprocess.run(
         ["xdotool", "search", "--onlyvisible", "--name", "Minecraft"],
         capture_output=True, text=True, check=False,
     )
-    if result.returncode != 0:
-        raise AssertionError("no original visible Minecraft host window")
-    for window in result.stdout.split():
-        proc = subprocess.run(
-            ["xdotool", "getwindowpid", window],
-            capture_output=True, text=True, check=False,
-        )
-        if proc.returncode != 0:
-            continue
-        try:
-            owner = int(proc.stdout.strip())
-        except ValueError:
-            continue
-        if owner != host.pid:
-            continue
-        subprocess.run(["xdotool", "windowactivate", "--sync", window],
-                       check=True, stdout=subprocess.DEVNULL)
-        subprocess.run(["xdotool", "key", "--clearmodifiers", key],
-                       check=True, stdout=subprocess.DEVNULL)
-        return
-    raise AssertionError("X11 Minecraft host window PID did not match original JVM")
+    windows = list(dict.fromkeys(result.stdout.split()))
+    if result.returncode != 0 or len(windows) != 1:
+        raise AssertionError(
+            "expected exactly one original host Minecraft window before "
+            "target launch; found {}".format(len(windows)))
+    window = windows[0]
+    title = subprocess.run(
+        ["xdotool", "getwindowname", window], capture_output=True,
+        text=True, check=False)
+    if title.returncode != 0 or "Minecraft" not in title.stdout:
+        raise AssertionError("host-only X11 window has no Minecraft title")
+    print("CUSTOMMC_189_ORIGINAL_HOST_X11_UNIQUE_PRE_TARGET=YES", flush=True)
+    return window
+
+
+def send_real_host_key(host, host_window, key):
+    """Send whitelisted vanilla key to previously identified original host."""
+    if key not in ("e", "1"):
+        raise ValueError("invalid original host Minecraft key")
+    check_process(host, "host X11 key")
+    if not host_window:
+        raise AssertionError("original host X11 window was not identified")
+    title = subprocess.run(
+        ["xdotool", "getwindowname", str(host_window)],
+        capture_output=True, text=True, check=False)
+    if title.returncode != 0 or "Minecraft" not in title.stdout:
+        raise AssertionError("original host X11 window no longer exists")
+    subprocess.run(
+        ["xdotool", "windowactivate", "--sync", str(host_window)],
+        check=True, stdout=subprocess.DEVNULL)
+    subprocess.run(
+        ["xdotool", "key", "--clearmodifiers", key],
+        check=True, stdout=subprocess.DEVNULL)
 
 
 def close_process(process):
@@ -684,6 +700,11 @@ def run(args):
         wait_for(host, host_log, GRAPHICAL,
                  min(deadline, time.monotonic() + 65),
                  "host graphical client")
+        host_window = None
+        if args.scaffold_placement in ("enabled", "menu-open"):
+            # Unique real Minecraft client on this freshly allocated Xvfb
+            # display; later target windows cannot be mistaken for CIHost.
+            host_window = identify_original_host_window_before_target(host)
         with target_log.open("wb") as out:
             target = subprocess.Popen(
                 target_cmd, env=env, stdout=out,
@@ -745,7 +766,7 @@ def run(args):
                     raise AssertionError("GUI was vetoed before actual inventory E keypress")
                 # The source-observed GUI field must become non-null after
                 # real X11 E. Only then do we grant a block on the server.
-                send_real_host_key(host, "e")
+                send_real_host_key(host, host_window, "e")
                 wait_for(host,host_log,
                          b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_GUI_VETO=YES state=OPEN",
                          deadline,"native original Minecraft GUI cancels armed Scaffold")
@@ -767,7 +788,7 @@ def run(args):
                 # Genuine host keyboard selects hotbar slot 0. This is not
                 # a spoofed inventory setter or a fabricated ItemStack.
                 # Server sends the real eight-block Survival grant afterward.
-                send_real_host_key(host, "1")
+                send_real_host_key(host, host_window, "1")
                 print("CUSTOMMC_189_SCAFFOLD_ORIGINAL_HOTBAR_ONE_KEY=YES", flush=True)
             send_server_command(server, server_log,"give CIHost stone 8")
             # A legitimate enabled client may place the first block the
