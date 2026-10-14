@@ -509,6 +509,16 @@ public final class Minecraft189RuntimeBridge {
                 scaffoldRepeatPositiveReadbacks = 3;
             }
         }
+        // V42: regular, GUI-clear original runTick path. The setting is
+        // OFF by default, is sampled only at module onEnable, and never runs
+        // in V37's explicit acceptance-only repeat proof. Prevent the V35
+        // one-shot path below from racing the module-owned transaction.
+        // Native World/player/session and screen revocation already ran.
+        if (!twoBlockOriginalProof && scaffold != null
+                && scaffold.productionRepeatEnabledForActivation()) {
+            scaffold.productionRepeatAtOriginalTick(minecraft, true);
+            return;
+        }
         final boolean moduleArmed = scaffold != null && scaffold.armed();
         final boolean receiptPending = scaffoldOriginalPlacementReadback != null;
         final boolean candidateRequested = moduleArmed;
