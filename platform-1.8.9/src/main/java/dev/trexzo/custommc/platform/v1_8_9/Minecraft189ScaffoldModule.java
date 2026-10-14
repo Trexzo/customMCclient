@@ -23,6 +23,7 @@ public final class Minecraft189ScaffoldModule implements Module {
     @Override public String id() { return ID; }
 
     @Override public synchronized void onEnable() {
+        if (enabled) return; // duplicate lifecycle callback may not re-arm
         enabled = false;
         attempted = false;
         if (exhausted || activation == Long.MAX_VALUE) {
@@ -34,6 +35,7 @@ public final class Minecraft189ScaffoldModule implements Module {
     }
 
     @Override public synchronized void onDisable() {
+        if (!enabled) return; // idempotent disable, including close rollback
         enabled = false;
         attempted = false;
         if (activation == Long.MAX_VALUE) exhausted = true;
