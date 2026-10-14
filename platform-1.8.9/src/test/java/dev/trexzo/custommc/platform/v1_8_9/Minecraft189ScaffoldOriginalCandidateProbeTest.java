@@ -524,6 +524,11 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
         assertTrue(module.repeatProofReceipt(game, 6L),
                 "fresh source-mapped ItemStack with the same original Item/7 must receipt");
         assertEquals(1, controller.clicks);
+        // Some vanilla server updates arrive AFTER an early positive
+        // WorldClient receipt: reallocate again, preserving original Item.
+        Stack laterServerSynchronizedStack = new Stack();
+        laterServerSynchronizedStack.count = 7;
+        game.player.inventory.contents[0] = laterServerSynchronizedStack;
         game.player.x = 2.05D;
         game.cursor.sample = new double[]{1,1,99,0,5,2.0D,99.5D,.5D};
         final String diagnostic = module.repeatProofDiagnostics(game);
