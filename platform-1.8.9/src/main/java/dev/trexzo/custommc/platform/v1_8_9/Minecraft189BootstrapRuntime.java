@@ -305,11 +305,11 @@ public final class Minecraft189BootstrapRuntime
                     modules, moduleController, modulePresentations);
             scaffoldFeature = Minecraft189ScaffoldFeature.install(
                     modules, moduleController, modulePresentations);
-            // Existing original-game V28-V31 acceptance opt-in now goes through
-            // the SAME module-controller path as an actual user toggle.
-            if (Boolean.getBoolean(
-                    "custommc.acceptance.requireOriginalScaffoldPlacement"))
-                moduleController.enable(Minecraft189ScaffoldModule.ID);
+            // V35: CI-only placement activation is deferred until a
+            // source-original, GUI-clear in-world tick. Early bootstrap
+            // enable is unsafe: vanilla may open its initial world/pause GUI
+            // before the fixture grants a selected Survival ItemBlock.
+            // Actual user toggles still use the normal ModuleController.
             if (Boolean.getBoolean("custommc.acceptance.requireNativeSafeWalk"))
                 moduleController.enable(Minecraft189SafeWalkModule.ID);
             // Explicit CI-only opt-in; production module starts DISABLED.
