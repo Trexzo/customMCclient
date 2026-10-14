@@ -161,6 +161,44 @@ final class Minecraft189ScaffoldRepeatSequence {
         return true;
     }
 
+    /**
+     * V37 acceptance diagnostics only. This read-only state inspection does
+     * NOT renew source authority, advance cadence, consume a receipt, or
+     * invoke the vanilla right-click controller. Any native evidence it
+     * reports is discarded within this same tick.
+     */
+    synchronized String diagnose(final Object originalMinecraft) {
+        final Minecraft189ScaffoldSelectedHotbar.Evidence selected =
+                selectedFromCurrentSource(originalMinecraft);
+        final String selectedState;
+        if (selected == null) selectedState = "native_selected_stack_unavailable";
+        else if (selected.sourceItemStack != selectedStack.get())
+            selectedState = "original_stack_identity_changed";
+        else if (selected.sourceSlot != selectedSlot)
+            selectedState = "original_selected_slot_changed";
+        else if (selected.sourceStackSize != expectedCount)
+            selectedState = "original_stack_count_changed expected="
+                    + expectedCount + " current=" + selected.sourceStackSize;
+        else selectedState = "same_original_stack_and_expected_count=" + expectedCount;
+        final Minecraft189ScaffoldOriginalCandidateProbe.Observation candidate =
+                Minecraft189ScaffoldOriginalCandidateProbe.observe(originalMinecraft);
+        final String target;
+        if (candidate == null) target = "no_original_native_candidate";
+        else if (hasPriorTarget && candidate.targetX == priorX
+                && candidate.targetY == priorY && candidate.targetZ == priorZ)
+            target = "prior_target_repeated=" + priorX + "," + priorY + "," + priorZ;
+        else target = "fresh_target=" + candidate.targetX + ","
+                + candidate.targetY + "," + candidate.targetZ;
+        return "activation=" + activation
+                + " sourceGeneration=" + sourceGeneration
+                + " cadenceStopped=" + cadence.stopped()
+                + " cadencePending=" + cadence.pending()
+                + " attempts=" + cadence.attemptedCount()
+                + " priorTarget=" + hasPriorTarget
+                + " selected=" + selectedState
+                + " candidate=" + target;
+    }
+
     synchronized boolean pending() { return pending != null && !cadence.stopped(); }
     synchronized int attemptedCount() { return cadence.attemptedCount(); }
     synchronized boolean stopped() { return cadence.stopped(); }
