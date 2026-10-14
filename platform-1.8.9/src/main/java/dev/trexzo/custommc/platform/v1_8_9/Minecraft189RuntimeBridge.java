@@ -158,6 +158,10 @@ public final class Minecraft189RuntimeBridge {
         scaffoldOriginalPlacementReadbackReported = false;
         scaffoldAcceptanceEnableIssued = false;
         scaffoldAcceptancePendingDiagTicks = 0;
+        scaffoldRepeatTick = 0L;
+        scaffoldRepeatProofStarted = false;
+        scaffoldRepeatPositiveAttempts = 0;
+        scaffoldRepeatPositiveReadbacks = 0;
         scaffoldMenuNegativeClearStability.reset();
         scaffoldDisabledProofTicks = 0;
         scaffoldDisabledProofReported = false;
@@ -271,6 +275,12 @@ public final class Minecraft189RuntimeBridge {
     private static boolean scaffoldDisabledProofReported;
     private static boolean scaffoldAcceptanceEnableIssued;
     private static int scaffoldAcceptancePendingDiagTicks;
+    // V37: acceptance-only original-Mojang two-block proof. Never active
+    // during ordinary gameplay or the certified V35 single-block fixture.
+    private static long scaffoldRepeatTick;
+    private static boolean scaffoldRepeatProofStarted;
+    private static int scaffoldRepeatPositiveAttempts;
+    private static int scaffoldRepeatPositiveReadbacks;
     private static final Minecraft189ScaffoldGuiClearStability
             scaffoldMenuNegativeClearStability = new Minecraft189ScaffoldGuiClearStability();
 
@@ -349,10 +359,13 @@ public final class Minecraft189RuntimeBridge {
         // Track exact original Minecraft/World/player identities only while
         // the opt-in placement proof is active or a receipt is outstanding.
         final Minecraft189ScaffoldModule scaffold = activeRuntime.scaffoldModule();
+        final boolean twoBlockOriginalProof = Boolean.getBoolean(
+                "custommc.acceptance.requireOriginalScaffoldTwoBlockProof");
         final boolean needsAcceptanceEnable = scaffold != null
                 && !scaffoldAcceptanceEnableIssued
-                && Boolean.getBoolean(
-                        "custommc.acceptance.requireOriginalScaffoldPlacement");
+                && (Boolean.getBoolean(
+                        "custommc.acceptance.requireOriginalScaffoldPlacement")
+                        || twoBlockOriginalProof);
         final boolean acceptanceReady = needsAcceptanceEnable
                 && originalScaffoldAcceptanceMayArm(minecraft,
                         Boolean.getBoolean(
@@ -425,6 +438,59 @@ public final class Minecraft189RuntimeBridge {
             scaffoldOriginalPlacementReadbackTicks = 0;
             scaffoldOriginalSourceEpoch.invalidate();
             return;
+        }
+        // Only the SHA-pinned ORIGINAL Mojang CI two-block test can use
+        // V36's isolated repeat transaction. It is not exposed in ClickGUI
+        // and regular gameplay still permits just one click per enable.
+        // This is a single original runTick callback, no retained World,
+        // player, cursor, ItemStack or controller references.
+        if (twoBlockOriginalProof && scaffold != null && moduleActivation > 0L) {
+            if (scaffoldRepeatTick == Long.MAX_VALUE) {
+                activeRuntime.moduleController().disable(Minecraft189ScaffoldModule.ID);
+                return;
+            }
+            final long repeatTick = ++scaffoldRepeatTick;
+            if (!scaffoldRepeatProofStarted && scaffold.armed()
+                    && scaffold.beginRepeatProof(minecraft, repeatTick, 2, 4)) {
+                scaffoldRepeatProofStarted = true;
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_MODULE_ARMED=YES"
+                        + " activation=" + moduleActivation);
+                System.out.flush();
+            }
+            if (scaffoldRepeatProofStarted && !scaffold.repeatProofStopped()) {
+                if (scaffold.repeatProofReceipt(minecraft, repeatTick)) {
+                    scaffoldRepeatPositiveReadbacks++;
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_CLIENT_READBACK_PASS=YES"
+                            + " step=" + scaffoldRepeatPositiveReadbacks);
+                    System.out.flush();
+                }
+                if (!scaffold.repeatProofStopped()) {
+                    final Minecraft189ScaffoldNativePlacementAttempt.Result step =
+                            scaffold.repeatProofAttempt(minecraft, repeatTick);
+                    if (step != null) {
+                        scaffoldRepeatPositiveAttempts++;
+                        System.out.println(
+                                "CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_ORIGINAL_CONTROLLER_ATTEMPT=YES"
+                                + " step=" + scaffoldRepeatPositiveAttempts
+                                + " accepted=" + step.originalControllerAccepted
+                                + " target=" + step.targetX + "," + step.targetY
+                                + "," + step.targetZ
+                                + " selectedBefore=" + step.originalStackSize);
+                        System.out.flush();
+                    }
+                }
+            }
+            if (scaffoldRepeatProofStarted && scaffold.repeatProofStopped()
+                    && scaffoldRepeatPositiveReadbacks == 2) {
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_TWO_CLIENT_RECEIPTS_PASS=YES"
+                        + " attempts=" + scaffoldRepeatPositiveAttempts);
+                System.out.flush();
+                // Completion is reported exactly once; no rearming.
+                scaffoldRepeatPositiveReadbacks = 3;
+            }
         }
         final boolean moduleArmed = scaffold != null && scaffold.armed();
         final boolean receiptPending = scaffoldOriginalPlacementReadback != null;
@@ -2604,6 +2670,10 @@ public final class Minecraft189RuntimeBridge {
                     scaffoldOriginalActivationLease = 0L;
                     scaffoldAcceptanceEnableIssued = false;
                     scaffoldAcceptancePendingDiagTicks = 0;
+                    scaffoldRepeatTick = 0L;
+                    scaffoldRepeatProofStarted = false;
+                    scaffoldRepeatPositiveAttempts = 0;
+                    scaffoldRepeatPositiveReadbacks = 0;
                     scaffoldMenuNegativeClearStability.reset();
                 }
                 closed = true;
