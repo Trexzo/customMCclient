@@ -12,6 +12,8 @@ final class Minecraft189RejoinTargetAcceptance {
     private static boolean reacquiredClicked;
     private static boolean survivorClicked;
     private static int firstOriginalIndex = -1;
+    private static int nativeNonPlayerBaseline = -1;
+    private static boolean nativeSentinelObserved;
     private static boolean realBControllerReported;
     private static boolean realBControllerEntityUuidReported;
     private static UUID staleControllerIntentUuid;
@@ -27,6 +29,8 @@ final class Minecraft189RejoinTargetAcceptance {
         reacquiredClicked = false;
         survivorClicked = false;
         firstOriginalIndex = -1;
+        nativeNonPlayerBaseline = -1;
+        nativeSentinelObserved = false;
         realBControllerReported = false;
         realBControllerEntityUuidReported = false;
         staleControllerIntentUuid = null;
@@ -89,6 +93,14 @@ final class Minecraft189RejoinTargetAcceptance {
         return new Evidence(ids,kinds,combat,nearest,rotation,a,b,da,db);
     }
 
+    private static int sourceNonPlayerCount(final Evidence evidence) {
+        if (evidence == null) return -1;
+        int count = 0;
+        for (int i = 0; i < evidence.ids.entityCount(); i++)
+            if (!evidence.kinds.player(i)) count++;
+        return count;
+    }
+
     static void observe(Minecraft189HostRuntime host) {
         if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraRejoin"))
             return;
@@ -139,11 +151,27 @@ final class Minecraft189RejoinTargetAcceptance {
                     && survivorUuid.equals(aura.lockedTargetUuid())) {
                 if (++aloneTicks>=15) {
                     phase=3;
+                    nativeNonPlayerBaseline = sourceNonPlayerCount(e);
                     System.out.println("CUSTOMMC_189_REJOIN_OLD_A_UNLOADED_B_LOCKED_PASS=15");
                     System.out.flush();
                 }
             } else aloneTicks=0;
         } else if (phase==3) {
+            // M417: a native nonplayer addition must be OBSERVED by the
+            // original host after A has genuinely left, before its fresh
+            // JVM returns. Dedicated-server summon output alone is not proof.
+            if (Boolean.getBoolean("custommc.acceptance.requireRejoinIndexReorder")
+                    && !nativeSentinelObserved && nativeNonPlayerBaseline >= 0
+                    && e!=null && e.a==-1 && e.bOnlySelected()
+                    && survivorUuid.equals(aura.lockedTargetUuid())
+                    && sourceNonPlayerCount(e)>nativeNonPlayerBaseline) {
+                nativeSentinelObserved = true;
+                System.out.println(
+                    "CUSTOMMC_189_REJOIN_REAL_SENTINEL_NATIVE_OBSERVED_PASS=YES"
+                    + " nonplayersBefore=" + nativeNonPlayerBaseline
+                    + " nonplayersAfter=" + sourceNonPlayerCount(e));
+                System.out.flush();
+            }
             // Original A has a new real EntityPlayer instance and source-native
             // list index. Re-acquire by UUID, never a stored index.
             if (e!=null && e.aCloserButBSelected()
@@ -160,6 +188,7 @@ final class Minecraft189RejoinTargetAcceptance {
                         // optional M417 gate must witness a DIFFERENT real
                         // current index for the SAME source-native UUID.
                         if (firstOriginalIndex < 0 || e.a < 0
+                                || !nativeSentinelObserved
                                 || firstOriginalIndex == e.a)
                             throw new IllegalStateException(
                                     "real rejoin did not actually reorder A index"
