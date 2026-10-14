@@ -816,8 +816,12 @@ def run(args):
             attempt=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
             receipt=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK_PASS=YES"
             disabled=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES"
-            if any(tag in log_tail(host_log) for tag in (module,attempt,receipt)):
-                raise AssertionError("native placement before real dedicated server grant")
+            repeat_attempt = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_ORIGINAL_CONTROLLER_ATTEMPT=YES"
+            repeat_receipt = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_CLIENT_READBACK_PASS=YES"
+            repeat_arm = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_MODULE_ARMED=YES"
+            if any(tag in log_tail(host_log)
+                   for tag in (module,attempt,receipt,repeat_attempt,repeat_receipt,repeat_arm)):
+                raise AssertionError("native placement or repeat arm before genuine server grant")
             if args.scaffold_placement in ("enabled", "repeat-two"):
                 # Genuine host keyboard selects hotbar slot 0. This is not
                 # a spoofed inventory setter or a fabricated ItemStack.
@@ -830,7 +834,77 @@ def run(args):
             # after grant in the enabled mode races the intended 8 -> 7
             # survival decrement. Only the disabled control may retain
             # an eight-item post-grant baseline.
-            if args.scaffold_placement in ("enabled", "repeat-two"):
+            if args.scaffold_placement == "repeat-two":
+                # V37 is an isolated opt-in new original-client JVM and
+                # dedicated-server fixture: strictly 2 different raytrace
+                # targets, one native controller action per original receipt.
+                # Reuse the same original host X11 ownership and fail-shut
+                # startup menu diagnostics as V35's one-block case.
+                menu_blocked = (
+                    b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ARM_WAIT"
+                    b" screen=OPEN source=positive_candidate_already_available"
+                )
+                while time.monotonic() < deadline:
+                    check_process(host, "original two-block host readiness")
+                    live_host = log_tail(host_log)
+                    if repeat_arm in live_host:
+                        break
+                    if menu_blocked in live_host:
+                        send_real_host_key(host, host_window, "Escape")
+                        print("CUSTOMMC_189_SCAFFOLD_REPEAT_INITIAL_GUI_REAL_ESCAPE=YES",
+                              flush=True)
+                        break
+                    time.sleep(0.25)
+                wait_for(host, host_log, repeat_arm, deadline,
+                         "V37 original module-owned two-block activation")
+                first_attempt = (
+                    repeat_attempt + b" step=1 accepted=true target="
+                    + "{},{},{}".format(*target_xyz).encode())
+                second_attempt = (
+                    repeat_attempt + b" step=2 accepted=true target="
+                    + "{},{},{}".format(*second_target_xyz).encode())
+                wait_for(host, host_log, first_attempt, deadline,
+                         "first genuine vanilla controller click at first target")
+                wait_for(host, host_log, repeat_receipt + b" step=1", deadline,
+                         "source original WorldClient first stone + 8-to-7 debit")
+                send_server_command(server, server_log,
+                                    "testforblock {} {} {} stone".format(*target_xyz),
+                                    expected=b"successfully found the block")
+                send_server_command(server, server_log,
+                                    "testforblock {} {} {} air".format(*second_target_xyz),
+                                    expected=b"successfully found the block")
+                send_server_command(server, server_log,
+                                    "clear CIHost stone 0 0",
+                                    expected=b"has 7 items that match the criteria")
+                print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_SERVER_FIRST_STONE_SEVEN_PASS=YES",
+                      flush=True)
+
+                # The server moves the real local player to the second edge.
+                # No rotation/position/controller/ItemStack spoof in the
+                # client. Original raytrace must now see first placed stone
+                # as solid support for the distinct second underfoot air.
+                send_server_command(server, server_log,
+                                    "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                        x+2.05, y, z+.5))
+                wait_for(host, host_log, second_attempt, deadline,
+                         "second genuine vanilla click with NEW target and 7-stack")
+                wait_for(host, host_log, repeat_receipt + b" step=2", deadline,
+                         "source original WorldClient second stone + 7-to-6 debit")
+                wait_for(host, host_log,
+                         b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_TWO_CLIENT_RECEIPTS_PASS=YES attempts=2",
+                         deadline, "no extra original controller attempt")
+                if log_tail(host_log).count(repeat_attempt) != 2:
+                    raise AssertionError("two-block fixture did not issue exactly two original clicks")
+                for target in (target_xyz, second_target_xyz):
+                    send_server_command(server, server_log,
+                                        "testforblock {} {} {} stone".format(*target),
+                                        expected=b"successfully found the block")
+                send_server_command(server, server_log,
+                                    "clear CIHost stone 0 0",
+                                    expected=b"has 6 items that match the criteria")
+                print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_SERVER_TWO_STONE_SIX_PASS=YES",
+                      flush=True)
+            elif args.scaffold_placement == "enabled":
                 # V35's production veto is correct: an OPEN original GUI
                 # forbids arming even with a valid ray, World and eight
                 # genuine ItemBlocks. Some LWJGL startup screens persist
