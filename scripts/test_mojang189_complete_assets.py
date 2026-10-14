@@ -99,6 +99,85 @@ class CompleteAssetStageTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "zero-length object hash"):
                 assets._download_one_complete_asset(root, hashlib.sha1(b"x").hexdigest(), 0)
 
+
+class CompleteAssetTransportRetryTest(unittest.TestCase):
+    """No network: independently test full official asset object retries."""
+
+    def test_midstream_connection_loss_cleans_partial_and_verifies_retry(self):
+        content = b"official-pinned-object"
+        sha = hashlib.sha1(content).hexdigest()
+
+        class BrokenAfterFirstChunk(Response):
+            def __init__(self, url):
+                super().__init__(url, content)
+                self.read_calls = 0
+
+            def read(self, size=-1):
+                self.read_calls += 1
+                if self.read_calls == 1:
+                    return super().read(3)
+                raise URLError(OSError(101, "Network is unreachable"))
+
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            final = root / sha[:2] / sha
+            partial = final.with_name(sha + ".partial")
+            calls = []
+
+            def fake_open(request, timeout=90):
+                url = request.full_url
+                self.assertEqual(
+                    "https://resources.download.minecraft.net/" + sha[:2] + "/" + sha,
+                    url)
+                self.assertFalse(partial.exists(),
+                                 "interrupted bytes must be removed before retry")
+                calls.append(url)
+                return (BrokenAfterFirstChunk(url) if len(calls) == 1
+                        else Response(url, content))
+
+            with patch.object(assets, "urlopen", side_effect=fake_open), \
+                    patch.object(assets.time, "sleep") as sleep:
+                self.assertEqual(len(content),
+                                 assets._download_one_complete_asset(
+                                     root, sha, len(content)))
+            self.assertEqual(2, len(calls))
+            sleep.assert_called_once_with(1)
+            self.assertEqual(content, final.read_bytes())
+            self.assertFalse(partial.exists())
+
+    def test_repeated_network_failure_never_commits_unverified_asset(self):
+        content = b"never-downloaded"
+        sha = hashlib.sha1(content).hexdigest()
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            with patch.object(assets, "urlopen",
+                              side_effect=URLError(OSError(101, "Network is unreachable"))) as opened, \
+                    patch.object(assets.time, "sleep") as sleep:
+                with self.assertRaises(URLError):
+                    assets._download_one_complete_asset(root, sha, len(content))
+            self.assertEqual(3, opened.call_count)
+            self.assertEqual([((1,), {}), ((3,), {})],
+                             [(x.args, x.kwargs) for x in sleep.call_args_list])
+            self.assertFalse((root / sha[:2] / sha).exists())
+            self.assertFalse((root / sha[:2] / (sha + ".partial")).exists())
+
+    def test_http_rejection_is_not_retried_or_accepted(self):
+        content = b"correct-asset"
+        sha = hashlib.sha1(content).hexdigest()
+        url = "https://resources.download.minecraft.net/" + sha[:2] + "/" + sha
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            with patch.object(assets, "urlopen",
+                              side_effect=HTTPError(url, 403, "Forbidden", None, None)) as opened, \
+                    patch.object(assets.time, "sleep") as sleep:
+                with self.assertRaises(HTTPError):
+                    assets._download_one_complete_asset(root, sha, len(content))
+            self.assertEqual(1, opened.call_count)
+            sleep.assert_not_called()
+            self.assertFalse((root / sha[:2] / sha).exists())
+
+
+
 class PinnedLibraryTransportRetryTest(unittest.TestCase):
     """Offline: transient routing errors never bypass official download pins."""
 
