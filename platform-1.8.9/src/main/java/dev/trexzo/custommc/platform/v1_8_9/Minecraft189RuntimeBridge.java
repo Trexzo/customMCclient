@@ -156,6 +156,7 @@ public final class Minecraft189RuntimeBridge {
         scaffoldOriginalPlacementActivation = 0L;
         scaffoldOriginalSourceEpoch.invalidate();
         scaffoldOriginalPlacementReadbackReported = false;
+        scaffoldAcceptanceEnableIssued = false;
         scaffoldDisabledProofTicks = 0;
         scaffoldDisabledProofReported = false;
         return new Registration(next);
@@ -266,6 +267,52 @@ public final class Minecraft189RuntimeBridge {
     private static boolean scaffoldOriginalPlacementReadbackReported;
     private static int scaffoldDisabledProofTicks;
     private static boolean scaffoldDisabledProofReported;
+    private static boolean scaffoldAcceptanceEnableIssued;
+
+    /**
+     * Original-game CI controls when to enable the real module through its
+     * normal controller. This prevents initial world-loading/pause screens
+     * from consuming an arm before the vanilla fixture supplies ItemBlock.
+     * Never used in production without the explicit acceptance property.
+     */
+    private static boolean originalScaffoldAcceptanceMayArm(
+            final Object minecraft, final boolean guiNegative) {
+        if (!(minecraft instanceof Minecraft189ScaffoldNativeContextAccess)
+                || Minecraft189ScaffoldScreenGate.inspect(minecraft)
+                        != Minecraft189ScaffoldScreenGate.Verdict.CLEAR)
+            return false;
+        try {
+            final Minecraft189ScaffoldNativeContextAccess original =
+                    (Minecraft189ScaffoldNativeContextAccess)minecraft;
+            if (guiNegative) {
+                final Object[] nativeSource = original.customMcScaffoldNativeContext();
+                return nativeSource != null && nativeSource.length == 3
+                        && nativeSource[0] instanceof Minecraft189LocalPlayerSafeWalkMarker
+                        && nativeSource[0] instanceof Minecraft189PlayerPositionAccess
+                        && nativeSource[1] instanceof Minecraft189ScaffoldWorldReadAccess;
+            }
+            final Minecraft189ScaffoldNativeContext.Witness witness =
+                    Minecraft189ScaffoldNativeContext.capture(original);
+            if (witness == null
+                    || !(witness.player instanceof Minecraft189PlayerInventoryAccess))
+                return false;
+            final Minecraft189InventoryHotbarAccess inventory =
+                    ((Minecraft189PlayerInventoryAccess)witness.player)
+                            .customMcInventory();
+            if (!(inventory instanceof Minecraft189InventoryHotbarItemsAccess))
+                return false;
+            final Minecraft189ScaffoldSelectedHotbar.Evidence selected =
+                    Minecraft189ScaffoldSelectedHotbar.from(
+                            (Minecraft189InventoryHotbarItemsAccess)inventory);
+            // The real fixture grants EIGHT stone after changing to Survival.
+            // A startup creative inventory or empty pre-grant hotbar cannot
+            // arm the controller and then be revoked by an incidental GUI.
+            return selected != null && selected.sourceStackSize == 8;
+        } catch (RuntimeException sourceUnavailable) {
+            return false;
+        }
+    }
+
 
     public static synchronized void originalScaffoldContextAtTick(final Object minecraft) {
         if (activeRuntime == null || activeRuntime.closed()) {
@@ -280,6 +327,24 @@ public final class Minecraft189RuntimeBridge {
         // Track exact original Minecraft/World/player identities only while
         // the opt-in placement proof is active or a receipt is outstanding.
         final Minecraft189ScaffoldModule scaffold = activeRuntime.scaffoldModule();
+        if (scaffold != null && !scaffoldAcceptanceEnableIssued
+                && Boolean.getBoolean(
+                        "custommc.acceptance.requireOriginalScaffoldPlacement")
+                && originalScaffoldAcceptanceMayArm(minecraft,
+                        Boolean.getBoolean(
+                                "custommc.acceptance.requireOriginalScaffoldMenuVeto"))) {
+            // One grant per boot/runtime, never re-arm after a veto, World
+            // switch or controller failure. The ordinary production module
+            // is disabled by default and user toggles remain unchanged.
+            activeRuntime.moduleController().enable(Minecraft189ScaffoldModule.ID);
+            scaffoldAcceptanceEnableIssued = true;
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireOriginalScaffoldMenuVeto")) {
+                System.out.println(
+                    "CUSTOMMC_OFFICIAL_189_SCAFFOLD_GUI_ARMED_IN_WORLD=YES");
+                System.out.flush();
+            }
+        }
         final long moduleActivation = scaffold == null ? 0L : scaffold.activation();
         // A module armed before any World is loaded waits for its FIRST valid
         // World/player. After that, losing or changing either revokes the
@@ -2499,6 +2564,9 @@ public final class Minecraft189RuntimeBridge {
                     scaffoldOriginalPlacementReadbackEpoch = 0L;
                     scaffoldOriginalPlacementActivation = 0L;
                     scaffoldOriginalSourceEpoch.invalidate();
+                    scaffoldOriginalActivationSource.reset();
+                    scaffoldOriginalActivationLease = 0L;
+                    scaffoldAcceptanceEnableIssued = false;
                 }
                 closed = true;
             }
