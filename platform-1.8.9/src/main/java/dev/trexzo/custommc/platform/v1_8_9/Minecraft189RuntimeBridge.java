@@ -150,10 +150,10 @@ public final class Minecraft189RuntimeBridge {
         scaffoldOriginalContextReported = false;
         scaffoldOriginalCandidateReported = false;
         scaffoldOriginalCandidateDiagTicks = 0;
-        scaffoldOriginalPlacementAttempted = false;
         scaffoldOriginalPlacementReadback = null;
         scaffoldOriginalPlacementReadbackTicks = 0;
         scaffoldOriginalPlacementReadbackEpoch = 0L;
+        scaffoldOriginalPlacementActivation = 0L;
         scaffoldOriginalSourceEpoch.invalidate();
         scaffoldOriginalPlacementReadbackReported = false;
         scaffoldDisabledProofTicks = 0;
@@ -253,10 +253,10 @@ public final class Minecraft189RuntimeBridge {
     private static boolean scaffoldOriginalContextReported;
     private static boolean scaffoldOriginalCandidateReported;
     private static int scaffoldOriginalCandidateDiagTicks;
-    private static boolean scaffoldOriginalPlacementAttempted;
     private static final Minecraft189ScaffoldSourceEpoch scaffoldOriginalSourceEpoch =
             new Minecraft189ScaffoldSourceEpoch();
     private static long scaffoldOriginalPlacementReadbackEpoch;
+    private static long scaffoldOriginalPlacementActivation;
     private static Minecraft189ScaffoldNativePlacementAttempt.Result
             scaffoldOriginalPlacementReadback;
     private static int scaffoldOriginalPlacementReadbackTicks;
@@ -268,15 +268,17 @@ public final class Minecraft189RuntimeBridge {
         if (activeRuntime == null || activeRuntime.closed()) {
             scaffoldOriginalPlacementReadback = null;
             scaffoldOriginalPlacementReadbackEpoch = 0L;
+            scaffoldOriginalPlacementActivation = 0L;
             scaffoldOriginalSourceEpoch.invalidate();
             return;
         }
         // Track exact original Minecraft/World/player identities only while
         // the opt-in placement proof is active or a receipt is outstanding.
+        final Minecraft189ScaffoldModule scaffold = activeRuntime.scaffoldModule();
+        final long moduleActivation = scaffold == null ? 0L : scaffold.activation();
+        final boolean moduleArmed = scaffold != null && scaffold.armed();
         final boolean receiptPending = scaffoldOriginalPlacementReadback != null;
-        final boolean candidateRequested = !scaffoldOriginalPlacementAttempted
-                && Boolean.getBoolean(
-                        "custommc.acceptance.requireOriginalScaffoldPlacement");
+        final boolean candidateRequested = moduleArmed;
         final long sourceEpoch = receiptPending || candidateRequested
                 ? scaffoldOriginalSourceEpoch.observe(minecraft) : 0L;
         if (activeRuntime != null && !scaffoldDisabledProofReported
@@ -326,12 +328,15 @@ public final class Minecraft189RuntimeBridge {
         }
         if (scaffoldOriginalPlacementReadback != null
                 && !scaffoldOriginalPlacementReadbackReported) {
-            if (sourceEpoch == 0L
+            if (moduleActivation == 0L
+                    || moduleActivation != scaffoldOriginalPlacementActivation
+                    || sourceEpoch == 0L
                     || sourceEpoch != scaffoldOriginalPlacementReadbackEpoch) {
                 // A new World/player or disconnected original client cannot
                 // complete a receipt from a prior source generation.
                 scaffoldOriginalPlacementReadback = null;
                 scaffoldOriginalPlacementReadbackEpoch = 0L;
+                scaffoldOriginalPlacementActivation = 0L;
                 scaffoldOriginalPlacementReadbackTicks = 0;
             } else if (scaffoldOriginalSourceEpoch.confirmsSameSourceReadback(
                     minecraft, scaffoldOriginalPlacementReadbackEpoch,
@@ -360,19 +365,26 @@ public final class Minecraft189RuntimeBridge {
         // server persistence and survival stack negative tests are certified.
         // Source callback runs on original Minecraft.runTick and never
         // creates C08 itself or rewrites the original cursor.
-        if (activeRuntime != null && !scaffoldOriginalPlacementAttempted
-                && Boolean.getBoolean(
-                        "custommc.acceptance.requireOriginalScaffoldPlacement")) {
+        if (moduleArmed && scaffoldOriginalPlacementReadback == null
+                && sourceEpoch > 0L) {
             final Minecraft189ScaffoldNativePlacementAttempt.Result attempted =
-                    Minecraft189ScaffoldNativePlacementAttempt.attempt(
-                            minecraft, true);
+                    scaffold.attemptOnce(minecraft);
             if (attempted != null) {
-                scaffoldOriginalPlacementAttempted = true;
-                if (attempted.originalControllerAccepted && sourceEpoch > 0L
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.requireOriginalScaffoldPlacement")) {
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_SCAFFOLD_MODULE_OWNER_PASS=YES"
+                            + " activation=" + moduleActivation);
+                    System.out.flush();
+                }
+                if (attempted.originalControllerAccepted
+                        && scaffold.activation() == moduleActivation
                         && scaffoldOriginalSourceEpoch.observe(minecraft) == sourceEpoch) {
                     scaffoldOriginalPlacementReadback = attempted;
                     scaffoldOriginalPlacementReadbackEpoch = sourceEpoch;
+                    scaffoldOriginalPlacementActivation = moduleActivation;
                     scaffoldOriginalPlacementReadbackTicks = 0;
+                    scaffoldOriginalPlacementReadbackReported = false;
                 }
                 System.out.println(
                         "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
@@ -2436,6 +2448,7 @@ public final class Minecraft189RuntimeBridge {
                     activeRuntime = null;
                     scaffoldOriginalPlacementReadback = null;
                     scaffoldOriginalPlacementReadbackEpoch = 0L;
+                    scaffoldOriginalPlacementActivation = 0L;
                     scaffoldOriginalSourceEpoch.invalidate();
                 }
                 closed = true;

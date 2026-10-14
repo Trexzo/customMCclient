@@ -703,10 +703,11 @@ def run(args):
             send_server_command(server, server_log,
                                 "testforblock {} {} {} air".format(*target_xyz),
                                 expected=b"successfully found the block")
+            module=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_MODULE_OWNER_PASS=YES"
             attempt=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
             receipt=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK_PASS=YES"
             disabled=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES"
-            if attempt in log_tail(host_log) or receipt in log_tail(host_log):
+            if any(tag in log_tail(host_log) for tag in (module,attempt,receipt)):
                 raise AssertionError("native placement before real dedicated server grant")
             send_server_command(server, server_log,"give CIHost stone 8")
             # A legitimate enabled client may place the first block the
@@ -715,6 +716,8 @@ def run(args):
             # survival decrement. Only the disabled control may retain
             # an eight-item post-grant baseline.
             if args.scaffold_placement == "enabled":
+                wait_for(host,host_log,module,deadline,
+                         "source-enabled Scaffold module owns dedicated placement")
                 wait_for(host,host_log,attempt,deadline,
                          "real vanilla right click controller on dedicated server")
                 wait_for(host,host_log,receipt,deadline,
@@ -730,7 +733,7 @@ def run(args):
             else:
                 wait_for(host,host_log,disabled,deadline,
                          "disabled current World air and same eight-block original hotbar")
-                if attempt in log_tail(host_log) or receipt in log_tail(host_log):
+                if any(tag in log_tail(host_log) for tag in (module,attempt,receipt)):
                     raise AssertionError("disabled module reached native vanilla controller")
                 send_server_command(server,server_log,
                                     "testforblock {} {} {} air".format(*target_xyz),
@@ -824,24 +827,27 @@ def run(args):
             send_server_command(server, server_log, "gamemode 1 CITargetB")
             send_server_command(server, server_log, b_outer)
             if args.require_index_reorder:
-                # M417's native list position changed naturally in the
-                # certified run, but a later identical-world rerun could
-                # reuse A's exact prior numeric index. Place one genuine,
-                # inert vanilla server ArmorStand in the loaded chunk
-                # BEFORE the new A client reconnects. This tests an actual
-                # list reorder caused by normal world/entity events, not
-                # a fabricated client array or a weakened equality check.
+                # A single vanilla ArmorStand can fill precisely the slot
+                # vacated by A, giving the new A an unchanged list index.
+                # Require FOUR distinct genuine Mojang server-spawned stands
+                # to reach the original host source list before reconnecting
+                # A. Neither client arrays nor native list indices are edited.
+                # Existing original-A != rejoined-A index proof remains strict.
                 parts = a_near.split()
                 if len(parts) != 7 or parts[:2] != ["tp", "CITarget"]:
-                    raise AssertionError("cannot derive real spawn sentinel")
+                    raise AssertionError("cannot derive real spawn sentinels")
                 ax, ay, az = (int(value) for value in parts[2:5])
-                sentinel = "summon ArmorStand {} {} {}".format(
-                    ax + 6, ay, az + 6)
-                send_server_command(server, server_log, sentinel,
-                                    expected=b"Object successfully summoned")
-                print("CUSTOMMC_189_REJOIN_NATIVE_SERVER_SENTINEL_SUMMONED=YES",
+                for dx, dz in ((6, 6), (7, 6), (6, 7), (7, 7)):
+                    sentinel = "summon ArmorStand {} {} {}".format(
+                        ax + dx, ay, az + dz)
+                    send_server_command(server, server_log, sentinel,
+                                        expected=b"Object successfully summoned")
+                print("CUSTOMMC_189_REJOIN_NATIVE_SERVER_SENTINELS_SUMMONED=4",
                       flush=True)
-                time.sleep(0.8)
+                wait_for(host, host_log,
+                         b"CUSTOMMC_189_REJOIN_REAL_SENTINEL_NATIVE_OBSERVED_PASS=YES",
+                         deadline,
+                         "original host observed new native nonplayer before A rejoin")
             cmd_rejoin = client_command(
                 args, root / "target-rejoin-game", "CITarget",
                 "00000000000000000000000000000002", port, remote=False)

@@ -52,6 +52,7 @@ public final class Minecraft189BootstrapRuntime
             new Minecraft189WorldCameraFrameState();
     private Minecraft189PlayerBoxEspFeature playerBoxEspFeature;
     private Minecraft189SafeWalkFeature safeWalkFeature;
+    private Minecraft189ScaffoldFeature scaffoldFeature;
     private boolean acceptanceNativeWorldCameraReported;
     private boolean acceptanceNativeWorldOriginReported;
     private boolean acceptanceNativePlayerBoxesReported;
@@ -302,12 +303,25 @@ public final class Minecraft189BootstrapRuntime
                     worldCamera, renderPipeline, hostCallbacks);
             safeWalkFeature = Minecraft189SafeWalkFeature.install(
                     modules, moduleController, modulePresentations);
+            scaffoldFeature = Minecraft189ScaffoldFeature.install(
+                    modules, moduleController, modulePresentations);
+            // Existing original-game V28-V31 acceptance opt-in now goes through
+            // the SAME module-controller path as an actual user toggle.
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireOriginalScaffoldPlacement"))
+                moduleController.enable(Minecraft189ScaffoldModule.ID);
             if (Boolean.getBoolean("custommc.acceptance.requireNativeSafeWalk"))
                 moduleController.enable(Minecraft189SafeWalkModule.ID);
             // Explicit CI-only opt-in; production module starts DISABLED.
             if (Boolean.getBoolean("custommc.acceptance.enableRealRemotePlayerBoxEsp"))
                 moduleController.enable(Minecraft189PlayerBoxEspModule.ID);
         } catch (RuntimeException installationFailure) {
+            if (scaffoldFeature != null) {
+                try { scaffoldFeature.close(); }
+                catch (RuntimeException closeFailure) {
+                    installationFailure.addSuppressed(closeFailure);
+                } finally { scaffoldFeature = null; }
+            }
             // SafeWalk is installed after Box ESP. Roll back both module
             // registrations before closing the host, including partial
             // autoenable failures. Do not leak either module into a
@@ -345,6 +359,12 @@ public final class Minecraft189BootstrapRuntime
         return !closed
                 && hostRuntime != null
                 && !hostRuntime.closed();
+    }
+
+    synchronized Minecraft189ScaffoldModule scaffoldModule() {
+        if (closed || hostRuntime == null || hostRuntime.closed()
+                || scaffoldFeature == null) return null;
+        return scaffoldFeature.module();
     }
 
     synchronized boolean nativeSafeWalkSneaking(
@@ -613,6 +633,16 @@ public final class Minecraft189BootstrapRuntime
                         new IllegalStateException(
                                 "failed closing Minecraft 1.8.9 target loader",
                                 closeFailure));
+            }
+        }
+
+        if (scaffoldFeature != null) {
+            try {
+                scaffoldFeature.close();
+            } catch (RuntimeException closeFailure) {
+                failure = append(failure, closeFailure);
+            } finally {
+                scaffoldFeature = null;
             }
         }
 
