@@ -20,6 +20,9 @@ final class Minecraft189ScaffoldPlacementCadence {
     private static final int RECEIPT_TIMEOUT_TICKS = 120;
 
     private long activation;
+    // Never allow a completed/failed activation to be re-armed to bypass
+    // attempt caps or a failed original controller/readback transaction.
+    private long highestArmedActivation;
     private long dueTick;
     private long receiptDeadline;
     private long lastTick;
@@ -33,12 +36,13 @@ final class Minecraft189ScaffoldPlacementCadence {
             final long currentTick, final int requestedAttempts,
             final int minimumGapTicks) {
         invalidate();
-        if (sourceActivation <= 0 || currentTick < 0
+        if (sourceActivation <= highestArmedActivation || currentTick < 0
                 || requestedAttempts < 1 || requestedAttempts > MAX_BLOCKS
                 || minimumGapTicks < 2 || minimumGapTicks > MAX_GAP_TICKS
                 || currentTick > Long.MAX_VALUE - RECEIPT_TIMEOUT_TICKS)
             return false;
         activation = sourceActivation;
+        highestArmedActivation = sourceActivation;
         dueTick = currentTick;
         lastTick = currentTick;
         gapTicks = minimumGapTicks;
@@ -83,8 +87,11 @@ final class Minecraft189ScaffoldPlacementCadence {
 
     synchronized boolean receipt(final long sourceActivation,
             final long tick, final boolean originalReadbackConfirmed) {
-        if (!validTick(sourceActivation, tick) || !pending)
+        if (!validTick(sourceActivation, tick)) return false;
+        if (!pending) {
+            invalidate();
             return false;
+        }
         pending = false;
         if (!originalReadbackConfirmed) {
             invalidate();
