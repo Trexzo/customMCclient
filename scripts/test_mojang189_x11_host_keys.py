@@ -69,13 +69,15 @@ class OriginalHostWindowFixtureTest(unittest.TestCase):
         captured = identify_original_host_window_before_target(host)
         send_real_host_key(host, captured, "1")
         send_real_host_key(host, captured, "e")
+        send_real_host_key(host, captured, "Escape")
         keys = [call.args[0] for call in run.call_args_list
                 if call.args[0][1] == "key"]
         self.assertEqual([["xdotool", "key", "--clearmodifiers", "1"],
-                          ["xdotool", "key", "--clearmodifiers", "e"]], keys)
+                          ["xdotool", "key", "--clearmodifiers", "e"],
+                          ["xdotool", "key", "--clearmodifiers", "Escape"]], keys)
         activations = [call.args[0] for call in run.call_args_list
                        if call.args[0][1] == "windowactivate"]
-        self.assertEqual(["751", "751"], [x[-1] for x in activations])
+        self.assertEqual(["751", "751", "751"], [x[-1] for x in activations])
         with self.assertRaises(ValueError):
             send_real_host_key(host, captured, "F3")
         with self.assertRaisesRegex(AssertionError, "not identified"):
