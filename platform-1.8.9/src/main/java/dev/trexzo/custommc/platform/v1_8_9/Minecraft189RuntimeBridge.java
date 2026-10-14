@@ -305,10 +305,18 @@ public final class Minecraft189RuntimeBridge {
         // Mojang ASM preflight, not a guessed reflective singleton.
         // UNKNOWN is a veto too. Cancel through ModuleController so the
         // old activation cannot silently resume when a menu closes.
-        if (moduleActivation > 0L
-                && scaffoldOriginalActivationSource.witnessed()
-                && Minecraft189ScaffoldScreenGate.inspect(minecraft)
-                        != Minecraft189ScaffoldScreenGate.Verdict.CLEAR) {
+        final Minecraft189ScaffoldScreenGate.Verdict originalScreen =
+                moduleActivation > 0L && scaffoldOriginalActivationSource.witnessed()
+                ? Minecraft189ScaffoldScreenGate.inspect(minecraft)
+                : Minecraft189ScaffoldScreenGate.Verdict.CLEAR;
+        if (originalScreen != Minecraft189ScaffoldScreenGate.Verdict.CLEAR) {
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireOriginalScaffoldMenuVeto")) {
+                System.out.println(
+                    "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_GUI_VETO=YES state="
+                    + originalScreen);
+                System.out.flush();
+            }
             activeRuntime.moduleController().disable(Minecraft189ScaffoldModule.ID);
             scaffoldOriginalPlacementReadback = null;
             scaffoldOriginalPlacementReadbackEpoch = 0L;
