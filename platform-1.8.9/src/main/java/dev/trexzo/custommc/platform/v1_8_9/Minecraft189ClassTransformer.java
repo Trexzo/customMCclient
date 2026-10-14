@@ -3601,6 +3601,7 @@ public final class Minecraft189ClassTransformer
                         addItemStackTypeGetter(cv, "customMcIsBlockItem",
                                 sourceItemField,
                                 Minecraft189Mappings.ITEM_BLOCK);
+                        addItemStackOriginalItemIdentityGetter(cv, sourceItemField);
                         addSwordBaseDamageGetter(cv, sourceItemField);
                         addItemStackTypeGetter(cv, "customMcIsFishingRod",
                                 sourceItemField,
@@ -3633,6 +3634,23 @@ public final class Minecraft189ClassTransformer
                 0);
 
         return writer.toByteArray();
+    }
+
+    /** Read the exact source-mapped Item field without caching a stack. */
+    private static void addItemStackOriginalItemIdentityGetter(
+            final ClassVisitor visitor, final String sourceItemField) {
+        final MethodVisitor mv = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC, "customMcOriginalItemIdentity",
+                "()Ljava/lang/Object;", null, null);
+        mv.visitCode();
+        mv.visitVarInsn(Opcodes.ALOAD, 0);
+        mv.visitFieldInsn(Opcodes.GETFIELD,
+                Minecraft189Mappings.ITEM_STACK.obfuscatedInternalName(),
+                sourceItemField,
+                "L" + Minecraft189Mappings.ITEM.obfuscatedInternalName() + ";");
+        mv.visitInsn(Opcodes.ARETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
     }
 
     /**
