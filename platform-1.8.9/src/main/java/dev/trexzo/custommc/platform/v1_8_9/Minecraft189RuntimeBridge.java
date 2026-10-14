@@ -162,6 +162,8 @@ public final class Minecraft189RuntimeBridge {
         scaffoldRepeatProofStarted = false;
         scaffoldRepeatPositiveAttempts = 0;
         scaffoldRepeatPositiveReadbacks = 0;
+        scaffoldProductionReceiptReported = 0;
+        scaffoldProductionCompletionReported = false;
         scaffoldMenuNegativeClearStability.reset();
         scaffoldDisabledProofTicks = 0;
         scaffoldDisabledProofReported = false;
@@ -281,6 +283,8 @@ public final class Minecraft189RuntimeBridge {
     private static boolean scaffoldRepeatProofStarted;
     private static int scaffoldRepeatPositiveAttempts;
     private static int scaffoldRepeatPositiveReadbacks;
+    private static int scaffoldProductionReceiptReported;
+    private static boolean scaffoldProductionCompletionReported;
     private static final Minecraft189ScaffoldGuiClearStability
             scaffoldMenuNegativeClearStability = new Minecraft189ScaffoldGuiClearStability();
 
@@ -361,11 +365,13 @@ public final class Minecraft189RuntimeBridge {
         final Minecraft189ScaffoldModule scaffold = activeRuntime.scaffoldModule();
         final boolean twoBlockOriginalProof = Boolean.getBoolean(
                 "custommc.acceptance.requireOriginalScaffoldTwoBlockProof");
+        final boolean productionTwoBlockProof = Boolean.getBoolean(
+                "custommc.acceptance.requireProductionScaffoldTwoBlockProof");
         final boolean needsAcceptanceEnable = scaffold != null
                 && !scaffoldAcceptanceEnableIssued
                 && (Boolean.getBoolean(
                         "custommc.acceptance.requireOriginalScaffoldPlacement")
-                        || twoBlockOriginalProof);
+                        || twoBlockOriginalProof || productionTwoBlockProof);
         final boolean acceptanceReady = needsAcceptanceEnable
                 && originalScaffoldAcceptanceMayArm(minecraft,
                         Boolean.getBoolean(
@@ -385,8 +391,21 @@ public final class Minecraft189RuntimeBridge {
             // One grant per boot/runtime, never re-arm after a veto, World
             // switch or controller failure. The ordinary production module
             // is disabled by default and user toggles remain unchanged.
+            if (productionTwoBlockProof && !twoBlockOriginalProof) {
+                // CI-only *configuration* of the real production setting,
+                // before ModuleController owns a fresh onEnable. The normal
+                // production path handles every subsequent original tick.
+                scaffold.twoPlacementsSetting().set(Boolean.TRUE);
+            }
             activeRuntime.moduleController().enable(Minecraft189ScaffoldModule.ID);
             scaffoldAcceptanceEnableIssued = true;
+            if (productionTwoBlockProof
+                    && scaffold.productionRepeatEnabledForActivation()) {
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_MODULE_ARMED=YES"
+                        + " activation=" + scaffold.activation());
+                System.out.flush();
+            }
             if (Boolean.getBoolean(
                     "custommc.acceptance.requireOriginalScaffoldMenuVeto")) {
                 System.out.println(
@@ -516,7 +535,36 @@ public final class Minecraft189RuntimeBridge {
         // Native World/player/session and screen revocation already ran.
         if (!twoBlockOriginalProof && scaffold != null
                 && scaffold.productionRepeatEnabledForActivation()) {
-            scaffold.productionRepeatAtOriginalTick(minecraft, true);
+            final Minecraft189ScaffoldNativePlacementAttempt.Result step =
+                    scaffold.productionRepeatAtOriginalTick(minecraft, true);
+            if (productionTwoBlockProof) {
+                final int receipts = scaffold.productionPositiveReceipts();
+                while (scaffoldProductionReceiptReported < receipts) {
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_CLIENT_READBACK_PASS=YES"
+                            + " step=" + ++scaffoldProductionReceiptReported);
+                    System.out.flush();
+                }
+                if (step != null) {
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_ORIGINAL_CONTROLLER_ATTEMPT=YES"
+                            + " step=" + scaffold.productionRepeatAttemptedCount()
+                            + " accepted=" + step.originalControllerAccepted
+                            + " target=" + step.targetX + "," + step.targetY
+                            + "," + step.targetZ
+                            + " selectedBefore=" + step.originalStackSize);
+                    System.out.flush();
+                }
+                if (!scaffoldProductionCompletionReported && receipts == 2
+                        && scaffold.repeatProofStopped()
+                        && scaffold.productionRepeatAttemptedCount() == 2) {
+                    scaffoldProductionCompletionReported = true;
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_TWO_CLIENT_RECEIPTS_PASS=YES"
+                            + " attempts=2");
+                    System.out.flush();
+                }
+            }
             return;
         }
         final boolean moduleArmed = scaffold != null && scaffold.armed();
@@ -2701,6 +2749,8 @@ public final class Minecraft189RuntimeBridge {
                     scaffoldRepeatProofStarted = false;
                     scaffoldRepeatPositiveAttempts = 0;
                     scaffoldRepeatPositiveReadbacks = 0;
+                    scaffoldProductionReceiptReported = 0;
+                    scaffoldProductionCompletionReported = false;
                     scaffoldMenuNegativeClearStability.reset();
                 }
                 closed = true;
