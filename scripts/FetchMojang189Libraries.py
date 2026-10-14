@@ -13,6 +13,8 @@ from pathlib import Path
 import re
 import shutil
 import sys
+import time
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
@@ -51,24 +53,37 @@ def fetch_bytes(url, checksum, size=None, cap=MAX_LIBRARY):
     if size is not None and (not isinstance(size, int) or size <= 0 or size > cap):
         raise ValueError("invalid declared download size")
     request = Request(url, headers={"User-Agent": "customMCclient-189-runtime-acceptance/1"})
-    count = 0
-    checksum_actual = hashlib.sha1()
-    result = bytearray()
-    with urlopen(request, timeout=90) as response:
-        if response.geturl() != url:
-            raise ValueError("unexpected redirect away from official URL")
-        while True:
-            chunk = response.read(1024 * 1024)
-            if not chunk:
-                break
-            count += len(chunk)
-            if count > cap:
-                raise ValueError("download exceeds capped size")
-            checksum_actual.update(chunk)
-            result.extend(chunk)
-    if checksum_actual.hexdigest() != checksum or (size is not None and count != size):
-        raise ValueError("official artifact hash/size mismatch")
-    return bytes(result)
+    # A runner's network route may briefly disappear. Only transport errors
+    # are retried; HTTP errors, redirects, size and SHA-1 failures still fail
+    # immediately. Every retry starts a NEW bounded digest and byte buffer.
+    for attempt in range(3):
+        count = 0
+        checksum_actual = hashlib.sha1()
+        result = bytearray()
+        try:
+            with urlopen(request, timeout=90) as response:
+                if response.geturl() != url:
+                    raise ValueError("unexpected redirect away from official URL")
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    count += len(chunk)
+                    if count > cap:
+                        raise ValueError("download exceeds capped size")
+                    checksum_actual.update(chunk)
+                    result.extend(chunk)
+        except HTTPError:
+            raise  # An official HTTP veto is not an intermittent route error.
+        except (URLError, TimeoutError, ConnectionError):
+            if attempt == 2:
+                raise
+            time.sleep(1 if attempt == 0 else 3)
+            continue
+        if checksum_actual.hexdigest() != checksum or (size is not None and count != size):
+            raise ValueError("official artifact hash/size mismatch")
+        return bytes(result)
+    raise AssertionError("unreachable transport attempt state")
 
 
 def allowed_on_linux(library):
