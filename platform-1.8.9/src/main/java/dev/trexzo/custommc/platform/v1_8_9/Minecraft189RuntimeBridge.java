@@ -370,6 +370,13 @@ public final class Minecraft189RuntimeBridge {
             final Minecraft189ScaffoldNativePlacementAttempt.Result attempted =
                     scaffold.attemptOnce(minecraft);
             if (attempted != null) {
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.requireOriginalScaffoldPlacement")) {
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_SCAFFOLD_MODULE_OWNER_PASS=YES"
+                            + " activation=" + moduleActivation);
+                    System.out.flush();
+                }
                 if (attempted.originalControllerAccepted
                         && scaffold.activation() == moduleActivation
                         && scaffoldOriginalSourceEpoch.observe(minecraft) == sourceEpoch) {
