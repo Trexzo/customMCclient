@@ -40,12 +40,13 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
     }
     private static final class World implements Minecraft189ScaffoldWorldReadAccess,
             Minecraft189ScaffoldWorldRayTraceAccess {
-        boolean loaded=true,rayValid=true,placed;
+        boolean loaded=true,rayValid=true,placed,secondPlaced;
         int reads,rays;
         public int customMcScaffoldCellCode(int x,int y,int z){
             reads++;
             if(!loaded)return UNKNOWN;
             if(x==1&&y==99&&z==0)return placed?FULL_SOLID:AIR;
+            if(x==2&&y==99&&z==0)return secondPlaced?FULL_SOLID:AIR;
             if(x==0&&y==99&&z==0)return FULL_SOLID;
             return UNKNOWN;
         }
@@ -53,9 +54,10 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
                 double sx,double sy,double sz,double ex,double ey,double ez,
                 int x,int y,int z,int face){
             rays++;
-            return rayValid && x==0 && y==99 && z==0 && face==5
-                    && sx==1.05D && ex<0.998D && ex>0.98D
-                    && ey>99 && ey<100;
+            return rayValid && y==99 && z==0 && face==5
+                    && ey>99 && ey<100
+                    && ((x==0 && sx==1.05D && ex<0.998D && ex>0.98D)
+                     || (x==1 && sx==2.05D && ex<1.998D && ex>1.98D));
         }
     }
     private static final class Cursor implements Minecraft189ScaffoldNativeBlockHitAccess {
@@ -346,6 +348,106 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
         assertFalse(module.armed(),
                 "vanilla false is a consumed attempt, never a retry loop");
         assertEquals(2,nativeController.clicks);
+    }
+
+    @Test void v36ModuleOwnedSequenceRequiresGenuineFreshTargetAfterFirstReceipt() {
+        Minecraft game=new Minecraft();
+        Stack stone=new Stack();
+        game.player.inventory.contents[0]=stone;
+        Controller controller=(Controller)game.controller;
+        Minecraft189ScaffoldModule module=new Minecraft189ScaffoldModule();
+        module.onEnable();
+        assertFalse(module.beginRepeatProof(game,10L,9,2),
+                "a 9-block batch must not bypass the bounded eight-block maximum");
+        assertTrue(module.beginRepeatProof(game,10L,2,2));
+        assertFalse(module.armed(),"repeat proof consumes the normal V35 one-shot arm");
+        assertNull(module.attemptOnce(game),"repeat and one-shot can never click together");
+        Minecraft189ScaffoldNativePlacementAttempt.Result first =
+                module.repeatProofAttempt(game,10L);
+        assertNotNull(first);
+        assertTrue(first.originalControllerAccepted);
+        assertEquals(1,controller.clicks);
+        assertNull(module.repeatProofAttempt(game,11L),
+                "pending original receipt prevents a second vanilla click");
+        assertFalse(module.repeatProofReceipt(game,11L),
+                "successful controller return alone is no world/inventory receipt");
+        game.world.placed=true;
+        assertFalse(module.repeatProofReceipt(game,12L),
+                "client World stone without exactly one consumed stone is not a receipt");
+        stone.count=7;
+        assertTrue(module.repeatProofReceipt(game,12L));
+        assertEquals(1,module.repeatProofAttemptedCount());
+
+        assertNull(module.repeatProofAttempt(game,13L),"pacing holds after receipt");
+        assertNull(module.repeatProofAttempt(game,14L),
+                "same original target cannot be re-clicked after the first receipt");
+        assertEquals(1,controller.clicks);
+
+        // Fresh original World/cursor/player and selected-stack evidence are
+        // independently re-probed. No synthetic packet, inventory mutation,
+        // click, rotation or block placement occurs inside the coordinator.
+        game.player.x=2.05D;
+        game.cursor.sample=new double[]{1,1,99,0,5,2.0D,99.5D,.5D};
+        Minecraft189ScaffoldNativePlacementAttempt.Result second =
+                module.repeatProofAttempt(game,15L);
+        assertNotNull(second);
+        assertEquals(2,second.targetX);
+        assertEquals(1,second.supportX);
+        assertEquals(7,second.originalStackSize);
+        assertEquals(2,controller.clicks,"second controller call needs a DIFFERENT target");
+        assertFalse(module.repeatProofReceipt(game,16L));
+        game.world.secondPlaced=true;
+        stone.count=6;
+        assertTrue(module.repeatProofReceipt(game,17L));
+        assertTrue(module.repeatProofStopped(),
+                "two successful original client receipts exhaust the two-action cap");
+        assertEquals(2,module.repeatProofAttemptedCount());
+        assertNull(module.repeatProofAttempt(game,23L));
+        assertEquals(2,controller.clicks);
+        module.onDisable();
+        assertNull(module.repeatProofAttempt(game,24L));
+    }
+
+    @Test void v36SourceSwapFalseControllerOrDisableCancelsFutureRepeat() {
+        Minecraft game=new Minecraft();
+        Stack stone=new Stack();
+        game.player.inventory.contents[0]=stone;
+        Controller controller=(Controller)game.controller;
+        Minecraft189ScaffoldModule module=new Minecraft189ScaffoldModule();
+        module.onEnable();
+        assertTrue(module.beginRepeatProof(game,1L,2,2));
+        assertNotNull(module.repeatProofAttempt(game,1L));
+        assertEquals(1,controller.clicks);
+        game.world=new World(); // even identical coordinates may not migrate
+        assertFalse(module.repeatProofReceipt(game,2L));
+        assertTrue(module.repeatProofStopped());
+        assertNull(module.repeatProofAttempt(game,10L));
+        assertEquals(1,controller.clicks);
+
+        module.onDisable();
+        module.onEnable();
+        game.player.inventory.contents[0]=new Stack();
+        controller.originalReturn=false;
+        assertTrue(module.beginRepeatProof(game,20L,2,2));
+        Minecraft189ScaffoldNativePlacementAttempt.Result denied =
+                module.repeatProofAttempt(game,20L);
+        assertNotNull(denied);
+        assertFalse(denied.originalControllerAccepted);
+        assertTrue(module.repeatProofStopped(),"original controller veto consumes batch");
+        assertFalse(module.repeatProofReceipt(game,21L));
+        assertNull(module.repeatProofAttempt(game,22L));
+        assertEquals(2,controller.clicks);
+
+        module.onDisable();
+        module.onEnable();
+        controller.originalReturn=true;
+        assertTrue(module.beginRepeatProof(game,30L,2,2));
+        assertNotNull(module.repeatProofAttempt(game,30L));
+        module.onDisable(); // no live receipt can outlive module disable
+        assertTrue(module.repeatProofStopped());
+        assertFalse(module.repeatProofReceipt(game,31L));
+        assertNull(module.repeatProofAttempt(game,32L));
+        assertEquals(3,controller.clicks);
     }
 
     @Test void missingSourceAndReconnectInvalidateOriginalGeneration(){
