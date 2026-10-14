@@ -465,7 +465,7 @@ def client_command(args, game, username, uuid, port, remote):
                 "-Dcustommc.acceptance.requireOriginalScaffoldReach=true",
                 "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true"):
             command.insert(command.index("-cp"), value)
-        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two"):
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldPlacement=true")
             if args.scaffold_placement == "menu-open":
@@ -474,6 +474,9 @@ def client_command(args, game, username, uuid, port, remote):
             if args.scaffold_placement == "repeat-two":
                 command.insert(command.index("-cp"),
                                "-Dcustommc.acceptance.requireOriginalScaffoldTwoBlockProof=true")
+            if args.scaffold_placement == "production-repeat-two":
+                command.insert(command.index("-cp"),
+                               "-Dcustommc.acceptance.requireProductionScaffoldTwoBlockProof=true")
         else:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldDisabledControl=true")
@@ -704,7 +707,7 @@ def run(args):
                  min(deadline, time.monotonic() + 65),
                  "host graphical client")
         host_window = None
-        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two"):
             # Unique real Minecraft client on this freshly allocated Xvfb
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
@@ -756,7 +759,7 @@ def run(args):
                                 "setblock {} {} {} stone".format(*support))
             send_server_command(server, server_log,
                                 "setblock {} {} {} air".format(*target_xyz))
-            if args.scaffold_placement == "repeat-two":
+            if args.scaffold_placement in ("repeat-two", "production-repeat-two"):
                 send_server_command(server, server_log,
                                     "setblock {} {} {} air".format(*second_target_xyz))
             # Capture a byte-precise diagnostic boundary for menu-negative
@@ -835,13 +838,20 @@ def run(args):
             attempt=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
             receipt=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK_PASS=YES"
             disabled=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES"
-            repeat_attempt = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_ORIGINAL_CONTROLLER_ATTEMPT=YES"
-            repeat_receipt = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_CLIENT_READBACK_PASS=YES"
-            repeat_arm = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_MODULE_ARMED=YES"
+            # CI-only repeat and production opt-in must have DIFFERENT markers.
+            # A V37 marker never certifies a V43 production controller call.
+            is_production_repeat = args.scaffold_placement == "production-repeat-two"
+            repeat_marker = (b"PRODUCTION" if is_production_repeat else b"REPEAT")
+            repeat_attempt = (b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
+                              + b"_ORIGINAL_CONTROLLER_ATTEMPT=YES")
+            repeat_receipt = (b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
+                              + b"_CLIENT_READBACK_PASS=YES")
+            repeat_arm = (b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
+                          + b"_MODULE_ARMED=YES")
             if any(tag in log_tail(host_log)
                    for tag in (module,attempt,receipt,repeat_attempt,repeat_receipt,repeat_arm)):
                 raise AssertionError("native placement or repeat arm before genuine server grant")
-            if args.scaffold_placement in ("enabled", "repeat-two"):
+            if args.scaffold_placement in ("enabled", "repeat-two", "production-repeat-two"):
                 # Genuine host keyboard selects hotbar slot 0. This is not
                 # a spoofed inventory setter or a fabricated ItemStack.
                 # Server sends the real eight-block Survival grant afterward.
@@ -853,7 +863,9 @@ def run(args):
             # after grant in the enabled mode races the intended 8 -> 7
             # survival decrement. Only the disabled control may retain
             # an eight-item post-grant baseline.
-            if args.scaffold_placement == "repeat-two":
+            if args.scaffold_placement in ("repeat-two", "production-repeat-two"):
+                # V37 proves the isolated sequence; V43 independently runs
+                # the real default-off setting explicitly enabled for CI.
                 # V37 is an isolated opt-in new original-client JVM and
                 # dedicated-server fixture: strictly 2 different raytrace
                 # targets, one native controller action per original receipt.
@@ -895,7 +907,9 @@ def run(args):
                 send_server_command(server, server_log,
                                     "clear CIHost stone 0 0",
                                     expected=b"has 7 items that match the criteria")
-                print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_SERVER_FIRST_STONE_SEVEN_PASS=YES",
+                print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_"
+                      + repeat_marker.decode("ascii")
+                      + "_SERVER_FIRST_STONE_SEVEN_PASS=YES",
                       flush=True)
 
                 # The server moves the real local player to the second edge.
@@ -910,7 +924,8 @@ def run(args):
                 wait_for(host, host_log, repeat_receipt + b" step=2", deadline,
                          "source original WorldClient second stone + 7-to-6 debit")
                 wait_for(host, host_log,
-                         b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_TWO_CLIENT_RECEIPTS_PASS=YES attempts=2",
+                         b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
+                         + b"_TWO_CLIENT_RECEIPTS_PASS=YES attempts=2",
                          deadline, "no extra original controller attempt")
                 if log_tail(host_log).count(repeat_attempt) != 2:
                     raise AssertionError("two-block fixture did not issue exactly two original clicks")
@@ -921,7 +936,9 @@ def run(args):
                 send_server_command(server, server_log,
                                     "clear CIHost stone 0 0",
                                     expected=b"has 6 items that match the criteria")
-                print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_SERVER_TWO_STONE_SIX_PASS=YES",
+                print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_"
+                      + repeat_marker.decode("ascii")
+                      + "_SERVER_TWO_STONE_SIX_PASS=YES",
                       flush=True)
             elif args.scaffold_placement == "enabled":
                 # V35's production veto is correct: an OPEN original GUI
@@ -1805,7 +1822,7 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
-    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two"),
+    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two","production-repeat-two"),
                         help="dedicated Mojang server-authoritative Scaffold placement/disabled proof")
     parser.add_argument("--require-index-reorder", action="store_true",
                         help="fail-closed actual native entity-index change on fresh A rejoin")
