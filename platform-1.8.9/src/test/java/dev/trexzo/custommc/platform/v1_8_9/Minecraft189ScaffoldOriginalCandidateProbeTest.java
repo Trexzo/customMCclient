@@ -564,6 +564,7 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
         game.player.inventory.contents[0] = sameItem;
         assertTrue(module.beginRepeatProof(game, 20L, 2, 4));
         assertNotNull(module.repeatProofAttempt(game, 20L));
+        game.world.placed = true;
         sameItem.count = 7;
         assertTrue(module.repeatProofReceipt(game, 21L));
         game.player.inventory.slot = 1;
