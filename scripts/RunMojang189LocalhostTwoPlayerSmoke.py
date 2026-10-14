@@ -563,9 +563,11 @@ def client_command(args, game, username, uuid, port, remote):
     return command
 
 
-def open_real_host_inventory(host):
-    """Send a real X11 inventory key to the exact original host JVM window."""
-    check_process(host, "host GUI open")
+def send_real_host_key(host, key):
+    """Press only a whitelisted vanilla key on the original host JVM X11 window."""
+    if key not in ("e", "1"):
+        raise ValueError("invalid original host Minecraft key")
+    check_process(host, "host X11 key")
     result = subprocess.run(
         ["xdotool", "search", "--onlyvisible", "--name", "Minecraft"],
         capture_output=True, text=True, check=False,
@@ -587,7 +589,7 @@ def open_real_host_inventory(host):
             continue
         subprocess.run(["xdotool", "windowactivate", "--sync", window],
                        check=True, stdout=subprocess.DEVNULL)
-        subprocess.run(["xdotool", "key", "--clearmodifiers", "e"],
+        subprocess.run(["xdotool", "key", "--clearmodifiers", key],
                        check=True, stdout=subprocess.DEVNULL)
         return
     raise AssertionError("X11 Minecraft host window PID did not match original JVM")
@@ -743,7 +745,7 @@ def run(args):
                     raise AssertionError("GUI was vetoed before actual inventory E keypress")
                 # The source-observed GUI field must become non-null after
                 # real X11 E. Only then do we grant a block on the server.
-                open_real_host_inventory(host)
+                send_real_host_key(host, "e")
                 wait_for(host,host_log,
                          b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_GUI_VETO=YES state=OPEN",
                          deadline,"native original Minecraft GUI cancels armed Scaffold")
@@ -761,6 +763,12 @@ def run(args):
             disabled=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES"
             if any(tag in log_tail(host_log) for tag in (module,attempt,receipt)):
                 raise AssertionError("native placement before real dedicated server grant")
+            if args.scaffold_placement == "enabled":
+                # Genuine host keyboard selects hotbar slot 0. This is not
+                # a spoofed inventory setter or a fabricated ItemStack.
+                # Server sends the real eight-block Survival grant afterward.
+                send_real_host_key(host, "1")
+                print("CUSTOMMC_189_SCAFFOLD_ORIGINAL_HOTBAR_ONE_KEY=YES", flush=True)
             send_server_command(server, server_log,"give CIHost stone 8")
             # A legitimate enabled client may place the first block the
             # very next original runTick. Requiring a server count of 8
