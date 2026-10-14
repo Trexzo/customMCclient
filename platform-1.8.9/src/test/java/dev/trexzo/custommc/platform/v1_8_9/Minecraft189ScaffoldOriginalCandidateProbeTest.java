@@ -234,6 +234,66 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
                 "replacement player with matching inventory may not inherit receipt");
     }
 
+    @Test void armedScaffoldWorldLeaseAllowsInitialLoadingThenRevokesDisconnect() {
+        Minecraft game=new Minecraft();
+        Minecraft189ScaffoldActivationSource lease=
+                new Minecraft189ScaffoldActivationSource();
+        World original=game.world;
+        game.world=null;
+        assertEquals(Minecraft189ScaffoldActivationSource.Verdict.WAITING,
+                lease.observe(game),"initial menu without World cannot consume activation");
+        game.world=original;
+        assertEquals(Minecraft189ScaffoldActivationSource.Verdict.SAME,
+                lease.observe(game));
+        assertTrue(lease.witnessed());
+
+        // Cursor, inventory and onGround must NOT define source identity:
+        // place-readiness may legitimately change without replacing World.
+        game.player.inventory.contents[0]=null;
+        game.player.onGround=false;
+        assertEquals(Minecraft189ScaffoldActivationSource.Verdict.SAME,
+                lease.observe(game));
+
+        game.world=null;
+        assertEquals(Minecraft189ScaffoldActivationSource.Verdict.REVOKED,
+                lease.observe(game),"disconnect cancels arm even before first click");
+        game.world=original;
+        assertEquals(Minecraft189ScaffoldActivationSource.Verdict.REVOKED,
+                lease.observe(game),"same World returning cannot revive prior arm");
+
+        lease.reset(); // only new explicit module activation
+        assertEquals(Minecraft189ScaffoldActivationSource.Verdict.SAME,
+                lease.observe(game));
+        game.world=new World();
+        assertEquals(Minecraft189ScaffoldActivationSource.Verdict.REVOKED,
+                lease.observe(game),"World replacement cannot inherit old arm");
+    }
+
+    @Test void armedScaffoldPlayerOrMinecraftReplacementRevokesAuthority() {
+        Minecraft game=new Minecraft();
+        Minecraft189ScaffoldActivationSource lease=
+                new Minecraft189ScaffoldActivationSource();
+        assertEquals(Minecraft189ScaffoldActivationSource.Verdict.SAME,
+                lease.observe(game));
+        game.player=new Player();
+        assertEquals(Minecraft189ScaffoldActivationSource.Verdict.REVOKED,
+                lease.observe(game),"player replacement must invalidate armed one-shot");
+
+        lease.reset();
+        assertEquals(Minecraft189ScaffoldActivationSource.Verdict.SAME,
+                lease.observe(game));
+        Minecraft secondGame=new Minecraft();
+        secondGame.player=game.player;
+        secondGame.world=game.world;
+        assertEquals(Minecraft189ScaffoldActivationSource.Verdict.REVOKED,
+                lease.observe(secondGame),"new Minecraft host cannot inherit an arm");
+        lease.reset();
+        assertEquals(Minecraft189ScaffoldActivationSource.Verdict.WAITING,
+                lease.observe(null));
+        assertEquals(Minecraft189ScaffoldActivationSource.Verdict.SAME,
+                lease.observe(secondGame));
+    }
+
     @Test void realScaffoldModuleMustBeEnabledAndConsumesOnlyOneAttemptPerEnable(){
         Minecraft game=new Minecraft();
         Stack stone=new Stack();
