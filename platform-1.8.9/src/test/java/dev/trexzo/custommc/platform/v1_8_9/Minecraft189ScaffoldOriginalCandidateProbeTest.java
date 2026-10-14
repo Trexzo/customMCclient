@@ -9,10 +9,13 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 final class Minecraft189ScaffoldOriginalCandidateProbeTest {
     private static final class Stack implements Minecraft189ItemStackAccess {
-        int count=8;
+        static final Object ORIGINAL_STONE_ITEM = new Object();
+        int count=8, damage;
+        Object item = ORIGINAL_STONE_ITEM;
         public String customMcDisplayName(){return "UNTRUSTED";}
         public int customMcStackSize(){return count;}
-        public int customMcItemDamage(){return 0;}
+        public int customMcItemDamage(){return damage;}
+        public Object customMcOriginalItemIdentity(){return item;}
         public int customMcMaxDamage(){return 0;}
         public boolean customMcIsBlockItem(){return true;}
     }
@@ -432,7 +435,7 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
                 "temporary airborne movement cannot revoke unchanged source identity");
         assertEquals(1, controller.clicks);
         String waiting = module.repeatProofDiagnostics(game);
-        assertTrue(waiting.contains("same_original_stack_and_expected_count=7"), waiting);
+        assertTrue(waiting.contains("same_original_item_and_expected_count=7"), waiting);
         assertEquals(1, controller.clicks);
 
         game.player.onGround = true;
@@ -461,7 +464,7 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
 
         final String previousTarget = module.repeatProofDiagnostics(game);
         assertTrue(previousTarget.contains("attempts=1"));
-        assertTrue(previousTarget.contains("same_original_stack_and_expected_count=7"));
+        assertTrue(previousTarget.contains("same_original_item_and_expected_count=7"));
         assertEquals(1, controller.clicks);
         assertFalse(module.repeatProofStopped(),
                 "read-only diagnostic must not close the original transaction");
@@ -489,14 +492,85 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
         game.world.placed = true;
         original.count = 7;
         assertTrue(module.repeatProofReceipt(game, 6L));
-        game.player.inventory.contents[0] = new Stack();
+        Stack differentBlock = new Stack();
+        differentBlock.item = new Object();
+        differentBlock.count = 7;
+        game.player.inventory.contents[0] = differentBlock;
         final String diagnostic = module.repeatProofDiagnostics(game);
-        assertTrue(diagnostic.contains("original_stack_identity_changed"), diagnostic);
+        assertTrue(diagnostic.contains("original_item_identity_or_damage_changed"), diagnostic);
         assertEquals(1, controller.clicks);
         assertNull(module.repeatProofAttempt(game, 10L),
-                "normal transaction still rejects replaced ItemStack identity");
+                "different original Item must be rejected even at correct slot/count");
         assertTrue(module.repeatProofStopped());
         assertEquals(1, controller.clicks);
+    }
+
+    @Test void v39VanillaSynchronizedStackReplacementNeedsSameNativeItemAndCount() {
+        Minecraft game = new Minecraft();
+        Stack original = new Stack();
+        game.player.inventory.contents[0] = original;
+        Controller controller = (Controller) game.controller;
+        Minecraft189ScaffoldModule module = new Minecraft189ScaffoldModule();
+        module.onEnable();
+        assertTrue(module.beginRepeatProof(game, 5L, 2, 4));
+        assertNotNull(module.repeatProofAttempt(game, 5L));
+        game.world.placed = true;
+        // Original server may replace the ItemStack wrapper *after* vanilla
+        // decrements. The exact original Item singleton, metadata, slot and
+        // survival count must remain authoritative across that replacement.
+        Stack synchronizedStack = new Stack();
+        synchronizedStack.count = 7;
+        game.player.inventory.contents[0] = synchronizedStack;
+        assertTrue(module.repeatProofReceipt(game, 6L),
+                "fresh source-mapped ItemStack with the same original Item/7 must receipt");
+        assertEquals(1, controller.clicks);
+        game.player.x = 2.05D;
+        game.cursor.sample = new double[]{1,1,99,0,5,2.0D,99.5D,.5D};
+        final String diagnostic = module.repeatProofDiagnostics(game);
+        assertTrue(diagnostic.contains("same_original_item_and_expected_count=7"),
+                diagnostic);
+        Minecraft189ScaffoldNativePlacementAttempt.Result next =
+                module.repeatProofAttempt(game, 10L);
+        assertNotNull(next, "same original Item after synchronization may place next");
+        assertEquals(2, next.targetX);
+        assertEquals(7, next.originalStackSize);
+        assertEquals(2, controller.clicks);
+    }
+
+    @Test void v39MetadataOrSelectedSlotChangedAfterReceiptFailsClosed() {
+        Minecraft game = new Minecraft();
+        Stack original = new Stack();
+        game.player.inventory.contents[0] = original;
+        Minecraft189ScaffoldModule module = new Minecraft189ScaffoldModule();
+        module.onEnable();
+        assertTrue(module.beginRepeatProof(game, 5L, 2, 4));
+        assertNotNull(module.repeatProofAttempt(game, 5L));
+        game.world.placed = true;
+        original.count = 7;
+        assertTrue(module.repeatProofReceipt(game, 6L));
+        Stack changedMetadata = new Stack();
+        changedMetadata.count = 7;
+        changedMetadata.damage = 1;
+        game.player.inventory.contents[0] = changedMetadata;
+        assertNull(module.repeatProofAttempt(game, 10L));
+        assertTrue(module.repeatProofStopped(),
+                "changing original block metadata cannot inherit authority");
+
+        module.onDisable();
+        module.onEnable();
+        Stack sameItem = new Stack();
+        game.player.inventory.contents[0] = sameItem;
+        assertTrue(module.beginRepeatProof(game, 20L, 2, 4));
+        assertNotNull(module.repeatProofAttempt(game, 20L));
+        sameItem.count = 7;
+        assertTrue(module.repeatProofReceipt(game, 21L));
+        game.player.inventory.slot = 1;
+        Stack otherSlot = new Stack();
+        otherSlot.count = 7;
+        game.player.inventory.contents[1] = otherSlot;
+        assertNull(module.repeatProofAttempt(game, 25L));
+        assertTrue(module.repeatProofStopped(),
+                "same original Item in a different selected hotbar slot is vetoed");
     }
 
     @Test void v36SourceSwapFalseControllerOrDisableCancelsFutureRepeat() {
