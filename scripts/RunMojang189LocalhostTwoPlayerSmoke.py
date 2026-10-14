@@ -793,6 +793,25 @@ def run(args):
                             "CUSTOMMC_189_SCAFFOLD_STARTUP_MENU_DISMISSED_BY_REAL_ESCAPE=YES",
                             flush=True)
                     time.sleep(0.25)
+                # Fail with the original host's ACTUAL diagnostics, not only
+                # the generic missing-marker timeout. Never fabricate a
+                # CLEAR state or send an unverified second Escape.
+                if armed not in fresh_host_log:
+                    source_lines = [
+                        line.decode("utf-8", errors="replace")[-420:]
+                        for line in fresh_host_log.splitlines()
+                        if (b"SCAFFOLD_ARM_WAIT" in line
+                            or b"SCAFFOLD_GUI_ARMED_IN_WORLD" in line
+                            or b"ACCEPTANCE_SCREEN" in line
+                            or b"SCAFFOLD_ORIGINAL_GUI_VETO" in line)
+                    ]
+                    print("CUSTOMMC_189_GUI_NEGATIVE_PREARM_DIAG"
+                          " originalOpenReports={} dismissed={} evidence={}".format(
+                              fresh_host_log.count(original_open),
+                              dismissed_startup_menu, source_lines[-8:]),
+                          flush=True)
+                    raise AssertionError(
+                        "original in-world GUI-clear arm failed before actual E")
                 wait_for(host,host_log,armed,deadline,
                          "stable original GUI-clear World armed before inventory key")
                 if b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_GUI_VETO=YES" in log_tail(host_log):
