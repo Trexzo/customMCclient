@@ -600,13 +600,16 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                     time.sleep(.15)
                 else:
                     raise AssertionError("original Survival player not grounded on real support")
+                module_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_MODULE_OWNER_PASS=YES"
                 attempt_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
                 readback_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK_PASS=YES"
                 disabled_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES"
-                if any(tag in read_tail(log) for tag in (attempt_tag, readback_tag, disabled_tag)):
+                if any(tag in read_tail(log) for tag in (module_tag, attempt_tag, readback_tag, disabled_tag)):
                     raise AssertionError("native placement witness appeared before server ItemBlock grant")
                 send_command(process, log, window, "/give CIProbe stone 8")
                 if native_scaffold_placement == "enabled":
+                    await_marker(process, log, module_tag, deadline,
+                                 "real enabled Scaffold module admitted vanilla click")
                     await_marker(process, log, attempt_tag, deadline,
                                  "vanilla onPlayerRightClick admitted by original source gate")
                     if b"accepted=true" not in read_tail(log):
@@ -618,7 +621,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 else:
                     await_marker(process, log, disabled_tag, deadline,
                                  "original World air and unchanged eight-stack while disabled")
-                    if attempt_tag in read_tail(log) or readback_tag in read_tail(log):
+                    if any(tag in read_tail(log) for tag in (module_tag, attempt_tag, readback_tag)):
                         raise AssertionError("disabled placement entered native controller")
                     print("CUSTOMMC_OFFICIAL_189_DISABLED_SURVIVAL_SCAFFOLD_NEGATIVE_PASS=YES",
                           flush=True)
@@ -760,7 +763,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         except BaseException:
             if native_scaffold_placement:
                 lines = [line for line in log.read_bytes().splitlines()
-                         if b"SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT" in line
+                         if b"SCAFFOLD_MODULE_OWNER" in line
+                         or b"SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT" in line
                          or b"SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK" in line
                          or b"SCAFFOLD_DISABLED_SURVIVAL" in line
                          or b"SCAFFOLD_ORIGINAL_TICK_CONTEXT" in line]
