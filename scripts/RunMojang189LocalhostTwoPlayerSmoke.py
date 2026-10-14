@@ -593,7 +593,7 @@ def identify_original_host_window_before_target(host):
 
 def send_real_host_key(host, host_window, key):
     """Send whitelisted vanilla key to previously identified original host."""
-    if key not in ("e", "1"):
+    if key not in ("e", "1", "Escape"):
         raise ValueError("invalid original host Minecraft key")
     check_process(host, "host X11 key")
     if not host_window:
@@ -797,6 +797,31 @@ def run(args):
             # survival decrement. Only the disabled control may retain
             # an eight-item post-grant baseline.
             if args.scaffold_placement == "enabled":
+                # V35's production veto is correct: an OPEN original GUI
+                # forbids arming even with a valid ray, World and eight
+                # genuine ItemBlocks. Some LWJGL startup screens persist
+                # after the remote dedicated-world teleport. Only when
+                # original native diagnostics explicitly prove this GUI
+                # blocker AND a ready native candidate may CI press a
+                # genuine Escape in the uniquely captured host X11 window.
+                # Do not send Escape blindly: on a CLEAR screen that would
+                # create the pause menu and invalidate legitimate placement.
+                menu_blocked = (
+                    b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ARM_WAIT"
+                    b" screen=OPEN source=positive_candidate_already_available"
+                )
+                while time.monotonic() < deadline:
+                    check_process(host, "enabled Scaffold source GUI readiness")
+                    host_data = log_tail(host_log)
+                    if module in host_data:
+                        break
+                    if menu_blocked in host_data:
+                        send_real_host_key(host, host_window, "Escape")
+                        print(
+                            "CUSTOMMC_189_SCAFFOLD_ORIGINAL_GUI_CLOSED_BY_REAL_ESCAPE=YES",
+                            flush=True)
+                        break
+                    time.sleep(0.25)
                 wait_for(host,host_log,module,deadline,
                          "source-enabled Scaffold module owns dedicated placement")
                 wait_for(host,host_log,attempt,deadline,
