@@ -29,6 +29,7 @@ public final class Minecraft189ScaffoldModule implements Module {
     private boolean productionRepeatForActivation;
     private boolean productionRepeatStarted;
     private long productionRepeatTick;
+    private int productionPositiveReceipts;
     private boolean enabled;
     private boolean attempted;
     private boolean exhausted;
@@ -47,6 +48,7 @@ public final class Minecraft189ScaffoldModule implements Module {
         productionRepeatForActivation = false;
         productionRepeatStarted = false;
         productionRepeatTick = 0L;
+        productionPositiveReceipts = 0;
         if (exhausted || activation == Long.MAX_VALUE) {
             exhausted = true;
             return;
@@ -64,6 +66,7 @@ public final class Minecraft189ScaffoldModule implements Module {
         productionRepeatForActivation = false;
         productionRepeatStarted = false;
         productionRepeatTick = 0L;
+        productionPositiveReceipts = 0;
         if (activation == Long.MAX_VALUE) exhausted = true;
         else activation++;
     }
@@ -74,6 +77,10 @@ public final class Minecraft189ScaffoldModule implements Module {
     }
     synchronized boolean productionRepeatStarted() { return productionRepeatStarted; }
     synchronized long productionRepeatTickCount() { return productionRepeatTick; }
+    synchronized int productionPositiveReceipts() { return productionPositiveReceipts; }
+    synchronized int productionRepeatAttemptedCount() {
+        return repeatSequence.attemptedCount();
+    }
     synchronized boolean active() { return enabled && !exhausted; }
     synchronized boolean armed() { return active() && !attempted; }
     synchronized long activation() { return active() ? activation : 0L; }
@@ -96,24 +103,25 @@ public final class Minecraft189ScaffoldModule implements Module {
      * the same activation as the normal one-shot or the CI-only repeat proof.
      * No original game references escape the module-owned synchronous tick.
      */
-    synchronized void productionRepeatAtOriginalTick(
-            final Object originalMinecraft, final boolean originalGuiClear) {
-        if (!productionRepeatEnabledForActivation()) return;
+    synchronized Minecraft189ScaffoldNativePlacementAttempt.Result
+            productionRepeatAtOriginalTick(
+                    final Object originalMinecraft, final boolean originalGuiClear) {
+        if (!productionRepeatEnabledForActivation()) return null;
         // Turning the user setting OFF while active is an immediate veto,
         // never a transfer back to the one-shot arm in the same activation.
         if (!Boolean.TRUE.equals(twoPlacements.get())) {
             repeatSequence.invalidate();
             attempted = true;
             productionRepeatStarted = true;
-            return;
+            return null;
         }
         if (!originalGuiClear || originalMinecraft == null
                 || (attempted && !productionRepeatStarted))
-            return;
+            return null;
         if (productionRepeatTick == Long.MAX_VALUE) {
             repeatSequence.invalidate();
             productionRepeatStarted = true;
-            return;
+            return null;
         }
         final long tick = ++productionRepeatTick;
         if (!productionRepeatStarted && armed()
@@ -122,11 +130,16 @@ public final class Minecraft189ScaffoldModule implements Module {
             productionRepeatStarted = true;
             attempted = true; // Permanently exclude the one-shot per enable.
         }
-        if (!productionRepeatStarted || repeatSequence.stopped()) return;
-        repeatSequence.checkReceipt(originalMinecraft, activation, tick);
-        if (!repeatSequence.stopped()) {
-            repeatSequence.tryNext(originalMinecraft, activation, tick);
+        if (!productionRepeatStarted || repeatSequence.stopped()) return null;
+        if (repeatSequence.checkReceipt(originalMinecraft, activation, tick)) {
+            // This is a source-original WorldClient+inventory receipt,
+            // not independent dedicated-server authority.
+            productionPositiveReceipts++;
         }
+        if (!repeatSequence.stopped()) {
+            return repeatSequence.tryNext(originalMinecraft, activation, tick);
+        }
+        return null;
     }
 
     synchronized boolean beginRepeatProof(final Object originalMinecraft,
