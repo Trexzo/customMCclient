@@ -120,32 +120,13 @@ final class Minecraft189KillAuraTargetSelector {
             return;
         }
         final UUID lockedUuid = aura.lockedTargetUuid();
-        // Retain a living, source-identified lock even when temporary
-        // distance/FOV/hurt/visibility filtering makes it ineligible.
-        // The correct fallback for an ineligible live owner is NO attack,
-        // never a click on an unrelated UUID. A truly missing/dead owner
-        // can be replaced by fresh selection.
-        int retainedIndex = -1;
-        if (lockEnabled && lockedUuid != null) {
-            for (int index = 0; index < identities.entityCount(); index++) {
-                if (lockedUuid.equals(identities.at(index))
-                        && kinds.player(index) && !kinds.localPlayer(index)
-                        && combat.alive(index)) {
-                    retainedIndex = index;
-                    break;
-                }
-            }
-        }
-        final int retainedLivingIndex = retainedIndex;
         final double range = aura.rangeSetting().get();
         final double fov = aura.fovSetting().get();
         final boolean crosshair = aura.prioritizeCrosshairSetting().get();
         final boolean skipHurt = aura.switchHurtTargetsSetting().get();
         final int acceptedHurtTime = aura.maxSwitchHurtTicksSetting().get();
         target.update(local, positions, kinds, 0.0D, range,
-                candidate -> (retainedLivingIndex < 0
-                                || candidate.entityIndex() == retainedLivingIndex)
-                        && combat.alive(candidate.entityIndex())
+                candidate -> combat.alive(candidate.entityIndex())
                         && (!skipHurt
                                 || combat.hurtTime(candidate.entityIndex()) <= acceptedHurtTime)
                         && (antiBot == null
@@ -169,9 +150,8 @@ final class Minecraft189KillAuraTargetSelector {
         final Minecraft189NearestPlayerTargetState.Snapshot selected =
                 target.snapshot();
         aura.rememberSelectedTarget(
-                !lockEnabled ? null
-                        : selected.found() ? identities.at(selected.entityIndex())
-                        : retainedLivingIndex >= 0 ? lockedUuid : null);
+                selected.found() && lockEnabled
+                        ? identities.at(selected.entityIndex()) : null);
     }
 
     private static double angularScore(
