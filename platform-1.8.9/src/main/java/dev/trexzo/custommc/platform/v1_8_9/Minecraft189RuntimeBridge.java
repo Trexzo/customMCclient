@@ -157,6 +157,7 @@ public final class Minecraft189RuntimeBridge {
         scaffoldOriginalSourceEpoch.invalidate();
         scaffoldOriginalPlacementReadbackReported = false;
         scaffoldAcceptanceEnableIssued = false;
+        scaffoldAcceptancePendingDiagTicks = 0;
         scaffoldDisabledProofTicks = 0;
         scaffoldDisabledProofReported = false;
         return new Registration(next);
@@ -268,6 +269,7 @@ public final class Minecraft189RuntimeBridge {
     private static int scaffoldDisabledProofTicks;
     private static boolean scaffoldDisabledProofReported;
     private static boolean scaffoldAcceptanceEnableIssued;
+    private static int scaffoldAcceptancePendingDiagTicks;
 
     /**
      * Original-game CI controls when to enable the real module through its
@@ -327,12 +329,26 @@ public final class Minecraft189RuntimeBridge {
         // Track exact original Minecraft/World/player identities only while
         // the opt-in placement proof is active or a receipt is outstanding.
         final Minecraft189ScaffoldModule scaffold = activeRuntime.scaffoldModule();
-        if (scaffold != null && !scaffoldAcceptanceEnableIssued
+        final boolean needsAcceptanceEnable = scaffold != null
+                && !scaffoldAcceptanceEnableIssued
                 && Boolean.getBoolean(
-                        "custommc.acceptance.requireOriginalScaffoldPlacement")
+                        "custommc.acceptance.requireOriginalScaffoldPlacement");
+        final boolean acceptanceReady = needsAcceptanceEnable
                 && originalScaffoldAcceptanceMayArm(minecraft,
                         Boolean.getBoolean(
-                                "custommc.acceptance.requireOriginalScaffoldMenuVeto"))) {
+                                "custommc.acceptance.requireOriginalScaffoldMenuVeto"));
+        if (needsAcceptanceEnable && !acceptanceReady
+                && ++scaffoldAcceptancePendingDiagTicks % 100 == 0) {
+            // Strictly observational, bounded original-source diagnostics.
+            // Never alter the source cursor, hotbar, controller or module.
+            System.out.println(
+                    "CUSTOMMC_OFFICIAL_189_SCAFFOLD_ARM_WAIT"
+                    + " screen=" + Minecraft189ScaffoldScreenGate.inspect(minecraft)
+                    + " source=" + Minecraft189ScaffoldOriginalCandidateProbe
+                            .diagnose(minecraft));
+            System.out.flush();
+        }
+        if (acceptanceReady) {
             // One grant per boot/runtime, never re-arm after a veto, World
             // switch or controller failure. The ordinary production module
             // is disabled by default and user toggles remain unchanged.
@@ -2567,6 +2583,7 @@ public final class Minecraft189RuntimeBridge {
                     scaffoldOriginalActivationSource.reset();
                     scaffoldOriginalActivationLease = 0L;
                     scaffoldAcceptanceEnableIssued = false;
+                    scaffoldAcceptancePendingDiagTicks = 0;
                 }
                 closed = true;
             }
