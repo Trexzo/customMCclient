@@ -83,6 +83,9 @@ public final class Minecraft189ScaffoldModule implements Module {
                 && repeatSequence.checkReceipt(originalMinecraft, activation, tick);
     }
 
+    synchronized String repeatProofDiagnostics(final Object originalMinecraft) {
+        return repeatSequence.diagnose(originalMinecraft);
+    }
     synchronized boolean repeatProofStopped() { return repeatSequence.stopped(); }
     synchronized int repeatProofAttemptedCount() {
         return repeatSequence.attemptedCount();
