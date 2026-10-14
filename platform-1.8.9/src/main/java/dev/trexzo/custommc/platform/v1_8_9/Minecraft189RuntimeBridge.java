@@ -158,6 +158,7 @@ public final class Minecraft189RuntimeBridge {
         scaffoldOriginalPlacementReadbackReported = false;
         scaffoldAcceptanceEnableIssued = false;
         scaffoldAcceptancePendingDiagTicks = 0;
+        scaffoldMenuNegativeClearStability.reset();
         scaffoldDisabledProofTicks = 0;
         scaffoldDisabledProofReported = false;
         return new Registration(next);
@@ -270,6 +271,8 @@ public final class Minecraft189RuntimeBridge {
     private static boolean scaffoldDisabledProofReported;
     private static boolean scaffoldAcceptanceEnableIssued;
     private static int scaffoldAcceptancePendingDiagTicks;
+    private static final Minecraft189ScaffoldGuiClearStability
+            scaffoldMenuNegativeClearStability = new Minecraft189ScaffoldGuiClearStability();
 
     /**
      * Original-game CI controls when to enable the real module through its
@@ -279,20 +282,36 @@ public final class Minecraft189RuntimeBridge {
      */
     private static boolean originalScaffoldAcceptanceMayArm(
             final Object minecraft, final boolean guiNegative) {
-        if (!(minecraft instanceof Minecraft189ScaffoldNativeContextAccess)
-                || Minecraft189ScaffoldScreenGate.inspect(minecraft)
-                        != Minecraft189ScaffoldScreenGate.Verdict.CLEAR)
+        if (!(minecraft instanceof Minecraft189ScaffoldNativeContextAccess)) {
+            if (guiNegative) scaffoldMenuNegativeClearStability.reset();
             return false;
+        }
+        final Minecraft189ScaffoldScreenGate.Verdict screen =
+                Minecraft189ScaffoldScreenGate.inspect(minecraft);
         try {
             final Minecraft189ScaffoldNativeContextAccess original =
                     (Minecraft189ScaffoldNativeContextAccess)minecraft;
             if (guiNegative) {
                 final Object[] nativeSource = original.customMcScaffoldNativeContext();
-                return nativeSource != null && nativeSource.length == 3
-                        && nativeSource[0] instanceof Minecraft189LocalPlayerSafeWalkMarker
-                        && nativeSource[0] instanceof Minecraft189PlayerPositionAccess
-                        && nativeSource[1] instanceof Minecraft189ScaffoldWorldReadAccess;
+                if (nativeSource == null || nativeSource.length != 3
+                        || !(nativeSource[0] instanceof Minecraft189LocalPlayerSafeWalkMarker)
+                        || !(nativeSource[0] instanceof Minecraft189PlayerPositionAccess)
+                        || !(nativeSource[1] instanceof Minecraft189ScaffoldWorldReadAccess)) {
+                    scaffoldMenuNegativeClearStability.reset();
+                    return false;
+                }
+                // Initial World/login/pause screens may briefly report CLEAR
+                // just before another vanilla menu opens. The menu-negative
+                // test must have a full stable original World/Player source
+                // and 60 consecutive original GUI-clear ticks BEFORE the
+                // first (and only) module-controller enable. A later OPEN
+                // still revokes the activation via the production V35 veto.
+                return scaffoldMenuNegativeClearStability.observe(
+                        minecraft, nativeSource[0], nativeSource[1],
+                        screen == Minecraft189ScaffoldScreenGate.Verdict.CLEAR);
             }
+            if (screen != Minecraft189ScaffoldScreenGate.Verdict.CLEAR)
+                return false;
             final Minecraft189ScaffoldNativeContext.Witness witness =
                     Minecraft189ScaffoldNativeContext.capture(original);
             if (witness == null
@@ -311,6 +330,7 @@ public final class Minecraft189RuntimeBridge {
             // arm the controller and then be revoked by an incidental GUI.
             return selected != null && selected.sourceStackSize == 8;
         } catch (RuntimeException sourceUnavailable) {
+            if (guiNegative) scaffoldMenuNegativeClearStability.reset();
             return false;
         }
     }
@@ -2584,6 +2604,7 @@ public final class Minecraft189RuntimeBridge {
                     scaffoldOriginalActivationLease = 0L;
                     scaffoldAcceptanceEnableIssued = false;
                     scaffoldAcceptancePendingDiagTicks = 0;
+                    scaffoldMenuNegativeClearStability.reset();
                 }
                 closed = true;
             }
