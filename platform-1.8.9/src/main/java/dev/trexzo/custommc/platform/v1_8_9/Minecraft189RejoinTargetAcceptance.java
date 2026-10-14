@@ -164,7 +164,7 @@ final class Minecraft189RejoinTargetAcceptance {
                     && !nativeSentinelObserved && nativeNonPlayerBaseline >= 0
                     && e!=null && e.a==-1 && e.bOnlySelected()
                     && survivorUuid.equals(aura.lockedTargetUuid())
-                    && sourceNonPlayerCount(e)>nativeNonPlayerBaseline) {
+                    && sourceNonPlayerCount(e)>=nativeNonPlayerBaseline+4) {
                 nativeSentinelObserved = true;
                 System.out.println(
                     "CUSTOMMC_189_REJOIN_REAL_SENTINEL_NATIVE_OBSERVED_PASS=YES"
@@ -193,7 +193,10 @@ final class Minecraft189RejoinTargetAcceptance {
                             throw new IllegalStateException(
                                     "real rejoin did not actually reorder A index"
                                     + " original=" + firstOriginalIndex
-                                    + " current=" + e.a);
+                                    + " current=" + e.a
+                                    + " nativeSentinelsObserved=" + nativeSentinelObserved
+                                    + " nonplayersBefore=" + nativeNonPlayerBaseline
+                                    + " nonplayersNow=" + sourceNonPlayerCount(e));
                         if (!originalUuid.equals(e.ids.at(e.a))
                                 || !e.kinds.player(e.a)
                                 || e.kinds.localPlayer(e.a))
