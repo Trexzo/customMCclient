@@ -408,6 +408,43 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
         assertNull(module.repeatProofAttempt(game,24L));
     }
 
+    @Test void v37TransientAirborneTickRetainsExactWorldPlayerLeaseButDoesNotClick() {
+        Minecraft game = new Minecraft();
+        Stack stone = new Stack();
+        game.player.inventory.contents[0] = stone;
+        Controller controller = (Controller)game.controller;
+        Minecraft189ScaffoldModule module = new Minecraft189ScaffoldModule();
+        module.onEnable();
+        assertTrue(module.beginRepeatProof(game, 1L, 2, 4));
+        assertNotNull(module.repeatProofAttempt(game, 1L));
+        game.world.placed = true;
+        stone.count = 7;
+        assertTrue(module.repeatProofReceipt(game, 2L));
+        assertEquals(1, controller.clicks);
+
+        // A genuine bridge walk can briefly be airborne or lack a valid
+        // original mouse-over while transitioning between ledges. That
+        // never authorizes another click, and must not lose the exact
+        // original Minecraft/World/player identity lease either.
+        game.player.onGround = false;
+        assertNull(module.repeatProofAttempt(game, 6L));
+        assertFalse(module.repeatProofStopped(),
+                "temporary airborne movement cannot revoke unchanged source identity");
+        assertEquals(1, controller.clicks);
+        String waiting = module.repeatProofDiagnostics(game);
+        assertTrue(waiting.contains("same_original_stack_and_expected_count=7"), waiting);
+        assertEquals(1, controller.clicks);
+
+        game.player.onGround = true;
+        game.player.x = 2.05D;
+        game.cursor.sample = new double[]{1,1,99,0,5,2.0D,99.5D,.5D};
+        Minecraft189ScaffoldNativePlacementAttempt.Result next =
+                module.repeatProofAttempt(game, 7L);
+        assertNotNull(next, "fresh native ray and grounded player admit second placement");
+        assertEquals(2, next.targetX);
+        assertEquals(2, controller.clicks);
+    }
+
     @Test void v37ReadOnlySecondStepDiagnosticDoesNotClickOrAdvanceCadence() {
         Minecraft game = new Minecraft();
         Stack original = new Stack();
