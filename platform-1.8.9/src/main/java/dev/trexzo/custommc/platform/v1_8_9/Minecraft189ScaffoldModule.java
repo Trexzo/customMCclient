@@ -98,8 +98,16 @@ public final class Minecraft189ScaffoldModule implements Module {
      */
     synchronized void productionRepeatAtOriginalTick(
             final Object originalMinecraft, final boolean originalGuiClear) {
-        if (!productionRepeatEnabledForActivation() || !originalGuiClear
-                || originalMinecraft == null
+        if (!productionRepeatEnabledForActivation()) return;
+        // Turning the user setting OFF while active is an immediate veto,
+        // never a transfer back to the one-shot arm in the same activation.
+        if (!Boolean.TRUE.equals(twoPlacements.get())) {
+            repeatSequence.invalidate();
+            attempted = true;
+            productionRepeatStarted = true;
+            return;
+        }
+        if (!originalGuiClear || originalMinecraft == null
                 || (attempted && !productionRepeatStarted))
             return;
         if (productionRepeatTick == Long.MAX_VALUE) {
@@ -123,7 +131,7 @@ public final class Minecraft189ScaffoldModule implements Module {
 
     synchronized boolean beginRepeatProof(final Object originalMinecraft,
             final long tick, final int maximumAttempts, final int minimumGapTicks) {
-        if (!armed()) return false;
+        if (!armed() || productionRepeatForActivation) return false;
         if (!repeatSequence.start(originalMinecraft, activation, tick,
                 maximumAttempts, minimumGapTicks)) return false;
         attempted = true;
