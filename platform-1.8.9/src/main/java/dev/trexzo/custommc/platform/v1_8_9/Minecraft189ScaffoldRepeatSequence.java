@@ -21,6 +21,12 @@ final class Minecraft189ScaffoldRepeatSequence {
             new Minecraft189ScaffoldPlacementCadence();
     private final Minecraft189ScaffoldSourceEpoch source =
             new Minecraft189ScaffoldSourceEpoch();
+    // Source identity survives a temporarily ungrounded/no-ray movement tick,
+    // but real World/player replacement or disconnect revokes the activation.
+    // The stricter source epoch is still independently checked for EVERY
+    // controller action and its pending original WorldClient receipt.
+    private final Minecraft189ScaffoldActivationSource identity =
+            new Minecraft189ScaffoldActivationSource();
     private WeakReference<Object> selectedStack = new WeakReference<Object>(null);
     private long sourceGeneration;
     private long activation;
@@ -43,8 +49,11 @@ final class Minecraft189ScaffoldRepeatSequence {
         if (selected == null || selected.sourceStackSize < maximumAttempts)
             return false;
         final long observed = source.observe(originalMinecraft);
-        if (observed <= 0L || !cadence.arm(activationGeneration, tick,
-                maximumAttempts, minimumGapTicks)) {
+        if (observed <= 0L
+                || identity.observe(originalMinecraft)
+                        != Minecraft189ScaffoldActivationSource.Verdict.SAME
+                || !cadence.arm(activationGeneration, tick,
+                        maximumAttempts, minimumGapTicks)) {
             invalidate();
             return false;
         }
@@ -84,7 +93,8 @@ final class Minecraft189ScaffoldRepeatSequence {
             final long activationGeneration) {
         if (activationGeneration <= 0 || activationGeneration != activation
                 || sourceGeneration <= 0L
-                || source.observe(originalMinecraft) != sourceGeneration) {
+                || identity.observe(originalMinecraft)
+                        != Minecraft189ScaffoldActivationSource.Verdict.SAME) {
             invalidate();
             return false;
         }
@@ -112,6 +122,17 @@ final class Minecraft189ScaffoldRepeatSequence {
         if (hasPriorTarget && fresh.targetX == priorX
                 && fresh.targetY == priorY && fresh.targetZ == priorZ)
             return null; // Never re-click the already-confirmed original target.
+
+        // A movement tick may be ungrounded or have no original mouse-over.
+        // It must not reset the exact Minecraft/World/player identity lease.
+        // Once a genuinely NEW admissible target is available, re-establish
+        // V31's strict full-readiness source generation before any click.
+        final long readyGeneration = source.observe(originalMinecraft);
+        if (readyGeneration <= 0L) {
+            invalidate();
+            return null;
+        }
+        sourceGeneration = readyGeneration;
 
         // This is the only synchronous original-controller side effect.
         // The underlying method independently revalidates the World lease,
@@ -206,6 +227,7 @@ final class Minecraft189ScaffoldRepeatSequence {
     synchronized void invalidate() {
         cadence.invalidate();
         source.invalidate();
+        identity.reset();
         selectedStack.clear();
         selectedStack = new WeakReference<Object>(null);
         activation = sourceGeneration = 0L;
