@@ -733,9 +733,16 @@ def run(args):
             if args.scaffold_placement == "menu-open":
                 # The module is already enabled but has no selected ItemBlock.
                 # Open actual vanilla inventory via its OWN X11 host window.
-                # The original client must cancel that activation because its
-                # source-observed GUI field is non-null. Only after this real
-                # GUI veto is witnessed do we grant a block on the server.
+                # The original client must first confirm a GUI-clear World
+                # and a single legitimate module-controller activation,
+                # without any selected ItemBlock or prior GUI veto.
+                wait_for(host,host_log,
+                         b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_GUI_ARMED_IN_WORLD=YES",
+                         deadline,"original in-world module enabled before GUI keypress")
+                if b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_GUI_VETO=YES" in log_tail(host_log):
+                    raise AssertionError("GUI was vetoed before actual inventory E keypress")
+                # The source-observed GUI field must become non-null after
+                # real X11 E. Only then do we grant a block on the server.
                 open_real_host_inventory(host)
                 wait_for(host,host_log,
                          b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_GUI_VETO=YES state=OPEN",
