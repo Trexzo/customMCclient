@@ -465,12 +465,15 @@ def client_command(args, game, username, uuid, port, remote):
                 "-Dcustommc.acceptance.requireOriginalScaffoldReach=true",
                 "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true"):
             command.insert(command.index("-cp"), value)
-        if args.scaffold_placement in ("enabled", "menu-open"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two"):
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldPlacement=true")
             if args.scaffold_placement == "menu-open":
                 command.insert(command.index("-cp"),
                                "-Dcustommc.acceptance.requireOriginalScaffoldMenuVeto=true")
+            if args.scaffold_placement == "repeat-two":
+                command.insert(command.index("-cp"),
+                               "-Dcustommc.acceptance.requireOriginalScaffoldTwoBlockProof=true")
         else:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldDisabledControl=true")
@@ -701,7 +704,7 @@ def run(args):
                  min(deadline, time.monotonic() + 65),
                  "host graphical client")
         host_window = None
-        if args.scaffold_placement in ("enabled", "menu-open"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two"):
             # Unique real Minecraft client on this freshly allocated Xvfb
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
@@ -747,11 +750,15 @@ def run(args):
             y = 100
             support = (x, y-1, z)
             target_xyz = (x+1, y-1, z)
+            second_target_xyz = (x+2, y-1, z)
             send_server_command(server, server_log, far_target_tp)
             send_server_command(server, server_log,
                                 "setblock {} {} {} stone".format(*support))
             send_server_command(server, server_log,
                                 "setblock {} {} {} air".format(*target_xyz))
+            if args.scaffold_placement == "repeat-two":
+                send_server_command(server, server_log,
+                                    "setblock {} {} {} air".format(*second_target_xyz))
             # Capture a byte-precise diagnostic boundary for menu-negative
             # CI only; older startup OPEN reports are never authority to
             # press Escape in the currently running original Minecraft UI.
@@ -811,7 +818,7 @@ def run(args):
             disabled=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES"
             if any(tag in log_tail(host_log) for tag in (module,attempt,receipt)):
                 raise AssertionError("native placement before real dedicated server grant")
-            if args.scaffold_placement == "enabled":
+            if args.scaffold_placement in ("enabled", "repeat-two"):
                 # Genuine host keyboard selects hotbar slot 0. This is not
                 # a spoofed inventory setter or a fabricated ItemStack.
                 # Server sends the real eight-block Survival grant afterward.
@@ -823,7 +830,7 @@ def run(args):
             # after grant in the enabled mode races the intended 8 -> 7
             # survival decrement. Only the disabled control may retain
             # an eight-item post-grant baseline.
-            if args.scaffold_placement == "enabled":
+            if args.scaffold_placement in ("enabled", "repeat-two"):
                 # V35's production veto is correct: an OPEN original GUI
                 # forbids arming even with a valid ray, World and eight
                 # genuine ItemBlocks. Some LWJGL startup screens persist
@@ -1705,7 +1712,7 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
-    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open"),
+    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two"),
                         help="dedicated Mojang server-authoritative Scaffold placement/disabled proof")
     parser.add_argument("--require-index-reorder", action="store_true",
                         help="fail-closed actual native entity-index change on fresh A rejoin")
