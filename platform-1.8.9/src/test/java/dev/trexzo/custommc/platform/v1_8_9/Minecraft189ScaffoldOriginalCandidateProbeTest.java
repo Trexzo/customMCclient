@@ -263,6 +263,13 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
         assertNull(module.attemptOnce(game));
         assertEquals(1,nativeController.clicks,
                 "a second runTick cannot place again on one enable");
+        // Direct duplicate lifecycle invocation cannot consume a second
+        // grant. ModuleController also guards the same transition.
+        module.onEnable();
+        assertEquals(firstActivation,module.activation());
+        assertFalse(module.armed());
+        assertNull(module.attemptOnce(game));
+        assertEquals(1,nativeController.clicks);
 
         module.onDisable();
         assertFalse(module.active());
