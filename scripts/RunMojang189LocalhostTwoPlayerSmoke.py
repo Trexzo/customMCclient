@@ -703,10 +703,11 @@ def run(args):
             send_server_command(server, server_log,
                                 "testforblock {} {} {} air".format(*target_xyz),
                                 expected=b"successfully found the block")
+            module=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_MODULE_OWNER_PASS=YES"
             attempt=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
             receipt=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK_PASS=YES"
             disabled=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES"
-            if attempt in log_tail(host_log) or receipt in log_tail(host_log):
+            if any(tag in log_tail(host_log) for tag in (module,attempt,receipt)):
                 raise AssertionError("native placement before real dedicated server grant")
             send_server_command(server, server_log,"give CIHost stone 8")
             # A legitimate enabled client may place the first block the
@@ -715,6 +716,8 @@ def run(args):
             # survival decrement. Only the disabled control may retain
             # an eight-item post-grant baseline.
             if args.scaffold_placement == "enabled":
+                wait_for(host,host_log,module,deadline,
+                         "source-enabled Scaffold module owns dedicated placement")
                 wait_for(host,host_log,attempt,deadline,
                          "real vanilla right click controller on dedicated server")
                 wait_for(host,host_log,receipt,deadline,
@@ -730,7 +733,7 @@ def run(args):
             else:
                 wait_for(host,host_log,disabled,deadline,
                          "disabled current World air and same eight-block original hotbar")
-                if attempt in log_tail(host_log) or receipt in log_tail(host_log):
+                if any(tag in log_tail(host_log) for tag in (module,attempt,receipt)):
                     raise AssertionError("disabled module reached native vanilla controller")
                 send_server_command(server,server_log,
                                     "testforblock {} {} {} air".format(*target_xyz),
