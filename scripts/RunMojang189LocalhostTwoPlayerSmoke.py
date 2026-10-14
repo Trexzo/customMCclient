@@ -563,6 +563,36 @@ def client_command(args, game, username, uuid, port, remote):
     return command
 
 
+def open_real_host_inventory(host):
+    """Send a real X11 inventory key to the exact original host JVM window."""
+    check_process(host, "host GUI open")
+    result = subprocess.run(
+        ["xdotool", "search", "--onlyvisible", "--name", "Minecraft"],
+        capture_output=True, text=True, check=False,
+    )
+    if result.returncode != 0:
+        raise AssertionError("no original visible Minecraft host window")
+    for window in result.stdout.split():
+        proc = subprocess.run(
+            ["xdotool", "getwindowpid", window],
+            capture_output=True, text=True, check=False,
+        )
+        if proc.returncode != 0:
+            continue
+        try:
+            owner = int(proc.stdout.strip())
+        except ValueError:
+            continue
+        if owner != host.pid:
+            continue
+        subprocess.run(["xdotool", "windowactivate", "--sync", window],
+                       check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(["xdotool", "key", "--clearmodifiers", "e"],
+                       check=True, stdout=subprocess.DEVNULL)
+        return
+    raise AssertionError("X11 Minecraft host window PID did not match original JVM")
+
+
 def close_process(process):
     if process is None or process.poll() is not None:
         return
@@ -700,6 +730,18 @@ def run(args):
             send_server_command(server, server_log,
                                 "setblock {} {} {} air".format(*target_xyz))
             send_server_command(server, server_log, "gamemode 0 CIHost")
+            if args.scaffold_placement == "menu-open":
+                # The module is already enabled but has no selected ItemBlock.
+                # Open actual vanilla inventory via its OWN X11 host window.
+                # The original client must cancel that activation because its
+                # source-observed GUI field is non-null. Only after this real
+                # GUI veto is witnessed do we grant a block on the server.
+                open_real_host_inventory(host)
+                wait_for(host,host_log,
+                         b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_GUI_VETO=YES state=OPEN",
+                         deadline,"native original Minecraft GUI cancels armed Scaffold")
+                print("CUSTOMMC_189_SCAFFOLD_REAL_INVENTORY_OPEN_VETO_PASS=YES",
+                      flush=True)
             send_server_command(server, server_log,
                                 "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
                                     x+1.05, y, z+.5))
@@ -732,6 +774,17 @@ def run(args):
                                     "clear CIHost stone 0 0",
                                     expected=b"has 7 items that match the criteria")
                 print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_DEDICATED_SERVER_STONE_AND_SEVEN_ITEMS_PASS=YES",
+                      flush=True)
+            elif args.scaffold_placement == "menu-open":
+                if any(tag in log_tail(host_log) for tag in (module,attempt,receipt)):
+                    raise AssertionError("menu-vetoed module entered vanilla placement")
+                send_server_command(server,server_log,
+                                    "testforblock {} {} {} air".format(*target_xyz),
+                                    expected=b"successfully found the block")
+                send_server_command(server,server_log,
+                                    "clear CIHost stone 0 0",
+                                    expected=b"has 8 items that match the criteria")
+                print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_DEDICATED_SERVER_MENU_OPEN_AIR_EIGHT_PASS=YES",
                       flush=True)
             else:
                 wait_for(host,host_log,disabled,deadline,
