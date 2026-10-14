@@ -1761,6 +1761,19 @@ public final class Minecraft189HostRuntime
         if (aura.active()) {
             trigger.suspend();
             featureCatalog.autoClicker().suspendForGui();
+            // Re-read REAL native current player orientation and world
+            // position at the click boundary. A stale targetRotation may
+            // still look aimed after a server teleport, but never authorizes
+            // an out-of-FOV Aura click. Keep native manual attacks untouched.
+            if (!Minecraft189KillAuraNativeFovGate.permits(
+                    crosshairPlayerIndex, aura.fovSetting().get(),
+                    playerRotationState.snapshot(),
+                    playerPositionState.snapshot(),
+                    worldEntityPositionState.snapshot(),
+                    worldEntityKindState.snapshot())) {
+                aura.suspend(); // Drop queued CPS credit and stale target lock.
+                return false;
+            }
             click = aura.shouldClick(
                     confirmedHit, crosshairPlayerIndex,
                     playerRotationState.snapshot(),
