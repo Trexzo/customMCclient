@@ -63,6 +63,34 @@ final class Minecraft189ScaffoldPlacementCadenceTest {
         assertFalse(p.mayAttempt(10,601),"explicit module disable drops schedule");
     }
 
+    @Test void exhaustedOrRejectedActivationCannotBeRearmedForMoreBlocks() {
+        Minecraft189ScaffoldPlacementCadence p=new Minecraft189ScaffoldPlacementCadence();
+        assertTrue(p.arm(11,0,1,2));
+        assertTrue(p.controllerAttempt(11,0,true));
+        assertTrue(p.receipt(11,1,true));
+        assertTrue(p.stopped());
+        assertFalse(p.arm(11,2,8,2),
+                "same enable may not evade its verified one-block quota");
+        assertTrue(p.arm(12,3,8,2),
+                "only a strictly new module activation can arm a new policy");
+        assertFalse(p.controllerAttempt(12,3,false));
+        assertFalse(p.arm(12,4,8,2),
+                "controller rejection cannot be rearmed on the same activation");
+        assertFalse(p.arm(11,5,8,2),
+                "older activation remains revoked even after the owner stopped");
+        assertTrue(p.arm(13,6,1,2));
+    }
+
+    @Test void unsolicitedReceiptFailsShutWithoutControllerAction() {
+        Minecraft189ScaffoldPlacementCadence p=new Minecraft189ScaffoldPlacementCadence();
+        assertTrue(p.arm(21,10,2,2));
+        assertFalse(p.receipt(21,10,true),
+                "readback without an original admitted controller action is not authority");
+        assertTrue(p.stopped());
+        assertFalse(p.arm(21,11,2,2));
+        assertTrue(p.arm(22,11,2,2));
+    }
+
     @Test void rejectsInvalidConfigurationAndTickOverflow() {
         Minecraft189ScaffoldPlacementCadence p=new Minecraft189ScaffoldPlacementCadence();
         assertFalse(p.arm(0,1,2,2));
