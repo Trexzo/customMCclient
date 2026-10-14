@@ -1,5 +1,6 @@
 """Offline regression checks for complete Mojang asset staging: NO network."""
 import hashlib
+from urllib.error import HTTPError, URLError
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -7,6 +8,7 @@ import unittest
 from unittest.mock import patch
 
 import FetchMojang189NativeAssets as assets
+import FetchMojang189Libraries as libraries
 
 
 class Response(BytesIO):
@@ -97,6 +99,57 @@ class CompleteAssetStageTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "zero-length object hash"):
                 assets._download_one_complete_asset(root, hashlib.sha1(b"x").hexdigest(), 0)
 
+class PinnedLibraryTransportRetryTest(unittest.TestCase):
+    """Offline: transient routing errors never bypass official download pins."""
+
+    URL = "https://libraries.minecraft.net/custommc/test-fixture.jar"
+
+    def test_transient_transport_recovers_with_fresh_verified_digest(self):
+        correct = b"pinned-library-payload"
+        digest = hashlib.sha1(correct).hexdigest()
+        attempts = []
+
+        def fake_open(request, timeout=90):
+            attempts.append(request.full_url)
+            if len(attempts) <= 2:
+                raise URLError(OSError(101, "Network is unreachable"))
+            return Response(request.full_url, correct)
+
+        with patch.object(libraries, "urlopen", side_effect=fake_open), \
+                patch.object(libraries.time, "sleep") as sleep:
+            self.assertEqual(correct, libraries.fetch_bytes(
+                self.URL, digest, size=len(correct)))
+        self.assertEqual([self.URL] * 3, attempts)
+        self.assertEqual([((1,), {}), ((3,), {})],
+                         [(call.args, call.kwargs) for call in sleep.call_args_list])
+
+    def test_exhausted_transport_retries_rethrow_and_never_accept(self):
+        digest = hashlib.sha1(b"correct").hexdigest()
+        with patch.object(libraries, "urlopen",
+                          side_effect=URLError(OSError(101, "Network is unreachable"))) as opened, \
+                patch.object(libraries.time, "sleep") as sleep:
+            with self.assertRaises(URLError):
+                libraries.fetch_bytes(self.URL, digest)
+        self.assertEqual(3, opened.call_count)
+        self.assertEqual(2, sleep.call_count)
+
+    def test_hash_mismatch_and_http_rejection_never_retry(self):
+        digest = hashlib.sha1(b"good").hexdigest()
+        with patch.object(libraries, "urlopen",
+                          return_value=Response(self.URL, b"evil")) as opened, \
+                patch.object(libraries.time, "sleep") as sleep:
+            with self.assertRaisesRegex(ValueError, "hash/size mismatch"):
+                libraries.fetch_bytes(self.URL, digest, size=4)
+        self.assertEqual(1, opened.call_count)
+        sleep.assert_not_called()
+
+        forbidden = HTTPError(self.URL, 403, "Forbidden", None, None)
+        with patch.object(libraries, "urlopen", side_effect=forbidden) as opened, \
+                patch.object(libraries.time, "sleep") as sleep:
+            with self.assertRaises(HTTPError):
+                libraries.fetch_bytes(self.URL, digest)
+        self.assertEqual(1, opened.call_count)
+        sleep.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()
