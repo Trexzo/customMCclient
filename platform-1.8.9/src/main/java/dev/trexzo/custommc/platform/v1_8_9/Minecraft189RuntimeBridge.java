@@ -482,6 +482,23 @@ public final class Minecraft189RuntimeBridge {
                     }
                 }
             }
+            // A single accepted original WorldClient receipt is not yet
+            // evidence of the second click. Bound the diagnostic volume
+            // while this explicit Mojang-only proof is waiting, including
+            // after a fail-shut stop, to expose the precise original ray /
+            // selected ItemStack / source-cadence blocker. Observation only.
+            if (scaffoldRepeatProofStarted
+                    && scaffoldRepeatPositiveReadbacks == 1
+                    && scaffoldRepeatPositiveAttempts == 1
+                    && repeatTick % 80L == 0L) {
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_SECOND_STEP_DIAG"
+                        + " screen=" + Minecraft189ScaffoldScreenGate.inspect(minecraft)
+                        + " sequence=" + scaffold.repeatProofDiagnostics(minecraft)
+                        + " native=" + Minecraft189ScaffoldOriginalCandidateProbe
+                                .diagnose(minecraft));
+                System.out.flush();
+            }
             if (scaffoldRepeatProofStarted && scaffold.repeatProofStopped()
                     && scaffoldRepeatPositiveReadbacks == 2) {
                 System.out.println(
