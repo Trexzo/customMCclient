@@ -89,6 +89,34 @@ final class Minecraft189ScaffoldRepeatSequence {
         }
     }
 
+    /**
+     * Read only the currently selected original ItemStack without requiring
+     * a grounded player or an already-admissible native mouse-over. Those
+     * transient placement conditions may disappear while walking to block 2.
+     * A changed/removed original item or selected slot still irrevocably
+     * cancels the sequence before any further vanilla click.
+     */
+    private static Minecraft189ScaffoldSelectedHotbar.Evidence
+            selectedWithoutPlacementReadiness(final Object originalMinecraft) {
+        if (!(originalMinecraft instanceof Minecraft189ScaffoldNativeContextAccess))
+            return null;
+        try {
+            final Object[] original = ((Minecraft189ScaffoldNativeContextAccess)
+                    originalMinecraft).customMcScaffoldNativeContext();
+            if (original == null || original.length != 3
+                    || !(original[0] instanceof Minecraft189PlayerInventoryAccess))
+                return null;
+            final Minecraft189InventoryHotbarAccess inventory =
+                    ((Minecraft189PlayerInventoryAccess)original[0]).customMcInventory();
+            if (!(inventory instanceof Minecraft189InventoryHotbarItemsAccess))
+                return null;
+            return Minecraft189ScaffoldSelectedHotbar.from(
+                    (Minecraft189InventoryHotbarItemsAccess)inventory);
+        } catch (RuntimeException unavailableOriginalInventory) {
+            return null;
+        }
+    }
+
     private boolean sameOwner(final Object originalMinecraft,
             final long activationGeneration) {
         if (activationGeneration <= 0 || activationGeneration != activation
@@ -108,14 +136,20 @@ final class Minecraft189ScaffoldRepeatSequence {
         if (!cadence.mayAttempt(activationGeneration, tick)) return null;
         if (cadence.stopped()) { invalidate(); return null; }
 
-        final Minecraft189ScaffoldSelectedHotbar.Evidence selected =
-                selectedFromCurrentSource(originalMinecraft);
-        if (selected == null || selected.sourceItemStack != selectedStack.get()
-                || selected.sourceSlot != selectedSlot
-                || selected.sourceStackSize != expectedCount) {
+        final Minecraft189ScaffoldSelectedHotbar.Evidence stillSelected =
+                selectedWithoutPlacementReadiness(originalMinecraft);
+        if (stillSelected == null
+                || stillSelected.sourceItemStack != selectedStack.get()
+                || stillSelected.sourceSlot != selectedSlot
+                || stillSelected.sourceStackSize != expectedCount) {
             invalidate();
             return null;
         }
+        // Grounded state and mouse-over can legitimately be transient while
+        // walking. Wait with no action, never transfer the source lease.
+        final Minecraft189ScaffoldSelectedHotbar.Evidence selected =
+                selectedFromCurrentSource(originalMinecraft);
+        if (selected == null) return null;
         final Minecraft189ScaffoldOriginalCandidateProbe.Observation fresh =
                 Minecraft189ScaffoldOriginalCandidateProbe.observe(originalMinecraft);
         if (fresh == null) return null;
@@ -190,7 +224,7 @@ final class Minecraft189ScaffoldRepeatSequence {
      */
     synchronized String diagnose(final Object originalMinecraft) {
         final Minecraft189ScaffoldSelectedHotbar.Evidence selected =
-                selectedFromCurrentSource(originalMinecraft);
+                selectedWithoutPlacementReadiness(originalMinecraft);
         final String selectedState;
         if (selected == null) selectedState = "native_selected_stack_unavailable";
         else if (selected.sourceItemStack != selectedStack.get())
