@@ -17,6 +17,7 @@ final class Minecraft189RejoinTargetAcceptance {
     private static UUID staleControllerIntentUuid;
     private static boolean staleDispatchVetoReported, freshDispatchAllowedReported;
     private static boolean scopedOwnerVetoReported, scopedOwnerFreshReported;
+    private static int nativeOwnerDiagnosticsTicks;
 
     private Minecraft189RejoinTargetAcceptance() {}
 
@@ -31,6 +32,7 @@ final class Minecraft189RejoinTargetAcceptance {
         staleControllerIntentUuid = null;
         staleDispatchVetoReported = freshDispatchAllowedReported = false;
         scopedOwnerVetoReported = scopedOwnerFreshReported = false;
+        nativeOwnerDiagnosticsTicks = 0;
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
@@ -92,6 +94,20 @@ final class Minecraft189RejoinTargetAcceptance {
             return;
         Evidence e=read(host);
         Minecraft189KillAuraModule aura=host.featureCatalog().killAura();
+        // Bounded observation only. Never changes the native target, lock,
+        // attack scheduling, source World, or fixture assertions.
+        if (phase >= 1 && phase <= 3 && ++nativeOwnerDiagnosticsTicks % 80 == 0) {
+            System.out.println("CUSTOMMC_189_REJOIN_NATIVE_OWNER_DIAG"
+                    + " phase=" + phase
+                    + " aIndex=" + (e == null ? -2 : e.a)
+                    + " bIndex=" + (e == null ? -2 : e.b)
+                    + " da=" + (e == null ? Double.NaN : e.da)
+                    + " db=" + (e == null ? Double.NaN : e.db)
+                    + " selectedA=" + (e != null && e.selected(e.a))
+                    + " selectedB=" + (e != null && e.selected(e.b))
+                    + " locked=" + aura.lockedTargetUuid());
+            System.out.flush();
+        }
         if (phase==0) {
             if (aura.active()) throw new IllegalStateException("rejoin Aura preenabled");
             disabledTicks=e!=null && e.aPreferred()
@@ -414,7 +430,12 @@ final class Minecraft189RejoinTargetAcceptance {
             }
         } else {
             throw new IllegalStateException("rejoin stale or wrong UUID attack phase="
-                    +phase+" actual="+id);
+                    +phase+" actual="+id+" locked="+aura.lockedTargetUuid()
+                    +" A="+originalUuid+" B="+survivorUuid
+                    +" aIndex="+e.a+" bIndex="+e.b
+                    +" da="+e.da+" db="+e.db
+                    +" selectedA="+e.selected(e.a)
+                    +" selectedB="+e.selected(e.b));
         }
     }
 
