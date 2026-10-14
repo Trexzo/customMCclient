@@ -103,6 +103,43 @@ final class Minecraft189OfficialClientPreflightTest {
      * BlockPos / sideHit / hitVec and invokes the one unmodified vanilla
      * PlayerControllerMP.onPlayerRightClick. No raw placement C08.
      */
+    /**
+     * V35 production screen veto must use an actual SHA1-pinned 1.8.9
+     * original Minecraft GUI field, not a diagnostic naming assumption.
+     * Fail if Mojang's original ave owner lacks a unique Laxu; field.
+     */
+    @Test
+    void originalMinecraftHasUniqueNativeGuiScreenOwnerField() throws Exception {
+        final String configured=System.getenv("CUSTOMMC_189_REAL_CLIENT_JAR");
+        if ("true".equalsIgnoreCase(
+                System.getenv("CUSTOMMC_189_REAL_CLIENT_REQUIRED"))) {
+            assertNotNull(configured,"original Mojang client must be pinned");
+        } else {
+            Assumptions.assumeTrue(configured!=null && !configured.trim().isEmpty(),
+                    "original Mojang client absent from local offline test");
+        }
+        final Path jarPath=Paths.get(configured);
+        assertTrue(Files.isRegularFile(jarPath));
+        assertEquals(OFFICIAL_SIZE,Files.size(jarPath));
+        assertEquals(OFFICIAL_SHA1,digestFile(jarPath));
+        final byte[] source;
+        try (JarFile jar=new JarFile(jarPath.toFile())) {
+            final JarEntry entry=jar.getJarEntry("ave.class");
+            assertNotNull(entry,"original Minecraft ave missing");
+            try (InputStream input=jar.getInputStream(entry)) {
+                source=readAll(input);
+            }
+        }
+        final ClassNode clazz=new ClassNode();
+        new ClassReader(source).accept(clazz,ClassReader.SKIP_CODE);
+        assertEquals("ave",clazz.name);
+        int matches=0;
+        for(FieldNode field:clazz.fields)
+            if("Laxu;".equals(field.desc)) matches++;
+        assertEquals(1,matches,
+                "source Minecraft must own exactly one GuiScreen axu field");
+    }
+
     @Test
     void originalMinecraftControllerScaffoldBridgeOnlyDelegatesNativeHit()
             throws Exception {

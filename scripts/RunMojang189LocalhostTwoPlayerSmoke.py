@@ -465,9 +465,12 @@ def client_command(args, game, username, uuid, port, remote):
                 "-Dcustommc.acceptance.requireOriginalScaffoldReach=true",
                 "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true"):
             command.insert(command.index("-cp"), value)
-        if args.scaffold_placement == "enabled":
+        if args.scaffold_placement in ("enabled", "menu-open"):
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldPlacement=true")
+            if args.scaffold_placement == "menu-open":
+                command.insert(command.index("-cp"),
+                               "-Dcustommc.acceptance.requireOriginalScaffoldMenuVeto=true")
         else:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldDisabledControl=true")
@@ -560,6 +563,54 @@ def client_command(args, game, username, uuid, port, remote):
     return command
 
 
+def identify_original_host_window_before_target(host):
+    """Capture the sole Minecraft X11 window before any second client starts.
+
+    Vanilla LWJGL2 sometimes omits _NET_WM_PID, so xdotool getwindowpid is
+    NOT a reliable ownership proof. The fixture owns a fresh Xvfb display,
+    starts CIHost first, and must see exactly one visible Minecraft window
+    BEFORE launching CITarget. Never pick one among multiple windows.
+    """
+    check_process(host, "host-only X11 window discovery")
+    result = subprocess.run(
+        ["xdotool", "search", "--onlyvisible", "--name", "Minecraft"],
+        capture_output=True, text=True, check=False,
+    )
+    windows = list(dict.fromkeys(result.stdout.split()))
+    if result.returncode != 0 or len(windows) != 1:
+        raise AssertionError(
+            "expected exactly one original host Minecraft window before "
+            "target launch; found {}".format(len(windows)))
+    window = windows[0]
+    title = subprocess.run(
+        ["xdotool", "getwindowname", window], capture_output=True,
+        text=True, check=False)
+    if title.returncode != 0 or "Minecraft" not in title.stdout:
+        raise AssertionError("host-only X11 window has no Minecraft title")
+    print("CUSTOMMC_189_ORIGINAL_HOST_X11_UNIQUE_PRE_TARGET=YES", flush=True)
+    return window
+
+
+def send_real_host_key(host, host_window, key):
+    """Send whitelisted vanilla key to previously identified original host."""
+    if key not in ("e", "1", "Escape"):
+        raise ValueError("invalid original host Minecraft key")
+    check_process(host, "host X11 key")
+    if not host_window:
+        raise AssertionError("original host X11 window was not identified")
+    title = subprocess.run(
+        ["xdotool", "getwindowname", str(host_window)],
+        capture_output=True, text=True, check=False)
+    if title.returncode != 0 or "Minecraft" not in title.stdout:
+        raise AssertionError("original host X11 window no longer exists")
+    subprocess.run(
+        ["xdotool", "windowactivate", "--sync", str(host_window)],
+        check=True, stdout=subprocess.DEVNULL)
+    subprocess.run(
+        ["xdotool", "key", "--clearmodifiers", key],
+        check=True, stdout=subprocess.DEVNULL)
+
+
 def close_process(process):
     if process is None or process.poll() is not None:
         return
@@ -649,6 +700,11 @@ def run(args):
         wait_for(host, host_log, GRAPHICAL,
                  min(deadline, time.monotonic() + 65),
                  "host graphical client")
+        host_window = None
+        if args.scaffold_placement in ("enabled", "menu-open"):
+            # Unique real Minecraft client on this freshly allocated Xvfb
+            # display; later target windows cannot be mistaken for CIHost.
+            host_window = identify_original_host_window_before_target(host)
         with target_log.open("wb") as out:
             target = subprocess.Popen(
                 target_cmd, env=env, stdout=out,
@@ -696,7 +752,53 @@ def run(args):
                                 "setblock {} {} {} stone".format(*support))
             send_server_command(server, server_log,
                                 "setblock {} {} {} air".format(*target_xyz))
+            # Capture a byte-precise diagnostic boundary for menu-negative
+            # CI only; older startup OPEN reports are never authority to
+            # press Escape in the currently running original Minecraft UI.
+            menu_diag_start = (
+                host_log.stat().st_size
+                if args.scaffold_placement == "menu-open" else None)
             send_server_command(server, server_log, "gamemode 0 CIHost")
+            if args.scaffold_placement == "menu-open":
+                # A genuinely OPEN vanilla startup/menu GUI cannot satisfy
+                # V35's 60 consecutive original GUI-CLEAR ticks. Dismiss a
+                # persistent pre-existing original screen with one real Esc
+                # before attempting a CI-only module enable. A single
+                # transient/stale OPEN diagnostic must NOT trigger Escape:
+                # on a CLEAR screen, Escape itself would open pause.
+                original_open = (
+                    b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ARM_WAIT screen=OPEN")
+                armed = (
+                    b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_GUI_ARMED_IN_WORLD=YES")
+                dismissed_startup_menu = False
+                while time.monotonic() < deadline:
+                    check_process(host, "original host GUI-clear startup")
+                    with host_log.open("rb") as observed:
+                        observed.seek(menu_diag_start)
+                        fresh_host_log = observed.read()
+                    if armed in fresh_host_log:
+                        break
+                    if (not dismissed_startup_menu
+                            and fresh_host_log.count(original_open) >= 2):
+                        send_real_host_key(host, host_window, "Escape")
+                        dismissed_startup_menu = True
+                        print(
+                            "CUSTOMMC_189_SCAFFOLD_STARTUP_MENU_DISMISSED_BY_REAL_ESCAPE=YES",
+                            flush=True)
+                    time.sleep(0.25)
+                wait_for(host,host_log,armed,deadline,
+                         "stable original GUI-clear World armed before inventory key")
+                if b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_GUI_VETO=YES" in log_tail(host_log):
+                    raise AssertionError("GUI was vetoed before actual inventory E keypress")
+                # Open actual vanilla inventory with E on original host XID.
+                # Only THIS new real inventory-open transition may revoke
+                # the arm; the server must later prove air and eight items.
+                send_real_host_key(host, host_window, "e")
+                wait_for(host,host_log,
+                         b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_GUI_VETO=YES state=OPEN",
+                         deadline,"native original Minecraft GUI cancels armed Scaffold")
+                print("CUSTOMMC_189_SCAFFOLD_REAL_INVENTORY_OPEN_VETO_PASS=YES",
+                      flush=True)
             send_server_command(server, server_log,
                                 "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
                                     x+1.05, y, z+.5))
@@ -709,6 +811,12 @@ def run(args):
             disabled=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES"
             if any(tag in log_tail(host_log) for tag in (module,attempt,receipt)):
                 raise AssertionError("native placement before real dedicated server grant")
+            if args.scaffold_placement == "enabled":
+                # Genuine host keyboard selects hotbar slot 0. This is not
+                # a spoofed inventory setter or a fabricated ItemStack.
+                # Server sends the real eight-block Survival grant afterward.
+                send_real_host_key(host, host_window, "1")
+                print("CUSTOMMC_189_SCAFFOLD_ORIGINAL_HOTBAR_ONE_KEY=YES", flush=True)
             send_server_command(server, server_log,"give CIHost stone 8")
             # A legitimate enabled client may place the first block the
             # very next original runTick. Requiring a server count of 8
@@ -716,6 +824,31 @@ def run(args):
             # survival decrement. Only the disabled control may retain
             # an eight-item post-grant baseline.
             if args.scaffold_placement == "enabled":
+                # V35's production veto is correct: an OPEN original GUI
+                # forbids arming even with a valid ray, World and eight
+                # genuine ItemBlocks. Some LWJGL startup screens persist
+                # after the remote dedicated-world teleport. Only when
+                # original native diagnostics explicitly prove this GUI
+                # blocker AND a ready native candidate may CI press a
+                # genuine Escape in the uniquely captured host X11 window.
+                # Do not send Escape blindly: on a CLEAR screen that would
+                # create the pause menu and invalidate legitimate placement.
+                menu_blocked = (
+                    b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ARM_WAIT"
+                    b" screen=OPEN source=positive_candidate_already_available"
+                )
+                while time.monotonic() < deadline:
+                    check_process(host, "enabled Scaffold source GUI readiness")
+                    host_data = log_tail(host_log)
+                    if module in host_data:
+                        break
+                    if menu_blocked in host_data:
+                        send_real_host_key(host, host_window, "Escape")
+                        print(
+                            "CUSTOMMC_189_SCAFFOLD_ORIGINAL_GUI_CLOSED_BY_REAL_ESCAPE=YES",
+                            flush=True)
+                        break
+                    time.sleep(0.25)
                 wait_for(host,host_log,module,deadline,
                          "source-enabled Scaffold module owns dedicated placement")
                 wait_for(host,host_log,attempt,deadline,
@@ -729,6 +862,17 @@ def run(args):
                                     "clear CIHost stone 0 0",
                                     expected=b"has 7 items that match the criteria")
                 print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_DEDICATED_SERVER_STONE_AND_SEVEN_ITEMS_PASS=YES",
+                      flush=True)
+            elif args.scaffold_placement == "menu-open":
+                if any(tag in log_tail(host_log) for tag in (module,attempt,receipt)):
+                    raise AssertionError("menu-vetoed module entered vanilla placement")
+                send_server_command(server,server_log,
+                                    "testforblock {} {} {} air".format(*target_xyz),
+                                    expected=b"successfully found the block")
+                send_server_command(server,server_log,
+                                    "clear CIHost stone 0 0",
+                                    expected=b"has 8 items that match the criteria")
+                print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_DEDICATED_SERVER_MENU_OPEN_AIR_EIGHT_PASS=YES",
                       flush=True)
             else:
                 wait_for(host,host_log,disabled,deadline,
@@ -1561,7 +1705,7 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
-    parser.add_argument("--scaffold-placement", choices=("enabled","disabled"),
+    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open"),
                         help="dedicated Mojang server-authoritative Scaffold placement/disabled proof")
     parser.add_argument("--require-index-reorder", action="store_true",
                         help="fail-closed actual native entity-index change on fresh A rejoin")

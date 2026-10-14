@@ -1732,6 +1732,14 @@ public final class Minecraft189FeatureCatalog
                 || moduleController.stateOf(Minecraft189KillAuraModule.ID)
                     != ModuleState.DISABLED)
             throw new IllegalStateException("locked target CI not armed");
+        // Real X11 camera yaw may still be settling after the server moved
+        // the two native players. The lock fixture proves UUID/distance
+        // arbitration, not the separately covered FOV-negative policy.
+        // Use the supported 180-degree setting, as in the strict M405
+        // rejoin fixture, to prevent an initial 90-degree view-cone
+        // transient from admitting B in place of the still-nearer A.
+        // No source UUID, attack, controller, or server assertion is forged.
+        killAura().fovSetting().set(Double.valueOf(180.0D));
         killAura().lockTargetSetting().set(Boolean.TRUE);
         moduleController.enable(Minecraft189KillAuraModule.ID);
         if (!killAura().active() || !killAura().lockTargetSetting().get()
