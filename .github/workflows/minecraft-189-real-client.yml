@@ -268,7 +268,7 @@ jobs:
             --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
             --overlay "build/runtime-overlay" \
             --root "$RUNNER_TEMP/custommc-189-scaffold-two-block-original" \
-            --timeout 250 --scaffold-placement repeat-two
+            --timeout 240 --scaffold-placement repeat-two
       - name: V29 prove disabled Scaffold keeps original World air and full hotbar stack
         timeout-minutes: 6
         env:
