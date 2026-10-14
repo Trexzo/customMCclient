@@ -407,6 +407,27 @@ final class Minecraft189RejoinTargetAcceptance {
                 "real wrong UUID proposal was NOT vetoed by original click gate");
     }
 
+    /**
+     * Acceptance-only tolerance for one transient original-client state:
+     * vanilla has announced A's disconnect, but its old EntityPlayer is
+     * still present in loadedEntityList while the real live locked B is
+     * already the selected target. An owned B click is NOT an A-absent
+     * observation and must never advance the required 15-frame phase-3 gate.
+     *
+     * Fail closed on wrong UUID/lock, bad range or an unselected B. This is
+     * deliberately never consulted by production target choice/dispatch.
+     */
+    static boolean phaseTwoOwnedSurvivorWhileNativeAStillLoaded(
+            final int currentPhase, final boolean aStillLoaded,
+            final boolean selectedSurvivor, final boolean survivorInRange,
+            final UUID actual, final UUID locked, final UUID expectedSurvivor) {
+        return currentPhase == 2 && aStillLoaded
+                && selectedSurvivor && survivorInRange
+                && actual != null && expectedSurvivor != null
+                && expectedSurvivor.equals(actual)
+                && expectedSurvivor.equals(locked);
+    }
+
     static void verifyOwnedClick(Minecraft189HostRuntime host,
             boolean playerHit, int index) {
         Evidence e=read(host);
@@ -428,6 +449,14 @@ final class Minecraft189RejoinTargetAcceptance {
         if (phase<=2 && originalUuid.equals(id) && index==e.a
                 && e.a>=0 && e.da<=3.5D) {
             // Original A is creative, never counted as genuine server damage.
+        } else if (phaseTwoOwnedSurvivorWhileNativeAStillLoaded(
+                phase, e.a >= 0, index == e.b && e.selected(e.b),
+                e.bInRange(), id, aura.lockedTargetUuid(), survivorUuid)) {
+            // Original Minecraft may retain A's entity briefly after its
+            // dedicated-server disconnect. The *actual* native selected/
+            // locked UUID is already B, so this is not a wrong-UUID attack.
+            // Do not emit a survivor-lock PASS or advance phase here:
+            // observe() still requires 15 real A-absent native snapshots.
         } else if (phase>=2 && survivorUuid.equals(id) && index==e.b
                 && e.a==-1 && e.bInRange()) {
             // Selection-only creative B clicks never prove server damage.
