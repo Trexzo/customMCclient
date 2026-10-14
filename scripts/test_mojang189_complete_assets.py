@@ -99,8 +99,6 @@ class CompleteAssetStageTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "zero-length object hash"):
                 assets._download_one_complete_asset(root, hashlib.sha1(b"x").hexdigest(), 0)
 
-
-
 class PinnedLibraryTransportRetryTest(unittest.TestCase):
     """Offline: transient routing errors never bypass official download pins."""
 
@@ -117,7 +115,7 @@ class PinnedLibraryTransportRetryTest(unittest.TestCase):
                 raise URLError(OSError(101, "Network is unreachable"))
             return Response(request.full_url, correct)
 
-        with patch.object(libraries, "urlopen", side_effect=fake_open), \\
+        with patch.object(libraries, "urlopen", side_effect=fake_open), \
                 patch.object(libraries.time, "sleep") as sleep:
             self.assertEqual(correct, libraries.fetch_bytes(
                 self.URL, digest, size=len(correct)))
@@ -128,7 +126,7 @@ class PinnedLibraryTransportRetryTest(unittest.TestCase):
     def test_exhausted_transport_retries_rethrow_and_never_accept(self):
         digest = hashlib.sha1(b"correct").hexdigest()
         with patch.object(libraries, "urlopen",
-                          side_effect=URLError(OSError(101, "Network is unreachable"))) as opened, \\
+                          side_effect=URLError(OSError(101, "Network is unreachable"))) as opened, \
                 patch.object(libraries.time, "sleep") as sleep:
             with self.assertRaises(URLError):
                 libraries.fetch_bytes(self.URL, digest)
@@ -138,7 +136,7 @@ class PinnedLibraryTransportRetryTest(unittest.TestCase):
     def test_hash_mismatch_and_http_rejection_never_retry(self):
         digest = hashlib.sha1(b"good").hexdigest()
         with patch.object(libraries, "urlopen",
-                          return_value=Response(self.URL, b"evil")) as opened, \\
+                          return_value=Response(self.URL, b"evil")) as opened, \
                 patch.object(libraries.time, "sleep") as sleep:
             with self.assertRaisesRegex(ValueError, "hash/size mismatch"):
                 libraries.fetch_bytes(self.URL, digest, size=4)
@@ -146,7 +144,7 @@ class PinnedLibraryTransportRetryTest(unittest.TestCase):
         sleep.assert_not_called()
 
         forbidden = HTTPError(self.URL, 403, "Forbidden", None, None)
-        with patch.object(libraries, "urlopen", side_effect=forbidden) as opened, \\
+        with patch.object(libraries, "urlopen", side_effect=forbidden) as opened, \
                 patch.object(libraries.time, "sleep") as sleep:
             with self.assertRaises(HTTPError):
                 libraries.fetch_bytes(self.URL, digest)
