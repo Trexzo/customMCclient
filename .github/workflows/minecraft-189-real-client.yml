@@ -11,6 +11,7 @@ on:
       - 'scripts/FetchMojang189NativeAssets.py'
       - 'scripts/test_mojang189_complete_assets.py'
       - 'scripts/test_mojang189_server_spawn.py'
+      - 'scripts/test_mojang189_x11_host_keys.py'
       - 'scripts/RunMojang189GraphicalSmoke.py'
       - 'scripts/RunMojang189SingleplayerSmoke.py'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189VanillaMeleeAcceptance.java'
