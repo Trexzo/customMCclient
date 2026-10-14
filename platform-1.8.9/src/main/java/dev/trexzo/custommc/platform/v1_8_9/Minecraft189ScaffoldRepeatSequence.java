@@ -21,6 +21,12 @@ final class Minecraft189ScaffoldRepeatSequence {
             new Minecraft189ScaffoldPlacementCadence();
     private final Minecraft189ScaffoldSourceEpoch source =
             new Minecraft189ScaffoldSourceEpoch();
+    // Source identity survives a temporarily ungrounded/no-ray movement tick,
+    // but real World/player replacement or disconnect revokes the activation.
+    // The stricter source epoch is still independently checked for EVERY
+    // controller action and its pending original WorldClient receipt.
+    private final Minecraft189ScaffoldActivationSource identity =
+            new Minecraft189ScaffoldActivationSource();
     private WeakReference<Object> selectedStack = new WeakReference<Object>(null);
     private long sourceGeneration;
     private long activation;
@@ -43,8 +49,11 @@ final class Minecraft189ScaffoldRepeatSequence {
         if (selected == null || selected.sourceStackSize < maximumAttempts)
             return false;
         final long observed = source.observe(originalMinecraft);
-        if (observed <= 0L || !cadence.arm(activationGeneration, tick,
-                maximumAttempts, minimumGapTicks)) {
+        if (observed <= 0L
+                || identity.observe(originalMinecraft)
+                        != Minecraft189ScaffoldActivationSource.Verdict.SAME
+                || !cadence.arm(activationGeneration, tick,
+                        maximumAttempts, minimumGapTicks)) {
             invalidate();
             return false;
         }
@@ -80,11 +89,40 @@ final class Minecraft189ScaffoldRepeatSequence {
         }
     }
 
+    /**
+     * Read only the currently selected original ItemStack without requiring
+     * a grounded player or an already-admissible native mouse-over. Those
+     * transient placement conditions may disappear while walking to block 2.
+     * A changed/removed original item or selected slot still irrevocably
+     * cancels the sequence before any further vanilla click.
+     */
+    private static Minecraft189ScaffoldSelectedHotbar.Evidence
+            selectedWithoutPlacementReadiness(final Object originalMinecraft) {
+        if (!(originalMinecraft instanceof Minecraft189ScaffoldNativeContextAccess))
+            return null;
+        try {
+            final Object[] original = ((Minecraft189ScaffoldNativeContextAccess)
+                    originalMinecraft).customMcScaffoldNativeContext();
+            if (original == null || original.length != 3
+                    || !(original[0] instanceof Minecraft189PlayerInventoryAccess))
+                return null;
+            final Minecraft189InventoryHotbarAccess inventory =
+                    ((Minecraft189PlayerInventoryAccess)original[0]).customMcInventory();
+            if (!(inventory instanceof Minecraft189InventoryHotbarItemsAccess))
+                return null;
+            return Minecraft189ScaffoldSelectedHotbar.from(
+                    (Minecraft189InventoryHotbarItemsAccess)inventory);
+        } catch (RuntimeException unavailableOriginalInventory) {
+            return null;
+        }
+    }
+
     private boolean sameOwner(final Object originalMinecraft,
             final long activationGeneration) {
         if (activationGeneration <= 0 || activationGeneration != activation
                 || sourceGeneration <= 0L
-                || source.observe(originalMinecraft) != sourceGeneration) {
+                || identity.observe(originalMinecraft)
+                        != Minecraft189ScaffoldActivationSource.Verdict.SAME) {
             invalidate();
             return false;
         }
@@ -98,20 +136,37 @@ final class Minecraft189ScaffoldRepeatSequence {
         if (!cadence.mayAttempt(activationGeneration, tick)) return null;
         if (cadence.stopped()) { invalidate(); return null; }
 
-        final Minecraft189ScaffoldSelectedHotbar.Evidence selected =
-                selectedFromCurrentSource(originalMinecraft);
-        if (selected == null || selected.sourceItemStack != selectedStack.get()
-                || selected.sourceSlot != selectedSlot
-                || selected.sourceStackSize != expectedCount) {
+        final Minecraft189ScaffoldSelectedHotbar.Evidence stillSelected =
+                selectedWithoutPlacementReadiness(originalMinecraft);
+        if (stillSelected == null
+                || stillSelected.sourceItemStack != selectedStack.get()
+                || stillSelected.sourceSlot != selectedSlot
+                || stillSelected.sourceStackSize != expectedCount) {
             invalidate();
             return null;
         }
+        // Grounded state and mouse-over can legitimately be transient while
+        // walking. Wait with no action, never transfer the source lease.
+        final Minecraft189ScaffoldSelectedHotbar.Evidence selected =
+                selectedFromCurrentSource(originalMinecraft);
+        if (selected == null) return null;
         final Minecraft189ScaffoldOriginalCandidateProbe.Observation fresh =
                 Minecraft189ScaffoldOriginalCandidateProbe.observe(originalMinecraft);
         if (fresh == null) return null;
         if (hasPriorTarget && fresh.targetX == priorX
                 && fresh.targetY == priorY && fresh.targetZ == priorZ)
             return null; // Never re-click the already-confirmed original target.
+
+        // A movement tick may be ungrounded or have no original mouse-over.
+        // It must not reset the exact Minecraft/World/player identity lease.
+        // Once a genuinely NEW admissible target is available, re-establish
+        // V31's strict full-readiness source generation before any click.
+        final long readyGeneration = source.observe(originalMinecraft);
+        if (readyGeneration <= 0L) {
+            invalidate();
+            return null;
+        }
+        sourceGeneration = readyGeneration;
 
         // This is the only synchronous original-controller side effect.
         // The underlying method independently revalidates the World lease,
@@ -161,6 +216,44 @@ final class Minecraft189ScaffoldRepeatSequence {
         return true;
     }
 
+    /**
+     * V37 acceptance diagnostics only. This read-only state inspection does
+     * NOT renew source authority, advance cadence, consume a receipt, or
+     * invoke the vanilla right-click controller. Any native evidence it
+     * reports is discarded within this same tick.
+     */
+    synchronized String diagnose(final Object originalMinecraft) {
+        final Minecraft189ScaffoldSelectedHotbar.Evidence selected =
+                selectedWithoutPlacementReadiness(originalMinecraft);
+        final String selectedState;
+        if (selected == null) selectedState = "native_selected_stack_unavailable";
+        else if (selected.sourceItemStack != selectedStack.get())
+            selectedState = "original_stack_identity_changed";
+        else if (selected.sourceSlot != selectedSlot)
+            selectedState = "original_selected_slot_changed";
+        else if (selected.sourceStackSize != expectedCount)
+            selectedState = "original_stack_count_changed expected="
+                    + expectedCount + " current=" + selected.sourceStackSize;
+        else selectedState = "same_original_stack_and_expected_count=" + expectedCount;
+        final Minecraft189ScaffoldOriginalCandidateProbe.Observation candidate =
+                Minecraft189ScaffoldOriginalCandidateProbe.observe(originalMinecraft);
+        final String target;
+        if (candidate == null) target = "no_original_native_candidate";
+        else if (hasPriorTarget && candidate.targetX == priorX
+                && candidate.targetY == priorY && candidate.targetZ == priorZ)
+            target = "prior_target_repeated=" + priorX + "," + priorY + "," + priorZ;
+        else target = "fresh_target=" + candidate.targetX + ","
+                + candidate.targetY + "," + candidate.targetZ;
+        return "activation=" + activation
+                + " sourceGeneration=" + sourceGeneration
+                + " cadenceStopped=" + cadence.stopped()
+                + " cadencePending=" + cadence.pending()
+                + " attempts=" + cadence.attemptedCount()
+                + " priorTarget=" + hasPriorTarget
+                + " selected=" + selectedState
+                + " candidate=" + target;
+    }
+
     synchronized boolean pending() { return pending != null && !cadence.stopped(); }
     synchronized int attemptedCount() { return cadence.attemptedCount(); }
     synchronized boolean stopped() { return cadence.stopped(); }
@@ -168,6 +261,7 @@ final class Minecraft189ScaffoldRepeatSequence {
     synchronized void invalidate() {
         cadence.invalidate();
         source.invalidate();
+        identity.reset();
         selectedStack.clear();
         selectedStack = new WeakReference<Object>(null);
         activation = sourceGeneration = 0L;

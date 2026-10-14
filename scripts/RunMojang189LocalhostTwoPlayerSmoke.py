@@ -465,12 +465,15 @@ def client_command(args, game, username, uuid, port, remote):
                 "-Dcustommc.acceptance.requireOriginalScaffoldReach=true",
                 "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true"):
             command.insert(command.index("-cp"), value)
-        if args.scaffold_placement in ("enabled", "menu-open"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two"):
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldPlacement=true")
             if args.scaffold_placement == "menu-open":
                 command.insert(command.index("-cp"),
                                "-Dcustommc.acceptance.requireOriginalScaffoldMenuVeto=true")
+            if args.scaffold_placement == "repeat-two":
+                command.insert(command.index("-cp"),
+                               "-Dcustommc.acceptance.requireOriginalScaffoldTwoBlockProof=true")
         else:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldDisabledControl=true")
@@ -701,7 +704,7 @@ def run(args):
                  min(deadline, time.monotonic() + 65),
                  "host graphical client")
         host_window = None
-        if args.scaffold_placement in ("enabled", "menu-open"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two"):
             # Unique real Minecraft client on this freshly allocated Xvfb
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
@@ -747,11 +750,15 @@ def run(args):
             y = 100
             support = (x, y-1, z)
             target_xyz = (x+1, y-1, z)
+            second_target_xyz = (x+2, y-1, z)
             send_server_command(server, server_log, far_target_tp)
             send_server_command(server, server_log,
                                 "setblock {} {} {} stone".format(*support))
             send_server_command(server, server_log,
                                 "setblock {} {} {} air".format(*target_xyz))
+            if args.scaffold_placement == "repeat-two":
+                send_server_command(server, server_log,
+                                    "setblock {} {} {} air".format(*second_target_xyz))
             # Capture a byte-precise diagnostic boundary for menu-negative
             # CI only; older startup OPEN reports are never authority to
             # press Escape in the currently running original Minecraft UI.
@@ -786,6 +793,25 @@ def run(args):
                             "CUSTOMMC_189_SCAFFOLD_STARTUP_MENU_DISMISSED_BY_REAL_ESCAPE=YES",
                             flush=True)
                     time.sleep(0.25)
+                # Fail with the original host's ACTUAL diagnostics, not only
+                # the generic missing-marker timeout. Never fabricate a
+                # CLEAR state or send an unverified second Escape.
+                if armed not in fresh_host_log:
+                    source_lines = [
+                        line.decode("utf-8", errors="replace")[-420:]
+                        for line in fresh_host_log.splitlines()
+                        if (b"SCAFFOLD_ARM_WAIT" in line
+                            or b"SCAFFOLD_GUI_ARMED_IN_WORLD" in line
+                            or b"ACCEPTANCE_SCREEN" in line
+                            or b"SCAFFOLD_ORIGINAL_GUI_VETO" in line)
+                    ]
+                    print("CUSTOMMC_189_GUI_NEGATIVE_PREARM_DIAG"
+                          " originalOpenReports={} dismissed={} evidence={}".format(
+                              fresh_host_log.count(original_open),
+                              dismissed_startup_menu, source_lines[-8:]),
+                          flush=True)
+                    raise AssertionError(
+                        "original in-world GUI-clear arm failed before actual E")
                 wait_for(host,host_log,armed,deadline,
                          "stable original GUI-clear World armed before inventory key")
                 if b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_GUI_VETO=YES" in log_tail(host_log):
@@ -809,9 +835,13 @@ def run(args):
             attempt=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
             receipt=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK_PASS=YES"
             disabled=b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES"
-            if any(tag in log_tail(host_log) for tag in (module,attempt,receipt)):
-                raise AssertionError("native placement before real dedicated server grant")
-            if args.scaffold_placement == "enabled":
+            repeat_attempt = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_ORIGINAL_CONTROLLER_ATTEMPT=YES"
+            repeat_receipt = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_CLIENT_READBACK_PASS=YES"
+            repeat_arm = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_MODULE_ARMED=YES"
+            if any(tag in log_tail(host_log)
+                   for tag in (module,attempt,receipt,repeat_attempt,repeat_receipt,repeat_arm)):
+                raise AssertionError("native placement or repeat arm before genuine server grant")
+            if args.scaffold_placement in ("enabled", "repeat-two"):
                 # Genuine host keyboard selects hotbar slot 0. This is not
                 # a spoofed inventory setter or a fabricated ItemStack.
                 # Server sends the real eight-block Survival grant afterward.
@@ -823,7 +853,77 @@ def run(args):
             # after grant in the enabled mode races the intended 8 -> 7
             # survival decrement. Only the disabled control may retain
             # an eight-item post-grant baseline.
-            if args.scaffold_placement == "enabled":
+            if args.scaffold_placement == "repeat-two":
+                # V37 is an isolated opt-in new original-client JVM and
+                # dedicated-server fixture: strictly 2 different raytrace
+                # targets, one native controller action per original receipt.
+                # Reuse the same original host X11 ownership and fail-shut
+                # startup menu diagnostics as V35's one-block case.
+                menu_blocked = (
+                    b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ARM_WAIT"
+                    b" screen=OPEN source=positive_candidate_already_available"
+                )
+                while time.monotonic() < deadline:
+                    check_process(host, "original two-block host readiness")
+                    live_host = log_tail(host_log)
+                    if repeat_arm in live_host:
+                        break
+                    if menu_blocked in live_host:
+                        send_real_host_key(host, host_window, "Escape")
+                        print("CUSTOMMC_189_SCAFFOLD_REPEAT_INITIAL_GUI_REAL_ESCAPE=YES",
+                              flush=True)
+                        break
+                    time.sleep(0.25)
+                wait_for(host, host_log, repeat_arm, deadline,
+                         "V37 original module-owned two-block activation")
+                first_attempt = (
+                    repeat_attempt + b" step=1 accepted=true target="
+                    + "{},{},{}".format(*target_xyz).encode())
+                second_attempt = (
+                    repeat_attempt + b" step=2 accepted=true target="
+                    + "{},{},{}".format(*second_target_xyz).encode())
+                wait_for(host, host_log, first_attempt, deadline,
+                         "first genuine vanilla controller click at first target")
+                wait_for(host, host_log, repeat_receipt + b" step=1", deadline,
+                         "source original WorldClient first stone + 8-to-7 debit")
+                send_server_command(server, server_log,
+                                    "testforblock {} {} {} stone".format(*target_xyz),
+                                    expected=b"successfully found the block")
+                send_server_command(server, server_log,
+                                    "testforblock {} {} {} air".format(*second_target_xyz),
+                                    expected=b"successfully found the block")
+                send_server_command(server, server_log,
+                                    "clear CIHost stone 0 0",
+                                    expected=b"has 7 items that match the criteria")
+                print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_SERVER_FIRST_STONE_SEVEN_PASS=YES",
+                      flush=True)
+
+                # The server moves the real local player to the second edge.
+                # No rotation/position/controller/ItemStack spoof in the
+                # client. Original raytrace must now see first placed stone
+                # as solid support for the distinct second underfoot air.
+                send_server_command(server, server_log,
+                                    "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                        x+2.05, y, z+.5))
+                wait_for(host, host_log, second_attempt, deadline,
+                         "second genuine vanilla click with NEW target and 7-stack")
+                wait_for(host, host_log, repeat_receipt + b" step=2", deadline,
+                         "source original WorldClient second stone + 7-to-6 debit")
+                wait_for(host, host_log,
+                         b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_TWO_CLIENT_RECEIPTS_PASS=YES attempts=2",
+                         deadline, "no extra original controller attempt")
+                if log_tail(host_log).count(repeat_attempt) != 2:
+                    raise AssertionError("two-block fixture did not issue exactly two original clicks")
+                for target in (target_xyz, second_target_xyz):
+                    send_server_command(server, server_log,
+                                        "testforblock {} {} {} stone".format(*target),
+                                        expected=b"successfully found the block")
+                send_server_command(server, server_log,
+                                    "clear CIHost stone 0 0",
+                                    expected=b"has 6 items that match the criteria")
+                print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_REPEAT_SERVER_TWO_STONE_SIX_PASS=YES",
+                      flush=True)
+            elif args.scaffold_placement == "enabled":
                 # V35's production veto is correct: an OPEN original GUI
                 # forbids arming even with a valid ray, World and eight
                 # genuine ItemBlocks. Some LWJGL startup screens persist
@@ -1705,7 +1805,7 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
-    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open"),
+    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two"),
                         help="dedicated Mojang server-authoritative Scaffold placement/disabled proof")
     parser.add_argument("--require-index-reorder", action="store_true",
                         help="fail-closed actual native entity-index change on fresh A rejoin")
