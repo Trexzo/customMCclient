@@ -558,6 +558,8 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
 
         module.onDisable();
         module.onEnable();
+        // New independent placement proof needs a fresh air target.
+        game.world.placed = false;
         Stack sameItem = new Stack();
         game.player.inventory.contents[0] = sameItem;
         assertTrue(module.beginRepeatProof(game, 20L, 2, 4));
