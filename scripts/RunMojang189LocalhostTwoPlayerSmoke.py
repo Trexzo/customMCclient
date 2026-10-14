@@ -844,7 +844,10 @@ def run(args):
                                     expected=b"Object successfully summoned")
                 print("CUSTOMMC_189_REJOIN_NATIVE_SERVER_SENTINEL_SUMMONED=YES",
                       flush=True)
-                time.sleep(0.8)
+                wait_for(host, host_log,
+                         b"CUSTOMMC_189_REJOIN_REAL_SENTINEL_NATIVE_OBSERVED_PASS=YES",
+                         deadline,
+                         "original host observed new native nonplayer before A rejoin")
             cmd_rejoin = client_command(
                 args, root / "target-rejoin-game", "CITarget",
                 "00000000000000000000000000000002", port, remote=False)
