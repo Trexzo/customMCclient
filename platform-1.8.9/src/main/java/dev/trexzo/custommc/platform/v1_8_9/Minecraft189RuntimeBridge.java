@@ -299,6 +299,24 @@ public final class Minecraft189RuntimeBridge {
             scaffoldOriginalSourceEpoch.invalidate();
             return;
         }
+        // A native menu/inventory screen must never admit a controller
+        // placement or complete a pending receipt. The source field is the
+        // exact original 'ave' -> 'axu' GUI owner verified by SHA-pinned
+        // Mojang ASM preflight, not a guessed reflective singleton.
+        // UNKNOWN is a veto too. Cancel through ModuleController so the
+        // old activation cannot silently resume when a menu closes.
+        if (moduleActivation > 0L
+                && scaffoldOriginalActivationSource.witnessed()
+                && Minecraft189ScaffoldScreenGate.inspect(minecraft)
+                        != Minecraft189ScaffoldScreenGate.Verdict.CLEAR) {
+            activeRuntime.moduleController().disable(Minecraft189ScaffoldModule.ID);
+            scaffoldOriginalPlacementReadback = null;
+            scaffoldOriginalPlacementReadbackEpoch = 0L;
+            scaffoldOriginalPlacementActivation = 0L;
+            scaffoldOriginalPlacementReadbackTicks = 0;
+            scaffoldOriginalSourceEpoch.invalidate();
+            return;
+        }
         final boolean moduleArmed = scaffold != null && scaffold.armed();
         final boolean receiptPending = scaffoldOriginalPlacementReadback != null;
         final boolean candidateRequested = moduleArmed;
