@@ -654,6 +654,30 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
         assertNull(module.attemptOnce(game));
     }
 
+    @Test void v42TurningOptInOffMidSequenceNeverResurrectsOneShot() {
+        Minecraft game = new Minecraft();
+        Stack stone = new Stack();
+        game.player.inventory.contents[0] = stone;
+        Controller controller = (Controller) game.controller;
+        Minecraft189ScaffoldModule module = new Minecraft189ScaffoldModule();
+        module.twoPlacementsSetting().set(Boolean.TRUE);
+        module.onEnable();
+        module.productionRepeatAtOriginalTick(game, true);
+        assertEquals(1, controller.clicks);
+        game.world.placed = true;
+        stone.count = 7;
+        module.productionRepeatAtOriginalTick(game, true);
+        module.twoPlacementsSetting().set(Boolean.FALSE);
+        game.player.x = 2.05D;
+        game.cursor.sample =
+                new double[]{1,1,99,0,5,2.0D,99.5D,.5D};
+        for (int i=0; i<30; i++) module.productionRepeatAtOriginalTick(game, true);
+        assertEquals(1, controller.clicks, "user opt-out revokes second click");
+        assertTrue(module.repeatProofStopped());
+        assertNull(module.attemptOnce(game), "one-shot may not revive on opt-out");
+        module.onDisable();
+    }
+
     @Test void v42ProductionRepeatFailShutOnWorldSwapOrDisable() {
         Minecraft game = new Minecraft();
         Stack stone = new Stack();
