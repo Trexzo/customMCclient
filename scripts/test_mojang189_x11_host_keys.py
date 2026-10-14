@@ -22,11 +22,11 @@ class OriginalHostWindowFixtureTest(unittest.TestCase):
     @staticmethod
     def xdotool(cmd, **kwargs):
         if cmd[1] == "search":
-            return subprocess.CompletedProcess(cmd, 0, "751\\n", "")
+            return subprocess.CompletedProcess(cmd, 0, "751\n", "")
         if cmd[1] == "getwindowname":
             if cmd[2] != "751":
                 return subprocess.CompletedProcess(cmd, 1, "", "wrong window")
-            return subprocess.CompletedProcess(cmd, 0, "Minecraft 1.8.9\\n", "")
+            return subprocess.CompletedProcess(cmd, 0, "Minecraft 1.8.9\n", "")
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
     @patch("RunMojang189LocalhostTwoPlayerSmoke.subprocess.run")
@@ -43,7 +43,7 @@ class OriginalHostWindowFixtureTest(unittest.TestCase):
     @patch("RunMojang189LocalhostTwoPlayerSmoke.subprocess.run")
     def test_two_windows_never_fall_back_to_first_or_last(self, run):
         def duplicate(cmd, **kwargs):
-            return subprocess.CompletedProcess(cmd, 0, "751\\n752\\n", "")
+            return subprocess.CompletedProcess(cmd, 0, "751\n752\n", "")
         run.side_effect = duplicate
         with self.assertRaisesRegex(AssertionError, "exactly one"):
             identify_original_host_window_before_target(self.host())
@@ -56,7 +56,7 @@ class OriginalHostWindowFixtureTest(unittest.TestCase):
             identify_original_host_window_before_target(self.host())
         def wrong_title(cmd, **kwargs):
             if cmd[1] == "search":
-                return subprocess.CompletedProcess(cmd, 0, "751\\n", "")
+                return subprocess.CompletedProcess(cmd, 0, "751\n", "")
             return subprocess.CompletedProcess(cmd, 0, "Other Client", "")
         run.side_effect = wrong_title
         with self.assertRaisesRegex(AssertionError, "Minecraft title"):
