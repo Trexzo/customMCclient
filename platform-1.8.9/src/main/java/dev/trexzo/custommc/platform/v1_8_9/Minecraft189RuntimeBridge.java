@@ -255,6 +255,9 @@ public final class Minecraft189RuntimeBridge {
     private static int scaffoldOriginalCandidateDiagTicks;
     private static final Minecraft189ScaffoldSourceEpoch scaffoldOriginalSourceEpoch =
             new Minecraft189ScaffoldSourceEpoch();
+    private static final Minecraft189ScaffoldActivationSource scaffoldOriginalActivationSource =
+            new Minecraft189ScaffoldActivationSource();
+    private static long scaffoldOriginalActivationLease;
     private static long scaffoldOriginalPlacementReadbackEpoch;
     private static long scaffoldOriginalPlacementActivation;
     private static Minecraft189ScaffoldNativePlacementAttempt.Result
@@ -270,12 +273,32 @@ public final class Minecraft189RuntimeBridge {
             scaffoldOriginalPlacementReadbackEpoch = 0L;
             scaffoldOriginalPlacementActivation = 0L;
             scaffoldOriginalSourceEpoch.invalidate();
+            scaffoldOriginalActivationSource.reset();
+            scaffoldOriginalActivationLease = 0L;
             return;
         }
         // Track exact original Minecraft/World/player identities only while
         // the opt-in placement proof is active or a receipt is outstanding.
         final Minecraft189ScaffoldModule scaffold = activeRuntime.scaffoldModule();
         final long moduleActivation = scaffold == null ? 0L : scaffold.activation();
+        // A module armed before any World is loaded waits for its FIRST valid
+        // World/player. After that, losing or changing either revokes the
+        // entire activation, even if there has been no placement attempt.
+        if (moduleActivation != scaffoldOriginalActivationLease) {
+            scaffoldOriginalActivationSource.reset();
+            scaffoldOriginalActivationLease = moduleActivation;
+        }
+        if (moduleActivation > 0L
+                && scaffoldOriginalActivationSource.observe(minecraft)
+                        == Minecraft189ScaffoldActivationSource.Verdict.REVOKED) {
+            activeRuntime.moduleController().disable(Minecraft189ScaffoldModule.ID);
+            scaffoldOriginalPlacementReadback = null;
+            scaffoldOriginalPlacementReadbackEpoch = 0L;
+            scaffoldOriginalPlacementActivation = 0L;
+            scaffoldOriginalPlacementReadbackTicks = 0;
+            scaffoldOriginalSourceEpoch.invalidate();
+            return;
+        }
         final boolean moduleArmed = scaffold != null && scaffold.armed();
         final boolean receiptPending = scaffoldOriginalPlacementReadback != null;
         final boolean candidateRequested = moduleArmed;
