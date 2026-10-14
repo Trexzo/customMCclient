@@ -581,6 +581,101 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
                 "same original Item in a different selected hotbar slot is vetoed");
     }
 
+    @Test void v42ProductionTwoPlacementSettingDefaultsOffAndSnapshotsOnEnable() {
+        Minecraft game = new Minecraft();
+        Stack stone = new Stack();
+        game.player.inventory.contents[0] = stone;
+        Controller controller = (Controller) game.controller;
+        Minecraft189ScaffoldModule module = new Minecraft189ScaffoldModule();
+        assertFalse(module.twoPlacementsSetting().get());
+        module.onEnable();
+        assertFalse(module.productionRepeatEnabledForActivation());
+        module.twoPlacementsSetting().set(Boolean.TRUE);
+        assertFalse(module.productionRepeatEnabledForActivation(),
+                "editing setting mid-enable must not arm an extra placement");
+        module.productionRepeatAtOriginalTick(game, true);
+        assertEquals(0, controller.clicks);
+        assertNotNull(module.attemptOnce(game),
+                "default one-shot path must remain functional");
+        assertEquals(1, controller.clicks);
+        module.onDisable();
+
+        module.onEnable();
+        assertTrue(module.productionRepeatEnabledForActivation());
+        assertNull(module.attemptOnce(game),
+                "opt-in repeat activation must not race the one-shot path");
+        assertEquals(1, controller.clicks);
+        module.productionRepeatAtOriginalTick(game, false);
+        assertEquals(1, controller.clicks,
+                "GUI vetoed tick must never call original controller");
+        assertEquals(0L, module.productionRepeatTickCount());
+        module.onDisable();
+    }
+
+    @Test void v42ProductionTwoDistinctOriginalPlacementsNeedReceiptsAndBoundedTicks() {
+        Minecraft game = new Minecraft();
+        Stack stone = new Stack();
+        game.player.inventory.contents[0] = stone;
+        Controller controller = (Controller) game.controller;
+        Minecraft189ScaffoldModule module = new Minecraft189ScaffoldModule();
+        module.twoPlacementsSetting().set(Boolean.TRUE);
+        module.onEnable();
+        module.productionRepeatAtOriginalTick(game, true);
+        assertTrue(module.productionRepeatStarted());
+        assertEquals(1, controller.clicks);
+        assertNull(module.attemptOnce(game));
+        for (int i=0; i<3; i++) module.productionRepeatAtOriginalTick(game, true);
+        assertEquals(1, controller.clicks,
+                "no second action before first original WorldClient+inventory receipt");
+        game.world.placed = true;
+        stone.count = 7;
+        module.productionRepeatAtOriginalTick(game, true);
+        assertEquals(1, controller.clicks,
+                "same original target must never be clicked twice");
+        game.player.x = 2.05D;
+        game.cursor.sample =
+                new double[]{1,1,99,0,5,2.0D,99.5D,.5D};
+        for (int i=0; i<4; i++) module.productionRepeatAtOriginalTick(game, true);
+        assertEquals(2, controller.clicks,
+                "four-tick paced original second click must require fresh target");
+        module.productionRepeatAtOriginalTick(game, true);
+        assertEquals(2, controller.clicks, "second placement awaits receipt");
+        game.world.secondPlaced = true;
+        stone.count = 6;
+        module.productionRepeatAtOriginalTick(game, true);
+        for (int i=0; i<15; i++) module.productionRepeatAtOriginalTick(game, true);
+        assertEquals(2, controller.clicks,
+                "two placements per activation: no third native controller side effect");
+        assertEquals(2, module.repeatProofAttemptedCount());
+        assertTrue(module.repeatProofStopped());
+        module.onDisable();
+        assertFalse(module.active());
+        assertEquals(0L, module.productionRepeatTickCount());
+        assertNull(module.attemptOnce(game));
+    }
+
+    @Test void v42ProductionRepeatFailShutOnWorldSwapOrDisable() {
+        Minecraft game = new Minecraft();
+        Stack stone = new Stack();
+        game.player.inventory.contents[0] = stone;
+        Controller controller = (Controller) game.controller;
+        Minecraft189ScaffoldModule module = new Minecraft189ScaffoldModule();
+        module.twoPlacementsSetting().set(Boolean.TRUE);
+        module.onEnable();
+        module.productionRepeatAtOriginalTick(game, true);
+        assertEquals(1, controller.clicks);
+        game.world = new World();
+        module.productionRepeatAtOriginalTick(game, true);
+        for (int i=0; i<12; i++) module.productionRepeatAtOriginalTick(game, true);
+        assertEquals(1, controller.clicks,
+                "replacement World cannot inherit live placement ownership");
+        assertTrue(module.repeatProofStopped());
+        module.onDisable();
+        assertFalse(module.productionRepeatEnabledForActivation());
+        module.productionRepeatAtOriginalTick(game, true);
+        assertEquals(1, controller.clicks);
+    }
+
     @Test void v36SourceSwapFalseControllerOrDisableCancelsFutureRepeat() {
         Minecraft game=new Minecraft();
         Stack stone=new Stack();
