@@ -1,6 +1,8 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
 import dev.trexzo.custommc.core.module.Module;
+import dev.trexzo.custommc.core.setting.Setting;
+import dev.trexzo.custommc.core.setting.SettingCodecs;
 
 /**
  * V32 first user-visible Scaffold module.
@@ -15,6 +17,18 @@ import dev.trexzo.custommc.core.module.Module;
  */
 public final class Minecraft189ScaffoldModule implements Module {
     public static final String ID = "movement.scaffold";
+    public static final String TWO_PLACEMENTS_SETTING_ID =
+            "movement.scaffold.twoPlacements";
+    private static final int PRODUCTION_REPEAT_COUNT = 2;
+    private static final int PRODUCTION_REPEAT_GAP_TICKS = 4;
+    // Explicit UI setting, always OFF on a clean installation. Only captured
+    // on a fresh module enable; changing it mid-activation grants no clicks.
+    private final Setting<Boolean> twoPlacements = new Setting<Boolean>(
+            TWO_PLACEMENTS_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private boolean productionRepeatForActivation;
+    private boolean productionRepeatStarted;
+    private long productionRepeatTick;
     private boolean enabled;
     private boolean attempted;
     private boolean exhausted;
@@ -30,11 +44,15 @@ public final class Minecraft189ScaffoldModule implements Module {
         repeatSequence.invalidate();
         enabled = false;
         attempted = false;
+        productionRepeatForActivation = false;
+        productionRepeatStarted = false;
+        productionRepeatTick = 0L;
         if (exhausted || activation == Long.MAX_VALUE) {
             exhausted = true;
             return;
         }
         activation++;
+        productionRepeatForActivation = Boolean.TRUE.equals(twoPlacements.get());
         enabled = true;
     }
 
@@ -43,10 +61,19 @@ public final class Minecraft189ScaffoldModule implements Module {
         repeatSequence.invalidate();
         enabled = false;
         attempted = false;
+        productionRepeatForActivation = false;
+        productionRepeatStarted = false;
+        productionRepeatTick = 0L;
         if (activation == Long.MAX_VALUE) exhausted = true;
         else activation++;
     }
 
+    public Setting<Boolean> twoPlacementsSetting() { return twoPlacements; }
+    synchronized boolean productionRepeatEnabledForActivation() {
+        return active() && productionRepeatForActivation;
+    }
+    synchronized boolean productionRepeatStarted() { return productionRepeatStarted; }
+    synchronized long productionRepeatTickCount() { return productionRepeatTick; }
     synchronized boolean active() { return enabled && !exhausted; }
     synchronized boolean armed() { return active() && !attempted; }
     synchronized long activation() { return active() ? activation : 0L; }
@@ -62,9 +89,49 @@ public final class Minecraft189ScaffoldModule implements Module {
      * Starting a sequence consumes the one-shot arm, so the live V35 path
      * cannot race it or double-click on the same module activation.
      */
+    /**
+     * V42 production opt-in path. Call ONLY from original runTick with a
+     * witnessed same original Minecraft/World/player and CLEAR GUI screen.
+     * The default-off setting is frozen at onEnable; this path cannot run in
+     * the same activation as the normal one-shot or the CI-only repeat proof.
+     * No original game references escape the module-owned synchronous tick.
+     */
+    synchronized void productionRepeatAtOriginalTick(
+            final Object originalMinecraft, final boolean originalGuiClear) {
+        if (!productionRepeatEnabledForActivation()) return;
+        // Turning the user setting OFF while active is an immediate veto,
+        // never a transfer back to the one-shot arm in the same activation.
+        if (!Boolean.TRUE.equals(twoPlacements.get())) {
+            repeatSequence.invalidate();
+            attempted = true;
+            productionRepeatStarted = true;
+            return;
+        }
+        if (!originalGuiClear || originalMinecraft == null
+                || (attempted && !productionRepeatStarted))
+            return;
+        if (productionRepeatTick == Long.MAX_VALUE) {
+            repeatSequence.invalidate();
+            productionRepeatStarted = true;
+            return;
+        }
+        final long tick = ++productionRepeatTick;
+        if (!productionRepeatStarted && armed()
+                && repeatSequence.start(originalMinecraft, activation, tick,
+                        PRODUCTION_REPEAT_COUNT, PRODUCTION_REPEAT_GAP_TICKS)) {
+            productionRepeatStarted = true;
+            attempted = true; // Permanently exclude the one-shot per enable.
+        }
+        if (!productionRepeatStarted || repeatSequence.stopped()) return;
+        repeatSequence.checkReceipt(originalMinecraft, activation, tick);
+        if (!repeatSequence.stopped()) {
+            repeatSequence.tryNext(originalMinecraft, activation, tick);
+        }
+    }
+
     synchronized boolean beginRepeatProof(final Object originalMinecraft,
             final long tick, final int maximumAttempts, final int minimumGapTicks) {
-        if (!armed()) return false;
+        if (!armed() || productionRepeatForActivation) return false;
         if (!repeatSequence.start(originalMinecraft, activation, tick,
                 maximumAttempts, minimumGapTicks)) return false;
         attempted = true;
@@ -93,7 +160,7 @@ public final class Minecraft189ScaffoldModule implements Module {
 
     synchronized Minecraft189ScaffoldNativePlacementAttempt.Result attemptOnce(
             final Object originalMinecraft) {
-        if (!armed()) return null;
+        if (!armed() || productionRepeatForActivation) return null;
         final Minecraft189ScaffoldNativePlacementAttempt.Result result =
                 Minecraft189ScaffoldNativePlacementAttempt.attempt(
                         originalMinecraft, true);

@@ -304,7 +304,8 @@ public final class Minecraft189BootstrapRuntime
             safeWalkFeature = Minecraft189SafeWalkFeature.install(
                     modules, moduleController, modulePresentations);
             scaffoldFeature = Minecraft189ScaffoldFeature.install(
-                    modules, moduleController, modulePresentations);
+                    modules, moduleController, modulePresentations,
+                    moduleSettings, settings, settingPresentations);
             // V35: CI-only placement activation is deferred until a
             // source-original, GUI-clear in-world tick. Early bootstrap
             // enable is unsafe: vanilla may open its initial world/pause GUI

@@ -1,6 +1,10 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
 import dev.trexzo.custommc.core.module.*;
+import dev.trexzo.custommc.core.setting.SettingDescriptor;
+import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
+import dev.trexzo.custommc.core.setting.SettingRegistry;
+import dev.trexzo.custommc.core.setting.SettingValueKind;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,15 +25,25 @@ final class Minecraft189ScaffoldFeature implements AutoCloseable {
 
     static Minecraft189ScaffoldFeature install(final ModuleRegistry modules,
             final ModuleController controller,
-            final ModulePresentationRegistry presentations) {
+            final ModulePresentationRegistry presentations,
+            final ModuleSettingRegistry moduleSettings,
+            final SettingRegistry settings,
+            final SettingPresentationRegistry settingPresentations) {
         final Minecraft189ScaffoldModule module=new Minecraft189ScaffoldModule();
         final List<AutoCloseable> owned=new ArrayList<AutoCloseable>();
         try {
             owned.add(modules.register(module));
             owned.add(presentations.register(new ModuleDescriptor(
                     module.id(), "Scaffold",
-                    "One verified vanilla block attempt per enable; re-enable for another.",
+                    "One native placement by default; optional two-placement mode.",
                     Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID, 63)));
+            owned.add(settings.register(module.twoPlacementsSetting()));
+            owned.add(settingPresentations.register(new SettingDescriptor(
+                    Minecraft189ScaffoldModule.TWO_PLACEMENTS_SETTING_ID,
+                    "Two Placements (Opt-in)", SettingValueKind.BOOLEAN, 0)));
+            owned.add(moduleSettings.register(new ModuleSettingBinding(
+                    Minecraft189ScaffoldModule.ID,
+                    Minecraft189ScaffoldModule.TWO_PLACEMENTS_SETTING_ID, 0)));
             return new Minecraft189ScaffoldFeature(module,controller,owned);
         } catch(RuntimeException failure) {
             closeOwned(owned,failure);
