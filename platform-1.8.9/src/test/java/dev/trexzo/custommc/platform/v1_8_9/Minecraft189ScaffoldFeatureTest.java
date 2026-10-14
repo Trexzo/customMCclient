@@ -12,7 +12,8 @@ final class Minecraft189ScaffoldFeatureTest {
         ModulePresentationRegistry presentations=new ModulePresentationRegistry();
         Minecraft189ScaffoldFeature feature=Minecraft189ScaffoldFeature.install(
                 modules,controller,presentations);
-        assertSame(feature.module(),modules.find(Minecraft189ScaffoldModule.ID));
+        Minecraft189ScaffoldModule owned=feature.module();
+        assertSame(owned,modules.find(Minecraft189ScaffoldModule.ID));
         ModuleDescriptor descriptor=presentations.find(Minecraft189ScaffoldModule.ID);
         assertNotNull(descriptor,"new Movement module must appear in ClickGUI");
         assertEquals("Scaffold",descriptor.displayName());
@@ -22,7 +23,7 @@ final class Minecraft189ScaffoldFeatureTest {
         feature.close();
         assertFalse(modules.snapshot().stream()
                         .anyMatch(m -> Minecraft189ScaffoldModule.ID.equals(m.id())));
-        assertFalse(feature.module().active());
+        assertFalse(owned.active());
         assertNull(presentations.find(Minecraft189ScaffoldModule.ID));
         feature.close();
     }
