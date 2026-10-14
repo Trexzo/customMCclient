@@ -1710,6 +1710,13 @@ public final class Minecraft189FeatureCatalog
                     != ModuleState.DISABLED) {
             throw new IllegalStateException("rejoin native UUID acceptance not armed");
         }
+        // Opt-in genuine rejoin fixture needs the same stable nearest-A
+        // initial owner at every server spawn, even if vanilla camera
+        // rotation has not converged immediately after server teleport.
+        // This is a normal, supported Aura setting, not a forged UUID or
+        // a bypass of original crosshair / outgoing controller ownership.
+        // Other FOV-negative suites still exercise their own settings.
+        killAura().fovSetting().set(Double.valueOf(180.0D));
         killAura().lockTargetSetting().set(Boolean.TRUE);
         moduleController.enable(Minecraft189KillAuraModule.ID);
         if (!killAura().active() || !killAura().lockTargetSetting().get()
