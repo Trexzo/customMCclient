@@ -408,6 +408,60 @@ final class Minecraft189ScaffoldOriginalCandidateProbeTest {
         assertNull(module.repeatProofAttempt(game,24L));
     }
 
+    @Test void v37ReadOnlySecondStepDiagnosticDoesNotClickOrAdvanceCadence() {
+        Minecraft game = new Minecraft();
+        Stack original = new Stack();
+        game.player.inventory.contents[0] = original;
+        Controller controller = (Controller) game.controller;
+        Minecraft189ScaffoldModule module = new Minecraft189ScaffoldModule();
+        module.onEnable();
+        assertTrue(module.beginRepeatProof(game, 5L, 2, 4));
+        assertNotNull(module.repeatProofAttempt(game, 5L));
+        game.world.placed = true;
+        original.count = 7;
+        assertTrue(module.repeatProofReceipt(game, 6L));
+        assertEquals(1, controller.clicks);
+
+        final String previousTarget = module.repeatProofDiagnostics(game);
+        assertTrue(previousTarget.contains("attempts=1"));
+        assertTrue(previousTarget.contains("same_original_stack_and_expected_count=7"));
+        assertEquals(1, controller.clicks);
+        assertFalse(module.repeatProofStopped(),
+                "read-only diagnostic must not close the original transaction");
+
+        game.player.x = 2.05D;
+        game.cursor.sample = new double[]{1,1,99,0,5,2.0D,99.5D,.5D};
+        final String next = module.repeatProofDiagnostics(game);
+        assertTrue(next.contains("fresh_target=2,99,0"), next);
+        assertEquals(1, controller.clicks,
+                "a positive diagnostic is NEVER authorization for a controller call");
+        assertEquals(1, module.repeatProofAttemptedCount());
+        assertNotNull(module.repeatProofAttempt(game, 10L));
+        assertEquals(2, controller.clicks);
+    }
+
+    @Test void v37ReadOnlyDiagnosticRevealsSourceItemIdentityChangeWithoutClick() {
+        Minecraft game = new Minecraft();
+        Stack original = new Stack();
+        game.player.inventory.contents[0] = original;
+        Controller controller = (Controller) game.controller;
+        Minecraft189ScaffoldModule module = new Minecraft189ScaffoldModule();
+        module.onEnable();
+        assertTrue(module.beginRepeatProof(game, 5L, 2, 4));
+        assertNotNull(module.repeatProofAttempt(game, 5L));
+        game.world.placed = true;
+        original.count = 7;
+        assertTrue(module.repeatProofReceipt(game, 6L));
+        game.player.inventory.contents[0] = new Stack();
+        final String diagnostic = module.repeatProofDiagnostics(game);
+        assertTrue(diagnostic.contains("original_stack_identity_changed"), diagnostic);
+        assertEquals(1, controller.clicks);
+        assertNull(module.repeatProofAttempt(game, 10L),
+                "normal transaction still rejects replaced ItemStack identity");
+        assertTrue(module.repeatProofStopped());
+        assertEquals(1, controller.clicks);
+    }
+
     @Test void v36SourceSwapFalseControllerOrDisableCancelsFutureRepeat() {
         Minecraft game=new Minecraft();
         Stack stone=new Stack();
