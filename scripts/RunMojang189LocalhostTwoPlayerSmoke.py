@@ -827,22 +827,22 @@ def run(args):
             send_server_command(server, server_log, "gamemode 1 CITargetB")
             send_server_command(server, server_log, b_outer)
             if args.require_index_reorder:
-                # M417's native list position changed naturally in the
-                # certified run, but a later identical-world rerun could
-                # reuse A's exact prior numeric index. Place one genuine,
-                # inert vanilla server ArmorStand in the loaded chunk
-                # BEFORE the new A client reconnects. This tests an actual
-                # list reorder caused by normal world/entity events, not
-                # a fabricated client array or a weakened equality check.
+                # A single vanilla ArmorStand can fill precisely the slot
+                # vacated by A, giving the new A an unchanged list index.
+                # Require FOUR distinct genuine Mojang server-spawned stands
+                # to reach the original host source list before reconnecting
+                # A. Neither client arrays nor native list indices are edited.
+                # Existing original-A != rejoined-A index proof remains strict.
                 parts = a_near.split()
                 if len(parts) != 7 or parts[:2] != ["tp", "CITarget"]:
-                    raise AssertionError("cannot derive real spawn sentinel")
+                    raise AssertionError("cannot derive real spawn sentinels")
                 ax, ay, az = (int(value) for value in parts[2:5])
-                sentinel = "summon ArmorStand {} {} {}".format(
-                    ax + 6, ay, az + 6)
-                send_server_command(server, server_log, sentinel,
-                                    expected=b"Object successfully summoned")
-                print("CUSTOMMC_189_REJOIN_NATIVE_SERVER_SENTINEL_SUMMONED=YES",
+                for dx, dz in ((6, 6), (7, 6), (6, 7), (7, 7)):
+                    sentinel = "summon ArmorStand {} {} {}".format(
+                        ax + dx, ay, az + dz)
+                    send_server_command(server, server_log, sentinel,
+                                        expected=b"Object successfully summoned")
+                print("CUSTOMMC_189_REJOIN_NATIVE_SERVER_SENTINELS_SUMMONED=4",
                       flush=True)
                 wait_for(host, host_log,
                          b"CUSTOMMC_189_REJOIN_REAL_SENTINEL_NATIVE_OBSERVED_PASS=YES",
