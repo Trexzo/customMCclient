@@ -2084,6 +2084,60 @@ public final class Minecraft189RuntimeBridge {
                 }
                 if (Boolean.getBoolean(
                         "custommc.acceptance.reportKillAuraFovVeto")) {
+                    // Diagnostic witness ONLY after the strict policy has
+                    // already rejected this click. Never mutate angle,
+                    // selector, World, input, entity or source authority.
+                    final Minecraft189PlayerRotationState.Snapshot angle =
+                            host.playerRotationState().snapshot();
+                    final Minecraft189PlayerPositionState.Snapshot local =
+                            host.playerPositionState().snapshot();
+                    final Minecraft189WorldEntityPositionState.Snapshot positions =
+                            host.worldEntityPositionState().snapshot();
+                    final Minecraft189WorldEntityKindState.Snapshot kinds =
+                            host.worldEntityKindState().snapshot();
+                    final Minecraft189NearestPlayerTargetState.Snapshot nearest =
+                            host.nearestPlayerTargetState().snapshot();
+                    final Minecraft189TargetRotationState.Snapshot selected =
+                            host.targetRotationState().snapshot();
+                    final int idx = playerIndex;
+                    final boolean indexed = idx >= 0
+                            && positions.available() && kinds.available()
+                            && positions.entityCount() == kinds.entityCount()
+                            && idx < positions.entityCount();
+                    final double dx = indexed && local.available()
+                            ? positions.x(idx) - local.x() : Double.NaN;
+                    final double dz = indexed && local.available()
+                            ? positions.z(idx) - local.z() : Double.NaN;
+                    final double targetYaw = Math.toDegrees(Math.atan2(dz, dx)) - 90.0D;
+                    double delta = (targetYaw - angle.yaw()) % 360.0D;
+                    if (delta < -180.0D) delta += 360.0D;
+                    if (delta >= 180.0D) delta -= 360.0D;
+                    System.out.println(
+                            "CUSTOMMC_189_NATIVE_FOV_UNEXPECTED_CLICK_EVIDENCE"
+                            + " nativePlayerHit=" + playerHit
+                            + " nativeIndex=" + idx
+                            + " nativeIndexed=" + indexed
+                            + " playerYaw=" + angle.yaw()
+                            + " playerPitch=" + angle.pitch()
+                            + " localAvailable=" + local.available()
+                            + " actualDx=" + dx + " actualDz=" + dz
+                            + " actualTargetYaw=" + targetYaw
+                            + " actualYawDelta=" + delta
+                            + " configuredFov="
+                            + host.featureCatalog().killAura().fovSetting().get()
+                            + " independentlyPermits="
+                            + Minecraft189KillAuraNativeFovGate.permits(
+                                idx, host.featureCatalog().killAura().fovSetting().get(),
+                                angle, local, positions, kinds)
+                            + " nearestFound=" + nearest.found()
+                            + " nearestIndex=" + nearest.entityIndex()
+                            + " selectedAvailable=" + selected.available()
+                            + " selectedIndex=" + selected.entityIndex()
+                            + " selectedYaw=" + selected.yaw()
+                            + " selectedDistance=" + selected.distance()
+                            + " entityCount=" + positions.entityCount()
+                            + " auraActive=" + host.featureCatalog().killAura().active());
+                    System.out.flush();
                     throw new IllegalStateException(
                             "out-of-FOV real player caused synthetic attack");
                 }
