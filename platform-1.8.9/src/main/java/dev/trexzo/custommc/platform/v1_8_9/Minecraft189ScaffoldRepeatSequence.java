@@ -3,12 +3,12 @@ package dev.trexzo.custommc.platform.v1_8_9;
 import java.lang.ref.WeakReference;
 
 /**
- * V36 isolated candidate for repeated native controller placement.
+ * Native controller repeat primitive, now used by V43/V54 bounded
+ * production opt-ins after original 1.8.9 two/three-stone server proofs.
  *
- * NOT INSTALLED IN original runTick or a user setting yet. The production
- * V35 path remains exactly one placement attempt per module activation.
- * This module-owned primitive transaction must first pass dedicated-server
- * two-block / survival 8->7->6 proof in a later opt-in integration.
+ * V57 retains every previously RECEIPTED target for the whole activation,
+ * not only its immediate predecessor. A later A -> B -> A native candidate
+ * is never allowed, even after an external world change or block break.
  *
  * Each step re-acquires original Minecraft World, player, cursor, controller
  * and selected ItemBlock. A second click is forbidden until the first
