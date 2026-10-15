@@ -168,6 +168,12 @@ final class Minecraft189ScaffoldRepeatSequence {
     synchronized Minecraft189ScaffoldNativePlacementAttempt.Result tryNext(
             final Object originalMinecraft, final long activationGeneration,
             final long tick) {
+        return tryNext(originalMinecraft, activationGeneration, tick, false);
+    }
+
+    synchronized Minecraft189ScaffoldNativePlacementAttempt.Result tryNext(
+            final Object originalMinecraft, final long activationGeneration,
+            final long tick, final boolean allowAdjacentEdge) {
         if (!sameOwner(originalMinecraft, activationGeneration)) return null;
         if (!cadence.mayAttempt(activationGeneration, tick)) return null;
         if (cadence.stopped()) { invalidate(); return null; }
@@ -185,7 +191,8 @@ final class Minecraft189ScaffoldRepeatSequence {
                 selectedFromCurrentSource(originalMinecraft);
         if (selected == null) return null;
         final Minecraft189ScaffoldOriginalCandidateProbe.Observation fresh =
-                Minecraft189ScaffoldOriginalCandidateProbe.observe(originalMinecraft);
+                Minecraft189ScaffoldOriginalCandidateProbe.observe(
+                        originalMinecraft, allowAdjacentEdge);
         if (fresh == null) return null;
         if (confirmedTargets.contains(fresh.targetX, fresh.targetY, fresh.targetZ)) {
             historicalVetoObserved = true;
@@ -208,7 +215,7 @@ final class Minecraft189ScaffoldRepeatSequence {
         // raytrace, selected stack and controller immediately before clicking.
         final Minecraft189ScaffoldNativePlacementAttempt.Result attempt =
                 Minecraft189ScaffoldNativePlacementAttempt.attempt(
-                        originalMinecraft, true);
+                        originalMinecraft, true, allowAdjacentEdge);
         if (attempt == null) return null;
         final boolean admitted = attempt.targetX == fresh.targetX
                 && attempt.targetY == fresh.targetY
