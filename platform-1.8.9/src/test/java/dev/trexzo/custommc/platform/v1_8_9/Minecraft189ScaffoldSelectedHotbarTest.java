@@ -32,6 +32,55 @@ final class Minecraft189ScaffoldSelectedHotbarTest {
         }
     }
 
+    private static final class OriginalPlayer implements Minecraft189PlayerInventoryAccess {
+        final Minecraft189InventoryHotbarAccess inventory;
+        OriginalPlayer(Minecraft189InventoryHotbarAccess inventory) {
+            this.inventory = inventory;
+        }
+        @Override public Minecraft189InventoryHotbarAccess customMcInventory() {
+            return inventory;
+        }
+    }
+
+    @Test void v49MenuPrearmRequiresRealSelectedEightBlockGrantNotCreativeStartup() {
+        final Inventory inv = new Inventory();
+        final OriginalPlayer player = new OriginalPlayer(inv);
+        assertFalse(Minecraft189ScaffoldSelectedHotbar
+                .hasGenuineSelectedBlockCount(null, 8));
+        assertFalse(Minecraft189ScaffoldSelectedHotbar
+                .hasGenuineSelectedBlockCount(new Object(), 8));
+        assertFalse(Minecraft189ScaffoldSelectedHotbar
+                .hasGenuineSelectedBlockCount(player, 8),
+                "empty startup inventory cannot arm the GUI-negative fixture");
+        inv.slots[3] = new Stack(true, 8);
+        assertFalse(Minecraft189ScaffoldSelectedHotbar
+                .hasGenuineSelectedBlockCount(player, 8),
+                "block in a NON-selected slot cannot authorize a native arm");
+        inv.slots[2] = new Stack(true, 7);
+        assertFalse(Minecraft189ScaffoldSelectedHotbar
+                .hasGenuineSelectedBlockCount(player, 8),
+                "server-debited seven-block stack is not the eight-grant baseline");
+        inv.slots[2] = new Stack(false, 8);
+        assertFalse(Minecraft189ScaffoldSelectedHotbar
+                .hasGenuineSelectedBlockCount(player, 8),
+                "non-block items do not grant placement authority");
+        inv.slots[2] = new Stack(true, 8);
+        assertTrue(Minecraft189ScaffoldSelectedHotbar
+                .hasGenuineSelectedBlockCount(player, 8),
+                "real original selected 8-block stack proves grant readiness");
+        assertFalse(Minecraft189ScaffoldSelectedHotbar
+                .hasGenuineSelectedBlockCount(player, 9));
+        assertFalse(Minecraft189ScaffoldSelectedHotbar
+                .hasGenuineSelectedBlockCount(player, 0));
+        assertEquals(0, inv.setterCalls,
+                "neither test nor read-only readiness changes original hotbar selection");
+        assertEquals(2, inv.selected);
+        inv.throwOnRead = true;
+        assertFalse(Minecraft189ScaffoldSelectedHotbar
+                .hasGenuineSelectedBlockCount(player, 8),
+                "unavailable native inventory must fail shut");
+    }
+
     @Test void verifiesOnlyRealSelectedBlockStackAndNeverChangesSlot() {
         Inventory inv = new Inventory();
         inv.slots[2] = new Stack(true, 14);
