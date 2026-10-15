@@ -1083,13 +1083,16 @@ def run(args):
                                 " first={} last={}".format(
                                     first_source, source_after_input))
                     finally:
-                        # Release every actual key, also on timeout/crash.
-                        if backward_held:
-                            set_original_host_backward_key(
-                                host, host_window, False)
-                        if sneak_held:
-                            set_original_host_sneak_key(
-                                host, host_window, False)
+                        # Even an XTEST S key-release exception must never
+                        # leave vanilla Shift held in the original window.
+                        try:
+                            if backward_held:
+                                set_original_host_backward_key(
+                                    host, host_window, False)
+                        finally:
+                            if sneak_held:
+                                set_original_host_sneak_key(
+                                    host, host_window, False)
                     wait_for(host, host_log, repeat_receipt + b" step=2",
                              deadline,
                              "original second WorldClient receipt after"
