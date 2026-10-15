@@ -74,6 +74,56 @@ final class Minecraft189KillAuraModuleTest {
     }
 
     @Test
+    void v45RejectedClickDropsCreditButKeepsGenuineUuidLockUntilDisable() {
+        final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
+        final Minecraft189TargetRotationState target = targetAtTwoBlocks();
+        final Minecraft189PlayerRotationState rotation = new Minecraft189PlayerRotationState();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        final RotationPlayer player = new RotationPlayer();
+        final java.util.UUID genuineB = java.util.UUID.fromString(
+                "9c6b2c0b-a653-3300-9829-2617908fae14");
+        rotation.update(0, 0);
+        movement.update(true, false, false);
+        aura.minCpsSetting().set(10);
+        aura.maxCpsSetting().set(10);
+        aura.lockTargetSetting().set(Boolean.TRUE);
+        aura.onEnable();
+        try {
+            aura.rememberSelectedTarget(genuineB);
+            assertTrue(aura.aim(player, rotation.snapshot(), target.snapshot(),
+                    false, movement.snapshot()));
+            assertEquals(genuineB, aura.lockedTargetUuid());
+            assertFalse(aura.shouldClick(true, 0, rotation.snapshot(), target.snapshot(),
+                    false, false, movement.snapshot(), false),
+                    "first half-tick of 10 CPS earns no click");
+            // V44's unconditional empty-ray check must not call suspend():
+            // one missing native ray may not invalidate a genuine B lock.
+            assertFalse(aura.shouldClick(false, -1, rotation.snapshot(), target.snapshot(),
+                    false, false, movement.snapshot(), false));
+            assertEquals(genuineB, aura.lockedTargetUuid());
+            assertFalse(aura.shouldClick(true, 0, rotation.snapshot(), target.snapshot(),
+                    false, false, movement.snapshot(), false),
+                    "empty ray drops scheduler credit");
+            // Actual crosshair candidate rejected by independent source-FOV
+            // gate: invalidate pacing, NOT a still-source-verified UUID lock.
+            aura.vetoSyntheticClick();
+            assertEquals(genuineB, aura.lockedTargetUuid(),
+                    "FOV-veto cannot erase source-verified B ownership");
+            assertFalse(aura.shouldClick(true, 0, rotation.snapshot(), target.snapshot(),
+                    false, false, movement.snapshot(), false),
+                    "FOV veto must not bank a delayed automatic click");
+            assertTrue(aura.shouldClick(true, 0, rotation.snapshot(), target.snapshot(),
+                    false, false, movement.snapshot(), false),
+                    "live native confirmation with valid geometry may recover");
+            aura.suspend();
+            assertNull(aura.lockedTargetUuid(),
+                    "actual GUI/World/module suspension must still clear owner");
+        } finally {
+            aura.onDisable();
+        }
+    }
+
+    @Test
     void movementAndRangeGatesFailClosedAndDoNotBankClicks() {
         final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
         final Minecraft189TargetRotationState target = targetAtTwoBlocks();
