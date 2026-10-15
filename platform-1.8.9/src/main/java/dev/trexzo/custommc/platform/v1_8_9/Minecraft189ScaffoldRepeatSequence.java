@@ -44,6 +44,8 @@ final class Minecraft189ScaffoldRepeatSequence {
     private boolean hasPriorTarget;
     private int priorX, priorY, priorZ;
     private Minecraft189ScaffoldNativePlacementAttempt.Result pending;
+    // V58 CI only reads this witness. It never changes controller admission.
+    private boolean historicalVetoObserved;
 
     synchronized boolean start(final Object originalMinecraft,
             final long activationGeneration, final long tick,
@@ -185,8 +187,10 @@ final class Minecraft189ScaffoldRepeatSequence {
         final Minecraft189ScaffoldOriginalCandidateProbe.Observation fresh =
                 Minecraft189ScaffoldOriginalCandidateProbe.observe(originalMinecraft);
         if (fresh == null) return null;
-        if (confirmedTargets.contains(fresh.targetX, fresh.targetY, fresh.targetZ))
-            return null; // Every prior confirmed target is excluded, not just the last.
+        if (confirmedTargets.contains(fresh.targetX, fresh.targetY, fresh.targetZ)) {
+            historicalVetoObserved = true;
+            return null; // Every prior confirmed target, not just the last.
+        }
 
         // A movement tick may be ungrounded or have no original mouse-over.
         // It must not reset the exact Minecraft/World/player identity lease.
@@ -300,6 +304,7 @@ final class Minecraft189ScaffoldRepeatSequence {
                 + " candidate=" + target;
     }
 
+    synchronized boolean historicalVetoObserved() { return historicalVetoObserved; }
     synchronized boolean pending() { return pending != null && !cadence.stopped(); }
     synchronized int attemptedCount() { return cadence.attemptedCount(); }
     synchronized boolean stopped() { return cadence.stopped(); }
@@ -314,6 +319,7 @@ final class Minecraft189ScaffoldRepeatSequence {
         activation = sourceGeneration = 0L;
         pending = null;
         confirmedTargets.reset();
+        historicalVetoObserved = false;
         hasPriorTarget = false;
         priorX = priorY = priorZ = expectedCount = selectedSlot = 0;
     }
