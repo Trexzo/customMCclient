@@ -113,4 +113,100 @@ final class Minecraft189ScaffoldSupportPlanner {
         }
         return null;
     }
+    /**
+     * V63: source-native adjacent edge option. Unlike old underfoot mode,
+     * the target is a different AIR block directly in front of the solid
+     * block that STILL supports the genuinely grounded local player.
+     *
+     * Only the exact original MovingObjectPosition support+side face
+     * identifies the direction. The caller MUST additionally enforce
+     * native face-vector and independent original World.rayTraceBlocks.
+     * Never guess a view direction, synthesize ray data or place a block.
+     */
+    static Candidate chooseNativeAdjacent(
+            final WorldEvidence world, final long expectedGeneration,
+            final boolean nativeLocalPlayer, final boolean onGround,
+            final double feetX, final double feetY, final double feetZ,
+            final double eyeY, final boolean nativeItemBlock,
+            final int nativeStackSize, final double nativeReach,
+            final double[] sourceHit) {
+        if (world == null || expectedGeneration <= 0L
+                || !nativeLocalPlayer || !onGround || !nativeItemBlock
+                || nativeStackSize <= 0 || !Double.isFinite(feetX)
+                || !Double.isFinite(feetY) || !Double.isFinite(feetZ)
+                || !Double.isFinite(eyeY) || !Double.isFinite(nativeReach)
+                || nativeReach <= 0D || nativeReach > 4.5D
+                || feetY < 2D || feetY >= 255D
+                || eyeY < feetY || eyeY > feetY + 2.2D
+                || Math.abs(feetX) > 29999990D
+                || Math.abs(feetZ) > 29999990D
+                || sourceHit == null || sourceHit.length != 8
+                || sourceHit[0] != 1D)
+            return null;
+        for (double number : sourceHit)
+            if (!Double.isFinite(number)) return null;
+        final int underX = (int)Math.floor(feetX);
+        final int underY = (int)Math.floor(feetY) - 1;
+        final int underZ = (int)Math.floor(feetZ);
+        if (underY < 1 || underY > 253
+                || sourceHit[1] != underX || sourceHit[2] != underY
+                || sourceHit[3] != underZ)
+            return null;
+        final double fractionalX = feetX - underX;
+        final double fractionalZ = feetZ - underZ;
+        int targetX = underX, targetZ = underZ;
+        final Face face;
+        // Source-native facing indexes: N=2, S=3, W=4, E=5.
+        // The original player's center must be near this SAME edge.
+        switch ((int)sourceHit[4]) {
+            case 2:
+                if (sourceHit[4] != 2D || fractionalZ > .37D) return null;
+                face = Face.NORTH;
+                --targetZ;
+                break;
+            case 3:
+                if (sourceHit[4] != 3D || fractionalZ < .63D) return null;
+                face = Face.SOUTH;
+                ++targetZ;
+                break;
+            case 4:
+                if (sourceHit[4] != 4D || fractionalX > .37D) return null;
+                face = Face.WEST;
+                --targetX;
+                break;
+            case 5:
+                if (sourceHit[4] != 5D || fractionalX < .63D) return null;
+                face = Face.EAST;
+                ++targetX;
+                break;
+            default: return null;
+        }
+        if (Math.abs((double)targetX) > 29999990D
+                || Math.abs((double)targetZ) > 29999990D)
+            return null;
+        try {
+            if (world.generation() != expectedGeneration
+                    || world.cell(underX, underY, underZ) != Cell.FULL_SOLID
+                    || world.cell(targetX, underY, targetZ) != Cell.REPLACEABLE
+                    || world.generation() != expectedGeneration)
+                return null;
+            final double faceX = underX
+                    + (face == Face.WEST ? 0D
+                        : face == Face.EAST ? 1D : .5D);
+            final double faceY = underY + .5D;
+            final double faceZ = underZ
+                    + (face == Face.NORTH ? 0D
+                        : face == Face.SOUTH ? 1D : .5D);
+            final double dx = faceX - feetX;
+            final double dy = faceY - eyeY;
+            final double dz = faceZ - feetZ;
+            if (dx * dx + dy * dy + dz * dz > nativeReach * nativeReach)
+                return null;
+            return new Candidate(expectedGeneration, targetX, underY, targetZ,
+                    underX, underY, underZ, face, faceX, faceY, faceZ);
+        } catch (RuntimeException missingNativeWorldEvidence) {
+            return null;
+        }
+    }
+
 }

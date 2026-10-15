@@ -34,6 +34,11 @@ final class Minecraft189ScaffoldNativePlacementAttempt {
     private Minecraft189ScaffoldNativePlacementAttempt() { }
 
     static Result attempt(Object minecraft, boolean explicitlyEnabled) {
+        return attempt(minecraft, explicitlyEnabled, false);
+    }
+
+    static Result attempt(Object minecraft, boolean explicitlyEnabled,
+            boolean allowAdjacentEdge) {
         if (!explicitlyEnabled
                 || !(minecraft instanceof Minecraft189ScaffoldNativeContextAccess)
                 || !(minecraft instanceof Minecraft189ScaffoldNativeControllerAccess))
@@ -60,7 +65,8 @@ final class Minecraft189ScaffoldNativePlacementAttempt {
             final Minecraft189ScaffoldSupportPlanner.Candidate candidate =
                     Minecraft189ScaffoldRayCandidateGate.verify(
                             lease, context.world, context.player,
-                            context.nativeCursor, nativeEyeY, reach);
+                            context.nativeCursor, nativeEyeY, reach,
+                            allowAdjacentEdge);
             if (candidate == null) return null;
             final Minecraft189InventoryHotbarAccess inventory =
                     ((Minecraft189PlayerInventoryAccess)context.player).customMcInventory();

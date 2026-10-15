@@ -28,6 +28,8 @@ final class Minecraft189ScaffoldFeatureTest {
                 "three-block production mode must start disabled");
         assertEquals(Boolean.FALSE, owned.fourPlacementsSetting().get(),
                 "four-block production mode must start disabled");
+        assertEquals(Boolean.FALSE, owned.adjacentEdgeTargetsSetting().get(),
+                "source-native adjacent edge setting must default off");
         assertSame(owned.twoPlacementsSetting(),
                 settings.find(Minecraft189ScaffoldModule.TWO_PLACEMENTS_SETTING_ID));
         assertNotNull(settingPresentations.find(
@@ -40,12 +42,18 @@ final class Minecraft189ScaffoldFeatureTest {
                 settings.find(Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID));
         assertNotNull(settingPresentations.find(
                 Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID));
+        assertSame(owned.adjacentEdgeTargetsSetting(),
+                settings.find(Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID));
+        assertNotNull(settingPresentations.find(
+                Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID));
         assertEquals(Minecraft189ScaffoldModule.ID,
                 moduleSettings.ownerOf(Minecraft189ScaffoldModule.TWO_PLACEMENTS_SETTING_ID).moduleId());
         assertEquals(Minecraft189ScaffoldModule.ID,
                 moduleSettings.ownerOf(Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID).moduleId());
         assertEquals(Minecraft189ScaffoldModule.ID,
                 moduleSettings.ownerOf(Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID).moduleId());
+        assertEquals(Minecraft189ScaffoldModule.ID,
+                moduleSettings.ownerOf(Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID).moduleId());
         controller.enable(Minecraft189ScaffoldModule.ID);
         assertTrue(feature.module().active(),"controller must own enable");
         feature.close();
@@ -65,6 +73,10 @@ final class Minecraft189ScaffoldFeatureTest {
         assertNull(settingPresentations.find(
                 Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID));
         assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID));
+        assertNull(settings.find(Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID));
+        assertNull(settingPresentations.find(
+                Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID));
+        assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID));
         feature.close();
     }
 
@@ -138,6 +150,36 @@ final class Minecraft189ScaffoldFeatureTest {
         assertEquals(4, module.productionRepeatCountForActivation());
     }
 
+    @Test void adjacentEdgeOnlyIsNeverAOneShotOrAutomaticRepeatGrant() {
+        final Minecraft189ScaffoldModule module = new Minecraft189ScaffoldModule();
+        module.adjacentEdgeTargetsSetting().set(Boolean.TRUE);
+        module.onEnable();
+        assertTrue(module.active());
+        assertFalse(module.armed(),
+                "edge toggle alone is invalid, no hidden one-shot fallback");
+        assertFalse(module.productionRepeatEnabledForActivation());
+        module.onDisable();
+
+        module.twoPlacementsSetting().set(Boolean.TRUE);
+        module.onEnable();
+        assertTrue(module.productionRepeatEnabledForActivation());
+        assertEquals(2, module.productionRepeatCountForActivation());
+        assertTrue(module.armed(),
+                "valid repeat activation awaits a genuine original source tick");
+        module.adjacentEdgeTargetsSetting().set(Boolean.FALSE);
+        assertEquals(2, module.productionRepeatCountForActivation(),
+                "live toggle may never silently restore underfoot authority");
+        module.onDisable();
+        module.adjacentEdgeTargetsSetting().set(Boolean.FALSE);
+        module.onEnable();
+        assertTrue(module.productionRepeatEnabledForActivation());
+        assertEquals(2, module.productionRepeatCountForActivation());
+        module.onDisable();
+        module.twoPlacementsSetting().set(Boolean.FALSE);
+        module.onEnable();
+        assertTrue(module.armed(), "default one-shot restored only after opt-ins off");
+    }
+
     @Test void duplicatePresentationFailsWithoutLeavingHiddenModuleRegistered() {
         ModuleRegistry modules=new ModuleRegistry();
         ModuleController controller=new ModuleController(modules);
@@ -162,6 +204,8 @@ final class Minecraft189ScaffoldFeatureTest {
             assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID));
             assertNull(settings.find(Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID));
             assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID));
+            assertNull(settings.find(Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID));
+            assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID));
         } finally {
             prior.close();
         }
