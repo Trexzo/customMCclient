@@ -22,6 +22,16 @@ final class Minecraft189ScaffoldRayCandidateGate {
             Minecraft189PlayerPositionAccess localPlayer,
             Minecraft189ScaffoldNativeBlockHitAccess originalCrosshairHit,
             double nativeEyeY, double nativeReach) {
+        return verify(lease, sourceWorld, localPlayer, originalCrosshairHit,
+                nativeEyeY, nativeReach, false);
+    }
+
+    static Minecraft189ScaffoldSupportPlanner.Candidate verify(
+            Minecraft189ScaffoldWorldLease lease,
+            Minecraft189ScaffoldWorldReadAccess sourceWorld,
+            Minecraft189PlayerPositionAccess localPlayer,
+            Minecraft189ScaffoldNativeBlockHitAccess originalCrosshairHit,
+            double nativeEyeY, double nativeReach, boolean allowAdjacentEdge) {
         if (lease == null || sourceWorld == null
                 || !(sourceWorld instanceof Minecraft189ScaffoldWorldRayTraceAccess)
                 || !(localPlayer instanceof Minecraft189LocalPlayerSafeWalkMarker)
@@ -49,16 +59,24 @@ final class Minecraft189ScaffoldRayCandidateGate {
                     || !Double.isFinite(nativeEyeY)
                     || nativeEyeY < y || nativeEyeY > y + 2.2D)
                 return null;
-            final Minecraft189ScaffoldSupportPlanner.Candidate candidate =
-                    lease.choose(sourceWorld, true, true, x, y, z,
-                            nativeEyeY, true, selected.sourceStackSize, nativeReach);
-            if (candidate == null) return null;
-
             // Exactly one native hit snapshot: never authorize using two
             // potentially different reads of the mutable vanilla cursor.
             final double[] sourceHit = originalCrosshairHit.customMcScaffoldNativeBlockHit();
             if (sourceHit == null || sourceHit.length != 8) return null;
             final double[] hit = sourceHit.clone();
+            Minecraft189ScaffoldSupportPlanner.Candidate candidate =
+                    lease.choose(sourceWorld, true, true, x, y, z,
+                            nativeEyeY, true, selected.sourceStackSize, nativeReach);
+            // V63 opt-in fallback: the source-native player remains ON the
+            // supporting stone at a real edge. Original crosshair SIDE hit
+            // identifies exactly one different adjacent AIR block.
+            if (candidate == null && allowAdjacentEdge) {
+                candidate = lease.chooseNativeAdjacent(
+                        sourceWorld, true, true, x, y, z,
+                        nativeEyeY, true, selected.sourceStackSize,
+                        nativeReach, hit);
+            }
+            if (candidate == null) return null;
             final Minecraft189ScaffoldNativeBlockHitAccess frozenHit =
                     new Minecraft189ScaffoldNativeBlockHitAccess() {
                         @Override public double[] customMcScaffoldNativeBlockHit() {
@@ -125,9 +143,15 @@ final class Minecraft189ScaffoldRayCandidateGate {
                     || latest.sourceSlot != selected.sourceSlot
                     || latest.sourceStackSize != selected.sourceStackSize)
                 return null;
-            final Minecraft189ScaffoldSupportPlanner.Candidate current =
+            Minecraft189ScaffoldSupportPlanner.Candidate current =
                     lease.choose(sourceWorld, true, true, x, y, z,
                             nativeEyeY, true, latest.sourceStackSize, nativeReach);
+            if (current == null && allowAdjacentEdge) {
+                current = lease.chooseNativeAdjacent(
+                        sourceWorld, true, true, x, y, z,
+                        nativeEyeY, true, latest.sourceStackSize,
+                        nativeReach, hit);
+            }
             if (current == null || current.generation != candidate.generation
                     || current.targetX != candidate.targetX
                     || current.targetY != candidate.targetY
