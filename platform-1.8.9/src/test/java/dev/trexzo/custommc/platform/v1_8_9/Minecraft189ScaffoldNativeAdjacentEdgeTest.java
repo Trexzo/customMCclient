@@ -50,7 +50,8 @@ final class Minecraft189ScaffoldNativeAdjacentEdgeTest {
         World w=new World();
         assertNull(choose(w,-1.53,EAST_HIT),
                 "center must be physically near the support's actual east edge");
-        assertNotNull(choose(w,-1.37,EAST_HIT));
+        assertNotNull(choose(w,-1.35,EAST_HIT),
+                "unambiguously inside .63 source-native edge threshold");
         assertNull(Minecraft189ScaffoldSupportPlanner.chooseNativeAdjacent(
                 w,1,true,false,-1.29,100,.5,101.62,true,8,4.5,EAST_HIT));
         assertNull(Minecraft189ScaffoldSupportPlanner.chooseNativeAdjacent(
