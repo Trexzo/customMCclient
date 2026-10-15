@@ -1856,10 +1856,21 @@ public final class Minecraft189RuntimeBridge {
                     final Minecraft189TargetRotationState.Snapshot nativeRotation =
                             host.targetRotationState().snapshot();
                     final int index = remoteIndex;
-                    final double dx = valid && index >= 0
+                    // Read-only diagnostics must expose the native yaw/range
+                    // even when the STRICT rear-angle verdict is false.
+                    // Otherwise the evidence collapses to NaN exactly when
+                    // the game moves beyond the required 120-degree margin.
+                    final boolean positionEvidence = index >= 0
+                            && local.available() && positions.available()
+                            && index < positions.entityCount();
+                    final double dx = positionEvidence
                             ? positions.x(index) - local.x() : Double.NaN;
-                    final double dz = valid && index >= 0
+                    final double dy = positionEvidence
+                            ? positions.y(index) - local.y() : Double.NaN;
+                    final double dz = positionEvidence
                             ? positions.z(index) - local.z() : Double.NaN;
+                    final double nativeDistance = Math.sqrt(
+                            dx * dx + dy * dy + dz * dz);
                     final double nativeTargetYaw =
                             Math.toDegrees(Math.atan2(dz, dx)) - 90.0D;
                     final double nativeYawDelta = ((nativeTargetYaw
@@ -1869,6 +1880,7 @@ public final class Minecraft189RuntimeBridge {
                             + " nativeSourceValid=" + valid
                             + " actualRemoteIndex=" + remoteIndex
                             + " actualRemoteCount=" + remoteCount
+                            + " actualDistance=" + nativeDistance
                             + " nativePlayerYaw="
                                 + (rotation.available() ? rotation.yaw() : Float.NaN)
                             + " actualTargetYaw=" + nativeTargetYaw
