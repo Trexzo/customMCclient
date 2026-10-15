@@ -946,6 +946,62 @@ def run(args):
                       + "_SERVER_FIRST_STONE_SEVEN_PASS=YES",
                       flush=True)
 
+                if three_gui_abort:
+                    # V55 negative: the FIRST genuine stone and native
+                    # WorldClient 8->7 receipt are already proven. Press
+                    # actual vanilla inventory E while the three-placement
+                    # module still owns this activation. No test-only click,
+                    # packet, ItemStack write or client World modification.
+                    if repeat_attempt + b" step=2" in log_tail(host_log):
+                        raise AssertionError(
+                            "unexpected second native attempt before real E")
+                    send_real_host_key(host, host_window, "e")
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_REAL_GUI_ABORT_AFTER_ONE_PASS=YES state=OPEN",
+                             deadline, "real in-flight inventory E cancels three placement sequence")
+                    for target in (second_target_xyz, third_target_xyz):
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*target),
+                                            expected=b"successfully found the block")
+                    send_server_command(server, server_log,
+                                        "clear CIHost stone 0 0",
+                                        expected=b"has 7 items that match the criteria")
+                    # Reopen the game using the genuine original Escape key.
+                    # Then move the ORIGINAL server-owned player to both
+                    # still-empty positions and witness 60 native runTicks
+                    # at each, without allowing a stale quota to resume.
+                    send_real_host_key(host, host_window, "Escape")
+                    send_server_command(server, server_log,
+                                        "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                            x+2.05, y, z+.5))
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_GUI_RESUMED_DISABLED_TICKS=60",
+                             deadline, "60 original GUI-clear disabled ticks at second edge")
+                    send_server_command(server, server_log,
+                                        "testforblock {} {} {} air".format(*second_target_xyz),
+                                        expected=b"successfully found the block")
+                    send_server_command(server, server_log,
+                                        "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                            x+3.05, y, z+.5))
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_GUI_RESUMED_DISABLED_TICKS=120",
+                             deadline, "120 original GUI-clear disabled ticks at third edge")
+                    if log_tail(host_log).count(repeat_attempt) != 1:
+                        raise AssertionError("cancelled three-block mode issued extra original controller calls")
+                    if log_tail(host_log).count(repeat_receipt) != 1:
+                        raise AssertionError("cancelled three-block mode claimed additional original readbacks")
+                    for target in (second_target_xyz, third_target_xyz):
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*target),
+                                            expected=b"successfully found the block")
+                    send_server_command(server, server_log,
+                                        "clear CIHost stone 0 0",
+                                        expected=b"has 7 items that match the criteria")
+                    print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_THREE_REAL_E_ABORT_"
+                          "RESUME_SERVER_ONE_STONE_SEVEN_PASS=YES",
+                          flush=True)
+                    return
+
                 # The server moves the real local player to the second edge.
                 # No rotation/position/controller/ItemStack spoof in the
                 # client. Original raytrace must now see first placed stone
