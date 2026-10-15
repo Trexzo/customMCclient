@@ -60,6 +60,14 @@ final class Minecraft189ScaffoldFeature implements AutoCloseable {
             owned.add(moduleSettings.register(new ModuleSettingBinding(
                     Minecraft189ScaffoldModule.ID,
                     Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID, 2)));
+            owned.add(settings.register(module.adjacentEdgeTargetsSetting()));
+            owned.add(settingPresentations.register(new SettingDescriptor(
+                    Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID,
+                    "Native Adjacent Edge Targets (Opt-in)",
+                    SettingValueKind.BOOLEAN, 3)));
+            owned.add(moduleSettings.register(new ModuleSettingBinding(
+                    Minecraft189ScaffoldModule.ID,
+                    Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID, 3)));
             return new Minecraft189ScaffoldFeature(module,controller,owned);
         } catch(RuntimeException failure) {
             closeOwned(owned,failure);
