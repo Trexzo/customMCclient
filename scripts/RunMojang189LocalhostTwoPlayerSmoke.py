@@ -770,6 +770,22 @@ def run(args):
                 if args.scaffold_placement == "menu-open" else None)
             send_server_command(server, server_log, "gamemode 0 CIHost")
             if args.scaffold_placement == "menu-open":
+                # V49: the original GUI-negative acceptance must NOT arm in a
+                # transient creative/empty startup World. Supply the ACTUAL
+                # dedicated-server Survival eight-stone inventory BEFORE
+                # measuring 60 stable original GUI-clear+source ticks.
+                # This is real keyboard+server authority, not spoofed client
+                # inventory/ItemStack state. No placement candidate is set
+                # under the host until AFTER the real inventory E veto.
+                send_real_host_key(host, host_window, "1")
+                print("CUSTOMMC_189_SCAFFOLD_GUI_NEGATIVE_REAL_HOTBAR_ONE_KEY=YES",
+                      flush=True)
+                send_server_command(server, server_log, "give CIHost stone 8")
+                send_server_command(server, server_log,
+                                    "clear CIHost stone 0 0",
+                                    expected=b"has 8 items that match the criteria")
+                print("CUSTOMMC_189_SCAFFOLD_GUI_PREARM_SERVER_EIGHT_PASS=YES",
+                      flush=True)
                 # A genuinely OPEN vanilla startup/menu GUI cannot satisfy
                 # V35's 60 consecutive original GUI-CLEAR ticks. Dismiss a
                 # persistent pre-existing original screen with one real Esc
@@ -851,14 +867,15 @@ def run(args):
                           + b"_MODULE_ARMED=YES")
             if any(tag in log_tail(host_log)
                    for tag in (module,attempt,receipt,repeat_attempt,repeat_receipt,repeat_arm)):
-                raise AssertionError("native placement or repeat arm before genuine server grant")
+                raise AssertionError("native placement or repeat arm before accepted placement fixture")
             if args.scaffold_placement in ("enabled", "repeat-two", "production-repeat-two"):
                 # Genuine host keyboard selects hotbar slot 0. This is not
                 # a spoofed inventory setter or a fabricated ItemStack.
                 # Server sends the real eight-block Survival grant afterward.
                 send_real_host_key(host, host_window, "1")
                 print("CUSTOMMC_189_SCAFFOLD_ORIGINAL_HOTBAR_ONE_KEY=YES", flush=True)
-            send_server_command(server, server_log,"give CIHost stone 8")
+            if args.scaffold_placement != "menu-open":
+                send_server_command(server, server_log, "give CIHost stone 8")
             # A legitimate enabled client may place the first block the
             # very next original runTick. Requiring a server count of 8
             # after grant in the enabled mode races the intended 8 -> 7
