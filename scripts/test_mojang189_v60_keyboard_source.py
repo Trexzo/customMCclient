@@ -49,8 +49,8 @@ class NativeKeyboardSourceTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             log = Path(folder) / "host.log"
             log.write_bytes(
-                b"CUSTOMMC_189_NATIVE_LOCAL_POS=x=516.05 y=100.0 z=19.5\\n"
-                b"CUSTOMMC_189_NATIVE_LOCAL_POS=x=516.92 y=100.0 z=19.5\\n"
+                b"CUSTOMMC_189_NATIVE_LOCAL_POS=x=516.05 y=100.0 z=19.5\n"
+                b"CUSTOMMC_189_NATIVE_LOCAL_POS=x=516.92 y=100.0 z=19.5\n"
             )
             self.assertEqual((516.92, 100.0, 19.5),
                              latest_original_native_local_player_position(log))
@@ -59,8 +59,8 @@ class NativeKeyboardSourceTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             log = Path(folder) / "host.log"
             log.write_bytes(
-                b"Teleported CIHost to 517.05,100,19.5\\n"
-                b"SERVER_SIMULATED_MOVEMENT=517.05\\n"
+                b"Teleported CIHost to 517.05,100,19.5\n"
+                b"SERVER_SIMULATED_MOVEMENT=517.05\n"
             )
             self.assertIsNone(latest_original_native_local_player_position(log))
 
