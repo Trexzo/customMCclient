@@ -660,16 +660,18 @@ def set_original_host_backward_key(host, host_window, pressed):
                            capture_output=True, text=True, check=False)
     if title.returncode != 0 or "Minecraft" not in title.stdout:
         raise AssertionError("original host Minecraft X11 window missing")
-    if pressed:
-        subprocess.run(["xdotool", "windowactivate", "--sync", str(host_window)],
-                       check=True, timeout=6, stdout=subprocess.DEVNULL)
-        focused = subprocess.check_output(["xdotool", "getactivewindow"],
-                                          timeout=4).decode("ascii").strip()
-        if int(focused) != int(host_window):
-            raise AssertionError("original host window not actually active before movement")
-    subprocess.run(["xdotool", "keydown" if pressed else "keyup",
-                    "--window", str(host_window), "s"], check=True, timeout=6,
-                   stdout=subprocess.DEVNULL)
+    # LWJGL2 consumes genuine focused X11 keyboard-device events. Do NOT
+    # supply xdotool --window: it switches to XSendEvent, which legacy
+    # XInput pollers may ignore. Use the same XTest path as the already
+    # certified real '1', 'e' and Escape key acceptance controls.
+    subprocess.run(["xdotool", "windowactivate", "--sync", str(host_window)],
+                   check=True, timeout=6, stdout=subprocess.DEVNULL)
+    focused = subprocess.check_output(["xdotool", "getactivewindow"],
+                                      timeout=4).decode("ascii").strip()
+    if int(focused) != int(host_window):
+        raise AssertionError("original host window not actually active for movement")
+    subprocess.run(["xdotool", "keydown" if pressed else "keyup", "s"],
+                   check=True, timeout=6, stdout=subprocess.DEVNULL)
     print("CUSTOMMC_189_REAL_HOST_S_BACKWARD_{}=YES".format(
           "PRESSED" if pressed else "RELEASED"), flush=True)
 
