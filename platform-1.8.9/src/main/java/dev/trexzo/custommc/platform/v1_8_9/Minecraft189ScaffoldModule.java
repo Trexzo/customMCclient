@@ -108,6 +108,9 @@ public final class Minecraft189ScaffoldModule implements Module {
     synchronized int productionRepeatAttemptedCount() {
         return repeatSequence.attemptedCount();
     }
+    synchronized boolean productionHistoricalTargetVetoObserved() {
+        return repeatSequence.historicalVetoObserved();
+    }
     synchronized boolean active() { return enabled && !exhausted; }
     synchronized boolean armed() { return active() && !attempted; }
     synchronized long activation() { return active() ? activation : 0L; }

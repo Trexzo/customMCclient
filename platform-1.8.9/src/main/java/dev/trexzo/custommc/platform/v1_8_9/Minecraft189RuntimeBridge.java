@@ -289,6 +289,7 @@ public final class Minecraft189RuntimeBridge {
     private static int scaffoldRepeatPositiveReadbacks;
     private static int scaffoldProductionReceiptReported;
     private static boolean scaffoldProductionCompletionReported;
+    private static boolean scaffoldProductionHistoricalVetoReported;
     private static final Minecraft189ScaffoldGuiClearStability
             scaffoldMenuNegativeClearStability = new Minecraft189ScaffoldGuiClearStability();
 
@@ -593,6 +594,19 @@ public final class Minecraft189RuntimeBridge {
             final Minecraft189ScaffoldNativePlacementAttempt.Result step =
                     scaffold.productionRepeatAtOriginalTick(minecraft, true);
             if (productionRepeatProof) {
+                // V58: independent CI-only observation of a native candidate
+                // rejected SPECIFICALLY because this module activation
+                // already receipted its coordinates. No source is fabricated.
+                if (productionThreeBlockProof
+                        && Boolean.getBoolean(
+                            "custommc.acceptance.requireProductionScaffoldHistoryVeto")
+                        && !scaffoldProductionHistoricalVetoReported
+                        && scaffold.productionHistoricalTargetVetoObserved()) {
+                    scaffoldProductionHistoricalVetoReported = true;
+                    System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_HISTORY_REUSE_VETO=YES");
+                    System.out.flush();
+                }
                 final int receipts = scaffold.productionPositiveReceipts();
                 while (scaffoldProductionReceiptReported < receipts) {
                     System.out.println(
