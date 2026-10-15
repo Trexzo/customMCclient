@@ -629,6 +629,38 @@ public final class Minecraft189RuntimeBridge {
                             + "," + step.targetZ
                             + " selectedBefore=" + step.originalStackSize);
                     System.out.flush();
+                    if (Boolean.getBoolean(
+                            "custommc.acceptance.requireProductionScaffoldKeyboardWalkProof")) {
+                        // V60 source-native read-only witness at the actual
+                        // original controller tick. A marker may never be
+                        // inferred from server teleport commands or expected
+                        // placement geometry. Source data missing = no proof.
+                        Object player = null;
+                        if (minecraft instanceof Minecraft189ScaffoldNativeContextAccess) {
+                            final Object[] nativeValues =
+                                    ((Minecraft189ScaffoldNativeContextAccess)minecraft)
+                                            .customMcScaffoldNativeContext();
+                            if (nativeValues != null && nativeValues.length == 3)
+                                player = nativeValues[0];
+                        }
+                        if (!(player instanceof Minecraft189PlayerPositionAccess))
+                            throw new IllegalStateException(
+                                    "V60 original native local player unavailable at controller");
+                        final Minecraft189PlayerPositionAccess nativePlayer =
+                                (Minecraft189PlayerPositionAccess)player;
+                        final double px = nativePlayer.customMcPositionX();
+                        final double py = nativePlayer.customMcPositionY();
+                        final double pz = nativePlayer.customMcPositionZ();
+                        if (!Double.isFinite(px) || !Double.isFinite(py)
+                                || !Double.isFinite(pz))
+                            throw new IllegalStateException(
+                                    "V60 original controller player position nonfinite");
+                        System.out.println(
+                                "CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_ORIGINAL_SOURCE_POSITION"
+                                + " step=" + scaffold.productionRepeatAttemptedCount()
+                                + " x=" + px + " y=" + py + " z=" + pz);
+                        System.out.flush();
+                    }
                 }
                 final int expectedCount = productionFourBlockProof ? 4
                         : productionThreeBlockProof ? 3 : 2;
