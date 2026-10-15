@@ -167,6 +167,27 @@ def native_safe_walk_positions(log):
     return samples
 
 
+def stable_original_scaffold_edge_support(readings):
+    """Strict actual 1.8.9 local player edge position, not a fake onGround.
+
+    The genuine stone at (0,99,0) supports the vanilla AABB from the
+    neighboring edge at X=1.05, feet Y=100.0. Vanilla collision can settle
+    Z at 0.30 instead of the nominal teleport's 0.50 while the full support
+    still exists. Require THREE consistent original source positions, not
+    an exact Z center value or a synthetic support/ground flag. Original
+    World/ItemBlock/face/cursor candidate admission remains separately strict.
+    """
+    if len(readings) < 3:
+        return False
+    last = readings[-3:]
+    return (all(abs(x - 1.05) < 0.05
+                and abs(y - 100.0) < 0.15
+                and 0.25 <= z <= 0.75 for x, y, z in last)
+            and max(v[0] for v in last) - min(v[0] for v in last) < 0.02
+            and max(v[1] for v in last) - min(v[1] for v in last) < 0.02
+            and max(v[2] for v in last) - min(v[2] for v in last) < 0.02)
+
+
 def run(command, game, timeout, attack=False, auto_clicker=False,
         kill_aura_nonplayer=False, native_world_camera=False,
         native_safe_walk=False, safe_walk_edge=None, native_scaffold_world=False,
@@ -641,14 +662,21 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 stable_start = time.monotonic()
                 while time.monotonic() - stable_start < 12:
                     readings = native_safe_walk_positions(log)[-5:]
-                    if len(readings) >= 3 and all(
-                            abs(x - 1.05) < .05 and abs(y - 100.0) < .15
-                            and abs(z - .5) < .05 for x, y, z in readings[-3:]):
+                    if stable_original_scaffold_edge_support(readings):
+                        observed_x, observed_y, observed_z = readings[-1]
+                        print(
+                            "CUSTOMMC_189_SCAFFOLD_NATIVE_EDGE_STABLE_SOURCE="
+                            "x={:.4f} y={:.4f} z={:.4f}".format(
+                                observed_x, observed_y, observed_z),
+                            flush=True)
                         break
                     require_running(process, "source-native edge candidate grounding")
                     time.sleep(.15)
                 else:
-                    raise AssertionError("vanilla player not stably grounded on adjacent support")
+                    raise AssertionError(
+                        "vanilla player not stably supported at original edge;"
+                        " final_original_positions={}".format(
+                            native_safe_walk_positions(log)[-5:]))
                 candidate_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_NATIVE_CANDIDATE_PASS=YES"
                 if candidate_tag in read_tail(log):
                     raise AssertionError("candidate was accepted before any selected original ItemBlock")
