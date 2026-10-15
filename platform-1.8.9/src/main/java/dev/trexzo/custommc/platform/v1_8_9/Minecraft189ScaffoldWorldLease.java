@@ -45,6 +45,26 @@ final class Minecraft189ScaffoldWorldLease implements AutoCloseable {
                 && world == current ? candidate : null;
     }
 
+    /** V63 current-callback-only edge candidate from the REAL MOP side hit. */
+    synchronized Minecraft189ScaffoldSupportPlanner.Candidate chooseNativeAdjacent(
+            final Minecraft189ScaffoldWorldReadAccess world,
+            final boolean nativeLocalPlayer, final boolean onGround,
+            final double feetX, final double feetY, final double feetZ,
+            final double eyeY, final boolean nativeItemBlock,
+            final int stackSize, final double reach, final double[] sourceHit) {
+        if (closed || world == null || world != current || evidence == null)
+            return null;
+        final long epoch = evidence.generation();
+        if (epoch <= 0L) return null;
+        final Minecraft189ScaffoldSupportPlanner.Candidate result =
+                Minecraft189ScaffoldSupportPlanner.chooseNativeAdjacent(
+                        evidence, epoch, nativeLocalPlayer, onGround,
+                        feetX, feetY, feetZ, eyeY, nativeItemBlock,
+                        stackSize, reach, sourceHit);
+        return result != null && world == current
+                && evidence.generation() == epoch ? result : null;
+    }
+
     synchronized void invalidate() {
         if (evidence != null) evidence.close();
         evidence = null;
