@@ -35,7 +35,7 @@ final class Minecraft189ScaffoldFeature implements AutoCloseable {
             owned.add(modules.register(module));
             owned.add(presentations.register(new ModuleDescriptor(
                     module.id(), "Scaffold",
-                    "One native placement by default; optional two-placement mode.",
+                    "One native placement by default; separate opt-in two/three modes.",
                     Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID, 63)));
             owned.add(settings.register(module.twoPlacementsSetting()));
             owned.add(settingPresentations.register(new SettingDescriptor(
@@ -44,6 +44,15 @@ final class Minecraft189ScaffoldFeature implements AutoCloseable {
             owned.add(moduleSettings.register(new ModuleSettingBinding(
                     Minecraft189ScaffoldModule.ID,
                     Minecraft189ScaffoldModule.TWO_PLACEMENTS_SETTING_ID, 0)));
+            // Mutually exclusive runtime modes; the module rejects both
+            // enabled rather than silently selecting a quota or one-shot.
+            owned.add(settings.register(module.threePlacementsSetting()));
+            owned.add(settingPresentations.register(new SettingDescriptor(
+                    Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID,
+                    "Three Placements (Opt-in)", SettingValueKind.BOOLEAN, 1)));
+            owned.add(moduleSettings.register(new ModuleSettingBinding(
+                    Minecraft189ScaffoldModule.ID,
+                    Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID, 1)));
             return new Minecraft189ScaffoldFeature(module,controller,owned);
         } catch(RuntimeException failure) {
             closeOwned(owned,failure);
