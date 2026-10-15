@@ -167,6 +167,8 @@ public final class Minecraft189RuntimeBridge {
         scaffoldRepeatPositiveReadbacks = 0;
         scaffoldProductionReceiptReported = 0;
         scaffoldProductionCompletionReported = false;
+        scaffoldThreeGuiAbortObserved = false;
+        scaffoldThreeGuiResumeClearTicks = 0;
         scaffoldMenuNegativeClearStability.reset();
         scaffoldDisabledProofTicks = 0;
         scaffoldDisabledProofReported = false;
@@ -289,6 +291,11 @@ public final class Minecraft189RuntimeBridge {
     private static int scaffoldRepeatPositiveReadbacks;
     private static int scaffoldProductionReceiptReported;
     private static boolean scaffoldProductionCompletionReported;
+    // V55 CI-only real native inventory E interruption after first
+    // accepted THREE-mode placement, followed by explicit clear-screen
+    // runTick evidence. No production game references persist here.
+    private static boolean scaffoldThreeGuiAbortObserved;
+    private static int scaffoldThreeGuiResumeClearTicks;
     private static final Minecraft189ScaffoldGuiClearStability
             scaffoldMenuNegativeClearStability = new Minecraft189ScaffoldGuiClearStability();
 
@@ -376,6 +383,43 @@ public final class Minecraft189RuntimeBridge {
         // Track exact original Minecraft/World/player identities only while
         // the opt-in placement proof is active or a receipt is outstanding.
         final Minecraft189ScaffoldModule scaffold = activeRuntime.scaffoldModule();
+        // V55: after a TRUE in-flight vanilla inventory OPEN revoked the
+        // activation, witness a full 120 original GUI-clear callbacks while
+        // the same module stays DISABLED. The external genuine dedicated
+        // server independently checks unplaced targets and seven stones.
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireProductionScaffoldThreeGuiAbort")
+                && scaffoldThreeGuiAbortObserved) {
+            if (scaffold == null || scaffold.active())
+                throw new IllegalStateException(
+                        "V55 three-placement activation restarted after GUI veto");
+            boolean nativeClear = false;
+            if (minecraft instanceof Minecraft189ScaffoldNativeContextAccess
+                    && Minecraft189ScaffoldScreenGate.inspect(minecraft)
+                        == Minecraft189ScaffoldScreenGate.Verdict.CLEAR) {
+                try {
+                    final Object[] nativeSource =
+                            ((Minecraft189ScaffoldNativeContextAccess)minecraft)
+                                    .customMcScaffoldNativeContext();
+                    nativeClear = nativeSource != null
+                            && nativeSource.length == 3
+                            && nativeSource[0] != null && nativeSource[1] != null;
+                } catch (RuntimeException noNativeSource) {
+                    nativeClear = false;
+                }
+            }
+            if (nativeClear) {
+                if (scaffoldThreeGuiResumeClearTicks < 120
+                        && ++scaffoldThreeGuiResumeClearTicks % 60 == 0) {
+                    System.out.println(
+                            "CUSTOMMC_189_SCAFFOLD_THREE_GUI_RESUMED_DISABLED_TICKS="
+                            + scaffoldThreeGuiResumeClearTicks);
+                    System.out.flush();
+                }
+            } else {
+                scaffoldThreeGuiResumeClearTicks = 0;
+            }
+        }
         // V48 CI-only: record that the original Mojang runTick hook really
         // executes, even when the positive readiness path NEVER enters.
         // Source-only evidence, no original action, no selector/module write.
@@ -498,6 +542,22 @@ public final class Minecraft189RuntimeBridge {
                 ? Minecraft189ScaffoldScreenGate.inspect(minecraft)
                 : Minecraft189ScaffoldScreenGate.Verdict.CLEAR;
         if (originalScreen != Minecraft189ScaffoldScreenGate.Verdict.CLEAR) {
+            // V55: test ONLY; a real E inventory opening AFTER exactly one
+            // native controller action and receipt must revoke the pending
+            // three-step sequence. No packet, GUI spoof or generated click.
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireProductionScaffoldThreeGuiAbort")
+                    && scaffold != null
+                    && scaffold.productionRepeatEnabledForActivation()
+                    && scaffold.productionPositiveReceipts() == 1
+                    && scaffold.productionRepeatAttemptedCount() == 1) {
+                scaffoldThreeGuiAbortObserved = true;
+                scaffoldThreeGuiResumeClearTicks = 0;
+                System.out.println(
+                        "CUSTOMMC_189_SCAFFOLD_THREE_REAL_GUI_ABORT_AFTER_ONE_PASS=YES"
+                        + " state=" + originalScreen);
+                System.out.flush();
+            }
             if (Boolean.getBoolean(
                     "custommc.acceptance.requireOriginalScaffoldMenuVeto")) {
                 System.out.println(
