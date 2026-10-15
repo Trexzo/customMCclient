@@ -939,7 +939,7 @@ def run(args):
             if any(tag in log_tail(host_log)
                    for tag in (module,attempt,receipt,repeat_attempt,repeat_receipt,repeat_arm)):
                 raise AssertionError("native placement or repeat arm before accepted placement fixture")
-            if args.scaffold_placement in ("enabled", "repeat-two", "production-repeat-two"):
+            if args.scaffold_placement in ("enabled", "repeat-two", "production-repeat-two", "production-repeat-two-keyboard-walk"):
                 # Genuine host keyboard selects hotbar slot 0. This is not
                 # a spoofed inventory setter or a fabricated ItemStack.
                 # Server sends the real eight-block Survival grant afterward.
