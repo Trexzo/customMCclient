@@ -1092,8 +1092,25 @@ def run(args):
             # Only AFTER the survivor's native lock and list-index change
             # are established, permit true survival PvP knockback/damage.
             send_server_command(server, server_log, "gamemode 0 CITargetB")
-            wait_for(host, host_log, REJOIN_B_HIT, deadline,
-                     "genuine surviving UUID B original combat click")
+            try:
+                wait_for(host, host_log, REJOIN_B_HIT, deadline,
+                         "genuine surviving UUID B original combat click")
+            except AssertionError:
+                # Diagnostic only: unchanged strict positive controller
+                # requirement stays fatal. Preserve last REAL original-ray,
+                # yaw/FOV and UUID click-boundary samples outside the
+                # noisy host tail; never count a diagnostic as an attack.
+                native_log = log_tail(host_log, 2500000)
+                native_samples = [
+                    line.decode("utf-8", errors="replace")[-1800:]
+                    for line in native_log.splitlines()
+                    if b"CUSTOMMC_189_REJOIN_B_CLICK_GATE_NATIVE_EVIDENCE" in line
+                ]
+                print("CUSTOMMC_189_REJOIN_B_REAL_CLICK_TIMEOUT_EVIDENCE"
+                      " snapshots={} tail={}".format(
+                          len(native_samples), native_samples[-15:]),
+                      flush=True)
+                raise
             wait_for_real_score(server, server_log, "CITargetB", deadline)
             send_server_command(server, server_log,
                                 "scoreboard players test CITarget taken 0 0",

@@ -2085,7 +2085,17 @@ public final class Minecraft189RuntimeBridge {
                     ? ((Minecraft189CrosshairHitAccess) minecraft)
                             .customMcCrosshairHitboxBounds()
                     : null;
-            if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {
+            final boolean originalAutomaticClick =
+                    host.shouldAutoClick(playerHit, playerIndex, nativeHitbox);
+            // V50: observation ONLY, at precisely the real original click
+            // gate. The boolean and native input are NEVER overridden.
+            // Records why phase-3 genuine locked B may fail to emit a hit.
+            if (Boolean.getBoolean("custommc.acceptance.reportKillAuraRejoin"))
+                Minecraft189RejoinTargetAcceptance
+                        .witnessOriginalSurvivorClickAdmission(
+                                host, playerHit, playerIndex,
+                                originalAutomaticClick);
+            if (originalAutomaticClick) {
                 if (Boolean.getBoolean(
                         "custommc.acceptance.reportKillAuraRangeVeto")) {
                     throw new IllegalStateException(
