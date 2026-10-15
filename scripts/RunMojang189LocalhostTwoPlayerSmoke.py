@@ -1081,16 +1081,15 @@ def run(args):
                     try:
                         set_original_host_sneak_key(host, host_window, True)
                         sneak_held = True
-                        if args.scaffold_placement == "production-repeat-two-keyboard-walk":
-                            # First REAL source-native A block is server
-                            # confirmed. Adjust only the genuine Minecraft
-                            # mouse XTEST pointer so the player may actually
-                            # aim at A's side while crouching at its edge.
-                            move_original_host_mouse_up_for_edge(
-                                host, host_window, 55)
                         set_original_host_backward_key(host, host_window, True)
                         backward_held = True
                         keyboard_deadline = min(deadline, time.monotonic() + 9.0)
+                        # FIRST: walk on the original A stone with the real
+                        # physical SHIFT+S keys and unchanged nearly-downward
+                        # vanilla camera. Keep the genuine negative gate:
+                        # NO second click while the native cursor still
+                        # points at lower AIR/MISS instead of A's side.
+                        at_real_edge = False
                         while time.monotonic() < keyboard_deadline:
                             current = latest_original_native_local_player_position(
                                 host_log)
@@ -1098,10 +1097,48 @@ def run(args):
                                 if (abs(current[2] - first_source[2]) > .65
                                         or current[1] < first_source[1] - .42
                                         or current[0] < first_source[0] - .25
-                                        or current[0] > first_source[0] + 2.3):
+                                        or current[0] > first_source[0] + 1.40):
                                     raise AssertionError(
-                                        "original sneaking traversal left supported"
-                                        " edge first={} current={}".format(
+                                        "original sneaking traversal left real"
+                                        " supported edge first={} current={}".format(
+                                            first_source, current))
+                                source_after_input = current
+                                if current[0] >= first_source[0] + 1.16:
+                                    at_real_edge = True
+                                    break
+                            if second_attempt in log_tail(host_log):
+                                raise AssertionError(
+                                    "original near-vertical ray unexpectedly"
+                                    " placed B before actual physical mouse aim")
+                            time.sleep(.035)
+                        if not at_real_edge:
+                            raise AssertionError(
+                                "original sneak input did not reach supported"
+                                " edge before camera action first={} last={}".format(
+                                    first_source, source_after_input))
+                        if second_attempt in log_tail(host_log):
+                            raise AssertionError(
+                                "original B was admitted before new side-ray")
+                        print("CUSTOMMC_189_ORIGINAL_SNEAK_EDGE_READY_BEFORE_MOUSE=YES"
+                              " nativePosition={}".format(source_after_input),
+                              flush=True)
+                        # SECOND: change ONLY the physical XTEST mouse pitch,
+                        # then wait for original World/cursor/item/ground gates
+                        # to authorize the REAL B controller themselves.
+                        # This is neither a rotation-field setter nor an
+                        # invented MovingObjectPosition or packet.
+                        move_original_host_mouse_up_for_edge(
+                            host, host_window, 55)
+                        while time.monotonic() < keyboard_deadline:
+                            current = latest_original_native_local_player_position(
+                                host_log)
+                            if current is not None:
+                                if (abs(current[2] - first_source[2]) > .65
+                                        or current[1] < first_source[1] - .42
+                                        or current[0] > first_source[0] + 1.40):
+                                    raise AssertionError(
+                                        "original mouse-aimed sneaking motion"
+                                        " lost support first={} current={}".format(
                                             first_source, current))
                                 source_after_input = current
                             if second_attempt in log_tail(host_log):
@@ -1109,8 +1146,8 @@ def run(args):
                             time.sleep(.035)
                         else:
                             raise AssertionError(
-                                "original sneaking controller B missing before"
-                                " 9-second bounded keyboard deadline"
+                                "original side-aimed controller B missing"
+                                " within 9-second physical input deadline"
                                 " first={} last={}".format(
                                     first_source, source_after_input))
                     finally:
