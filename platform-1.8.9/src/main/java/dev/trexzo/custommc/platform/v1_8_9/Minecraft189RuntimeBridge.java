@@ -2034,6 +2034,16 @@ public final class Minecraft189RuntimeBridge {
                     ? ((Minecraft189CrosshairHitAccess) minecraft)
                             .customMcCrosshairPlayerIndex()
                     : -1;
+            // V51: the real Mojang objectMouseOver is sampled before
+            // synthetic action scheduling; observe the original ray while B
+            // is source-UUID-locked, even if no controller click follows.
+            // Test-only and read-only; original manual mouse and all gates
+            // retain their existing semantics and strict verification.
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraRejoin"))
+                Minecraft189RejoinTargetAcceptance
+                        .observeOriginalCrosshairAtClick(
+                                host, playerHit, playerIndex);
             // Expire an owned use-item latch even when no attack is due.
             // A real manual right-click takes ownership and is never released
             // by this synthetic module.
