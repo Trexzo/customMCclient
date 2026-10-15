@@ -951,6 +951,62 @@ def run(args):
                       + "_SERVER_FIRST_STONE_SEVEN_PASS=YES",
                       flush=True)
 
+                if three_hotbar_abort:
+                    # V57: one authentic original stone and 8->7 receipt
+                    # exist already. Physically switch the real host hotbar
+                    # AWAY from its pinned ItemBlock via keyboard '2'.
+                    if repeat_attempt + b" step=2" in log_tail(host_log):
+                        raise AssertionError("second original click before real hotbar change")
+                    send_real_host_key(host, host_window, "2")
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_REAL_HOTBAR_ABORT_AFTER_ONE_PASS=YES slot=1",
+                             deadline, "native selected-slot change permanently invalidates repeat lease")
+                    for target in (second_target_xyz, third_target_xyz):
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*target),
+                                            expected=b"successfully found the block")
+                    send_server_command(server, server_log,
+                                        "clear CIHost stone 0 0",
+                                        expected=b"has 7 items that match the criteria")
+                    # Restore original slot with a real '1' key, not an
+                    # inventory setter. The old generation must NOT rearm.
+                    send_real_host_key(host, host_window, "1")
+                    send_server_command(server, server_log,
+                                        "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                            x+2.05, y, z+.5))
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_HOTBAR_RESUMED_VETO_TICKS=60",
+                             deadline, "60 genuine native slot-restored veto callbacks at second edge")
+                    send_server_command(server, server_log,
+                                        "testforblock {} {} {} air".format(*second_target_xyz),
+                                        expected=b"successfully found the block")
+                    # Keep target x+3 AIR yet physically support its real
+                    # vanilla player with x+4 stone; do not let a void fall
+                    # masquerade as a safe hotbar cancellation.
+                    send_server_command(server, server_log,
+                                        "setblock {} {} {} stone".format(x+4, y-1, z))
+                    send_server_command(server, server_log,
+                                        "tp CIHost {:.2f} {} {:.2f} 270 85".format(
+                                            x+3.85, y, z+.5))
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_HOTBAR_RESUMED_VETO_TICKS=120",
+                             deadline, "120 original source veto callbacks at third edge")
+                    if log_tail(host_log).count(repeat_attempt) != 1:
+                        raise AssertionError("reselected hotbar restarted original controller")
+                    if log_tail(host_log).count(repeat_receipt) != 1:
+                        raise AssertionError("reselected hotbar fabricated additional receipts")
+                    for target in (second_target_xyz, third_target_xyz):
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*target),
+                                            expected=b"successfully found the block")
+                    send_server_command(server, server_log,
+                                        "clear CIHost stone 0 0",
+                                        expected=b"has 7 items that match the criteria")
+                    print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_THREE_REAL_HOTBAR_"
+                          "RESELECT_SERVER_ONE_STONE_SEVEN_PASS=YES",
+                          flush=True)
+                    return
+
                 if three_gui_abort:
                     # V55 negative: the FIRST genuine stone and native
                     # WorldClient 8->7 receipt are already proven. Press
