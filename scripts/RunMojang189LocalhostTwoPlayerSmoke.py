@@ -636,8 +636,8 @@ def source_native_scaffold_position(log, step):
     regex = re.compile(
         rb"CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_ORIGINAL_SOURCE_POSITION"
         rb" step=" + str(step).encode("ascii")
-        + rb" x=(-?\\d+(?:\\.\\d+)?) y=(-?\\d+(?:\\.\\d+)?)"
-        rb" z=(-?\\d+(?:\\.\\d+)?)")
+        + rb" x=(-?\d+(?:\.\d+)?) y=(-?\d+(?:\.\d+)?)"
+        rb" z=(-?\d+(?:\.\d+)?)")
     observations = regex.findall(log_tail(log, 200000))
     if len(observations) != 1:
         raise AssertionError("missing/duplicate original controller position step {}".format(step))
