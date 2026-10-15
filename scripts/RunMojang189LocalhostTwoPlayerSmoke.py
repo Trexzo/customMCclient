@@ -974,9 +974,18 @@ def run(args):
                       + "_SERVER_FIRST_STONE_SEVEN_PASS=YES",
                       flush=True)
                 if walk_four:
-                    # All further motion comes from the original host's
-                    # actual keyboard. Do not permit any server tp after
-                    # the first support/stone, unlike old fixture modes.
+                    # Original V59 S-key walking really moved the player
+                    # past the unsupported edge; source feet ended at Y=4
+                    # before a second native placement was possible. Slow
+                    # only the real original server-owned host player, giving
+                    # the grounded original ray/World/receipt transaction
+                    # more native ticks within each 0.3-block overlap.
+                    # No physics spoof, position setter, server TP to steps
+                    # 2/3/4, auto-block mutation or artificial click.
+                    send_server_command(server, server_log,
+                                        "effect CIHost 2 600 5 true")
+                    print("CUSTOMMC_189_SCAFFOLD_REAL_HOST_VANILLA_SLOWNESS_PASS=YES",
+                          flush=True)
                     native_walk_start = host_log.stat().st_size
                     set_real_host_backwalk(host, host_window, True)
                     walk_key_held = True
@@ -1717,16 +1726,15 @@ def run(args):
                      "20 real rear-player target callbacks with module disabled")
             wait_for(host, host_log, FOV_ENABLED, deadline,
                      "ordinary Kill Aura module enable")
-            # V58: original native source reported rear yaw wandering to a
-            # 115-degree delta, below this acceptance's unchanged strict
-            # 120-degree rear-margin requirement. Reassert genuine vanilla
-            # server teleport/yaw ONCE after real module activation. No
-            # synthetic rotation, mouse override or fabricated veto marker.
-            # Eighty consecutive ORIGINAL rear-player tick callbacks and a
-            # real server zero-damage result remain mandatory afterward.
-            send_server_command(server, server_log, host_tp)
-            print("CUSTOMMC_189_FOV_REAL_SERVER_YAW_REANCHOR=YES",
-                  flush=True)
+            # V61: do NOT teleport an already-enabled Aura client. An
+            # immutable native V58 run proved that the extra server /tp
+            # unexpectedly changed original CIHost yaw to FACE the player:
+            # original native actualTargetYaw=-180, playerYaw=-180,
+            # independent native FOV gate=true. The test then incorrectly
+            # expected an out-of-FOV veto and crashed on an admissible click.
+            # With one original pre-enable teleport, still require genuine
+            # 80 consecutive rear-player native vetoes, unchanged 90 FOV
+            # and zero dedicated-server damage. No forced click suppression.
             wait_for(host, host_log, FOV_VETO, deadline,
                      "80 real rear-player FOV veto callbacks")
             send_server_command(server, server_log,
