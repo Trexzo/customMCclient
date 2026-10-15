@@ -1,14 +1,13 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
 /**
- * V33: pure primitive-only pacing and receipt transaction policy.
+ * Pure primitive-only pacing and receipt transaction policy, now used by
+ * the real source-native bounded production Scaffold repeat sequence.
  *
- * Not wired to Minecraft or to the module in this milestone. It cannot send a
- * packet or place a block. A future caller must independently obtain a NEW
- * same-tick original World/player/cursor/ItemBlock candidate and only report
- * success after native client World + exact survival stack readback. Genuine
- * dedicated-server block/inventory acceptance is still required before
- * shipping any repeated-placement behavior.
+ * This class never places blocks or sends packets. The outer sequence must
+ * revalidate a fresh original World/player/cursor/ItemBlock and one positive
+ * client World/stack readback per admitted native controller call; independent
+ * original dedicated-server stone/inventory proof remains the CI authority.
  *
  * One accepted controller call requires one positive receipt before another
  * call can be considered. False controller return, timeout, stale activation,

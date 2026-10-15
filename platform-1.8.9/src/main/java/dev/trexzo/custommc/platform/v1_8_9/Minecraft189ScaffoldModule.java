@@ -5,12 +5,14 @@ import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
 
 /**
- * V32 first user-visible Scaffold module.
+ * Source-native Scaffold with one placement by default and explicit
+ * default-OFF two/three-placement modes (V43/V54).
  *
- * This deliberately permits at most ONE native vanilla block-placement
- * attempt per explicit enable. No repeated bridging, tower motion, camera
- * spoofing, raw packets or automatic inventory slot changes. The original
- * same-tick World/eye/cursor/ItemBlock gates remain authoritative.
+ * Each placement revalidates the ORIGINAL Minecraft World/eye/cursor and
+ * ItemBlock; repeat mode needs one original positive receipt per attempt
+ * and forbids reusing any previously receipted target. This is a BOUNDED
+ * batch, not continuous bridging or tower motion. No spoofed cameras,
+ * raw packets or automated hotbar changes are permitted.
  *
  * A module disable or new enable advances its activation generation, which
  * prevents pending receipt reuse across toggles and runtime replacement.
