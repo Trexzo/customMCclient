@@ -413,11 +413,17 @@ public final class Minecraft189RuntimeBridge {
                 "custommc.acceptance.requireOriginalScaffoldTwoBlockProof");
         final boolean productionTwoBlockProof = Boolean.getBoolean(
                 "custommc.acceptance.requireProductionScaffoldTwoBlockProof");
+        final boolean productionThreeBlockProof = Boolean.getBoolean(
+                "custommc.acceptance.requireProductionScaffoldThreeBlockProof");
+        if (productionTwoBlockProof && productionThreeBlockProof)
+            throw new IllegalStateException("conflicting original Scaffold proof quotas");
+        final boolean productionRepeatProof =
+                productionTwoBlockProof || productionThreeBlockProof;
         final boolean needsAcceptanceEnable = scaffold != null
                 && !scaffoldAcceptanceEnableIssued
                 && (Boolean.getBoolean(
                         "custommc.acceptance.requireOriginalScaffoldPlacement")
-                        || twoBlockOriginalProof || productionTwoBlockProof);
+                        || twoBlockOriginalProof || productionRepeatProof);
         final boolean acceptanceReady = needsAcceptanceEnable
                 && originalScaffoldAcceptanceMayArm(minecraft,
                         Boolean.getBoolean(
@@ -437,15 +443,18 @@ public final class Minecraft189RuntimeBridge {
             // One grant per boot/runtime, never re-arm after a veto, World
             // switch or controller failure. The ordinary production module
             // is disabled by default and user toggles remain unchanged.
-            if (productionTwoBlockProof && !twoBlockOriginalProof) {
-                // CI-only *configuration* of the real production setting,
-                // before ModuleController owns a fresh onEnable. The normal
-                // production path handles every subsequent original tick.
-                scaffold.twoPlacementsSetting().set(Boolean.TRUE);
+            if (productionRepeatProof && !twoBlockOriginalProof) {
+                // CI-only configuration of exactly ONE real production
+                // opt-in setting before ModuleController grants a new
+                // activation. Never transfer control to test-only clicks.
+                if (productionThreeBlockProof)
+                    scaffold.threePlacementsSetting().set(Boolean.TRUE);
+                else
+                    scaffold.twoPlacementsSetting().set(Boolean.TRUE);
             }
             activeRuntime.moduleController().enable(Minecraft189ScaffoldModule.ID);
             scaffoldAcceptanceEnableIssued = true;
-            if (productionTwoBlockProof
+            if (productionRepeatProof
                     && scaffold.productionRepeatEnabledForActivation()) {
                 System.out.println(
                         "CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_MODULE_ARMED=YES"
@@ -583,7 +592,7 @@ public final class Minecraft189RuntimeBridge {
                 && scaffold.productionRepeatEnabledForActivation()) {
             final Minecraft189ScaffoldNativePlacementAttempt.Result step =
                     scaffold.productionRepeatAtOriginalTick(minecraft, true);
-            if (productionTwoBlockProof) {
+            if (productionRepeatProof) {
                 final int receipts = scaffold.productionPositiveReceipts();
                 while (scaffoldProductionReceiptReported < receipts) {
                     System.out.println(
@@ -601,13 +610,17 @@ public final class Minecraft189RuntimeBridge {
                             + " selectedBefore=" + step.originalStackSize);
                     System.out.flush();
                 }
-                if (!scaffoldProductionCompletionReported && receipts == 2
+                final int expectedCount = productionThreeBlockProof ? 3 : 2;
+                if (!scaffoldProductionCompletionReported
+                        && receipts == expectedCount
                         && scaffold.repeatProofStopped()
-                        && scaffold.productionRepeatAttemptedCount() == 2) {
+                        && scaffold.productionRepeatAttemptedCount() == expectedCount) {
                     scaffoldProductionCompletionReported = true;
                     System.out.println(
-                            "CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_TWO_CLIENT_RECEIPTS_PASS=YES"
-                            + " attempts=2");
+                            "CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
+                            + (productionThreeBlockProof ? "THREE" : "TWO")
+                            + "_CLIENT_RECEIPTS_PASS=YES attempts="
+                            + expectedCount);
                     System.out.flush();
                 }
             }
