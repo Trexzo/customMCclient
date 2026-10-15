@@ -158,6 +158,7 @@ public final class Minecraft189RuntimeBridge {
         scaffoldOriginalPlacementReadbackReported = false;
         scaffoldAcceptanceEnableIssued = false;
         scaffoldAcceptancePendingDiagTicks = 0;
+        scaffoldMenuPrearmHeartbeatTicks = 0;
         scaffoldRepeatTick = 0L;
         scaffoldRepeatProofStarted = false;
         scaffoldRepeatPositiveAttempts = 0;
@@ -277,6 +278,7 @@ public final class Minecraft189RuntimeBridge {
     private static boolean scaffoldDisabledProofReported;
     private static boolean scaffoldAcceptanceEnableIssued;
     private static int scaffoldAcceptancePendingDiagTicks;
+    private static int scaffoldMenuPrearmHeartbeatTicks;
     // V37: acceptance-only original-Mojang two-block proof. Never active
     // during ordinary gameplay or the certified V35 single-block fixture.
     private static long scaffoldRepeatTick;
@@ -363,6 +365,25 @@ public final class Minecraft189RuntimeBridge {
         // Track exact original Minecraft/World/player identities only while
         // the opt-in placement proof is active or a receipt is outstanding.
         final Minecraft189ScaffoldModule scaffold = activeRuntime.scaffoldModule();
+        // V48 CI-only: record that the original Mojang runTick hook really
+        // executes, even when the positive readiness path NEVER enters.
+        // Source-only evidence, no original action, no selector/module write.
+        if (Boolean.getBoolean("custommc.acceptance.requireOriginalScaffoldMenuVeto")
+                && (++scaffoldMenuPrearmHeartbeatTicks == 1
+                    || scaffoldMenuPrearmHeartbeatTicks % 20 == 0)) {
+            System.out.println("CUSTOMMC_189_SCAFFOLD_MENU_PREARM_HEARTBEAT"
+                    + " tick=" + scaffoldMenuPrearmHeartbeatTicks
+                    + " modulePresent=" + (scaffold != null)
+                    + " moduleArmed=" + (scaffold != null && scaffold.armed())
+                    + " acceptanceEnableIssued=" + scaffoldAcceptanceEnableIssued
+                    + " stableGuiClearTicks="
+                    + scaffoldMenuNegativeClearStability.witnessedClearTicks()
+                    + " originalScreen="
+                    + Minecraft189ScaffoldScreenGate.inspect(minecraft)
+                    + " source="
+                    + Minecraft189ScaffoldOriginalCandidateProbe.diagnose(minecraft));
+            System.out.flush();
+        }
         final boolean twoBlockOriginalProof = Boolean.getBoolean(
                 "custommc.acceptance.requireOriginalScaffoldTwoBlockProof");
         final boolean productionTwoBlockProof = Boolean.getBoolean(
@@ -2799,6 +2820,7 @@ public final class Minecraft189RuntimeBridge {
                     scaffoldOriginalActivationLease = 0L;
                     scaffoldAcceptanceEnableIssued = false;
                     scaffoldAcceptancePendingDiagTicks = 0;
+                    scaffoldMenuPrearmHeartbeatTicks = 0;
                     scaffoldRepeatTick = 0L;
                     scaffoldRepeatProofStarted = false;
                     scaffoldRepeatPositiveAttempts = 0;
