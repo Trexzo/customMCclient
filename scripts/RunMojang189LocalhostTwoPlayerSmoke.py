@@ -950,22 +950,57 @@ def run(args):
                          "second genuine vanilla click with NEW target and 7-stack")
                 wait_for(host, host_log, repeat_receipt + b" step=2", deadline,
                          "source original WorldClient second stone + 7-to-6 debit")
-                wait_for(host, host_log,
-                         b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
-                         + b"_TWO_CLIENT_RECEIPTS_PASS=YES attempts=2",
-                         deadline, "no extra original controller attempt")
-                if log_tail(host_log).count(repeat_attempt) != 2:
-                    raise AssertionError("two-block fixture did not issue exactly two original clicks")
-                for target in (target_xyz, second_target_xyz):
+                if three_production:
+                    # Third adjacent target has no client-side synthetic
+                    # source, cursor or inventory: the real dedicated
+                    # server moves its actual host player and native ray.
+                    for target in (target_xyz, second_target_xyz):
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} stone".format(*target),
+                                            expected=b"successfully found the block")
+                    send_server_command(server, server_log,
+                                        "testforblock {} {} {} air".format(*third_target_xyz),
+                                        expected=b"successfully found the block")
+                    send_server_command(server, server_log,
+                                        "clear CIHost stone 0 0",
+                                        expected=b"has 6 items that match the criteria")
+                    send_server_command(server, server_log,
+                                        "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                            x+3.05, y, z+.5))
+                    third_attempt = (repeat_attempt
+                        + b" step=3 accepted=true target="
+                        + "{},{},{}".format(*third_target_xyz).encode())
+                    wait_for(host, host_log, third_attempt, deadline,
+                             "third genuine vanilla click at fresh block and stack six")
+                    wait_for(host, host_log, repeat_receipt + b" step=3", deadline,
+                             "third original WorldClient stone and 6-to-5 receipt")
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
+                             b"THREE_CLIENT_RECEIPTS_PASS=YES attempts=3",
+                             deadline, "exactly three native attempts and receipts")
+                    expected_attempts = 3
+                    expected_targets = (target_xyz, second_target_xyz, third_target_xyz)
+                    expected_items = b"has 5 items that match the criteria"
+                else:
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
+                             + b"_TWO_CLIENT_RECEIPTS_PASS=YES attempts=2",
+                             deadline, "no extra original controller attempt")
+                    expected_attempts = 2
+                    expected_targets = (target_xyz, second_target_xyz)
+                    expected_items = b"has 6 items that match the criteria"
+                if log_tail(host_log).count(repeat_attempt) != expected_attempts:
+                    raise AssertionError("repeat fixture issued unexpected original clicks")
+                for target in expected_targets:
                     send_server_command(server, server_log,
                                         "testforblock {} {} {} stone".format(*target),
                                         expected=b"successfully found the block")
                 send_server_command(server, server_log,
-                                    "clear CIHost stone 0 0",
-                                    expected=b"has 6 items that match the criteria")
+                                    "clear CIHost stone 0 0", expected=expected_items)
                 print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_"
                       + repeat_marker.decode("ascii")
-                      + "_SERVER_TWO_STONE_SIX_PASS=YES",
+                      + ("_SERVER_THREE_STONE_FIVE_PASS=YES" if three_production
+                         else "_SERVER_TWO_STONE_SIX_PASS=YES"),
                       flush=True)
             elif args.scaffold_placement == "enabled":
                 # V35's production veto is correct: an OPEN original GUI
