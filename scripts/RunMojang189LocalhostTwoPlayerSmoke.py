@@ -465,7 +465,7 @@ def client_command(args, game, username, uuid, port, remote):
                 "-Dcustommc.acceptance.requireOriginalScaffoldReach=true",
                 "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true"):
             command.insert(command.index("-cp"), value)
-        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-four"):
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldPlacement=true")
             if args.scaffold_placement == "menu-open":
@@ -480,6 +480,9 @@ def client_command(args, game, username, uuid, port, remote):
             if args.scaffold_placement == "production-repeat-three":
                 command.insert(command.index("-cp"),
                                "-Dcustommc.acceptance.requireProductionScaffoldThreeBlockProof=true")
+            if args.scaffold_placement == "production-repeat-four":
+                command.insert(command.index("-cp"),
+                               "-Dcustommc.acceptance.requireProductionScaffoldFourBlockProof=true")
         else:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldDisabledControl=true")
@@ -710,7 +713,7 @@ def run(args):
                  min(deadline, time.monotonic() + 65),
                  "host graphical client")
         host_window = None
-        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-four"):
             # Unique real Minecraft client on this freshly allocated Xvfb
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
@@ -758,17 +761,21 @@ def run(args):
             target_xyz = (x+1, y-1, z)
             second_target_xyz = (x+2, y-1, z)
             third_target_xyz = (x+3, y-1, z)
+            fourth_target_xyz = (x+4, y-1, z)
             send_server_command(server, server_log, far_target_tp)
             send_server_command(server, server_log,
                                 "setblock {} {} {} stone".format(*support))
             send_server_command(server, server_log,
                                 "setblock {} {} {} air".format(*target_xyz))
-            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three"):
+            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-four"):
                 send_server_command(server, server_log,
                                     "setblock {} {} {} air".format(*second_target_xyz))
-                if args.scaffold_placement == "production-repeat-three":
+                if args.scaffold_placement in ("production-repeat-three", "production-repeat-four"):
                     send_server_command(server, server_log,
                                         "setblock {} {} {} air".format(*third_target_xyz))
+                if args.scaffold_placement == "production-repeat-four":
+                    send_server_command(server, server_log,
+                                        "setblock {} {} {} air".format(*fourth_target_xyz))
             # Capture a byte-precise diagnostic boundary for menu-negative
             # CI only; older startup OPEN reports are never authority to
             # press Escape in the currently running original Minecraft UI.
@@ -865,7 +872,9 @@ def run(args):
             # CI-only repeat and production opt-in must have DIFFERENT markers.
             # A V37 marker never certifies a V43 production controller call.
             is_production_repeat = args.scaffold_placement in (
-                "production-repeat-two", "production-repeat-three")
+                "production-repeat-two", "production-repeat-three",
+                "production-repeat-four")
+            four_production = args.scaffold_placement == "production-repeat-four"
             three_production = args.scaffold_placement == "production-repeat-three"
             repeat_marker = (b"PRODUCTION" if is_production_repeat else b"REPEAT")
             repeat_attempt = (b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
@@ -877,7 +886,8 @@ def run(args):
             if any(tag in log_tail(host_log)
                    for tag in (module,attempt,receipt,repeat_attempt,repeat_receipt,repeat_arm)):
                 raise AssertionError("native placement or repeat arm before accepted placement fixture")
-            if args.scaffold_placement in ("enabled", "repeat-two", "production-repeat-two"):
+            if args.scaffold_placement in ("enabled", "repeat-two", "production-repeat-two",
+                                           "production-repeat-three", "production-repeat-four"):
                 # Genuine host keyboard selects hotbar slot 0. This is not
                 # a spoofed inventory setter or a fabricated ItemStack.
                 # Server sends the real eight-block Survival grant afterward.
@@ -890,7 +900,7 @@ def run(args):
             # after grant in the enabled mode races the intended 8 -> 7
             # survival decrement. Only the disabled control may retain
             # an eight-item post-grant baseline.
-            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three"):
+            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-four"):
                 # V37 proves the isolated sequence; V43 independently runs
                 # the real default-off setting explicitly enabled for CI.
                 # V37 is an isolated opt-in new original-client JVM and
@@ -950,7 +960,7 @@ def run(args):
                          "second genuine vanilla click with NEW target and 7-stack")
                 wait_for(host, host_log, repeat_receipt + b" step=2", deadline,
                          "source original WorldClient second stone + 7-to-6 debit")
-                if three_production:
+                if three_production or four_production:
                     # Third adjacent target has no client-side synthetic
                     # source, cursor or inventory: the real dedicated
                     # server moves its actual host player and native ray.
@@ -974,13 +984,43 @@ def run(args):
                              "third genuine vanilla click at fresh block and stack six")
                     wait_for(host, host_log, repeat_receipt + b" step=3", deadline,
                              "third original WorldClient stone and 6-to-5 receipt")
-                    wait_for(host, host_log,
-                             b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
-                             b"THREE_CLIENT_RECEIPTS_PASS=YES attempts=3",
-                             deadline, "exactly three native attempts and receipts")
-                    expected_attempts = 3
-                    expected_targets = (target_xyz, second_target_xyz, third_target_xyz)
-                    expected_items = b"has 5 items that match the criteria"
+                    if four_production:
+                        for target in (target_xyz, second_target_xyz, third_target_xyz):
+                            send_server_command(server, server_log,
+                                                "testforblock {} {} {} stone".format(*target),
+                                                expected=b"successfully found the block")
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*fourth_target_xyz),
+                                            expected=b"successfully found the block")
+                        send_server_command(server, server_log,
+                                            "clear CIHost stone 0 0",
+                                            expected=b"has 5 items that match the criteria")
+                        send_server_command(server, server_log,
+                                            "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                                x+4.05, y, z+.5))
+                        fourth_attempt = (repeat_attempt
+                            + b" step=4 accepted=true target="
+                            + "{},{},{}".format(*fourth_target_xyz).encode())
+                        wait_for(host, host_log, fourth_attempt, deadline,
+                                 "fourth original controller click with NEW target and five-stack")
+                        wait_for(host, host_log, repeat_receipt + b" step=4", deadline,
+                                 "fourth WorldClient real stone and 5-to-4 inventory readback")
+                        wait_for(host, host_log,
+                                 b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
+                                 b"FOUR_CLIENT_RECEIPTS_PASS=YES attempts=4",
+                                 deadline, "four distinct original controller attempts and receipts")
+                        expected_attempts = 4
+                        expected_targets = (target_xyz, second_target_xyz,
+                                            third_target_xyz, fourth_target_xyz)
+                        expected_items = b"has 4 items that match the criteria"
+                    else:
+                        wait_for(host, host_log,
+                                 b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
+                                 b"THREE_CLIENT_RECEIPTS_PASS=YES attempts=3",
+                                 deadline, "exactly three native attempts and receipts")
+                        expected_attempts = 3
+                        expected_targets = (target_xyz, second_target_xyz, third_target_xyz)
+                        expected_items = b"has 5 items that match the criteria"
                 else:
                     wait_for(host, host_log,
                              b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
@@ -999,7 +1039,8 @@ def run(args):
                                     "clear CIHost stone 0 0", expected=expected_items)
                 print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_"
                       + repeat_marker.decode("ascii")
-                      + ("_SERVER_THREE_STONE_FIVE_PASS=YES" if three_production
+                      + ("_SERVER_FOUR_STONE_FOUR_PASS=YES" if four_production
+                         else "_SERVER_THREE_STONE_FIVE_PASS=YES" if three_production
                          else "_SERVER_TWO_STONE_SIX_PASS=YES"),
                       flush=True)
             elif args.scaffold_placement == "enabled":
@@ -1897,7 +1938,7 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
-    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two","production-repeat-two","production-repeat-three"),
+    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two","production-repeat-two","production-repeat-three","production-repeat-four"),
                         help="dedicated Mojang server-authoritative Scaffold placement/disabled proof")
     parser.add_argument("--require-index-reorder", action="store_true",
                         help="fail-closed actual native entity-index change on fresh A rejoin")
