@@ -629,7 +629,7 @@ def verified_original_backwalk_samples(raw, start_x, ground_y, center_z):
     The primitive native log supports only supplementary source evidence.
     Real original controller receipts and server stones remain mandatory.
     """
-    number = rb"(-?\\d+(?:\\.\\d+)?(?:[Ee][+-]?\\d+)?)"
+    number = rb"(-?\d+(?:\.\d+)?(?:[Ee][+-]?\d+)?)"
     pattern = rb"CUSTOMMC_189_NATIVE_LOCAL_POS=x=" + number + rb" y=" + number + rb" z=" + number
     samples = [tuple(float(v) for v in triple)
                for triple in re.findall(pattern, raw)]
