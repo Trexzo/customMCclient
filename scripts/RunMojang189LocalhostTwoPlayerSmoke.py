@@ -623,6 +623,38 @@ def send_real_host_key(host, host_window, key):
         check=True, stdout=subprocess.DEVNULL)
 
 
+def verified_original_backwalk_samples(raw, start_x, ground_y, center_z):
+    """Require genuine original tick movement without falling off the bridge.
+
+    The primitive native log supports only supplementary source evidence.
+    Real original controller receipts and server stones remain mandatory.
+    """
+    number = rb"(-?\d+(?:\.\d+)?(?:[Ee][+-]?\d+)?)"
+    pattern = rb"CUSTOMMC_189_NATIVE_LOCAL_POS=x=" + number + rb" y=" + number + rb" z=" + number
+    samples = [tuple(float(v) for v in triple)
+               for triple in re.findall(pattern, raw)]
+    if len(samples) < 8:
+        raise AssertionError("insufficient genuine original native walk samples")
+    if not all(all(math.isfinite(v) for v in triple) for triple in samples):
+        raise AssertionError("nonfinite genuine original native position")
+    xs = [p[0] for p in samples]
+    ys = [p[1] for p in samples]
+    zs = [p[2] for p in samples]
+    # In actual V59 failure S walked the host off the unsupported edge,
+    # native y fell from 100 to 4. X movement alone must not certify.
+    if min(ys) < ground_y - .35 or max(ys) > ground_y + .35:
+        raise AssertionError(
+            "original player left support height while backwalking"
+            " minY={} maxY={}".format(min(ys), max(ys)))
+    if any(abs(z - center_z) > .35 for z in zs):
+        raise AssertionError("original player left supported Z corridor")
+    if min(xs) > start_x + 1.5 or max(xs) < start_x + 3.35 or (
+            max(xs) - min(xs) < 2.0):
+        raise AssertionError("original native player did not walk two blocks"
+                             " minX={} maxX={}".format(min(xs), max(xs)))
+    return min(xs), max(xs), len(samples)
+
+
 def set_real_host_backwalk(host, host_window, pressed):
     """Drive ONLY vanilla key S on the uniquely identified live CIHost X11.
 
@@ -974,9 +1006,18 @@ def run(args):
                       + "_SERVER_FIRST_STONE_SEVEN_PASS=YES",
                       flush=True)
                 if walk_four:
-                    # All further motion comes from the original host's
-                    # actual keyboard. Do not permit any server tp after
-                    # the first support/stone, unlike old fixture modes.
+                    # Original V59 S-key walking really moved the player
+                    # past the unsupported edge; source feet ended at Y=4
+                    # before a second native placement was possible. Slow
+                    # only the real original server-owned host player, giving
+                    # the grounded original ray/World/receipt transaction
+                    # more native ticks within each 0.3-block overlap.
+                    # No physics spoof, position setter, server TP to steps
+                    # 2/3/4, auto-block mutation or artificial click.
+                    send_server_command(server, server_log,
+                                        "effect CIHost 2 600 5 true")
+                    print("CUSTOMMC_189_SCAFFOLD_REAL_HOST_VANILLA_SLOWNESS_PASS=YES",
+                          flush=True)
                     native_walk_start = host_log.stat().st_size
                     set_real_host_backwalk(host, host_window, True)
                     walk_key_held = True
@@ -1052,17 +1093,12 @@ def run(args):
                             with host_log.open("rb") as original_host_data:
                                 original_host_data.seek(native_walk_start)
                                 movement_data = original_host_data.read()
-                            samples = [float(v) for v in re.findall(
-                                rb"CUSTOMMC_189_NATIVE_LOCAL_POS=x=(-?\\d+(?:\\.\\d+)?)",
-                                movement_data)]
-                            if len(samples) < 8 or min(samples) > x+1.5 or (
-                                    max(samples) < x+3.35
-                                    or max(samples) - min(samples) < 2.0):
-                                raise AssertionError(
-                                    "four stones without measured original player backward walk")
+                            low_x, high_x, count = (
+                                verified_original_backwalk_samples(
+                                    movement_data, x, y, z + .5))
                             print("CUSTOMMC_189_SCAFFOLD_ORIGINAL_NATIVE_BACKWALK_DISPLACEMENT_PASS=YES"
-                                  " minX={} maxX={} samples={}".format(
-                                      min(samples), max(samples), len(samples)),
+                                  " minX={} maxX={} samples={} remainedGrounded=YES".format(
+                                      low_x, high_x, count),
                                   flush=True)
                         wait_for(host, host_log,
                                  b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
@@ -1717,16 +1753,15 @@ def run(args):
                      "20 real rear-player target callbacks with module disabled")
             wait_for(host, host_log, FOV_ENABLED, deadline,
                      "ordinary Kill Aura module enable")
-            # V58: original native source reported rear yaw wandering to a
-            # 115-degree delta, below this acceptance's unchanged strict
-            # 120-degree rear-margin requirement. Reassert genuine vanilla
-            # server teleport/yaw ONCE after real module activation. No
-            # synthetic rotation, mouse override or fabricated veto marker.
-            # Eighty consecutive ORIGINAL rear-player tick callbacks and a
-            # real server zero-damage result remain mandatory afterward.
-            send_server_command(server, server_log, host_tp)
-            print("CUSTOMMC_189_FOV_REAL_SERVER_YAW_REANCHOR=YES",
-                  flush=True)
+            # V61: do NOT teleport an already-enabled Aura client. An
+            # immutable native V58 run proved that the extra server /tp
+            # unexpectedly changed original CIHost yaw to FACE the player:
+            # original native actualTargetYaw=-180, playerYaw=-180,
+            # independent native FOV gate=true. The test then incorrectly
+            # expected an out-of-FOV veto and crashed on an admissible click.
+            # With one original pre-enable teleport, still require genuine
+            # 80 consecutive rear-player native vetoes, unchanged 90 FOV
+            # and zero dedicated-server damage. No forced click suppression.
             wait_for(host, host_log, FOV_VETO, deadline,
                      "80 real rear-player FOV veto callbacks")
             send_server_command(server, server_log,
