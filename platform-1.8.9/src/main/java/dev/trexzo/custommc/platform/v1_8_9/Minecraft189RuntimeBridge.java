@@ -167,6 +167,7 @@ public final class Minecraft189RuntimeBridge {
         scaffoldRepeatPositiveReadbacks = 0;
         scaffoldProductionReceiptReported = 0;
         scaffoldProductionCompletionReported = false;
+        scaffoldKeyboardWalkDiagnosticsTicks = 0;
         scaffoldMenuNegativeClearStability.reset();
         scaffoldDisabledProofTicks = 0;
         scaffoldDisabledProofReported = false;
@@ -290,6 +291,7 @@ public final class Minecraft189RuntimeBridge {
     private static int scaffoldProductionReceiptReported;
     private static boolean scaffoldProductionCompletionReported;
     private static boolean scaffoldProductionHistoricalVetoReported;
+    private static int scaffoldKeyboardWalkDiagnosticsTicks;
     private static final Minecraft189ScaffoldGuiClearStability
             scaffoldMenuNegativeClearStability = new Minecraft189ScaffoldGuiClearStability();
 
@@ -628,6 +630,83 @@ public final class Minecraft189RuntimeBridge {
                             + " target=" + step.targetX + "," + step.targetY
                             + "," + step.targetZ
                             + " selectedBefore=" + step.originalStackSize);
+                    System.out.flush();
+                    if (Boolean.getBoolean(
+                            "custommc.acceptance.requireProductionScaffoldKeyboardWalkProof")) {
+                        // V60 source-native read-only witness at the actual
+                        // original controller tick. A marker may never be
+                        // inferred from server teleport commands or expected
+                        // placement geometry. Source data missing = no proof.
+                        Object player = null;
+                        if (minecraft instanceof Minecraft189ScaffoldNativeContextAccess) {
+                            final Object[] nativeValues =
+                                    ((Minecraft189ScaffoldNativeContextAccess)minecraft)
+                                            .customMcScaffoldNativeContext();
+                            if (nativeValues != null && nativeValues.length == 3)
+                                player = nativeValues[0];
+                        }
+                        if (!(player instanceof Minecraft189PlayerPositionAccess))
+                            throw new IllegalStateException(
+                                    "V60 original native local player unavailable at controller");
+                        final Minecraft189PlayerPositionAccess nativePlayer =
+                                (Minecraft189PlayerPositionAccess)player;
+                        final double px = nativePlayer.customMcPositionX();
+                        final double py = nativePlayer.customMcPositionY();
+                        final double pz = nativePlayer.customMcPositionZ();
+                        if (!Double.isFinite(px) || !Double.isFinite(py)
+                                || !Double.isFinite(pz))
+                            throw new IllegalStateException(
+                                    "V60 original controller player position nonfinite");
+                        final boolean originalGrounded =
+                                player instanceof Minecraft189PlayerMovementStateAccess
+                                && ((Minecraft189PlayerMovementStateAccess)player)
+                                        .customMcOnGround();
+                        final boolean originalSneaking =
+                                player instanceof Minecraft189PlayerMovementStateAccess
+                                && ((Minecraft189PlayerMovementStateAccess)player)
+                                        .customMcSneaking();
+                        System.out.println(
+                                "CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_ORIGINAL_SOURCE_POSITION"
+                                + " step=" + scaffold.productionRepeatAttemptedCount()
+                                + " x=" + px + " y=" + py + " z=" + pz
+                                + " onGround=" + originalGrounded
+                                + " sneaking=" + originalSneaking);
+                        System.out.flush();
+                    }
+                }
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.requireProductionScaffoldKeyboardWalkProof")
+                        && receipts == 1
+                        && scaffold.productionRepeatAttemptedCount() == 1
+                        && ++scaffoldKeyboardWalkDiagnosticsTicks % 40 == 0) {
+                    // V60: original runTick READ ONLY heartbeat while the
+                    // actual S key is held, even when the original ray has
+                    // NOT yielded a second placement. Never construct a
+                    // synthetic camera/World/player or grant an action.
+                    String position = "unavailable";
+                    try {
+                        if (minecraft instanceof Minecraft189ScaffoldNativeContextAccess) {
+                            final Object[] nativeValues =
+                                    ((Minecraft189ScaffoldNativeContextAccess)minecraft)
+                                            .customMcScaffoldNativeContext();
+                            if (nativeValues != null && nativeValues.length == 3
+                                    && nativeValues[0] instanceof Minecraft189PlayerPositionAccess) {
+                                final Minecraft189PlayerPositionAccess p =
+                                        (Minecraft189PlayerPositionAccess)nativeValues[0];
+                                position = p.customMcPositionX() + ","
+                                        + p.customMcPositionY() + ","
+                                        + p.customMcPositionZ();
+                            }
+                        }
+                    } catch (RuntimeException unavailableNativeSource) {
+                        position = "read-failed";
+                    }
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_NATIVE_DIAG"
+                            + " nativePosition=" + position
+                            + " source=" + Minecraft189ScaffoldOriginalCandidateProbe
+                                    .diagnose(minecraft)
+                            + " receiptSequence=" + scaffold.repeatProofDiagnostics(minecraft));
                     System.out.flush();
                 }
                 final int expectedCount = productionFourBlockProof ? 4
