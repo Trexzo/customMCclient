@@ -804,6 +804,7 @@ def run(args):
                         line.decode("utf-8", errors="replace")[-420:]
                         for line in fresh_host_log.splitlines()
                         if (b"SCAFFOLD_ARM_WAIT" in line
+                            or b"SCAFFOLD_MENU_PREARM_HEARTBEAT" in line
                             or b"SCAFFOLD_GUI_ARMED_IN_WORLD" in line
                             or b"ACCEPTANCE_SCREEN" in line
                             or b"SCAFFOLD_ORIGINAL_GUI_VETO" in line)
@@ -811,7 +812,7 @@ def run(args):
                     print("CUSTOMMC_189_GUI_NEGATIVE_PREARM_DIAG"
                           " originalOpenReports={} dismissed={} evidence={}".format(
                               fresh_host_log.count(original_open),
-                              dismissed_startup_menu, source_lines[-8:]),
+                              dismissed_startup_menu, source_lines[-12:]),
                           flush=True)
                     raise AssertionError(
                         "original in-world GUI-clear arm failed before actual E")
