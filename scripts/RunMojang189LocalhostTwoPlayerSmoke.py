@@ -973,14 +973,24 @@ def run(args):
                       + repeat_marker.decode("ascii")
                       + "_SERVER_FIRST_STONE_SEVEN_PASS=YES",
                       flush=True)
+                if walk_four:
+                    # All further motion comes from the original host's
+                    # actual keyboard. Do not permit any server tp after
+                    # the first support/stone, unlike old fixture modes.
+                    native_walk_start = host_log.stat().st_size
+                    set_real_host_backwalk(host, host_window, True)
+                    walk_key_held = True
+                    print("CUSTOMMC_189_SCAFFOLD_REAL_BACKWALK_S_KEYDOWN=YES",
+                          flush=True)
 
                 # The server moves the real local player to the second edge.
                 # No rotation/position/controller/ItemStack spoof in the
                 # client. Original raytrace must now see first placed stone
                 # as solid support for the distinct second underfoot air.
-                send_server_command(server, server_log,
-                                    "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
-                                        x+2.05, y, z+.5))
+                if not walk_four:
+                    send_server_command(server, server_log,
+                                        "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                            x+2.05, y, z+.5))
                 wait_for(host, host_log, second_attempt, deadline,
                          "second genuine vanilla click with NEW target and 7-stack")
                 wait_for(host, host_log, repeat_receipt + b" step=2", deadline,
@@ -999,9 +1009,10 @@ def run(args):
                     send_server_command(server, server_log,
                                         "clear CIHost stone 0 0",
                                         expected=b"has 6 items that match the criteria")
-                    send_server_command(server, server_log,
-                                        "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
-                                            x+3.05, y, z+.5))
+                    if not walk_four:
+                        send_server_command(server, server_log,
+                                            "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                                x+3.05, y, z+.5))
                     third_attempt = (repeat_attempt
                         + b" step=3 accepted=true target="
                         + "{},{},{}".format(*third_target_xyz).encode())
@@ -1020,9 +1031,10 @@ def run(args):
                         send_server_command(server, server_log,
                                             "clear CIHost stone 0 0",
                                             expected=b"has 5 items that match the criteria")
-                        send_server_command(server, server_log,
-                                            "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
-                                                x+4.05, y, z+.5))
+                        if not walk_four:
+                            send_server_command(server, server_log,
+                                                "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                                    x+4.05, y, z+.5))
                         fourth_attempt = (repeat_attempt
                             + b" step=4 accepted=true target="
                             + "{},{},{}".format(*fourth_target_xyz).encode())
@@ -1030,6 +1042,28 @@ def run(args):
                                  "fourth original controller click with NEW target and five-stack")
                         wait_for(host, host_log, repeat_receipt + b" step=4", deadline,
                                  "fourth WorldClient real stone and 5-to-4 inventory readback")
+                        if walk_four:
+                            set_real_host_backwalk(host, host_window, False)
+                            walk_key_held = False
+                            # Independent actual source-native position proof
+                            # after holding the genuine S keyboard input.
+                            # This cannot be satisfied by the old server TP
+                            # path: none are sent after the first placement.
+                            with host_log.open("rb") as original_host_data:
+                                original_host_data.seek(native_walk_start)
+                                movement_data = original_host_data.read()
+                            samples = [float(v) for v in re.findall(
+                                rb"CUSTOMMC_189_NATIVE_LOCAL_POS=x=(-?\\d+(?:\\.\\d+)?)",
+                                movement_data)]
+                            if len(samples) < 8 or min(samples) > x+1.5 or (
+                                    max(samples) < x+3.35
+                                    or max(samples) - min(samples) < 2.0):
+                                raise AssertionError(
+                                    "four stones without measured original player backward walk")
+                            print("CUSTOMMC_189_SCAFFOLD_ORIGINAL_NATIVE_BACKWALK_DISPLACEMENT_PASS=YES"
+                                  " minX={} maxX={} samples={}".format(
+                                      min(samples), max(samples), len(samples)),
+                                  flush=True)
                         wait_for(host, host_log,
                                  b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
                                  b"FOUR_CLIENT_RECEIPTS_PASS=YES attempts=4",
@@ -1068,6 +1102,9 @@ def run(args):
                          else "_SERVER_THREE_STONE_FIVE_PASS=YES" if three_production
                          else "_SERVER_TWO_STONE_SIX_PASS=YES"),
                       flush=True)
+                if walk_four:
+                    print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_REAL_BACKWALK_FOUR_SERVER_BLOCKS_PASS=YES",
+                          flush=True)
             elif args.scaffold_placement == "enabled":
                 # V35's production veto is correct: an OPEN original GUI
                 # forbids arming even with a valid ray, World and eight
