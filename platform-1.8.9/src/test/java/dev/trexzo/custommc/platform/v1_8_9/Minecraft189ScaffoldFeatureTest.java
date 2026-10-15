@@ -164,7 +164,8 @@ final class Minecraft189ScaffoldFeatureTest {
         module.onEnable();
         assertTrue(module.productionRepeatEnabledForActivation());
         assertEquals(2, module.productionRepeatCountForActivation());
-        assertFalse(module.armed(), "repeat mode takes the single-use arm");
+        assertTrue(module.armed(),
+                "valid repeat activation awaits a genuine original source tick");
         module.adjacentEdgeTargetsSetting().set(Boolean.FALSE);
         assertEquals(2, module.productionRepeatCountForActivation(),
                 "live toggle may never silently restore underfoot authority");
