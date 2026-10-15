@@ -19,14 +19,22 @@ public final class Minecraft189ScaffoldModule implements Module {
     public static final String ID = "movement.scaffold";
     public static final String TWO_PLACEMENTS_SETTING_ID =
             "movement.scaffold.twoPlacements";
-    private static final int PRODUCTION_REPEAT_COUNT = 2;
+    public static final String THREE_PLACEMENTS_SETTING_ID =
+            "movement.scaffold.threePlacements";
+    private static final int PRODUCTION_TWO_COUNT = 2;
+    private static final int PRODUCTION_THREE_COUNT = 3;
     private static final int PRODUCTION_REPEAT_GAP_TICKS = 4;
     // Explicit UI setting, always OFF on a clean installation. Only captured
     // on a fresh module enable; changing it mid-activation grants no clicks.
     private final Setting<Boolean> twoPlacements = new Setting<Boolean>(
             TWO_PLACEMENTS_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
+    // V54: a second opt-in, never the implicit continuation of two-block mode.
+    private final Setting<Boolean> threePlacements = new Setting<Boolean>(
+            THREE_PLACEMENTS_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private boolean productionRepeatForActivation;
+    private int productionRepeatCountForActivation;
     private boolean productionRepeatStarted;
     private long productionRepeatTick;
     private int productionPositiveReceipts;
@@ -46,6 +54,7 @@ public final class Minecraft189ScaffoldModule implements Module {
         enabled = false;
         attempted = false;
         productionRepeatForActivation = false;
+        productionRepeatCountForActivation = 0;
         productionRepeatStarted = false;
         productionRepeatTick = 0L;
         productionPositiveReceipts = 0;
@@ -54,7 +63,18 @@ public final class Minecraft189ScaffoldModule implements Module {
             return;
         }
         activation++;
-        productionRepeatForActivation = Boolean.TRUE.equals(twoPlacements.get());
+        final boolean two = Boolean.TRUE.equals(twoPlacements.get());
+        final boolean three = Boolean.TRUE.equals(threePlacements.get());
+        // Both modes requested is an invalid state: no one-shot fallback or
+        // implicit priority for the larger quota. Require an explicit
+        // disable/correct/re-enable cycle before any action.
+        if (two && three) {
+            attempted = true;
+        } else if (two || three) {
+            productionRepeatCountForActivation = three
+                    ? PRODUCTION_THREE_COUNT : PRODUCTION_TWO_COUNT;
+            productionRepeatForActivation = true;
+        }
         enabled = true;
     }
 
@@ -64,6 +84,7 @@ public final class Minecraft189ScaffoldModule implements Module {
         enabled = false;
         attempted = false;
         productionRepeatForActivation = false;
+        productionRepeatCountForActivation = 0;
         productionRepeatStarted = false;
         productionRepeatTick = 0L;
         productionPositiveReceipts = 0;
@@ -72,6 +93,10 @@ public final class Minecraft189ScaffoldModule implements Module {
     }
 
     public Setting<Boolean> twoPlacementsSetting() { return twoPlacements; }
+    public Setting<Boolean> threePlacementsSetting() { return threePlacements; }
+    synchronized int productionRepeatCountForActivation() {
+        return productionRepeatCountForActivation;
+    }
     synchronized boolean productionRepeatEnabledForActivation() {
         return active() && productionRepeatForActivation;
     }
@@ -107,9 +132,16 @@ public final class Minecraft189ScaffoldModule implements Module {
             productionRepeatAtOriginalTick(
                     final Object originalMinecraft, final boolean originalGuiClear) {
         if (!productionRepeatEnabledForActivation()) return null;
-        // Turning the user setting OFF while active is an immediate veto,
-        // never a transfer back to the one-shot arm in the same activation.
-        if (!Boolean.TRUE.equals(twoPlacements.get())) {
+        // V54: settings are frozen at enable. A toggle or conflicting mode
+        // is an immediate irreversible veto, never a quota escalation or
+        // fallback to one-shot clicks on this activation.
+        final boolean stillTwo = Boolean.TRUE.equals(twoPlacements.get());
+        final boolean stillThree = Boolean.TRUE.equals(threePlacements.get());
+        final boolean exactMode = productionRepeatCountForActivation
+                == PRODUCTION_TWO_COUNT ? stillTwo && !stillThree
+                : productionRepeatCountForActivation == PRODUCTION_THREE_COUNT
+                    && stillThree && !stillTwo;
+        if (!exactMode) {
             repeatSequence.invalidate();
             attempted = true;
             productionRepeatStarted = true;
@@ -126,7 +158,8 @@ public final class Minecraft189ScaffoldModule implements Module {
         final long tick = ++productionRepeatTick;
         if (!productionRepeatStarted && armed()
                 && repeatSequence.start(originalMinecraft, activation, tick,
-                        PRODUCTION_REPEAT_COUNT, PRODUCTION_REPEAT_GAP_TICKS)) {
+                        productionRepeatCountForActivation,
+                        PRODUCTION_REPEAT_GAP_TICKS)) {
             productionRepeatStarted = true;
             attempted = true; // Permanently exclude the one-shot per enable.
         }
