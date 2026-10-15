@@ -21,6 +21,7 @@ final class Minecraft189RejoinTargetAcceptance {
     private static boolean scopedOwnerVetoReported, scopedOwnerFreshReported;
     private static int nativeOwnerDiagnosticsTicks;
     private static int prelockNativeEvidenceTicks;
+    private static int nativeCrosshairEvidenceTicks;
 
     private Minecraft189RejoinTargetAcceptance() {}
 
@@ -39,6 +40,7 @@ final class Minecraft189RejoinTargetAcceptance {
         scopedOwnerVetoReported = scopedOwnerFreshReported = false;
         nativeOwnerDiagnosticsTicks = 0;
         prelockNativeEvidenceTicks = 0;
+        nativeCrosshairEvidenceTicks = 0;
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
@@ -101,6 +103,52 @@ final class Minecraft189RejoinTargetAcceptance {
         for (int i = 0; i < evidence.ids.entityCount(); i++)
             if (!evidence.kinds.player(i)) count++;
         return count;
+    }
+
+    /**
+     * V51: independent original objectMouseOver/ray witness at the EXACT
+     * Mojang automatic-click boundary. A valid sticky B UUID target does
+     * not imply the vanilla camera ray currently hits B. Diagnose that
+     * distinction without setting rotation, selecting entities, clicking,
+     * touching packets or changing a single admission rule.
+     */
+    static void observeOriginalCrosshairAtClick(
+            final Minecraft189HostRuntime host,
+            final boolean originalPlayerHit, final int originalHitIndex) {
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraRejoin")
+                || phase != 3 || ++nativeCrosshairEvidenceTicks % 40 != 0)
+            return;
+        final Minecraft189WorldEntityUuidState.Snapshot ids =
+                host.worldEntityUuidState().snapshot();
+        final Minecraft189TargetRotationState.Snapshot rotation =
+                host.targetRotationState().snapshot();
+        final Minecraft189PlayerRotationState.Snapshot localRotation =
+                host.playerRotationState().snapshot();
+        final Minecraft189KillAuraModule aura = host.featureCatalog().killAura();
+        final boolean indexed = originalPlayerHit && originalHitIndex >= 0
+                && ids.available() && originalHitIndex < ids.entityCount();
+        final UUID actualRayUuid = indexed ? ids.at(originalHitIndex) : null;
+        System.out.println("CUSTOMMC_189_REJOIN_ORIGINAL_CROSSHAIR_AT_CLICK"
+                + " tick=" + nativeCrosshairEvidenceTicks
+                + " realPlayerHit=" + originalPlayerHit
+                + " realHitIndex=" + originalHitIndex
+                + " realHitUuid=" + actualRayUuid
+                + " rayIsSurvivorB="
+                    + (indexed && survivorUuid != null
+                        && survivorUuid.equals(actualRayUuid))
+                + " nativeTargetAvailable=" + rotation.available()
+                + " nativeTargetIndex=" + rotation.entityIndex()
+                + " realYaw="
+                    + (localRotation.available() ? localRotation.yaw() : Float.NaN)
+                + " realPitch="
+                    + (localRotation.available() ? localRotation.pitch() : Float.NaN)
+                + " targetYaw=" + rotation.yaw()
+                + " targetPitch=" + rotation.pitch()
+                + " targetDistance=" + rotation.distance()
+                + " BstillLocked="
+                    + (survivorUuid != null
+                        && survivorUuid.equals(aura.lockedTargetUuid())));
+        System.out.flush();
     }
 
     static void observe(Minecraft189HostRuntime host) {
