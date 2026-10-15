@@ -403,7 +403,13 @@ public final class Minecraft189RuntimeBridge {
                                     .customMcScaffoldNativeContext();
                     nativeClear = nativeSource != null
                             && nativeSource.length == 3
-                            && nativeSource[0] != null && nativeSource[1] != null;
+                            && nativeSource[0] instanceof Minecraft189PlayerPositionAccess
+                            && nativeSource[1] != null
+                            && Math.abs(((Minecraft189PlayerPositionAccess)
+                                    nativeSource[0]).customMcPositionY() - 100.0D)
+                                    < 0.15D
+                            && Minecraft189ScaffoldSelectedHotbar
+                                    .hasGenuineSelectedBlockCount(nativeSource[0], 7);
                 } catch (RuntimeException noNativeSource) {
                     nativeClear = false;
                 }
