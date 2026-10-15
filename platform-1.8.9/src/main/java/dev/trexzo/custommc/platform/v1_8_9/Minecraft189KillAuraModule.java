@@ -89,6 +89,12 @@ public final class Minecraft189KillAuraModule implements Module {
     @Override
     public synchronized void onDisable() { enabled = false; clear(); }
     synchronized void suspend() { clear(); }
+    /**
+     * A rejected automatic click drops all CPS credit, but must not erase
+     * a separately source-verified UUID target lock. Absence of a crosshair
+     * hit during normal aim convergence is not module disable or World loss.
+     */
+    synchronized void vetoSyntheticClick() { resetSchedule(); }
 
     synchronized boolean aim(
             final Minecraft189PlayerRotationControl player,
