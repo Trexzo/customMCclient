@@ -647,6 +647,20 @@ def source_native_scaffold_position(log, step):
     return values
 
 
+def latest_original_native_local_player_position(log):
+    """Read unchanged source-native player movement logs from real runTick."""
+    regex = re.compile(
+        rb"CUSTOMMC_189_NATIVE_LOCAL_POS=x=(-?\d+(?:\.\d+)?)"
+        rb" y=(-?\d+(?:\.\d+)?) z=(-?\d+(?:\.\d+)?)")
+    matches = regex.findall(log_tail(log, 25000))
+    if not matches:
+        return None
+    latest = tuple(float(v) for v in matches[-1])
+    if not all(math.isfinite(v) for v in latest):
+        raise AssertionError("nonfinite original runtime movement sample")
+    return latest
+
+
 def set_original_host_backward_key(host, host_window, pressed):
     """Actual X11 S key down/up on uniquely identified Mojang host only.
 
@@ -1011,16 +1025,43 @@ def run(args):
                     # All other V43/V54/V58/V59 cases retain server TP.
                     first_source = source_native_scaffold_position(host_log, 1)
                     pressed = False
+                    reached_second_edge = False
                     try:
                         set_original_host_backward_key(host, host_window, True)
                         pressed = True
-                        wait_for(host, host_log, second_attempt, deadline,
-                                 "source-native B click after actual held S key")
-                        wait_for(host, host_log, repeat_receipt + b" step=2", deadline,
-                                 "original B WorldClient receipt after held S")
+                        # V60 R2: original attempt R1 confirmed that S truly
+                        # MOVED the player, but keeping it down until click
+                        # overshot the one-stone support and player fell from
+                        # Y=100 to flat-world Y=4. Release from a genuine
+                        # ORIGINAL player position near B, not from a timer
+                        # or a fabricated Minecraft position/camera setter.
+                        motion_deadline = min(deadline, time.monotonic() + 8.0)
+                        while time.monotonic() < motion_deadline:
+                            current = latest_original_native_local_player_position(
+                                host_log)
+                            if current is not None:
+                                if (abs(current[2] - first_source[2]) > .65
+                                        or current[1] < first_source[1] - .45
+                                        or current[0] > first_source[0] + 1.35):
+                                    raise AssertionError(
+                                        "real movement left supported native edge"
+                                        " first={} now={}".format(first_source, current))
+                                if current[0] >= first_source[0] + .82:
+                                    reached_second_edge = True
+                                    break
+                            time.sleep(.03)
                     finally:
                         if pressed:
                             set_original_host_backward_key(host, host_window, False)
+                    if not reached_second_edge:
+                        raise AssertionError(
+                            "original focused S input did not move native X toward B")
+                    print("CUSTOMMC_189_REAL_KEYBOARD_NATIVE_EDGE_RELEASE=YES",
+                          flush=True)
+                    wait_for(host, host_log, second_attempt, deadline,
+                             "source-native B click after bounded real S movement")
+                    wait_for(host, host_log, repeat_receipt + b" step=2", deadline,
+                             "original B WorldClient receipt after released S")
                     second_source = source_native_scaffold_position(host_log, 2)
                     if not (first_source[0] + .70 <= second_source[0]
                             <= first_source[0] + 2.30
