@@ -1847,11 +1847,27 @@ public final class Minecraft189RuntimeBridge {
                             host.nearestPlayerTargetState().snapshot();
                     final Minecraft189TargetRotationState.Snapshot nativeRotation =
                             host.targetRotationState().snapshot();
-                    final int index = remoteIndex;
-                    final double dx = valid && index >= 0
-                            ? positions.x(index) - local.x() : Double.NaN;
-                    final double dz = valid && index >= 0
-                            ? positions.z(index) - local.z() : Double.NaN;
+                    // V56 diagnosis deliberately does NOT reuse the final
+                    // 'valid' veto. Reusing it made every rejected ray show
+                    // NaN and hid the actual cause of missing rear witnesses.
+                    // The values below are READ ONLY; admission below keeps
+                    // the exact same source/FOV/range constraints.
+                    final boolean completeNativeSnapshots =
+                            rotation.available() && kinds.available()
+                            && positions.available() && local.available()
+                            && kinds.entityCount() == positions.entityCount();
+                    final boolean geometricSource = completeNativeSnapshots
+                            && remoteIndex >= 0
+                            && remoteIndex < positions.entityCount();
+                    final double dx = geometricSource
+                            ? positions.x(remoteIndex) - local.x() : Double.NaN;
+                    final double dy = geometricSource
+                            ? positions.y(remoteIndex) - local.y() : Double.NaN;
+                    final double dz = geometricSource
+                            ? positions.z(remoteIndex) - local.z() : Double.NaN;
+                    final double actualDistance = Math.sqrt(
+                            dx * dx + dy * dy + dz * dz);
+                    final double actualHorizontal = Math.hypot(dx, dz);
                     final double nativeTargetYaw =
                             Math.toDegrees(Math.atan2(dz, dx)) - 90.0D;
                     final double nativeYawDelta = ((nativeTargetYaw
@@ -1859,6 +1875,15 @@ public final class Minecraft189RuntimeBridge {
                     System.out.println("CUSTOMMC_189_FOV_ORIGINAL_SOURCE_OBSERVATION"
                             + " tick=" + acceptanceAuraFovSourceDiagTicks
                             + " nativeSourceValid=" + valid
+                            + " nativeSnapshotsComplete=" + completeNativeSnapshots
+                            + " nativeRotationAvailable=" + rotation.available()
+                            + " nativeKindsAvailable=" + kinds.available()
+                            + " nativePositionsAvailable=" + positions.available()
+                            + " nativeLocalPositionAvailable=" + local.available()
+                            + " nativeEntityCountsMatch=" + (kinds.entityCount() == positions.entityCount())
+                            + " nativeDistance=" + actualDistance
+                            + " nativeHorizontal=" + actualHorizontal
+                            + " geometricSource=" + geometricSource
                             + " actualRemoteIndex=" + remoteIndex
                             + " actualRemoteCount=" + remoteCount
                             + " nativePlayerYaw="
