@@ -704,9 +704,20 @@ public final class Minecraft189RuntimeBridge {
                     } catch (RuntimeException unavailableNativeSource) {
                         position = "read-failed";
                     }
+                    final Minecraft189PlayerRotationState.Snapshot nativeRotation =
+                            activeRuntime != null && activeRuntime.hostInstalled()
+                            ? activeRuntime.requireHostRuntime()
+                                    .playerRotationState().snapshot()
+                            : null;
                     System.out.println(
                             "CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_NATIVE_DIAG"
                             + " nativePosition=" + position
+                            + " originalYaw=" + (nativeRotation != null
+                                    && nativeRotation.available()
+                                    ? nativeRotation.yaw() : Float.NaN)
+                            + " originalPitch=" + (nativeRotation != null
+                                    && nativeRotation.available()
+                                    ? nativeRotation.pitch() : Float.NaN)
                             + " source=" + Minecraft189ScaffoldOriginalCandidateProbe
                                     .diagnose(minecraft)
                             + " receiptSequence=" + scaffold.repeatProofDiagnostics(minecraft));
