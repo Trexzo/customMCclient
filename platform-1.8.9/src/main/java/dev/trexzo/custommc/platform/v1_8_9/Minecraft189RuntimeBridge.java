@@ -380,6 +380,19 @@ public final class Minecraft189RuntimeBridge {
         if (Boolean.getBoolean("custommc.acceptance.requireOriginalScaffoldMenuVeto")
                 && (++scaffoldMenuPrearmHeartbeatTicks == 1
                     || scaffoldMenuPrearmHeartbeatTicks % 20 == 0)) {
+            // CI observation only. Unlike the positive-placement candidate,
+            // GUI prearm needs no cursor hit, but it MUST prove the actual
+            // selected eight-block native Survival grant.
+            boolean originalEightGranted = false;
+            if (minecraft instanceof Minecraft189ScaffoldNativeContextAccess) {
+                final Object[] originalSource =
+                        ((Minecraft189ScaffoldNativeContextAccess)minecraft)
+                                .customMcScaffoldNativeContext();
+                originalEightGranted = originalSource != null
+                        && originalSource.length == 3
+                        && Minecraft189ScaffoldSelectedHotbar
+                                .hasGenuineSelectedBlockCount(originalSource[0], 8);
+            }
             System.out.println("CUSTOMMC_189_SCAFFOLD_MENU_PREARM_HEARTBEAT"
                     + " tick=" + scaffoldMenuPrearmHeartbeatTicks
                     + " modulePresent=" + (scaffold != null)
@@ -387,6 +400,7 @@ public final class Minecraft189RuntimeBridge {
                     + " acceptanceEnableIssued=" + scaffoldAcceptanceEnableIssued
                     + " stableGuiClearTicks="
                     + scaffoldMenuNegativeClearStability.witnessedClearTicks()
+                    + " nativeSelectedEightGrant=" + originalEightGranted
                     + " originalScreen="
                     + Minecraft189ScaffoldScreenGate.inspect(minecraft)
                     + " source="
