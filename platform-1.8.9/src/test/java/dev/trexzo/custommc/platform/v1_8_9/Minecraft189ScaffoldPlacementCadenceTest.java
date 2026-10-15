@@ -148,6 +148,45 @@ final class Minecraft189ScaffoldPlacementCadenceTest {
                 "only a fresh explicit module activation may recover");
     }
 
+    /** V59 four distinct original receipts, never four clicks from one ack. */
+    @Test void fourPositiveReadbacksAreRequiredToExhaustFourthQuota() {
+        Minecraft189ScaffoldPlacementCadence p =
+                new Minecraft189ScaffoldPlacementCadence();
+        assertTrue(p.arm(71, 100, 4, 4));
+        for (int step = 1; step <= 4; step++) {
+            final long tick = 100 + (step - 1) * 6L;
+            assertTrue(p.controllerAttempt(71, tick, true),
+                    "fresh source-native click quota=" + step);
+            assertEquals(step, p.attemptedCount());
+            assertFalse(p.mayAttempt(71, tick + 1),
+                    "cannot double-click while native WorldClient receipt is pending");
+            assertTrue(p.receipt(71, tick + 2, true),
+                    "each controller admission requires its own positive debit");
+            assertEquals(step == 4, p.stopped(),
+                    "fourth receipt, not third, must terminate the activation");
+        }
+        assertFalse(p.arm(71, 130, 4, 4),
+                "completed activation may not re-arm a fifth placement");
+        assertTrue(p.arm(72, 131, 4, 4),
+                "fresh explicitly enabled activation can start again");
+    }
+
+    @Test void thirdOriginalReadbackTimeoutRevokesFourthClick() {
+        Minecraft189ScaffoldPlacementCadence p =
+                new Minecraft189ScaffoldPlacementCadence();
+        assertTrue(p.arm(74, 0, 4, 2));
+        assertTrue(p.controllerAttempt(74, 0, true));
+        assertTrue(p.receipt(74, 1, true));
+        assertTrue(p.controllerAttempt(74, 3, true));
+        assertTrue(p.receipt(74, 4, true));
+        assertTrue(p.controllerAttempt(74, 6, true));
+        assertFalse(p.mayAttempt(74, 127), "third receipt deadline=126");
+        assertTrue(p.stopped(), "no fourth controller admission after timeout");
+        assertEquals(0, p.attemptedCount(),
+                "invalidation clears the source's stale transaction counter");
+        assertFalse(p.arm(74, 128, 4, 2));
+    }
+
     @Test void rejectsInvalidConfigurationAndTickOverflow() {
         Minecraft189ScaffoldPlacementCadence p=new Minecraft189ScaffoldPlacementCadence();
         assertFalse(p.arm(0,1,2,2));
