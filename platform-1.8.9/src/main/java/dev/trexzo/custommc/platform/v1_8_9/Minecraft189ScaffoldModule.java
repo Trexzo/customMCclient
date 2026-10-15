@@ -108,6 +108,7 @@ public final class Minecraft189ScaffoldModule implements Module {
         enabled = false;
         attempted = false;
         productionRepeatForActivation = false;
+        productionAdjacentEdgeForActivation = false;
         productionRepeatCountForActivation = 0;
         productionRepeatStarted = false;
         productionRepeatTick = 0L;
