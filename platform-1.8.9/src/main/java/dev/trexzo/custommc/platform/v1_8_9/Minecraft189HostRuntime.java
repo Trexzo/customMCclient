@@ -1761,17 +1761,24 @@ public final class Minecraft189HostRuntime
         if (aura.active()) {
             trigger.suspend();
             featureCatalog.autoClicker().suspendForGui();
-            // Re-read REAL native current player orientation and world
-            // position at the click boundary. A stale targetRotation may
-            // still look aimed after a server teleport, but never authorizes
-            // an out-of-FOV Aura click. Keep native manual attacks untouched.
-            if (!Minecraft189KillAuraNativeFovGate.permits(
+            // No ray-confirmed player means NO click is possible. Let the
+            // existing Aura.shouldClick(false, ...) drop CPS credit without
+            // deleting the genuine UUID lock during aim convergence.
+            // V44 had evaluated the geometry with index=-1 on every empty
+            // ray, and incorrectly invoked suspend(), clearing a valid B
+            // lock after original server A disconnected.
+            //
+            // For EVERY actual ray-confirmed player, check independent
+            // source-native position + yaw before Aura click scheduling.
+            // A rejected real candidate loses CPS credit, not its separately
+            // validated UUID lock. Unknown native evidence fails closed.
+            if (confirmedHit && !Minecraft189KillAuraNativeFovGate.permits(
                     crosshairPlayerIndex, aura.fovSetting().get(),
                     playerRotationState.snapshot(),
                     playerPositionState.snapshot(),
                     worldEntityPositionState.snapshot(),
                     worldEntityKindState.snapshot())) {
-                aura.suspend(); // Drop queued CPS credit and stale target lock.
+                aura.vetoSyntheticClick();
                 return false;
             }
             click = aura.shouldClick(
