@@ -3,7 +3,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from RunMojang189LocalhostTwoPlayerSmoke import source_native_scaffold_position
+from RunMojang189LocalhostTwoPlayerSmoke import (
+    source_native_scaffold_position,
+    latest_original_native_local_player_position,
+)
 
 
 PREFIX = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_ORIGINAL_SOURCE_POSITION"
@@ -41,6 +44,25 @@ class NativeKeyboardSourceTest(unittest.TestCase):
                 contents = PREFIX + b" step=1 x=" + value + b" y=100 z=.5\n"
                 with self.assertRaises(AssertionError):
                     self.read(contents, 1)
+
+    def test_live_native_position_is_latest_genuine_sample(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = Path(folder) / "host.log"
+            log.write_bytes(
+                b"CUSTOMMC_189_NATIVE_LOCAL_POS=x=516.05 y=100.0 z=19.5\\n"
+                b"CUSTOMMC_189_NATIVE_LOCAL_POS=x=516.92 y=100.0 z=19.5\\n"
+            )
+            self.assertEqual((516.92, 100.0, 19.5),
+                             latest_original_native_local_player_position(log))
+
+    def test_live_native_position_does_not_read_teleport_commands(self):
+        with tempfile.TemporaryDirectory() as folder:
+            log = Path(folder) / "host.log"
+            log.write_bytes(
+                b"Teleported CIHost to 517.05,100,19.5\\n"
+                b"SERVER_SIMULATED_MOVEMENT=517.05\\n"
+            )
+            self.assertIsNone(latest_original_native_local_player_position(log))
 
     def test_step_must_be_a_genuine_two_position_mode(self):
         with self.assertRaises(ValueError):
