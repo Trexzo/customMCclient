@@ -101,6 +101,10 @@ final class Minecraft189ScaffoldOriginalCandidateProbe {
     }
 
     static Observation observe(Object originalMinecraft) {
+        return observe(originalMinecraft, false);
+    }
+
+    static Observation observe(Object originalMinecraft, boolean allowAdjacentEdge) {
         if (!(originalMinecraft instanceof Minecraft189ScaffoldNativeContextAccess)
                 || !(originalMinecraft instanceof Minecraft189ScaffoldNativeControllerAccess))
             return null;
@@ -119,7 +123,8 @@ final class Minecraft189ScaffoldOriginalCandidateProbe {
             final Minecraft189ScaffoldSupportPlanner.Candidate candidate =
                     Minecraft189ScaffoldRayCandidateGate.verify(
                             lease, context.world, context.player,
-                            context.nativeCursor, eyeY, reach);
+                            context.nativeCursor, eyeY, reach,
+                            allowAdjacentEdge);
             return candidate == null ? null : new Observation(candidate, eyeY, reach);
         } catch (RuntimeException unavailableNativeSource) {
             return null;
