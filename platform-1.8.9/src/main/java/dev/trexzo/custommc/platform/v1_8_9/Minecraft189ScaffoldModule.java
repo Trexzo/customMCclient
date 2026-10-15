@@ -25,6 +25,8 @@ public final class Minecraft189ScaffoldModule implements Module {
             "movement.scaffold.threePlacements";
     public static final String FOUR_PLACEMENTS_SETTING_ID =
             "movement.scaffold.fourPlacements";
+    public static final String ADJACENT_EDGE_SETTING_ID =
+            "movement.scaffold.adjacentEdgeTargets";
     private static final int PRODUCTION_TWO_COUNT = 2;
     private static final int PRODUCTION_THREE_COUNT = 3;
     private static final int PRODUCTION_FOUR_COUNT = 4;
@@ -43,6 +45,12 @@ public final class Minecraft189ScaffoldModule implements Module {
     private final Setting<Boolean> fourPlacements = new Setting<Boolean>(
             FOUR_PLACEMENTS_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
+    // Independent default-OFF extension. No one-shot / isolated proof
+    // automatically receives the original side-face candidate fallback.
+    private final Setting<Boolean> adjacentEdgeTargets = new Setting<Boolean>(
+            ADJACENT_EDGE_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private boolean productionAdjacentEdgeForActivation;
     private boolean productionRepeatForActivation;
     private int productionRepeatCountForActivation;
     private boolean productionRepeatStarted;
@@ -64,6 +72,7 @@ public final class Minecraft189ScaffoldModule implements Module {
         enabled = false;
         attempted = false;
         productionRepeatForActivation = false;
+        productionAdjacentEdgeForActivation = false;
         productionRepeatCountForActivation = 0;
         productionRepeatStarted = false;
         productionRepeatTick = 0L;
@@ -76,13 +85,15 @@ public final class Minecraft189ScaffoldModule implements Module {
         final boolean two = Boolean.TRUE.equals(twoPlacements.get());
         final boolean three = Boolean.TRUE.equals(threePlacements.get());
         final boolean four = Boolean.TRUE.equals(fourPlacements.get());
+        final boolean edge = Boolean.TRUE.equals(adjacentEdgeTargets.get());
         // Exactly zero or one opt-in mode. No quota priority, partial
         // fallback or extra admission if conflicting UI toggles are enabled.
         final int selectedModes = (two ? 1 : 0) + (three ? 1 : 0)
                 + (four ? 1 : 0);
-        if (selectedModes > 1) {
-            attempted = true;
+        if (selectedModes > 1 || (edge && selectedModes != 1)) {
+            attempted = true; // An edge setting alone NEVER grants a click.
         } else if (selectedModes == 1) {
+            productionAdjacentEdgeForActivation = edge;
             productionRepeatCountForActivation = four
                     ? PRODUCTION_FOUR_COUNT
                     : three ? PRODUCTION_THREE_COUNT : PRODUCTION_TWO_COUNT;
@@ -108,6 +119,7 @@ public final class Minecraft189ScaffoldModule implements Module {
     public Setting<Boolean> twoPlacementsSetting() { return twoPlacements; }
     public Setting<Boolean> threePlacementsSetting() { return threePlacements; }
     public Setting<Boolean> fourPlacementsSetting() { return fourPlacements; }
+    public Setting<Boolean> adjacentEdgeTargetsSetting() { return adjacentEdgeTargets; }
     synchronized int productionRepeatCountForActivation() {
         return productionRepeatCountForActivation;
     }
@@ -161,7 +173,8 @@ public final class Minecraft189ScaffoldModule implements Module {
                     ? stillThree && !stillTwo && !stillFour
                     : productionRepeatCountForActivation == PRODUCTION_FOUR_COUNT
                         && stillFour && !stillTwo && !stillThree;
-        if (!exactMode) {
+        if (!exactMode || Boolean.TRUE.equals(adjacentEdgeTargets.get())
+                != productionAdjacentEdgeForActivation) {
             repeatSequence.invalidate();
             attempted = true;
             productionRepeatStarted = true;
@@ -190,7 +203,8 @@ public final class Minecraft189ScaffoldModule implements Module {
             productionPositiveReceipts++;
         }
         if (!repeatSequence.stopped()) {
-            return repeatSequence.tryNext(originalMinecraft, activation, tick);
+            return repeatSequence.tryNext(originalMinecraft, activation, tick,
+                    productionAdjacentEdgeForActivation);
         }
         return null;
     }
