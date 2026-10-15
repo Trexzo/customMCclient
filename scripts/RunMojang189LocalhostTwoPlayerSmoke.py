@@ -980,8 +980,16 @@ def run(args):
                     send_server_command(server, server_log,
                                         "testforblock {} {} {} air".format(*second_target_xyz),
                                         expected=b"successfully found the block")
+                    # The third target is still AIR. Give the original
+                    # vanilla player an independent REAL supporting stone
+                    # on its EAST side so it cannot fall into the void or
+                    # lose its seven stones before the negative proof.
+                    # Aim the real server camera towards that support.
                     send_server_command(server, server_log,
-                                        "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                        "setblock {} {} {} stone".format(
+                                            x+4, y-1, z))
+                    send_server_command(server, server_log,
+                                        "tp CIHost {:.2f} {} {:.2f} 270 60".format(
                                             x+3.05, y, z+.5))
                     wait_for(host, host_log,
                              b"CUSTOMMC_189_SCAFFOLD_THREE_GUI_RESUMED_DISABLED_TICKS=120",
