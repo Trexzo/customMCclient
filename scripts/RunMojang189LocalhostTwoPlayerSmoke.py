@@ -1012,10 +1012,11 @@ def run(args):
                              "third genuine vanilla click at fresh block and stack six")
                     wait_for(host, host_log, repeat_receipt + b" step=3", deadline,
                              "third original WorldClient stone and 6-to-5 receipt")
-                    wait_for(host, host_log,
-                             b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
-                             b"THREE_CLIENT_RECEIPTS_PASS=YES attempts=3",
-                             deadline, "exactly three native attempts and receipts")
+                    if not four_production:
+                        wait_for(host, host_log,
+                                 b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
+                                 b"THREE_CLIENT_RECEIPTS_PASS=YES attempts=3",
+                                 deadline, "exactly three native attempts and receipts")
                     expected_attempts = 3
                     expected_targets = ((second_target_xyz, third_target_xyz)
                                         if history_negative else
