@@ -709,6 +709,30 @@ def set_original_host_sneak_key(host, host_window, pressed):
           "PRESSED" if pressed else "RELEASED"), flush=True)
 
 
+def move_original_host_mouse_up_for_edge(host, host_window, pixels):
+    """One bounded REAL XTEST pointer motion in focused original Minecraft.
+
+    Original vanilla sensitivity converts mouse delta to pitch. This does
+    not write camera fields, raytrace hits, blocks, players or game packets.
+    """
+    if not 1 <= pixels <= 90:
+        raise ValueError("bounded native mouse adjustment 1..90 pixels only")
+    check_process(host, "original side-face physical mouse input")
+    subprocess.run(["xdotool", "windowactivate", "--sync", str(host_window)],
+                   check=True, timeout=6, stdout=subprocess.DEVNULL)
+    focused = subprocess.check_output(["xdotool", "getactivewindow"],
+                                      timeout=4).decode("ascii").strip()
+    if int(focused) != int(host_window):
+        raise AssertionError("original Minecraft not focused for real mouse aim")
+    # Vanilla 1.8.9 default mouse sensitivity approximately 0.15 deg/px.
+    # -55px aims from an original 88.6-degree almost-downward ray to
+    # about 80 degrees, at the visible stone's EAST side from the edge.
+    subprocess.run(["xdotool", "mousemove_relative", "--", "0", str(-pixels)],
+                   check=True, timeout=6, stdout=subprocess.DEVNULL)
+    print("CUSTOMMC_189_ORIGINAL_XTEST_MOUSE_UP_FOR_EDGE={}PX".format(
+          pixels), flush=True)
+
+
 def close_process(process):
     if process is None or process.poll() is not None:
         return
@@ -1057,6 +1081,13 @@ def run(args):
                     try:
                         set_original_host_sneak_key(host, host_window, True)
                         sneak_held = True
+                        if args.scaffold_placement == "production-repeat-two-keyboard-walk":
+                            # First REAL source-native A block is server
+                            # confirmed. Adjust only the genuine Minecraft
+                            # mouse XTEST pointer so the player may actually
+                            # aim at A's side while crouching at its edge.
+                            move_original_host_mouse_up_for_edge(
+                                host, host_window, 55)
                         set_original_host_backward_key(host, host_window, True)
                         backward_held = True
                         keyboard_deadline = min(deadline, time.monotonic() + 9.0)
