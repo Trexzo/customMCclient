@@ -657,10 +657,20 @@ public final class Minecraft189RuntimeBridge {
                                 || !Double.isFinite(pz))
                             throw new IllegalStateException(
                                     "V60 original controller player position nonfinite");
+                        final boolean originalGrounded =
+                                player instanceof Minecraft189PlayerMovementStateAccess
+                                && ((Minecraft189PlayerMovementStateAccess)player)
+                                        .customMcOnGround();
+                        final boolean originalSneaking =
+                                player instanceof Minecraft189PlayerMovementStateAccess
+                                && ((Minecraft189PlayerMovementStateAccess)player)
+                                        .customMcSneaking();
                         System.out.println(
                                 "CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_ORIGINAL_SOURCE_POSITION"
                                 + " step=" + scaffold.productionRepeatAttemptedCount()
-                                + " x=" + px + " y=" + py + " z=" + pz);
+                                + " x=" + px + " y=" + py + " z=" + pz
+                                + " onGround=" + originalGrounded
+                                + " sneaking=" + originalSneaking);
                         System.out.flush();
                     }
                 }
