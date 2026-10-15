@@ -623,6 +623,38 @@ def send_real_host_key(host, host_window, key):
         check=True, stdout=subprocess.DEVNULL)
 
 
+def verified_original_backwalk_samples(raw, start_x, ground_y, center_z):
+    """Require genuine original tick movement without falling off the bridge.
+
+    The primitive native log supports only supplementary source evidence.
+    Real original controller receipts and server stones remain mandatory.
+    """
+    number = rb"(-?\\d+(?:\\.\\d+)?(?:[Ee][+-]?\\d+)?)"
+    pattern = rb"CUSTOMMC_189_NATIVE_LOCAL_POS=x=" + number + rb" y=" + number + rb" z=" + number
+    samples = [tuple(float(v) for v in triple)
+               for triple in re.findall(pattern, raw)]
+    if len(samples) < 8:
+        raise AssertionError("insufficient genuine original native walk samples")
+    if not all(all(math.isfinite(v) for v in triple) for triple in samples):
+        raise AssertionError("nonfinite genuine original native position")
+    xs = [p[0] for p in samples]
+    ys = [p[1] for p in samples]
+    zs = [p[2] for p in samples]
+    # In actual V59 failure S walked the host off the unsupported edge,
+    # native y fell from 100 to 4. X movement alone must not certify.
+    if min(ys) < ground_y - .35 or max(ys) > ground_y + .35:
+        raise AssertionError(
+            "original player left support height while backwalking"
+            " minY={} maxY={}".format(min(ys), max(ys)))
+    if any(abs(z - center_z) > .35 for z in zs):
+        raise AssertionError("original player left supported Z corridor")
+    if min(xs) > start_x + 1.5 or max(xs) < start_x + 3.35 or (
+            max(xs) - min(xs) < 2.0):
+        raise AssertionError("original native player did not walk two blocks"
+                             " minX={} maxX={}".format(min(xs), max(xs)))
+    return min(xs), max(xs), len(samples)
+
+
 def set_real_host_backwalk(host, host_window, pressed):
     """Drive ONLY vanilla key S on the uniquely identified live CIHost X11.
 
@@ -1061,17 +1093,12 @@ def run(args):
                             with host_log.open("rb") as original_host_data:
                                 original_host_data.seek(native_walk_start)
                                 movement_data = original_host_data.read()
-                            samples = [float(v) for v in re.findall(
-                                rb"CUSTOMMC_189_NATIVE_LOCAL_POS=x=(-?\\d+(?:\\.\\d+)?)",
-                                movement_data)]
-                            if len(samples) < 8 or min(samples) > x+1.5 or (
-                                    max(samples) < x+3.35
-                                    or max(samples) - min(samples) < 2.0):
-                                raise AssertionError(
-                                    "four stones without measured original player backward walk")
+                            low_x, high_x, count = (
+                                verified_original_backwalk_samples(
+                                    movement_data, x, y, z + .5))
                             print("CUSTOMMC_189_SCAFFOLD_ORIGINAL_NATIVE_BACKWALK_DISPLACEMENT_PASS=YES"
-                                  " minX={} maxX={} samples={}".format(
-                                      min(samples), max(samples), len(samples)),
+                                  " minX={} maxX={} samples={} remainedGrounded=YES".format(
+                                      low_x, high_x, count),
                                   flush=True)
                         wait_for(host, host_log,
                                  b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
