@@ -167,6 +167,7 @@ public final class Minecraft189RuntimeBridge {
         scaffoldRepeatPositiveReadbacks = 0;
         scaffoldProductionReceiptReported = 0;
         scaffoldProductionCompletionReported = false;
+        scaffoldKeyboardWalkDiagnosticsTicks = 0;
         scaffoldMenuNegativeClearStability.reset();
         scaffoldDisabledProofTicks = 0;
         scaffoldDisabledProofReported = false;
@@ -290,6 +291,7 @@ public final class Minecraft189RuntimeBridge {
     private static int scaffoldProductionReceiptReported;
     private static boolean scaffoldProductionCompletionReported;
     private static boolean scaffoldProductionHistoricalVetoReported;
+    private static int scaffoldKeyboardWalkDiagnosticsTicks;
     private static final Minecraft189ScaffoldGuiClearStability
             scaffoldMenuNegativeClearStability = new Minecraft189ScaffoldGuiClearStability();
 
@@ -661,6 +663,41 @@ public final class Minecraft189RuntimeBridge {
                                 + " x=" + px + " y=" + py + " z=" + pz);
                         System.out.flush();
                     }
+                }
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.requireProductionScaffoldKeyboardWalkProof")
+                        && receipts == 1
+                        && scaffold.productionRepeatAttemptedCount() == 1
+                        && ++scaffoldKeyboardWalkDiagnosticsTicks % 40 == 0) {
+                    // V60: original runTick READ ONLY heartbeat while the
+                    // actual S key is held, even when the original ray has
+                    // NOT yielded a second placement. Never construct a
+                    // synthetic camera/World/player or grant an action.
+                    String position = "unavailable";
+                    try {
+                        if (minecraft instanceof Minecraft189ScaffoldNativeContextAccess) {
+                            final Object[] nativeValues =
+                                    ((Minecraft189ScaffoldNativeContextAccess)minecraft)
+                                            .customMcScaffoldNativeContext();
+                            if (nativeValues != null && nativeValues.length == 3
+                                    && nativeValues[0] instanceof Minecraft189PlayerPositionAccess) {
+                                final Minecraft189PlayerPositionAccess p =
+                                        (Minecraft189PlayerPositionAccess)nativeValues[0];
+                                position = p.customMcPositionX() + ","
+                                        + p.customMcPositionY() + ","
+                                        + p.customMcPositionZ();
+                            }
+                        }
+                    } catch (RuntimeException unavailableNativeSource) {
+                        position = "read-failed";
+                    }
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_NATIVE_DIAG"
+                            + " nativePosition=" + position
+                            + " source=" + Minecraft189ScaffoldOriginalCandidateProbe
+                                    .diagnose(minecraft)
+                            + " receiptSequence=" + scaffold.repeatProofDiagnostics(minecraft));
+                    System.out.flush();
                 }
                 final int expectedCount = productionFourBlockProof ? 4
                         : productionThreeBlockProof ? 3 : 2;
