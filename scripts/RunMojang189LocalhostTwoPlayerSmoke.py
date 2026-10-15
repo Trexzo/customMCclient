@@ -690,6 +690,25 @@ def set_original_host_backward_key(host, host_window, pressed):
           "PRESSED" if pressed else "RELEASED"), flush=True)
 
 
+def set_original_host_sneak_key(host, host_window, pressed):
+    """Use real XTEST left Shift to keep native player on the ledge.
+
+    This is ordinary vanilla player input. The World ray, selected
+    ItemBlock, onGround, and actual controller click remain authoritative.
+    """
+    check_process(host, "original native sneak key")
+    subprocess.run(["xdotool", "windowactivate", "--sync", str(host_window)],
+                   check=True, timeout=6, stdout=subprocess.DEVNULL)
+    focused = subprocess.check_output(["xdotool", "getactivewindow"],
+                                      timeout=4).decode("ascii").strip()
+    if int(focused) != int(host_window):
+        raise AssertionError("original Minecraft X11 focus changed before sneak")
+    subprocess.run(["xdotool", "keydown" if pressed else "keyup", "Shift_L"],
+                   check=True, timeout=6, stdout=subprocess.DEVNULL)
+    print("CUSTOMMC_189_REAL_HOST_SHIFT_{}=YES".format(
+          "PRESSED" if pressed else "RELEASED"), flush=True)
+
+
 def close_process(process):
     if process is None or process.poll() is not None:
         return
@@ -1024,44 +1043,57 @@ def run(args):
                     # over newly placed A until the native cursor sees B.
                     # All other V43/V54/V58/V59 cases retain server TP.
                     first_source = source_native_scaffold_position(host_log, 1)
-                    pressed = False
-                    reached_second_edge = False
+                    # V60 R3: R1 S-only overshot and fell; R2 stopping
+                    # at +0.82 still coasted off the one-stone bridge.
+                    # A human can hold the ORIGINAL sneak key while
+                    # walking backward to the ledge: vanilla collision
+                    # keeps feet on the genuine server-owned support.
+                    # Keep both keys physically held only until original
+                    # controller B has a real receipt, with an independent
+                    # 9-second motion deadline and fail-closed position.
+                    sneak_held = False
+                    backward_held = False
+                    source_after_input = None
                     try:
+                        set_original_host_sneak_key(host, host_window, True)
+                        sneak_held = True
                         set_original_host_backward_key(host, host_window, True)
-                        pressed = True
-                        # V60 R2: original attempt R1 confirmed that S truly
-                        # MOVED the player, but keeping it down until click
-                        # overshot the one-stone support and player fell from
-                        # Y=100 to flat-world Y=4. Release from a genuine
-                        # ORIGINAL player position near B, not from a timer
-                        # or a fabricated Minecraft position/camera setter.
-                        motion_deadline = min(deadline, time.monotonic() + 8.0)
-                        while time.monotonic() < motion_deadline:
+                        backward_held = True
+                        keyboard_deadline = min(deadline, time.monotonic() + 9.0)
+                        while time.monotonic() < keyboard_deadline:
                             current = latest_original_native_local_player_position(
                                 host_log)
                             if current is not None:
                                 if (abs(current[2] - first_source[2]) > .65
-                                        or current[1] < first_source[1] - .45
-                                        or current[0] > first_source[0] + 1.35):
+                                        or current[1] < first_source[1] - .42
+                                        or current[0] < first_source[0] - .25
+                                        or current[0] > first_source[0] + 2.3):
                                     raise AssertionError(
-                                        "real movement left supported native edge"
-                                        " first={} now={}".format(first_source, current))
-                                if current[0] >= first_source[0] + .82:
-                                    reached_second_edge = True
-                                    break
-                            time.sleep(.03)
+                                        "original sneaking traversal left supported"
+                                        " edge first={} current={}".format(
+                                            first_source, current))
+                                source_after_input = current
+                            if second_attempt in log_tail(host_log):
+                                break
+                            time.sleep(.035)
+                        else:
+                            raise AssertionError(
+                                "original sneaking controller B missing before"
+                                " 9-second bounded keyboard deadline"
+                                " first={} last={}".format(
+                                    first_source, source_after_input))
                     finally:
-                        if pressed:
-                            set_original_host_backward_key(host, host_window, False)
-                    if not reached_second_edge:
-                        raise AssertionError(
-                            "original focused S input did not move native X toward B")
-                    print("CUSTOMMC_189_REAL_KEYBOARD_NATIVE_EDGE_RELEASE=YES",
-                          flush=True)
-                    wait_for(host, host_log, second_attempt, deadline,
-                             "source-native B click after bounded real S movement")
-                    wait_for(host, host_log, repeat_receipt + b" step=2", deadline,
-                             "original B WorldClient receipt after released S")
+                        # Release every actual key, also on timeout/crash.
+                        if backward_held:
+                            set_original_host_backward_key(
+                                host, host_window, False)
+                        if sneak_held:
+                            set_original_host_sneak_key(
+                                host, host_window, False)
+                    wait_for(host, host_log, repeat_receipt + b" step=2",
+                             deadline,
+                             "original second WorldClient receipt after"
+                             " source-native sneaking bridge")
                     second_source = source_native_scaffold_position(host_log, 2)
                     if not (first_source[0] + .70 <= second_source[0]
                             <= first_source[0] + 2.30
