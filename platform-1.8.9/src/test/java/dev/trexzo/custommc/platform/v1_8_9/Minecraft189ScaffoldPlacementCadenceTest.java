@@ -91,6 +91,63 @@ final class Minecraft189ScaffoldPlacementCadenceTest {
         assertTrue(p.arm(22,11,2,2));
     }
 
+
+    /**
+     * V53 groundwork only: three primitive controller acknowledgements and
+     * receipts must form THREE sequential transactions, not three clicks
+     * credited from a single receipt. This does not simulate native Minecraft
+     * World, inventory, movement or dedicated-server placement.
+     */
+    @Test void threeVerifiedPrimitiveReceiptsNeedThreeSeparatedAdmissions() {
+        Minecraft189ScaffoldPlacementCadence p =
+                new Minecraft189ScaffoldPlacementCadence();
+        assertTrue(p.arm(60,100,3,4));
+        assertTrue(p.controllerAttempt(60,100,true));
+        assertEquals(1,p.attemptedCount());
+        assertFalse(p.mayAttempt(60,101),
+                "a pending first readback forbids a second controller call");
+        assertTrue(p.receipt(60,102,true));
+        assertFalse(p.stopped());
+        assertFalse(p.mayAttempt(60,105),
+                "the first receipt starts a new four-tick gap");
+        assertTrue(p.controllerAttempt(60,106,true));
+        assertEquals(2,p.attemptedCount());
+        assertFalse(p.mayAttempt(60,107));
+        assertTrue(p.receipt(60,108,true));
+        assertFalse(p.stopped(),
+                "two acknowledged placements cannot exhaust a three-step quota");
+        assertFalse(p.mayAttempt(60,111));
+        assertTrue(p.controllerAttempt(60,112,true));
+        assertEquals(3,p.attemptedCount());
+        assertTrue(p.pending());
+        assertFalse(p.mayAttempt(60,113),
+                "a third controller acceptance is not a third positive receipt");
+        assertTrue(p.receipt(60,114,true));
+        assertFalse(p.pending());
+        assertTrue(p.stopped(),
+                "exactly three independent receipts close the activation");
+        assertFalse(p.mayAttempt(60,116));
+        assertFalse(p.arm(60,117,3,4),
+                "same activation cannot restart another three-place batch");
+    }
+
+    @Test void secondReceiptTimeoutRevokesThirdStepForSameActivation() {
+        Minecraft189ScaffoldPlacementCadence p =
+                new Minecraft189ScaffoldPlacementCadence();
+        assertTrue(p.arm(61,0,3,2));
+        assertTrue(p.controllerAttempt(61,0,true));
+        assertTrue(p.receipt(61,1,true));
+        assertFalse(p.mayAttempt(61,2));
+        assertTrue(p.controllerAttempt(61,3,true));
+        assertFalse(p.mayAttempt(61,124),
+                "unacknowledged second receipt must prevent third action");
+        assertTrue(p.stopped());
+        assertFalse(p.arm(61,125,3,2),
+                "timeout cannot be repaired by re-arming the same generation");
+        assertTrue(p.arm(62,126,3,2),
+                "only a fresh explicit module activation may recover");
+    }
+
     @Test void rejectsInvalidConfigurationAndTickOverflow() {
         Minecraft189ScaffoldPlacementCadence p=new Minecraft189ScaffoldPlacementCadence();
         assertFalse(p.arm(0,1,2,2));
