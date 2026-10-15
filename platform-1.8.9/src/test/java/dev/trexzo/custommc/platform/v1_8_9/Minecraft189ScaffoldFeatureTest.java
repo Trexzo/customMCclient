@@ -23,13 +23,21 @@ final class Minecraft189ScaffoldFeatureTest {
         assertEquals("Scaffold",descriptor.displayName());
         assertFalse(feature.module().active(),"normal startup is disabled");
         assertEquals(Boolean.FALSE, owned.twoPlacementsSetting().get(),
-                "repeated production mode must start disabled");
+                "two-block production mode must start disabled");
+        assertEquals(Boolean.FALSE, owned.threePlacementsSetting().get(),
+                "three-block production mode must start disabled");
         assertSame(owned.twoPlacementsSetting(),
                 settings.find(Minecraft189ScaffoldModule.TWO_PLACEMENTS_SETTING_ID));
         assertNotNull(settingPresentations.find(
                 Minecraft189ScaffoldModule.TWO_PLACEMENTS_SETTING_ID));
+        assertSame(owned.threePlacementsSetting(),
+                settings.find(Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID));
+        assertNotNull(settingPresentations.find(
+                Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID));
         assertEquals(Minecraft189ScaffoldModule.ID,
                 moduleSettings.ownerOf(Minecraft189ScaffoldModule.TWO_PLACEMENTS_SETTING_ID).moduleId());
+        assertEquals(Minecraft189ScaffoldModule.ID,
+                moduleSettings.ownerOf(Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID).moduleId());
         controller.enable(Minecraft189ScaffoldModule.ID);
         assertTrue(feature.module().active(),"controller must own enable");
         feature.close();
@@ -41,7 +49,49 @@ final class Minecraft189ScaffoldFeatureTest {
         assertNull(settingPresentations.find(
                 Minecraft189ScaffoldModule.TWO_PLACEMENTS_SETTING_ID));
         assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.TWO_PLACEMENTS_SETTING_ID));
+        assertNull(settings.find(Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID));
+        assertNull(settingPresentations.find(
+                Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID));
+        assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID));
         feature.close();
+    }
+
+
+    @Test void optInQuotaIsFrozenPerActivationAndConflictingSettingsFailClosed() {
+        Minecraft189ScaffoldModule module = new Minecraft189ScaffoldModule();
+        assertFalse(module.active());
+        module.onEnable();
+        assertTrue(module.armed(), "default stays a single placement");
+        assertEquals(0, module.productionRepeatCountForActivation());
+        module.onDisable();
+
+        module.twoPlacementsSetting().set(Boolean.TRUE);
+        module.onEnable();
+        assertTrue(module.productionRepeatEnabledForActivation());
+        assertEquals(2, module.productionRepeatCountForActivation());
+        module.onDisable();
+
+        module.twoPlacementsSetting().set(Boolean.FALSE);
+        module.threePlacementsSetting().set(Boolean.TRUE);
+        module.onEnable();
+        assertTrue(module.productionRepeatEnabledForActivation());
+        assertEquals(3, module.productionRepeatCountForActivation());
+        module.twoPlacementsSetting().set(Boolean.TRUE);
+        assertEquals(3, module.productionRepeatCountForActivation(),
+                "mid-activation UI changes must never escalate quota");
+        module.onDisable();
+
+        module.onEnable();
+        assertTrue(module.active());
+        assertFalse(module.armed(),
+                "simultaneously selected modes must not grant a one-shot fallback");
+        assertFalse(module.productionRepeatEnabledForActivation());
+        assertEquals(0, module.productionRepeatCountForActivation());
+        module.onDisable();
+        module.twoPlacementsSetting().set(Boolean.FALSE);
+        module.onEnable();
+        assertTrue(module.armed(), "fresh explicit activation restores valid mode");
+        assertEquals(3, module.productionRepeatCountForActivation());
     }
 
     @Test void duplicatePresentationFailsWithoutLeavingHiddenModuleRegistered() {
@@ -64,6 +114,8 @@ final class Minecraft189ScaffoldFeatureTest {
             assertSame(reserved,presentations.find(Minecraft189ScaffoldModule.ID));
             assertNull(settings.find(Minecraft189ScaffoldModule.TWO_PLACEMENTS_SETTING_ID));
             assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.TWO_PLACEMENTS_SETTING_ID));
+            assertNull(settings.find(Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID));
+            assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID));
         } finally {
             prior.close();
         }
