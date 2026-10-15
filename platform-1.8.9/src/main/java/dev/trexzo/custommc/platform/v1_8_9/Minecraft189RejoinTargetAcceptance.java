@@ -161,7 +161,31 @@ final class Minecraft189RejoinTargetAcceptance {
                     + " db=" + (e == null ? Double.NaN : e.db)
                     + " selectedA=" + (e != null && e.selected(e.a))
                     + " selectedB=" + (e != null && e.selected(e.b))
-                    + " locked=" + aura.lockedTargetUuid());
+                    + " locked=" + aura.lockedTargetUuid()
+                    // V50: source-native read-only witnesses for the exact
+                    // phase-3 failure where B is correctly selected+locked
+                    // but no genuine Mojang attackEntity callback follows.
+                    // No targeting/scheduling/World/player state changes.
+                    + " auraFov=" + aura.fovSetting().get()
+                    + " playerYaw=" + (host.playerRotationState().snapshot().available()
+                            ? host.playerRotationState().snapshot().yaw() : Float.NaN)
+                    + " playerPitch=" + (host.playerRotationState().snapshot().available()
+                            ? host.playerRotationState().snapshot().pitch() : Float.NaN)
+                    + " selectedRotationAvailable="
+                            + host.targetRotationState().snapshot().available()
+                    + " selectedRotationIndex="
+                            + host.targetRotationState().snapshot().entityIndex()
+                    + " selectedRotationYaw="
+                            + host.targetRotationState().snapshot().yaw()
+                    + " selectedRotationDistance="
+                            + host.targetRotationState().snapshot().distance()
+                    + " nativeFovPermitsB=" + (e != null && e.b >= 0
+                            && Minecraft189KillAuraNativeFovGate.permits(
+                                    e.b, aura.fovSetting().get(),
+                                    host.playerRotationState().snapshot(),
+                                    host.playerPositionState().snapshot(),
+                                    host.worldEntityPositionState().snapshot(),
+                                    host.worldEntityKindState().snapshot())));
             System.out.flush();
         }
         if (phase==0) {
