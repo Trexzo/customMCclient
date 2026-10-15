@@ -167,6 +167,23 @@ def native_safe_walk_positions(log):
     return samples
 
 
+def original_edge_grounding_stable(readings):
+    """Require stable native feet within the real adjacent support interior.
+
+    Vanilla may resolve requested z=.5 to z=.30 through collision. The
+    genuine source-ray, ItemBlock and original-world candidate gates remain
+    mandatory later; this pregrant check authorizes no placement.
+    """
+    if len(readings) < 3:
+        return False
+    tail = readings[-3:]
+    if not all(abs(x - 1.05) < .05 and abs(y - 100.0) < .15
+               and .20 <= z <= .80 for x, y, z in tail):
+        return False
+    return all(max(p[axis] for p in tail) - min(p[axis] for p in tail) <= .02
+               for axis in range(3))
+
+
 def run(command, game, timeout, attack=False, auto_clicker=False,
         kill_aura_nonplayer=False, native_world_camera=False,
         native_safe_walk=False, safe_walk_edge=None, native_scaffold_world=False,
@@ -641,9 +658,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 stable_start = time.monotonic()
                 while time.monotonic() - stable_start < 12:
                     readings = native_safe_walk_positions(log)[-5:]
-                    if len(readings) >= 3 and all(
-                            abs(x - 1.05) < .05 and abs(y - 100.0) < .15
-                            and abs(z - .5) < .05 for x, y, z in readings[-3:]):
+                    if original_edge_grounding_stable(readings):
+                        print("CUSTOMMC_V55_EDGE_NATIVE_STABLE_SOURCE_POSITION=YES "
+                              "last={}".format(readings[-1]), flush=True)
                         break
                     require_running(process, "source-native edge candidate grounding")
                     time.sleep(.15)
