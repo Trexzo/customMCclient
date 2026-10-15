@@ -20,6 +20,7 @@ final class Minecraft189RejoinTargetAcceptance {
     private static boolean staleDispatchVetoReported, freshDispatchAllowedReported;
     private static boolean scopedOwnerVetoReported, scopedOwnerFreshReported;
     private static int nativeOwnerDiagnosticsTicks;
+    private static int prelockNativeEvidenceTicks;
 
     private Minecraft189RejoinTargetAcceptance() {}
 
@@ -37,6 +38,7 @@ final class Minecraft189RejoinTargetAcceptance {
         staleDispatchVetoReported = freshDispatchAllowedReported = false;
         scopedOwnerVetoReported = scopedOwnerFreshReported = false;
         nativeOwnerDiagnosticsTicks = 0;
+        prelockNativeEvidenceTicks = 0;
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
@@ -106,6 +108,48 @@ final class Minecraft189RejoinTargetAcceptance {
             return;
         Evidence e=read(host);
         Minecraft189KillAuraModule aura=host.featureCatalog().killAura();
+        // V47: purely observational source-native evidence for intermittent
+        // missing INITIAL A lock. This is measured in the disabled phase:
+        // no target/rotation/FOV/World/player mutation and no "PASS" label.
+        if (phase == 0 && ++prelockNativeEvidenceTicks % 100 == 0) {
+            final Minecraft189WorldEntityUuidState.Snapshot ids =
+                    host.worldEntityUuidState().snapshot();
+            final Minecraft189WorldEntityKindState.Snapshot kinds =
+                    host.worldEntityKindState().snapshot();
+            final Minecraft189WorldEntityCombatState.Snapshot combat =
+                    host.worldEntityCombatState().snapshot();
+            final Minecraft189WorldEntityPositionState.Snapshot positions =
+                    host.worldEntityPositionState().snapshot();
+            final Minecraft189PlayerPositionState.Snapshot local =
+                    host.playerPositionState().snapshot();
+            final Minecraft189PlayerRotationState.Snapshot yaw =
+                    host.playerRotationState().snapshot();
+            final Minecraft189NearestPlayerTargetState.Snapshot nearest =
+                    host.nearestPlayerTargetState().snapshot();
+            final Minecraft189TargetRotationState.Snapshot selected =
+                    host.targetRotationState().snapshot();
+            System.out.println("CUSTOMMC_189_REJOIN_INITIAL_PRELOCK_EVIDENCE"
+                    + " validEvidence=" + (e != null)
+                    + " disabledPreferredTicks=" + disabledTicks
+                    + " Aindex=" + (e == null ? -2 : e.a)
+                    + " Bindex=" + (e == null ? -2 : e.b)
+                    + " A_distance=" + (e == null ? Double.NaN : e.da)
+                    + " B_distance=" + (e == null ? Double.NaN : e.db)
+                    + " A_selected=" + (e != null && e.selected(e.a))
+                    + " ids=" + ids.available() + "/" + ids.entityCount()
+                    + " kinds=" + kinds.available() + "/" + kinds.entityCount()
+                    + " combat=" + combat.available() + "/" + combat.entityCount()
+                    + " positions=" + positions.available() + "/" + positions.entityCount()
+                    + " local=" + local.available()
+                    + " yaw=" + (yaw.available() ? yaw.yaw() : Float.NaN)
+                    + " pitch=" + (yaw.available() ? yaw.pitch() : Float.NaN)
+                    + " nearestFound=" + nearest.found()
+                    + " nearestIndex=" + nearest.entityIndex()
+                    + " rotationSelected=" + selected.available()
+                    + " selectedIndex=" + selected.entityIndex()
+                    + " auraActive=" + aura.active());
+            System.out.flush();
+        }
         // Bounded observation only. Never changes the native target, lock,
         // attack scheduling, source World, or fixture assertions.
         if (phase >= 1 && phase <= 3 && ++nativeOwnerDiagnosticsTicks % 80 == 0) {
