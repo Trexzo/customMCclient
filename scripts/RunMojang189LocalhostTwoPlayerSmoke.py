@@ -989,8 +989,8 @@ def run(args):
                                         "setblock {} {} {} stone".format(
                                             x+4, y-1, z))
                     send_server_command(server, server_log,
-                                        "tp CIHost {:.2f} {} {:.2f} 270 60".format(
-                                            x+3.05, y, z+.5))
+                                        "tp CIHost {:.2f} {} {:.2f} 270 85".format(
+                                            x+3.85, y, z+.5))
                     wait_for(host, host_log,
                              b"CUSTOMMC_189_SCAFFOLD_THREE_GUI_RESUMED_DISABLED_TICKS=120",
                              deadline, "120 original GUI-clear disabled ticks at third edge")
