@@ -1244,16 +1244,77 @@ def run(args):
                                             expected=b"has 6 items that match the criteria")
                         print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_HISTORY_A_REUSE_NO_CLICK_PASS=YES",
                               flush=True)
-                    send_server_command(server, server_log,
-                                        "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
-                                            x+3.05, y, z+.5))
+                    if not keyboard_walk_three:
+                        send_server_command(server, server_log,
+                                            "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                                x+3.05, y, z+.5))
                     third_attempt = (repeat_attempt
                         + b" step=3 accepted=true target="
                         + "{},{},{}".format(*third_target_xyz).encode())
-                    wait_for(host, host_log, third_attempt, deadline,
-                             "third genuine vanilla click at fresh block and stack six")
+                    if keyboard_walk_three:
+                        # Original A+B stone/readbacks+Survival=6 are already
+                        # certified by the REAL dedicated server. From B
+                        # continue via XTEST physical Shift+S, NO third TP.
+                        third_start = source_native_scaffold_position(host_log, 2)
+                        sneak_held = False
+                        backward_held = False
+                        last_source = None
+                        try:
+                            set_original_host_sneak_key(host, host_window, True)
+                            sneak_held = True
+                            set_original_host_backward_key(host, host_window, True)
+                            backward_held = True
+                            bounded = min(deadline, time.monotonic() + 9.0)
+                            while time.monotonic() < bounded:
+                                current = latest_original_native_local_player_position(host_log)
+                                if current is not None:
+                                    last_source = current
+                                    if (current[0] < third_start[0] - .25
+                                            or current[0] > third_start[0] + 1.45
+                                            or abs(current[2] - third_start[2]) > .65
+                                            or current[1] < third_start[1] - .42):
+                                        raise AssertionError(
+                                            "third original sneak motion left supported B"
+                                            " start={} current={}".format(
+                                                third_start, current))
+                                if third_attempt in log_tail(host_log):
+                                    break
+                                time.sleep(.035)
+                            else:
+                                raise AssertionError(
+                                    "no genuine third native controller C from Shift+S"
+                                    " start={} latest={}".format(third_start, last_source))
+                        finally:
+                            try:
+                                if backward_held:
+                                    set_original_host_backward_key(host, host_window, False)
+                            finally:
+                                if sneak_held:
+                                    set_original_host_sneak_key(host, host_window, False)
+                    else:
+                        wait_for(host, host_log, third_attempt, deadline,
+                                 "third genuine vanilla click at fresh block and stack six")
                     wait_for(host, host_log, repeat_receipt + b" step=3", deadline,
                              "third original WorldClient stone and 6-to-5 receipt")
+                    if keyboard_walk_three:
+                        third_source = source_native_scaffold_position(host_log, 3)
+                        if not (third_start[0] + .60 <= third_source[0]
+                                <= third_start[0] + 1.45
+                                and abs(third_source[1] - third_start[1]) <= .35
+                                and abs(third_source[2] - third_start[2]) <= .55):
+                            raise AssertionError(
+                                "third click not produced by real keyboard"
+                                " B={} C={}".format(third_start, third_source))
+                        native_third = re.compile(
+                            rb"CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_"
+                            rb"ORIGINAL_SOURCE_POSITION step=3 "
+                            rb"x=(-?\d+(?:\.\d+)?) y=(-?\d+(?:\.\d+)?) "
+                            rb"z=(-?\d+(?:\.\d+)?) onGround=true sneaking=true")
+                        if len(native_third.findall(log_tail(host_log, 200000))) != 1:
+                            raise AssertionError(
+                                "native third controller not grounded+sneaking")
+                        print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_THIRD_REAL_KEYBOARD"
+                              "_NATIVE_SOURCE_PASS=YES", flush=True)
                     if not four_production:
                         wait_for(host, host_log,
                                  b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
@@ -1314,7 +1375,10 @@ def run(args):
                                         expected=b"successfully found the block")
                 send_server_command(server, server_log,
                                     "clear CIHost stone 0 0", expected=expected_items)
-                if keyboard_walk:
+                if keyboard_walk_three:
+                    print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_REAL_KEYBOARD_"
+                          "SERVER_THREE_STONE_FIVE_PASS=YES", flush=True)
+                elif keyboard_walk:
                     send_server_command(server, server_log,
                                         "testforblock {} {} {} air".format(*third_target_xyz),
                                         expected=b"successfully found the block")
