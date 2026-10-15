@@ -460,6 +460,9 @@ public final class Minecraft189RuntimeBridge {
                     scaffold.threePlacementsSetting().set(Boolean.TRUE);
                 else
                     scaffold.twoPlacementsSetting().set(Boolean.TRUE);
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.requireProductionScaffoldKeyboardWalkProof"))
+                    scaffold.adjacentEdgeTargetsSetting().set(Boolean.TRUE);
             }
             activeRuntime.moduleController().enable(Minecraft189ScaffoldModule.ID);
             scaffoldAcceptanceEnableIssued = true;
