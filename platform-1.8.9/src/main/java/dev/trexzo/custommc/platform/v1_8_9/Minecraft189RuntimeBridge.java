@@ -169,6 +169,9 @@ public final class Minecraft189RuntimeBridge {
         scaffoldProductionCompletionReported = false;
         scaffoldThreeGuiAbortObserved = false;
         scaffoldThreeGuiResumeClearTicks = 0;
+        scaffoldThreeHotbarAbortObserved = false;
+        scaffoldThreeHotbarAbortActivation = 0L;
+        scaffoldThreeHotbarResumeTicks = 0;
         scaffoldMenuNegativeClearStability.reset();
         scaffoldDisabledProofTicks = 0;
         scaffoldDisabledProofReported = false;
@@ -296,6 +299,9 @@ public final class Minecraft189RuntimeBridge {
     // runTick evidence. No production game references persist here.
     private static boolean scaffoldThreeGuiAbortObserved;
     private static int scaffoldThreeGuiResumeClearTicks;
+    private static boolean scaffoldThreeHotbarAbortObserved;
+    private static long scaffoldThreeHotbarAbortActivation;
+    private static int scaffoldThreeHotbarResumeTicks;
     private static final Minecraft189ScaffoldGuiClearStability
             scaffoldMenuNegativeClearStability = new Minecraft189ScaffoldGuiClearStability();
 
@@ -424,6 +430,52 @@ public final class Minecraft189RuntimeBridge {
                 }
             } else {
                 scaffoldThreeGuiResumeClearTicks = 0;
+            }
+        }
+        // V57: user restored the genuine selected block slot after a
+        // DIFFERENT hotbar slot revoked a still-active three-click lease.
+        // Demand 120 native GUI-clear World/player ticks with unchanged
+        // activation, original selected seven ItemBlocks, and stable feet.
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireProductionScaffoldThreeHotbarAbort")
+                && scaffoldThreeHotbarAbortObserved) {
+            if (scaffold == null || !scaffold.active()
+                    || !scaffold.productionRepeatEnabledForActivation()
+                    || !scaffold.repeatProofStopped()
+                    || scaffold.activation() != scaffoldThreeHotbarAbortActivation)
+                throw new IllegalStateException(
+                        "V57 original hotbar veto resumed or changed activation");
+            boolean actualSource = false;
+            if (minecraft instanceof Minecraft189ScaffoldNativeContextAccess
+                    && Minecraft189ScaffoldScreenGate.inspect(minecraft)
+                        == Minecraft189ScaffoldScreenGate.Verdict.CLEAR) {
+                try {
+                    final Object[] nativeSource =
+                            ((Minecraft189ScaffoldNativeContextAccess)minecraft)
+                                    .customMcScaffoldNativeContext();
+                    actualSource = nativeSource != null
+                            && nativeSource.length == 3
+                            && nativeSource[0] instanceof Minecraft189PlayerPositionAccess
+                            && nativeSource[1] != null
+                            && Math.abs(((Minecraft189PlayerPositionAccess)
+                                    nativeSource[0]).customMcPositionY() - 100.0D)
+                                    < 0.15D
+                            && Minecraft189ScaffoldSelectedHotbar
+                                    .hasGenuineSelectedBlockCount(nativeSource[0], 7);
+                } catch (RuntimeException unavailable) {
+                    actualSource = false;
+                }
+            }
+            if (actualSource) {
+                if (scaffoldThreeHotbarResumeTicks < 120
+                        && ++scaffoldThreeHotbarResumeTicks % 60 == 0) {
+                    System.out.println(
+                            "CUSTOMMC_189_SCAFFOLD_THREE_HOTBAR_RESUMED_VETO_TICKS="
+                            + scaffoldThreeHotbarResumeTicks);
+                    System.out.flush();
+                }
+            } else {
+                scaffoldThreeHotbarResumeTicks = 0;
             }
         }
         // V48 CI-only: record that the original Mojang runTick hook really
@@ -659,6 +711,36 @@ public final class Minecraft189RuntimeBridge {
             final Minecraft189ScaffoldNativePlacementAttempt.Result step =
                     scaffold.productionRepeatAtOriginalTick(minecraft, true);
             if (productionRepeatProof) {
+                // V57: evidence from the exact ORIGINAL Minecraft selected
+                // slot AFTER the production sequence ran and invalidated
+                // its own receipt/Item/slot lease. The keypress is physical
+                // X11 input in the isolated CI host, not an inventory setter.
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.requireProductionScaffoldThreeHotbarAbort")
+                        && !scaffoldThreeHotbarAbortObserved
+                        && scaffold.productionPositiveReceipts() == 1
+                        && scaffold.repeatProofStopped()
+                        && scaffold.productionRepeatStarted()
+                        && minecraft instanceof Minecraft189ScaffoldNativeContextAccess) {
+                    final Object[] nativeSource =
+                            ((Minecraft189ScaffoldNativeContextAccess)minecraft)
+                                    .customMcScaffoldNativeContext();
+                    if (nativeSource != null && nativeSource.length == 3
+                            && nativeSource[0] instanceof Minecraft189PlayerInventoryAccess) {
+                        final Minecraft189InventoryHotbarAccess inventory =
+                                ((Minecraft189PlayerInventoryAccess)nativeSource[0])
+                                        .customMcInventory();
+                        if (inventory != null
+                                && inventory.customMcSelectedHotbarSlot() == 1) {
+                            scaffoldThreeHotbarAbortObserved = true;
+                            scaffoldThreeHotbarAbortActivation = scaffold.activation();
+                            scaffoldThreeHotbarResumeTicks = 0;
+                            System.out.println(
+                                "CUSTOMMC_189_SCAFFOLD_THREE_REAL_HOTBAR_ABORT_AFTER_ONE_PASS=YES slot=1");
+                            System.out.flush();
+                        }
+                    }
+                }
                 final int receipts = scaffold.productionPositiveReceipts();
                 while (scaffoldProductionReceiptReported < receipts) {
                     System.out.println(
