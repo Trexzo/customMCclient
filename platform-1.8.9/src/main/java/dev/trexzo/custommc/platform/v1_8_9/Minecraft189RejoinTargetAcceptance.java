@@ -13,6 +13,8 @@ final class Minecraft189RejoinTargetAcceptance {
     private static boolean survivorClicked;
     private static int firstOriginalIndex = -1;
     private static int nativeNonPlayerBaseline = -1;
+    private static final Minecraft189OriginalNonPlayerArrivalWitness
+            nativeNonPlayerArrivals = new Minecraft189OriginalNonPlayerArrivalWitness();
     private static boolean nativeSentinelObserved;
     private static boolean realBControllerReported;
     private static boolean realBControllerEntityUuidReported;
@@ -32,6 +34,7 @@ final class Minecraft189RejoinTargetAcceptance {
         survivorClicked = false;
         firstOriginalIndex = -1;
         nativeNonPlayerBaseline = -1;
+        nativeNonPlayerArrivals.reset();
         nativeSentinelObserved = false;
         realBControllerReported = false;
         realBControllerEntityUuidReported = false;
@@ -210,6 +213,9 @@ final class Minecraft189RejoinTargetAcceptance {
                     + " selectedA=" + (e != null && e.selected(e.a))
                     + " selectedB=" + (e != null && e.selected(e.b))
                     + " locked=" + aura.lockedTargetUuid()
+                    + " distinctNewNativeNonplayers=" + (e == null ? -1
+                            : nativeNonPlayerArrivals.countNewNativeNonPlayers(
+                                    e.ids, e.kinds))
                     // V50: source-native read-only witnesses for the exact
                     // phase-3 failure where B is correctly selected+locked
                     // but no genuine Mojang attackEntity callback follows.
@@ -268,6 +274,11 @@ final class Minecraft189RejoinTargetAcceptance {
                 if (++aloneTicks>=15) {
                     phase=3;
                     nativeNonPlayerBaseline = sourceNonPlayerCount(e);
+                    if (!nativeNonPlayerArrivals.captureBaseline(e.ids, e.kinds)
+                            || nativeNonPlayerArrivals.baselineSize()
+                                    != nativeNonPlayerBaseline)
+                        throw new IllegalStateException(
+                                "M417 failed to capture real unique native sentinel baseline");
                     System.out.println("CUSTOMMC_189_REJOIN_OLD_A_UNLOADED_B_LOCKED_PASS=15");
                     System.out.flush();
                 }
@@ -280,10 +291,13 @@ final class Minecraft189RejoinTargetAcceptance {
                     && !nativeSentinelObserved && nativeNonPlayerBaseline >= 0
                     && e!=null && e.a==-1 && e.bOnlySelected()
                     && survivorUuid.equals(aura.lockedTargetUuid())
-                    && sourceNonPlayerCount(e)>=nativeNonPlayerBaseline+4) {
+                    && nativeNonPlayerArrivals.countNewNativeNonPlayers(
+                            e.ids, e.kinds) >= 4) {
                 nativeSentinelObserved = true;
                 System.out.println(
                     "CUSTOMMC_189_REJOIN_REAL_SENTINEL_NATIVE_OBSERVED_PASS=YES"
+                    + " distinctNewNonplayerUuids="
+                    + nativeNonPlayerArrivals.countNewNativeNonPlayers(e.ids, e.kinds)
                     + " nonplayersBefore=" + nativeNonPlayerBaseline
                     + " nonplayersAfter=" + sourceNonPlayerCount(e));
                 System.out.flush();
