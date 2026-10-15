@@ -480,12 +480,12 @@ def client_command(args, game, username, uuid, port, remote):
             if args.scaffold_placement in ("production-repeat-three", "production-repeat-three-history"):
                 command.insert(command.index("-cp"),
                                "-Dcustommc.acceptance.requireProductionScaffoldThreeBlockProof=true")
-            if args.scaffold_placement == "production-repeat-four":
-                command.insert(command.index("-cp"),
-                               "-Dcustommc.acceptance.requireProductionScaffoldFourBlockProof=true")
                 if args.scaffold_placement == "production-repeat-three-history":
                     command.insert(command.index("-cp"),
                                    "-Dcustommc.acceptance.requireProductionScaffoldHistoryVeto=true")
+            if args.scaffold_placement == "production-repeat-four":
+                command.insert(command.index("-cp"),
+                               "-Dcustommc.acceptance.requireProductionScaffoldFourBlockProof=true")
         else:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldDisabledControl=true")
