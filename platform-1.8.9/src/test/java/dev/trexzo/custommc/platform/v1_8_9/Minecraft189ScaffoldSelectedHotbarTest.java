@@ -81,6 +81,39 @@ final class Minecraft189ScaffoldSelectedHotbarTest {
                 "unavailable native inventory must fail shut");
     }
 
+    @Test void v49NoStartupTicksCarryIntoSixtyPostGrantGuiClearTicks() {
+        final Inventory inventory = new Inventory();
+        final OriginalPlayer nativePlayer = new OriginalPlayer(inventory);
+        final Object minecraft = new Object(), world = new Object();
+        final Minecraft189ScaffoldGuiClearStability gate =
+                new Minecraft189ScaffoldGuiClearStability();
+        // Real game may spend hundreds of ticks in startup World while no
+        // native selected ItemBlock has been granted by dedicated server.
+        for (int tick = 0; tick < 200; tick++) {
+            assertFalse(gate.observe(minecraft, nativePlayer, world,
+                    Minecraft189ScaffoldSelectedHotbar
+                            .hasGenuineSelectedBlockCount(nativePlayer, 8)));
+        }
+        assertEquals(0, gate.witnessedClearTicks());
+        inventory.slots[2] = new Stack(true, 8);
+        for (int tick = 1; tick < 60; tick++) {
+            assertFalse(gate.observe(minecraft, nativePlayer, world,
+                    Minecraft189ScaffoldSelectedHotbar
+                            .hasGenuineSelectedBlockCount(nativePlayer, 8)));
+            assertEquals(tick, gate.witnessedClearTicks());
+        }
+        assertTrue(gate.observe(minecraft, nativePlayer, world,
+                Minecraft189ScaffoldSelectedHotbar
+                        .hasGenuineSelectedBlockCount(nativePlayer, 8)),
+                "only sixty NEW post-grant original ticks permit the module arm");
+        // A genuine Survival debit or menu-open transition revokes readiness.
+        inventory.slots[2] = new Stack(true, 7);
+        assertFalse(gate.observe(minecraft, nativePlayer, world,
+                Minecraft189ScaffoldSelectedHotbar
+                        .hasGenuineSelectedBlockCount(nativePlayer, 8)));
+        assertEquals(0, gate.witnessedClearTicks());
+    }
+
     @Test void verifiesOnlyRealSelectedBlockStackAndNeverChangesSlot() {
         Inventory inv = new Inventory();
         inv.slots[2] = new Stack(true, 14);
