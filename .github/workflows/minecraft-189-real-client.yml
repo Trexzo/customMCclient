@@ -352,7 +352,7 @@ jobs:
             --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
             --overlay "build/runtime-overlay" \
             --root "$RUNNER_TEMP/custommc-189-scaffold-three-block-production" \
-            --timeout 300 --scaffold-placement production-repeat-three
+            --timeout 240 --scaffold-placement production-repeat-three
       - name: V29 prove disabled Scaffold keeps original World air and full hotbar stack
         timeout-minutes: 6
         env:
