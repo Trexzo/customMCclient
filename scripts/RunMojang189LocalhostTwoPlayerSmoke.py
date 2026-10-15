@@ -1021,6 +1021,40 @@ def run(args):
                                         if history_negative else
                                         (target_xyz, second_target_xyz, third_target_xyz))
                     expected_items = b"has 5 items that match the criteria"
+                    if four_production:
+                        # A NEW original vanilla ray/cursor/controller target;
+                        # never reuse a client-side source or fabricate a
+                        # stack. The server proves A+B+C and five BEFORE
+                        # teleporting the genuine host to fresh D.
+                        for target in (target_xyz, second_target_xyz, third_target_xyz):
+                            send_server_command(server, server_log,
+                                                "testforblock {} {} {} stone".format(*target),
+                                                expected=b"successfully found the block")
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*fourth_target_xyz),
+                                            expected=b"successfully found the block")
+                        send_server_command(server, server_log,
+                                            "clear CIHost stone 0 0",
+                                            expected=b"has 5 items that match the criteria")
+                        send_server_command(server, server_log,
+                                            "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                                x+4.05, y, z+.5))
+                        fourth_attempt = (repeat_attempt
+                            + b" step=4 accepted=true target="
+                            + "{},{},{}".format(*fourth_target_xyz).encode())
+                        wait_for(host, host_log, fourth_attempt, deadline,
+                                 "fourth original controller click at fresh distinct D")
+                        wait_for(host, host_log, repeat_receipt + b" step=4", deadline,
+                                 "fourth original WorldClient stone and 5-to-4 debit")
+                        wait_for(host, host_log,
+                                 b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
+                                 b"FOUR_CLIENT_RECEIPTS_PASS=YES attempts=4",
+                                 deadline, "four positive original receipts and native clicks")
+                        expected_attempts = 4
+                        expected_targets = (
+                            target_xyz, second_target_xyz,
+                            third_target_xyz, fourth_target_xyz)
+                        expected_items = b"has 4 items that match the criteria"
                 else:
                     wait_for(host, host_log,
                              b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
@@ -1041,7 +1075,8 @@ def run(args):
                       + repeat_marker.decode("ascii")
                       + ("_SERVER_HISTORY_VETO_TWO_STONE_FIVE_PASS=YES"
                          if history_negative else
-                         "_SERVER_THREE_STONE_FIVE_PASS=YES" if three_production
+                         "_SERVER_FOUR_STONE_FOUR_PASS=YES" if four_production
+                         else "_SERVER_THREE_STONE_FIVE_PASS=YES" if three_production
                          else "_SERVER_TWO_STONE_SIX_PASS=YES"),
                       flush=True)
             elif args.scaffold_placement == "enabled":
