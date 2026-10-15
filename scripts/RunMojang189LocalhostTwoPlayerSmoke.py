@@ -1068,9 +1068,22 @@ def run(args):
                                 "gamerule naturalRegeneration false")
             host_tp, a_near, b_outer = (
                 actual_server_three_client_rejoin_fixture(server_log))
-            send_server_command(server, server_log, b_outer)
+            # V52: move HOST into the genuine server-owned combat chunk
+            # BEFORE moving B. Sending B's teleport first could leave the
+            # remote original loadedEntityList with a stale B spawn/position
+            # after host's own teleport. The native source witness in V50
+            # observed actual A=2.06 but B=5.74 even when dedicated server
+            # acknowledged B's intended sqrt(8) teleport.
+            #
+            # The final server-authoritative teleport is deliberately B,
+            # after host and A are tracking the real nearby entity. There
+            # are no synthetic positions, client-side entity writes or
+            # weakened in-range/UUID/real-controller assertions.
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, a_near)
+            send_server_command(server, server_log, b_outer)
+            print("CUSTOMMC_189_REJOIN_FINAL_B_SERVER_TELEPORT_AFTER_HOST_A=YES",
+                  flush=True)
             wait_for(host, host_log, REJOIN_READY, deadline,
                      "original genuine A UUID locked before disconnect")
             for player in ("CITarget", "CITargetB"):
