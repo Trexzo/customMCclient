@@ -465,7 +465,7 @@ def client_command(args, game, username, uuid, port, remote):
                 "-Dcustommc.acceptance.requireOriginalScaffoldReach=true",
                 "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true"):
             command.insert(command.index("-cp"), value)
-        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-four"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-four", "production-walk-four"):
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldPlacement=true")
             if args.scaffold_placement == "menu-open":
@@ -480,7 +480,7 @@ def client_command(args, game, username, uuid, port, remote):
             if args.scaffold_placement == "production-repeat-three":
                 command.insert(command.index("-cp"),
                                "-Dcustommc.acceptance.requireProductionScaffoldThreeBlockProof=true")
-            if args.scaffold_placement == "production-repeat-four":
+            if args.scaffold_placement in ("production-repeat-four", "production-walk-four"):
                 command.insert(command.index("-cp"),
                                "-Dcustommc.acceptance.requireProductionScaffoldFourBlockProof=true")
         else:
@@ -623,6 +623,28 @@ def send_real_host_key(host, host_window, key):
         check=True, stdout=subprocess.DEVNULL)
 
 
+def set_real_host_backwalk(host, host_window, pressed):
+    """Drive ONLY vanilla key S on the uniquely identified live CIHost X11.
+
+    Never change game position, native yaw/cursor, World or controller APIs.
+    Caller must release held key in a finally block even on assertion failure.
+    """
+    check_process(host, "original CIHost backwalk key")
+    if not host_window:
+        raise AssertionError("unique original host window required for walking")
+    result = subprocess.run(
+        ["xdotool", "getwindowname", str(host_window)],
+        capture_output=True, text=True, check=False)
+    if result.returncode or "Minecraft" not in result.stdout:
+        raise AssertionError("original host Minecraft X11 ownership lost")
+    if pressed:
+        subprocess.run(["xdotool", "windowactivate", "--sync", str(host_window)],
+                       check=True, stdout=subprocess.DEVNULL, timeout=6)
+    subprocess.run(["xdotool", "keydown" if pressed else "keyup",
+                    "--clearmodifiers", "s"],
+                   check=True, stdout=subprocess.DEVNULL, timeout=6)
+
+
 def close_process(process):
     if process is None or process.poll() is not None:
         return
@@ -665,6 +687,7 @@ def run(args):
         logs.append(("target_rejoin", target_rejoin_log))
     processes = []
     wm = None
+    walk_key_held = False
     try:
         env = dict(os.environ)
         env["LIBGL_ALWAYS_SOFTWARE"] = "1"
@@ -713,7 +736,7 @@ def run(args):
                  min(deadline, time.monotonic() + 65),
                  "host graphical client")
         host_window = None
-        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-four"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-four", "production-walk-four"):
             # Unique real Minecraft client on this freshly allocated Xvfb
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
@@ -767,13 +790,13 @@ def run(args):
                                 "setblock {} {} {} stone".format(*support))
             send_server_command(server, server_log,
                                 "setblock {} {} {} air".format(*target_xyz))
-            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-four"):
+            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-four", "production-walk-four"):
                 send_server_command(server, server_log,
                                     "setblock {} {} {} air".format(*second_target_xyz))
-                if args.scaffold_placement in ("production-repeat-three", "production-repeat-four"):
+                if args.scaffold_placement in ("production-repeat-three", "production-repeat-four", "production-walk-four"):
                     send_server_command(server, server_log,
                                         "setblock {} {} {} air".format(*third_target_xyz))
-                if args.scaffold_placement == "production-repeat-four":
+                if args.scaffold_placement in ("production-repeat-four", "production-walk-four"):
                     send_server_command(server, server_log,
                                         "setblock {} {} {} air".format(*fourth_target_xyz))
             # Capture a byte-precise diagnostic boundary for menu-negative
@@ -873,8 +896,9 @@ def run(args):
             # A V37 marker never certifies a V43 production controller call.
             is_production_repeat = args.scaffold_placement in (
                 "production-repeat-two", "production-repeat-three",
-                "production-repeat-four")
-            four_production = args.scaffold_placement == "production-repeat-four"
+                "production-repeat-four", "production-walk-four")
+            four_production = args.scaffold_placement in ("production-repeat-four", "production-walk-four")
+            walk_four = args.scaffold_placement == "production-walk-four"
             three_production = args.scaffold_placement == "production-repeat-three"
             repeat_marker = (b"PRODUCTION" if is_production_repeat else b"REPEAT")
             repeat_attempt = (b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
@@ -887,7 +911,8 @@ def run(args):
                    for tag in (module,attempt,receipt,repeat_attempt,repeat_receipt,repeat_arm)):
                 raise AssertionError("native placement or repeat arm before accepted placement fixture")
             if args.scaffold_placement in ("enabled", "repeat-two", "production-repeat-two",
-                                           "production-repeat-three", "production-repeat-four"):
+                                           "production-repeat-three", "production-repeat-four",
+                                           "production-walk-four"):
                 # Genuine host keyboard selects hotbar slot 0. This is not
                 # a spoofed inventory setter or a fabricated ItemStack.
                 # Server sends the real eight-block Survival grant afterward.
@@ -900,7 +925,7 @@ def run(args):
             # after grant in the enabled mode races the intended 8 -> 7
             # survival decrement. Only the disabled control may retain
             # an eight-item post-grant baseline.
-            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-four"):
+            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-four", "production-walk-four"):
                 # V37 proves the isolated sequence; V43 independently runs
                 # the real default-off setting explicitly enabled for CI.
                 # V37 is an isolated opt-in new original-client JVM and
@@ -1943,6 +1968,12 @@ def run(args):
                   file=sys.stderr)
         raise
     finally:
+        if walk_key_held:
+            # No stuck native movement input after failed proof or timeout.
+            # Each test runs on its own isolated Xvfb display.
+            subprocess.run(["xdotool", "keyup", "--clearmodifiers", "s"],
+                           stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, check=False)
         for process in reversed(processes):
             close_process(process)
         close_process(wm)
@@ -1954,7 +1985,7 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
-    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two","production-repeat-two","production-repeat-three","production-repeat-four"),
+    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two","production-repeat-two","production-repeat-three","production-repeat-four","production-walk-four"),
                         help="dedicated Mojang server-authoritative Scaffold placement/disabled proof")
     parser.add_argument("--require-index-reorder", action="store_true",
                         help="fail-closed actual native entity-index change on fresh A rejoin")
