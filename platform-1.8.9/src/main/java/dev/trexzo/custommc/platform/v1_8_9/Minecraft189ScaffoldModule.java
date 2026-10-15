@@ -21,8 +21,11 @@ public final class Minecraft189ScaffoldModule implements Module {
             "movement.scaffold.twoPlacements";
     public static final String THREE_PLACEMENTS_SETTING_ID =
             "movement.scaffold.threePlacements";
+    public static final String FOUR_PLACEMENTS_SETTING_ID =
+            "movement.scaffold.fourPlacements";
     private static final int PRODUCTION_TWO_COUNT = 2;
     private static final int PRODUCTION_THREE_COUNT = 3;
+    private static final int PRODUCTION_FOUR_COUNT = 4;
     private static final int PRODUCTION_REPEAT_GAP_TICKS = 4;
     // Explicit UI setting, always OFF on a clean installation. Only captured
     // on a fresh module enable; changing it mid-activation grants no clicks.
@@ -32,6 +35,10 @@ public final class Minecraft189ScaffoldModule implements Module {
     // V54: a second opt-in, never the implicit continuation of two-block mode.
     private final Setting<Boolean> threePlacements = new Setting<Boolean>(
             THREE_PLACEMENTS_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    // V57: independently opted-in fourth original placement, default OFF.
+    private final Setting<Boolean> fourPlacements = new Setting<Boolean>(
+            FOUR_PLACEMENTS_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
     private boolean productionRepeatForActivation;
     private int productionRepeatCountForActivation;
@@ -65,14 +72,17 @@ public final class Minecraft189ScaffoldModule implements Module {
         activation++;
         final boolean two = Boolean.TRUE.equals(twoPlacements.get());
         final boolean three = Boolean.TRUE.equals(threePlacements.get());
-        // Both modes requested is an invalid state: no one-shot fallback or
-        // implicit priority for the larger quota. Require an explicit
-        // disable/correct/re-enable cycle before any action.
-        if (two && three) {
+        final boolean four = Boolean.TRUE.equals(fourPlacements.get());
+        final int selectedModes = (two ? 1 : 0) + (three ? 1 : 0)
+                + (four ? 1 : 0);
+        // Multiple opt-ins can never select a priority or fall back to
+        // the original one-shot arm on this same activation.
+        if (selectedModes > 1) {
             attempted = true;
-        } else if (two || three) {
-            productionRepeatCountForActivation = three
-                    ? PRODUCTION_THREE_COUNT : PRODUCTION_TWO_COUNT;
+        } else if (selectedModes == 1) {
+            productionRepeatCountForActivation = four
+                    ? PRODUCTION_FOUR_COUNT
+                    : three ? PRODUCTION_THREE_COUNT : PRODUCTION_TWO_COUNT;
             productionRepeatForActivation = true;
         }
         enabled = true;
@@ -94,6 +104,7 @@ public final class Minecraft189ScaffoldModule implements Module {
 
     public Setting<Boolean> twoPlacementsSetting() { return twoPlacements; }
     public Setting<Boolean> threePlacementsSetting() { return threePlacements; }
+    public Setting<Boolean> fourPlacementsSetting() { return fourPlacements; }
     synchronized int productionRepeatCountForActivation() {
         return productionRepeatCountForActivation;
     }
@@ -137,10 +148,13 @@ public final class Minecraft189ScaffoldModule implements Module {
         // fallback to one-shot clicks on this activation.
         final boolean stillTwo = Boolean.TRUE.equals(twoPlacements.get());
         final boolean stillThree = Boolean.TRUE.equals(threePlacements.get());
+        final boolean stillFour = Boolean.TRUE.equals(fourPlacements.get());
         final boolean exactMode = productionRepeatCountForActivation
-                == PRODUCTION_TWO_COUNT ? stillTwo && !stillThree
+                == PRODUCTION_TWO_COUNT ? stillTwo && !stillThree && !stillFour
                 : productionRepeatCountForActivation == PRODUCTION_THREE_COUNT
-                    && stillThree && !stillTwo;
+                    ? stillThree && !stillTwo && !stillFour
+                    : productionRepeatCountForActivation == PRODUCTION_FOUR_COUNT
+                        && stillFour && !stillTwo && !stillThree;
         if (!exactMode) {
             repeatSequence.invalidate();
             attempted = true;
