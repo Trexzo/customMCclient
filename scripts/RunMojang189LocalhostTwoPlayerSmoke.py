@@ -1098,6 +1098,19 @@ def run(args):
                              "original second WorldClient receipt after"
                              " source-native sneaking bridge")
                     second_source = source_native_scaffold_position(host_log, 2)
+                    # The original Java MovementStateAccess must itself
+                    # confirm real sneaking and grounded state at the EXACT
+                    # original second controller click, not merely that
+                    # xdotool claimed to press physical Shift.
+                    native_second = re.compile(
+                        rb"CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_"
+                        rb"ORIGINAL_SOURCE_POSITION step=2 "
+                        rb"x=(-?\d+(?:\.\d+)?) y=(-?\d+(?:\.\d+)?) "
+                        rb"z=(-?\d+(?:\.\d+)?) onGround=true sneaking=true")
+                    if len(native_second.findall(log_tail(host_log, 200000))) != 1:
+                        raise AssertionError(
+                            "source-native second controller was not grounded"
+                            " and sneaking despite physical held Shift+S")
                     if not (first_source[0] + .70 <= second_source[0]
                             <= first_source[0] + 2.30
                             and abs(second_source[1] - first_source[1]) <= .35
