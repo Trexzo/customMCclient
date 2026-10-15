@@ -21,6 +21,7 @@ final class Minecraft189RejoinTargetAcceptance {
     private static boolean scopedOwnerVetoReported, scopedOwnerFreshReported;
     private static int nativeOwnerDiagnosticsTicks;
     private static int prelockNativeEvidenceTicks;
+    private static int originalBClickGateWitnessTicks;
 
     private Minecraft189RejoinTargetAcceptance() {}
 
@@ -39,6 +40,7 @@ final class Minecraft189RejoinTargetAcceptance {
         scopedOwnerVetoReported = scopedOwnerFreshReported = false;
         nativeOwnerDiagnosticsTicks = 0;
         prelockNativeEvidenceTicks = 0;
+        originalBClickGateWitnessTicks = 0;
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
@@ -280,6 +282,78 @@ final class Minecraft189RejoinTargetAcceptance {
                 }
             } else releasedTicks=0;
         }
+    }
+
+    /**
+     * V50 source-native, read-only phase-3 witness at the EXACT mapped
+     * original left-click admission boundary. This diagnoses why a genuine
+     * selected and UUID-locked B is sometimes not ray-confirmed/clicked.
+     * Prints only every 50 callbacks and never advances acceptance phase,
+     * changes aim, spends CPS credit or marks test success.
+     */
+    static void witnessOriginalSurvivorClickAdmission(
+            final Minecraft189HostRuntime host,
+            final boolean originalPlayerRayHit,
+            final int originalRayIndex, final boolean scheduledAttack) {
+        if (phase != 3 || !Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraRejoin")
+                || ++originalBClickGateWitnessTicks % 50 != 0) return;
+        final Evidence evidence = read(host);
+        final Minecraft189KillAuraModule aura =
+                host.featureCatalog().killAura();
+        final Minecraft189PlayerRotationState.Snapshot angle =
+                host.playerRotationState().snapshot();
+        final Minecraft189PlayerPositionState.Snapshot local =
+                host.playerPositionState().snapshot();
+        final Minecraft189WorldEntityPositionState.Snapshot positions =
+                host.worldEntityPositionState().snapshot();
+        final Minecraft189WorldEntityKindState.Snapshot kinds =
+                host.worldEntityKindState().snapshot();
+        final Minecraft189TargetRotationState.Snapshot target =
+                host.targetRotationState().snapshot();
+        final int b = evidence == null ? -1 : evidence.b;
+        final boolean geometryValid = b >= 0
+                && angle.available() && local.available()
+                && positions.available() && kinds.available()
+                && b < positions.entityCount()
+                && b < kinds.entityCount();
+        final double dx = geometryValid ? positions.x(b)-local.x() : Double.NaN;
+        final double dz = geometryValid ? positions.z(b)-local.z() : Double.NaN;
+        final double yawToB = Math.toDegrees(Math.atan2(dz,dx))-90.0D;
+        double delta = (yawToB-angle.yaw())%360.0D;
+        if (delta < -180.0D) delta += 360.0D;
+        if (delta >= 180.0D) delta -= 360.0D;
+        final Minecraft189WorldEntityUuidState.Snapshot ids =
+                host.worldEntityUuidState().snapshot();
+        final UUID rayUuid = originalRayIndex >= 0 && ids.available()
+                && originalRayIndex < ids.entityCount()
+                ? ids.at(originalRayIndex) : null;
+        final boolean independentBWithinFov = geometryValid
+                && Minecraft189KillAuraNativeFovGate.permits(
+                        b, aura.fovSetting().get(),
+                        angle, local, positions, kinds);
+        System.out.println(
+                "CUSTOMMC_189_REJOIN_B_CLICK_GATE_NATIVE_EVIDENCE"
+                + " originalPlayerHit=" + originalPlayerRayHit
+                + " rayIndex=" + originalRayIndex
+                + " rayUuid=" + rayUuid
+                + " originalBIndex=" + b
+                + " B_selected=" + (evidence != null && evidence.selected(b))
+                + " B_distance=" + (evidence == null ? Double.NaN : evidence.db)
+                + " B_originalUuid=" + (b >= 0 && ids.available()
+                    && b < ids.entityCount() ? ids.at(b) : null)
+                + " lockedUuid=" + aura.lockedTargetUuid()
+                + " auraActive=" + aura.active()
+                + " originalYaw=" + (angle.available() ? angle.yaw() : Float.NaN)
+                + " originalPitch=" + (angle.available() ? angle.pitch() : Float.NaN)
+                + " nativeYawDeltaToB=" + delta
+                + " fovSetting=" + aura.fovSetting().get()
+                + " independentBFovPermit=" + independentBWithinFov
+                + " selectedIndex=" + (target.available() ? target.entityIndex() : -1)
+                + " selectedYaw=" + (target.available() ? target.yaw() : Float.NaN)
+                + " selectedDistance=" + (target.available() ? target.distance() : Double.NaN)
+                + " finalClickAdmission=" + scheduledAttack);
+        System.out.flush();
     }
 
     /**
