@@ -316,12 +316,21 @@ public final class Minecraft189RuntimeBridge {
                     scaffoldMenuNegativeClearStability.reset();
                     return false;
                 }
+                // V49: never count a startup creative/empty pre-grant
+                // World as ready. The original server fixture must already
+                // have provided EIGHT real selected hotbar ItemBlocks. V48
+                // proved V35 could otherwise enable in the earlier startup
+                // World, then revoke before the harness' actual E keypress.
+                if (!Minecraft189ScaffoldSelectedHotbar.hasGenuineSelectedBlockCount(
+                        nativeSource[0], 8)) {
+                    scaffoldMenuNegativeClearStability.reset();
+                    return false;
+                }
                 // Initial World/login/pause screens may briefly report CLEAR
-                // just before another vanilla menu opens. The menu-negative
-                // test must have a full stable original World/Player source
-                // and 60 consecutive original GUI-clear ticks BEFORE the
-                // first (and only) module-controller enable. A later OPEN
-                // still revokes the activation via the production V35 veto.
+                // just before another vanilla menu opens. Count 60 truly
+                // consecutive original World/Player+selected-eight+GUI-clear
+                // ticks BEFORE the one controller enable. A later OPEN
+                // still revokes through the original production V35 veto.
                 return scaffoldMenuNegativeClearStability.observe(
                         minecraft, nativeSource[0], nativeSource[1],
                         screen == Minecraft189ScaffoldScreenGate.Verdict.CLEAR);
@@ -371,6 +380,19 @@ public final class Minecraft189RuntimeBridge {
         if (Boolean.getBoolean("custommc.acceptance.requireOriginalScaffoldMenuVeto")
                 && (++scaffoldMenuPrearmHeartbeatTicks == 1
                     || scaffoldMenuPrearmHeartbeatTicks % 20 == 0)) {
+            // CI observation only. Unlike the positive-placement candidate,
+            // GUI prearm needs no cursor hit, but it MUST prove the actual
+            // selected eight-block native Survival grant.
+            boolean originalEightGranted = false;
+            if (minecraft instanceof Minecraft189ScaffoldNativeContextAccess) {
+                final Object[] originalSource =
+                        ((Minecraft189ScaffoldNativeContextAccess)minecraft)
+                                .customMcScaffoldNativeContext();
+                originalEightGranted = originalSource != null
+                        && originalSource.length == 3
+                        && Minecraft189ScaffoldSelectedHotbar
+                                .hasGenuineSelectedBlockCount(originalSource[0], 8);
+            }
             System.out.println("CUSTOMMC_189_SCAFFOLD_MENU_PREARM_HEARTBEAT"
                     + " tick=" + scaffoldMenuPrearmHeartbeatTicks
                     + " modulePresent=" + (scaffold != null)
@@ -378,6 +400,7 @@ public final class Minecraft189RuntimeBridge {
                     + " acceptanceEnableIssued=" + scaffoldAcceptanceEnableIssued
                     + " stableGuiClearTicks="
                     + scaffoldMenuNegativeClearStability.witnessedClearTicks()
+                    + " nativeSelectedEightGrant=" + originalEightGranted
                     + " originalScreen="
                     + Minecraft189ScaffoldScreenGate.inspect(minecraft)
                     + " source="

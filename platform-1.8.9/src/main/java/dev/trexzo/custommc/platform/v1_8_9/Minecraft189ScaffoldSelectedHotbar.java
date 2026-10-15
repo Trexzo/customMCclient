@@ -19,6 +19,31 @@ final class Minecraft189ScaffoldSelectedHotbar {
 
     private Minecraft189ScaffoldSelectedHotbar() { }
 
+    /**
+     * CI-only actual Survival grant readiness. Read the ORIGINAL selected
+     * native hotbar stack from the current source player; never borrow
+     * another slot, mutate inventory, change selection, or retain a World.
+     * A startup creative/empty inventory cannot activate V35 before the
+     * real dedicated server has provided the fixture's eight ItemBlocks.
+     */
+    static boolean hasGenuineSelectedBlockCount(
+            final Object originalPlayer, final int expectedCount) {
+        if (!(originalPlayer instanceof Minecraft189PlayerInventoryAccess)
+                || expectedCount <= 0) return false;
+        try {
+            final Minecraft189InventoryHotbarAccess inventory =
+                    ((Minecraft189PlayerInventoryAccess)originalPlayer)
+                            .customMcInventory();
+            if (!(inventory instanceof Minecraft189InventoryHotbarItemsAccess))
+                return false;
+            final Evidence selected = from(
+                    (Minecraft189InventoryHotbarItemsAccess)inventory);
+            return selected != null && selected.sourceStackSize == expectedCount;
+        } catch (RuntimeException sourceUnavailable) {
+            return false;
+        }
+    }
+
     static Evidence from(final Minecraft189InventoryHotbarItemsAccess inventory) {
         if (inventory == null) return null;
         try {
