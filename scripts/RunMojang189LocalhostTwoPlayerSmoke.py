@@ -1499,6 +1499,14 @@ def run(args):
         if args.simultaneous:
             # BOTH actual remote EntityPlayers stay inside default 3.5 range.
             # Movement uses the real server, not fabricated entity snapshots.
+            # V60: an unattended target may walk enough to invert A=2 vs
+            # B=sqrt(8) BEFORE A's first legitimate attack. This previously
+            # reached strict native UUID phase=1 guard as an early B click.
+            # Constrain only vanilla movement of the two real target clients,
+            # not the source selection, real distance, reach or native UUID.
+            for player in ("CITarget", "CITargetB"):
+                send_server_command(server, server_log,
+                                    "effect {} 2 600 5 true".format(player))
             send_server_command(server, server_log,
                                 "scoreboard objectives add taken stat.damageTaken")
             for player in ("CITarget", "CITargetB"):

@@ -136,9 +136,18 @@ final class Minecraft189SimultaneousTargetAcceptance {
             // After proving both official server-owned attacks, real
             // knockback may legitimately change the nearest eligible player.
         } else {
+            // Exact original callback mismatch: surface both genuine
+            // target UUIDs and native selection, never weaken/reorder the
+            // UUID/phase ownership assertion or admit an unexpected click.
             throw new IllegalStateException(
                     "simultaneous attack crossed source-native UUID/phase="
-                    + phase + " uuid=" + current);
+                    + phase + " uuid=" + current
+                    + " expectedA=" + firstUuid
+                    + " expectedB=" + secondUuid
+                    + " firstOwnedClick=" + firstOwnedClick
+                    + " actualIndex=" + playerIndex
+                    + " nativeNearestIndex=" + nearest.entityIndex()
+                    + " nativeRotationIndex=" + rotation.entityIndex());
         }
     }
 
