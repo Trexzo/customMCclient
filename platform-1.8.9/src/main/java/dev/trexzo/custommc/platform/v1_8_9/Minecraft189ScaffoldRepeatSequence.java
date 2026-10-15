@@ -3,12 +3,10 @@ package dev.trexzo.custommc.platform.v1_8_9;
 import java.lang.ref.WeakReference;
 
 /**
- * V36 isolated candidate for repeated native controller placement.
- *
- * NOT INSTALLED IN original runTick or a user setting yet. The production
- * V35 path remains exactly one placement attempt per module activation.
- * This module-owned primitive transaction must first pass dedicated-server
- * two-block / survival 8->7->6 proof in a later opt-in integration.
+ * Receipt-gated original-client repeat transaction. Installed through
+ * explicitly enabled default-off production modes (V43 two / V54 three).
+ * Never treat a source-original WorldClient receipt as independent
+ * dedicated-server persistence; mandatory native binary tests prove that.
  *
  * Each step re-acquires original Minecraft World, player, cursor, controller
  * and selected ItemBlock. A second click is forbidden until the first
@@ -37,8 +35,10 @@ final class Minecraft189ScaffoldRepeatSequence {
     private long activation;
     private int selectedSlot;
     private int expectedCount;
-    private boolean hasPriorTarget;
-    private int priorX, priorY, priorZ;
+    // Unlike the old last-target comparison, preserve EVERY confirmed
+    // primitive target within one max-eight activation. A->B->A is forbidden.
+    private final Minecraft189ScaffoldTargetHistory targetHistory =
+            new Minecraft189ScaffoldTargetHistory();
     private Minecraft189ScaffoldNativePlacementAttempt.Result pending;
 
     synchronized boolean start(final Object originalMinecraft,
@@ -181,9 +181,8 @@ final class Minecraft189ScaffoldRepeatSequence {
         final Minecraft189ScaffoldOriginalCandidateProbe.Observation fresh =
                 Minecraft189ScaffoldOriginalCandidateProbe.observe(originalMinecraft);
         if (fresh == null) return null;
-        if (hasPriorTarget && fresh.targetX == priorX
-                && fresh.targetY == priorY && fresh.targetZ == priorZ)
-            return null; // Never re-click the already-confirmed original target.
+        if (targetHistory.contains(fresh.targetX, fresh.targetY, fresh.targetZ))
+            return null; // Never re-click ANY prior confirmed native target.
 
         // A movement tick may be ungrounded or have no original mouse-over.
         // It must not reset the exact Minecraft/World/player identity lease.
@@ -239,14 +238,15 @@ final class Minecraft189ScaffoldRepeatSequence {
         }
 
         final Minecraft189ScaffoldNativePlacementAttempt.Result proven = pending;
-        if (!cadence.receipt(activationGeneration, tick, true)) {
+        // History is committed only after original WorldClient/readback
+        // evidence is validated. A duplicate positive receipt is not a
+        // fresh placement grant, even when another target intervened.
+        if (!targetHistory.recordConfirmed(
+                proven.targetX, proven.targetY, proven.targetZ)
+                || !cadence.receipt(activationGeneration, tick, true)) {
             invalidate();
             return false;
         }
-        hasPriorTarget = true;
-        priorX = proven.targetX;
-        priorY = proven.targetY;
-        priorZ = proven.targetZ;
         expectedCount = proven.originalStackSize - 1;
         pending = null;
         return true;
@@ -275,9 +275,11 @@ final class Minecraft189ScaffoldRepeatSequence {
                 Minecraft189ScaffoldOriginalCandidateProbe.observe(originalMinecraft);
         final String target;
         if (candidate == null) target = "no_original_native_candidate";
-        else if (hasPriorTarget && candidate.targetX == priorX
-                && candidate.targetY == priorY && candidate.targetZ == priorZ)
-            target = "prior_target_repeated=" + priorX + "," + priorY + "," + priorZ;
+        else if (targetHistory.contains(
+                candidate.targetX, candidate.targetY, candidate.targetZ))
+            target = "previously_verified_target_repeated="
+                    + candidate.targetX + "," + candidate.targetY + ","
+                    + candidate.targetZ;
         else target = "fresh_target=" + candidate.targetX + ","
                 + candidate.targetY + "," + candidate.targetZ;
         return "activation=" + activation
@@ -285,7 +287,7 @@ final class Minecraft189ScaffoldRepeatSequence {
                 + " cadenceStopped=" + cadence.stopped()
                 + " cadencePending=" + cadence.pending()
                 + " attempts=" + cadence.attemptedCount()
-                + " priorTarget=" + hasPriorTarget
+                + " verifiedTargets=" + targetHistory.size()
                 + " selected=" + selectedState
                 + " candidate=" + target;
     }
@@ -303,7 +305,7 @@ final class Minecraft189ScaffoldRepeatSequence {
         selectedItemDamage = 0;
         activation = sourceGeneration = 0L;
         pending = null;
-        hasPriorTarget = false;
-        priorX = priorY = priorZ = expectedCount = selectedSlot = 0;
+        targetHistory.clear();
+        expectedCount = selectedSlot = 0;
     }
 }
