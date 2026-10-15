@@ -70,6 +70,7 @@ public final class Minecraft189RuntimeBridge {
     private static int acceptanceAuraFovTargetIndex = -1;
     private static int acceptanceAuraFovDisabledTicks;
     private static int acceptanceAuraFovEnabledTicks;
+    private static int acceptanceAuraFovSourceDiagTicks;
     private static boolean acceptanceAuraFovEnabled;
     private static boolean acceptanceAuraFovReported;
 
@@ -145,6 +146,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraFovTargetIndex = -1;
         acceptanceAuraFovDisabledTicks = 0;
         acceptanceAuraFovEnabledTicks = 0;
+        acceptanceAuraFovSourceDiagTicks = 0;
         acceptanceAuraFovEnabled = false;
         acceptanceAuraFovReported = false;
         scaffoldOriginalContextReported = false;
@@ -1821,6 +1823,41 @@ public final class Minecraft189RuntimeBridge {
                             && Double.isFinite(horizontal) && horizontal > 0.0D
                             && Double.isFinite(yawError)
                             && Math.abs(yawError) >= 120.0D;
+                }
+                // V52: read-only witness for V51's intermittent failure to
+                // observe 80 consecutive *real* rear-player FOV rejections.
+                // A complete native callback is required; merely enabling
+                // Aura or seeing the real server's teleport is insufficient.
+                // Never change World, yaw, FOV, target, click or strict test.
+                if (++acceptanceAuraFovSourceDiagTicks % 80 == 0) {
+                    final Minecraft189NearestPlayerTargetState.Snapshot nativeTarget =
+                            host.nearestPlayerTargetState().snapshot();
+                    final Minecraft189TargetRotationState.Snapshot nativeRotation =
+                            host.targetRotationState().snapshot();
+                    final int index = remoteIndex;
+                    final double dx = valid && index >= 0
+                            ? positions.x(index) - local.x() : Double.NaN;
+                    final double dz = valid && index >= 0
+                            ? positions.z(index) - local.z() : Double.NaN;
+                    final double nativeTargetYaw =
+                            Math.toDegrees(Math.atan2(dz, dx)) - 90.0D;
+                    final double nativeYawDelta = ((nativeTargetYaw
+                            - rotation.yaw() + 540.0D) % 360.0D) - 180.0D;
+                    System.out.println("CUSTOMMC_189_FOV_ORIGINAL_SOURCE_OBSERVATION"
+                            + " tick=" + acceptanceAuraFovSourceDiagTicks
+                            + " nativeSourceValid=" + valid
+                            + " actualRemoteIndex=" + remoteIndex
+                            + " actualRemoteCount=" + remoteCount
+                            + " nativePlayerYaw="
+                                + (rotation.available() ? rotation.yaw() : Float.NaN)
+                            + " actualTargetYaw=" + nativeTargetYaw
+                            + " actualYawDelta=" + nativeYawDelta
+                            + " selectedFound=" + nativeTarget.found()
+                            + " selectedRotationAvailable=" + nativeRotation.available()
+                            + " auraEnabled=" + acceptanceAuraFovEnabled
+                            + " stableDisabledTicks=" + acceptanceAuraFovDisabledTicks
+                            + " stableEnabledVetoTicks=" + acceptanceAuraFovEnabledTicks);
+                    System.out.flush();
                 }
                 if (!valid || (acceptanceAuraFovTargetIndex >= 0
                         && remoteIndex != acceptanceAuraFovTargetIndex)) {
