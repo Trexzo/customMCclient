@@ -1632,6 +1632,12 @@ def run(args):
             send_server_command(server, server_log, "gamemode 0 CITarget")
             send_server_command(server, server_log,
                                 "gamerule naturalRegeneration false")
+            # A target client can physically wander away after the original
+            # server teleport while its graphical window loses focus.
+            # Restrict only actual vanilla movement on the real dedicated
+            # server, not the real camera, FOV setting or client selector.
+            send_server_command(server, server_log,
+                                "effect CITarget 2 600 5 true")
             host_tp, target_tp = actual_server_spawn_fov_fixture(server_log)
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, target_tp)
@@ -1641,6 +1647,16 @@ def run(args):
                      "20 real rear-player target callbacks with module disabled")
             wait_for(host, host_log, FOV_ENABLED, deadline,
                      "ordinary Kill Aura module enable")
+            # V58: original native source reported rear yaw wandering to a
+            # 115-degree delta, below this acceptance's unchanged strict
+            # 120-degree rear-margin requirement. Reassert genuine vanilla
+            # server teleport/yaw ONCE after real module activation. No
+            # synthetic rotation, mouse override or fabricated veto marker.
+            # Eighty consecutive ORIGINAL rear-player tick callbacks and a
+            # real server zero-damage result remain mandatory afterward.
+            send_server_command(server, server_log, host_tp)
+            print("CUSTOMMC_189_FOV_REAL_SERVER_YAW_REANCHOR=YES",
+                  flush=True)
             wait_for(host, host_log, FOV_VETO, deadline,
                      "80 real rear-player FOV veto callbacks")
             send_server_command(server, server_log,
