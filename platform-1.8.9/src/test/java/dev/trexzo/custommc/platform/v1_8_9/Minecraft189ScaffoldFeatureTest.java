@@ -28,6 +28,8 @@ final class Minecraft189ScaffoldFeatureTest {
                 "three-block production mode must start disabled");
         assertEquals(Boolean.FALSE, owned.fourPlacementsSetting().get(),
                 "four-block production mode must start disabled");
+        assertEquals(Boolean.FALSE, owned.fivePlacementsSetting().get(),
+                "five-block quota must default off");
         assertEquals(Boolean.FALSE, owned.adjacentEdgeTargetsSetting().get(),
                 "source-native adjacent edge setting must default off");
         assertSame(owned.twoPlacementsSetting(),
@@ -42,6 +44,10 @@ final class Minecraft189ScaffoldFeatureTest {
                 settings.find(Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID));
         assertNotNull(settingPresentations.find(
                 Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID));
+        assertSame(owned.fivePlacementsSetting(),
+                settings.find(Minecraft189ScaffoldModule.FIVE_PLACEMENTS_SETTING_ID));
+        assertNotNull(settingPresentations.find(
+                Minecraft189ScaffoldModule.FIVE_PLACEMENTS_SETTING_ID));
         assertSame(owned.adjacentEdgeTargetsSetting(),
                 settings.find(Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID));
         assertNotNull(settingPresentations.find(
@@ -52,6 +58,8 @@ final class Minecraft189ScaffoldFeatureTest {
                 moduleSettings.ownerOf(Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID).moduleId());
         assertEquals(Minecraft189ScaffoldModule.ID,
                 moduleSettings.ownerOf(Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID).moduleId());
+        assertEquals(Minecraft189ScaffoldModule.ID,
+                moduleSettings.ownerOf(Minecraft189ScaffoldModule.FIVE_PLACEMENTS_SETTING_ID).moduleId());
         assertEquals(Minecraft189ScaffoldModule.ID,
                 moduleSettings.ownerOf(Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID).moduleId());
         controller.enable(Minecraft189ScaffoldModule.ID);
@@ -73,6 +81,10 @@ final class Minecraft189ScaffoldFeatureTest {
         assertNull(settingPresentations.find(
                 Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID));
         assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID));
+        assertNull(settings.find(Minecraft189ScaffoldModule.FIVE_PLACEMENTS_SETTING_ID));
+        assertNull(settingPresentations.find(
+                Minecraft189ScaffoldModule.FIVE_PLACEMENTS_SETTING_ID));
+        assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.FIVE_PLACEMENTS_SETTING_ID));
         assertNull(settings.find(Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID));
         assertNull(settingPresentations.find(
                 Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID));
@@ -150,6 +162,40 @@ final class Minecraft189ScaffoldFeatureTest {
         assertEquals(4, module.productionRepeatCountForActivation());
     }
 
+    @Test void fifthPlacementQuotaIsExclusiveFrozenAndDoesNotAutoArm() {
+        final Minecraft189ScaffoldModule module = new Minecraft189ScaffoldModule();
+        assertEquals(Boolean.FALSE, module.fivePlacementsSetting().get());
+        module.fivePlacementsSetting().set(Boolean.TRUE);
+        module.onEnable();
+        assertTrue(module.productionRepeatEnabledForActivation());
+        assertEquals(5, module.productionRepeatCountForActivation());
+        module.onDisable();
+
+        module.fivePlacementsSetting().set(Boolean.FALSE);
+        module.fourPlacementsSetting().set(Boolean.TRUE);
+        module.onEnable();
+        assertEquals(4, module.productionRepeatCountForActivation());
+        module.fivePlacementsSetting().set(Boolean.TRUE);
+        assertEquals(4, module.productionRepeatCountForActivation(),
+                "mid-activation fifth quota cannot upgrade existing lease");
+        module.onDisable();
+
+        module.onEnable();
+        assertFalse(module.armed(), "four+five conflict cannot grant a click");
+        assertFalse(module.productionRepeatEnabledForActivation());
+        module.onDisable();
+
+        module.fourPlacementsSetting().set(Boolean.FALSE);
+        module.onEnable();
+        assertTrue(module.armed());
+        assertEquals(5, module.productionRepeatCountForActivation());
+        module.onDisable();
+        module.fivePlacementsSetting().set(Boolean.FALSE);
+        module.adjacentEdgeTargetsSetting().set(Boolean.TRUE);
+        module.onEnable();
+        assertFalse(module.armed(), "edge-only mode must never imply five placements");
+    }
+
     @Test void adjacentEdgeOnlyIsNeverAOneShotOrAutomaticRepeatGrant() {
         final Minecraft189ScaffoldModule module = new Minecraft189ScaffoldModule();
         module.adjacentEdgeTargetsSetting().set(Boolean.TRUE);
@@ -204,6 +250,8 @@ final class Minecraft189ScaffoldFeatureTest {
             assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.THREE_PLACEMENTS_SETTING_ID));
             assertNull(settings.find(Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID));
             assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.FOUR_PLACEMENTS_SETTING_ID));
+            assertNull(settings.find(Minecraft189ScaffoldModule.FIVE_PLACEMENTS_SETTING_ID));
+            assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.FIVE_PLACEMENTS_SETTING_ID));
             assertNull(settings.find(Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID));
             assertNull(moduleSettings.ownerOf(Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID));
         } finally {
