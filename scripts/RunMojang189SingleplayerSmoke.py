@@ -28,6 +28,10 @@ AUTO_NATIVE_UNSCOPED = b"CUSTOMMC_189_AUTOCLICKER_NATIVE_CONTROLLER_UNSCOPED_UUI
 AURA_DISABLED = b"CUSTOMMC_189_KILLAURA_DISABLED_NONPLAYER_TICKS_PASS=20"
 AURA_ENABLED = b"CUSTOMMC_189_KILLAURA_NORMAL_MODULE_ENABLE_PASS=YES"
 AURA_VETO = b"CUSTOMMC_OFFICIAL_189_KILLAURA_NONPLAYER_VETO_PASS=YES"
+TIMER_DISABLED = b"CUSTOMMC_OFFICIAL_189_TIMER_DISABLED_NATIVE_ONE_X_PASS=20"
+TIMER_ENABLED = b"CUSTOMMC_OFFICIAL_189_TIMER_NORMAL_MODULE_ENABLE_PASS=YES"
+TIMER_BOOST = b"CUSTOMMC_OFFICIAL_189_TIMER_NATIVE_FIVE_1_5_X_CALLBACKS_PASS=YES"
+TIMER_RESTORED = b"CUSTOMMC_OFFICIAL_189_TIMER_ORIGINAL_NATIVE_RESTORE_ONE_X_PASS=YES"
 
 
 def xdotool(*arguments):
@@ -185,12 +189,13 @@ def original_edge_grounding_stable(readings):
 
 
 def run(command, game, timeout, attack=False, auto_clicker=False,
-        kill_aura_nonplayer=False, native_world_camera=False,
+        kill_aura_nonplayer=False, timer_speed=False, native_world_camera=False,
         native_safe_walk=False, safe_walk_edge=None, native_scaffold_world=False,
         native_scaffold_tick=False, native_scaffold_raytrace=False,
         native_scaffold_context=False, native_scaffold_candidate=False,
         native_scaffold_placement=None):
-    if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer)) > 1:
+    if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer,
+                             timer_speed)) > 1:
         raise ValueError("manual and module combat tests are exclusive")
     controlled_combat = attack or auto_clicker or kill_aura_nonplayer
     if safe_walk_edge not in (None, "enabled", "disabled"):
@@ -225,7 +230,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         raise ValueError("native survival placement must run in an isolated world")
     # A real rendered world camera requires a focused Minecraft window;
     # vanilla singleplayer otherwise automatically opens the pause GUI.
-    needs_active_window = controlled_combat or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or bool(native_scaffold_placement)
+    needs_active_window = controlled_combat or timer_speed or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or bool(native_scaffold_placement)
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
@@ -291,6 +296,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireNativePlayerBoxFrame=true")
     command.insert(command.index("-cp"), "-Dcustommc.acceptance.reportLiveWorld=true")
+    if timer_speed:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireRealTimerMultiplier=true")
     if controlled_combat:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportVanillaMelee=true")
@@ -385,6 +393,18 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
             click(window, 346, 462)
             print("CUSTOMMC_189_NEW_WORLD_GUI_REQUEST_SENT=YES", flush=True)
             await_marker(process, log, WORLD, deadline, "real player/world-tick")
+            if timer_speed:
+                resume_if_paused(process, log, window)
+                await_marker(process, log, TIMER_DISABLED, deadline,
+                             "twenty original disabled Timer 1x callbacks")
+                await_marker(process, log, TIMER_ENABLED, deadline,
+                             "normal Timer module activation")
+                await_marker(process, log, TIMER_BOOST, deadline,
+                             "five real Mojang Timer 1.5x callbacks")
+                await_marker(process, log, TIMER_RESTORED, deadline,
+                             "original Game Timer exact vanilla 1x after disable")
+                print("CUSTOMMC_OFFICIAL_189_TIMER_REAL_NATIVE_MULTIPLIER_PASS=YES",
+                      flush=True)
             if native_world_camera:
                 # An already-created world can be paused by focus transition.
                 # Resume using genuine GuiIngameMenu input, never fake ticks.
@@ -837,6 +857,8 @@ if __name__ == "__main__":
     parser.add_argument("--timeout", type=int, default=150)
     parser.add_argument("--attack", action="store_true",
                         help="create offline creative world and verify genuine melee hurt")
+    parser.add_argument("--timer-speed", action="store_true",
+                        help="prove actual game Timer disabled 1x, 1.5x on, restored 1x")
     parser.add_argument("--auto-clicker", action="store_true",
                         help="verify enabled Auto Clicker causes offline entity hurt without X11 attack")
     parser.add_argument("--kill-aura-nonplayer", action="store_true",
@@ -868,6 +890,7 @@ if __name__ == "__main__":
         run(command, args.game, args.timeout, attack=args.attack,
             auto_clicker=args.auto_clicker,
             kill_aura_nonplayer=args.kill_aura_nonplayer,
+            timer_speed=args.timer_speed,
             native_world_camera=args.native_world_camera,
             native_safe_walk=args.native_safe_walk,
             safe_walk_edge=args.safe_walk_edge,
