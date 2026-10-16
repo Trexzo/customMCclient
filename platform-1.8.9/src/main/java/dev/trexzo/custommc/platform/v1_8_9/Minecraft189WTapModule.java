@@ -258,8 +258,7 @@ public final class Minecraft189WTapModule
             resetTicksRemaining--;
             previousLeftButtonHeld =
                     leftButtonHeld;
-            player.customMcSetSprinting(
-                    false);
+            writeOriginalSprintReset(player, leftButtonHeld);
             return true;
         }
 
@@ -287,13 +286,28 @@ public final class Minecraft189WTapModule
             return false;
         }
 
-        player.customMcSetSprinting(
-                false);
+        writeOriginalSprintReset(player, leftButtonHeld);
         cooldownRemaining =
                 cooldownTicks.get().intValue();
         resetTicksRemaining =
                 resetTicks.get().intValue() - 1;
         return true;
+    }
+
+    private void writeOriginalSprintReset(
+            final Minecraft189PlayerSprintControl player,
+            final boolean physicalAttackHeld) {
+        try {
+            player.customMcSetSprinting(false);
+        } catch (RuntimeException nativeFailure) {
+            // Even if the original setter already partially changed the
+            // player, do NOT schedule a second native sprint write after a
+            // failed reset. Keep the current genuine held mouse state so the
+            // same physical press cannot be replayed next tick.
+            resetState();
+            previousLeftButtonHeld = physicalAttackHeld;
+            throw nativeFailure;
+        }
     }
 
     // A ClickGUI boundary invalidates any pending sprint reset.

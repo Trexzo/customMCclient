@@ -26,6 +26,39 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189SpeedMineModuleTest {
     @Test
+    void originalClickGuiVetoesStaleMiningProgressEvenWhenBlockStillMarkedActive() {
+        final Minecraft189SpeedMineModule module = new Minecraft189SpeedMineModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        final TestController controller = new TestController();
+        controller.hitting = true;
+        controller.progress = 0.1F;
+        movement.update(true, false, false);
+        module.onEnable();
+        try {
+            module.progressPercentSetting().set(70);
+            module.apply(controller, true, movement.snapshot(), true);
+            assertEquals(0, controller.setCalls);
+            assertEquals(0.1F, controller.progress, 0.00001F);
+            module.apply(controller, true, movement.snapshot(), false);
+            assertEquals(1, controller.setCalls);
+            assertEquals(0.7F, controller.progress, 0.00001F);
+            controller.progress = 0.1F;
+            module.progressiveSetting().set(Boolean.TRUE);
+            module.stepPercentSetting().set(10);
+            module.apply(controller, true, movement.snapshot(), true);
+            assertEquals(1, controller.setCalls,
+                    "real ClickGUI focus veto must also block progressive mining");
+            module.apply(controller, true, movement.snapshot(), false);
+            assertEquals(2, controller.setCalls);
+            assertEquals(0.2F, controller.progress, 0.00001F);
+            module.onDisable();
+            module.apply(controller, true, movement.snapshot(), false);
+            assertEquals(2, controller.setCalls);
+        } finally { module.onDisable(); }
+    }
+
+    @Test
     void speedMineRaisesOnlyActiveLowerProgressAndOwnsPlayerSettingsLifecycle() {
         final ModuleRegistry modules =
                 new ModuleRegistry();
