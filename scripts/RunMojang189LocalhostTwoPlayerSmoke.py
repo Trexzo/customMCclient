@@ -1305,8 +1305,8 @@ def run(args):
                         native_third = re.compile(
                             rb"CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_"
                             rb"ORIGINAL_SOURCE_POSITION step=3 "
-                            rb"x=(-?\\d+(?:\\.\\d+)?) y=(-?\\d+(?:\\.\\d+)?) "
-                            rb"z=(-?\\d+(?:\\.\\d+)?) onGround=true sneaking=true")
+                            rb"x=(-?\d+(?:\.\d+)?) y=(-?\d+(?:\.\d+)?) "
+                            rb"z=(-?\d+(?:\.\d+)?) onGround=true sneaking=true")
                         if len(native_third.findall(log_tail(host_log, 200000))) != 1:
                             raise AssertionError(
                                 "third original controller not grounded+sneaking")
