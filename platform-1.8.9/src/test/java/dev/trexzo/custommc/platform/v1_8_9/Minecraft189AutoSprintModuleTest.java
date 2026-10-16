@@ -418,6 +418,48 @@ final class Minecraft189AutoSprintModuleTest {
         assertNull(modules.find(Minecraft189AutoSprintModule.ID));
     }
 
+    @Test
+    void nativeClickGuiFocusVetoesAllSyntheticSprintWritesAndRetainsPlayerState() {
+        final Minecraft189AutoSprintModule module = new Minecraft189AutoSprintModule();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        final TestPlayer player = new TestPlayer();
+        movement.update(true, false, false);
+        module.onEnable();
+        try {
+            assertFalse(player.sprinting);
+            module.apply(player, movement.snapshot(), true, true, true);
+            assertEquals(0, player.setCalls,
+                    "real open ClickGUI vetoes setter even when movement qualifies");
+            module.apply(player, movement.snapshot(), false, false, true);
+            assertEquals(0, player.setCalls);
+            module.apply(player, movement.snapshot(), true, true, false);
+            assertEquals(1, player.setCalls);
+            assertTrue(player.sprinting);
+
+            // Opening GUI must never forcibly reset genuine sprint bit.
+            movement.update(true, false, true);
+            module.apply(player, movement.snapshot(), true, true, true);
+            assertEquals(1, player.setCalls);
+            assertTrue(player.sprinting);
+
+            // Source-native stop + GUI owner cannot re-enable sprint.
+            player.sprinting = false;
+            movement.update(true, false, false);
+            module.apply(player, movement.snapshot(), true, true, true);
+            assertEquals(1, player.setCalls);
+            module.apply(player, movement.snapshot(), true, true, false);
+            assertEquals(2, player.setCalls,
+                    "once GUI genuinely closes a new mapped sprint is admitted");
+
+            // Disabled remains vanilla regardless of GUI owner.
+            module.onDisable();
+            player.sprinting = false;
+            movement.update(true, false, false);
+            module.apply(player, movement.snapshot(), true, true, false);
+            assertEquals(2, player.setCalls);
+        } finally { module.onDisable(); }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMovementStateAccess,
             Minecraft189PlayerSprintControl {
