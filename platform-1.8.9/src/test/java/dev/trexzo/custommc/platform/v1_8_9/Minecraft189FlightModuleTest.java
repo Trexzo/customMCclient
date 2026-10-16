@@ -695,6 +695,81 @@ final class Minecraft189FlightModuleTest {
         assertNull(modules.find(Minecraft189FlightModule.ID));
     }
 
+
+    @Test
+    void originalClickGuiOwnsMotionWhileOpenWithoutDisablingFlight() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            player.motionX = 0.11D;
+            player.motionY = 0.42D;
+            player.motionZ = -0.17D;
+            runtime.playerRotationState().update(0.0F);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            controller.enable(Minecraft189FlightModule.ID);
+
+            // Actual host ClickGUI toggle, not a fabricated movement flag.
+            assertTrue(runtime.clickGuiToggleController().key(
+                    LegacyKeyboardCodes.RIGHT_SHIFT, true, false));
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(0, player.setCalls,
+                    "GUI must veto both original vertical and horizontal setters");
+            assertEquals(0.11D, player.motionX, 0.000000001D);
+            assertEquals(0.42D, player.motionY, 0.000000001D);
+            assertEquals(-0.17D, player.motionZ, 0.000000001D);
+            assertTrue(runtime.featureCatalog().flight().active());
+
+            // An original GUI-close event returns real keyboard authority.
+            assertTrue(runtime.clickGuiToggleController().key(
+                    LegacyKeyboardCodes.RIGHT_SHIFT, true, false));
+            assertFalse(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionX, 0.000000001D);
+            assertEquals(0.30D, player.motionY, 0.000000001D);
+            assertEquals(0.30D, player.motionZ, 0.000000001D);
+            assertEquals(3, player.setCalls);
+
+            // Even the smooth mode must not advance a previous interpolation
+            // while the original GUI has physical input focus.
+            final Minecraft189FlightModule flight =
+                    runtime.featureCatalog().flight();
+            flight.smoothVerticalSetting().set(Boolean.TRUE);
+            flight.smoothHorizontalSetting().set(Boolean.TRUE);
+            player.motionX = 0.40D;
+            player.motionY = -0.20D;
+            player.motionZ = -0.30D;
+            final int before = player.setCalls;
+            runtime.clickGuiToggleController().key(
+                    LegacyKeyboardCodes.RIGHT_SHIFT, true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(before, player.setCalls,
+                    "open GUI cannot advance a smooth-flight interpolation");
+            assertEquals(0.40D, player.motionX, 0.000000001D);
+            assertEquals(-0.20D, player.motionY, 0.000000001D);
+            assertEquals(-0.30D, player.motionZ, 0.000000001D);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;

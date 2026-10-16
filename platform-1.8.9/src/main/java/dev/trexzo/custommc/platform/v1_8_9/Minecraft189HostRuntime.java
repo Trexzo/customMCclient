@@ -1004,7 +1004,8 @@ public final class Minecraft189HostRuntime
                 .apply(
                         player,
                         rotation,
-                        movement);
+                        movement,
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
         final boolean horizontalOwnerActive = flightActive
                 || longJumpOwnsHorizontal || bunnyHopOwnsHorizontal
                 || movementSpeedOwnsHorizontal || airSpeedOwnsHorizontal;
