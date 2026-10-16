@@ -43,8 +43,21 @@ public final class Minecraft189FullbrightModule
                 "current gamma");
 
         originalGamma = current;
-        settings.gammaSetting(
-                FULLBRIGHT_GAMMA);
+        try {
+            settings.gammaSetting(FULLBRIGHT_GAMMA);
+        } catch (RuntimeException failure) {
+            // A native settings write may mutate before throwing. Only
+            // roll back if our override is still the current value; do
+            // not destroy a concurrent user's gamma adjustment.
+            try {
+                if (Float.compare(settings.gammaSetting(), FULLBRIGHT_GAMMA) == 0
+                        && Float.compare(current, FULLBRIGHT_GAMMA) != 0)
+                    settings.gammaSetting(current);
+            } catch (RuntimeException rollbackFailure) {
+                failure.addSuppressed(rollbackFailure);
+            }
+            throw failure;
+        }
         active = true;
     }
 
@@ -55,8 +68,13 @@ public final class Minecraft189FullbrightModule
         }
 
         try {
-            settings.gammaSetting(
-                    originalGamma);
+            // The original value belongs to us only while the exact
+            // injected fullbright value remains installed. A user changing
+            // Gamma mid-session retains ownership of that new preference.
+            final float current = settings.gammaSetting();
+            if (Float.compare(current, FULLBRIGHT_GAMMA) == 0
+                    && Float.compare(originalGamma, FULLBRIGHT_GAMMA) != 0)
+                settings.gammaSetting(originalGamma);
         } finally {
             active = false;
         }
