@@ -1066,6 +1066,14 @@ def run(args):
                       flush=True)
 
                 if keyboard_walk:
+                    # Immutable server command boundary. V64 must not hide
+                    # fixture teleporting between distinct claimed keyboard
+                    # placements. These are REAL server log acknowledgements.
+                    initial_host_teleports = server_log.read_bytes().count(
+                        b"Teleported CIHost to")
+                    if initial_host_teleports < 1:
+                        raise AssertionError(
+                            "initial genuine server host teleport not logged")
                     # V60: EXACTLY ONE initial server tp to the starting
                     # original edge. No server TP after first receipt.
                     # Original human-input S key must move the actual player
@@ -1383,6 +1391,10 @@ def run(args):
                 send_server_command(server, server_log,
                                     "clear CIHost stone 0 0", expected=expected_items)
                 if keyboard_walk:
+                    if three_keyboard_walk and server_log.read_bytes().count(
+                            b"Teleported CIHost to") != initial_host_teleports:
+                        raise AssertionError(
+                            "unexpected server TP after initial A during keyboard bridge")
                     if not three_keyboard_walk:
                         send_server_command(server, server_log,
                                             "testforblock {} {} {} air".format(*third_target_xyz),
