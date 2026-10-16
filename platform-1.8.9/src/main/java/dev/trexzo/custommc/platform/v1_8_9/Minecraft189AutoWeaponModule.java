@@ -94,11 +94,19 @@ public final class Minecraft189AutoWeaponModule implements Module {
                 clearLease();
                 return -1;
             }
-            if (!enabled) {
-                // The module could have been disabled reentrantly from the
-                // native setter. Restore only our own exact hotbar slot.
-                inventory.customMcSetSelectedHotbarSlot(prior);
-                clearLease();
+            if (!enabled || !ownsVerifiedSwordAtDispatch(inventory, prior)) {
+                // The native setter may reenter inventory synchronization,
+                // replace the sword, or disable AutoWeapon. Never publish
+                // an apparently successful source lease for that changed
+                // ItemStack. Restore only if our originally selected slot
+                // still owns native currentItem, preserving a real user
+                // choice made by a reentrant callback.
+                try {
+                    if (inventory.customMcSelectedHotbarSlot() == bestSlot)
+                        inventory.customMcSetSelectedHotbarSlot(prior);
+                } finally {
+                    clearLease();
+                }
                 return -1;
             }
             return prior;
