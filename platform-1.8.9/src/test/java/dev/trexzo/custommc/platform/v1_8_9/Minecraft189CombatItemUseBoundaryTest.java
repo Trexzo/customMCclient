@@ -157,25 +157,243 @@ final class Minecraft189CombatItemUseBoundaryTest {
         }
     }
 
+
+    @Test void originalHotbarLeaseExcludesConcurrentRodPotionAndMeleeOwners() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 4;
+            inventory.items[1] = new Item(true, false, 1);
+            inventory.items[2] = new Item(false, true, 1);
+            final Player player = new Player(inventory);
+            runtime.playerHotbarSlot(player);
+            runtime.playerHeldItem(player);
+            controller.enable(Minecraft189AutoRodModule.ID);
+            controller.enable(Minecraft189AutoPotModule.ID);
+            controller.enable(Minecraft189CombatSlotModule.ID);
+
+            // The source held-item getter is itself a callback boundary:
+            // while Rod is selecting, Potion and melee cannot steal slot.
+            player.duringHeldItemRead = () -> {
+                assertEquals(-1, runtime.selectAutoPotSlot());
+                assertEquals(-1, runtime.selectCombatSlotBeforeSyntheticClick(true));
+                runtime.restoreCombatSlotAfterSyntheticClick(-1);
+                assertEquals(1, inventory.selected);
+            };
+            assertEquals(4, runtime.selectAutoRodSlot());
+            assertEquals(1, inventory.selected);
+            assertEquals(-1, runtime.selectAutoPotSlot());
+            assertEquals(-1, runtime.selectCombatSlotBeforeSyntheticClick(true));
+            runtime.restoreCombatSlotAfterSyntheticClick(-1);
+            assertTrue(runtime.mayExecuteAutoRodUse(4));
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, inventory.selected);
+
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertEquals(2, inventory.selected);
+            assertEquals(-1, runtime.selectAutoRodSlot());
+            assertEquals(-1, runtime.selectCombatSlotBeforeSyntheticClick(true));
+            runtime.restoreCombatSlotAfterSyntheticClick(-1);
+            assertTrue(runtime.mayExecuteAutoPotUse(4));
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+
+            assertEquals(4, runtime.selectCombatSlotBeforeSyntheticClick(true));
+            assertEquals(0, inventory.selected,
+                    "fixed CombatSlot's default setting chooses first hotbar slot");
+            assertEquals(-1, runtime.selectAutoRodSlot());
+            assertEquals(-1, runtime.selectAutoPotSlot());
+            runtime.restoreCombatSlotAfterSyntheticClick(4);
+            assertEquals(4, inventory.selected);
+            assertEquals(4, runtime.selectAutoRodSlot(),
+                    "release of melee lease must allow new Rod ownership");
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            runtime.close();
+        }
+    }
+
+
+    @Test void ownerChangedDuringSourceGetterOrNativeSetterCannotPublishLease() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory original = new Inventory();
+            original.selected = 4;
+            original.items[1] = new Item(true, false, 1);
+            final Player oldPlayer = new Player(original);
+            final Inventory successor = new Inventory();
+            successor.selected = 3;
+            final Player newPlayer = new Player(successor);
+            controller.enable(Minecraft189AutoRodModule.ID);
+            controller.enable(Minecraft189CombatSlotModule.ID);
+
+            runtime.playerHotbarSlot(oldPlayer);
+            runtime.playerHeldItem(oldPlayer);
+            oldPlayer.duringHeldItemRead = () -> {
+                // Original getter reenters the host after its own source
+                // inventory slot has been selected but before admission.
+                runtime.playerHotbarSlot(newPlayer);
+                runtime.playerHeldItem(newPlayer);
+            };
+            assertEquals(-1, runtime.selectAutoRodSlot(),
+                    "ownership changed inside native held-item getter");
+            assertEquals(4, original.selected,
+                    "failed selection must return temporary source slot");
+            assertEquals(3, successor.selected);
+            assertFalse(runtime.mayExecuteAutoRodUse(4));
+            runtime.restoreAutoRodSlot(-1);
+            assertEquals(4, original.selected);
+
+            // The same callback race may occur inside a native setter.
+            runtime.playerHotbarSlot(oldPlayer);
+            runtime.playerHeldItem(oldPlayer);
+            original.duringNextSetter = () -> {
+                runtime.playerHotbarSlot(newPlayer);
+                runtime.playerHeldItem(newPlayer);
+                assertEquals(-1, runtime.selectAutoRodSlot(),
+                        "selection reservation must block native setter reentry");
+            };
+            assertEquals(-1, runtime.selectCombatSlotBeforeSyntheticClick(true));
+            assertEquals(4, original.selected);
+            assertEquals(3, successor.selected);
+            runtime.restoreCombatSlotAfterSyntheticClick(-1);
+            assertEquals(4, original.selected);
+
+            // A later genuine callback from the old player must still be
+            // eligible; no zombie module lease remains after either veto.
+            runtime.playerHotbarSlot(oldPlayer);
+            runtime.playerHeldItem(oldPlayer);
+            assertEquals(4, runtime.selectAutoRodSlot());
+            assertEquals(1, original.selected);
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, original.selected);
+        } finally {
+            runtime.close();
+        }
+    }
+
+
+    @Test void sourceClickGuiOpeningInsideNativeItemReadImmediatelyRevokesSlot() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 4;
+            inventory.items[1] = new Item(true, false, 1);
+            inventory.items[2] = new Item(false, true, 1);
+            final Player player = new Player(inventory);
+            runtime.playerHotbarSlot(player);
+            runtime.playerHeldItem(player);
+            controller.enable(Minecraft189AutoRodModule.ID);
+            controller.enable(Minecraft189AutoPotModule.ID);
+
+            player.duringHeldItemRead = () ->
+                    runtime.clickGuiToggleController().key(
+                            Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                            true, false);
+            assertEquals(-1, runtime.selectAutoRodSlot(),
+                    "native getter opening the menu must veto the rod lease");
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            assertEquals(4, inventory.selected);
+            assertFalse(runtime.mayExecuteAutoRodUse(4));
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            player.duringHeldItemRead = () ->
+                    runtime.clickGuiToggleController().key(
+                            Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                            true, false);
+            assertEquals(-1, runtime.selectAutoPotSlot(),
+                    "native getter opening the menu must veto the potion lease");
+            assertEquals(4, inventory.selected);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+
+            assertEquals(4, runtime.selectAutoRodSlot(),
+                    "a fresh gameplay-owned action must be eligible after GUI close");
+            assertEquals(1, inventory.selected);
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, inventory.selected);
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertEquals(2, inventory.selected);
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class Inventory
             implements Minecraft189InventoryHotbarControl {
         int selected;
+        Runnable duringNextSetter;
         final Minecraft189ItemStackAccess[] items =
                 new Minecraft189ItemStackAccess[9];
         @Override public int customMcSelectedHotbarSlot() { return selected; }
         @Override public void customMcSetSelectedHotbarSlot(final int slot) {
             selected = slot;
+            final Runnable callback = duringNextSetter;
+            duringNextSetter = null;
+            if (callback != null) callback.run();
         }
     }
 
     private static final class Player implements Minecraft189PlayerInventoryAccess,
             Minecraft189PlayerHeldItemAccess {
         final Inventory inventory;
+        Runnable duringHeldItemRead;
         Player(final Inventory inventory) { this.inventory = inventory; }
         @Override public Minecraft189InventoryHotbarAccess customMcInventory() {
             return inventory;
         }
         @Override public Minecraft189ItemStackAccess customMcHeldItem() {
+            final Runnable callback = duringHeldItemRead;
+            duringHeldItemRead = null;
+            if (callback != null) callback.run();
             return inventory.items[inventory.selected];
         }
     }

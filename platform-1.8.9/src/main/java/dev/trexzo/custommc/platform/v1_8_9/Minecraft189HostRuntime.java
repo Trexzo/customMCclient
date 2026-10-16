@@ -62,6 +62,10 @@ public final class Minecraft189HostRuntime
     // the in-flight melee click lease. A reentrant original playerHotbarSlot
     // callback or respawn must not redirect its synchronous finally.
     private Minecraft189InventoryHotbarControl combatSlotLeaseInventory;
+    // One original InventoryPlayer.currentItem may have only one temporary
+    // combat owner. Reserve even during native getters/setters: these may
+    // reenter the host before a successful selected-slot lease is published.
+    private boolean combatHotbarSelecting;
     private Minecraft189PlayerHeldItemAccess tickHeldItemAccess;
     // These leases outlive changes to per-tick player references. A
     // synchronous native callback may replace the local player or
@@ -1674,13 +1678,37 @@ public final class Minecraft189HostRuntime
                 && tickHotbarPlayer == (Object) tickHeldItemAccess;
     }
 
+    private boolean combatHotbarBusy() {
+        return combatHotbarSelecting || autoPotLeaseInventory != null
+                || autoRodLeaseInventory != null
+                || combatSlotLeaseInventory != null;
+    }
+
     int selectAutoPotSlot() {
         requireOpen();
-        if (!sameLocalHotbarAndHeldItemOwner()) return -1;
-        final int prior = Minecraft189VerifiedCombatItemSlot.selectPotion(
-                featureCatalog.autoPot(), tickHotbarControl, tickHeldItemAccess);
-        if (prior >= 0) autoPotLeaseInventory = tickHotbarControl;
-        return prior;
+        if (combatHotbarBusy() || !sameLocalHotbarAndHeldItemOwner()
+                || clickGuiRuntime.coreRuntime().model().snapshot().open())
+            return -1;
+        final Minecraft189InventoryHotbarControl inventory = tickHotbarControl;
+        final Minecraft189PlayerInventoryAccess owner = tickHotbarPlayer;
+        final Minecraft189PlayerHeldItemAccess held = tickHeldItemAccess;
+        combatHotbarSelecting = true;
+        try {
+            final int prior = Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    featureCatalog.autoPot(), inventory, held);
+            if (prior < 0) return -1;
+            if (inventory != tickHotbarControl || owner != tickHotbarPlayer
+                    || held != tickHeldItemAccess
+                    || !sameLocalHotbarAndHeldItemOwner()
+                    || clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+                featureCatalog.autoPot().restoreSlot(inventory, prior);
+                return -1;
+            }
+            autoPotLeaseInventory = inventory;
+            return prior;
+        } finally {
+            combatHotbarSelecting = false;
+        }
     }
 
     boolean mayExecuteAutoPotUse(final int originalSlot) {
@@ -1735,11 +1763,29 @@ public final class Minecraft189HostRuntime
 
     int selectAutoRodSlot() {
         requireOpen();
-        if (!sameLocalHotbarAndHeldItemOwner()) return -1;
-        final int prior = Minecraft189VerifiedCombatItemSlot.selectRod(
-                featureCatalog.autoRod(), tickHotbarControl, tickHeldItemAccess);
-        if (prior >= 0) autoRodLeaseInventory = tickHotbarControl;
-        return prior;
+        if (combatHotbarBusy() || !sameLocalHotbarAndHeldItemOwner()
+                || clickGuiRuntime.coreRuntime().model().snapshot().open())
+            return -1;
+        final Minecraft189InventoryHotbarControl inventory = tickHotbarControl;
+        final Minecraft189PlayerInventoryAccess owner = tickHotbarPlayer;
+        final Minecraft189PlayerHeldItemAccess held = tickHeldItemAccess;
+        combatHotbarSelecting = true;
+        try {
+            final int prior = Minecraft189VerifiedCombatItemSlot.selectRod(
+                    featureCatalog.autoRod(), inventory, held);
+            if (prior < 0) return -1;
+            if (inventory != tickHotbarControl || owner != tickHotbarPlayer
+                    || held != tickHeldItemAccess
+                    || !sameLocalHotbarAndHeldItemOwner()
+                    || clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+                featureCatalog.autoRod().restoreSlot(inventory, prior);
+                return -1;
+            }
+            autoRodLeaseInventory = inventory;
+            return prior;
+        } finally {
+            combatHotbarSelecting = false;
+        }
     }
 
     boolean mayExecuteAutoRodUse(final int originalSlot) {
@@ -1769,21 +1815,35 @@ public final class Minecraft189HostRuntime
         requireOpen();
         // A nested native combat callback must never replace the original
         // captured inventory or module owner before the first finally.
-        if (combatSlotLeaseInventory != null) return -1;
+        if (combatHotbarBusy()) return -1;
         final Minecraft189InventoryHotbarControl source = tickHotbarControl;
+        final Minecraft189PlayerInventoryAccess owner = tickHotbarPlayer;
         final boolean weaponOwner = featureCatalog.autoWeapon().active();
         final boolean guiOpen =
                 clickGuiRuntime.coreRuntime().model().snapshot().open();
-        // Explicit sword-ranking module wins over fixed CombatSlot. Unknown
-        // item class or failed source setter never falls back blindly.
-        final int prior = weaponOwner
-                ? featureCatalog.autoWeapon().select(source, playerHit, guiOpen)
-                : featureCatalog.combatSlot().select(source, playerHit, guiOpen);
-        if (prior >= 0) {
+        combatHotbarSelecting = true;
+        try {
+            // Explicit sword-ranking module wins over fixed CombatSlot.
+            // Unknown verified sword content never falls through blindly.
+            final int prior = weaponOwner
+                    ? featureCatalog.autoWeapon().select(source, playerHit, guiOpen)
+                    : featureCatalog.combatSlot().select(source, playerHit, guiOpen);
+            if (prior < 0) return -1;
+            if (source != tickHotbarControl || owner != tickHotbarPlayer
+                    || guiOpen != clickGuiRuntime.coreRuntime().model()
+                            .snapshot().open()) {
+                if (weaponOwner)
+                    featureCatalog.autoWeapon().restore(source, prior);
+                else
+                    featureCatalog.combatSlot().restore(source, prior);
+                return -1;
+            }
             combatSlotLeaseInventory = source;
             autoWeaponOwnedClick = weaponOwner;
+            return prior;
+        } finally {
+            combatHotbarSelecting = false;
         }
-        return prior;
     }
 
     void restoreCombatSlotAfterSyntheticClick(final int originalSlot) {
