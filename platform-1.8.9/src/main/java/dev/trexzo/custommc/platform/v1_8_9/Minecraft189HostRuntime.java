@@ -1481,6 +1481,38 @@ public final class Minecraft189HostRuntime
                                 Minecraft189ClickRateTracker.LEFT_BUTTON));
     }
 
+    // All mapped EntityRenderer.getMouseOver sites share the same actual
+    // GUI input owner. While UI-focused, preserve the caller's exact
+    // vanilla raycast branch, distance and source entity border.
+    float raycastBlockDistance(final float nativeDistance) {
+        requireOpen();
+        return featureCatalog.reach().raycastBlockDistance(
+                nativeDistance,
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
+    }
+
+    boolean raycastExtendedBranch(final boolean nativeExtended) {
+        requireOpen();
+        return featureCatalog.reach().raycastExtendedBranch(
+                nativeExtended,
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
+    }
+
+    double raycastExtendedDistance(final double nativeDistance) {
+        requireOpen();
+        return featureCatalog.reach().raycastExtendedDistance(
+                nativeDistance,
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
+    }
+
+    float raycastHitboxBorder(
+            final boolean playerCandidate, final float nativeBorder) {
+        requireOpen();
+        return featureCatalog.hitbox().adjustNativeBorder(
+                playerCandidate, nativeBorder,
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
+    }
+
     /** Source-mapped held item identity; no display-name matching. */
     private boolean holdingVerifiedSword() {
         final Minecraft189PlayerHeldItemAccess player = tickHeldItemAccess;
