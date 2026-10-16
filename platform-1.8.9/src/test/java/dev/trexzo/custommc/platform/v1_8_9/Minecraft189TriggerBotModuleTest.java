@@ -6,6 +6,7 @@ import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -61,6 +62,60 @@ final class Minecraft189TriggerBotModuleTest {
         } finally {
             bot.onDisable();
         }
+    }
+
+    @Test
+    void nativeUuidSwitchNeverInheritsConfirmationOrAccruedCpsCredit() {
+        final Minecraft189TriggerBotModule bot = new Minecraft189TriggerBotModule();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        movement.update(true, false, true);
+        final UUID a = new UUID(0L, 111L);
+        final UUID b = new UUID(0L, 222L);
+        bot.minCpsSetting().set(20);
+        bot.maxCpsSetting().set(20);
+        bot.confirmTicksSetting().set(3);
+        bot.onEnable();
+        try {
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), a));
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), a));
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), b),
+                    "new B must not inherit two real A crosshair confirmations");
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), b));
+            assertTrue(bot.shouldClick(true, false, false, movement.snapshot(), b),
+                    "B only clicks after three consecutive verified B ticks");
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), a),
+                    "switching back to A must reverify A instead of replaying B credit");
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), a));
+            assertTrue(bot.shouldClick(true, false, false, movement.snapshot(), a));
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), null),
+                    "unavailable native world UUID cancels all scheduler authority");
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), a));
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), a));
+            assertTrue(bot.shouldClick(true, false, false, movement.snapshot(), a));
+        } finally { bot.onDisable(); }
+    }
+
+    @Test
+    void identitySwitchDropsPartialRateCreditEvenAtOneTickConfirmation() {
+        final Minecraft189TriggerBotModule bot = new Minecraft189TriggerBotModule();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        movement.update(true, false, true);
+        final UUID a = new UUID(0L, 1L), b = new UUID(0L, 2L);
+        bot.confirmTicksSetting().set(1);
+        bot.minCpsSetting().set(8);
+        bot.maxCpsSetting().set(8);
+        bot.onEnable();
+        try {
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), a));
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), a));
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), b),
+                    "A's 16/20 click credit must never be spent on B");
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), b));
+            assertTrue(bot.shouldClick(true, false, false, movement.snapshot(), b));
+            bot.suspend();
+            assertFalse(bot.shouldClick(true, false, false, movement.snapshot(), b),
+                    "GUI/combat ownership suspension must discard rate credit");
+        } finally { bot.onDisable(); }
     }
 
     @Test
