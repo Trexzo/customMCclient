@@ -32,6 +32,10 @@ TIMER_DISABLED = b"CUSTOMMC_OFFICIAL_189_TIMER_DISABLED_NATIVE_ONE_X_PASS=20"
 TIMER_ENABLED = b"CUSTOMMC_OFFICIAL_189_TIMER_NORMAL_MODULE_ENABLE_PASS=YES"
 TIMER_BOOST = b"CUSTOMMC_OFFICIAL_189_TIMER_NATIVE_FIVE_1_5_X_CALLBACKS_PASS=YES"
 TIMER_RESTORED = b"CUSTOMMC_OFFICIAL_189_TIMER_ORIGINAL_NATIVE_RESTORE_ONE_X_PASS=YES"
+STEP_ARMED = b"CUSTOMMC_OFFICIAL_189_STEP_NATIVE_MODULE_ARMED_PASS=YES"
+STEP_GUI_OPEN = b"CUSTOMMC_OFFICIAL_189_STEP_GUI_REAL_KEY_OPEN_NATIVE_VANILLA_PASS=YES"
+STEP_GUI_CLOSED = b"CUSTOMMC_OFFICIAL_189_STEP_GUI_REAL_KEY_CLOSE_NATIVE_BOOST_PASS=YES"
+STEP_RESTORED = b"CUSTOMMC_OFFICIAL_189_STEP_GUI_REAL_KEY_DISABLE_NATIVE_VANILLA_PASS=YES"
 
 
 def xdotool(*arguments):
@@ -193,9 +197,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         native_safe_walk=False, safe_walk_edge=None, native_scaffold_world=False,
         native_scaffold_tick=False, native_scaffold_raytrace=False,
         native_scaffold_context=False, native_scaffold_candidate=False,
-        native_scaffold_placement=None):
+        native_scaffold_placement=None, native_step_clickgui=False):
     if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer,
-                             timer_speed)) > 1:
+                             timer_speed, native_step_clickgui)) > 1:
         raise ValueError("manual and module combat tests are exclusive")
     controlled_combat = attack or auto_clicker or kill_aura_nonplayer
     if safe_walk_edge not in (None, "enabled", "disabled"):
@@ -230,7 +234,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         raise ValueError("native survival placement must run in an isolated world")
     # A real rendered world camera requires a focused Minecraft window;
     # vanilla singleplayer otherwise automatically opens the pause GUI.
-    needs_active_window = controlled_combat or timer_speed or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or bool(native_scaffold_placement)
+    needs_active_window = controlled_combat or timer_speed or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or bool(native_scaffold_placement) or native_step_clickgui
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
@@ -299,6 +303,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
     if timer_speed:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireRealTimerMultiplier=true")
+    if native_step_clickgui:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireNativeStepGuiFocus=true")
     if controlled_combat:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportVanillaMelee=true")
@@ -404,6 +411,26 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 await_marker(process, log, TIMER_RESTORED, deadline,
                              "original Game Timer exact vanilla 1x after disable")
                 print("CUSTOMMC_OFFICIAL_189_TIMER_REAL_NATIVE_MULTIPLIER_PASS=YES",
+                      flush=True)
+            if native_step_clickgui:
+                resume_if_paused(process, log, window)
+                await_marker(process, log, STEP_ARMED, deadline,
+                             "12 actual source-native vanilla Step baselines and normal module enable")
+                # Use the real X11-focused window and original Mojang
+                # Keyboard.next() input path. Never call a fake Java GUI
+                # toggle from the acceptance harness.
+                xdotool("windowactivate", "--sync", window)
+                xdotool("key", "Shift_R")
+                print("CUSTOMMC_189_X11_REAL_RIGHT_SHIFT_GUI_OPEN_SENT=YES", flush=True)
+                await_marker(process, log, STEP_GUI_OPEN, deadline,
+                             "real Right Shift GUI-open source-native 0.6 stepHeight")
+                xdotool("key", "Shift_R")
+                print("CUSTOMMC_189_X11_REAL_RIGHT_SHIFT_GUI_CLOSE_SENT=YES", flush=True)
+                await_marker(process, log, STEP_GUI_CLOSED, deadline,
+                             "real Right Shift GUI-close source-native 1.8 stepHeight")
+                await_marker(process, log, STEP_RESTORED, deadline,
+                             "normal ModuleController disable and source-native vanilla 0.6")
+                print("CUSTOMMC_OFFICIAL_189_STEP_REAL_GUI_NATIVE_LIFECYCLE_PASS=YES",
                       flush=True)
             if native_world_camera:
                 # An already-created world can be paused by focus transition.
@@ -859,6 +886,8 @@ if __name__ == "__main__":
                         help="create offline creative world and verify genuine melee hurt")
     parser.add_argument("--timer-speed", action="store_true",
                         help="prove actual game Timer disabled 1x, 1.5x on, restored 1x")
+    parser.add_argument("--native-step-clickgui", action="store_true",
+                        help="prove actual Mojang player stepHeight across real X11 Right Shift CustomMC GUI open/close")
     parser.add_argument("--auto-clicker", action="store_true",
                         help="verify enabled Auto Clicker causes offline entity hurt without X11 attack")
     parser.add_argument("--kill-aura-nonplayer", action="store_true",
@@ -891,6 +920,7 @@ if __name__ == "__main__":
             auto_clicker=args.auto_clicker,
             kill_aura_nonplayer=args.kill_aura_nonplayer,
             timer_speed=args.timer_speed,
+            native_step_clickgui=args.native_step_clickgui,
             native_world_camera=args.native_world_camera,
             native_safe_walk=args.native_safe_walk,
             safe_walk_edge=args.safe_walk_edge,

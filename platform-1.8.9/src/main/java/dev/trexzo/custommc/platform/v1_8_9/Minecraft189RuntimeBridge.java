@@ -1189,6 +1189,14 @@ public final class Minecraft189RuntimeBridge {
                 activeHost();
         if (host != null) {
             host.playerStepControl(player);
+            // Opt-in official Mojang 1.8.9 client evidence only. The
+            // readback is the actual transformed Entity stepHeight field,
+            // after the production source-native adapter callback.
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireNativeStepGuiFocus")
+                    && player != null) {
+                Minecraft189OriginalClickGuiStepAcceptance.observe(host, player);
+            }
         }
     }
 

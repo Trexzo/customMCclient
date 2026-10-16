@@ -1678,6 +1678,35 @@ public final class Minecraft189FeatureCatalog
      * Isolated native game-Timer acceptance. Require the same real module
      * controller lifecycle as ClickGUI; no test-only clock setters.
      */
+    /**
+     * Official-client acceptance of the real player's persistent stepHeight.
+     * This uses the same ModuleController lifecycle as ClickGUI; neither
+     * the fixture nor the native adapter writes stepHeight directly.
+     */
+    void enableStepForOriginalGuiAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.requireNativeStepGuiFocus"))
+            throw new IllegalStateException("native Step GUI fixture not armed");
+        if (moduleController.stateOf(Minecraft189StepModule.ID)
+                != ModuleState.DISABLED)
+            throw new IllegalStateException("Step must begin disabled");
+        step().heightPercentSetting().set(Integer.valueOf(180));
+        moduleController.enable(Minecraft189StepModule.ID);
+        if (!step().active())
+            throw new IllegalStateException("native Step enable failed");
+    }
+
+    void disableStepForOriginalGuiAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.requireNativeStepGuiFocus")
+                || moduleController.stateOf(Minecraft189StepModule.ID)
+                        != ModuleState.ENABLED)
+            throw new IllegalStateException("native Step GUI disable not armed");
+        moduleController.disable(Minecraft189StepModule.ID);
+        if (step().active())
+            throw new IllegalStateException("native Step disable failed");
+    }
+
     void enableTimerForOriginalAcceptance() {
         requireOpen();
         if (!Boolean.getBoolean("custommc.acceptance.requireRealTimerMultiplier"))
