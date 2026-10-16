@@ -1664,7 +1664,14 @@ public final class Minecraft189RuntimeBridge {
     /** Called solely at exact mapped EntityRenderer.getMouseOver bytecode sites. */
     public static synchronized float raycastBlockDistance(final float vanilla) {
         final Minecraft189HostRuntime host = activeHost();
-        return host == null ? vanilla : host.raycastBlockDistance(vanilla);
+        if (host == null) return vanilla;
+        final float result = host.raycastBlockDistance(vanilla);
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireNativeReachGuiFocus")) {
+            Minecraft189OriginalClickGuiReachAcceptance.observe(
+                    host, vanilla, result);
+        }
+        return result;
     }
 
     public static synchronized boolean raycastExtendedBranch(final boolean vanilla) {
