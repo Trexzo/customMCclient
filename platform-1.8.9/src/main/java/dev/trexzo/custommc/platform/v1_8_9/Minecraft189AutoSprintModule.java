@@ -81,9 +81,20 @@ public final class Minecraft189AutoSprintModule
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean forwardHeld,
             final boolean anyMovementHeld) {
-        Objects.requireNonNull(
-                movement,
-                "movement");
+        apply(player, movement, forwardHeld, anyMovementHeld, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerSprintControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean forwardHeld,
+            final boolean anyMovementHeld,
+            final boolean currentNativeClickGuiOpen) {
+        Objects.requireNonNull(movement, "movement");
+        // No synthetic sprint setter may execute across the actual
+        // ClickGUI focus boundary. Preserve the player's current native
+        // sprint bit rather than forcibly disabling their real movement.
+        if (currentNativeClickGuiOpen) return;
         if (!enabled
                 || player == null
                 || !movement.available()
