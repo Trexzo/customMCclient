@@ -1050,7 +1050,8 @@ public final class Minecraft189HostRuntime
                         flightActive
                                 || noGravityActive
                                 || reverseStepOwnsVertical
-                                || fastFallActive);
+                                || fastFallActive,
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
         featureCatalog.damageBoost()
                 .apply(player, hurtTime, flightActive);
         if (player != null) {
