@@ -1310,6 +1310,10 @@ public final class Minecraft189RuntimeBridge {
                 activeHost();
         if (host != null) {
             host.playerHotbarSlot(player);
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireNativeCombatSlotGuiFocus")) {
+                Minecraft189OriginalCombatSlotAcceptance.observe(host, player);
+            }
         }
         if (Boolean.getBoolean(
                 "custommc.acceptance.requireNativeScaffoldTickParity")) {
@@ -2389,8 +2393,14 @@ public final class Minecraft189RuntimeBridge {
                         if (swordBlock != null && host.releaseAutoBlockBeforeAction()
                                 && swordBlock.customMcIsUsingItem())
                             swordBlock.customMcStopUsingItem();
-                        minecraft.customMcRightClickMouse();
-                        host.commitAutoPotUseAttempt();
+                        // AutoBlock stopUsingItem is an external mapped
+                        // callback: it may change the real selected slot,
+                        // held stack or ClickGUI focus. Re-verify the exact
+                        // inventory lease before *any* synthetic right click.
+                        if (host.mayExecuteAutoPotUse(originalPotionSlot)) {
+                            minecraft.customMcRightClickMouse();
+                            host.commitAutoPotUseAttempt();
+                        }
                     } finally {
                         host.restoreAutoPotSlot(originalPotionSlot);
                     }
@@ -2408,8 +2418,10 @@ public final class Minecraft189RuntimeBridge {
                         if (swordBlock != null && host.releaseAutoBlockBeforeAction()
                                 && swordBlock.customMcIsUsingItem())
                             swordBlock.customMcStopUsingItem();
-                        minecraft.customMcRightClickMouse();
-                        host.commitAutoRodUseAttempt();
+                        if (host.mayExecuteAutoRodUse(originalRodSlot)) {
+                            minecraft.customMcRightClickMouse();
+                            host.commitAutoRodUseAttempt();
+                        }
                     } finally {
                         host.restoreAutoRodSlot(originalRodSlot);
                     }
