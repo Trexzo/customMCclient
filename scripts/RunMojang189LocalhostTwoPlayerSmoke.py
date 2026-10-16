@@ -1525,10 +1525,11 @@ def run(args):
                                      "fifth genuine original controller click at E")
                             wait_for(host, host_log, repeat_receipt + b" step=5", deadline,
                                      "fifth original WorldClient+inventory receipt 4-to-3")
-                            wait_for(host, host_log,
-                                     b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
-                                     b"FIVE_CLIENT_RECEIPTS_PASS=YES attempts=5",
-                                     deadline, "five original controller and receipt pairs")
+                            if not six_keyboard_walk:
+                                wait_for(host, host_log,
+                                         b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
+                                         b"FIVE_CLIENT_RECEIPTS_PASS=YES attempts=5",
+                                         deadline, "five original controller and receipt pairs")
                             fifth_source = source_native_scaffold_position(host_log, 5)
                             fifth_native = re.compile(
                                 rb"CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_"
@@ -1554,6 +1555,95 @@ def run(args):
                                       first_source[0], second_source[0],
                                       third_source[0], fourth_source[0],
                                       fifth_source[0]), flush=True)
+                            if six_keyboard_walk:
+                                # V68 physical E->F without server teleport.
+                                # Server first witnesses five distinct native
+                                # STONE receipts and exactly three items.
+                                for target in (target_xyz, second_target_xyz,
+                                               third_target_xyz, fourth_target_xyz,
+                                               fifth_target_xyz):
+                                    send_server_command(server, server_log,
+                                                        "testforblock {} {} {} stone".format(*target),
+                                                        expected=b"successfully found the block")
+                                send_server_command(server, server_log,
+                                                    "testforblock {} {} {} air".format(*sixth_target_xyz),
+                                                    expected=b"successfully found the block")
+                                send_server_command(server, server_log,
+                                                    "clear CIHost stone 0 0",
+                                                    expected=b"has 3 items that match the criteria")
+                                fifth_source = source_native_scaffold_position(host_log, 5)
+                                sixth_sneak = sixth_backward = False
+                                try:
+                                    set_original_host_sneak_key(host, host_window, True)
+                                    sixth_sneak = True
+                                    set_original_host_backward_key(host, host_window, True)
+                                    sixth_backward = True
+                                    sixth_deadline = min(deadline, time.monotonic() + 9.0)
+                                    sixth_expected = (repeat_attempt
+                                        + b" step=6 accepted=true target="
+                                        + "{},{},{}".format(*sixth_target_xyz).encode())
+                                    while time.monotonic() < sixth_deadline:
+                                        actual = latest_original_native_local_player_position(
+                                            host_log)
+                                        if actual is not None and (
+                                                abs(actual[2] - fifth_source[2]) > .65
+                                                or actual[1] < fifth_source[1] - .42
+                                                or actual[0] > fifth_source[0] + 1.80):
+                                            raise AssertionError(
+                                                "physical E-to-F lost source support E={} now={}"
+                                                .format(fifth_source, actual))
+                                        if sixth_expected in log_tail(host_log):
+                                            break
+                                        time.sleep(.035)
+                                    else:
+                                        raise AssertionError(
+                                            "no sixth native controller admitted"
+                                            " during real Shift+S E-to-F traversal")
+                                finally:
+                                    try:
+                                        if sixth_backward:
+                                            set_original_host_backward_key(
+                                                host, host_window, False)
+                                    finally:
+                                        if sixth_sneak:
+                                            set_original_host_sneak_key(
+                                                host, host_window, False)
+                                wait_for(host, host_log, sixth_expected, deadline,
+                                         "sixth original native click on distinct F")
+                                wait_for(host, host_log, repeat_receipt + b" step=6",
+                                         deadline, "sixth genuine client World+inventory 3-to-2")
+                                wait_for(host, host_log,
+                                         b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
+                                         b"SIX_CLIENT_RECEIPTS_PASS=YES attempts=6",
+                                         deadline, "six genuinely separate native receipts")
+                                sixth_source = source_native_scaffold_position(host_log, 6)
+                                native_sixth = re.compile(
+                                    rb"CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_"
+                                    rb"ORIGINAL_SOURCE_POSITION step=6 "
+                                    rb"x=(-?\d+(?:\.\d+)?) y=(-?\d+(?:\.\d+)?) "
+                                    rb"z=(-?\d+(?:\.\d+)?) onGround=true sneaking=true")
+                                if len(native_sixth.findall(log_tail(host_log, 200000))) != 1:
+                                    raise AssertionError(
+                                        "sixth original controller not grounded+sneaking")
+                                if not (fifth_source[0] + .45 <= sixth_source[0]
+                                        <= fifth_source[0] + 1.80
+                                        and abs(sixth_source[1] - fifth_source[1]) <= .35
+                                        and abs(sixth_source[2] - fifth_source[2]) <= .55):
+                                    raise AssertionError(
+                                        "sixth native click did not physically advance"
+                                        " E={} F={}".format(fifth_source, sixth_source))
+                                expected_attempts = 6
+                                expected_targets = (
+                                    target_xyz, second_target_xyz,
+                                    third_target_xyz, fourth_target_xyz,
+                                    fifth_target_xyz, sixth_target_xyz)
+                                expected_items = b"has 2 items that match the criteria"
+                                print(
+                                    "CUSTOMMC_OFFICIAL_189_SCAFFOLD_SIX_REAL_KEYBOARD_LEGS_PASS=YES"
+                                    " A={} B={} C={} D={} E={} F={}".format(
+                                        first_source[0], second_source[0], third_source[0],
+                                        fourth_source[0], fifth_source[0],
+                                        sixth_source[0]), flush=True)
                 else:
                     wait_for(host, host_log,
                              b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
