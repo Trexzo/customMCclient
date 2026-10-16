@@ -1686,7 +1686,8 @@ public final class Minecraft189HostRuntime
 
     int selectAutoPotSlot() {
         requireOpen();
-        if (combatHotbarBusy() || !sameLocalHotbarAndHeldItemOwner())
+        if (combatHotbarBusy() || !sameLocalHotbarAndHeldItemOwner()
+                || clickGuiRuntime.coreRuntime().model().snapshot().open())
             return -1;
         final Minecraft189InventoryHotbarControl inventory = tickHotbarControl;
         final Minecraft189PlayerInventoryAccess owner = tickHotbarPlayer;
@@ -1698,7 +1699,8 @@ public final class Minecraft189HostRuntime
             if (prior < 0) return -1;
             if (inventory != tickHotbarControl || owner != tickHotbarPlayer
                     || held != tickHeldItemAccess
-                    || !sameLocalHotbarAndHeldItemOwner()) {
+                    || !sameLocalHotbarAndHeldItemOwner()
+                    || clickGuiRuntime.coreRuntime().model().snapshot().open()) {
                 featureCatalog.autoPot().restoreSlot(inventory, prior);
                 return -1;
             }
@@ -1761,7 +1763,8 @@ public final class Minecraft189HostRuntime
 
     int selectAutoRodSlot() {
         requireOpen();
-        if (combatHotbarBusy() || !sameLocalHotbarAndHeldItemOwner())
+        if (combatHotbarBusy() || !sameLocalHotbarAndHeldItemOwner()
+                || clickGuiRuntime.coreRuntime().model().snapshot().open())
             return -1;
         final Minecraft189InventoryHotbarControl inventory = tickHotbarControl;
         final Minecraft189PlayerInventoryAccess owner = tickHotbarPlayer;
@@ -1773,7 +1776,8 @@ public final class Minecraft189HostRuntime
             if (prior < 0) return -1;
             if (inventory != tickHotbarControl || owner != tickHotbarPlayer
                     || held != tickHeldItemAccess
-                    || !sameLocalHotbarAndHeldItemOwner()) {
+                    || !sameLocalHotbarAndHeldItemOwner()
+                    || clickGuiRuntime.coreRuntime().model().snapshot().open()) {
                 featureCatalog.autoRod().restoreSlot(inventory, prior);
                 return -1;
             }
