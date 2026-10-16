@@ -106,6 +106,21 @@ public final class Minecraft189AutoRodModule implements Module {
         return original;
     }
 
+
+    /**
+     * The real hotbar slot must still be the one this module selected for
+     * this exact attempt. A reentrant user action can change currentItem
+     * during the native held-item read; that cannot authorize a synthetic
+     * use of an unrelated item, even if its type happens to match.
+     */
+    synchronized boolean ownsSelectedSlot(
+            final Minecraft189InventoryHotbarControl inventory,
+            final int original) {
+        return enabled && inventory != null && inventory == selectedInventory
+                && original == previousSlot && selectedSlot >= 0
+                && inventory.customMcSelectedHotbarSlot() == selectedSlot;
+    }
+
     synchronized void restoreSlot(final Minecraft189InventoryHotbarControl inventory,
             final int original) {
         if (inventory == null || inventory != selectedInventory
