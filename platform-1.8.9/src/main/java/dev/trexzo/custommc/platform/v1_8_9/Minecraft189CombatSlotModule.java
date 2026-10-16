@@ -25,6 +25,12 @@ public final class Minecraft189CombatSlotModule implements Module {
             REQUIRE_HIT, Boolean.TRUE,
             value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // Capture the exact original native inventory and target at selection.
+    // The ClickGUI preferred slot can change reentrantly before finally;
+    // restoration must never consult that mutable setting.
+    private Minecraft189InventoryHotbarControl ownerInventory;
+    private int selectedSlot = -1;
+    private int originalSlot = -1;
 
     @Override public String id() { return ID; }
     @Override public synchronized void onEnable() { enabled = true; }
@@ -41,23 +47,63 @@ public final class Minecraft189CombatSlotModule implements Module {
     synchronized int select(
             final Minecraft189InventoryHotbarControl inventory,
             final boolean verifiedPlayerHit, final boolean guiOpen) {
-        if (!enabled || guiOpen || inventory == null
+        // A nested synthetic click may not steal another action's current
+        // hotbar lease. Its original finally owns the only restoration.
+        if (ownerInventory != null || !enabled || guiOpen || inventory == null
                 || (requireHit.get() && !verifiedPlayerHit)) return -1;
         final int original = inventory.customMcSelectedHotbarSlot();
         if (original < 0 || original >= 9) return -1;
         final int preferred = slot.get() - 1;
         if (preferred == original) return -1;
-        inventory.customMcSetSelectedHotbarSlot(preferred);
-        return original;
+
+        ownerInventory = inventory;
+        selectedSlot = preferred;
+        originalSlot = original;
+        try {
+            inventory.customMcSetSelectedHotbarSlot(preferred);
+            // A native setter can return without selecting the requested
+            // item, or a reentrant user action can select a different slot.
+            // Do not report a successful module-owned switch in that case.
+            if (inventory.customMcSelectedHotbarSlot() != preferred) {
+                clearLease();
+                return -1;
+            }
+            return original;
+        } catch (RuntimeException failure) {
+            // Original setters sometimes mutate currentItem before throwing.
+            // Roll back only our exact selected slot, never another actor's.
+            try {
+                if (inventory.customMcSelectedHotbarSlot() == preferred)
+                    inventory.customMcSetSelectedHotbarSlot(original);
+            } catch (RuntimeException rollback) {
+                failure.addSuppressed(rollback);
+            } finally {
+                clearLease();
+            }
+            throw failure;
+        }
     }
 
     synchronized void restore(
             final Minecraft189InventoryHotbarControl inventory,
             final int original) {
-        if (!enabled || !restore.get() || inventory == null
-                || original < 0 || original >= 9) return;
-        // A real slot change after our switch must never be overwritten.
-        if (inventory.customMcSelectedHotbarSlot() == slot.get() - 1)
-            inventory.customMcSetSelectedHotbarSlot(original);
+        if (inventory == null || inventory != ownerInventory
+                || original != originalSlot || original < 0 || original >= 9)
+            return;
+        try {
+            // Restoration must still work after onDisable: the synthetic
+            // action already acquired this exact native-player lease.
+            if (restore.get().booleanValue() && selectedSlot >= 0
+                    && inventory.customMcSelectedHotbarSlot() == selectedSlot)
+                inventory.customMcSetSelectedHotbarSlot(original);
+        } finally {
+            clearLease();
+        }
+    }
+
+    private void clearLease() {
+        ownerInventory = null;
+        selectedSlot = -1;
+        originalSlot = -1;
     }
 }
