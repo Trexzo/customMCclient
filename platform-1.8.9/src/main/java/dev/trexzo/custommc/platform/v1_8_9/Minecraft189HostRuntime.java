@@ -1657,6 +1657,14 @@ public final class Minecraft189HostRuntime
                 featureCatalog.autoPot(), tickHotbarControl, tickHeldItemAccess);
     }
 
+    boolean mayExecuteAutoPotUse(final int originalSlot) {
+        requireOpen();
+        return !clickGuiRuntime.coreRuntime().model().snapshot().open()
+                && Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                        featureCatalog.autoPot(), tickHotbarControl,
+                        tickHeldItemAccess, originalSlot);
+    }
+
     void restoreAutoPotSlot(final int originalSlot) {
         requireOpen();
         featureCatalog.autoPot().restoreSlot(tickHotbarControl, originalSlot);
@@ -1698,6 +1706,14 @@ public final class Minecraft189HostRuntime
         requireOpen();
         return Minecraft189VerifiedCombatItemSlot.selectRod(
                 featureCatalog.autoRod(), tickHotbarControl, tickHeldItemAccess);
+    }
+
+    boolean mayExecuteAutoRodUse(final int originalSlot) {
+        requireOpen();
+        return !clickGuiRuntime.coreRuntime().model().snapshot().open()
+                && Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                        featureCatalog.autoRod(), tickHotbarControl,
+                        tickHeldItemAccess, originalSlot);
     }
 
     void restoreAutoRodSlot(final int originalSlot) {

@@ -7,6 +7,41 @@ package dev.trexzo.custommc.platform.v1_8_9;
 final class Minecraft189VerifiedCombatItemSlot {
     private Minecraft189VerifiedCombatItemSlot() {}
 
+    /**
+     * Final synchronous boundary immediately before native right-click.
+     * Revalidate mapped item class, positive stack size and the captured
+     * InventoryPlayer.currentItem lease AFTER any AutoBlock release hooks.
+     * Neither matching item type alone nor a stale prior check can permit
+     * a synthetic use of a different user-selected hotbar slot.
+     */
+    static boolean stillOwnsRodAtUse(
+            final Minecraft189AutoRodModule module,
+            final Minecraft189InventoryHotbarControl inventory,
+            final Minecraft189PlayerHeldItemAccess player,
+            final int original) {
+        if (module == null || inventory == null || player == null
+                || original < 0 || !module.ownsSelectedSlot(inventory, original))
+            return false;
+        final Minecraft189ItemStackAccess item = player.customMcHeldItem();
+        return item != null && item.customMcStackSize() > 0
+                && item.customMcIsFishingRod()
+                && module.ownsSelectedSlot(inventory, original);
+    }
+
+    static boolean stillOwnsPotionAtUse(
+            final Minecraft189AutoPotModule module,
+            final Minecraft189InventoryHotbarControl inventory,
+            final Minecraft189PlayerHeldItemAccess player,
+            final int original) {
+        if (module == null || inventory == null || player == null
+                || original < 0 || !module.ownsSelectedSlot(inventory, original))
+            return false;
+        final Minecraft189ItemStackAccess item = player.customMcHeldItem();
+        return item != null && item.customMcStackSize() > 0
+                && item.customMcIsPotion()
+                && module.ownsSelectedSlot(inventory, original);
+    }
+
     static int selectRod(final Minecraft189AutoRodModule module,
             final Minecraft189InventoryHotbarControl inventory,
             final Minecraft189PlayerHeldItemAccess player) {
