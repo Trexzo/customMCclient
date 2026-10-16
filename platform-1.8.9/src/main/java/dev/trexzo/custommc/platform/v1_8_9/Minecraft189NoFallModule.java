@@ -75,7 +75,17 @@ public final class Minecraft189NoFallModule
     synchronized void apply(
             final Minecraft189PlayerFallDistanceControl player,
             final Minecraft189PlayerMovementState.Snapshot movement) {
-        if (!enabled || player == null) {
+        apply(player, movement, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerFallDistanceControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean actualClickGuiOpen) {
+        // Preserve the original positive fallDistance while the GUI
+        // owns focus. Never overwrite native fall evidence on a menu
+        // callback, even though NoFall remains enabled.
+        if (!enabled || actualClickGuiOpen || player == null) {
             return;
         }
         final boolean requireAirborne = airborneOnly.get().booleanValue();
