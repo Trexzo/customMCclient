@@ -288,6 +288,90 @@ final class Minecraft189FreezeModuleTest {
         assertNull(modules.find(Minecraft189FreezeModule.ID));
     }
 
+
+    @Test
+    void optionalGuiPauseYieldsNativeMotionWithoutReleasingFreezePriority() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189FreezeModule freeze =
+                    runtime.featureCatalog().freeze();
+            assertNotNull(settings.find(
+                    Minecraft189FreezeModule.PAUSE_WHILE_CLICKGUI_SETTING_ID));
+            assertFalse(freeze.pauseWhileClickGuiSetting().get());
+            final TestPlayer player = new TestPlayer();
+            runtime.playerRotationState().update(0.0F);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            controller.enable(Minecraft189FlightModule.ID);
+            controller.enable(Minecraft189FreezeModule.ID);
+            // Default Freeze remains a hard explicit owner even in the
+            // original CustomMC menu, retaining legacy exact-zero behavior.
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            player.motionX = 0.11D;
+            player.motionY = -0.20D;
+            player.motionZ = 0.31D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionX, 0.000001D);
+            assertEquals(0.0D, player.motionY, 0.000001D);
+            assertEquals(0.0D, player.motionZ, 0.000001D);
+            assertEquals(3, player.setCalls);
+
+            // New user-visible opt-in pauses only synthetic Freeze writes.
+            // Freeze still owns all axes so a lower Flight owner must not
+            // move the source player while menu focus is active.
+            freeze.pauseWhileClickGuiSetting().set(Boolean.TRUE);
+            player.motionX = 0.18D;
+            player.motionY = -0.25D;
+            player.motionZ = 0.38D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.18D, player.motionX, 0.000001D);
+            assertEquals(-0.25D, player.motionY, 0.000001D);
+            assertEquals(0.38D, player.motionZ, 0.000001D);
+            assertEquals(3, player.setCalls);
+            runtime.playerMotionControl(player);
+            assertEquals(3, player.setCalls);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionX, 0.000001D);
+            assertEquals(0.0D, player.motionY, 0.000001D);
+            assertEquals(0.0D, player.motionZ, 0.000001D);
+            assertEquals(6, player.setCalls);
+
+            controller.disable(Minecraft189FreezeModule.ID);
+            controller.disable(Minecraft189FlightModule.ID);
+            player.motionX = 0.08D;
+            player.motionY = -0.10D;
+            player.motionZ = 0.14D;
+            runtime.playerMotionControl(player);
+            assertEquals(0.08D, player.motionX, 0.000001D);
+            assertEquals(-0.10D, player.motionY, 0.000001D);
+            assertEquals(0.14D, player.motionZ, 0.000001D);
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(
+                Minecraft189FreezeModule.PAUSE_WHILE_CLICKGUI_SETTING_ID));
+        assertNull(modules.find(Minecraft189FreezeModule.ID));
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;
