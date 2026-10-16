@@ -49,6 +49,13 @@ public final class Minecraft189AirJumpModule
     synchronized void apply(
             final Minecraft189PlayerJumpControl player,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        apply(player, movement, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerJumpControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean actualClickGuiOpen) {
         Objects.requireNonNull(
                 movement,
                 "movement");
@@ -57,7 +64,11 @@ public final class Minecraft189AirJumpModule
                 inputState.keyPressed(
                         LegacyKeyboardCodes.SPACE);
         try {
+            // The GUI consumes its own Space press. Keep observing the
+            // physical key in finally so closing the menu with Space still
+            // held cannot synthesize a fresh airborne jump edge.
             if (!enabled
+                    || actualClickGuiOpen
                     || player == null
                     || !movement.available()
                     || movement.onGround()
