@@ -886,7 +886,7 @@ def run(args):
                 if args.scaffold_placement in ("production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-three-keyboard-walk"):
                     send_server_command(server, server_log,
                                         "setblock {} {} {} air".format(*third_target_xyz))
-                if args.scaffold_placement == "production-repeat-four":
+                if args.scaffold_placement in ("production-repeat-four", "production-repeat-three-keyboard-walk"):
                     send_server_command(server, server_log,
                                         "setblock {} {} {} air".format(*fourth_target_xyz))
             # Capture a byte-precise diagnostic boundary for menu-negative
