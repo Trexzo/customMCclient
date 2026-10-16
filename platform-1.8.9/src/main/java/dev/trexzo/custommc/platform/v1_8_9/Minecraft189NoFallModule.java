@@ -93,7 +93,13 @@ public final class Minecraft189NoFallModule
                 player.customMcFallDistance();
         final double configured =
                 threshold.get().doubleValue();
-        if (Math.abs(distance) > configured + 0.000001D) {
+        // Only a finite, positive ORIGINAL falling distance is evidence
+        // for a falling-damage reduction. Negative sentinel/transition
+        // values and nonfinite corrupted readbacks are not a valid fall;
+        // never overwrite those native source states with synthetic zero.
+        if (Float.isFinite(distance)
+                && distance > 0.0F
+                && (double) distance > configured + 0.000001D) {
             player.customMcSetFallDistance(0.0F);
         }
     }
