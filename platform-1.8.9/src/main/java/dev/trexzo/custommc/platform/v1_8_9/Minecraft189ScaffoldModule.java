@@ -6,7 +6,7 @@ import dev.trexzo.custommc.core.setting.SettingCodecs;
 
 /**
  * Source-native Scaffold with one placement by default and explicit
- * default-OFF two/three/four/five-placement modes (V43/V54/V59).
+ * default-OFF two/three/four/five/six-placement modes (V43/V54/V59).
  *
  * Each placement revalidates the ORIGINAL Minecraft World/eye/cursor and
  * ItemBlock; repeat mode needs one original positive receipt per attempt
@@ -27,12 +27,15 @@ public final class Minecraft189ScaffoldModule implements Module {
             "movement.scaffold.fourPlacements";
     public static final String FIVE_PLACEMENTS_SETTING_ID =
             "movement.scaffold.fivePlacements";
+    public static final String SIX_PLACEMENTS_SETTING_ID =
+            "movement.scaffold.sixPlacements";
     public static final String ADJACENT_EDGE_SETTING_ID =
             "movement.scaffold.adjacentEdgeTargets";
     private static final int PRODUCTION_TWO_COUNT = 2;
     private static final int PRODUCTION_THREE_COUNT = 3;
     private static final int PRODUCTION_FOUR_COUNT = 4;
     private static final int PRODUCTION_FIVE_COUNT = 5;
+    private static final int PRODUCTION_SIX_COUNT = 6;
     private static final int PRODUCTION_REPEAT_GAP_TICKS = 4;
     // Explicit UI setting, always OFF on a clean installation. Only captured
     // on a fresh module enable; changing it mid-activation grants no clicks.
@@ -51,6 +54,10 @@ public final class Minecraft189ScaffoldModule implements Module {
     // V67 fifth placement remains a separate default-OFF bounded quota.
     private final Setting<Boolean> fivePlacements = new Setting<Boolean>(
             FIVE_PLACEMENTS_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    // V68: sixth bounded placement requires its own explicit default-OFF UI mode.
+    private final Setting<Boolean> sixPlacements = new Setting<Boolean>(
+            SIX_PLACEMENTS_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
     // Independent default-OFF extension. No one-shot / isolated proof
     // automatically receives the original side-face candidate fallback.
@@ -93,16 +100,19 @@ public final class Minecraft189ScaffoldModule implements Module {
         final boolean three = Boolean.TRUE.equals(threePlacements.get());
         final boolean four = Boolean.TRUE.equals(fourPlacements.get());
         final boolean five = Boolean.TRUE.equals(fivePlacements.get());
+        final boolean six = Boolean.TRUE.equals(sixPlacements.get());
         final boolean edge = Boolean.TRUE.equals(adjacentEdgeTargets.get());
         // Exactly zero or one opt-in mode. No quota priority, partial
         // fallback or extra admission if conflicting UI toggles are enabled.
         final int selectedModes = (two ? 1 : 0) + (three ? 1 : 0)
-                + (four ? 1 : 0) + (five ? 1 : 0);
+                + (four ? 1 : 0) + (five ? 1 : 0)
+                + (six ? 1 : 0);
         if (selectedModes > 1 || (edge && selectedModes != 1)) {
             attempted = true; // An edge setting alone NEVER grants a click.
         } else if (selectedModes == 1) {
             productionAdjacentEdgeForActivation = edge;
-            productionRepeatCountForActivation = five
+            productionRepeatCountForActivation = six
+                    ? PRODUCTION_SIX_COUNT : five
                     ? PRODUCTION_FIVE_COUNT : four
                     ? PRODUCTION_FOUR_COUNT
                     : three ? PRODUCTION_THREE_COUNT : PRODUCTION_TWO_COUNT;
@@ -130,6 +140,7 @@ public final class Minecraft189ScaffoldModule implements Module {
     public Setting<Boolean> threePlacementsSetting() { return threePlacements; }
     public Setting<Boolean> fourPlacementsSetting() { return fourPlacements; }
     public Setting<Boolean> fivePlacementsSetting() { return fivePlacements; }
+    public Setting<Boolean> sixPlacementsSetting() { return sixPlacements; }
     public Setting<Boolean> adjacentEdgeTargetsSetting() { return adjacentEdgeTargets; }
     synchronized int productionRepeatCountForActivation() {
         return productionRepeatCountForActivation;
@@ -179,17 +190,21 @@ public final class Minecraft189ScaffoldModule implements Module {
         final boolean stillThree = Boolean.TRUE.equals(threePlacements.get());
         final boolean stillFour = Boolean.TRUE.equals(fourPlacements.get());
         final boolean stillFive = Boolean.TRUE.equals(fivePlacements.get());
+        final boolean stillSix = Boolean.TRUE.equals(sixPlacements.get());
         // Exactly one frozen quota is permitted for the lifetime of a
         // source-owned activation. A fifth click is never a fallback from
         // conflicting modes or a live ClickGUI setting change.
         final boolean exactMode = productionRepeatCountForActivation
-                == PRODUCTION_TWO_COUNT ? stillTwo && !stillThree && !stillFour && !stillFive
+                == PRODUCTION_TWO_COUNT
+                        ? stillTwo && !stillThree && !stillFour && !stillFive && !stillSix
                 : productionRepeatCountForActivation == PRODUCTION_THREE_COUNT
-                    ? stillThree && !stillTwo && !stillFour && !stillFive
-                    : productionRepeatCountForActivation == PRODUCTION_FOUR_COUNT
-                        ? stillFour && !stillTwo && !stillThree && !stillFive
-                        : productionRepeatCountForActivation == PRODUCTION_FIVE_COUNT
-                            && stillFive && !stillTwo && !stillThree && !stillFour;
+                        ? stillThree && !stillTwo && !stillFour && !stillFive && !stillSix
+                : productionRepeatCountForActivation == PRODUCTION_FOUR_COUNT
+                        ? stillFour && !stillTwo && !stillThree && !stillFive && !stillSix
+                : productionRepeatCountForActivation == PRODUCTION_FIVE_COUNT
+                        ? stillFive && !stillTwo && !stillThree && !stillFour && !stillSix
+                : productionRepeatCountForActivation == PRODUCTION_SIX_COUNT
+                        && stillSix && !stillTwo && !stillThree && !stillFour && !stillFive;
         if (!exactMode || Boolean.TRUE.equals(adjacentEdgeTargets.get())
                 != productionAdjacentEdgeForActivation) {
             repeatSequence.invalidate();

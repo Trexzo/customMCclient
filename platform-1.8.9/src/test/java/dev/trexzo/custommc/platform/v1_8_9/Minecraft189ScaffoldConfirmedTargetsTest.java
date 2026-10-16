@@ -44,6 +44,22 @@ final class Minecraft189ScaffoldConfirmedTargetsTest {
                 "only a fresh activation clears the prior World target history");
     }
 
+    @Test void allSixConfirmedHistoricalTargetsArePermanentUntilRevocation() {
+        Minecraft189ScaffoldConfirmedTargets history =
+                new Minecraft189ScaffoldConfirmedTargets();
+        for (int i = 0; i < 6; i++)
+            assertTrue(history.recordReceipt(300 + i, 99, -40));
+        assertEquals(6, history.count());
+        for (int i = 0; i < 6; i++) {
+            assertTrue(history.contains(300 + i, 99, -40));
+            assertFalse(history.recordReceipt(300 + i, 99, -40),
+                    "a revisited target must not masquerade as seventh placement");
+        }
+        assertEquals(6, history.count());
+        history.reset();
+        assertEquals(0, history.count());
+    }
+
     @Test void exactThreeDimensionalCoordinateRequiredForDuplicate() {
         Minecraft189ScaffoldConfirmedTargets history =
                 new Minecraft189ScaffoldConfirmedTargets();

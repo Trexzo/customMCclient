@@ -35,7 +35,7 @@ final class Minecraft189ScaffoldFeature implements AutoCloseable {
             owned.add(modules.register(module));
             owned.add(presentations.register(new ModuleDescriptor(
                     module.id(), "Scaffold",
-                    "One native placement by default; separate opt-in 2/3/4/5 modes.",
+                    "One native placement by default; separate opt-in 2/3/4/5/6 modes.",
                     Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID, 63)));
             owned.add(settings.register(module.twoPlacementsSetting()));
             owned.add(settingPresentations.register(new SettingDescriptor(
@@ -68,6 +68,14 @@ final class Minecraft189ScaffoldFeature implements AutoCloseable {
             owned.add(moduleSettings.register(new ModuleSettingBinding(
                     Minecraft189ScaffoldModule.ID,
                     Minecraft189ScaffoldModule.FIVE_PLACEMENTS_SETTING_ID, 4)));
+            // Keep stable older UI binding orders; this is additive.
+            owned.add(settings.register(module.sixPlacementsSetting()));
+            owned.add(settingPresentations.register(new SettingDescriptor(
+                    Minecraft189ScaffoldModule.SIX_PLACEMENTS_SETTING_ID,
+                    "Six Placements (Opt-in)", SettingValueKind.BOOLEAN, 5)));
+            owned.add(moduleSettings.register(new ModuleSettingBinding(
+                    Minecraft189ScaffoldModule.ID,
+                    Minecraft189ScaffoldModule.SIX_PLACEMENTS_SETTING_ID, 5)));
             owned.add(settings.register(module.adjacentEdgeTargetsSetting()));
             owned.add(settingPresentations.register(new SettingDescriptor(
                     Minecraft189ScaffoldModule.ADJACENT_EDGE_SETTING_ID,

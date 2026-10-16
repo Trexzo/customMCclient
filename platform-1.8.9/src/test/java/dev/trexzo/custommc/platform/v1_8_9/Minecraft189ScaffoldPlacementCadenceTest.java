@@ -227,6 +227,40 @@ final class Minecraft189ScaffoldPlacementCadenceTest {
                 "timed-out activation cannot exploit a fresh quota");
     }
 
+    @Test void sixConfirmedReceiptsForbidSeventhClickAndRearm() {
+        Minecraft189ScaffoldPlacementCadence p =
+                new Minecraft189ScaffoldPlacementCadence();
+        assertTrue(p.arm(91, 100, 6, 4));
+        for (int step = 1; step <= 6; step++) {
+            final long tick = 100 + (step - 1) * 6L;
+            assertTrue(p.mayAttempt(91, tick));
+            assertTrue(p.controllerAttempt(91, tick, true));
+            assertEquals(step, p.attemptedCount());
+            assertFalse(p.mayAttempt(91, tick + 1),
+                    "no overlapping native controller calls");
+            assertTrue(p.receipt(91, tick + 2, true));
+            assertEquals(step == 6, p.stopped(),
+                    "only the sixth distinct original readback closes the lease");
+        }
+        assertFalse(p.mayAttempt(91, 200), "no seventh original click");
+        assertFalse(p.arm(91, 201, 6, 4), "same generation cannot regain six");
+        assertTrue(p.arm(92, 202, 6, 4), "fresh explicit generation may arm again");
+    }
+
+    @Test void fifthTimeoutFailsClosedBeforeSixthControllerCall() {
+        Minecraft189ScaffoldPlacementCadence p =
+                new Minecraft189ScaffoldPlacementCadence();
+        assertTrue(p.arm(93, 0, 6, 2));
+        for (int i = 0; i < 4; i++) {
+            assertTrue(p.controllerAttempt(93, i * 3L, true));
+            assertTrue(p.receipt(93, i * 3L + 1, true));
+        }
+        assertTrue(p.controllerAttempt(93, 12, true));
+        assertFalse(p.mayAttempt(93, 133), "fifth readback timeout revokes source");
+        assertTrue(p.stopped());
+        assertFalse(p.arm(93, 134, 6, 2));
+    }
+
     @Test void rejectsInvalidConfigurationAndTickOverflow() {
         Minecraft189ScaffoldPlacementCadence p=new Minecraft189ScaffoldPlacementCadence();
         assertFalse(p.arm(0,1,2,2));
