@@ -2588,6 +2588,15 @@ public final class Minecraft189RuntimeBridge {
                 final int originalSlot =
                         host.selectCombatSlotBeforeSyntheticClick(playerHit);
                 try {
+                    // Source native hotbar selection and source combat
+                    // dispatch are separate callback boundaries. If a
+                    // nested Rod/Pot/melee action already owns currentItem,
+                    // or the original player changed during selection,
+                    // the failed -1 lease must not still attack with the
+                    // other module's temporary item. A clean no-switch
+                    // vanilla attack remains legal with no active owner.
+                    if (!host.mayDispatchSyntheticMelee(originalSlot))
+                        return;
                     if (Boolean.getBoolean(
                             "custommc.acceptance.reportTriggerBotRealPvp")) {
                         if (!acceptanceTriggerEnabled
