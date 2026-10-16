@@ -1903,8 +1903,18 @@ public final class Minecraft189HostRuntime
         final boolean selected =
                 combatSlotLeaseInventory.customMcSelectedHotbarSlot()
                         == combatSlotLeaseSelected;
-        return selected && combatSlotLeasePlayer == tickHotbarPlayer
+        if (!selected) return false;
+        // AutoWeapon is selected by *mapped native sword class*, not just
+        // an inventory index. Vanilla ItemStacks can change in-place after
+        // selection and before actual original controller dispatch.
+        if (autoWeaponOwnedClick
+                && !featureCatalog.autoWeapon().ownsVerifiedSwordAtDispatch(
+                        combatSlotLeaseInventory, originalSlot))
+            return false;
+        return combatSlotLeasePlayer == tickHotbarPlayer
                 && combatSlotLeaseInventory == tickHotbarControl
+                && combatSlotLeaseInventory.customMcSelectedHotbarSlot()
+                        == combatSlotLeaseSelected
                 && !clickGuiRuntime.coreRuntime().model().snapshot().open();
     }
 
