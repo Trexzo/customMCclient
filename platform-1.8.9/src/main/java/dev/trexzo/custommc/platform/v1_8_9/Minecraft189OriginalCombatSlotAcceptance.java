@@ -75,6 +75,8 @@ final class Minecraft189OriginalCombatSlotAcceptance {
             final int blocked = host.selectCombatSlotBeforeSyntheticClick(true);
             requireState(blocked == -1,
                     "V108 ClickGUI failed to veto original CombatSlot selection");
+            requireState(!host.mayDispatchSyntheticMelee(blocked),
+                    "V120 GUI focus permitted an original melee dispatch without a lease");
             requireState(inventory.customMcSelectedHotbarSlot() == baselineSlot,
                     "V108 native GUI focus changed InventoryPlayer.currentItem");
             phase = 2;
@@ -87,6 +89,8 @@ final class Minecraft189OriginalCombatSlotAcceptance {
                     "V108 source CombatSlot did not acquire its original lease");
             requireState(inventory.customMcSelectedHotbarSlot() == selectedSlot,
                     "V108 source setter failed to select actual preferred slot");
+            requireState(host.mayDispatchSyntheticMelee(prior),
+                    "V120 valid original currentItem owner was denied native melee dispatch");
             // V117 source-native wrong-token proof: original currentItem is
             // selected, but an unrelated positive prior-slot token cannot
             // consume the live host owner or let another synthetic selection
@@ -98,10 +102,17 @@ final class Minecraft189OriginalCombatSlotAcceptance {
                     "V117 foreign positive token changed original Mojang currentItem");
             requireState(host.selectCombatSlotBeforeSyntheticClick(true) == -1,
                     "V117 foreign positive token released original hotbar owner");
+            requireState(!host.mayDispatchSyntheticMelee(wrongPrior),
+                    "V120 foreign original token authorized source melee dispatch");
             host.restoreCombatSlotAfterSyntheticClick(-1);
             requireState(inventory.customMcSelectedHotbarSlot() == selectedSlot,
                     "V117 nested -1 finally changed original Mojang currentItem");
+            requireState(!host.mayDispatchSyntheticMelee(-1),
+                    "V120 denied nested original melee callback bypassed active owner");
+            requireState(host.mayDispatchSyntheticMelee(prior),
+                    "V120 true original owner lost melee dispatch after rejected token");
             report("CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_WRONG_TOKEN_VETO_PASS=YES");
+            report("CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_MELEE_DISPATCH_OWNER_PASS=YES");
             // V105 core regression using *real* original InventoryPlayer:
             // edit ClickGUI setting DURING the native slot lease, then
             // restore the exact captured target instead of mutable config.
