@@ -1310,6 +1310,10 @@ public final class Minecraft189RuntimeBridge {
                 activeHost();
         if (host != null) {
             host.playerHotbarSlot(player);
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireNativeCombatSlotGuiFocus")) {
+                Minecraft189OriginalCombatSlotAcceptance.observe(host, player);
+            }
         }
         if (Boolean.getBoolean(
                 "custommc.acceptance.requireNativeScaffoldTickParity")) {

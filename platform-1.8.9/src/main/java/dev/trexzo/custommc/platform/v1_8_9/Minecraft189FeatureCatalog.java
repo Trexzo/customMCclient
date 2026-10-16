@@ -1715,6 +1715,37 @@ public final class Minecraft189FeatureCatalog
      * Reach is toggled by the normal ModuleController, never through
      * a fixture-owned raycast override or transformed field setter.
      */
+    /**
+     * Only the opt-in pinned Mojang client fixture can start a temporary
+     * original InventoryPlayer.currentItem lease through CombatSlot.
+     */
+    void enableCombatSlotForOriginalGuiAcceptance(final int targetOneBased) {
+        requireOpen();
+        if (!Boolean.getBoolean(
+                "custommc.acceptance.requireNativeCombatSlotGuiFocus"))
+            throw new IllegalStateException("original hotbar fixture not armed");
+        if (targetOneBased < 1 || targetOneBased > 9
+                || moduleController.stateOf(Minecraft189CombatSlotModule.ID)
+                        != ModuleState.DISABLED)
+            throw new IllegalStateException("original CombatSlot preflight failed");
+        combatSlot().preferredSlotSetting().set(Integer.valueOf(targetOneBased));
+        moduleController.enable(Minecraft189CombatSlotModule.ID);
+        if (!combatSlot().active())
+            throw new IllegalStateException("original CombatSlot enable failed");
+    }
+
+    void disableCombatSlotForOriginalGuiAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean(
+                "custommc.acceptance.requireNativeCombatSlotGuiFocus")
+                || moduleController.stateOf(Minecraft189CombatSlotModule.ID)
+                        != ModuleState.ENABLED)
+            throw new IllegalStateException("original CombatSlot disable not armed");
+        moduleController.disable(Minecraft189CombatSlotModule.ID);
+        if (combatSlot().active())
+            throw new IllegalStateException("original CombatSlot disable failed");
+    }
+
     void enableReachForOriginalGuiAcceptance() {
         requireOpen();
         if (!Boolean.getBoolean("custommc.acceptance.requireNativeReachGuiFocus"))

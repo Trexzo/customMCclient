@@ -45,6 +45,10 @@ REACH_ENABLED = b"CUSTOMMC_OFFICIAL_189_REACH_SOURCE_NATIVE_ENABLED_PASS=YES"
 REACH_GUI_OPEN = b"CUSTOMMC_OFFICIAL_189_REACH_GUI_REAL_KEY_OPEN_NATIVE_PASS=YES"
 REACH_GUI_CLOSED = b"CUSTOMMC_OFFICIAL_189_REACH_GUI_REAL_KEY_CLOSE_NATIVE_PASS=YES"
 REACH_DISABLED = b"CUSTOMMC_OFFICIAL_189_REACH_NATIVE_DISABLE_VANILLA_PASS=YES"
+COMBATSLOT_ARMED = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_SELECTION_RESTORE_PASS=YES"
+COMBATSLOT_GUI_OPEN = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_GUI_REAL_KEY_OPEN_VETO_PASS=YES"
+COMBATSLOT_GUI_CLOSED = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_GUI_REAL_KEY_CLOSE_CONFIG_LEASE_PASS=YES"
+COMBATSLOT_DISABLED = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_DISABLE_ORIGINAL_PASS=YES"
 
 
 def xdotool(*arguments):
@@ -207,11 +211,13 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         native_scaffold_tick=False, native_scaffold_raytrace=False,
         native_scaffold_context=False, native_scaffold_candidate=False,
         native_scaffold_placement=None, native_step_clickgui=False,
-        native_noclip_clickgui=False, native_reach_clickgui=False):
+        native_noclip_clickgui=False, native_reach_clickgui=False,
+        native_combatslot_clickgui=False):
     if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer,
                              timer_speed, native_step_clickgui,
                              native_noclip_clickgui,
-                             native_reach_clickgui)) > 1:
+                             native_reach_clickgui,
+                             native_combatslot_clickgui)) > 1:
         raise ValueError("manual and module combat tests are exclusive")
     controlled_combat = attack or auto_clicker or kill_aura_nonplayer
     if safe_walk_edge not in (None, "enabled", "disabled"):
@@ -246,7 +252,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         raise ValueError("native survival placement must run in an isolated world")
     # A real rendered world camera requires a focused Minecraft window;
     # vanilla singleplayer otherwise automatically opens the pause GUI.
-    needs_active_window = controlled_combat or timer_speed or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or bool(native_scaffold_placement) or native_step_clickgui or native_noclip_clickgui or native_reach_clickgui
+    needs_active_window = controlled_combat or timer_speed or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or bool(native_scaffold_placement) or native_step_clickgui or native_noclip_clickgui or native_reach_clickgui or native_combatslot_clickgui
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
@@ -324,6 +330,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
     if native_reach_clickgui:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireNativeReachGuiFocus=true")
+    if native_combatslot_clickgui:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireNativeCombatSlotGuiFocus=true")
     if controlled_combat:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportVanillaMelee=true")
@@ -487,6 +496,23 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 await_marker(process, log, REACH_DISABLED, deadline,
                              "original ray operand restored on controller disable")
                 print("CUSTOMMC_OFFICIAL_189_REACH_REAL_RENDERER_GUI_PASS=YES",
+                      flush=True)
+            if native_combatslot_clickgui:
+                resume_if_paused(process, log, window)
+                await_marker(process, log, COMBATSLOT_ARMED, deadline,
+                             "12 stable original InventoryPlayer currentItem callbacks and real CombatSlot switch/restore")
+                xdotool("windowactivate", "--sync", window)
+                xdotool("key", "Shift_R")
+                print("CUSTOMMC_189_X11_COMBATSLOT_REAL_GUI_OPEN_SENT=YES", flush=True)
+                await_marker(process, log, COMBATSLOT_GUI_OPEN, deadline,
+                             "physical ClickGUI open vetoes real CombatSlot currentItem write")
+                xdotool("key", "Shift_R")
+                print("CUSTOMMC_189_X11_COMBATSLOT_REAL_GUI_CLOSE_SENT=YES", flush=True)
+                await_marker(process, log, COMBATSLOT_GUI_CLOSED, deadline,
+                             "real InventoryPlayer selected slot remains owned across live Preferred Slot edit")
+                await_marker(process, log, COMBATSLOT_DISABLED, deadline,
+                             "normal CombatSlot disable returns unchanged native selected slot")
+                print("CUSTOMMC_OFFICIAL_189_COMBATSLOT_REAL_HOTBAR_GUI_LIFECYCLE_PASS=YES",
                       flush=True)
             if native_world_camera:
                 # An already-created world can be paused by focus transition.
@@ -948,6 +974,8 @@ if __name__ == "__main__":
                         help="prove native Mojang player noClip collision lease across physical X11 Right Shift GUI focus")
     parser.add_argument("--native-reach-clickgui", action="store_true",
                         help="prove original Mojang renderer Reach ray operand and physical X11 ClickGUI focus")
+    parser.add_argument("--native-combatslot-clickgui", action="store_true",
+                        help="prove original Mojang InventoryPlayer.currentItem CombatSlot lease, settings edit and real X11 ClickGUI focus")
     parser.add_argument("--auto-clicker", action="store_true",
                         help="verify enabled Auto Clicker causes offline entity hurt without X11 attack")
     parser.add_argument("--kill-aura-nonplayer", action="store_true",
@@ -983,6 +1011,7 @@ if __name__ == "__main__":
             native_step_clickgui=args.native_step_clickgui,
             native_noclip_clickgui=args.native_noclip_clickgui,
             native_reach_clickgui=args.native_reach_clickgui,
+            native_combatslot_clickgui=args.native_combatslot_clickgui,
             native_world_camera=args.native_world_camera,
             native_safe_walk=args.native_safe_walk,
             safe_walk_edge=args.safe_walk_edge,
