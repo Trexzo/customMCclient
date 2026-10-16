@@ -91,9 +91,20 @@ class NativeKeyboardSourceTest(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "missing/duplicate"):
             self.read(contents + PREFIX + b" step=5 x=5.25 y=100 z=0.5\n", 5)
 
-    def test_step_must_be_a_genuine_five_position_mode(self):
+    def test_sixth_original_controller_position_and_duplicate_veto(self):
+        contents = (PREFIX + b" step=1 x=1.05 y=100.0 z=0.5\n"
+                    + PREFIX + b" step=2 x=2.10 y=100.0 z=0.5\n"
+                    + PREFIX + b" step=3 x=3.15 y=100.0 z=0.5\n"
+                    + PREFIX + b" step=4 x=4.20 y=100.0 z=0.5\n"
+                    + PREFIX + b" step=5 x=5.25 y=100.0 z=0.5\n"
+                    + PREFIX + b" step=6 x=6.30 y=100.0 z=0.5\n")
+        self.assertEqual((6.30, 100.0, 0.5), self.read(contents, 6))
+        with self.assertRaisesRegex(AssertionError, "missing/duplicate"):
+            self.read(contents + PREFIX + b" step=6 x=6.30 y=100.0 z=0.5\n", 6)
+
+    def test_step_must_be_a_genuine_six_position_mode(self):
         with self.assertRaises(ValueError):
-            self.read(b"", 6)
+            self.read(b"", 7)
 
 
 if __name__ == "__main__":
