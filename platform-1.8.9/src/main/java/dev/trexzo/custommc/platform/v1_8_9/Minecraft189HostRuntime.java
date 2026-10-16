@@ -935,7 +935,8 @@ public final class Minecraft189HostRuntime
                         .active();
         featureCatalog.freeze()
                 .apply(
-                        player);
+                        player,
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
         if (freezeActive) {
             featureCatalog.damageBoost()
                     .apply(player, hurtTime, true);
