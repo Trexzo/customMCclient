@@ -68,9 +68,39 @@ final class Minecraft189NoBobbingModuleTest {
                         Minecraft189NoBobbingModule.ID));
     }
 
+    @Test
+    void userBobbingChangeIsPreservedWhenDisablingOverride() {
+        final RecordingSettings settings = new RecordingSettings(false);
+        final Minecraft189NoBobbingModule module =
+                new Minecraft189NoBobbingModule(settings);
+        module.onEnable();
+        settings.viewBobbing(true);
+        module.onDisable();
+        assertTrue(settings.viewBobbing(),
+                "a real user preference change must win over old capture");
+        assertFalse(module.active());
+    }
+
+    @Test
+    void failedOriginalSetterAfterMutationRollsBackBobbing() {
+        final RecordingSettings settings = new RecordingSettings(true);
+        final Minecraft189NoBobbingModule module =
+                new Minecraft189NoBobbingModule(settings);
+        settings.throwAfterBobbingWrite = true;
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class, module::onEnable);
+        assertFalse(module.active());
+        assertTrue(settings.viewBobbing(), "partial native setter must roll back");
+        module.onEnable();
+        assertFalse(settings.viewBobbing());
+        module.onDisable();
+        assertTrue(settings.viewBobbing());
+    }
+
     private static final class RecordingSettings
             implements Minecraft189GuiSettingsAccess {
         private boolean viewBobbing;
+        private boolean throwAfterBobbingWrite;
         private float fov = 70.0F;
         private float gamma = 0.5F;
 
@@ -88,6 +118,10 @@ final class Minecraft189NoBobbingModuleTest {
         public void viewBobbing(
                 final boolean value) {
             viewBobbing = value;
+            if (throwAfterBobbingWrite) {
+                throwAfterBobbingWrite = false;
+                throw new IllegalStateException("original bobbing setter failed");
+            }
         }
 
         @Override
