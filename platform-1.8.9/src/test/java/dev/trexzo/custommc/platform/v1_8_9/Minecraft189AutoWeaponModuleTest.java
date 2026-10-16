@@ -167,6 +167,112 @@ final class Minecraft189AutoWeaponModuleTest {
         assertNull(settings.find(Minecraft189AutoWeaponModule.RESTORE));
     }
 
+
+    @Test void originalItemScanCannotOverwriteReentrantUserHotbarChoice() {
+        final Minecraft189AutoWeaponModule module = new Minecraft189AutoWeaponModule();
+        final ReentrantInventory inventory = new ReentrantInventory();
+        inventory.selected = 2;
+        inventory.items[4] = new Item(true, 8.0F, 1);
+        module.onEnable();
+        try {
+            inventory.afterItemRead = () -> inventory.selected = 7;
+            assertEquals(-1, module.select(inventory, true, false));
+            assertEquals(7, inventory.selected,
+                    "reentrant original slot change outranks stale item scan");
+            assertEquals(0, inventory.setterCalls,
+                    "must not call native setter after old inventory evidence");
+            inventory.selected = 2;
+            assertEquals(2, module.select(inventory, true, false));
+            assertEquals(4, inventory.selected);
+            module.restore(inventory, 2);
+            assertEquals(2, inventory.selected);
+        } finally {
+            module.onDisable();
+        }
+    }
+
+    @Test void ignoredAndRedirectedOriginalWeaponSetterCannotClaimSwitch() {
+        final Minecraft189AutoWeaponModule module = new Minecraft189AutoWeaponModule();
+        final ReentrantInventory inventory = new ReentrantInventory();
+        inventory.selected = 2;
+        inventory.items[4] = new Item(true, 8.0F, 1);
+        module.onEnable();
+        try {
+            inventory.ignoreNextSetter = true;
+            assertEquals(-1, module.select(inventory, true, false));
+            assertEquals(2, inventory.selected);
+            inventory.redirectNextSetterTo = 7;
+            assertEquals(-1, module.select(inventory, true, false));
+            assertEquals(7, inventory.selected,
+                    "do not steal a user-selected slot after native redirection");
+            inventory.selected = 2;
+            assertEquals(2, module.select(inventory, true, false),
+                    "failed selection cannot leave another action's lease");
+            module.restore(inventory, 2);
+            assertEquals(2, inventory.selected);
+        } finally {
+            module.onDisable();
+        }
+    }
+
+    @Test void moduleDisabledInsideNativeSwordSetterReturnsToOriginalItem() {
+        final Minecraft189AutoWeaponModule module = new Minecraft189AutoWeaponModule();
+        final ReentrantInventory inventory = new ReentrantInventory();
+        inventory.selected = 2;
+        inventory.items[4] = new Item(true, 8.0F, 1);
+        module.onEnable();
+        inventory.afterSetter = module::onDisable;
+        assertEquals(-1, module.select(inventory, true, false));
+        assertEquals(2, inventory.selected,
+                "a disable during native setter must release its temporary sword");
+        module.onEnable();
+        try {
+            assertEquals(2, module.select(inventory, true, false));
+            module.restore(inventory, 2);
+            assertEquals(2, inventory.selected);
+        } finally {
+            module.onDisable();
+        }
+    }
+
+
+    private static final class ReentrantInventory
+            implements Minecraft189InventoryHotbarItemsAccess {
+        int selected;
+        int setterCalls;
+        int redirectNextSetterTo = -1;
+        boolean ignoreNextSetter;
+        Runnable afterItemRead;
+        Runnable afterSetter;
+        Minecraft189ItemStackAccess[] items = new Minecraft189ItemStackAccess[9];
+
+        @Override public int customMcSelectedHotbarSlot() { return selected; }
+
+        @Override public Minecraft189ItemStackAccess[] customMcHotbarItems() {
+            final Runnable callback = afterItemRead;
+            afterItemRead = null;
+            if (callback != null) callback.run();
+            return items;
+        }
+
+        @Override public void customMcSetSelectedHotbarSlot(final int next) {
+            setterCalls++;
+            if (ignoreNextSetter) {
+                ignoreNextSetter = false;
+                return;
+            }
+            if (redirectNextSetterTo >= 0) {
+                selected = redirectNextSetterTo;
+                redirectNextSetterTo = -1;
+                return;
+            }
+            selected = next;
+            final Runnable callback = afterSetter;
+            afterSetter = null;
+            if (callback != null) callback.run();
+        }
+    }
+
     private static final class ThrowingInventory
             implements Minecraft189InventoryHotbarItemsAccess {
         int selected;
