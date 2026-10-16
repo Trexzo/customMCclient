@@ -64,9 +64,17 @@ class NativeKeyboardSourceTest(unittest.TestCase):
             )
             self.assertIsNone(latest_original_native_local_player_position(log))
 
-    def test_step_must_be_a_genuine_two_position_mode(self):
+    def test_true_third_native_controller_position_is_distinct(self):
+        contents = (PREFIX + b" step=1 x=-80.05 y=100.0 z=53.5\n"
+                    + PREFIX + b" step=2 x=-79.01 y=100.0 z=53.5\n"
+                    + PREFIX + b" step=3 x=-78.12 y=100.0 z=53.5\n")
+        self.assertEqual((-78.12, 100.0, 53.5), self.read(contents, 3))
+        with self.assertRaises(AssertionError):
+            self.read(contents + PREFIX + b" step=3 x=-78.12 y=100.0 z=53.5\n", 3)
+
+    def test_step_must_be_a_genuine_three_position_mode(self):
         with self.assertRaises(ValueError):
-            self.read(b"", 3)
+            self.read(b"", 4)
 
 
 if __name__ == "__main__":
