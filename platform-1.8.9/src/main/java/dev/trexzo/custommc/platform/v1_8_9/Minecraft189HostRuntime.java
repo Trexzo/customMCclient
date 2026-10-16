@@ -62,7 +62,9 @@ public final class Minecraft189HostRuntime
     // the in-flight melee click lease. A reentrant original playerHotbarSlot
     // callback or respawn must not redirect its synchronous finally.
     private Minecraft189InventoryHotbarControl combatSlotLeaseInventory;
+    private Minecraft189PlayerInventoryAccess combatSlotLeasePlayer;
     private int combatSlotLeaseOriginal = -1;
+    private int combatSlotLeaseSelected = -1;
     // One original InventoryPlayer.currentItem may have only one temporary
     // combat owner. Reserve even during native getters/setters: these may
     // reenter the host before a successful selected-slot lease is published.
@@ -1849,13 +1851,61 @@ public final class Minecraft189HostRuntime
                     featureCatalog.combatSlot().restore(source, prior);
                 return -1;
             }
+            // Capturing a temporary slot does not by itself authorize the
+            // eventual original attackEntity/clickMouse dispatch. Retain
+            // the native selected-slot evidence for the final boundary.
+            final int selected = source.customMcSelectedHotbarSlot();
+            if (selected < 0 || selected > 8 || selected == prior
+                    || source != tickHotbarControl || owner != tickHotbarPlayer
+                    || guiOpen != clickGuiRuntime.coreRuntime().model()
+                            .snapshot().open()) {
+                if (weaponOwner)
+                    featureCatalog.autoWeapon().restore(source, prior);
+                else
+                    featureCatalog.combatSlot().restore(source, prior);
+                return -1;
+            }
             combatSlotLeaseInventory = source;
+            combatSlotLeasePlayer = owner;
             combatSlotLeaseOriginal = prior;
+            combatSlotLeaseSelected = selected;
             autoWeaponOwnedClick = weaponOwner;
             return prior;
         } finally {
             combatHotbarSelecting = false;
         }
+    }
+
+    /**
+     * Gate the *actual* original Mojang click/attackEntity dispatch, not
+     * just a preceding synthetic hotbar switch. A nested click which
+     * failed to acquire the only available lease cannot still attack
+     * with its predecessor's currently selected rod, potion or sword.
+     */
+    boolean mayDispatchSyntheticMelee(final int originalSlot) {
+        requireOpen();
+        if (clickGuiRuntime.coreRuntime().model().snapshot().open())
+            return false;
+        if (originalSlot < 0) {
+            // No switch was needed: vanilla click semantics remain, but
+            // they must not run while another source action owns currentItem.
+            return !combatHotbarBusy();
+        }
+        if (combatHotbarSelecting || combatSlotLeaseInventory == null
+                || combatSlotLeaseOriginal != originalSlot
+                || combatSlotLeasePlayer != tickHotbarPlayer
+                || combatSlotLeaseInventory != tickHotbarControl
+                || combatSlotLeaseSelected < 0
+                || !(autoWeaponOwnedClick
+                        ? featureCatalog.autoWeapon().active()
+                        : featureCatalog.combatSlot().active()))
+            return false;
+        final boolean selected =
+                combatSlotLeaseInventory.customMcSelectedHotbarSlot()
+                        == combatSlotLeaseSelected;
+        return selected && combatSlotLeasePlayer == tickHotbarPlayer
+                && combatSlotLeaseInventory == tickHotbarControl
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open();
     }
 
     void restoreCombatSlotAfterSyntheticClick(final int originalSlot) {
@@ -1868,7 +1918,9 @@ public final class Minecraft189HostRuntime
                 combatSlotLeaseInventory;
         final boolean weaponOwner = autoWeaponOwnedClick;
         combatSlotLeaseInventory = null;
+        combatSlotLeasePlayer = null;
         combatSlotLeaseOriginal = -1;
+        combatSlotLeaseSelected = -1;
         autoWeaponOwnedClick = false;
         if (weaponOwner) {
             featureCatalog.autoWeapon().restore(captured, originalSlot);
