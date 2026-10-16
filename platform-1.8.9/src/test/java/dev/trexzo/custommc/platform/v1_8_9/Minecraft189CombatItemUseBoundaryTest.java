@@ -299,6 +299,74 @@ final class Minecraft189CombatItemUseBoundaryTest {
         }
     }
 
+
+    @Test void sourceClickGuiOpeningInsideNativeItemReadImmediatelyRevokesSlot() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 4;
+            inventory.items[1] = new Item(true, false, 1);
+            inventory.items[2] = new Item(false, true, 1);
+            final Player player = new Player(inventory);
+            runtime.playerHotbarSlot(player);
+            runtime.playerHeldItem(player);
+            controller.enable(Minecraft189AutoRodModule.ID);
+            controller.enable(Minecraft189AutoPotModule.ID);
+
+            player.duringHeldItemRead = () ->
+                    runtime.clickGuiToggleController().key(
+                            Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                            true, false);
+            assertEquals(-1, runtime.selectAutoRodSlot(),
+                    "native getter opening the menu must veto the rod lease");
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            assertEquals(4, inventory.selected);
+            assertFalse(runtime.mayExecuteAutoRodUse(4));
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            player.duringHeldItemRead = () ->
+                    runtime.clickGuiToggleController().key(
+                            Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                            true, false);
+            assertEquals(-1, runtime.selectAutoPotSlot(),
+                    "native getter opening the menu must veto the potion lease");
+            assertEquals(4, inventory.selected);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+
+            assertEquals(4, runtime.selectAutoRodSlot(),
+                    "a fresh gameplay-owned action must be eligible after GUI close");
+            assertEquals(1, inventory.selected);
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, inventory.selected);
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertEquals(2, inventory.selected);
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class Inventory
             implements Minecraft189InventoryHotbarControl {
         int selected;
