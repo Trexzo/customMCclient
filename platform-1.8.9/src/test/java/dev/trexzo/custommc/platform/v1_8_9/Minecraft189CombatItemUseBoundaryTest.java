@@ -227,14 +227,90 @@ final class Minecraft189CombatItemUseBoundaryTest {
         }
     }
 
+
+    @Test void ownerChangedDuringSourceGetterOrNativeSetterCannotPublishLease() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory original = new Inventory();
+            original.selected = 4;
+            original.items[1] = new Item(true, false, 1);
+            final Player oldPlayer = new Player(original);
+            final Inventory successor = new Inventory();
+            successor.selected = 3;
+            final Player newPlayer = new Player(successor);
+            controller.enable(Minecraft189AutoRodModule.ID);
+            controller.enable(Minecraft189CombatSlotModule.ID);
+
+            runtime.playerHotbarSlot(oldPlayer);
+            runtime.playerHeldItem(oldPlayer);
+            oldPlayer.duringHeldItemRead = () -> {
+                // Original getter reenters the host after its own source
+                // inventory slot has been selected but before admission.
+                runtime.playerHotbarSlot(newPlayer);
+                runtime.playerHeldItem(newPlayer);
+            };
+            assertEquals(-1, runtime.selectAutoRodSlot(),
+                    "ownership changed inside native held-item getter");
+            assertEquals(4, original.selected,
+                    "failed selection must return temporary source slot");
+            assertEquals(3, successor.selected);
+            assertFalse(runtime.mayExecuteAutoRodUse(4));
+            runtime.restoreAutoRodSlot(-1);
+            assertEquals(4, original.selected);
+
+            // The same callback race may occur inside a native setter.
+            runtime.playerHotbarSlot(oldPlayer);
+            runtime.playerHeldItem(oldPlayer);
+            original.duringNextSetter = () -> {
+                runtime.playerHotbarSlot(newPlayer);
+                runtime.playerHeldItem(newPlayer);
+                assertEquals(-1, runtime.selectAutoRodSlot(),
+                        "selection reservation must block native setter reentry");
+            };
+            assertEquals(-1, runtime.selectCombatSlotBeforeSyntheticClick(true));
+            assertEquals(4, original.selected);
+            assertEquals(3, successor.selected);
+            runtime.restoreCombatSlotAfterSyntheticClick(-1);
+            assertEquals(4, original.selected);
+
+            // A later genuine callback from the old player must still be
+            // eligible; no zombie module lease remains after either veto.
+            runtime.playerHotbarSlot(oldPlayer);
+            runtime.playerHeldItem(oldPlayer);
+            assertEquals(4, runtime.selectAutoRodSlot());
+            assertEquals(1, original.selected);
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, original.selected);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class Inventory
             implements Minecraft189InventoryHotbarControl {
         int selected;
+        Runnable duringNextSetter;
         final Minecraft189ItemStackAccess[] items =
                 new Minecraft189ItemStackAccess[9];
         @Override public int customMcSelectedHotbarSlot() { return selected; }
         @Override public void customMcSetSelectedHotbarSlot(final int slot) {
             selected = slot;
+            final Runnable callback = duringNextSetter;
+            duringNextSetter = null;
+            if (callback != null) callback.run();
         }
     }
 
