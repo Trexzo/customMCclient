@@ -1387,6 +1387,10 @@ def run(args):
                         send_server_command(server, server_log,
                                             "testforblock {} {} {} air".format(*third_target_xyz),
                                             expected=b"successfully found the block")
+                    else:
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*fourth_target_xyz),
+                                            expected=b"successfully found the block")
                     print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_REAL_KEYBOARD_"
                           + ("SERVER_THREE_STONE_FIVE_PASS=YES" if three_keyboard_walk
                              else "SERVER_TWO_STONE_SIX_PASS=YES"), flush=True)
