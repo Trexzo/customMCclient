@@ -20,6 +20,10 @@ public final class Minecraft189AutoWeaponModule implements Module {
     private int selected = -1;
     private int previous = -1;
     private Minecraft189InventoryHotbarControl ownerInventory;
+    // ItemStack wrappers may be replaced by vanilla inventory sync. Retain
+    // the original mapped Item singleton when available, not the wrapper.
+    private Object selectedNativeSwordIdentity;
+    private float selectedSwordBaseDamage = Float.NaN;
 
     @Override public String id() { return ID; }
     @Override public synchronized void onEnable() { enabled = true; }
@@ -72,7 +76,13 @@ public final class Minecraft189AutoWeaponModule implements Module {
         // overwrite a different actual selected slot based on an old read.
         if (!enabled || inventory.customMcSelectedHotbarSlot() != prior)
             return -1;
+        final Object mappedSwordIdentity =
+                items[bestSlot].customMcOriginalItemIdentity();
+        if (!enabled || inventory.customMcSelectedHotbarSlot() != prior)
+            return -1;
         ownerInventory = inventory;
+        selectedNativeSwordIdentity = mappedSwordIdentity;
+        selectedSwordBaseDamage = bestDamage;
         selected = bestSlot;
         previous = prior;
         try {
@@ -108,6 +118,48 @@ public final class Minecraft189AutoWeaponModule implements Module {
         }
     }
 
+    /**
+     * Last source-native admission immediately before Minecraft clickMouse
+     * or PlayerControllerMP.attackEntity. A correct hotbar *index* does not
+     * prove the ItemSword selected earlier still occupies the slot.
+     *
+     * Original Item singleton identity is checked when mapped; a fresh
+     * ItemStack wrapper holding the same source Item remains acceptable.
+     * Null identity is never treated as proof of an unchanged item, so
+     * mapped sword type and finite base damage must still agree.
+     */
+    synchronized boolean ownsVerifiedSwordAtDispatch(
+            final Minecraft189InventoryHotbarControl control,
+            final int original) {
+        if (!enabled || control == null || control != ownerInventory
+                || original < 0 || original != previous || selected < 0
+                || !(control instanceof Minecraft189InventoryHotbarItemsAccess)
+                || control.customMcSelectedHotbarSlot() != selected)
+            return false;
+        final Minecraft189ItemStackAccess[] items =
+                ((Minecraft189InventoryHotbarItemsAccess) control)
+                        .customMcHotbarItems();
+        if (items == null || items.length <= selected)
+            return false;
+        final Minecraft189ItemStackAccess item = items[selected];
+        if (item == null || !item.customMcIsSword()
+                || item.customMcStackSize() < 1)
+            return false;
+        final float baseDamage = item.customMcSwordBaseDamage();
+        if (!Float.isFinite(baseDamage) || baseDamage <= 0.0F
+                || baseDamage != selectedSwordBaseDamage)
+            return false;
+        if (selectedNativeSwordIdentity != null
+                && item.customMcOriginalItemIdentity()
+                        != selectedNativeSwordIdentity)
+            return false;
+        // Native getters may reenter a GUI change, a module disable,
+        // or InventoryPlayer.currentItem. Repeat exact lease checks
+        // after reading the original ItemStack and Item identity.
+        return enabled && control == ownerInventory && original == previous
+                && control.customMcSelectedHotbarSlot() == selected;
+    }
+
     synchronized void restore(final Minecraft189InventoryHotbarControl inventory,
             final int previousSlot) {
         if (inventory == null || inventory != ownerInventory
@@ -123,6 +175,8 @@ public final class Minecraft189AutoWeaponModule implements Module {
 
     private void clearLease() {
         ownerInventory = null;
+        selectedNativeSwordIdentity = null;
+        selectedSwordBaseDamage = Float.NaN;
         selected = -1;
         previous = -1;
     }
