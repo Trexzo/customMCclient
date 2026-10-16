@@ -112,7 +112,12 @@ public final class Minecraft189NoSlowModule
         final int percent = airborne
                 ? airborneSpeedPercent.get().intValue()
                 : speedPercent.get().intValue();
-        return slowedValue * (percent / 20.0F);
+        // Invalid or extreme original movement input cannot authorize a
+        // newly nonfinite local player motion factor. Preserve vanilla
+        // source readback rather than introducing an artificial Infinity.
+        if (!Float.isFinite(slowedValue)) return slowedValue;
+        final float adjusted = slowedValue * (percent / 20.0F);
+        return Float.isFinite(adjusted) ? adjusted : slowedValue;
     }
 
     synchronized boolean active() {

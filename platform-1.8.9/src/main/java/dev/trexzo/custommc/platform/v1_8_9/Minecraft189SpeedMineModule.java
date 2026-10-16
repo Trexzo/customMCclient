@@ -132,6 +132,17 @@ public final class Minecraft189SpeedMineModule
             final Minecraft189BlockMiningControl controller,
             final boolean attackHeld,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        apply(controller, attackHeld, movement, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189BlockMiningControl controller,
+            final boolean attackHeld,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean actualClickGuiOpen) {
+        // A stale original hit-block flag may remain set across menu focus.
+        // UI ownership must never continue artificial break progress.
+        if (actualClickGuiOpen) return;
         if (!enabled
                 || controller == null
                 || !controller.customMcIsHittingBlock()
