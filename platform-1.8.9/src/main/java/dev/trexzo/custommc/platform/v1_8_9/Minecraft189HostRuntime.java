@@ -781,7 +781,8 @@ public final class Minecraft189HostRuntime
                 .adjustHorizontal(
                         before,
                         after,
-                        playerMovementState.snapshot());
+                        playerMovementState.snapshot(),
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     double adjustVelocityVertical(
@@ -792,7 +793,8 @@ public final class Minecraft189HostRuntime
                 .adjustVertical(
                         before,
                         after,
-                        playerMovementState.snapshot());
+                        playerMovementState.snapshot(),
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     void playerJumpControl(
