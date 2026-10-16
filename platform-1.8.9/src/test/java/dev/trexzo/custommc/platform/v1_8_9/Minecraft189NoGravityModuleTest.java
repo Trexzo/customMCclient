@@ -478,6 +478,71 @@ final class Minecraft189NoGravityModuleTest {
         assertNull(modules.find(Minecraft189NoGravityModule.ID));
     }
 
+
+    @Test
+    void sourceGuiFocusVetoesNoGravityWithoutHandingVerticalMotionToFastFall() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            player.motionY = -0.20D;
+            runtime.playerMovementState().update(false, false, false);
+            controller.enable(Minecraft189NoGravityModule.ID);
+            controller.enable(Minecraft189FastFallModule.ID);
+            controller.enable(Minecraft189GlideModule.ID);
+            final Minecraft189NoGravityModule gravity =
+                    runtime.featureCatalog().noGravity();
+            gravity.smoothLiftSetting().set(Boolean.TRUE);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.20D, player.motionY, 0.000000001D,
+                    "GUI focus must preserve original native descent");
+            assertTrue(gravity.active());
+
+            // With No Gravity still owning vertical priority, FastFall and
+            // Glide must not steal the GUI-owned motion callback either.
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertFalse(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerMotionControl(player);
+            assertEquals(-0.10D, player.motionY, 0.000000001D,
+                    "original callback resumes only one configured smooth lift");
+            runtime.playerMotionControl(player);
+            assertEquals(0.0D, player.motionY, 0.000000001D);
+
+            // Re-open the same original GUI: never advance smoothing while
+            // another input owner has focus.
+            player.motionY = -0.25D;
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(-0.25D, player.motionY, 0.000000001D);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;
