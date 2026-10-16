@@ -815,9 +815,12 @@ public final class Minecraft189HostRuntime
         final boolean bunnyHopActive =
                 featureCatalog.bunnyHop()
                         .active();
+        final boolean actualClickGuiOpen =
+                clickGuiRuntime.coreRuntime().model().snapshot().open();
         final boolean movementJumpSuspended =
-                featureCatalog.freeze()
-                        .active()
+                actualClickGuiOpen
+                        || featureCatalog.freeze()
+                                .active()
                         || featureCatalog.flight()
                                 .active();
         // Combat Jump Reset consumes only a fresh mapped local hurt edge.
@@ -828,8 +831,7 @@ public final class Minecraft189HostRuntime
                 inputState.keyPressed(LegacyKeyboardCodes.W),
                 movementJumpSuspended || longJumpActive || highJumpActive
                         || lowHopActive || bunnyHopActive
-                        || featureCatalog.airJump().active()
-                        || clickGuiRuntime.coreRuntime().model().snapshot().open())) {
+                        || featureCatalog.airJump().active())) {
             return;
         }
         featureCatalog.longJump()
@@ -857,7 +859,8 @@ public final class Minecraft189HostRuntime
                         movementJumpSuspended
                                 || longJumpActive
                                 || highJumpActive
-                                || lowHopActive);
+                                || lowHopActive,
+                        actualClickGuiOpen);
         if (!longJumpActive
                 && !highJumpActive
                 && !lowHopActive
@@ -871,13 +874,13 @@ public final class Minecraft189HostRuntime
                                     || inputState.keyPressed(LegacyKeyboardCodes.A)
                                     || inputState.keyPressed(LegacyKeyboardCodes.S)
                                     || inputState.keyPressed(LegacyKeyboardCodes.D),
-                            clickGuiRuntime.coreRuntime().model().snapshot().open());
+                            actualClickGuiOpen);
         }
         featureCatalog.airJump()
                 .apply(
                         player,
                         movement,
-                        clickGuiRuntime.coreRuntime().model().snapshot().open());
+                        actualClickGuiOpen);
     }
 
     void playerStepControl(
@@ -940,6 +943,8 @@ public final class Minecraft189HostRuntime
                 playerRotationState.snapshot();
         final Minecraft189PlayerMovementState.Snapshot movement =
                 playerMovementState.snapshot();
+        final boolean actualClickGuiOpen =
+                clickGuiRuntime.coreRuntime().model().snapshot().open();
         final boolean flightActive =
                 featureCatalog.flight()
                         .active();
@@ -960,56 +965,37 @@ public final class Minecraft189HostRuntime
         final boolean lowHopActive =
                 featureCatalog.lowHop()
                         .active();
+        // CustomMC GUI focus is a common priority veto for keyboard-driven
+        // movement. Do not only suspend Flight: lower-priority policies
+        // would otherwise overwrite native motion with stale held W/A/S/D.
+        // Feed the existing suspended inputs so one-shot pending impulses
+        // are consumed without a delayed replay when the GUI closes.
         final boolean longJumpOwnsHorizontal =
-                featureCatalog.longJump()
-                        .applyMotion(
-                                player,
-                                rotation,
-                                flightActive);
-        featureCatalog.highJump()
-                .applyMotion(
-                        player,
-                        flightActive
-                                || longJumpActive);
-        featureCatalog.lowHop()
-                .applyMotion(
-                        player,
-                        flightActive
-                                || longJumpActive
-                                || highJumpActive);
+                featureCatalog.longJump().applyMotion(
+                        player, rotation,
+                        flightActive || actualClickGuiOpen);
+        featureCatalog.highJump().applyMotion(
+                player, flightActive || longJumpActive || actualClickGuiOpen);
+        featureCatalog.lowHop().applyMotion(
+                player, flightActive || longJumpActive || highJumpActive
+                        || actualClickGuiOpen);
         final boolean bunnyHopOwnsHorizontal =
-                featureCatalog.bunnyHop()
-                        .applyMotion(
-                                player,
-                                rotation,
-                                flightActive
-                                        || longJumpActive
-                                        || highJumpActive
-                                        || lowHopActive);
+                featureCatalog.bunnyHop().applyMotion(
+                        player, rotation,
+                        flightActive || longJumpActive || highJumpActive
+                                || lowHopActive || actualClickGuiOpen);
         final boolean movementSpeedOwnsHorizontal =
-                featureCatalog.movementSpeed()
-                        .apply(
-                                player,
-                                movement,
-                                rotation,
-                                flightActive
-                                        || longJumpOwnsHorizontal
-                                        || bunnyHopOwnsHorizontal);
+                featureCatalog.movementSpeed().apply(
+                        player, movement, rotation,
+                        flightActive || longJumpOwnsHorizontal
+                                || bunnyHopOwnsHorizontal || actualClickGuiOpen);
         final boolean airSpeedOwnsHorizontal =
-                featureCatalog.airSpeed()
-                        .apply(
-                                player,
-                                movement,
-                                rotation,
-                                flightActive
-                                        || longJumpOwnsHorizontal
-                                        || bunnyHopOwnsHorizontal);
-        featureCatalog.flight()
-                .apply(
-                        player,
-                        rotation,
-                        movement,
-                        clickGuiRuntime.coreRuntime().model().snapshot().open());
+                featureCatalog.airSpeed().apply(
+                        player, movement, rotation,
+                        flightActive || longJumpOwnsHorizontal
+                                || bunnyHopOwnsHorizontal || actualClickGuiOpen);
+        featureCatalog.flight().apply(
+                player, rotation, movement, actualClickGuiOpen);
         final boolean horizontalOwnerActive = flightActive
                 || longJumpOwnsHorizontal || bunnyHopOwnsHorizontal
                 || movementSpeedOwnsHorizontal || airSpeedOwnsHorizontal;
@@ -1017,11 +1003,11 @@ public final class Minecraft189HostRuntime
                 .apply(player, playerPositionState.snapshot(),
                         nearestPlayerTargetState.snapshot(), movement,
                         inputState.keyPressed(LegacyKeyboardCodes.W),
-                        horizontalOwnerActive);
-        featureCatalog.strafe()
-                .apply(player, rotation,
-                        horizontalOwnerActive || targetStrafeOwnsHorizontal,
-                        movement);
+                        horizontalOwnerActive || actualClickGuiOpen);
+        featureCatalog.strafe().apply(
+                player, rotation,
+                horizontalOwnerActive || targetStrafeOwnsHorizontal
+                        || actualClickGuiOpen, movement);
         final boolean reverseStepOwnsVertical =
                 featureCatalog.reverseStep()
                         .apply(
@@ -1059,7 +1045,7 @@ public final class Minecraft189HostRuntime
                                 || fastFallActive,
                         clickGuiRuntime.coreRuntime().model().snapshot().open());
         featureCatalog.damageBoost()
-                .apply(player, hurtTime, flightActive);
+                .apply(player, hurtTime, flightActive || actualClickGuiOpen);
         if (player != null) {
             // Read the final mapped motion after movement policies apply.
             criticalsEvidence.motion(player.customMcMotionY());

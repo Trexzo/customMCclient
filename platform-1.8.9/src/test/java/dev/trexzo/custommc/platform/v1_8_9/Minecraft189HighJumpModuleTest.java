@@ -343,6 +343,64 @@ final class Minecraft189HighJumpModuleTest {
         assertNull(modules.find(Minecraft189HighJumpModule.ID));
     }
 
+
+    @Test
+    void originalGuiHeldSpaceCannotReplayHighLowOrLongJump() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            runtime.playerMovementState().update(true, false, false);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            final String[] ids = {
+                    Minecraft189HighJumpModule.ID,
+                    Minecraft189LowHopModule.ID,
+                    Minecraft189LongJumpModule.ID
+            };
+            for (final String id : ids) {
+                runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+                controller.enable(id);
+                final int initialJumps = player.jumpCalls;
+                runtime.clickGuiToggleController().key(
+                        Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                        true, false);
+                runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+                runtime.playerJumpControl(player);
+                assertEquals(initialJumps, player.jumpCalls,
+                        id + " cannot jump inside original GUI");
+
+                runtime.clickGuiToggleController().key(
+                        Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                        true, false);
+                runtime.playerJumpControl(player);
+                assertEquals(initialJumps, player.jumpCalls,
+                        id + " cannot replay UI-owned held Space on GUI close");
+
+                runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+                runtime.playerJumpControl(player);
+                runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+                runtime.playerJumpControl(player);
+                assertEquals(initialJumps + 1, player.jumpCalls,
+                        id + " permits one genuinely new source Space edge");
+                controller.disable(id);
+            }
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerJumpControl,
             Minecraft189PlayerMotionControl {

@@ -387,6 +387,66 @@ final class Minecraft189LongJumpModuleTest {
         assertNull(modules.find(Minecraft189LongJumpModule.ID));
     }
 
+
+    @Test
+    void originalGuiConsumesPendingLongJumpHorizontalBoostWithoutReplay() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            player.motionX = 0.10D;
+            player.motionZ = -0.12D;
+            runtime.playerRotationState().update(0.0F);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            controller.enable(Minecraft189LongJumpModule.ID);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+
+            // A normal source player jump armed one subsequent horizontal
+            // boost; opening GUI before the motion callback consumes it.
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.10D, player.motionX, 0.000001D);
+            assertEquals(-0.12D, player.motionZ, 0.000001D);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.10D, player.motionX, 0.000001D);
+            assertEquals(-0.12D, player.motionZ, 0.000001D,
+                    "pre-GUI LongJump boost cannot be replayed afterward");
+
+            // New real release and grounded Space press creates a new
+            // one-shot horizontal boost through the ordinary player hook.
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            runtime.playerJumpControl(player);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            assertEquals(2, player.jumpCalls);
+            runtime.playerMotionControl(player);
+            assertTrue(player.motionZ > 0.0D);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerJumpControl,
             Minecraft189PlayerMotionControl {

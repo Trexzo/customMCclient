@@ -106,9 +106,23 @@ public final class Minecraft189BunnyHopModule
             final Minecraft189PlayerJumpControl player,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean suspended) {
-        Objects.requireNonNull(
-                movement,
-                "movement");
+        applyJump(player, movement, suspended, false);
+    }
+
+    synchronized void applyJump(
+            final Minecraft189PlayerJumpControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean suspended,
+            final boolean actualClickGuiOpen) {
+        Objects.requireNonNull(movement, "movement");
+        // Discard the old grounded jump lease even if the GUI was opened
+        // while airborne. Merely suspending one callback leaves 'armed'
+        // true and could replay an old W hold after menu close.
+        if (actualClickGuiOpen) {
+            armed = false;
+            resetLandingDelay();
+            return;
+        }
         if (!enabled
                 || player == null
                 || !movement.available()) {
