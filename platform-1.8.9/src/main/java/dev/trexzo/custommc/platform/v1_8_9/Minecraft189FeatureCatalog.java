@@ -1957,6 +1957,27 @@ public final class Minecraft189FeatureCatalog
      * of setting the module's internal enabled flag. Without the explicit
      * acceptance property no code may call this method successfully.
      */
+    /**
+     * Isolated original Mojang PvP acceptance. The module starts DISABLED;
+     * actual repeated raycast player callbacks enable it through the normal
+     * ModuleController. No direct setters on player, World or input.
+     */
+    void enableTriggerBotForOfficialRealPlayerAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.reportTriggerBotRealPvp"))
+            throw new IllegalStateException("TriggerBot original PvP fixture not armed");
+        if (moduleController.stateOf(Minecraft189TriggerBotModule.ID)
+                != ModuleState.DISABLED
+                || killAura().active() || autoClicker().active())
+            throw new IllegalStateException("TriggerBot isolation/control failed");
+        // Preserve normal min/max CPS and 2-tick target confirmation.
+        moduleController.enable(Minecraft189TriggerBotModule.ID);
+        if (!triggerBot().active()
+                || moduleController.stateOf(Minecraft189TriggerBotModule.ID)
+                        != ModuleState.ENABLED)
+            throw new IllegalStateException("original TriggerBot enable failed");
+    }
+
     void enableAutoClickerForOfficialAcceptance() {
         requireOpen();
         if (!Boolean.getBoolean("custommc.acceptance.reportAutoClicker")) {
