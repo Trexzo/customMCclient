@@ -178,6 +178,96 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         assertEquals(4, inventory.selected);
     }
 
+
+    @Test void originalRodRequiresSameValidItemAgainImmediatelyBeforeUse() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        rod.onEnable();
+        try {
+            inventory.selected = 4;
+            player.items[1] = new FakeItem(true, false, 1);
+            final int original = Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player);
+            assertEquals(4, original);
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, original));
+
+            // Source stack may change between first verification and
+            // AutoBlock's stopUsingItem callback; exact mapped type and
+            // count must still be valid at the final use boundary.
+            player.items[1] = new FakeItem(false, true, 1);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, original));
+            player.items[1] = new FakeItem(true, false, 0);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, original));
+            player.items[1] = new FakeItem(true, false, 1);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, 3),
+                    "a foreign original-slot token cannot spend this lease");
+            inventory.selected = 6;
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, original));
+            rod.restoreSlot(inventory, original);
+            assertEquals(6, inventory.selected,
+                    "the original user's new slot must never be restored away");
+            inventory.selected = 4;
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
+            rod.onDisable();
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, 4));
+            rod.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            rod.onDisable();
+        }
+    }
+
+    @Test void originalPotionUseRechecksAfterNativeGetterReentrancy() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        pot.onEnable();
+        try {
+            inventory.selected = 4;
+            player.items[2] = new FakeItem(false, true, 1);
+            final int original = Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player);
+            assertEquals(4, original);
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, original));
+            final Minecraft189PlayerHeldItemAccess changedDuringGet = () -> {
+                inventory.selected = 7;
+                return new FakeItem(false, true, 1);
+            };
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, changedDuringGet, original),
+                    "a later user slot change invalidates even a valid potion");
+            assertEquals(7, inventory.selected);
+            pot.restoreSlot(inventory, original);
+            assertEquals(7, inventory.selected);
+
+            inventory.selected = 4;
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            player.items[2] = new FakeItem(false, true, -1);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4));
+            player.items[2] = new FakeItem(true, false, 1);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4));
+            player.items[2] = new FakeItem(false, true, 1);
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4));
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            pot.onDisable();
+        }
+    }
+
     private static final class Inventory implements Minecraft189InventoryHotbarControl {
         int selected;
         @Override public int customMcSelectedHotbarSlot() { return selected; }
