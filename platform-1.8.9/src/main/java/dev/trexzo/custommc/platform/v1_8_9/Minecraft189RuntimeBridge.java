@@ -13,6 +13,9 @@ public final class Minecraft189RuntimeBridge {
     // and Auto Clicker attacks do not set it; every Aura call clears in finally.
     private static final ThreadLocal<UUID> auraDispatchUuid =
             new ThreadLocal<UUID>();
+    // Separate original-controller dispatch ownership for TriggerBot.
+    private static final ThreadLocal<UUID> triggerDispatchUuid =
+            new ThreadLocal<UUID>();
     // M423 acceptance witness only; the ordinary production gate below
     // remains unchanged and active for both locked and unlocked Aura.
     private static boolean acceptanceUnlockedOwnerVetoReported;
@@ -92,6 +95,7 @@ public final class Minecraft189RuntimeBridge {
         }
         activeRuntime = next;
         auraDispatchUuid.remove();
+        triggerDispatchUuid.remove();
         acceptanceUnlockedOwnerVetoReported = false;
         acceptanceUnlockedOwnerFreshReported = false;
         acceptanceUnlockedRemoteUuid = null;
@@ -2542,13 +2546,49 @@ public final class Minecraft189RuntimeBridge {
                         // Invoke Mojang PlayerControllerMP.attackEntity using
                         // the actual live crosshair entity instead. All
                         // native target/rotation/range gating above remains.
+                        final boolean triggerOwnedPlayerAttack =
+                                playerHit && playerIndex >= 0
+                                && host.featureCatalog().triggerBot().active()
+                                && !host.featureCatalog().killAura().active()
+                                && !host.featureCatalog().autoClicker().active();
                         final boolean auraOwnedPlayerAttack =
                                 playerHit && playerIndex >= 0
                                 && host.featureCatalog().killAura().active()
                                 && host.targetRotationState().snapshot().available()
                                 && host.targetRotationState().snapshot()
                                         .entityIndex() == playerIndex;
-                        if (auraOwnedPlayerAttack) {
+                        if (triggerOwnedPlayerAttack) {
+                            // Stale original clickMouse leftClickCounter may
+                            // be 10000 after a server teleport: do not fake
+                            // physical mouse input or bypass the native game
+                            // controller. Bind the live original raycast
+                            // UUID to its real attackEntity argument.
+                            final Minecraft189WorldEntityUuidState.Snapshot ids =
+                                    host.worldEntityUuidState().snapshot();
+                            final Minecraft189WorldEntityKindState.Snapshot kinds =
+                                    host.worldEntityKindState().snapshot();
+                            if (!ids.available() || !kinds.available()
+                                    || ids.entityCount() != kinds.entityCount()
+                                    || playerIndex >= ids.entityCount()
+                                    || !kinds.player(playerIndex)
+                                    || kinds.localPlayer(playerIndex))
+                                throw new IllegalStateException(
+                                        "TriggerBot dispatch lacks original remote UUID");
+                            final UUID sourceUuid = ids.at(playerIndex);
+                            if (sourceUuid == null)
+                                throw new IllegalStateException(
+                                        "TriggerBot dispatch has null source UUID");
+                            if (Boolean.getBoolean(
+                                    "custommc.acceptance.reportTriggerBotRealPvp"))
+                                Minecraft189VanillaMeleeAcceptance.onNativeClick(
+                                        minecraft);
+                            triggerDispatchUuid.set(sourceUuid);
+                            try {
+                                minecraft.customMcAttackCrosshairEntity();
+                            } finally {
+                                triggerDispatchUuid.remove();
+                            }
+                        } else if (auraOwnedPlayerAttack) {
                             if (Boolean.getBoolean(
                                     "custommc.acceptance.reportKillAuraLocalPvp")) {
                                 // Bind the exact same real entity and zero
@@ -2727,6 +2767,22 @@ public final class Minecraft189RuntimeBridge {
             final Object controller, final Object player,
             final Object entity) {
         final UUID expected = auraDispatchUuid.get();
+        final UUID expectedTrigger = triggerDispatchUuid.get();
+        if (expectedTrigger != null) {
+            // Fail BEFORE vanilla ATTACK packet side effects if the current
+            // original controller argument differs from the owned ray UUID.
+            final UUID actual =
+                    entity instanceof Minecraft189NativeEntityUuidAccess
+                    ? ((Minecraft189NativeEntityUuidAccess) entity)
+                            .customMcNativeEntityUuid() : null;
+            if (!expectedTrigger.equals(actual) || expected != null
+                    || activeRuntime == null || !activeRuntime.hostInstalled()
+                    || !activeRuntime.requireHostRuntime().featureCatalog()
+                            .triggerBot().active()
+                    || activeRuntime.requireHostRuntime().featureCatalog()
+                            .killAura().active())
+                return false;
+        }
         // A real vanilla mouse click must reach the native controller
         // WITHOUT the Kill Aura-only thread-local owner. Do not claim this
         // from the click callback alone: require the actual mapped entity.
