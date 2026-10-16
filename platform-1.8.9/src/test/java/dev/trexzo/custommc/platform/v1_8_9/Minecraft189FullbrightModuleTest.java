@@ -88,11 +88,44 @@ final class Minecraft189FullbrightModuleTest {
                 settings.gammaSetting());
     }
 
+    @Test
+    void externalGammaChangeWinsOverOldModuleSetting() {
+        final RecordingSettings settings = new RecordingSettings(0.35F);
+        final Minecraft189FullbrightModule module =
+                new Minecraft189FullbrightModule(settings);
+        module.onEnable();
+        settings.gammaSetting(1.25F); // user changes slider while enabled
+        module.onDisable();
+        assertEquals(1.25F, settings.gammaSetting(),
+                "disabling must not overwrite latest user gamma");
+        assertFalse(module.active());
+    }
+
+    @Test
+    void setterThrowsAfterMutationAndOriginalGammaIsRestored() {
+        final RecordingSettings settings = new RecordingSettings(0.45F);
+        final Minecraft189FullbrightModule module =
+                new Minecraft189FullbrightModule(settings);
+        settings.throwAfterGammaWrite = true;
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class, module::onEnable);
+        assertFalse(module.active(),
+                "failed native enable must never appear successfully enabled");
+        assertEquals(0.45F, settings.gammaSetting(),
+                "partial native gamma write must roll back");
+        module.onEnable();
+        assertEquals(Minecraft189FullbrightModule.fullbrightGamma(),
+                settings.gammaSetting());
+        module.onDisable();
+        assertEquals(0.45F, settings.gammaSetting());
+    }
+
     private static final class RecordingSettings
             implements Minecraft189GuiSettingsAccess {
         private boolean viewBobbing = true;
         private float fov = 70.0F;
         private float gamma;
+        private boolean throwAfterGammaWrite;
 
         private RecordingSettings(
                 final float gamma) {
@@ -130,6 +163,10 @@ final class Minecraft189FullbrightModuleTest {
         public void gammaSetting(
                 final float value) {
             gamma = value;
+            if (throwAfterGammaWrite) {
+                throwAfterGammaWrite = false;
+                throw new IllegalStateException("original settings gamma setter failed");
+            }
         }
 
         @Override
