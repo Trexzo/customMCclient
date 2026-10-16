@@ -82,14 +82,14 @@ class NativeKeyboardSourceTest(unittest.TestCase):
             self.read(contents + PREFIX + b" step=4 x=16.01 y=100.0 z=8.5\n", 4)
 
     def test_fifth_original_controller_source_and_duplicate_rejection(self):
-        contents = (PREFIX + b" step=1 x=1.05 y=100 z=.5\n"
-                    + PREFIX + b" step=2 x=2.10 y=100 z=.5\n"
-                    + PREFIX + b" step=3 x=3.15 y=100 z=.5\n"
-                    + PREFIX + b" step=4 x=4.20 y=100 z=.5\n"
-                    + PREFIX + b" step=5 x=5.25 y=100 z=.5\n")
+        contents = (PREFIX + b" step=1 x=1.05 y=100 z=0.5\n"
+                    + PREFIX + b" step=2 x=2.10 y=100 z=0.5\n"
+                    + PREFIX + b" step=3 x=3.15 y=100 z=0.5\n"
+                    + PREFIX + b" step=4 x=4.20 y=100 z=0.5\n"
+                    + PREFIX + b" step=5 x=5.25 y=100 z=0.5\n")
         self.assertEqual((5.25, 100.0, 0.5), self.read(contents, 5))
         with self.assertRaisesRegex(AssertionError, "missing/duplicate"):
-            self.read(contents + PREFIX + b" step=5 x=5.25 y=100 z=.5\n", 5)
+            self.read(contents + PREFIX + b" step=5 x=5.25 y=100 z=0.5\n", 5)
 
     def test_step_must_be_a_genuine_five_position_mode(self):
         with self.assertRaises(ValueError):
