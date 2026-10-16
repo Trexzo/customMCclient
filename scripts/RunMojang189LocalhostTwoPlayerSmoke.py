@@ -480,7 +480,7 @@ def client_command(args, game, username, uuid, port, remote):
                 if args.scaffold_placement == "production-repeat-two-keyboard-walk":
                     command.insert(command.index("-cp"),
                                    "-Dcustommc.acceptance.requireProductionScaffoldKeyboardWalkProof=true")
-            if args.scaffold_placement in ("production-repeat-three", "production-repeat-three-history", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk"):
+            if args.scaffold_placement in ("production-repeat-three", "production-repeat-three-history", "production-repeat-three-keyboard-walk"):
                 command.insert(command.index("-cp"),
                                "-Dcustommc.acceptance.requireProductionScaffoldThreeBlockProof=true")
                 if args.scaffold_placement == "production-repeat-three-keyboard-walk":
@@ -1359,9 +1359,51 @@ def run(args):
                         send_server_command(server, server_log,
                                             "clear CIHost stone 0 0",
                                             expected=b"has 5 items that match the criteria")
-                        send_server_command(server, server_log,
-                                            "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
-                                                x+4.05, y, z+.5))
+                        if not four_keyboard_walk:
+                            send_server_command(server, server_log,
+                                                "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                                    x+4.05, y, z+.5))
+                        else:
+                            # V66 actual Shift+S motion from third original
+                            # native click source to fourth; never a server TP.
+                            third_source = source_native_scaffold_position(host_log, 3)
+                            fourth_sneak = fourth_backward = False
+                            try:
+                                set_original_host_sneak_key(host, host_window, True)
+                                fourth_sneak = True
+                                set_original_host_backward_key(host, host_window, True)
+                                fourth_backward = True
+                                fourth_deadline = min(deadline, time.monotonic() + 9.0)
+                                fourth_expected = (repeat_attempt
+                                    + b" step=4 accepted=true target="
+                                    + "{},{},{}".format(*fourth_target_xyz).encode())
+                                while time.monotonic() < fourth_deadline:
+                                    actual = latest_original_native_local_player_position(
+                                        host_log)
+                                    if actual is not None and (
+                                            abs(actual[2] - third_source[2]) > .65
+                                            or actual[1] < third_source[1] - .42
+                                            or actual[0] > third_source[0] + 1.80):
+                                        raise AssertionError(
+                                            "physical C-to-D traversal lost native"
+                                            " support C={} now={}".format(
+                                                third_source, actual))
+                                    if fourth_expected in log_tail(host_log):
+                                        break
+                                    time.sleep(.035)
+                                else:
+                                    raise AssertionError(
+                                        "no original fourth controller click"
+                                        " during physical C-to-D input")
+                            finally:
+                                try:
+                                    if fourth_backward:
+                                        set_original_host_backward_key(
+                                            host, host_window, False)
+                                finally:
+                                    if fourth_sneak:
+                                        set_original_host_sneak_key(
+                                            host, host_window, False)
                         fourth_attempt = (repeat_attempt
                             + b" step=4 accepted=true target="
                             + "{},{},{}".format(*fourth_target_xyz).encode())
@@ -1373,6 +1415,28 @@ def run(args):
                                  b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
                                  b"FOUR_CLIENT_RECEIPTS_PASS=YES attempts=4",
                                  deadline, "four positive original receipts and native clicks")
+                        if four_keyboard_walk:
+                            fourth_source = source_native_scaffold_position(host_log, 4)
+                            native_fourth = re.compile(
+                                rb"CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_"
+                                rb"ORIGINAL_SOURCE_POSITION step=4 "
+                                rb"x=(-?\d+(?:\.\d+)?) y=(-?\d+(?:\.\d+)?) "
+                                rb"z=(-?\d+(?:\.\d+)?) onGround=true sneaking=true")
+                            if len(native_fourth.findall(log_tail(host_log, 200000))) != 1:
+                                raise AssertionError("fourth native controller not grounded+sneaking")
+                            if not (third_source[0] + .45 <= fourth_source[0]
+                                    <= third_source[0] + 1.80
+                                    and abs(fourth_source[1] - third_source[1]) <= .35
+                                    and abs(fourth_source[2] - third_source[2]) <= .55):
+                                raise AssertionError(
+                                    "fourth original source didn't move via keys"
+                                    " C={} D={}".format(third_source, fourth_source))
+                            print(
+                                "CUSTOMMC_OFFICIAL_189_SCAFFOLD_FOUR_REAL_KEYBOARD_LEGS_PASS=YES"
+                                " A={} B={} C={} D={}".format(
+                                    first_source[0], second_source[0],
+                                    third_source[0], fourth_source[0]),
+                                flush=True)
                         expected_attempts = 4
                         expected_targets = (
                             target_xyz, second_target_xyz,
@@ -1403,12 +1467,13 @@ def run(args):
                         send_server_command(server, server_log,
                                             "testforblock {} {} {} air".format(*third_target_xyz),
                                             expected=b"successfully found the block")
-                    else:
+                    elif not four_keyboard_walk:
                         send_server_command(server, server_log,
                                             "testforblock {} {} {} air".format(*fourth_target_xyz),
                                             expected=b"successfully found the block")
                     print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_REAL_KEYBOARD_"
-                          + ("SERVER_THREE_STONE_FIVE_PASS=YES" if three_keyboard_walk
+                          + ("SERVER_FOUR_STONE_FOUR_PASS=YES" if four_keyboard_walk
+                             else "SERVER_THREE_STONE_FIVE_PASS=YES" if three_keyboard_walk
                              else "SERVER_TWO_STONE_SIX_PASS=YES"), flush=True)
                 print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_"
                       + repeat_marker.decode("ascii")
