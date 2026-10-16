@@ -87,6 +87,84 @@ final class Minecraft189CombatSlotHostLeaseTest {
         }
     }
 
+
+    @Test void autoWeaponSourceSwordReverifiedAtActualNativeAttackDispatch() {
+        final Harness harness = new Harness();
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 3;
+            final Object nativeSword = new Object();
+            inventory.items[6] = new Item(true, 8.0F, 1, nativeSword);
+            final Player original = new Player(inventory);
+            harness.controller.enable(Minecraft189AutoWeaponModule.ID);
+            harness.runtime.playerHotbarSlot(original);
+            assertEquals(3, harness.runtime.selectCombatSlotBeforeSyntheticClick(true));
+            assertEquals(6, inventory.selected);
+            assertTrue(harness.runtime.mayDispatchSyntheticMelee(3));
+
+            // Vanilla inventory synchronization may replace the whole
+            // ItemStack wrapper with a new wrapper for the SAME Item.
+            inventory.items[6] = new Item(true, 8.0F, 1, nativeSword);
+            assertTrue(harness.runtime.mayDispatchSyntheticMelee(3));
+            inventory.items[6] = new Item(false, 8.0F, 1, nativeSword);
+            assertFalse(harness.runtime.mayDispatchSyntheticMelee(3),
+                    "non-sword in correct selected slot must never attack");
+            inventory.items[6] = new Item(true, 8.0F, 0, nativeSword);
+            assertFalse(harness.runtime.mayDispatchSyntheticMelee(3),
+                    "depleted source ItemStack is not a sword attack");
+            inventory.items[6] = new Item(true, 9.0F, 1, nativeSword);
+            assertFalse(harness.runtime.mayDispatchSyntheticMelee(3),
+                    "changed mapped source base damage revokes admission");
+            inventory.items[6] = new Item(true, 8.0F, 1, new Object());
+            assertFalse(harness.runtime.mayDispatchSyntheticMelee(3),
+                    "different native Item singleton cannot borrow sword lease");
+            inventory.items[6] = new Item(true, 8.0F, 1, nativeSword);
+            assertTrue(harness.runtime.mayDispatchSyntheticMelee(3));
+            harness.runtime.restoreCombatSlotAfterSyntheticClick(3);
+            assertEquals(3, inventory.selected);
+            assertTrue(harness.runtime.mayDispatchSyntheticMelee(-1));
+        } finally {
+            harness.close();
+        }
+    }
+
+    @Test void reentrantOriginalItemReadCannotAuthorizeStaleSwordOrGuiFocus() {
+        final Harness harness = new Harness();
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 3;
+            inventory.items[6] = new Item(true, 8.0F);
+            final Player original = new Player(inventory);
+            harness.controller.enable(Minecraft189AutoWeaponModule.ID);
+            harness.runtime.playerHotbarSlot(original);
+            assertEquals(3, harness.runtime.selectCombatSlotBeforeSyntheticClick(true));
+            inventory.afterItemsRead = () -> inventory.selected = 7;
+            assertFalse(harness.runtime.mayDispatchSyntheticMelee(3),
+                    "source getter changed native currentItem during verification");
+            harness.runtime.restoreCombatSlotAfterSyntheticClick(3);
+            assertEquals(7, inventory.selected,
+                    "original user-selected slot must survive denied dispatch");
+
+            inventory.selected = 3;
+            assertEquals(3, harness.runtime.selectCombatSlotBeforeSyntheticClick(true));
+            inventory.afterItemsRead = () ->
+                    harness.runtime.clickGuiToggleController().key(
+                            Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                            true, false);
+            assertFalse(harness.runtime.mayDispatchSyntheticMelee(3),
+                    "GUI opened inside actual ItemStack read revokes attack");
+            assertEquals(6, inventory.selected);
+            harness.runtime.restoreCombatSlotAfterSyntheticClick(3);
+            assertEquals(3, inventory.selected);
+            harness.runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertTrue(harness.runtime.mayDispatchSyntheticMelee(-1));
+        } finally {
+            harness.close();
+        }
+    }
+
     private static final class Harness {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -111,6 +189,7 @@ final class Minecraft189CombatSlotHostLeaseTest {
     private static final class Inventory
             implements Minecraft189InventoryHotbarItemsAccess {
         int selected;
+        Runnable afterItemsRead;
         final Minecraft189ItemStackAccess[] items =
                 new Minecraft189ItemStackAccess[9];
         @Override public int customMcSelectedHotbarSlot() { return selected; }
@@ -118,6 +197,9 @@ final class Minecraft189CombatSlotHostLeaseTest {
             selected = value;
         }
         @Override public Minecraft189ItemStackAccess[] customMcHotbarItems() {
+            final Runnable callback = afterItemsRead;
+            afterItemsRead = null;
+            if (callback != null) callback.run();
             return items;
         }
     }
@@ -133,9 +215,22 @@ final class Minecraft189CombatSlotHostLeaseTest {
     private static final class Item implements Minecraft189ItemStackAccess {
         final boolean sword;
         final float damage;
-        Item(boolean sword, float damage) { this.sword = sword; this.damage = damage; }
+        final int count;
+        final Object originalNativeItem;
+        Item(boolean sword, float damage) {
+            this(sword, damage, 1, new Object());
+        }
+        Item(boolean sword, float damage, int count, Object originalNativeItem) {
+            this.sword = sword;
+            this.damage = damage;
+            this.count = count;
+            this.originalNativeItem = originalNativeItem;
+        }
         @Override public String customMcDisplayName() { return "source"; }
-        @Override public int customMcStackSize() { return 1; }
+        @Override public int customMcStackSize() { return count; }
+        @Override public Object customMcOriginalItemIdentity() {
+            return originalNativeItem;
+        }
         @Override public int customMcItemDamage() { return 0; }
         @Override public int customMcMaxDamage() { return 0; }
         @Override public boolean customMcIsSword() { return sword; }
