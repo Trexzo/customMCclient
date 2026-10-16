@@ -27,6 +27,61 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189AutoJumpModuleTest {
     @Test
+    void optionalNativeSprintingGateWaitsForRealSprintingAndRespectsLandings() {
+        final Minecraft189AutoJumpModule module = new Minecraft189AutoJumpModule();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        final int[] calls = {0};
+        final Minecraft189PlayerJumpControl player = () -> calls[0]++;
+        assertFalse(module.requireSprintingSetting().get());
+        module.requireSprintingSetting().set(Boolean.TRUE);
+        module.onEnable();
+        try {
+            movement.update(true, false, false);
+            module.apply(player, movement.snapshot(), true);
+            assertEquals(0, calls[0], "grounded without native sprint must not jump");
+            movement.update(true, false, true);
+            module.apply(player, movement.snapshot(), true);
+            assertEquals(1, calls[0]);
+            module.apply(player, movement.snapshot(), true);
+            assertEquals(1, calls[0], "one jump per original ground contact");
+            movement.update(false, false, false);
+            module.apply(player, movement.snapshot(), true);
+            movement.update(true, false, false);
+            module.apply(player, movement.snapshot(), true);
+            assertEquals(1, calls[0]);
+            movement.update(true, false, true);
+            module.apply(player, movement.snapshot(), true);
+            assertEquals(2, calls[0], "true mapped sprint qualifies same ground contact");
+        } finally { module.onDisable(); }
+    }
+
+    @Test
+    void failingNativeJumpConsumesItsGroundedLease() {
+        final Minecraft189AutoJumpModule module = new Minecraft189AutoJumpModule();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        final int[] calls = {0};
+        final Minecraft189PlayerJumpControl failing = () -> {
+            calls[0]++;
+            throw new IllegalStateException("source Minecraft player rejected jump");
+        };
+        module.onEnable();
+        try {
+            movement.update(true, false, true);
+            assertThrows(IllegalStateException.class,
+                    () -> module.apply(failing, movement.snapshot(), true));
+            module.apply(failing, movement.snapshot(), true);
+            assertEquals(1, calls[0],
+                    "failed original jump must never replay on same grounded contact");
+            movement.update(false, false, true);
+            module.apply(failing, movement.snapshot(), true);
+            movement.update(true, false, true);
+            assertThrows(IllegalStateException.class,
+                    () -> module.apply(failing, movement.snapshot(), true));
+            assertEquals(2, calls[0], "a new airborne->ground cycle is required");
+        } finally { module.onDisable(); }
+    }
+
+    @Test
     void autoJumpFiresOncePerGroundContactAndStopsOnDisable() {
         final ModuleRegistry modules =
                 new ModuleRegistry();
