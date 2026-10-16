@@ -898,7 +898,8 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerFallDistanceControl player) {
         requireOpen();
         featureCatalog.noFall()
-                .apply(player, playerMovementState.snapshot());
+                .apply(player, playerMovementState.snapshot(),
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
         if (player != null) {
             criticalsEvidence.fall(player.customMcFallDistance());
         }
@@ -910,7 +911,8 @@ public final class Minecraft189HostRuntime
         featureCatalog.noWeb()
                 .apply(
                         player,
-                        playerMovementState.snapshot());
+                        playerMovementState.snapshot(),
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     void playerNoClipControl(
