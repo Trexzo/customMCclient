@@ -128,6 +128,46 @@ final class Minecraft189RejoinTargetAcceptance {
         final boolean indexed = originalPlayerHit && originalHitIndex >= 0
                 && ids.available() && originalHitIndex < ids.entityCount();
         final UUID actualRayUuid = indexed ? ids.at(originalHitIndex) : null;
+        // V62 READ-ONLY: determine why a source-native exact B rotation
+        // sometimes has no true original vanilla objectMouseOver hit. Match
+        // B via its CURRENT original UUID, never its old entity-list index.
+        // A correct target yaw alone is not proof that the genuine ray
+        // intersects the target's vertical collision box.
+        final Minecraft189WorldEntityPositionState.Snapshot positions =
+                host.worldEntityPositionState().snapshot();
+        final Minecraft189WorldEntityKindState.Snapshot kinds =
+                host.worldEntityKindState().snapshot();
+        final Minecraft189WorldEntityCombatState.Snapshot combat =
+                host.worldEntityCombatState().snapshot();
+        final Minecraft189PlayerPositionState.Snapshot localPosition =
+                host.playerPositionState().snapshot();
+        int nativeBIndex = -1;
+        if (survivorUuid != null && ids.available()) {
+            for (int i = 0; i < ids.entityCount(); i++) {
+                if (survivorUuid.equals(ids.at(i))) {
+                    nativeBIndex = i;
+                    break;
+                }
+            }
+        }
+        final boolean bPositionReadable = nativeBIndex >= 0
+                && positions.available() && kinds.available()
+                && localPosition.available()
+                && positions.entityCount() == ids.entityCount()
+                && kinds.entityCount() == ids.entityCount()
+                && kinds.player(nativeBIndex);
+        final double sourceBHorizontal = bPositionReadable
+                ? Math.hypot(positions.x(nativeBIndex) - localPosition.x(),
+                        positions.z(nativeBIndex) - localPosition.z())
+                : Double.NaN;
+        final double sourceBEyeAboveHead = bPositionReadable
+                ? (localPosition.y() + 1.62D) - (positions.y(nativeBIndex) + 1.80D)
+                : Double.NaN;
+        final double sourceBFeetY = bPositionReadable
+                ? positions.y(nativeBIndex) : Double.NaN;
+        final boolean originalBCombatAlive = bPositionReadable
+                && combat.available() && combat.entityCount() == ids.entityCount()
+                && combat.alive(nativeBIndex);
         System.out.println("CUSTOMMC_189_REJOIN_ORIGINAL_CROSSHAIR_AT_CLICK"
                 + " tick=" + nativeCrosshairEvidenceTicks
                 + " realPlayerHit=" + originalPlayerHit
@@ -147,7 +187,15 @@ final class Minecraft189RejoinTargetAcceptance {
                 + " targetDistance=" + rotation.distance()
                 + " BstillLocked="
                     + (survivorUuid != null
-                        && survivorUuid.equals(aura.lockedTargetUuid())));
+                        && survivorUuid.equals(aura.lockedTargetUuid()))
+                + " BcurrentOriginalIndex=" + nativeBIndex
+                + " BnativeGeometryAvailable=" + bPositionReadable
+                + " BoriginalFeetY=" + sourceBFeetY
+                + " BnativeHorizontalDistance=" + sourceBHorizontal
+                + " originalEyeHeightAboveBHead=" + sourceBEyeAboveHead
+                + " BnativeCombatAlive=" + originalBCombatAlive
+                + " localSourceFeetY="
+                    + (localPosition.available() ? localPosition.y() : Double.NaN));
         System.out.flush();
     }
 
