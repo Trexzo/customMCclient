@@ -37,6 +37,9 @@ final class Minecraft189FastPlaceFeature
     private final SettingRegistry.Registration pauseSprintingSetting;
     private final SettingPresentationRegistry.Registration pauseSprintingPresentation;
     private final ModuleSettingRegistry.Registration pauseSprintingBinding;
+    private final SettingRegistry.Registration groundOnlySetting;
+    private final SettingPresentationRegistry.Registration groundOnlyPresentation;
+    private final ModuleSettingRegistry.Registration groundOnlyBinding;
     private boolean closed;
 
     private Minecraft189FastPlaceFeature(
@@ -61,7 +64,10 @@ final class Minecraft189FastPlaceFeature
             final ModuleSettingRegistry.Registration airborneDelayBinding,
             final SettingRegistry.Registration pauseSprintingSetting,
             final SettingPresentationRegistry.Registration pauseSprintingPresentation,
-            final ModuleSettingRegistry.Registration pauseSprintingBinding) {
+            final ModuleSettingRegistry.Registration pauseSprintingBinding,
+            final SettingRegistry.Registration groundOnlySetting,
+            final SettingPresentationRegistry.Registration groundOnlyPresentation,
+            final ModuleSettingRegistry.Registration groundOnlyBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -84,6 +90,9 @@ final class Minecraft189FastPlaceFeature
         this.pauseSprintingSetting = pauseSprintingSetting;
         this.pauseSprintingPresentation = pauseSprintingPresentation;
         this.pauseSprintingBinding = pauseSprintingBinding;
+        this.groundOnlySetting = groundOnlySetting;
+        this.groundOnlyPresentation = groundOnlyPresentation;
+        this.groundOnlyBinding = groundOnlyBinding;
     }
 
     static Minecraft189FastPlaceFeature install(
@@ -116,6 +125,9 @@ final class Minecraft189FastPlaceFeature
         SettingRegistry.Registration pauseSprintingSetting = null;
         SettingPresentationRegistry.Registration pauseSprintingPresentation = null;
         ModuleSettingRegistry.Registration pauseSprintingBinding = null;
+        SettingRegistry.Registration groundOnlySetting = null;
+        SettingPresentationRegistry.Registration groundOnlyPresentation = null;
+        ModuleSettingRegistry.Registration groundOnlyBinding = null;
 
         try {
             moduleRegistration =
@@ -139,6 +151,7 @@ final class Minecraft189FastPlaceFeature
             airborneDelaySetting = settings.register(module.airborneDelaySetting());
             pauseSprintingSetting = settings.register(
                     module.pauseWhileSprintingSetting());
+            groundOnlySetting = settings.register(module.groundOnlySetting());
             delayPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -171,6 +184,10 @@ final class Minecraft189FastPlaceFeature
                     new SettingDescriptor(
                             Minecraft189FastPlaceModule.PAUSE_WHILE_SPRINTING_SETTING_ID,
                             "Pause While Sprinting", SettingValueKind.BOOLEAN, 50));
+            groundOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FastPlaceModule.GROUND_ONLY_SETTING_ID,
+                            "Ground Only", SettingValueKind.BOOLEAN, 60));
             delayBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -200,6 +217,10 @@ final class Minecraft189FastPlaceFeature
                     new ModuleSettingBinding(
                             Minecraft189FastPlaceModule.ID,
                             Minecraft189FastPlaceModule.PAUSE_WHILE_SPRINTING_SETTING_ID, 50));
+            groundOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FastPlaceModule.ID,
+                            Minecraft189FastPlaceModule.GROUND_ONLY_SETTING_ID, 60));
             return new Minecraft189FastPlaceFeature(
                     controller,
                     module,
@@ -222,8 +243,14 @@ final class Minecraft189FastPlaceFeature
                     airborneDelayBinding,
                     pauseSprintingSetting,
                     pauseSprintingPresentation,
-                    pauseSprintingBinding);
+                    pauseSprintingBinding,
+                    groundOnlySetting,
+                    groundOnlyPresentation,
+                    groundOnlyBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(groundOnlyBinding, failure);
+            closeQuietly(groundOnlyPresentation, failure);
+            closeQuietly(groundOnlySetting, failure);
             closeQuietly(pauseSprintingBinding, failure);
             closeQuietly(pauseSprintingPresentation, failure);
             closeQuietly(pauseSprintingSetting, failure);
@@ -285,6 +312,9 @@ final class Minecraft189FastPlaceFeature
             failure = closeFailure;
         }
 
+        failure = close(groundOnlyBinding, failure);
+        failure = close(groundOnlyPresentation, failure);
+        failure = close(groundOnlySetting, failure);
         failure = close(pauseSprintingBinding, failure);
         failure = close(pauseSprintingPresentation, failure);
         failure = close(pauseSprintingSetting, failure);
