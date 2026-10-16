@@ -88,7 +88,21 @@ public final class Minecraft189NoGravityModule
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean suspended,
             final boolean jumpHeld) {
+        apply(player, movement, suspended, jumpHeld, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerMotionControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean suspended,
+            final boolean jumpHeld,
+            final boolean actualClickGuiOpen) {
+        // The real GUI owns keyboard focus and mapped player Y-motion.
+        // Keep the vertical priority reservation intact so lower-priority
+        // FastFall / Glide modules cannot substitute a different synthetic
+        // motion write on the same menu-owned callback.
         if (!ownsVertical(jumpHeld)
+                || actualClickGuiOpen
                 || suspended
                 || player == null
                 || movement == null
