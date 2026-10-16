@@ -196,6 +196,78 @@ final class Minecraft189AirJumpModuleTest {
                         Minecraft189FeatureCatalog.MOVEMENT_CATEGORY_ID));
     }
 
+
+    @Test
+    void genuineGuiFocusConsumesHeldSpaceUntilNewPostGuiPress() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            player.onGround = false;
+            runtime.playerMovementState(player);
+            controller.enable(Minecraft189AirJumpModule.ID);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            assertEquals(0, player.jumpCalls,
+                    "Space pressed inside actual GUI cannot jump native player");
+            runtime.playerJumpControl(player);
+            assertEquals(0, player.jumpCalls);
+
+            // Closing GUI while Space remains physically down must not
+            // replay that old UI-owned press as a fresh airborne jump.
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertFalse(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerJumpControl(player);
+            assertEquals(0, player.jumpCalls);
+
+            // A post-GUI release followed by a new press is genuine.
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            runtime.playerJumpControl(player);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+
+            // Reopening GUI cannot add a second jump, whether the mapped
+            // player stays airborne or leaves and re-enters the world.
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, false);
+            runtime.playerJumpControl(player);
+            runtime.inputState().key(LegacyKeyboardCodes.SPACE, true);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+            controller.disable(Minecraft189AirJumpModule.ID);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMovementStateAccess,
             Minecraft189PlayerJumpControl {

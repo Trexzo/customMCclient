@@ -876,7 +876,8 @@ public final class Minecraft189HostRuntime
         featureCatalog.airJump()
                 .apply(
                         player,
-                        movement);
+                        movement,
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     void playerStepControl(
