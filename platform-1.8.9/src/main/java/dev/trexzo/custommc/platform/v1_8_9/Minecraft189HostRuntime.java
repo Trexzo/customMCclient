@@ -58,6 +58,10 @@ public final class Minecraft189HostRuntime
     private Minecraft189InventoryHotbarControl tickHotbarControl;
     private Minecraft189PlayerInventoryAccess tickHotbarPlayer;
     private boolean autoWeaponOwnedClick;
+    // Unlike tickHotbarControl, this is the inventory that actually acquired
+    // the in-flight melee click lease. A reentrant original playerHotbarSlot
+    // callback or respawn must not redirect its synchronous finally.
+    private Minecraft189InventoryHotbarControl combatSlotLeaseInventory;
     private Minecraft189PlayerHeldItemAccess tickHeldItemAccess;
     // These leases outlive changes to per-tick player references. A
     // synchronous native callback may replace the local player or
@@ -1763,25 +1767,39 @@ public final class Minecraft189HostRuntime
 
     int selectCombatSlotBeforeSyntheticClick(final boolean playerHit) {
         requireOpen();
-        autoWeaponOwnedClick = featureCatalog.autoWeapon().active();
-        if (autoWeaponOwnedClick) {
-            // Explicit sword-ranking module wins over the fixed-slot setting.
-            // Unknown hotbar content never falls through to blind slot choice.
-            return featureCatalog.autoWeapon().select(tickHotbarControl,
-                    playerHit,
-                    clickGuiRuntime.coreRuntime().model().snapshot().open());
+        // A nested native combat callback must never replace the original
+        // captured inventory or module owner before the first finally.
+        if (combatSlotLeaseInventory != null) return -1;
+        final Minecraft189InventoryHotbarControl source = tickHotbarControl;
+        final boolean weaponOwner = featureCatalog.autoWeapon().active();
+        final boolean guiOpen =
+                clickGuiRuntime.coreRuntime().model().snapshot().open();
+        // Explicit sword-ranking module wins over fixed CombatSlot. Unknown
+        // item class or failed source setter never falls back blindly.
+        final int prior = weaponOwner
+                ? featureCatalog.autoWeapon().select(source, playerHit, guiOpen)
+                : featureCatalog.combatSlot().select(source, playerHit, guiOpen);
+        if (prior >= 0) {
+            combatSlotLeaseInventory = source;
+            autoWeaponOwnedClick = weaponOwner;
         }
-        return featureCatalog.combatSlot().select(tickHotbarControl, playerHit,
-                clickGuiRuntime.coreRuntime().model().snapshot().open());
+        return prior;
     }
 
     void restoreCombatSlotAfterSyntheticClick(final int originalSlot) {
         requireOpen();
-        if (autoWeaponOwnedClick) {
-            autoWeaponOwnedClick = false;
-            featureCatalog.autoWeapon().restore(tickHotbarControl, originalSlot);
+        // A nested failed selection returns -1. Its finally must not release
+        // the outer original player's valid lease.
+        if (originalSlot < 0 || combatSlotLeaseInventory == null) return;
+        final Minecraft189InventoryHotbarControl captured =
+                combatSlotLeaseInventory;
+        final boolean weaponOwner = autoWeaponOwnedClick;
+        combatSlotLeaseInventory = null;
+        autoWeaponOwnedClick = false;
+        if (weaponOwner) {
+            featureCatalog.autoWeapon().restore(captured, originalSlot);
         } else {
-            featureCatalog.combatSlot().restore(tickHotbarControl, originalSlot);
+            featureCatalog.combatSlot().restore(captured, originalSlot);
         }
     }
 
