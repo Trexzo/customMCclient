@@ -1426,7 +1426,8 @@ public final class Minecraft189HostRuntime
                         currentDelay,
                         inputState.pointerPressed(
                                 Minecraft189ClickRateTracker.RIGHT_BUTTON),
-                        playerMovementState.snapshot());
+                        playerMovementState.snapshot(),
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     void playerControllerBreakControl(
@@ -1437,7 +1438,8 @@ public final class Minecraft189HostRuntime
                         controller,
                         inputState.pointerPressed(
                                 Minecraft189ClickRateTracker.LEFT_BUTTON),
-                        playerMovementState.snapshot());
+                        playerMovementState.snapshot(),
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     void playerControllerMiningControl(
@@ -1448,7 +1450,8 @@ public final class Minecraft189HostRuntime
                         controller,
                         inputState.pointerPressed(
                                 Minecraft189ClickRateTracker.LEFT_BUTTON),
-                        playerMovementState.snapshot());
+                        playerMovementState.snapshot(),
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     void timerSpeedControl(
