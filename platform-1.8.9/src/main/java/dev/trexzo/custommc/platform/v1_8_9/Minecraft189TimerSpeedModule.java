@@ -20,6 +20,10 @@ public final class Minecraft189TimerSpeedModule
             "player.timer.sprintOnly";
     public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
             "player.timer.pauseWhileSneaking";
+    public static final String GROUND_ONLY_SETTING_ID =
+            "player.timer.groundOnly";
+    public static final String PAUSE_GUI_SETTING_ID =
+            "player.timer.pauseWhileClickGuiOpen";
     public static final String TRANSITION_STEP_SETTING_ID =
             "player.timer.transitionStepPercent";
     public static final int DEFAULT_TRANSITION_STEP_PERCENT = 25;
@@ -72,6 +76,14 @@ public final class Minecraft189TimerSpeedModule
     private final Setting<Boolean> pauseWhileSneaking = new Setting<Boolean>(
             PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
+    // Default-OFF rules read the existing native player and actual
+    // ClickGUI model each tick. No synthetic world position is inferred.
+    private final Setting<Boolean> groundOnly = new Setting<Boolean>(
+            GROUND_ONLY_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> pauseClickGui = new Setting<Boolean>(
+            PAUSE_GUI_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
 
     @Override
@@ -107,6 +119,9 @@ public final class Minecraft189TimerSpeedModule
         return transitionStepPercent;
     }
 
+    public Setting<Boolean> groundOnlySetting() { return groundOnly; }
+    public Setting<Boolean> pauseClickGuiSetting() { return pauseClickGui; }
+
     @Override
     public synchronized void onEnable() {
         enabled = true;
@@ -125,17 +140,28 @@ public final class Minecraft189TimerSpeedModule
     synchronized void apply(
             final Minecraft189TimerSpeedControl timer,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        apply(timer, movement, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189TimerSpeedControl timer,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean actualClickGuiOpen) {
         if (timer == null) {
             return;
         }
 
         final boolean requireSprint = sprintOnly.get().booleanValue();
         final boolean pauseSneak = pauseWhileSneaking.get().booleanValue();
-        final boolean permitted = enabled
-                && ((!requireSprint && !pauseSneak)
+        final boolean requireGround = groundOnly.get().booleanValue();
+        final boolean pauseForGui = pauseClickGui.get().booleanValue()
+                && actualClickGuiOpen;
+        final boolean permitted = enabled && !pauseForGui
+                && ((!requireSprint && !pauseSneak && !requireGround)
                 || (movement != null && movement.available()
                     && (!requireSprint || movement.sprinting())
-                    && (!pauseSneak || !movement.sneaking())));
+                    && (!pauseSneak || !movement.sneaking())
+                    && (!requireGround || movement.onGround())));
         final boolean airborne = permitted
                 && airborneOverride.get().booleanValue()
                 && movement != null
