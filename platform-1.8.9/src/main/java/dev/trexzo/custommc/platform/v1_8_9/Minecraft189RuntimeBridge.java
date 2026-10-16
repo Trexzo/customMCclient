@@ -422,14 +422,17 @@ public final class Minecraft189RuntimeBridge {
                 "custommc.acceptance.requireProductionScaffoldFourBlockProof");
         final boolean productionFiveBlockProof = Boolean.getBoolean(
                 "custommc.acceptance.requireProductionScaffoldFiveBlockProof");
+        final boolean productionSixBlockProof = Boolean.getBoolean(
+                "custommc.acceptance.requireProductionScaffoldSixBlockProof");
         if ((productionTwoBlockProof ? 1 : 0)
                 + (productionThreeBlockProof ? 1 : 0)
                 + (productionFourBlockProof ? 1 : 0)
-                + (productionFiveBlockProof ? 1 : 0) > 1)
+                + (productionFiveBlockProof ? 1 : 0)
+                + (productionSixBlockProof ? 1 : 0) > 1)
             throw new IllegalStateException("conflicting original Scaffold proof quotas");
         final boolean productionRepeatProof = productionTwoBlockProof
                 || productionThreeBlockProof || productionFourBlockProof
-                || productionFiveBlockProof;
+                || productionFiveBlockProof || productionSixBlockProof;
         final boolean needsAcceptanceEnable = scaffold != null
                 && !scaffoldAcceptanceEnableIssued
                 && (Boolean.getBoolean(
@@ -458,7 +461,9 @@ public final class Minecraft189RuntimeBridge {
                 // CI-only configuration of exactly ONE real production
                 // opt-in setting before ModuleController grants a new
                 // activation. Never transfer control to test-only clicks.
-                if (productionFiveBlockProof)
+                if (productionSixBlockProof)
+                    scaffold.sixPlacementsSetting().set(Boolean.TRUE);
+                else if (productionFiveBlockProof)
                     scaffold.fivePlacementsSetting().set(Boolean.TRUE);
                 else if (productionFourBlockProof)
                     scaffold.fourPlacementsSetting().set(Boolean.TRUE);
@@ -729,7 +734,8 @@ public final class Minecraft189RuntimeBridge {
                             + " receiptSequence=" + scaffold.repeatProofDiagnostics(minecraft));
                     System.out.flush();
                 }
-                final int expectedCount = productionFiveBlockProof ? 5
+                final int expectedCount = productionSixBlockProof ? 6
+                        : productionFiveBlockProof ? 5
                         : productionFourBlockProof ? 4
                         : productionThreeBlockProof ? 3 : 2;
                 if (!scaffoldProductionCompletionReported
@@ -739,7 +745,8 @@ public final class Minecraft189RuntimeBridge {
                     scaffoldProductionCompletionReported = true;
                     System.out.println(
                             "CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
-                            + (productionFiveBlockProof ? "FIVE"
+                            + (productionSixBlockProof ? "SIX"
+                                : productionFiveBlockProof ? "FIVE"
                                 : productionFourBlockProof ? "FOUR"
                                 : productionThreeBlockProof ? "THREE" : "TWO")
                             + "_CLIENT_RECEIPTS_PASS=YES attempts="
