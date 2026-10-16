@@ -440,6 +440,78 @@ final class Minecraft189CombatItemUseBoundaryTest {
         }
     }
 
+
+    @Test void nativeSetterExceptionMustReleaseHostReservationForAllCombatLanes() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 4;
+            inventory.items[1] = new Item(true, false, 1);
+            inventory.items[2] = new Item(false, true, 1);
+            final Player player = new Player(inventory);
+            runtime.playerHotbarSlot(player);
+            runtime.playerHeldItem(player);
+            controller.enable(Minecraft189AutoRodModule.ID);
+            controller.enable(Minecraft189AutoPotModule.ID);
+            controller.enable(Minecraft189CombatSlotModule.ID);
+
+            // A real original InventoryPlayer setter can mutate its
+            // currentItem backing field before an adapter throws.
+            inventory.duringNextSetter = () -> {
+                assertEquals(-1, runtime.selectAutoPotSlot(),
+                        "native setter reservation must block nested Potion");
+                throw new IllegalStateException("original setter threw");
+            };
+            assertThrows(IllegalStateException.class,
+                    runtime::selectAutoRodSlot);
+            assertEquals(4, inventory.selected,
+                    "original Rod module must roll back its own source slot");
+            assertEquals(4, runtime.selectAutoPotSlot(),
+                    "native exception must clear shared selecting reservation");
+            assertEquals(2, inventory.selected);
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+
+            inventory.duringNextSetter = () -> {
+                assertEquals(-1, runtime.selectAutoRodSlot());
+                throw new IllegalStateException("potion setter threw");
+            };
+            assertThrows(IllegalStateException.class,
+                    runtime::selectAutoPotSlot);
+            assertEquals(4, inventory.selected);
+            assertEquals(4, runtime.selectAutoRodSlot());
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, inventory.selected);
+
+            inventory.duringNextSetter = () -> {
+                assertEquals(-1, runtime.selectAutoPotSlot());
+                throw new IllegalStateException("melee setter threw");
+            };
+            assertThrows(IllegalStateException.class,
+                    () -> runtime.selectCombatSlotBeforeSyntheticClick(true));
+            assertEquals(4, inventory.selected);
+            assertEquals(4, runtime.selectAutoPotSlot(),
+                    "melee setter exception must release exclusive owner");
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class Inventory
             implements Minecraft189InventoryHotbarControl {
         int selected;
