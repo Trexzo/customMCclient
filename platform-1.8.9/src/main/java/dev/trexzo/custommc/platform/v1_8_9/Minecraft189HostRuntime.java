@@ -1044,7 +1044,8 @@ public final class Minecraft189HostRuntime
                         movement,
                         flightActive
                                 || noGravityActive
-                                || reverseStepOwnsVertical);
+                                || reverseStepOwnsVertical,
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
         featureCatalog.glide()
                 .apply(
                         player,
