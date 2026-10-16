@@ -56,8 +56,18 @@ public final class Minecraft189HostRuntime
     // Per-host-tick reference only; cleared before every new position sample.
     private Minecraft189PlayerSprintControl tickSprintControl;
     private Minecraft189InventoryHotbarControl tickHotbarControl;
+    private Minecraft189PlayerInventoryAccess tickHotbarPlayer;
     private boolean autoWeaponOwnedClick;
+    // Unlike tickHotbarControl, this is the inventory that actually acquired
+    // the in-flight melee click lease. A reentrant original playerHotbarSlot
+    // callback or respawn must not redirect its synchronous finally.
+    private Minecraft189InventoryHotbarControl combatSlotLeaseInventory;
     private Minecraft189PlayerHeldItemAccess tickHeldItemAccess;
+    // These leases outlive changes to per-tick player references. A
+    // synchronous native callback may replace the local player or
+    // inventory while another original item-use action owns its slot.
+    private Minecraft189InventoryHotbarControl autoRodLeaseInventory;
+    private Minecraft189InventoryHotbarControl autoPotLeaseInventory;
     private final Minecraft189NearestPlayerTargetState nearestPlayerTargetState;
     private final Minecraft189TargetRotationState targetRotationState;
     // Range-only Aim Assist targeting does not replace general nearest-player state.
@@ -507,6 +517,7 @@ public final class Minecraft189HostRuntime
         criticalsEvidence.reset();
         tickSprintControl = null;
         tickHotbarControl = null;
+        tickHotbarPlayer = null;
         tickHeldItemAccess = null;
         nearestPlayerTargetState.clear();
         if (player == null) {
@@ -1157,6 +1168,7 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerInventoryAccess player) {
         requireOpen();
         tickHotbarControl = null;
+        tickHotbarPlayer = player;
         if (player == null) {
             hotbarSlotState.clear();
             return;
@@ -1651,23 +1663,42 @@ public final class Minecraft189HostRuntime
                 false, true);
     }
 
+    /**
+     * The transformed InventoryPlayer and source held ItemStack must be
+     * supplied by the SAME genuine local player object in this tick.
+     * Merely matching item type in a different respawned source player
+     * is never proof that this inventory owns the native use action.
+     */
+    private boolean sameLocalHotbarAndHeldItemOwner() {
+        return tickHotbarPlayer != null && tickHeldItemAccess != null
+                && tickHotbarPlayer == (Object) tickHeldItemAccess;
+    }
+
     int selectAutoPotSlot() {
         requireOpen();
-        return Minecraft189VerifiedCombatItemSlot.selectPotion(
+        if (!sameLocalHotbarAndHeldItemOwner()) return -1;
+        final int prior = Minecraft189VerifiedCombatItemSlot.selectPotion(
                 featureCatalog.autoPot(), tickHotbarControl, tickHeldItemAccess);
+        if (prior >= 0) autoPotLeaseInventory = tickHotbarControl;
+        return prior;
     }
 
     boolean mayExecuteAutoPotUse(final int originalSlot) {
         requireOpen();
         return !clickGuiRuntime.coreRuntime().model().snapshot().open()
+                && sameLocalHotbarAndHeldItemOwner()
+                && autoPotLeaseInventory != null
+                && tickHotbarControl == autoPotLeaseInventory
                 && Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
-                        featureCatalog.autoPot(), tickHotbarControl,
+                        featureCatalog.autoPot(), autoPotLeaseInventory,
                         tickHeldItemAccess, originalSlot);
     }
 
     void restoreAutoPotSlot(final int originalSlot) {
         requireOpen();
-        featureCatalog.autoPot().restoreSlot(tickHotbarControl, originalSlot);
+        final Minecraft189InventoryHotbarControl owned = autoPotLeaseInventory;
+        autoPotLeaseInventory = null;
+        featureCatalog.autoPot().restoreSlot(owned, originalSlot);
     }
 
     void commitAutoPotUseAttempt() {
@@ -1704,21 +1735,29 @@ public final class Minecraft189HostRuntime
 
     int selectAutoRodSlot() {
         requireOpen();
-        return Minecraft189VerifiedCombatItemSlot.selectRod(
+        if (!sameLocalHotbarAndHeldItemOwner()) return -1;
+        final int prior = Minecraft189VerifiedCombatItemSlot.selectRod(
                 featureCatalog.autoRod(), tickHotbarControl, tickHeldItemAccess);
+        if (prior >= 0) autoRodLeaseInventory = tickHotbarControl;
+        return prior;
     }
 
     boolean mayExecuteAutoRodUse(final int originalSlot) {
         requireOpen();
         return !clickGuiRuntime.coreRuntime().model().snapshot().open()
+                && sameLocalHotbarAndHeldItemOwner()
+                && autoRodLeaseInventory != null
+                && tickHotbarControl == autoRodLeaseInventory
                 && Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
-                        featureCatalog.autoRod(), tickHotbarControl,
+                        featureCatalog.autoRod(), autoRodLeaseInventory,
                         tickHeldItemAccess, originalSlot);
     }
 
     void restoreAutoRodSlot(final int originalSlot) {
         requireOpen();
-        featureCatalog.autoRod().restoreSlot(tickHotbarControl, originalSlot);
+        final Minecraft189InventoryHotbarControl owned = autoRodLeaseInventory;
+        autoRodLeaseInventory = null;
+        featureCatalog.autoRod().restoreSlot(owned, originalSlot);
     }
 
     void commitAutoRodUseAttempt() {
@@ -1728,25 +1767,39 @@ public final class Minecraft189HostRuntime
 
     int selectCombatSlotBeforeSyntheticClick(final boolean playerHit) {
         requireOpen();
-        autoWeaponOwnedClick = featureCatalog.autoWeapon().active();
-        if (autoWeaponOwnedClick) {
-            // Explicit sword-ranking module wins over the fixed-slot setting.
-            // Unknown hotbar content never falls through to blind slot choice.
-            return featureCatalog.autoWeapon().select(tickHotbarControl,
-                    playerHit,
-                    clickGuiRuntime.coreRuntime().model().snapshot().open());
+        // A nested native combat callback must never replace the original
+        // captured inventory or module owner before the first finally.
+        if (combatSlotLeaseInventory != null) return -1;
+        final Minecraft189InventoryHotbarControl source = tickHotbarControl;
+        final boolean weaponOwner = featureCatalog.autoWeapon().active();
+        final boolean guiOpen =
+                clickGuiRuntime.coreRuntime().model().snapshot().open();
+        // Explicit sword-ranking module wins over fixed CombatSlot. Unknown
+        // item class or failed source setter never falls back blindly.
+        final int prior = weaponOwner
+                ? featureCatalog.autoWeapon().select(source, playerHit, guiOpen)
+                : featureCatalog.combatSlot().select(source, playerHit, guiOpen);
+        if (prior >= 0) {
+            combatSlotLeaseInventory = source;
+            autoWeaponOwnedClick = weaponOwner;
         }
-        return featureCatalog.combatSlot().select(tickHotbarControl, playerHit,
-                clickGuiRuntime.coreRuntime().model().snapshot().open());
+        return prior;
     }
 
     void restoreCombatSlotAfterSyntheticClick(final int originalSlot) {
         requireOpen();
-        if (autoWeaponOwnedClick) {
-            autoWeaponOwnedClick = false;
-            featureCatalog.autoWeapon().restore(tickHotbarControl, originalSlot);
+        // A nested failed selection returns -1. Its finally must not release
+        // the outer original player's valid lease.
+        if (originalSlot < 0 || combatSlotLeaseInventory == null) return;
+        final Minecraft189InventoryHotbarControl captured =
+                combatSlotLeaseInventory;
+        final boolean weaponOwner = autoWeaponOwnedClick;
+        combatSlotLeaseInventory = null;
+        autoWeaponOwnedClick = false;
+        if (weaponOwner) {
+            featureCatalog.autoWeapon().restore(captured, originalSlot);
         } else {
-            featureCatalog.combatSlot().restore(tickHotbarControl, originalSlot);
+            featureCatalog.combatSlot().restore(captured, originalSlot);
         }
     }
 
@@ -2083,6 +2136,7 @@ public final class Minecraft189HostRuntime
         criticalsEvidence.reset();
         tickSprintControl = null;
         tickHotbarControl = null;
+        tickHotbarPlayer = null;
         tickHeldItemAccess = null;
         featureCatalog.autoBlock().forgetForShutdown();
         worldEntityKindState.clear();
