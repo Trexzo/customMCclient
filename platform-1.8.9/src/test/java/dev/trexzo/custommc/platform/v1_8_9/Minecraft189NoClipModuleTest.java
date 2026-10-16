@@ -25,6 +25,73 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189NoClipModuleTest {
     @Test
+    void rapidDisableReenableBeforeNativeCallbackRetainsFirstTrueOwnerBaseline() {
+        final Minecraft189NoClipModule module = new Minecraft189NoClipModule();
+        final TestPlayer original = new TestPlayer();
+        module.onEnable();
+        module.apply(original);
+        assertTrue(original.noClip);
+        assertEquals(1, original.setCalls);
+        module.onDisable();
+        assertTrue(module.restorePending());
+        // No native callback between these two real ModuleController events.
+        module.onEnable();
+        assertFalse(module.restorePending());
+        module.apply(original);
+        assertEquals(1, original.setCalls,
+                "same source player remains forced but must retain its false baseline");
+        module.onDisable();
+        module.apply(original);
+        assertFalse(original.noClip,
+                "one genuine disable restores original false, not a recaptured true");
+        assertEquals(2, original.setCalls);
+        assertFalse(module.restorePending());
+    }
+
+    @Test
+    void respawnMustNotRestorePreviousOriginalPlayersCollisionOntoNewPlayer() {
+        final Minecraft189NoClipModule module = new Minecraft189NoClipModule();
+        final TestPlayer first = new TestPlayer();
+        final TestPlayer newPlayer = new TestPlayer();
+        newPlayer.noClip = true; // New original player already owns true.
+        module.onEnable();
+        module.apply(first);
+        assertTrue(first.noClip);
+        module.onDisable();
+        assertTrue(module.restorePending());
+        module.apply(newPlayer);
+        assertTrue(newPlayer.noClip);
+        assertEquals(0, newPlayer.setCalls,
+                "old player's forced true must not write false onto respawn");
+        assertFalse(module.restorePending());
+        module.onEnable();
+        module.apply(newPlayer);
+        assertTrue(newPlayer.noClip);
+        module.onDisable();
+        module.apply(newPlayer);
+        assertTrue(newPlayer.noClip,
+                "new player baseline must remain independent and true");
+        assertEquals(0, newPlayer.setCalls);
+    }
+
+    @Test
+    void userNativeCollisionEditWinsWhenModuleNeverForcedTheirTrueBaseline() {
+        final Minecraft189NoClipModule module = new Minecraft189NoClipModule();
+        final TestPlayer original = new TestPlayer();
+        original.noClip = true;
+        module.onEnable();
+        module.apply(original);
+        assertEquals(0, original.setCalls,
+                "original true source never needed a module setter");
+        original.noClip = false; // Real user/other native owner change.
+        module.onDisable();
+        module.apply(original);
+        assertFalse(original.noClip);
+        assertEquals(0, original.setCalls,
+                "disable cannot overwrite a newer native false with stale true");
+    }
+
+    @Test
     void noClipForcesTrueAndRestoresCapturedBaselineOnDisable() {
         final ModuleRegistry modules =
                 new ModuleRegistry();
