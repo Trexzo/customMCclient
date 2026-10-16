@@ -25,6 +25,34 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189NoFallModuleTest {
     @Test
+    void originalNoFallNeverZeroesNegativeOrNonfiniteFallDistance() {
+        final Minecraft189NoFallModule noFall = new Minecraft189NoFallModule();
+        final TestPlayer player = new TestPlayer();
+        noFall.onEnable();
+        try {
+            player.distance = -7.0F;
+            noFall.apply(player);
+            assertEquals(-7.0F, player.distance, 0.00001F);
+            assertEquals(0, player.setCalls,
+                    "negative native fall sentinel is not a positive fall");
+            player.distance = Float.POSITIVE_INFINITY;
+            noFall.apply(player);
+            assertEquals(Float.POSITIVE_INFINITY, player.distance);
+            assertEquals(0, player.setCalls);
+            player.distance = Float.NaN;
+            noFall.apply(player);
+            assertTrue(Float.isNaN(player.distance));
+            assertEquals(0, player.setCalls);
+            player.distance = 4.0F;
+            noFall.thresholdSetting().set(3.0D);
+            noFall.apply(player);
+            assertEquals(0.0F, player.distance, 0.00001F);
+            assertEquals(1, player.setCalls,
+                    "ordinary positive original fall still uses native setter");
+        } finally { noFall.onDisable(); }
+    }
+
+    @Test
     void noFallZerosDistanceOnlyWhileEnabledAndNeverRestoresSyntheticState() {
         final ModuleRegistry modules =
                 new ModuleRegistry();
