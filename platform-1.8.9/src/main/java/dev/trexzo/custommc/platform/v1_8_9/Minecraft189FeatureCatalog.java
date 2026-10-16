@@ -1683,6 +1683,33 @@ public final class Minecraft189FeatureCatalog
      * This uses the same ModuleController lifecycle as ClickGUI; neither
      * the fixture nor the native adapter writes stepHeight directly.
      */
+    /**
+     * Original Mojang native NoClip field acceptance. Ownership must be
+     * acquired/released solely by the normal ModuleController lifecycle.
+     */
+    void enableNoClipForOriginalGuiAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.requireNativeNoClipGuiFocus"))
+            throw new IllegalStateException("native NoClip GUI fixture not armed");
+        if (moduleController.stateOf(Minecraft189NoClipModule.ID)
+                != ModuleState.DISABLED)
+            throw new IllegalStateException("NoClip must begin disabled");
+        moduleController.enable(Minecraft189NoClipModule.ID);
+        if (!noClip().active())
+            throw new IllegalStateException("native NoClip enable failed");
+    }
+
+    void disableNoClipForOriginalGuiAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.requireNativeNoClipGuiFocus")
+                || moduleController.stateOf(Minecraft189NoClipModule.ID)
+                        != ModuleState.ENABLED)
+            throw new IllegalStateException("native NoClip GUI disable not armed");
+        moduleController.disable(Minecraft189NoClipModule.ID);
+        if (noClip().active())
+            throw new IllegalStateException("native NoClip disable failed");
+    }
+
     void enableStepForOriginalGuiAcceptance() {
         requireOpen();
         if (!Boolean.getBoolean("custommc.acceptance.requireNativeStepGuiFocus"))
