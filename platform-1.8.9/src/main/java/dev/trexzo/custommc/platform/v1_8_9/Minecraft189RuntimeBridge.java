@@ -37,6 +37,9 @@ public final class Minecraft189RuntimeBridge {
     private static String acceptanceLastScreen;
     private static int acceptanceDisabledTargetTicks;
     private static boolean acceptanceAutoClickerEnabled;
+    private static int acceptanceTriggerDisabledTargetTicks;
+    private static boolean acceptanceTriggerEnabled;
+    private static boolean acceptanceTriggerOwnedClickReported;
     private static Object killAuraNonPlayerTarget;
     private static int killAuraDisabledTargetTicks;
     private static int killAuraEnabledVetoTicks;
@@ -113,6 +116,9 @@ public final class Minecraft189RuntimeBridge {
         Minecraft189RejoinTargetAcceptance.reset();
         acceptanceDisabledTargetTicks = 0;
         acceptanceAutoClickerEnabled = false;
+        acceptanceTriggerDisabledTargetTicks = 0;
+        acceptanceTriggerEnabled = false;
+        acceptanceTriggerOwnedClickReported = false;
         killAuraNonPlayerTarget = null;
         killAuraDisabledTargetTicks = 0;
         killAuraEnabledVetoTicks = 0;
@@ -1623,6 +1629,50 @@ public final class Minecraft189RuntimeBridge {
         final Minecraft189HostRuntime host =
                 activeHost();
         if (host != null && minecraft != null) {
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportTriggerBotRealPvp")
+                    && !acceptanceTriggerEnabled) {
+                // No module-controlled click until twenty consecutive
+                // ORIGINAL player-only crosshair readbacks are observed.
+                // Clean original native hurt-time + live UUID must agree;
+                // an arbitrary nearby player or reused list index is never
+                // sufficient to arm this acceptance.
+                final Minecraft189WorldEntityUuidState.Snapshot ids =
+                        host.worldEntityUuidState().snapshot();
+                final Minecraft189WorldEntityKindState.Snapshot kinds =
+                        host.worldEntityKindState().snapshot();
+                final boolean hit = minecraft instanceof Minecraft189CrosshairHitAccess
+                        && ((Minecraft189CrosshairHitAccess) minecraft)
+                                .customMcCrosshairPlayerHit();
+                final int index = hit
+                        ? ((Minecraft189CrosshairHitAccess) minecraft)
+                                .customMcCrosshairPlayerIndex() : -1;
+                boolean valid = hit && index >= 0 && ids.available()
+                        && kinds.available() && index < ids.entityCount()
+                        && ids.entityCount() == kinds.entityCount()
+                        && kinds.player(index) && !kinds.localPlayer(index)
+                        && Minecraft189VanillaMeleeAcceptance
+                                .cleanCrosshairEntity(minecraft)
+                        && host.featureCatalog().killAura().active() == false
+                        && host.featureCatalog().autoClicker().active() == false;
+                if (valid) {
+                    acceptanceTriggerDisabledTargetTicks++;
+                } else {
+                    acceptanceTriggerDisabledTargetTicks = 0;
+                }
+                if (acceptanceTriggerDisabledTargetTicks >= 20) {
+                    if (host.featureCatalog().triggerBot().active())
+                        throw new IllegalStateException("TriggerBot pre-enabled");
+                    System.out.println(
+                            "CUSTOMMC_189_TRIGGERBOT_DISABLED_REAL_PLAYER_TICKS_PASS=20");
+                    host.featureCatalog()
+                            .enableTriggerBotForOfficialRealPlayerAcceptance();
+                    acceptanceTriggerEnabled = true;
+                    System.out.println(
+                            "CUSTOMMC_189_TRIGGERBOT_NORMAL_MODULE_ENABLE_PASS=YES");
+                    System.out.flush();
+                }
+            }
             if (Boolean.getBoolean("custommc.acceptance.reportAutoClicker")
                     && !acceptanceAutoClickerEnabled) {
                 // Negative control: with a real, alive, zero-hurt raycast
@@ -2455,6 +2505,23 @@ public final class Minecraft189RuntimeBridge {
                         host.selectCombatSlotBeforeSyntheticClick(playerHit);
                 try {
                     if (Boolean.getBoolean(
+                            "custommc.acceptance.reportTriggerBotRealPvp")) {
+                        if (!acceptanceTriggerEnabled
+                                || !host.featureCatalog().triggerBot().active()
+                                || host.featureCatalog().killAura().active()
+                                || host.featureCatalog().autoClicker().active()
+                                || !playerHit || playerIndex < 0)
+                            throw new IllegalStateException(
+                                    "triggerbot original attack escaped owner/disabled gates");
+                        if (!acceptanceTriggerOwnedClickReported) {
+                            acceptanceTriggerOwnedClickReported = true;
+                            System.out.println(
+                                    "CUSTOMMC_189_TRIGGERBOT_NATIVE_RAY_UUID_OWNED_CLICK_PASS=YES");
+                            System.out.flush();
+                        }
+                        Minecraft189VanillaMeleeAcceptance.syntheticTriggerStarted();
+                    }
+                    if (Boolean.getBoolean(
                             "custommc.acceptance.reportAutoClicker")) {
                         if (!acceptanceAutoClickerEnabled
                                 || !host.featureCatalog().autoClicker().active()) {
@@ -2522,6 +2589,7 @@ public final class Minecraft189RuntimeBridge {
                         }
                     } finally {
                         Minecraft189VanillaMeleeAcceptance.syntheticAuraFinished();
+                        Minecraft189VanillaMeleeAcceptance.syntheticTriggerFinished();
                         Minecraft189VanillaMeleeAcceptance.syntheticClickFinished();
                     }
                     if (restoreSprint) {
