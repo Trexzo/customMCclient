@@ -1586,7 +1586,8 @@ def run(args):
                       + repeat_marker.decode("ascii")
                       + ("_SERVER_HISTORY_VETO_TWO_STONE_FIVE_PASS=YES"
                          if history_negative else
-                         "_SERVER_FOUR_STONE_FOUR_PASS=YES" if four_production
+                         "_SERVER_FIVE_STONE_THREE_PASS=YES" if five_keyboard_walk
+                         else "_SERVER_FOUR_STONE_FOUR_PASS=YES" if four_production
                          else "_SERVER_THREE_STONE_FIVE_PASS=YES" if three_production
                          else "_SERVER_TWO_STONE_SIX_PASS=YES"),
                       flush=True)
