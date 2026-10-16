@@ -26,6 +26,34 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189FastPlaceModuleTest {
     @Test
+    void optionalGroundOnlyUsesCurrentMappedOnGroundAndVetoesUnknownAirborne() {
+        final Minecraft189FastPlaceModule module = new Minecraft189FastPlaceModule();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        assertFalse(module.groundOnlySetting().get());
+        module.onEnable();
+        try {
+            module.groundOnlySetting().set(Boolean.TRUE);
+            assertEquals(4, module.apply(4, false, movement.snapshot()),
+                    "unknown native onGround never grants delay reduction");
+            movement.update(false, false, false);
+            assertEquals(4, module.apply(4, false, movement.snapshot()),
+                    "airborne source cannot fast-place while Ground Only");
+            movement.update(true, false, false);
+            assertEquals(0, module.apply(4, false, movement.snapshot()),
+                    "real original grounded state admits chosen fast delay");
+            module.airborneOverrideSetting().set(Boolean.TRUE);
+            movement.update(false, false, false);
+            assertEquals(4, module.apply(4, false, movement.snapshot()),
+                    "ground-only safety gate must precede airborne override");
+            module.groundOnlySetting().set(Boolean.FALSE);
+            assertEquals(0, module.apply(4, false, movement.snapshot()),
+                    "disabling opt-in restores existing airborne override");
+            module.onDisable();
+            assertEquals(4, module.apply(4, false, movement.snapshot()));
+        } finally { module.onDisable(); }
+    }
+
+    @Test
     void fastPlaceReducesOnlyHigherDelayAndOwnsPlayerCategoryLifecycle() {
         final ModuleRegistry modules =
                 new ModuleRegistry();

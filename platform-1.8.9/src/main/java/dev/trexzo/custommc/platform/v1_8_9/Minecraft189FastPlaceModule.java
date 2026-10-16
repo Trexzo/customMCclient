@@ -18,6 +18,8 @@ public final class Minecraft189FastPlaceModule
             "player.fastPlace.requireUseHeld";
     public static final String PAUSE_WHILE_SPRINTING_SETTING_ID =
             "player.fastPlace.pauseWhileSprinting";
+    public static final String GROUND_ONLY_SETTING_ID =
+            "player.fastPlace.groundOnly";
     public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
             "player.fastPlace.pauseWhileSneaking";
 
@@ -52,6 +54,10 @@ public final class Minecraft189FastPlaceModule
                     AIRBORNE_DELAY_SETTING_ID, 0,
                     value -> value != null && value >= 0 && value <= 4,
                     SettingCodecs.INTEGER);
+    // Native onGround is an optional veto, never inferred from missing input.
+    private final Setting<Boolean> groundOnly = new Setting<Boolean>(
+            GROUND_ONLY_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
 
     @Override
@@ -73,6 +79,10 @@ public final class Minecraft189FastPlaceModule
 
     public Setting<Boolean> pauseWhileSprintingSetting() {
         return pauseWhileSprinting;
+    }
+
+    public Setting<Boolean> groundOnlySetting() {
+        return groundOnly;
     }
 
     public Setting<Boolean> airborneOverrideSetting() {
@@ -104,6 +114,9 @@ public final class Minecraft189FastPlaceModule
             final Minecraft189PlayerMovementState.Snapshot movement) {
         if (!enabled
                 || (requireUseHeld.get().booleanValue() && !useHeld)
+                || (groundOnly.get().booleanValue()
+                        && (movement == null || !movement.available()
+                        || !movement.onGround()))
                 || (pauseWhileSneaking.get().booleanValue()
                         && (movement == null || !movement.available()
                         || movement.sneaking()))

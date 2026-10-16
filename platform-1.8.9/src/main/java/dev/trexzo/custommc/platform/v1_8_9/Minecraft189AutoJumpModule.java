@@ -16,6 +16,8 @@ public final class Minecraft189AutoJumpModule
             "movement.autoJump.requireMovement";
     public static final String LANDING_DELAY_SETTING_ID =
             "movement.autoJump.landingDelayTicks";
+    public static final String REQUIRE_SPRINTING_SETTING_ID =
+            "movement.autoJump.requireSprinting";
     public static final String PAUSE_WHILE_SNEAKING_SETTING_ID =
             "movement.autoJump.pauseWhileSneaking";
     public static final int MAXIMUM_LANDING_DELAY_TICKS = 10;
@@ -46,6 +48,11 @@ public final class Minecraft189AutoJumpModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
 
+    // Optional real mapped sprint gate, OFF by default for legacy Jump.
+    private final Setting<Boolean> requireSprinting = new Setting<Boolean>(
+            REQUIRE_SPRINTING_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+
     private boolean enabled;
     private boolean armed = true;
     private boolean airborneObserved;
@@ -70,6 +77,10 @@ public final class Minecraft189AutoJumpModule
 
     public Setting<Boolean> pauseWhileSneakingSetting() {
         return pauseWhileSneaking;
+    }
+
+    public Setting<Boolean> requireSprintingSetting() {
+        return requireSprinting;
     }
 
     @Override
@@ -144,12 +155,16 @@ public final class Minecraft189AutoJumpModule
                 && !forwardHeld)
                 || (requireMovement.get().booleanValue()
                         && !anyMovementHeld)
+                || (requireSprinting.get().booleanValue()
+                        && !movement.sprinting())
                 || !armed) {
             return;
         }
 
-        player.customMcJump();
+        // Consume the grounded lease BEFORE the original native action.
+        // A throwing source bridge cannot replay the same grounded jump.
         armed = false;
+        player.customMcJump();
     }
 
     synchronized boolean active() {
