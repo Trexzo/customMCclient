@@ -1650,6 +1650,7 @@ public final class Minecraft189RuntimeBridge {
                 boolean valid = hit && index >= 0 && ids.available()
                         && kinds.available() && index < ids.entityCount()
                         && ids.entityCount() == kinds.entityCount()
+                        && ids.at(index) != null
                         && kinds.player(index) && !kinds.localPlayer(index)
                         && Minecraft189VanillaMeleeAcceptance
                                 .cleanCrosshairEntity(minecraft)
