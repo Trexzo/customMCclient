@@ -1678,6 +1678,62 @@ public final class Minecraft189FeatureCatalog
      * Isolated native game-Timer acceptance. Require the same real module
      * controller lifecycle as ClickGUI; no test-only clock setters.
      */
+    /**
+     * Official-client acceptance of the real player's persistent stepHeight.
+     * This uses the same ModuleController lifecycle as ClickGUI; neither
+     * the fixture nor the native adapter writes stepHeight directly.
+     */
+    /**
+     * Original Mojang native NoClip field acceptance. Ownership must be
+     * acquired/released solely by the normal ModuleController lifecycle.
+     */
+    void enableNoClipForOriginalGuiAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.requireNativeNoClipGuiFocus"))
+            throw new IllegalStateException("native NoClip GUI fixture not armed");
+        if (moduleController.stateOf(Minecraft189NoClipModule.ID)
+                != ModuleState.DISABLED)
+            throw new IllegalStateException("NoClip must begin disabled");
+        moduleController.enable(Minecraft189NoClipModule.ID);
+        if (!noClip().active())
+            throw new IllegalStateException("native NoClip enable failed");
+    }
+
+    void disableNoClipForOriginalGuiAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.requireNativeNoClipGuiFocus")
+                || moduleController.stateOf(Minecraft189NoClipModule.ID)
+                        != ModuleState.ENABLED)
+            throw new IllegalStateException("native NoClip GUI disable not armed");
+        moduleController.disable(Minecraft189NoClipModule.ID);
+        if (noClip().active())
+            throw new IllegalStateException("native NoClip disable failed");
+    }
+
+    void enableStepForOriginalGuiAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.requireNativeStepGuiFocus"))
+            throw new IllegalStateException("native Step GUI fixture not armed");
+        if (moduleController.stateOf(Minecraft189StepModule.ID)
+                != ModuleState.DISABLED)
+            throw new IllegalStateException("Step must begin disabled");
+        step().heightPercentSetting().set(Integer.valueOf(180));
+        moduleController.enable(Minecraft189StepModule.ID);
+        if (!step().active())
+            throw new IllegalStateException("native Step enable failed");
+    }
+
+    void disableStepForOriginalGuiAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.requireNativeStepGuiFocus")
+                || moduleController.stateOf(Minecraft189StepModule.ID)
+                        != ModuleState.ENABLED)
+            throw new IllegalStateException("native Step GUI disable not armed");
+        moduleController.disable(Minecraft189StepModule.ID);
+        if (step().active())
+            throw new IllegalStateException("native Step disable failed");
+    }
+
     void enableTimerForOriginalAcceptance() {
         requireOpen();
         if (!Boolean.getBoolean("custommc.acceptance.requireRealTimerMultiplier"))

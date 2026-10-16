@@ -26,7 +26,14 @@ public final class Minecraft189HitboxModule implements Module {
 
     synchronized float adjustNativeBorder(final boolean player,
             final float originalBorder) {
-        if (!enabled || !player || !Float.isFinite(originalBorder)
+        return adjustNativeBorder(player, originalBorder, false);
+    }
+
+    synchronized float adjustNativeBorder(
+            final boolean player, final float originalBorder,
+            final boolean actualClickGuiOpen) {
+        if (!enabled || actualClickGuiOpen || !player
+                || !Float.isFinite(originalBorder)
                 || originalBorder < 0.0F) return originalBorder;
         final double adjusted = originalBorder + extraBorder.get();
         return Double.isFinite(adjusted) && adjusted <= Float.MAX_VALUE

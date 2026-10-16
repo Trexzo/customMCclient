@@ -62,7 +62,17 @@ public final class Minecraft189NoWebModule
     synchronized void apply(
             final Minecraft189PlayerWebControl player,
             final Minecraft189PlayerMovementState.Snapshot movement) {
-        if (!enabled || player == null) {
+        apply(player, movement, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerWebControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean actualClickGuiOpen) {
+        // The original player owns its web collision flag while the
+        // CustomMC menu has keyboard focus. Never clear a real web hit
+        // during a menu callback or manufacture a delayed removal.
+        if (!enabled || actualClickGuiOpen || player == null) {
             return;
         }
         final boolean ground = groundOnly.get().booleanValue();

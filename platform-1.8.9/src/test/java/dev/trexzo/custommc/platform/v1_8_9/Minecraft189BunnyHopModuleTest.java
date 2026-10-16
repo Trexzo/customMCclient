@@ -525,6 +525,55 @@ final class Minecraft189BunnyHopModuleTest {
         assertNull(modules.find(Minecraft189BunnyHopModule.ID));
     }
 
+
+    @Test
+    void originalGuiConsumesArmedBunnyHopLandingWithoutReplay() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            controller.enable(Minecraft189BunnyHopModule.ID);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerJumpControl(player);
+            runtime.playerJumpControl(player);
+            assertEquals(0, player.jumpCalls);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerJumpControl(player);
+            assertEquals(0, player.jumpCalls,
+                    "held W from before GUI cannot consume a stale ground lease");
+            // A genuinely fresh original airborne-to-ground transition is
+            // now required to rearm a new BunnyHop jump.
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerJumpControl(player);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+            runtime.playerJumpControl(player);
+            assertEquals(1, player.jumpCalls);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerJumpControl,
             Minecraft189PlayerMotionControl {

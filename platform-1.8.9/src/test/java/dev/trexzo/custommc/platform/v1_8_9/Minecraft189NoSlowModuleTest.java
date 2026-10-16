@@ -318,6 +318,72 @@ final class Minecraft189NoSlowModuleTest {
         assertNull(modules.find(Minecraft189NoSlowModule.ID));
     }
 
+
+    @Test
+    void originalGuiFocusReturnsVanillaNoSlowItemMultiplierForGroundAndAir() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            controller.enable(Minecraft189NoSlowModule.ID);
+            final Minecraft189NoSlowModule slow =
+                    runtime.featureCatalog().noSlow();
+            slow.speedPercentSetting().set(100);
+            runtime.playerMovementState().update(true, false, false);
+            assertEquals(1.0F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F);
+
+            // The actual host GUI toggle must revoke the synthetic
+            // multiplier, without changing the real module enable state.
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            assertTrue(slow.active());
+            assertEquals(0.20F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F);
+            assertEquals(Float.POSITIVE_INFINITY,
+                    runtime.adjustNoSlowMovement(Float.POSITIVE_INFINITY));
+
+            // Even an in-GUI airborne state must not bypass the source
+            // input focus; keep the original item-use factor untouched.
+            slow.airborneOverrideSetting().set(Boolean.TRUE);
+            slow.airborneSpeedPercentSetting().set(60);
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(0.20F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertFalse(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            assertEquals(0.60F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F);
+            runtime.playerMovementState().update(true, false, false);
+            assertEquals(1.0F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F);
+
+            controller.disable(Minecraft189NoSlowModule.ID);
+            assertEquals(0.20F, runtime.adjustNoSlowMovement(0.20F),
+                    0.000001F);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override

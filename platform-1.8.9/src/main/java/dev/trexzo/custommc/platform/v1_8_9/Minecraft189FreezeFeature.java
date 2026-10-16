@@ -20,10 +20,13 @@ final class Minecraft189FreezeFeature
     private final ModulePresentationRegistry.Registration presentation;
     private final SettingRegistry.Registration horizontalSetting;
     private final SettingRegistry.Registration verticalSetting;
+    private final SettingRegistry.Registration clickGuiSetting;
     private final SettingPresentationRegistry.Registration horizontalPresentation;
     private final SettingPresentationRegistry.Registration verticalPresentation;
+    private final SettingPresentationRegistry.Registration clickGuiPresentation;
     private final ModuleSettingRegistry.Registration horizontalBinding;
     private final ModuleSettingRegistry.Registration verticalBinding;
+    private final ModuleSettingRegistry.Registration clickGuiBinding;
     private boolean closed;
 
     private Minecraft189FreezeFeature(
@@ -33,20 +36,26 @@ final class Minecraft189FreezeFeature
             final ModulePresentationRegistry.Registration presentation,
             final SettingRegistry.Registration horizontalSetting,
             final SettingRegistry.Registration verticalSetting,
+            final SettingRegistry.Registration clickGuiSetting,
             final SettingPresentationRegistry.Registration horizontalPresentation,
             final SettingPresentationRegistry.Registration verticalPresentation,
+            final SettingPresentationRegistry.Registration clickGuiPresentation,
             final ModuleSettingRegistry.Registration horizontalBinding,
-            final ModuleSettingRegistry.Registration verticalBinding) {
+            final ModuleSettingRegistry.Registration verticalBinding,
+            final ModuleSettingRegistry.Registration clickGuiBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
         this.presentation = presentation;
         this.horizontalSetting = horizontalSetting;
         this.verticalSetting = verticalSetting;
+        this.clickGuiSetting = clickGuiSetting;
         this.horizontalPresentation = horizontalPresentation;
         this.verticalPresentation = verticalPresentation;
+        this.clickGuiPresentation = clickGuiPresentation;
         this.horizontalBinding = horizontalBinding;
         this.verticalBinding = verticalBinding;
+        this.clickGuiBinding = clickGuiBinding;
     }
 
     static Minecraft189FreezeFeature install(
@@ -63,10 +72,13 @@ final class Minecraft189FreezeFeature
         ModulePresentationRegistry.Registration presentation = null;
         SettingRegistry.Registration horizontalSetting = null;
         SettingRegistry.Registration verticalSetting = null;
+        SettingRegistry.Registration clickGuiSetting = null;
         SettingPresentationRegistry.Registration horizontalPresentation = null;
         SettingPresentationRegistry.Registration verticalPresentation = null;
+        SettingPresentationRegistry.Registration clickGuiPresentation = null;
         ModuleSettingRegistry.Registration horizontalBinding = null;
         ModuleSettingRegistry.Registration verticalBinding = null;
+        ModuleSettingRegistry.Registration clickGuiBinding = null;
         try {
             moduleRegistration =
                     modules.register(
@@ -82,6 +94,7 @@ final class Minecraft189FreezeFeature
                                     120));
             horizontalSetting = settings.register(module.freezeHorizontalSetting());
             verticalSetting = settings.register(module.freezeVerticalSetting());
+            clickGuiSetting = settings.register(module.pauseWhileClickGuiSetting());
             horizontalPresentation = settingPresentations.register(
                     new SettingDescriptor(
                             Minecraft189FreezeModule.FREEZE_HORIZONTAL_SETTING_ID,
@@ -90,6 +103,10 @@ final class Minecraft189FreezeFeature
                     new SettingDescriptor(
                             Minecraft189FreezeModule.FREEZE_VERTICAL_SETTING_ID,
                             "Freeze Vertical (Y)", SettingValueKind.BOOLEAN, 10));
+            clickGuiPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189FreezeModule.PAUSE_WHILE_CLICKGUI_SETTING_ID,
+                            "Pause During ClickGUI", SettingValueKind.BOOLEAN, 20));
             horizontalBinding = moduleSettings.register(
                     new ModuleSettingBinding(
                             Minecraft189FreezeModule.ID,
@@ -98,6 +115,10 @@ final class Minecraft189FreezeFeature
                     new ModuleSettingBinding(
                             Minecraft189FreezeModule.ID,
                             Minecraft189FreezeModule.FREEZE_VERTICAL_SETTING_ID, 10));
+            clickGuiBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189FreezeModule.ID,
+                            Minecraft189FreezeModule.PAUSE_WHILE_CLICKGUI_SETTING_ID, 20));
 
             return new Minecraft189FreezeFeature(
                     controller,
@@ -106,11 +127,17 @@ final class Minecraft189FreezeFeature
                     presentation,
                     horizontalSetting,
                     verticalSetting,
+                    clickGuiSetting,
                     horizontalPresentation,
                     verticalPresentation,
+                    clickGuiPresentation,
                     horizontalBinding,
-                    verticalBinding);
+                    verticalBinding,
+                    clickGuiBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(clickGuiBinding, failure);
+            closeQuietly(clickGuiPresentation, failure);
+            closeQuietly(clickGuiSetting, failure);
             closeQuietly(verticalBinding, failure);
             closeQuietly(horizontalBinding, failure);
             closeQuietly(verticalPresentation, failure);
@@ -150,6 +177,9 @@ final class Minecraft189FreezeFeature
             failure = closeFailure;
         }
 
+        failure = close(clickGuiBinding, failure);
+        failure = close(clickGuiPresentation, failure);
+        failure = close(clickGuiSetting, failure);
         failure = close(verticalBinding, failure);
         failure = close(horizontalBinding, failure);
         failure = close(verticalPresentation, failure);

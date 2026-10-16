@@ -693,6 +693,75 @@ final class Minecraft189VelocityModuleTest {
         assertTrue(modules.find(Minecraft189VelocityModule.ID) == null);
     }
 
+
+    @Test
+    void actualClickGuiGivesRealKnockbackAxesBackToIncomingNativeMotion() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189VelocityModule velocity =
+                    runtime.featureCatalog().velocity();
+            controller.enable(Minecraft189VelocityModule.ID);
+            runtime.playerMovementState().update(true, false, false);
+            // Default configured 0% suppresses motion delta in-game.
+            assertEquals(0.40D, runtime.adjustVelocityHorizontal(0.40D, 1.20D),
+                    0.000001D);
+            assertEquals(-0.20D, runtime.adjustVelocityVertical(-0.20D, 0.60D),
+                    0.000001D);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            assertEquals(1.20D, runtime.adjustVelocityHorizontal(0.40D, 1.20D),
+                    0.000001D);
+            assertEquals(0.60D, runtime.adjustVelocityVertical(-0.20D, 0.60D),
+                    0.000001D);
+            assertEquals(Double.POSITIVE_INFINITY,
+                    runtime.adjustVelocityHorizontal(0.40D, Double.POSITIVE_INFINITY));
+            assertEquals(Double.doubleToRawLongBits(-0.0D),
+                    Double.doubleToRawLongBits(
+                            runtime.adjustVelocityVertical(1.0D, -0.0D)));
+
+            // An airborne override cannot steal original knockback input
+            // while the GUI is open, and normal scaling resumes after.
+            velocity.airborneOverrideSetting().set(Boolean.TRUE);
+            velocity.airborneHorizontalPercentSetting().set(150);
+            velocity.airborneVerticalPercentSetting().set(50);
+            runtime.playerMovementState().update(false, false, false);
+            assertEquals(1.20D, runtime.adjustVelocityHorizontal(0.40D, 1.20D),
+                    0.000001D);
+            assertEquals(0.60D, runtime.adjustVelocityVertical(-0.20D, 0.60D),
+                    0.000001D);
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertEquals(1.60D, runtime.adjustVelocityHorizontal(0.40D, 1.20D),
+                    0.000001D);
+            assertEquals(0.20D, runtime.adjustVelocityVertical(-0.20D, 0.60D),
+                    0.000001D);
+
+            controller.disable(Minecraft189VelocityModule.ID);
+            assertEquals(1.20D, runtime.adjustVelocityHorizontal(0.40D, 1.20D),
+                    0.000001D);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class NoOpHost
             implements LegacyUiHostCallbacks {
         @Override

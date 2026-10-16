@@ -90,7 +90,18 @@ public final class Minecraft189NoSlowModule
     synchronized float adjustSlowedMovement(
             final float slowedValue,
             final Minecraft189PlayerMovementState.Snapshot movement) {
-        if (!enabled) {
+        return adjustSlowedMovement(slowedValue, movement, false);
+    }
+
+    synchronized float adjustSlowedMovement(
+            final float slowedValue,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean actualClickGuiOpen) {
+        // This is a source-readback movement multiplier, not a motion
+        // setter. The original GUI must retain vanilla item-use slowdown
+        // during its input-focus lease. Never replace or bank that
+        // vanilla factor for the next gameplay callback.
+        if (!enabled || actualClickGuiOpen) {
             return slowedValue;
         }
         // Never use stale or missing movement evidence to bypass an

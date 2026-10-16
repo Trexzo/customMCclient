@@ -381,6 +381,87 @@ final class Minecraft189MovementSpeedModuleTest {
         assertNull(modules.find(Minecraft189MovementSpeedModule.ID));
     }
 
+
+    @Test
+    void actualGuiVetoesGroundAirAndStrafeMotionUntilFocusReturns() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            runtime.playerRotationState().update(0.0F);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            controller.enable(Minecraft189MovementSpeedModule.ID);
+            player.motionX = 0.11D;
+            player.motionY = 0.22D;
+            player.motionZ = -0.17D;
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerMotionControl(player);
+            assertEquals(0.11D, player.motionX, 0.000001D);
+            assertEquals(0.22D, player.motionY, 0.000001D);
+            assertEquals(-0.17D, player.motionZ, 0.000001D);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerMotionControl(player);
+            assertTrue(player.motionZ > 0.0D);
+            controller.disable(Minecraft189MovementSpeedModule.ID);
+
+            controller.enable(Minecraft189AirSpeedModule.ID);
+            runtime.playerMovementState().update(false, false, false);
+            player.motionX = 0.11D;
+            player.motionZ = -0.17D;
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.11D, player.motionX, 0.000001D);
+            assertEquals(-0.17D, player.motionZ, 0.000001D);
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerMotionControl(player);
+            assertTrue(player.motionZ > 0.0D);
+            controller.disable(Minecraft189AirSpeedModule.ID);
+
+            controller.enable(Minecraft189StrafeModule.ID);
+            runtime.playerMovementState().update(true, false, false);
+            player.motionX = 0.11D;
+            player.motionZ = -0.17D;
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.11D, player.motionX, 0.000001D);
+            assertEquals(-0.17D, player.motionZ, 0.000001D);
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerMotionControl(player);
+            assertTrue(player.motionZ > 0.0D);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;

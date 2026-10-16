@@ -25,14 +25,31 @@ public final class Minecraft189ReachModule implements Module {
     synchronized boolean active() { return enabled; }
 
     synchronized float raycastBlockDistance(final float nativeDistance) {
-        return enabled ? reach.get().floatValue() : nativeDistance;
+        return raycastBlockDistance(nativeDistance, false);
+    }
+
+    synchronized float raycastBlockDistance(
+            final float nativeDistance, final boolean actualClickGuiOpen) {
+        return enabled && !actualClickGuiOpen
+                ? reach.get().floatValue() : nativeDistance;
     }
 
     synchronized boolean raycastExtendedBranch(final boolean nativeExtended) {
-        return nativeExtended || enabled;
+        return raycastExtendedBranch(nativeExtended, false);
+    }
+
+    synchronized boolean raycastExtendedBranch(
+            final boolean nativeExtended, final boolean actualClickGuiOpen) {
+        return nativeExtended || (enabled && !actualClickGuiOpen);
     }
 
     synchronized double raycastExtendedDistance(final double nativeDistance) {
-        return enabled ? reach.get() : nativeDistance;
+        return raycastExtendedDistance(nativeDistance, false);
+    }
+
+    synchronized double raycastExtendedDistance(
+            final double nativeDistance, final boolean actualClickGuiOpen) {
+        return enabled && !actualClickGuiOpen
+                ? reach.get() : nativeDistance;
     }
 }

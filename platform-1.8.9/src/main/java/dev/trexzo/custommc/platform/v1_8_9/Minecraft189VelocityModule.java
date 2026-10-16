@@ -162,6 +162,18 @@ public final class Minecraft189VelocityModule
             final double before,
             final double after,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        return adjustHorizontal(before, after, movement, false);
+    }
+
+    synchronized double adjustHorizontal(
+            final double before,
+            final double after,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean actualClickGuiOpen) {
+        // Never suppress or amplify a new native knockback impulse while
+        // CustomMC's GUI has input ownership. Preserve exactly the
+        // incoming vanilla motion update, including signed zero and NaN.
+        if (actualClickGuiOpen) return after;
         if (belowMinimumDelta(before, after,
                 minHorizontalDelta.get().doubleValue())) {
             return after;
@@ -186,6 +198,15 @@ public final class Minecraft189VelocityModule
             final double before,
             final double after,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        return adjustVertical(before, after, movement, false);
+    }
+
+    synchronized double adjustVertical(
+            final double before,
+            final double after,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean actualClickGuiOpen) {
+        if (actualClickGuiOpen) return after;
         if (belowMinimumDelta(before, after,
                 minVerticalDelta.get().doubleValue())) {
             return after;

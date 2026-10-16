@@ -1189,6 +1189,14 @@ public final class Minecraft189RuntimeBridge {
                 activeHost();
         if (host != null) {
             host.playerStepControl(player);
+            // Opt-in official Mojang 1.8.9 client evidence only. The
+            // readback is the actual transformed Entity stepHeight field,
+            // after the production source-native adapter callback.
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireNativeStepGuiFocus")
+                    && player != null) {
+                Minecraft189OriginalClickGuiStepAcceptance.observe(host, player);
+            }
         }
     }
 
@@ -1216,6 +1224,11 @@ public final class Minecraft189RuntimeBridge {
                 activeHost();
         if (host != null) {
             host.playerNoClipControl(player);
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireNativeNoClipGuiFocus")
+                    && player != null) {
+                Minecraft189OriginalClickGuiNoClipAcceptance.observe(host, player);
+            }
         }
     }
 
@@ -1651,20 +1664,17 @@ public final class Minecraft189RuntimeBridge {
     /** Called solely at exact mapped EntityRenderer.getMouseOver bytecode sites. */
     public static synchronized float raycastBlockDistance(final float vanilla) {
         final Minecraft189HostRuntime host = activeHost();
-        return host == null ? vanilla
-                : host.featureCatalog().reach().raycastBlockDistance(vanilla);
+        return host == null ? vanilla : host.raycastBlockDistance(vanilla);
     }
 
     public static synchronized boolean raycastExtendedBranch(final boolean vanilla) {
         final Minecraft189HostRuntime host = activeHost();
-        return host == null ? vanilla
-                : host.featureCatalog().reach().raycastExtendedBranch(vanilla);
+        return host == null ? vanilla : host.raycastExtendedBranch(vanilla);
     }
 
     public static synchronized double raycastExtendedDistance() {
         final Minecraft189HostRuntime host = activeHost();
-        return host == null ? 6.0D
-                : host.featureCatalog().reach().raycastExtendedDistance(6.0D);
+        return host == null ? 6.0D : host.raycastExtendedDistance(6.0D);
     }
 
     /**
@@ -1675,8 +1685,7 @@ public final class Minecraft189RuntimeBridge {
             final boolean playerCandidate, final float nativeBorder) {
         final Minecraft189HostRuntime host = activeHost();
         return host == null ? nativeBorder
-                : host.featureCatalog().hitbox()
-                        .adjustNativeBorder(playerCandidate, nativeBorder);
+                : host.raycastHitboxBorder(playerCandidate, nativeBorder);
     }
 
     public static synchronized void autoClick(
