@@ -89,14 +89,26 @@ public final class Minecraft189StepModule
     synchronized void apply(
             final Minecraft189PlayerStepControl player,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        apply(player, movement, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerStepControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean actualClickGuiOpen) {
         if (player == null) {
             return;
         }
 
         final boolean groundGate = groundOnly.get().booleanValue();
         final boolean sneakGate = pauseWhileSneaking.get().booleanValue();
+        // A boosted step height is persistent native player state. When
+        // the original GUI takes focus, restore normal vanilla collision
+        // height rather than merely skipping this callback and retaining
+        // an old enabled 1.0+ block climb.
         final boolean permitted =
-                enabled && ((!groundGate && !sneakGate)
+                enabled && !actualClickGuiOpen
+                        && ((!groundGate && !sneakGate)
                         || (movement != null && movement.available()
                         && (!groundGate || movement.onGround())
                         && (!sneakGate || !movement.sneaking())));

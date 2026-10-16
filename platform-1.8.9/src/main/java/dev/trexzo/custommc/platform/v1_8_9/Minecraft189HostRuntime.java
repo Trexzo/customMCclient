@@ -886,7 +886,8 @@ public final class Minecraft189HostRuntime
         featureCatalog.step()
                 .apply(
                         player,
-                        playerMovementState.snapshot());
+                        playerMovementState.snapshot(),
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     void playerFallDistanceControl(
