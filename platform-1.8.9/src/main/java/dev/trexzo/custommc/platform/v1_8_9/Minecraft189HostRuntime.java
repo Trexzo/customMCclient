@@ -1525,6 +1525,9 @@ public final class Minecraft189HostRuntime
                 // sticky target locking is disabled (default local PvP).
                 // Without it, an unlocked Aura would fail closed forever.
                 || featureCatalog.killAura().active()
+                // TriggerBot also needs the exact current loaded-player UUID;
+                // an index alone can be reused across unload/rejoin events.
+                || featureCatalog.triggerBot().active()
                 || featureCatalog.friendGuard().requiresIdentity()
                 || featureCatalog.wallCheck().active();
     }
@@ -1789,9 +1792,29 @@ public final class Minecraft189HostRuntime
         } else if (trigger.active()) {
             aura.suspend();
             featureCatalog.autoClicker().suspendForGui();
+            // Runtime source evidence, NOT a cached index or a synthetic
+            // guess: bind TriggerBot's confirmation/click credit to the
+            // current ORIGINAL World loaded UUID at this exact crosshair.
+            java.util.UUID nativeTarget = null;
+            final Minecraft189WorldEntityUuidState.Snapshot identities =
+                    worldEntityUuidState.snapshot();
+            if (confirmedHit && crosshairPlayerIndex >= 0
+                    && tickUuidWorld != null && identities.available()
+                    && identities.entityCount() ==
+                            worldEntityKindState.snapshot().entityCount()
+                    && identities.entityCount() ==
+                            worldEntityCombatState.snapshot().entityCount()
+                    && crosshairPlayerIndex < identities.entityCount()) {
+                try {
+                    if (identities.matches(tickUuidWorld.customMcLoadedEntityUuids()))
+                        nativeTarget = identities.at(crosshairPlayerIndex);
+                } catch (RuntimeException staleNativeWorld) {
+                    nativeTarget = null;
+                }
+            }
             click = trigger.shouldClick(
                     confirmedHit, attackHeld, rightHeld,
-                    playerMovementState.snapshot());
+                    playerMovementState.snapshot(), nativeTarget);
         } else {
             aura.suspend();
             trigger.suspend();

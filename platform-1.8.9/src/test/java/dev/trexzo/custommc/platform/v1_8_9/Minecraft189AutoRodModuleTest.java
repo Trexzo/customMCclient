@@ -58,6 +58,60 @@ final class Minecraft189AutoRodModuleTest {
         mod.onDisable();
     }
 
+    @Test void originalSlotLeaseSurvivesConfigChangeAndNeverOverwritesOtherOwner() {
+        final Minecraft189AutoRodModule module = new Minecraft189AutoRodModule();
+        final Inventory inventory = new Inventory();
+        inventory.slot = 6;
+        final Inventory foreign = new Inventory();
+        foreign.slot = 7;
+        module.onEnable();
+        try {
+            assertEquals(6, module.selectSlot(inventory));
+            assertEquals(1, inventory.slot);
+            assertEquals(-1, module.selectSlot(inventory),
+                    "nested native item selection must not consume a second slot lease");
+            module.rodSlotSetting().set(8);
+            module.restoreSlot(foreign, 6);
+            assertEquals(7, foreign.slot, "foreign inventory has no native ownership");
+            module.restoreSlot(inventory, 6);
+            assertEquals(6, inventory.slot,
+                    "changing configured slot must never strand a prior native selection");
+
+            module.rodSlotSetting().set(9);
+            assertEquals(6, module.selectSlot(inventory));
+            assertEquals(8, inventory.slot);
+            inventory.slot = 4;
+            module.restoreSlot(inventory, 6);
+            assertEquals(4, inventory.slot,
+                    "do not override a real human or other actor's hotbar change");
+
+            inventory.slot = 3;
+            assertEquals(3, module.selectSlot(inventory));
+            module.onDisable();
+            module.restoreSlot(inventory, 3);
+            assertEquals(3, inventory.slot,
+                    "disable before finally must preserve the synchronous slot rollback");
+        } finally { module.onDisable(); }
+    }
+
+    @Test void partiallyAppliedNativeSelectionExceptionRestoresOwnedHotbar() {
+        final Minecraft189AutoRodModule module = new Minecraft189AutoRodModule();
+        module.onEnable();
+        final ThrowingInventory inventory = new ThrowingInventory();
+        inventory.slot = 5;
+        inventory.throwAfterSelect = true;
+        try {
+            assertThrows(IllegalStateException.class,
+                    () -> module.selectSlot(inventory));
+            assertEquals(5, inventory.slot,
+                    "native setter that mutates then throws must roll back its own slot");
+            assertEquals(5, module.selectSlot(inventory),
+                    "failed selection must not leave a zombie slot lease");
+            module.restoreSlot(inventory, 5);
+            assertEquals(5, inventory.slot);
+        } finally { module.onDisable(); }
+    }
+
     @Test void registrationAndPersistenceAreClean() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -74,6 +128,20 @@ final class Minecraft189AutoRodModuleTest {
         assertNull(modules.find(Minecraft189AutoRodModule.ID));
         assertNull(settings.find(Minecraft189AutoRodModule.ROD_SLOT));
     }
+    private static final class ThrowingInventory
+            implements Minecraft189InventoryHotbarControl {
+        private int slot;
+        private boolean throwAfterSelect;
+        @Override public int customMcSelectedHotbarSlot() { return slot; }
+        @Override public void customMcSetSelectedHotbarSlot(final int next) {
+            slot = next;
+            if (throwAfterSelect) {
+                throwAfterSelect = false;
+                throw new IllegalStateException("native slot selection threw after setting slot");
+            }
+        }
+    }
+
     private static final class Inventory implements Minecraft189InventoryHotbarControl {
         private int slot;
         @Override public int customMcSelectedHotbarSlot() { return slot; }

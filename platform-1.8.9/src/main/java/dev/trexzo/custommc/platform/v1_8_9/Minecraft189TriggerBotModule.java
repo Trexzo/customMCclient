@@ -3,6 +3,7 @@ package dev.trexzo.custommc.platform.v1_8_9;
 import dev.trexzo.custommc.core.module.Module;
 import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -36,6 +37,10 @@ public final class Minecraft189TriggerBotModule implements Module {
     private int lastMax = -1;
     private int lastConfirm = -1;
     private int confirmed;
+    // Keep CPS and consecutive crosshair confirmation owned by ONE exact
+    // source-native player UUID. Recycled loaded-list indices never confer
+    // authority to a different player during a target switch.
+    private UUID confirmedTargetUuid;
     private int phaseCredit;
     private int sampledCps;
 
@@ -64,12 +69,27 @@ public final class Minecraft189TriggerBotModule implements Module {
     // Cancels all scheduler credit while another module or ClickGUI owns input.
     synchronized void suspend() { reset(); }
 
+    // Legacy primitive-only tests/callers have no entity identity. Production
+    // MUST use the overload below with the verified current-world UUID.
+    private static final UUID LEGACY_TEST_TARGET = new UUID(0L, 0L);
+
     synchronized boolean shouldClick(
             final boolean verifiedCrosshairPlayer,
             final boolean attackHeld,
             final boolean rightHeld,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        return shouldClick(verifiedCrosshairPlayer, attackHeld, rightHeld,
+                movement, LEGACY_TEST_TARGET);
+    }
+
+    synchronized boolean shouldClick(
+            final boolean verifiedCrosshairPlayer,
+            final boolean attackHeld,
+            final boolean rightHeld,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final UUID verifiedNativePlayerUuid) {
         if (!enabled || !verifiedCrosshairPlayer
+                || verifiedNativePlayerUuid == null
                 || (requireHold.get() && !attackHeld)
                 || (pauseRight.get() && rightHeld)
                 || (pauseSneak.get() && (movement == null || !movement.available()
@@ -87,6 +107,14 @@ public final class Minecraft189TriggerBotModule implements Module {
             lastConfirm = need;
         }
 
+        if (!verifiedNativePlayerUuid.equals(confirmedTargetUuid)) {
+            // Neither a successful A crosshair confirmation nor its pending
+            // sub-tick CPS credit can be replayed against newly acquired B.
+            confirmed = 0;
+            phaseCredit = 0;
+            sampledCps = 0;
+            confirmedTargetUuid = verifiedNativePlayerUuid;
+        }
         confirmed = Math.min(need, confirmed + 1);
         if (confirmed < need) return false;
         if (sampledCps == 0) sampledCps = nextCps(min, max);
@@ -108,6 +136,7 @@ public final class Minecraft189TriggerBotModule implements Module {
         lastMax = -1;
         lastConfirm = -1;
         confirmed = 0;
+        confirmedTargetUuid = null;
         sampledCps = 0;
         phaseCredit = 0;
     }

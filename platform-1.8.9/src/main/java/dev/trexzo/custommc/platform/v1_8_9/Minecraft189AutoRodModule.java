@@ -76,19 +76,52 @@ public final class Minecraft189AutoRodModule implements Module {
     }
 
     /** Selects the user-configured slot for one synchronous native right click. */
+    // Synchronous native hotbar lease. Persist the ACTUAL slot chosen for
+    // this attempt: a UI setting change before finally/restore must not
+    // strand the selected rod/potion or overwrite another actor's slot.
+    private Minecraft189InventoryHotbarControl selectedInventory;
+    private int selectedSlot = -1;
+    private int previousSlot = -1;
+
     synchronized int selectSlot(final Minecraft189InventoryHotbarControl inventory) {
-        if (!enabled || inventory == null) return -1;
+        if (!enabled || inventory == null || selectedInventory != null) return -1;
         final int original = inventory.customMcSelectedHotbarSlot();
         if (original < 0 || original > 8) return -1;
-        inventory.customMcSetSelectedHotbarSlot(rodSlot.get() - 1);
+        final int target = rodSlot.get().intValue() - 1;
+        // Record exact slot ownership before invoking the native setter.
+        // A reentrant GUI setting change never changes this lease.
+        selectedInventory = inventory;
+        selectedSlot = target;
+        previousSlot = original;
+        try {
+            inventory.customMcSetSelectedHotbarSlot(target);
+        } catch (RuntimeException failure) {
+            try {
+                restoreSlot(inventory, original);
+            } catch (RuntimeException rollback) {
+                failure.addSuppressed(rollback);
+            }
+            throw failure;
+        }
         return original;
     }
 
-    /** Restore even if the Minecraft use-item method throws. */
     synchronized void restoreSlot(final Minecraft189InventoryHotbarControl inventory,
             final int original) {
-        if (inventory != null && original >= 0 && original <= 8
-                && inventory.customMcSelectedHotbarSlot() == rodSlot.get() - 1)
-            inventory.customMcSetSelectedHotbarSlot(original);
+        if (inventory == null || inventory != selectedInventory
+                || original != previousSlot || original < 0 || original > 8)
+            return;
+        try {
+            // Do not overwrite a real user/another module slot change.
+            // Compare the original target captured at select time, NOT the
+            // mutable ClickGUI configured target slot.
+            if (inventory.customMcSelectedHotbarSlot() == selectedSlot
+                    && selectedSlot != original)
+                inventory.customMcSetSelectedHotbarSlot(original);
+        } finally {
+            selectedInventory = null;
+            selectedSlot = -1;
+            previousSlot = -1;
+        }
     }
 }
