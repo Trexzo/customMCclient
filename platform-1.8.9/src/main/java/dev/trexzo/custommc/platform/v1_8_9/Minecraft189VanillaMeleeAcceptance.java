@@ -288,7 +288,11 @@ final class Minecraft189VanillaMeleeAcceptance {
      * from synthetic test fixtures or vanilla input event impersonation.
      */
     static boolean cleanCrosshairEntity(final Object minecraft) {
-        if (!Boolean.getBoolean("custommc.acceptance.reportAutoClicker")
+        // Shared read-only original raycast/hurt-time witness. Each named
+        // acceptance must opt in independently: V72 deliberately does NOT
+        // enable Auto Clicker (TriggerBot isolation is a required negative).
+        if ((!Boolean.getBoolean("custommc.acceptance.reportAutoClicker")
+                && !Boolean.getBoolean("custommc.acceptance.reportTriggerBotRealPvp"))
                 || minecraft == null || observedCombat == null) {
             return false;
         }
