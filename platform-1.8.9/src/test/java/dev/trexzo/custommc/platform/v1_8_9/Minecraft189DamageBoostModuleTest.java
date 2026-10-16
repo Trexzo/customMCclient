@@ -398,6 +398,59 @@ final class Minecraft189DamageBoostModuleTest {
         assertNull(modules.find(Minecraft189DamageBoostModule.ID));
     }
 
+
+    @Test
+    void actualGuiConsumesDamageBoostHurtEdgeWithoutPostMenuReplay() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            player.motionX = 0.25D;
+            player.motionY = 0.10D;
+            player.motionZ = 0.30D;
+            controller.enable(Minecraft189DamageBoostModule.ID);
+            runtime.playerHurtTimeState().update(8);
+            runtime.playerMotionControl(player);
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerHurtTimeState().update(10);
+            runtime.playerMotionControl(player);
+            assertEquals(0.25D, player.motionX, 0.000001D);
+            assertEquals(0.10D, player.motionY, 0.000001D);
+            assertEquals(0.30D, player.motionZ, 0.000001D);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0.25D, player.motionX, 0.000001D,
+                    "same hurtTime cannot reapply an old GUI-owned boost");
+            assertEquals(0.30D, player.motionZ, 0.000001D);
+
+            runtime.playerHurtTimeState().update(8);
+            runtime.playerMotionControl(player);
+            runtime.playerHurtTimeState().update(10);
+            runtime.playerMotionControl(player);
+            assertTrue(player.motionX > 0.25D);
+            assertTrue(player.motionZ > 0.30D);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;
