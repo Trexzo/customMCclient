@@ -914,6 +914,69 @@ final class Minecraft189WTapModuleTest {
         }
     }
 
+    @Test
+    void nativeSetterThrowRevokesWtapResetAndDoesNotReplayHeldMouseEdge() {
+        final Minecraft189WTapModule tap = new Minecraft189WTapModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        final FailingPlayer player = new FailingPlayer();
+        movement.update(true, false, true);
+        tap.onEnable();
+        try {
+            tap.resetTicksSetting().set(3);
+            player.failNext = true;
+            assertThrows(IllegalStateException.class,
+                    () -> tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(1, player.setCalls);
+            assertFalse(tap.apply(player, movement.snapshot(), true, true));
+            assertFalse(tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(1, player.setCalls,
+                    "an actual native setter failure cannot replay one held attack");
+            assertFalse(tap.apply(player, movement.snapshot(), false, true));
+            assertTrue(tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(2, player.setCalls,
+                    "fresh physical release and press may begin a new native reset");
+        } finally { tap.onDisable(); }
+    }
+
+    @Test
+    void inFlightWTapResetFailureAlsoRevokesRemainingTicks() {
+        final Minecraft189WTapModule tap = new Minecraft189WTapModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        final FailingPlayer player = new FailingPlayer();
+        movement.update(true, false, true);
+        tap.onEnable();
+        try {
+            tap.resetTicksSetting().set(3);
+            assertTrue(tap.apply(player, movement.snapshot(), true, true));
+            player.failNext = true;
+            assertThrows(IllegalStateException.class,
+                    () -> tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(2, player.setCalls);
+            assertFalse(tap.apply(player, movement.snapshot(), true, true));
+            assertFalse(tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(2, player.setCalls,
+                    "remaining two-tick reset must not survive native failure");
+            assertFalse(tap.apply(player, movement.snapshot(), false, true));
+            assertTrue(tap.apply(player, movement.snapshot(), true, true));
+            assertEquals(3, player.setCalls);
+        } finally { tap.onDisable(); }
+    }
+
+    private static final class FailingPlayer
+            implements Minecraft189PlayerSprintControl {
+        private int setCalls;
+        private boolean failNext;
+        @Override public void customMcSetSprinting(final boolean sprinting) {
+            setCalls++;
+            if (failNext) {
+                failNext = false;
+                throw new IllegalStateException("original native sprint setter failed");
+            }
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerSprintControl {
         private boolean sprinting = true;
