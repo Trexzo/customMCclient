@@ -465,7 +465,7 @@ def client_command(args, game, username, uuid, port, remote):
                 "-Dcustommc.acceptance.requireOriginalScaffoldReach=true",
                 "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true"):
             command.insert(command.index("-cp"), value)
-        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk"):
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldPlacement=true")
             if args.scaffold_placement == "menu-open":
@@ -495,6 +495,11 @@ def client_command(args, game, username, uuid, port, remote):
                 if args.scaffold_placement == "production-repeat-four-keyboard-walk":
                     command.insert(command.index("-cp"),
                                    "-Dcustommc.acceptance.requireProductionScaffoldKeyboardWalkProof=true")
+            if args.scaffold_placement == "production-repeat-five-keyboard-walk":
+                command.insert(command.index("-cp"),
+                               "-Dcustommc.acceptance.requireProductionScaffoldFiveBlockProof=true")
+                command.insert(command.index("-cp"),
+                               "-Dcustommc.acceptance.requireProductionScaffoldKeyboardWalkProof=true")
         else:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldDisabledControl=true")
@@ -637,7 +642,7 @@ def send_real_host_key(host, host_window, key):
 
 def source_native_scaffold_position(log, step):
     """Read exact ORIGINAL controller-tick coordinates, never inferred TP state."""
-    if step not in (1, 2, 3, 4):
+    if step not in (1, 2, 3, 4, 5):
         raise ValueError("unsupported keyboard source step")
     regex = re.compile(
         rb"CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_ORIGINAL_SOURCE_POSITION"
@@ -829,7 +834,7 @@ def run(args):
                  min(deadline, time.monotonic() + 65),
                  "host graphical client")
         host_window = None
-        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk"):
             # Unique real Minecraft client on this freshly allocated Xvfb
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
@@ -878,20 +883,27 @@ def run(args):
             second_target_xyz = (x+2, y-1, z)
             third_target_xyz = (x+3, y-1, z)
             fourth_target_xyz = (x+4, y-1, z)
+            fifth_target_xyz = (x+5, y-1, z)
+            sixth_target_xyz = (x+6, y-1, z)
             send_server_command(server, server_log, far_target_tp)
             send_server_command(server, server_log,
                                 "setblock {} {} {} stone".format(*support))
             send_server_command(server, server_log,
                                 "setblock {} {} {} air".format(*target_xyz))
-            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk"):
+            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk"):
                 send_server_command(server, server_log,
                                     "setblock {} {} {} air".format(*second_target_xyz))
-                if args.scaffold_placement in ("production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk"):
+                if args.scaffold_placement in ("production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk"):
                     send_server_command(server, server_log,
                                         "setblock {} {} {} air".format(*third_target_xyz))
-                if args.scaffold_placement in ("production-repeat-four", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk"):
+                if args.scaffold_placement in ("production-repeat-four", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk"):
                     send_server_command(server, server_log,
                                         "setblock {} {} {} air".format(*fourth_target_xyz))
+                if args.scaffold_placement == "production-repeat-five-keyboard-walk":
+                    send_server_command(server, server_log,
+                                        "setblock {} {} {} air".format(*fifth_target_xyz))
+                    send_server_command(server, server_log,
+                                        "setblock {} {} {} air".format(*sixth_target_xyz))
             # Capture a byte-precise diagnostic boundary for menu-negative
             # CI only; older startup OPEN reports are never authority to
             # press Escape in the currently running original Minecraft UI.
@@ -988,15 +1000,19 @@ def run(args):
             # CI-only repeat and production opt-in must have DIFFERENT markers.
             # A V37 marker never certifies a V43 production controller call.
             is_production_repeat = args.scaffold_placement in (
-                "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk")
-            four_keyboard_walk = args.scaffold_placement == "production-repeat-four-keyboard-walk"
-            four_production = args.scaffold_placement in ("production-repeat-four", "production-repeat-four-keyboard-walk")
+                "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk")
+            five_keyboard_walk = args.scaffold_placement == "production-repeat-five-keyboard-walk"
+            four_keyboard_walk = args.scaffold_placement in (
+                "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk")
+            four_production = args.scaffold_placement in (
+                "production-repeat-four", "production-repeat-four-keyboard-walk",
+                "production-repeat-five-keyboard-walk")
             three_production = args.scaffold_placement in (
-                "production-repeat-three", "production-repeat-three-history", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk") or four_production
+                "production-repeat-three", "production-repeat-three-history", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk") or four_production
             history_negative = args.scaffold_placement == "production-repeat-three-history"
-            three_keyboard_walk = args.scaffold_placement in ("production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk")
+            three_keyboard_walk = args.scaffold_placement in ("production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk")
             keyboard_walk = args.scaffold_placement in (
-                "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk")
+                "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk")
             repeat_marker = (b"PRODUCTION" if is_production_repeat else b"REPEAT")
             repeat_attempt = (b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
                               + b"_ORIGINAL_CONTROLLER_ATTEMPT=YES")
@@ -1007,7 +1023,7 @@ def run(args):
             if any(tag in log_tail(host_log)
                    for tag in (module,attempt,receipt,repeat_attempt,repeat_receipt,repeat_arm)):
                 raise AssertionError("native placement or repeat arm before accepted placement fixture")
-            if args.scaffold_placement in ("enabled", "repeat-two", "production-repeat-two", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk"):
+            if args.scaffold_placement in ("enabled", "repeat-two", "production-repeat-two", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk"):
                 # Genuine host keyboard selects hotbar slot 0. This is not
                 # a spoofed inventory setter or a fabricated ItemStack.
                 # Server sends the real eight-block Survival grant afterward.
@@ -1020,7 +1036,7 @@ def run(args):
             # after grant in the enabled mode races the intended 8 -> 7
             # survival decrement. Only the disabled control may retain
             # an eight-item post-grant baseline.
-            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk"):
+            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk"):
                 # V37 proves the isolated sequence; V43 independently runs
                 # the real default-off setting explicitly enabled for CI.
                 # V37 is an isolated opt-in new original-client JVM and
@@ -1411,10 +1427,11 @@ def run(args):
                                  "fourth original controller click at fresh distinct D")
                         wait_for(host, host_log, repeat_receipt + b" step=4", deadline,
                                  "fourth original WorldClient stone and 5-to-4 debit")
-                        wait_for(host, host_log,
-                                 b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
-                                 b"FOUR_CLIENT_RECEIPTS_PASS=YES attempts=4",
-                                 deadline, "four positive original receipts and native clicks")
+                        if not five_keyboard_walk:
+                            wait_for(host, host_log,
+                                     b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
+                                     b"FOUR_CLIENT_RECEIPTS_PASS=YES attempts=4",
+                                     deadline, "four positive original receipts and native clicks")
                         if four_keyboard_walk:
                             fourth_source = source_native_scaffold_position(host_log, 4)
                             native_fourth = re.compile(
@@ -1442,6 +1459,87 @@ def run(args):
                             target_xyz, second_target_xyz,
                             third_target_xyz, fourth_target_xyz)
                         expected_items = b"has 4 items that match the criteria"
+                        if five_keyboard_walk:
+                            # V67 original Survival source A-D must be confirmed
+                            # before holding the next real Shift+S leg for E.
+                            for target in (target_xyz, second_target_xyz,
+                                           third_target_xyz, fourth_target_xyz):
+                                send_server_command(server, server_log,
+                                                    "testforblock {} {} {} stone".format(*target),
+                                                    expected=b"successfully found the block")
+                            send_server_command(server, server_log,
+                                                "testforblock {} {} {} air".format(*fifth_target_xyz),
+                                                expected=b"successfully found the block")
+                            send_server_command(server, server_log,
+                                                "clear CIHost stone 0 0",
+                                                expected=b"has 4 items that match the criteria")
+                            fourth_source = source_native_scaffold_position(host_log, 4)
+                            fifth_sneak = fifth_backward = False
+                            try:
+                                set_original_host_sneak_key(host, host_window, True)
+                                fifth_sneak = True
+                                set_original_host_backward_key(host, host_window, True)
+                                fifth_backward = True
+                                fifth_deadline = min(deadline, time.monotonic() + 9.0)
+                                fifth_expected = (repeat_attempt
+                                    + b" step=5 accepted=true target="
+                                    + "{},{},{}".format(*fifth_target_xyz).encode())
+                                while time.monotonic() < fifth_deadline:
+                                    actual = latest_original_native_local_player_position(host_log)
+                                    if actual is not None and (
+                                            abs(actual[2] - fourth_source[2]) > .65
+                                            or actual[1] < fourth_source[1] - .42
+                                            or actual[0] > fourth_source[0] + 1.80):
+                                        raise AssertionError(
+                                            "real D-to-E keyboard walk lost native support"
+                                            " D={} current={}".format(fourth_source, actual))
+                                    if fifth_expected in log_tail(host_log):
+                                        break
+                                    time.sleep(.035)
+                                else:
+                                    raise AssertionError(
+                                        "fifth original controller did not click"
+                                        " during physical D-to-E traversal")
+                            finally:
+                                try:
+                                    if fifth_backward:
+                                        set_original_host_backward_key(host, host_window, False)
+                                finally:
+                                    if fifth_sneak:
+                                        set_original_host_sneak_key(host, host_window, False)
+                            wait_for(host, host_log, fifth_expected, deadline,
+                                     "fifth genuine original controller click at E")
+                            wait_for(host, host_log, repeat_receipt + b" step=5", deadline,
+                                     "fifth original WorldClient+inventory receipt 4-to-3")
+                            wait_for(host, host_log,
+                                     b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
+                                     b"FIVE_CLIENT_RECEIPTS_PASS=YES attempts=5",
+                                     deadline, "five original controller and receipt pairs")
+                            fifth_source = source_native_scaffold_position(host_log, 5)
+                            fifth_native = re.compile(
+                                rb"CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_"
+                                rb"ORIGINAL_SOURCE_POSITION step=5 "
+                                rb"x=(-?\d+(?:\.\d+)?) y=(-?\d+(?:\.\d+)?) "
+                                rb"z=(-?\d+(?:\.\d+)?) onGround=true sneaking=true")
+                            if len(fifth_native.findall(log_tail(host_log, 200000))) != 1:
+                                raise AssertionError("fifth original controller not grounded+sneaking")
+                            if not (fourth_source[0] + .45 <= fifth_source[0]
+                                    <= fourth_source[0] + 1.80
+                                    and abs(fifth_source[1] - fourth_source[1]) <= .35
+                                    and abs(fifth_source[2] - fourth_source[2]) <= .55):
+                                raise AssertionError(
+                                    "fifth controller source failed actual keyboard advance"
+                                    " D={} E={}".format(fourth_source, fifth_source))
+                            expected_attempts = 5
+                            expected_targets = (
+                                target_xyz, second_target_xyz, third_target_xyz,
+                                fourth_target_xyz, fifth_target_xyz)
+                            expected_items = b"has 3 items that match the criteria"
+                            print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_FIVE_REAL_KEYBOARD_LEGS_PASS=YES"
+                                  " A={} B={} C={} D={} E={}".format(
+                                      first_source[0], second_source[0],
+                                      third_source[0], fourth_source[0],
+                                      fifth_source[0]), flush=True)
                 else:
                     wait_for(host, host_log,
                              b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
@@ -1471,15 +1569,25 @@ def run(args):
                         send_server_command(server, server_log,
                                             "testforblock {} {} {} air".format(*fourth_target_xyz),
                                             expected=b"successfully found the block")
+                    elif not five_keyboard_walk:
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*fifth_target_xyz),
+                                            expected=b"successfully found the block")
+                    else:
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*sixth_target_xyz),
+                                            expected=b"successfully found the block")
                     print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_REAL_KEYBOARD_"
-                          + ("SERVER_FOUR_STONE_FOUR_PASS=YES" if four_keyboard_walk
+                          + ("SERVER_FIVE_STONE_THREE_PASS=YES" if five_keyboard_walk
+                             else "SERVER_FOUR_STONE_FOUR_PASS=YES" if four_keyboard_walk
                              else "SERVER_THREE_STONE_FIVE_PASS=YES" if three_keyboard_walk
                              else "SERVER_TWO_STONE_SIX_PASS=YES"), flush=True)
                 print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_"
                       + repeat_marker.decode("ascii")
                       + ("_SERVER_HISTORY_VETO_TWO_STONE_FIVE_PASS=YES"
                          if history_negative else
-                         "_SERVER_FOUR_STONE_FOUR_PASS=YES" if four_production
+                         "_SERVER_FIVE_STONE_THREE_PASS=YES" if five_keyboard_walk
+                         else "_SERVER_FOUR_STONE_FOUR_PASS=YES" if four_production
                          else "_SERVER_THREE_STONE_FIVE_PASS=YES" if three_production
                          else "_SERVER_TWO_STONE_SIX_PASS=YES"),
                       flush=True)
@@ -2378,7 +2486,7 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
-    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two","production-repeat-two","production-repeat-three","production-repeat-three-history","production-repeat-four","production-repeat-two-keyboard-walk","production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk"),
+    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two","production-repeat-two","production-repeat-three","production-repeat-three-history","production-repeat-four","production-repeat-two-keyboard-walk","production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk"),
                         help="dedicated Mojang server-authoritative Scaffold placement/disabled proof")
     parser.add_argument("--require-index-reorder", action="store_true",
                         help="fail-closed actual native entity-index change on fresh A rejoin")

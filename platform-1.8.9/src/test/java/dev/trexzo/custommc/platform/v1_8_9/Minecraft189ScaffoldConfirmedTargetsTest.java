@@ -24,6 +24,26 @@ final class Minecraft189ScaffoldConfirmedTargetsTest {
         assertEquals(3, history.count());
     }
 
+    @Test void fiveReceiptedTargetsMustRetainEveryPriorHistoricalVeto() {
+        final Minecraft189ScaffoldConfirmedTargets history =
+                new Minecraft189ScaffoldConfirmedTargets();
+        for (int i = 0; i < 5; i++)
+            assertTrue(history.recordReceipt(200 + i, 99, -40),
+                    "each real controller source target has one confirmed receipt");
+        assertEquals(5, history.count());
+        for (int i = 0; i < 5; i++) {
+            assertTrue(history.contains(200 + i, 99, -40),
+                    "even a long-past receipted coordinate must be retained");
+            assertFalse(history.recordReceipt(200 + i, 99, -40),
+                    "five-step history must veto old A/B/C/D/E reuse");
+            assertEquals(5, history.count());
+        }
+        history.reset();
+        assertEquals(0, history.count());
+        assertFalse(history.contains(200, 99, -40),
+                "only a fresh activation clears the prior World target history");
+    }
+
     @Test void exactThreeDimensionalCoordinateRequiredForDuplicate() {
         Minecraft189ScaffoldConfirmedTargets history =
                 new Minecraft189ScaffoldConfirmedTargets();

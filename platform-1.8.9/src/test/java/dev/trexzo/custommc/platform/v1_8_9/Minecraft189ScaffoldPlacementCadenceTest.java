@@ -187,6 +187,46 @@ final class Minecraft189ScaffoldPlacementCadenceTest {
         assertFalse(p.arm(74, 128, 4, 2));
     }
 
+    /** V67 primitive-only cadence: no original World or fake native click. */
+    @Test void fiveUniqueReceiptsExhaustExactlyFifthQuotaAndCannotRearm() {
+        Minecraft189ScaffoldPlacementCadence p =
+                new Minecraft189ScaffoldPlacementCadence();
+        assertTrue(p.arm(81, 100, 5, 4));
+        for (int step = 1; step <= 5; step++) {
+            final long tick = 100 + (step - 1) * 6L;
+            assertTrue(p.mayAttempt(81, tick));
+            assertTrue(p.controllerAttempt(81, tick, true));
+            assertEquals(step, p.attemptedCount());
+            assertFalse(p.mayAttempt(81, tick + 1),
+                    "no next real click without a separate original receipt");
+            assertTrue(p.receipt(81, tick + 2, true));
+            assertEquals(step == 5, p.stopped(),
+                    "fifth original readback, never fourth, must terminate quota");
+        }
+        assertFalse(p.mayAttempt(81, 200),
+                "sixth click cannot be admitted after five native receipts");
+        assertFalse(p.arm(81, 201, 5, 4),
+                "same module activation may not rearm a second five-block batch");
+        assertTrue(p.arm(82, 202, 5, 4),
+                "new explicitly enabled activation can reset cadence safely");
+    }
+
+    @Test void fourthReadbackTimeoutPermanentlyVetoesFifthControllerAttempt() {
+        Minecraft189ScaffoldPlacementCadence p =
+                new Minecraft189ScaffoldPlacementCadence();
+        assertTrue(p.arm(83, 0, 5, 2));
+        for (int i = 0; i < 3; i++) {
+            assertTrue(p.controllerAttempt(83, i * 3, true));
+            assertTrue(p.receipt(83, i * 3 + 1, true));
+        }
+        assertTrue(p.controllerAttempt(83, 9, true));
+        assertFalse(p.mayAttempt(83, 130),
+                "the fourth pending original receipt times out before a fifth click");
+        assertTrue(p.stopped());
+        assertFalse(p.arm(83, 131, 5, 2),
+                "timed-out activation cannot exploit a fresh quota");
+    }
+
     @Test void rejectsInvalidConfigurationAndTickOverflow() {
         Minecraft189ScaffoldPlacementCadence p=new Minecraft189ScaffoldPlacementCadence();
         assertFalse(p.arm(0,1,2,2));
