@@ -367,6 +367,79 @@ final class Minecraft189CombatItemUseBoundaryTest {
         }
     }
 
+
+    @Test void wrongPositiveFinallyTokensCannotReleaseNativeRodPotionOrMeleeOwners() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 4;
+            inventory.items[1] = new Item(true, false, 1);
+            inventory.items[2] = new Item(false, true, 1);
+            final Player player = new Player(inventory);
+            runtime.playerHotbarSlot(player);
+            runtime.playerHeldItem(player);
+            controller.enable(Minecraft189AutoRodModule.ID);
+            controller.enable(Minecraft189AutoPotModule.ID);
+            controller.enable(Minecraft189CombatSlotModule.ID);
+
+            assertEquals(4, runtime.selectAutoRodSlot());
+            assertEquals(1, inventory.selected);
+            runtime.restoreAutoRodSlot(5);
+            runtime.restoreAutoRodSlot(-1);
+            assertEquals(1, inventory.selected);
+            assertTrue(runtime.mayExecuteAutoRodUse(4));
+            assertEquals(-1, runtime.selectAutoPotSlot(),
+                    "incorrect positive Rod finally cannot unlock Potion");
+            assertEquals(-1, runtime.selectCombatSlotBeforeSyntheticClick(true),
+                    "incorrect Rod finally cannot unlock melee");
+            runtime.restoreCombatSlotAfterSyntheticClick(4);
+            assertEquals(1, inventory.selected);
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, inventory.selected);
+
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertEquals(2, inventory.selected);
+            runtime.restoreAutoPotSlot(3);
+            runtime.restoreAutoPotSlot(-1);
+            assertEquals(2, inventory.selected);
+            assertTrue(runtime.mayExecuteAutoPotUse(4));
+            assertEquals(-1, runtime.selectAutoRodSlot(),
+                    "incorrect Potion finally cannot unlock Rod");
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+
+            assertEquals(4, runtime.selectCombatSlotBeforeSyntheticClick(true));
+            assertEquals(0, inventory.selected);
+            runtime.restoreCombatSlotAfterSyntheticClick(6);
+            runtime.restoreCombatSlotAfterSyntheticClick(-1);
+            assertEquals(0, inventory.selected);
+            assertEquals(-1, runtime.selectAutoRodSlot(),
+                    "incorrect positive melee finally cannot unlock Rod");
+            assertEquals(-1, runtime.selectAutoPotSlot());
+            runtime.restoreCombatSlotAfterSyntheticClick(4);
+            assertEquals(4, inventory.selected);
+            assertEquals(4, runtime.selectAutoRodSlot(),
+                    "genuine finally releases lease and restores eligibility");
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class Inventory
             implements Minecraft189InventoryHotbarControl {
         int selected;
