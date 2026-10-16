@@ -1710,6 +1710,35 @@ public final class Minecraft189FeatureCatalog
             throw new IllegalStateException("native NoClip disable failed");
     }
 
+    /**
+     * Opt-in V103 genuine Mojang renderer callback acceptance.
+     * Reach is toggled by the normal ModuleController, never through
+     * a fixture-owned raycast override or transformed field setter.
+     */
+    void enableReachForOriginalGuiAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.requireNativeReachGuiFocus"))
+            throw new IllegalStateException("native Reach GUI fixture not armed");
+        if (moduleController.stateOf(Minecraft189ReachModule.ID)
+                != ModuleState.DISABLED)
+            throw new IllegalStateException("Reach must begin disabled");
+        reach().distanceSetting().set(Double.valueOf(4.2D));
+        moduleController.enable(Minecraft189ReachModule.ID);
+        if (!reach().active())
+            throw new IllegalStateException("source Reach enable failed");
+    }
+
+    void disableReachForOriginalGuiAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.requireNativeReachGuiFocus")
+                || moduleController.stateOf(Minecraft189ReachModule.ID)
+                        != ModuleState.ENABLED)
+            throw new IllegalStateException("native Reach GUI disable not armed");
+        moduleController.disable(Minecraft189ReachModule.ID);
+        if (reach().active())
+            throw new IllegalStateException("source Reach disable failed");
+    }
+
     void enableStepForOriginalGuiAcceptance() {
         requireOpen();
         if (!Boolean.getBoolean("custommc.acceptance.requireNativeStepGuiFocus"))
