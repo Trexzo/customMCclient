@@ -275,6 +275,53 @@ final class Minecraft189NoWebModuleTest {
         assertNull(modules.find(Minecraft189NoWebModule.ID));
     }
 
+
+    @Test
+    void nativeGuiFocusPreservesWebCollisionUntilOriginalGameplayResumes() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            player.inWeb = true;
+            controller.enable(Minecraft189NoWebModule.ID);
+            runtime.playerMovementState().update(true, false, false);
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerWebControl(player);
+            runtime.playerWebControl(player);
+            assertTrue(player.inWeb);
+            assertEquals(0, player.setCalls);
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerWebControl(player);
+            assertFalse(player.inWeb);
+            assertEquals(1, player.setCalls);
+            controller.disable(Minecraft189NoWebModule.ID);
+            player.inWeb = true;
+            runtime.playerWebControl(player);
+            assertTrue(player.inWeb);
+            assertEquals(1, player.setCalls);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerWebControl {
         private boolean inWeb;
