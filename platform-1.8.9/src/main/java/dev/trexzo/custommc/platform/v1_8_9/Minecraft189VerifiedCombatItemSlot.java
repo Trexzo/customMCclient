@@ -16,7 +16,9 @@ final class Minecraft189VerifiedCombatItemSlot {
         try {
             final Minecraft189ItemStackAccess selected = player == null
                     ? null : player.customMcHeldItem();
-            matches = selected != null && selected.customMcIsFishingRod();
+            matches = selected != null && selected.customMcStackSize() > 0
+                    && selected.customMcIsFishingRod()
+                    && module.ownsSelectedSlot(inventory, original);
             return matches ? original : -1;
         } finally {
             if (!matches) module.restoreSlot(inventory, original);
@@ -32,7 +34,9 @@ final class Minecraft189VerifiedCombatItemSlot {
         try {
             final Minecraft189ItemStackAccess selected = player == null
                     ? null : player.customMcHeldItem();
-            matches = selected != null && selected.customMcIsPotion();
+            matches = selected != null && selected.customMcStackSize() > 0
+                    && selected.customMcIsPotion()
+                    && module.ownsSelectedSlot(inventory, original);
             return matches ? original : -1;
         } finally {
             if (!matches) module.restoreSlot(inventory, original);
