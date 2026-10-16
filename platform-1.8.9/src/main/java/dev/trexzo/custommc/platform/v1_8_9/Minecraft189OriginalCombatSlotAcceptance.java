@@ -87,6 +87,21 @@ final class Minecraft189OriginalCombatSlotAcceptance {
                     "V108 source CombatSlot did not acquire its original lease");
             requireState(inventory.customMcSelectedHotbarSlot() == selectedSlot,
                     "V108 source setter failed to select actual preferred slot");
+            // V117 source-native wrong-token proof: original currentItem is
+            // selected, but an unrelated positive prior-slot token cannot
+            // consume the live host owner or let another synthetic selection
+            // take over this player's currentItem. Use the real Mojang object
+            // and the production HostRuntime paths, not a fabricated slot.
+            final int wrongPrior = (baselineSlot + 3) % 9;
+            host.restoreCombatSlotAfterSyntheticClick(wrongPrior);
+            requireState(inventory.customMcSelectedHotbarSlot() == selectedSlot,
+                    "V117 foreign positive token changed original Mojang currentItem");
+            requireState(host.selectCombatSlotBeforeSyntheticClick(true) == -1,
+                    "V117 foreign positive token released original hotbar owner");
+            host.restoreCombatSlotAfterSyntheticClick(-1);
+            requireState(inventory.customMcSelectedHotbarSlot() == selectedSlot,
+                    "V117 nested -1 finally changed original Mojang currentItem");
+            report("CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_WRONG_TOKEN_VETO_PASS=YES");
             // V105 core regression using *real* original InventoryPlayer:
             // edit ClickGUI setting DURING the native slot lease, then
             // restore the exact captured target instead of mutable config.
