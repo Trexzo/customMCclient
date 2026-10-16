@@ -28,6 +28,12 @@ AURA_ENABLED = b"CUSTOMMC_189_KILLAURA_PLAYER_MODULE_ENABLE_PASS=YES"
 AURA_ATTACK = b"CUSTOMMC_189_KILLAURA_SYNTHETIC_PLAYER_ATTACK_PASS=YES"
 CONTROLLER_ATTACK = b"CUSTOMMC_189_MOJANG_PLAYER_CONTROLLER_ATTACK_ENTITY_ENTERED=YES"
 AURA_HURT = b"CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HURT_PASS=YES"
+TRIGGER_DISABLED = b"CUSTOMMC_189_TRIGGERBOT_DISABLED_REAL_PLAYER_TICKS_PASS=20"
+TRIGGER_ENABLED = b"CUSTOMMC_189_TRIGGERBOT_NORMAL_MODULE_ENABLE_PASS=YES"
+TRIGGER_CLICK = b"CUSTOMMC_189_TRIGGERBOT_NATIVE_RAY_UUID_OWNED_CLICK_PASS=YES"
+TRIGGER_RAY = b"CUSTOMMC_189_TRIGGERBOT_ORIGINAL_PLAYER_RAYCAST_ARMED=YES"
+TRIGGER_CONTROLLER = b"CUSTOMMC_189_TRIGGERBOT_REAL_MOJANG_CONTROLLER_ARGUMENT_PASS=YES"
+TRIGGER_HURT = b"CUSTOMMC_OFFICIAL_189_TRIGGERBOT_REAL_PLAYER_HURT_PASS=YES"
 UNLOCKED_SCOPE_VETO = b"CUSTOMMC_189_UNLOCKED_AURA_NATIVE_LOCAL_INTENT_REMOTE_ARGUMENT_VETO_PASS=YES"
 UNLOCKED_SCOPE_FRESH = b"CUSTOMMC_189_UNLOCKED_AURA_FRESH_NATIVE_REMOTE_DISPATCH_PASS=YES"
 REMOTE_PAIR_SCOPE_VETO = b"CUSTOMMC_189_UNLOCKED_TWO_REAL_REMOTE_UUID_MISMATCH_VETO_PASS=YES"
@@ -590,6 +596,8 @@ def client_command(args, game, username, uuid, port, remote):
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportVanillaMelee=true")
         command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportTriggerBotRealPvp=true"
+                       if args.triggerbot_pvp else
                        "-Dcustommc.acceptance.reportKillAuraLocalPvp=true")
     command += ["--server", "127.0.0.1", "--port", str(port)]
     # Limit GUI/test process heap so both instances and server fit CI RAM.
@@ -2422,10 +2430,16 @@ def run(args):
                   flush=True)
             print("CUSTOMMC_189_SERVER_REAL_PLAYER_PVP_POSITIONS_SET=YES",
                   flush=True)
-            wait_for(host, host_log, AURA_DISABLED, deadline,
-                     "20 disabled genuine nonlocal player target callbacks")
-            wait_for(host, host_log, AURA_ENABLED, deadline,
-                     "normal real-player Kill Aura module enable")
+            if args.triggerbot_pvp:
+                wait_for(host, host_log, TRIGGER_DISABLED, deadline,
+                         "20 original zero-hurt disabled TriggerBot player rays")
+                wait_for(host, host_log, TRIGGER_ENABLED, deadline,
+                         "normal isolated TriggerBot ModuleController enable")
+            else:
+                wait_for(host, host_log, AURA_DISABLED, deadline,
+                         "20 disabled genuine nonlocal player target callbacks")
+                wait_for(host, host_log, AURA_ENABLED, deadline,
+                         "normal real-player Kill Aura module enable")
             if args.unlocked_remote_owner_veto:
                 wait_for(host, host_log, REMOTE_PAIR_SCOPE_VETO, deadline,
                          "native controller A argument vetoes real remote B owner")
@@ -2447,24 +2461,38 @@ def run(args):
                 send_server_command(server, server_log, "gamemode 0 CITarget")
                 wait_for(host, host_log, UNLOCKED_SCOPE_FRESH, deadline,
                          "original controller dispatch accepted real remote native UUID")
-            wait_for(host, host_log, AURA_ATTACK, deadline,
-                     "host-owned Kill Aura synthetic rotated player attack")
-            print("CUSTOMMC_189_CLIENT_AURA_CLICK_OBSERVED=YES", flush=True)
+            if args.triggerbot_pvp:
+                wait_for(host, host_log, TRIGGER_CLICK, deadline,
+                         "one normal TriggerBot original crosshair UUID-owned click")
+                wait_for(host, host_log, TRIGGER_RAY, deadline,
+                         "genuine original remote player entity under mouse")
+                print("CUSTOMMC_189_TRIGGERBOT_OWNED_REAL_PLAYER_CLICK=YES",
+                      flush=True)
+            else:
+                wait_for(host, host_log, AURA_ATTACK, deadline,
+                         "host-owned Kill Aura synthetic rotated player attack")
+                print("CUSTOMMC_189_CLIENT_AURA_CLICK_OBSERVED=YES", flush=True)
             # An owned synthetic action is only a potential hit. Real PvP
             # must enter Mojang PlayerControllerMP.attackEntity and produce
             # both native player hurt-time and server-authoritative damage.
-            wait_for(host, host_log, CONTROLLER_ATTACK,
-                     min(deadline, time.monotonic() + 10),
-                     "actual Mojang PlayerControllerMP.attackEntity method")
+            if args.triggerbot_pvp:
+                wait_for(host, host_log, TRIGGER_CONTROLLER,
+                         min(deadline, time.monotonic() + 10),
+                         "original Mojang controller TriggerBot player entity")
+            else:
+                wait_for(host, host_log, CONTROLLER_ATTACK,
+                         min(deadline, time.monotonic() + 10),
+                         "actual Mojang PlayerControllerMP.attackEntity method")
             print("CUSTOMMC_189_NATIVE_ATTACK_DISPATCH_PATH_ENTERED=YES",
                   flush=True)
             # Distinguish "module clicked but client never saw hurt" from
             # "client saw hurt but the dedicated server never counted damage".
             # The client marker alone never certifies PvP; both gates remain
             # mandatory. Fail quickly when there is no native hurt response.
-            wait_for(host, host_log, AURA_HURT,
+            wait_for(host, host_log,
+                     TRIGGER_HURT if args.triggerbot_pvp else AURA_HURT,
                      min(deadline, time.monotonic() + 18),
-                     "same actual remote player receiving native hurt after Aura click")
+                     "same real original remote player receiving native hurt")
             print("CUSTOMMC_189_CLIENT_REAL_PLAYER_HURT_OBSERVED=YES",
                   flush=True)
             # Server response comes first: determine whether real PvP damage
@@ -2493,6 +2521,9 @@ def run(args):
                 raise AssertionError("no dedicated-server damage statistic for CITarget")
             print("CUSTOMMC_OFFICIAL_189_SERVER_ACCEPTED_PLAYER_DAMAGE_PASS=YES",
                   flush=True)
+            if args.triggerbot_pvp:
+                print("CUSTOMMC_OFFICIAL_189_TRIGGERBOT_NATIVE_CONTROLLER_"
+                      "AND_SERVER_DAMAGE_PASS=YES", flush=True)
             if args.unlocked_remote_owner_veto:
                 send_server_command(server, server_log,
                                     "scoreboard players test CITargetB taken 0 0",
@@ -2627,6 +2658,9 @@ def main():
                        help="three actual clients with two real UUID PvP targets")
     group.add_argument("--pvp", action="store_true",
                        help="prove Kill Aura attack and real server damage statistic")
+    group.add_argument("--triggerbot-pvp", action="store_true",
+                       help="isolated source-native TriggerBot original controller "
+                            "attack against real UUID player plus server damage")
     group.add_argument("--range-veto", action="store_true",
                        help="prove real out-of-range player cannot be attacked")
     group.add_argument("--wall-veto", action="store_true",
@@ -2640,6 +2674,12 @@ def main():
     group.add_argument("--esp-visual", action="store_true",
                        help="require exact remote Mojang UUID actual Box ESP HUD draw")
     args = parser.parse_args()
+    if args.triggerbot_pvp:
+        if args.unlocked_scoped_veto or args.unlocked_remote_owner_veto:
+            parser.error("TriggerBot must remain isolated from Aura owner fixtures")
+        # Share actual positive dedicated-server geometry/stat ownership only;
+        # never reuse Aura-specific Java props or PASS markers.
+        args.pvp = True
     if args.unlocked_scoped_veto and not args.pvp:
         parser.error("--unlocked-scoped-veto requires --pvp")
     if args.unlocked_remote_owner_veto and (
