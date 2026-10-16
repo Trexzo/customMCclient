@@ -609,6 +609,72 @@ final class Minecraft189FastFallModuleTest {
         assertNull(modules.find(Minecraft189FastFallModule.ID));
     }
 
+
+    @Test
+    void realClickGuiFocusRevokesFastFallDelayWithoutForgingNextDescent() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            final Minecraft189FastFallModule fall =
+                    runtime.featureCatalog().fastFall();
+            fall.activationDelayTicksSetting().set(2);
+            controller.enable(Minecraft189FastFallModule.ID);
+            runtime.playerMovementState().update(false, false, false);
+            player.motionY = -0.05D;
+            runtime.playerMotionControl(player);
+            assertEquals(0, player.verticalSetCalls);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(0, player.verticalSetCalls);
+            assertEquals(-0.05D, player.motionY, 0.000000001D);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertFalse(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(0, player.verticalSetCalls,
+                    "old pre-UI airborne eligibility must not be replayed");
+            runtime.playerMotionControl(player);
+            assertEquals(1, player.verticalSetCalls);
+            assertEquals(-0.30D, player.motionY, 0.000000001D);
+
+            // Even after a successful acceleration, GUI focus owns the
+            // newly mapped native motion and FastFall must leave it alone.
+            player.motionY = -0.05D;
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(1, player.verticalSetCalls);
+            assertEquals(-0.05D, player.motionY, 0.000000001D);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;
