@@ -26,6 +26,28 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189NoSlowModuleTest {
     @Test
+    void nativeNoSlowPreservesInvalidInputsWithoutIntroducingOverflow() {
+        final Minecraft189NoSlowModule noSlow = new Minecraft189NoSlowModule();
+        noSlow.onEnable();
+        try {
+            noSlow.speedPercentSetting().set(100);
+            assertEquals(Float.MAX_VALUE,
+                    noSlow.adjustSlowedMovement(Float.MAX_VALUE));
+            assertEquals(-Float.MAX_VALUE,
+                    noSlow.adjustSlowedMovement(-Float.MAX_VALUE));
+            assertEquals(Float.POSITIVE_INFINITY,
+                    noSlow.adjustSlowedMovement(Float.POSITIVE_INFINITY));
+            assertTrue(Float.isNaN(
+                    noSlow.adjustSlowedMovement(Float.NaN)));
+            assertEquals(-0.75F,
+                    noSlow.adjustSlowedMovement(-0.15F), 0.00001F,
+                    "finite original item slowdown still uses configured percent");
+            noSlow.onDisable();
+            assertEquals(0.2F, noSlow.adjustSlowedMovement(0.2F));
+        } finally { noSlow.onDisable(); }
+    }
+
+    @Test
     void noSlowRestoresVanillaItemUseMovementFactorOnlyWhileEnabled() {
         final ModuleRegistry modules =
                 new ModuleRegistry();
