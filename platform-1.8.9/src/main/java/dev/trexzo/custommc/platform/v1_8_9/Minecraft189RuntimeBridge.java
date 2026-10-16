@@ -28,6 +28,10 @@ public final class Minecraft189RuntimeBridge {
     private static boolean acceptanceManualUnscopedNativeReported;
     // M426 isolated Auto Clicker controller proof; no production behavior.
     private static boolean acceptanceAutoClickerUnscopedNativeReported;
+    private static int nativeTimerOriginalBaselineCallbacks;
+    private static int nativeTimerOriginalBoostCallbacks;
+    private static boolean nativeTimerOriginalEnabled;
+    private static boolean nativeTimerOriginalFinished;
     private static int graphicalAcceptanceFrames;
     private static boolean graphicalAcceptanceReported;
     private static boolean acceptancePlayerObserved;
@@ -99,6 +103,10 @@ public final class Minecraft189RuntimeBridge {
         acceptanceRemotePairOtherUuid = null;
         acceptanceManualUnscopedNativeReported = false;
         acceptanceAutoClickerUnscopedNativeReported = false;
+        nativeTimerOriginalBaselineCallbacks = 0;
+        nativeTimerOriginalBoostCallbacks = 0;
+        nativeTimerOriginalEnabled = false;
+        nativeTimerOriginalFinished = false;
         graphicalAcceptanceFrames = 0;
         graphicalAcceptanceReported = false;
         acceptancePlayerObserved = false;
@@ -1569,11 +1577,54 @@ public final class Minecraft189RuntimeBridge {
 
     public static synchronized void timerSpeedControl(
             final Minecraft189TimerSpeedControl timer) {
-        final Minecraft189HostRuntime host =
-                activeHost();
-        if (host != null) {
-            host.timerSpeedControl(
-                    timer);
+        final Minecraft189HostRuntime host = activeHost();
+        if (host == null || timer == null) return;
+        // Production always calls exactly the existing source-mapped game
+        // Timer accessor; acceptance only OBSERVES its result and changes
+        // modules through their real normal ModuleController lifecycle.
+        host.timerSpeedControl(timer);
+        if (!Boolean.getBoolean(
+                "custommc.acceptance.requireRealTimerMultiplier")
+                || nativeTimerOriginalFinished
+                || !host.playerMovementState().snapshot().available()) return;
+
+        final float original = timer.customMcTimerSpeed();
+        if (!Float.isFinite(original))
+            throw new IllegalStateException("native Mojang Timer value nonfinite");
+        if (!nativeTimerOriginalEnabled) {
+            if (host.featureCatalog().timerSpeed().active()
+                    || Math.abs(original - 1.0F) > .00001F)
+                throw new IllegalStateException(
+                        "negative disabled native Timer must remain vanilla 1x");
+            if (++nativeTimerOriginalBaselineCallbacks == 20) {
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_TIMER_DISABLED_NATIVE_ONE_X_PASS=20");
+                host.featureCatalog().enableTimerForOriginalAcceptance();
+                nativeTimerOriginalEnabled = true;
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_TIMER_NORMAL_MODULE_ENABLE_PASS=YES");
+                System.out.flush();
+            }
+            return;
+        }
+        if (!host.featureCatalog().timerSpeed().active()
+                || Math.abs(original - 1.5F) > .00001F)
+            throw new IllegalStateException(
+                    "actual Mojang Timer did not retain the owned 1.5x multiplier");
+        if (++nativeTimerOriginalBoostCallbacks >= 5) {
+            System.out.println(
+                    "CUSTOMMC_OFFICIAL_189_TIMER_NATIVE_FIVE_1_5_X_CALLBACKS_PASS=YES");
+            host.featureCatalog().disableTimerForOriginalAcceptance();
+            // Only original source-native callback may restore vanilla.
+            host.timerSpeedControl(timer);
+            if (Math.abs(timer.customMcTimerSpeed() - 1.0F) > .00001F
+                    || host.featureCatalog().timerSpeed().active())
+                throw new IllegalStateException(
+                        "actual Mojang Timer did not restore vanilla after disable");
+            nativeTimerOriginalFinished = true;
+            System.out.println(
+                    "CUSTOMMC_OFFICIAL_189_TIMER_ORIGINAL_NATIVE_RESTORE_ONE_X_PASS=YES");
+            System.out.flush();
         }
     }
 
