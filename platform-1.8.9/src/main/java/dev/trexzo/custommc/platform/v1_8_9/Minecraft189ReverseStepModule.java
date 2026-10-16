@@ -104,6 +104,22 @@ public final class Minecraft189ReverseStepModule
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean suspended,
             final boolean movementHeld) {
+        return apply(player, movement, suspended, movementHeld, false);
+    }
+
+    synchronized boolean apply(
+            final Minecraft189PlayerMotionControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean suspended,
+            final boolean movementHeld,
+            final boolean actualClickGuiOpen) {
+        // A source-native GUI focus change revokes the full historical
+        // ground-to-air lease, not merely the pending delayed write. No
+        // departure observed before/in GUI may replay on menu close.
+        if (actualClickGuiOpen) {
+            resetTransition();
+            return false;
+        }
         if (movement == null || !movement.available()) {
             resetTransition();
             return false;
