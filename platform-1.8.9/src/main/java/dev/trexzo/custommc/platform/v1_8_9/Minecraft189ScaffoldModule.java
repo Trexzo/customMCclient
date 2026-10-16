@@ -6,7 +6,7 @@ import dev.trexzo.custommc.core.setting.SettingCodecs;
 
 /**
  * Source-native Scaffold with one placement by default and explicit
- * default-OFF two/three/four-placement modes (V43/V54/V59).
+ * default-OFF two/three/four/five-placement modes (V43/V54/V59).
  *
  * Each placement revalidates the ORIGINAL Minecraft World/eye/cursor and
  * ItemBlock; repeat mode needs one original positive receipt per attempt
@@ -25,11 +25,14 @@ public final class Minecraft189ScaffoldModule implements Module {
             "movement.scaffold.threePlacements";
     public static final String FOUR_PLACEMENTS_SETTING_ID =
             "movement.scaffold.fourPlacements";
+    public static final String FIVE_PLACEMENTS_SETTING_ID =
+            "movement.scaffold.fivePlacements";
     public static final String ADJACENT_EDGE_SETTING_ID =
             "movement.scaffold.adjacentEdgeTargets";
     private static final int PRODUCTION_TWO_COUNT = 2;
     private static final int PRODUCTION_THREE_COUNT = 3;
     private static final int PRODUCTION_FOUR_COUNT = 4;
+    private static final int PRODUCTION_FIVE_COUNT = 5;
     private static final int PRODUCTION_REPEAT_GAP_TICKS = 4;
     // Explicit UI setting, always OFF on a clean installation. Only captured
     // on a fresh module enable; changing it mid-activation grants no clicks.
@@ -44,6 +47,10 @@ public final class Minecraft189ScaffoldModule implements Module {
     // changes older two/three settings or grants a partial fallback.
     private final Setting<Boolean> fourPlacements = new Setting<Boolean>(
             FOUR_PLACEMENTS_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    // V67 fifth placement remains a separate default-OFF bounded quota.
+    private final Setting<Boolean> fivePlacements = new Setting<Boolean>(
+            FIVE_PLACEMENTS_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
     // Independent default-OFF extension. No one-shot / isolated proof
     // automatically receives the original side-face candidate fallback.
@@ -85,16 +92,18 @@ public final class Minecraft189ScaffoldModule implements Module {
         final boolean two = Boolean.TRUE.equals(twoPlacements.get());
         final boolean three = Boolean.TRUE.equals(threePlacements.get());
         final boolean four = Boolean.TRUE.equals(fourPlacements.get());
+        final boolean five = Boolean.TRUE.equals(fivePlacements.get());
         final boolean edge = Boolean.TRUE.equals(adjacentEdgeTargets.get());
         // Exactly zero or one opt-in mode. No quota priority, partial
         // fallback or extra admission if conflicting UI toggles are enabled.
         final int selectedModes = (two ? 1 : 0) + (three ? 1 : 0)
-                + (four ? 1 : 0);
+                + (four ? 1 : 0) + (five ? 1 : 0);
         if (selectedModes > 1 || (edge && selectedModes != 1)) {
             attempted = true; // An edge setting alone NEVER grants a click.
         } else if (selectedModes == 1) {
             productionAdjacentEdgeForActivation = edge;
-            productionRepeatCountForActivation = four
+            productionRepeatCountForActivation = five
+                    ? PRODUCTION_FIVE_COUNT : four
                     ? PRODUCTION_FOUR_COUNT
                     : three ? PRODUCTION_THREE_COUNT : PRODUCTION_TWO_COUNT;
             productionRepeatForActivation = true;
@@ -120,6 +129,7 @@ public final class Minecraft189ScaffoldModule implements Module {
     public Setting<Boolean> twoPlacementsSetting() { return twoPlacements; }
     public Setting<Boolean> threePlacementsSetting() { return threePlacements; }
     public Setting<Boolean> fourPlacementsSetting() { return fourPlacements; }
+    public Setting<Boolean> fivePlacementsSetting() { return fivePlacements; }
     public Setting<Boolean> adjacentEdgeTargetsSetting() { return adjacentEdgeTargets; }
     synchronized int productionRepeatCountForActivation() {
         return productionRepeatCountForActivation;
@@ -168,12 +178,18 @@ public final class Minecraft189ScaffoldModule implements Module {
         final boolean stillTwo = Boolean.TRUE.equals(twoPlacements.get());
         final boolean stillThree = Boolean.TRUE.equals(threePlacements.get());
         final boolean stillFour = Boolean.TRUE.equals(fourPlacements.get());
+        final boolean stillFive = Boolean.TRUE.equals(fivePlacements.get());
+        // Exactly one frozen quota is permitted for the lifetime of a
+        // source-owned activation. A fifth click is never a fallback from
+        // conflicting modes or a live ClickGUI setting change.
         final boolean exactMode = productionRepeatCountForActivation
-                == PRODUCTION_TWO_COUNT ? stillTwo && !stillThree && !stillFour
+                == PRODUCTION_TWO_COUNT ? stillTwo && !stillThree && !stillFour && !stillFive
                 : productionRepeatCountForActivation == PRODUCTION_THREE_COUNT
-                    ? stillThree && !stillTwo && !stillFour
+                    ? stillThree && !stillTwo && !stillFour && !stillFive
                     : productionRepeatCountForActivation == PRODUCTION_FOUR_COUNT
-                        && stillFour && !stillTwo && !stillThree;
+                        ? stillFour && !stillTwo && !stillThree && !stillFive
+                        : productionRepeatCountForActivation == PRODUCTION_FIVE_COUNT
+                            && stillFive && !stillTwo && !stillThree && !stillFour;
         if (!exactMode || Boolean.TRUE.equals(adjacentEdgeTargets.get())
                 != productionAdjacentEdgeForActivation) {
             repeatSequence.invalidate();
