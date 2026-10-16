@@ -522,6 +522,76 @@ final class Minecraft189GlideModuleTest {
         assertNull(modules.find(Minecraft189GlideModule.ID));
     }
 
+
+    @Test
+    void originalClickGuiFocusCancelsGlideDelayAndForbidsNativeDescentWrites() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(), modules,
+                controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            player.motionY = -0.40D;
+            final Minecraft189GlideModule glide = runtime.featureCatalog().glide();
+            glide.activationDelayTicksSetting().set(2);
+            controller.enable(Minecraft189GlideModule.ID);
+            runtime.playerMovementState().update(false, false, false);
+
+            // The first original airborne callback accumulates one of two
+            // required eligible samples without editing player motion.
+            runtime.playerMotionControl(player);
+            assertEquals(0, player.verticalSetCalls);
+
+            // The real ClickGUI focus transition revokes this old credit.
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(0, player.verticalSetCalls);
+            assertEquals(-0.40D, player.motionY, 0.000000001D,
+                    "native source descent belongs to player during UI focus");
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertFalse(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(0, player.verticalSetCalls,
+                    "focus interruption must not retain pre-GUI delay credit");
+            runtime.playerMotionControl(player);
+            assertEquals(1, player.verticalSetCalls);
+            assertEquals(-0.08D, player.motionY, 0.000000001D);
+
+            // Even with an already-satisfied delay, a new focus boundary
+            // cannot transform external native motion.
+            player.motionY = -0.55D;
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerMotionControl(player);
+            assertEquals(1, player.verticalSetCalls);
+            assertEquals(-0.55D, player.motionY, 0.000000001D);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;

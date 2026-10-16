@@ -305,6 +305,78 @@ final class Minecraft189NoClipModuleTest {
         assertNull(modules.find(Minecraft189NoClipModule.ID));
     }
 
+
+    @Test
+    void realClickGuiReturnsNativeNoClipLeaseToOriginalPlayerOnMenuOpen() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            controller.enable(Minecraft189NoClipModule.ID);
+            runtime.playerNoClipControl(player);
+            assertTrue(player.noClip);
+            assertEquals(1, player.setCalls);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerNoClipControl(player);
+            assertFalse(player.noClip,
+                    "menu focus must release a persistent module-owned true");
+            assertEquals(2, player.setCalls);
+            runtime.playerNoClipControl(player);
+            assertEquals(2, player.setCalls,
+                    "repeated GUI callbacks must not capture another lease");
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerNoClipControl(player);
+            assertTrue(player.noClip);
+            assertEquals(3, player.setCalls,
+                    "new actual game focus may capture fresh false baseline");
+
+            controller.disable(Minecraft189NoClipModule.ID);
+            runtime.playerNoClipControl(player);
+            assertFalse(player.noClip);
+            assertEquals(4, player.setCalls);
+
+            // Native baseline true is not owned by this module and must
+            // never be forcibly changed by a GUI focus transition.
+            player.noClip = true;
+            controller.enable(Minecraft189NoClipModule.ID);
+            runtime.playerNoClipControl(player);
+            assertEquals(4, player.setCalls);
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerNoClipControl(player);
+            assertTrue(player.noClip);
+            assertEquals(4, player.setCalls);
+            // The original user/world owner may independently turn it off.
+            player.noClip = false;
+            runtime.playerNoClipControl(player);
+            assertFalse(player.noClip);
+            assertEquals(4, player.setCalls);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerNoClipControl {
         private boolean noClip;

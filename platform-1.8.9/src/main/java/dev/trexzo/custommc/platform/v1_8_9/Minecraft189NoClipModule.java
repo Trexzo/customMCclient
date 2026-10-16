@@ -60,6 +60,13 @@ public final class Minecraft189NoClipModule
     synchronized void apply(
             final Minecraft189PlayerNoClipControl player,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        apply(player, movement, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerNoClipControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean actualClickGuiOpen) {
         if (player == null) {
             return;
         }
@@ -73,6 +80,14 @@ public final class Minecraft189NoClipModule
         }
 
         if (enabled) {
+            // A collision override outlives its setter: merely skipping
+            // ClickGUI callbacks would leave noClip=true through menus.
+            // Release only this player's captured lease to its own native
+            // baseline. After closing GUI we may capture a new baseline.
+            if (actualClickGuiOpen) {
+                restoreCaptured(player);
+                return;
+            }
             final boolean gated = requireSneaking.get().booleanValue()
                     && (movement == null || !movement.available()
                     || !movement.sneaking());

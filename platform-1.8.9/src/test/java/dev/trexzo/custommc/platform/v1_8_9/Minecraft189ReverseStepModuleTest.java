@@ -567,6 +567,74 @@ final class Minecraft189ReverseStepModuleTest {
         assertNull(modules.find(Minecraft189ReverseStepModule.ID));
     }
 
+
+    @Test
+    void realGuiFocusRevokesReverseStepPendingDepartureAndRequiresNewLanding() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            final Minecraft189ReverseStepModule step =
+                    runtime.featureCatalog().reverseStep();
+            step.delayTicksSetting().set(2);
+            controller.enable(Minecraft189ReverseStepModule.ID);
+
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerMotionControl(player);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerMotionControl(player);
+            assertEquals(0, player.verticalSetCalls);
+            // One eligible native airborne sample was counted before GUI.
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(0, player.verticalSetCalls);
+
+            // Still airborne after menu close: no stale transition may
+            // finish its old delay or synthesize a new departure.
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            for (int i = 0; i < 5; i++) {
+                runtime.playerMotionControl(player);
+            }
+            assertEquals(0, player.verticalSetCalls);
+            assertEquals(0.0D, player.motionY, 0.000000001D);
+
+            // The only valid new lease starts from a fresh ground contact.
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerMotionControl(player);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerMotionControl(player);
+            runtime.playerMotionControl(player);
+            assertEquals(0, player.verticalSetCalls);
+            runtime.playerMotionControl(player);
+            assertEquals(1, player.verticalSetCalls);
+            assertEquals(-0.50D, player.motionY, 0.000000001D);
+            runtime.playerMotionControl(player);
+            assertEquals(1, player.verticalSetCalls);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMotionControl {
         private double motionX;

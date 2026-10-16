@@ -104,7 +104,18 @@ public final class Minecraft189GlideModule
             final Minecraft189PlayerMotionControl player,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean suspended) {
+        apply(player, movement, suspended, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerMotionControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean suspended,
+            final boolean actualClickGuiOpen) {
+        // A menu-focus callback is a hard eligibility boundary: discard
+        // saved airborne descent counts, not just this tick's glide write.
         if (!enabled
+                || actualClickGuiOpen
                 || suspended
                 || player == null
                 || movement == null

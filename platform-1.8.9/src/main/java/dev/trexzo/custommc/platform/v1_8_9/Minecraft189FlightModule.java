@@ -171,8 +171,20 @@ public final class Minecraft189FlightModule
             final Minecraft189PlayerMotionControl player,
             final Minecraft189PlayerRotationState.Snapshot rotation,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        apply(player, rotation, movement, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerMotionControl player,
+            final Minecraft189PlayerRotationState.Snapshot rotation,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean actualClickGuiOpen) {
         Objects.requireNonNull(rotation, "rotation");
-        if (!enabled || player == null) {
+        // The original GUI owns keyboard focus. Neither hover, climb nor
+        // directional Flight may rewrite source player motion in that state.
+        // Do not synthesize a motion reset: the vanilla player owns its
+        // existing velocity while the GUI is open.
+        if (!enabled || player == null || actualClickGuiOpen) {
             return;
         }
 

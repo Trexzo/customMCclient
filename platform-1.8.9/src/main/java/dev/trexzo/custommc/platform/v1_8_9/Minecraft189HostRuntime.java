@@ -759,7 +759,8 @@ public final class Minecraft189HostRuntime
                         inputState.keyPressed(LegacyKeyboardCodes.W)
                                 || inputState.keyPressed(LegacyKeyboardCodes.A)
                                 || inputState.keyPressed(LegacyKeyboardCodes.S)
-                                || inputState.keyPressed(LegacyKeyboardCodes.D));
+                                || inputState.keyPressed(LegacyKeyboardCodes.D),
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     float adjustNoSlowMovement(
@@ -875,7 +876,8 @@ public final class Minecraft189HostRuntime
         featureCatalog.airJump()
                 .apply(
                         player,
-                        movement);
+                        movement,
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     void playerStepControl(
@@ -884,7 +886,8 @@ public final class Minecraft189HostRuntime
         featureCatalog.step()
                 .apply(
                         player,
-                        playerMovementState.snapshot());
+                        playerMovementState.snapshot(),
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     void playerFallDistanceControl(
@@ -912,7 +915,8 @@ public final class Minecraft189HostRuntime
         featureCatalog.noClip()
                 .apply(
                         player,
-                        playerMovementState.snapshot());
+                        playerMovementState.snapshot(),
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     void playerMotionControl(
@@ -1004,7 +1008,8 @@ public final class Minecraft189HostRuntime
                 .apply(
                         player,
                         rotation,
-                        movement);
+                        movement,
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
         final boolean horizontalOwnerActive = flightActive
                 || longJumpOwnsHorizontal || bunnyHopOwnsHorizontal
                 || movementSpeedOwnsHorizontal || airSpeedOwnsHorizontal;
@@ -1027,20 +1032,23 @@ public final class Minecraft189HostRuntime
                                 inputState.keyPressed(LegacyKeyboardCodes.W)
                                         || inputState.keyPressed(LegacyKeyboardCodes.A)
                                         || inputState.keyPressed(LegacyKeyboardCodes.S)
-                                        || inputState.keyPressed(LegacyKeyboardCodes.D));
+                                        || inputState.keyPressed(LegacyKeyboardCodes.D),
+                                clickGuiRuntime.coreRuntime().model().snapshot().open());
         featureCatalog.noGravity()
                 .apply(
                         player,
                         movement,
                         flightActive,
-                        jumpHeld);
+                        jumpHeld,
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
         featureCatalog.fastFall()
                 .apply(
                         player,
                         movement,
                         flightActive
                                 || noGravityActive
-                                || reverseStepOwnsVertical);
+                                || reverseStepOwnsVertical,
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
         featureCatalog.glide()
                 .apply(
                         player,
@@ -1048,7 +1056,8 @@ public final class Minecraft189HostRuntime
                         flightActive
                                 || noGravityActive
                                 || reverseStepOwnsVertical
-                                || fastFallActive);
+                                || fastFallActive,
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
         featureCatalog.damageBoost()
                 .apply(player, hurtTime, flightActive);
         if (player != null) {

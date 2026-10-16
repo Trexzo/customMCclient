@@ -106,7 +106,19 @@ public final class Minecraft189FastFallModule
             final Minecraft189PlayerMotionControl player,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean suspended) {
+        apply(player, movement, suspended, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerMotionControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean suspended,
+            final boolean actualClickGuiOpen) {
+        // An actual original GUI focus change breaks consecutive descent
+        // evidence. Discard delayed eligibility rather than releasing a
+        // pre-UI fall into an immediate synthetic motion write on close.
         if (!enabled
+                || actualClickGuiOpen
                 || suspended
                 || player == null
                 || movement == null

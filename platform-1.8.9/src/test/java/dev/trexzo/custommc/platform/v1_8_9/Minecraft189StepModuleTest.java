@@ -280,6 +280,73 @@ final class Minecraft189StepModuleTest {
         assertNull(modules.find(Minecraft189StepModule.ID));
     }
 
+
+    @Test
+    void actualClickGuiRestoresNativeVanillaStepAndRecoversConfiguredHeight() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Minecraft189StepModule step = runtime.featureCatalog().step();
+            step.heightPercentSetting().set(180);
+            controller.enable(Minecraft189StepModule.ID);
+            final TestPlayer player = new TestPlayer();
+            runtime.playerMovementState().update(true, false, false);
+            runtime.playerStepControl(player);
+            assertEquals(1.8F, player.height, 0.000001F);
+
+            // The original UI focus owner revokes persistent step boost.
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerStepControl(player);
+            assertEquals(Minecraft189StepModule.VANILLA_STEP_HEIGHT,
+                    player.height, 0.000001F);
+            assertTrue(step.active());
+
+            // No stale step boost when the GUI remains open and the mapped
+            // player has a fresh airborne snapshot.
+            step.airborneOverrideSetting().set(Boolean.TRUE);
+            step.airborneHeightPercentSetting().set(250);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.playerStepControl(player);
+            assertEquals(Minecraft189StepModule.VANILLA_STEP_HEIGHT,
+                    player.height, 0.000001F);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertFalse(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerStepControl(player);
+            assertEquals(2.5F, player.height, 0.000001F);
+
+            // Disabling while the menu is open still restores vanilla.
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            controller.disable(Minecraft189StepModule.ID);
+            runtime.playerStepControl(player);
+            assertEquals(Minecraft189StepModule.VANILLA_STEP_HEIGHT,
+                    player.height, 0.000001F);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerStepControl {
         private float height =

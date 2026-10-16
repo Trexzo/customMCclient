@@ -86,10 +86,23 @@ public final class Minecraft189AutoSneakModule
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean forwardHeld,
             final boolean anyMovementHeld) {
+        apply(player, movement, forwardHeld, anyMovementHeld, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerSneakControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean forwardHeld,
+            final boolean anyMovementHeld,
+            final boolean actualClickGuiOpen) {
         Objects.requireNonNull(
                 movement,
                 "movement");
+        // The source GUI owns input focus. AutoSneak must not inject a
+        // synthetic native player sneak write while menus are active.
+        // Existing user/vanilla sneaking remains untouched.
         if (!enabled
+                || actualClickGuiOpen
                 || player == null
                 || !movement.available()
                 || movement.sneaking()
