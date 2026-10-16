@@ -236,6 +236,62 @@ final class Minecraft189AutoWeaponModuleTest {
     }
 
 
+
+    @Test void nativeWeaponSetterReplacingSourceSwordFailsBeforeLeasePublication() {
+        final Minecraft189AutoWeaponModule module = new Minecraft189AutoWeaponModule();
+        final ReentrantInventory inventory = new ReentrantInventory();
+        inventory.selected = 2;
+        final Object originalNativeSword = new Object();
+        inventory.items[4] = new Item(true, 8.0F, 1, originalNativeSword);
+        module.onEnable();
+        try {
+            inventory.afterSetter = () ->
+                    inventory.items[4] = new Item(false, 8.0F, 1, originalNativeSword);
+            assertEquals(-1, module.select(inventory, true, false),
+                    "original native setter replaced selected ItemSword");
+            assertEquals(2, inventory.selected,
+                    "stale sword selection rolls back before host publishes a lease");
+            inventory.items[4] = new Item(true, 8.0F, 1, originalNativeSword);
+            inventory.afterSetter = () ->
+                    inventory.items[4] = new Item(true, 8.0F, 1, new Object());
+            assertEquals(-1, module.select(inventory, true, false),
+                    "another source Item singleton with same damage is not original");
+            assertEquals(2, inventory.selected);
+            inventory.items[4] = new Item(true, 8.0F, 1, originalNativeSword);
+            assertEquals(2, module.select(inventory, true, false));
+            assertEquals(4, inventory.selected);
+            module.restore(inventory, 2);
+            assertEquals(2, inventory.selected);
+        } finally {
+            module.onDisable();
+        }
+    }
+
+    @Test void reentrantNativeReadAfterWeaponSetterPreservesUserSlotAndClearsLease() {
+        final Minecraft189AutoWeaponModule module = new Minecraft189AutoWeaponModule();
+        final ReentrantInventory inventory = new ReentrantInventory();
+        inventory.selected = 2;
+        inventory.items[4] = new Item(true, 8.0F, 1);
+        module.onEnable();
+        try {
+            inventory.afterSetter = () ->
+                    inventory.afterItemRead = () -> inventory.selected = 7;
+            assertEquals(-1, module.select(inventory, true, false));
+            assertEquals(7, inventory.selected,
+                    "the user changed currentItem while source stack was read");
+            assertEquals(-1, module.select(inventory, true, false),
+                    "the current item is already the highest-ranked sword only if real");
+            // A fresh action with the original slot should succeed: the
+            // reentrant read did not leave a stale AutoWeapon lease.
+            inventory.selected = 2;
+            assertEquals(2, module.select(inventory, true, false));
+            module.restore(inventory, 2);
+            assertEquals(2, inventory.selected);
+        } finally {
+            module.onDisable();
+        }
+    }
+
     private static final class ReentrantInventory
             implements Minecraft189InventoryHotbarItemsAccess {
         int selected;
@@ -301,16 +357,24 @@ final class Minecraft189AutoWeaponModuleTest {
         final boolean sword;
         final float damage;
         final int count;
+        final Object originalNativeItem;
         Item(boolean sword, float damage, int count) {
+            this(sword, damage, count, null);
+        }
+        Item(boolean sword, float damage, int count, Object nativeItem) {
             this.sword = sword;
             this.damage = damage;
             this.count = count;
+            this.originalNativeItem = nativeItem;
         }
         @Override public String customMcDisplayName() { return "unnamed"; }
         @Override public int customMcStackSize() { return count; }
         @Override public int customMcItemDamage() { return 0; }
         @Override public int customMcMaxDamage() { return 0; }
         @Override public boolean customMcIsSword() { return sword; }
+        @Override public Object customMcOriginalItemIdentity() {
+            return originalNativeItem;
+        }
         @Override public float customMcSwordBaseDamage() { return damage; }
     }
 }
