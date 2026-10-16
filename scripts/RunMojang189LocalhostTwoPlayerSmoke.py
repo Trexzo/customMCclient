@@ -1427,10 +1427,11 @@ def run(args):
                                  "fourth original controller click at fresh distinct D")
                         wait_for(host, host_log, repeat_receipt + b" step=4", deadline,
                                  "fourth original WorldClient stone and 5-to-4 debit")
-                        wait_for(host, host_log,
-                                 b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
-                                 b"FOUR_CLIENT_RECEIPTS_PASS=YES attempts=4",
-                                 deadline, "four positive original receipts and native clicks")
+                        if not five_keyboard_walk:
+                            wait_for(host, host_log,
+                                     b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
+                                     b"FOUR_CLIENT_RECEIPTS_PASS=YES attempts=4",
+                                     deadline, "four positive original receipts and native clicks")
                         if four_keyboard_walk:
                             fourth_source = source_native_scaffold_position(host_log, 4)
                             native_fourth = re.compile(
@@ -1458,6 +1459,87 @@ def run(args):
                             target_xyz, second_target_xyz,
                             third_target_xyz, fourth_target_xyz)
                         expected_items = b"has 4 items that match the criteria"
+                        if five_keyboard_walk:
+                            # V67 original Survival source A-D must be confirmed
+                            # before holding the next real Shift+S leg for E.
+                            for target in (target_xyz, second_target_xyz,
+                                           third_target_xyz, fourth_target_xyz):
+                                send_server_command(server, server_log,
+                                                    "testforblock {} {} {} stone".format(*target),
+                                                    expected=b"successfully found the block")
+                            send_server_command(server, server_log,
+                                                "testforblock {} {} {} air".format(*fifth_target_xyz),
+                                                expected=b"successfully found the block")
+                            send_server_command(server, server_log,
+                                                "clear CIHost stone 0 0",
+                                                expected=b"has 4 items that match the criteria")
+                            fourth_source = source_native_scaffold_position(host_log, 4)
+                            fifth_sneak = fifth_backward = False
+                            try:
+                                set_original_host_sneak_key(host, host_window, True)
+                                fifth_sneak = True
+                                set_original_host_backward_key(host, host_window, True)
+                                fifth_backward = True
+                                fifth_deadline = min(deadline, time.monotonic() + 9.0)
+                                fifth_expected = (repeat_attempt
+                                    + b" step=5 accepted=true target="
+                                    + "{},{},{}".format(*fifth_target_xyz).encode())
+                                while time.monotonic() < fifth_deadline:
+                                    actual = latest_original_native_local_player_position(host_log)
+                                    if actual is not None and (
+                                            abs(actual[2] - fourth_source[2]) > .65
+                                            or actual[1] < fourth_source[1] - .42
+                                            or actual[0] > fourth_source[0] + 1.80):
+                                        raise AssertionError(
+                                            "real D-to-E keyboard walk lost native support"
+                                            " D={} current={}".format(fourth_source, actual))
+                                    if fifth_expected in log_tail(host_log):
+                                        break
+                                    time.sleep(.035)
+                                else:
+                                    raise AssertionError(
+                                        "fifth original controller did not click"
+                                        " during physical D-to-E traversal")
+                            finally:
+                                try:
+                                    if fifth_backward:
+                                        set_original_host_backward_key(host, host_window, False)
+                                finally:
+                                    if fifth_sneak:
+                                        set_original_host_sneak_key(host, host_window, False)
+                            wait_for(host, host_log, fifth_expected, deadline,
+                                     "fifth genuine original controller click at E")
+                            wait_for(host, host_log, repeat_receipt + b" step=5", deadline,
+                                     "fifth original WorldClient+inventory receipt 4-to-3")
+                            wait_for(host, host_log,
+                                     b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_PRODUCTION_"
+                                     b"FIVE_CLIENT_RECEIPTS_PASS=YES attempts=5",
+                                     deadline, "five original controller and receipt pairs")
+                            fifth_source = source_native_scaffold_position(host_log, 5)
+                            fifth_native = re.compile(
+                                rb"CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_"
+                                rb"ORIGINAL_SOURCE_POSITION step=5 "
+                                rb"x=(-?\d+(?:\.\d+)?) y=(-?\d+(?:\.\d+)?) "
+                                rb"z=(-?\d+(?:\.\d+)?) onGround=true sneaking=true")
+                            if len(fifth_native.findall(log_tail(host_log, 200000))) != 1:
+                                raise AssertionError("fifth original controller not grounded+sneaking")
+                            if not (fourth_source[0] + .45 <= fifth_source[0]
+                                    <= fourth_source[0] + 1.80
+                                    and abs(fifth_source[1] - fourth_source[1]) <= .35
+                                    and abs(fifth_source[2] - fourth_source[2]) <= .55):
+                                raise AssertionError(
+                                    "fifth controller source failed actual keyboard advance"
+                                    " D={} E={}".format(fourth_source, fifth_source))
+                            expected_attempts = 5
+                            expected_targets = (
+                                target_xyz, second_target_xyz, third_target_xyz,
+                                fourth_target_xyz, fifth_target_xyz)
+                            expected_items = b"has 3 items that match the criteria"
+                            print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_FIVE_REAL_KEYBOARD_LEGS_PASS=YES"
+                                  " A={} B={} C={} D={} E={}".format(
+                                      first_source[0], second_source[0],
+                                      third_source[0], fourth_source[0],
+                                      fifth_source[0]), flush=True)
                 else:
                     wait_for(host, host_log,
                              b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
