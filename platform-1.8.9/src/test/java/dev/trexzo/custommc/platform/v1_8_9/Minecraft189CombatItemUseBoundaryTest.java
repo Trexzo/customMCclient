@@ -512,6 +512,112 @@ final class Minecraft189CombatItemUseBoundaryTest {
         }
     }
 
+
+    @Test void deniedNestedMeleeLeaseCannotDispatchWithAnothersOriginalRod() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 4;
+            inventory.items[1] = new Item(true, false, 1);
+            final Player player = new Player(inventory);
+            runtime.playerHotbarSlot(player);
+            runtime.playerHeldItem(player);
+            controller.enable(Minecraft189AutoRodModule.ID);
+            controller.enable(Minecraft189CombatSlotModule.ID);
+            assertTrue(runtime.mayDispatchSyntheticMelee(-1),
+                    "no switching module owner must preserve vanilla clicks");
+            assertEquals(4, runtime.selectAutoRodSlot());
+            assertEquals(1, inventory.selected);
+            assertEquals(-1, runtime.selectCombatSlotBeforeSyntheticClick(true));
+            assertFalse(runtime.mayDispatchSyntheticMelee(-1),
+                    "denied nested melee may not click with temporary rod");
+            runtime.restoreCombatSlotAfterSyntheticClick(-1);
+            assertEquals(1, inventory.selected);
+            assertFalse(runtime.mayDispatchSyntheticMelee(4),
+                    "old positive token never grants a foreign melee action");
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, inventory.selected);
+            assertTrue(runtime.mayDispatchSyntheticMelee(-1),
+                    "the real Rod finally releases original vanilla click lane");
+            assertEquals(4, runtime.selectCombatSlotBeforeSyntheticClick(true));
+            assertEquals(0, inventory.selected);
+            assertTrue(runtime.mayDispatchSyntheticMelee(4));
+            inventory.selected = 7; // genuine user changed original currentItem
+            assertFalse(runtime.mayDispatchSyntheticMelee(4),
+                    "stale selected native slot cannot authorize melee attack");
+            runtime.restoreCombatSlotAfterSyntheticClick(4);
+            assertEquals(7, inventory.selected,
+                    "original user-selected slot is never overwritten by finally");
+        } finally {
+            runtime.close();
+        }
+    }
+
+    @Test void sourceRespawnAndGuiFocusRevokeSelectedMeleeBeforeActualDispatch() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory old = new Inventory();
+            old.selected = 4;
+            final Player oldPlayer = new Player(old);
+            final Inventory next = new Inventory();
+            next.selected = 3;
+            final Player nextPlayer = new Player(next);
+            runtime.playerHotbarSlot(oldPlayer);
+            runtime.playerHeldItem(oldPlayer);
+            controller.enable(Minecraft189CombatSlotModule.ID);
+            assertEquals(4, runtime.selectCombatSlotBeforeSyntheticClick(true));
+            assertEquals(0, old.selected);
+            assertTrue(runtime.mayDispatchSyntheticMelee(4));
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertFalse(runtime.mayDispatchSyntheticMelee(4),
+                    "real CustomMC UI input focus must veto original attack");
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerHotbarSlot(nextPlayer);
+            runtime.playerHeldItem(nextPlayer);
+            assertFalse(runtime.mayDispatchSyntheticMelee(4),
+                    "native new local-player source invalidates old melee");
+            runtime.restoreCombatSlotAfterSyntheticClick(4);
+            assertEquals(4, old.selected,
+                    "old original InventoryPlayer receives its own restore");
+            assertEquals(3, next.selected,
+                    "no previous melee action can write the respawned hotbar");
+            assertTrue(runtime.mayDispatchSyntheticMelee(-1),
+                    "after old finally a clean new-player vanilla action is legal");
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class Inventory
             implements Minecraft189InventoryHotbarControl {
         int selected;
