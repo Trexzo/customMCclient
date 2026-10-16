@@ -1674,6 +1674,38 @@ public final class Minecraft189FeatureCatalog
         return timerSpeedFeature.module();
     }
 
+    /**
+     * Isolated native game-Timer acceptance. Require the same real module
+     * controller lifecycle as ClickGUI; no test-only clock setters.
+     */
+    void enableTimerForOriginalAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.requireRealTimerMultiplier"))
+            throw new IllegalStateException("real Timer fixture not armed");
+        if (moduleController.stateOf(Minecraft189TimerSpeedModule.ID)
+                != ModuleState.DISABLED)
+            throw new IllegalStateException("Timer must begin disabled");
+        timerSpeed().speedPercentSetting().set(Integer.valueOf(150));
+        moduleController.enable(Minecraft189TimerSpeedModule.ID);
+        if (!timerSpeed().active()
+                || moduleController.stateOf(Minecraft189TimerSpeedModule.ID)
+                        != ModuleState.ENABLED)
+            throw new IllegalStateException("native Timer module enable failed");
+    }
+
+    void disableTimerForOriginalAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean("custommc.acceptance.requireRealTimerMultiplier")
+                || moduleController.stateOf(Minecraft189TimerSpeedModule.ID)
+                        != ModuleState.ENABLED)
+            throw new IllegalStateException("Timer native disable fixture not armed");
+        moduleController.disable(Minecraft189TimerSpeedModule.ID);
+        if (timerSpeed().active()
+                || moduleController.stateOf(Minecraft189TimerSpeedModule.ID)
+                        != ModuleState.DISABLED)
+            throw new IllegalStateException("original Timer disable failed");
+    }
+
     public Minecraft189VelocityModule velocity() {
         requireOpen();
         return velocityFeature.module();
