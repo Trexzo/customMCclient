@@ -1224,6 +1224,11 @@ public final class Minecraft189RuntimeBridge {
                 activeHost();
         if (host != null) {
             host.playerNoClipControl(player);
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireNativeNoClipGuiFocus")
+                    && player != null) {
+                Minecraft189OriginalClickGuiNoClipAcceptance.observe(host, player);
+            }
         }
     }
 
