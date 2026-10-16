@@ -67,11 +67,30 @@ public final class Minecraft189AutoWeaponModule implements Module {
             }
         }
         if (bestSlot < 0 || bestSlot == prior) return -1;
+        // Obtaining original inventory item descriptors can execute mapped
+        // native getters with reentrant user/currentItem changes. Never
+        // overwrite a different actual selected slot based on an old read.
+        if (!enabled || inventory.customMcSelectedHotbarSlot() != prior)
+            return -1;
         ownerInventory = inventory;
         selected = bestSlot;
         previous = prior;
         try {
             inventory.customMcSetSelectedHotbarSlot(bestSlot);
+            // A source setter may be ignored or reentrantly redirected.
+            // The selected sword is owned only if the original inventory
+            // currently points at our captured best slot.
+            if (inventory.customMcSelectedHotbarSlot() != bestSlot) {
+                clearLease();
+                return -1;
+            }
+            if (!enabled) {
+                // The module could have been disabled reentrantly from the
+                // native setter. Restore only our own exact hotbar slot.
+                inventory.customMcSetSelectedHotbarSlot(prior);
+                clearLease();
+                return -1;
+            }
             return prior;
         } catch (RuntimeException failure) {
             // Native hotbar setter can mutate its backing currentItem
