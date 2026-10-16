@@ -27,6 +27,35 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189AutoJumpModuleTest {
     @Test
+    void realClickGuiFocusRevokesAutoJumpGroundedLeaseUntilFreshLanding() {
+        final Minecraft189AutoJumpModule jump = new Minecraft189AutoJumpModule();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        final int[] jumps = {0};
+        final Minecraft189PlayerJumpControl source = () -> jumps[0]++;
+        jump.onEnable();
+        try {
+            movement.update(true, false, true);
+            jump.apply(source, movement.snapshot(), true, true, true);
+            assertEquals(0, jumps[0], "open original UI can never trigger native jump");
+            jump.apply(source, movement.snapshot(), true, true, false);
+            assertEquals(0, jumps[0],
+                    "closing UI while still grounded must not replay armed jump");
+            movement.update(false, false, true);
+            jump.apply(source, movement.snapshot(), true, true, false);
+            assertEquals(0, jumps[0]);
+            movement.update(true, false, true);
+            jump.apply(source, movement.snapshot(), true, true, false);
+            assertEquals(1, jumps[0],
+                    "genuinely airborne and newly landed source contact re-arms");
+            jump.apply(source, movement.snapshot(), true, true, false);
+            assertEquals(1, jumps[0]);
+            jump.apply(source, movement.snapshot(), true, true, true);
+            jump.apply(source, movement.snapshot(), true, true, false);
+            assertEquals(1, jumps[0]);
+        } finally { jump.onDisable(); }
+    }
+
+    @Test
     void optionalNativeSprintingGateWaitsForRealSprintingAndRespectsLandings() {
         final Minecraft189AutoJumpModule module = new Minecraft189AutoJumpModule();
         final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
