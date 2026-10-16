@@ -72,6 +72,112 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         rod.onDisable();
     }
 
+
+    @Test void emptyMappedRodAndPotionStacksCannotSpendAUseLease() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        rod.onEnable();
+        pot.onEnable();
+        try {
+            inventory.selected = 4;
+            for (final int count : new int[] {0, -1}) {
+                player.items[1] = new FakeItem(true, false, count);
+                assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(
+                        rod, inventory, player));
+                assertEquals(4, inventory.selected);
+                player.items[2] = new FakeItem(false, true, count);
+                assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                        pot, inventory, player));
+                assertEquals(4, inventory.selected);
+            }
+            player.items[1] = new FakeItem(true, false, 1);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
+            rod.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+            player.items[2] = new FakeItem(false, true, 1);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            rod.onDisable();
+            pot.onDisable();
+        }
+    }
+
+    @Test void reentrantUserHotbarChangeRevokesRodAndPotItemIdentity() {
+        final Inventory inventory = new Inventory();
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        rod.onEnable();
+        pot.onEnable();
+        try {
+            inventory.selected = 4;
+            // The native getter may run code that moves the original
+            // player's hotbar slot. Returning a verified type alone is
+            // insufficient: module-owned slot must still be selected.
+            final Minecraft189PlayerHeldItemAccess movedRod = () -> {
+                inventory.selected = 6;
+                return new FakeItem(true, false);
+            };
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, movedRod));
+            assertEquals(6, inventory.selected,
+                    "the user-selected slot must never be overwritten");
+            inventory.selected = 4;
+            final Minecraft189PlayerHeldItemAccess movedPotion = () -> {
+                inventory.selected = 7;
+                return new FakeItem(false, true);
+            };
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, movedPotion));
+            assertEquals(7, inventory.selected);
+
+            // No zombie lease may remain after either failed admission.
+            final Player player = new Player(inventory);
+            inventory.selected = 4;
+            player.items[1] = new FakeItem(true, false);
+            player.items[2] = new FakeItem(false, true);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
+            rod.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            rod.onDisable();
+            pot.onDisable();
+        }
+    }
+
+    @Test void disablingModuleDuringNativeItemReadCannotAuthorizeUse() {
+        final Inventory inventory = new Inventory();
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        rod.onEnable();
+        pot.onEnable();
+        inventory.selected = 4;
+        final Minecraft189PlayerHeldItemAccess disabledRod = () -> {
+            rod.onDisable();
+            return new FakeItem(true, false);
+        };
+        assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(
+                rod, inventory, disabledRod));
+        assertEquals(4, inventory.selected);
+        final Minecraft189PlayerHeldItemAccess disabledPotion = () -> {
+            pot.onDisable();
+            return new FakeItem(false, true);
+        };
+        assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                pot, inventory, disabledPotion));
+        assertEquals(4, inventory.selected);
+    }
+
     private static final class Inventory implements Minecraft189InventoryHotbarControl {
         int selected;
         @Override public int customMcSelectedHotbarSlot() { return selected; }
@@ -92,12 +198,17 @@ final class Minecraft189VerifiedCombatItemSlotTest {
     private static final class FakeItem implements Minecraft189ItemStackAccess {
         final boolean rod;
         final boolean potion;
+        final int count;
         FakeItem(final boolean rod, final boolean potion) {
+            this(rod, potion, 1);
+        }
+        FakeItem(final boolean rod, final boolean potion, final int count) {
             this.rod = rod;
             this.potion = potion;
+            this.count = count;
         }
         @Override public String customMcDisplayName() { return "untrusted"; }
-        @Override public int customMcStackSize() { return 1; }
+        @Override public int customMcStackSize() { return count; }
         @Override public int customMcItemDamage() { return 0; }
         @Override public int customMcMaxDamage() { return 0; }
         @Override public boolean customMcIsFishingRod() { return rod; }
