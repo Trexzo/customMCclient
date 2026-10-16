@@ -89,6 +89,74 @@ final class Minecraft189CombatItemUseBoundaryTest {
         }
     }
 
+
+    @Test void sourcePlayerRespawnCannotBorrowOldItemOrStrandCapturedInventory() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory oldInventory = new Inventory();
+            oldInventory.selected = 4;
+            oldInventory.items[1] = new Item(true, false, 1);
+            oldInventory.items[2] = new Item(false, true, 1);
+            final Player oldPlayer = new Player(oldInventory);
+            final Inventory newInventory = new Inventory();
+            newInventory.selected = 3;
+            newInventory.items[3] = new Item(true, false, 1);
+            final Player newPlayer = new Player(newInventory);
+            controller.enable(Minecraft189AutoRodModule.ID);
+            controller.enable(Minecraft189AutoPotModule.ID);
+
+            runtime.playerHotbarSlot(oldPlayer);
+            runtime.playerHeldItem(newPlayer);
+            assertEquals(-1, runtime.selectAutoRodSlot(),
+                    "source held item from a different player cannot authorize old hotbar");
+            assertEquals(4, oldInventory.selected);
+            assertEquals(3, newInventory.selected);
+
+            runtime.playerHeldItem(oldPlayer);
+            final int rodPrevious = runtime.selectAutoRodSlot();
+            assertEquals(4, rodPrevious);
+            assertEquals(1, oldInventory.selected);
+            // The synchronous action can reenter source player callbacks
+            // after respawn; cleanup must still restore captured OLD owner.
+            runtime.playerHotbarSlot(newPlayer);
+            runtime.playerHeldItem(newPlayer);
+            assertFalse(runtime.mayExecuteAutoRodUse(rodPrevious),
+                    "respawned inventory must never borrow a pre-respawn rod lease");
+            runtime.restoreAutoRodSlot(rodPrevious);
+            assertEquals(4, oldInventory.selected,
+                    "the old module-owned native currentItem must be restored");
+            assertEquals(3, newInventory.selected,
+                    "a new player must not be written by old finally");
+
+            runtime.playerHotbarSlot(oldPlayer);
+            runtime.playerHeldItem(oldPlayer);
+            final int potPrevious = runtime.selectAutoPotSlot();
+            assertEquals(4, potPrevious);
+            assertEquals(2, oldInventory.selected);
+            runtime.playerHotbarSlot(newPlayer);
+            runtime.playerHeldItem(newPlayer);
+            assertFalse(runtime.mayExecuteAutoPotUse(potPrevious));
+            runtime.restoreAutoPotSlot(potPrevious);
+            assertEquals(4, oldInventory.selected);
+            assertEquals(3, newInventory.selected);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class Inventory
             implements Minecraft189InventoryHotbarControl {
         int selected;
