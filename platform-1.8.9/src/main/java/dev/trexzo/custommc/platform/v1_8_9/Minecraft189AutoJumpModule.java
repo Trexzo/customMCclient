@@ -108,9 +108,26 @@ public final class Minecraft189AutoJumpModule
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean forwardHeld,
             final boolean anyMovementHeld) {
-        Objects.requireNonNull(
-                movement,
-                "movement");
+        apply(player, movement, forwardHeld, anyMovementHeld, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189PlayerJumpControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean forwardHeld,
+            final boolean anyMovementHeld,
+            final boolean actualClickGuiOpen) {
+        Objects.requireNonNull(movement, "movement");
+        if (actualClickGuiOpen) {
+            // Even if W is physically held while opening the menu, a
+            // previously eligible grounded click must not fire AFTER
+            // focus returns. Only new original airborne→landing evidence
+            // can authorize a fresh source-native jump.
+            armed = false;
+            airborneObserved = false;
+            groundedUpdatesRemaining = 0;
+            return;
+        }
         if (!enabled || player == null || !movement.available()) {
             // An unknown or stale movement snapshot must never advance
             // a pending landing countdown into a synthetic jump.
