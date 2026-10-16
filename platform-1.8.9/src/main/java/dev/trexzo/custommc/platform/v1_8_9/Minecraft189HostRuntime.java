@@ -1534,6 +1534,11 @@ public final class Minecraft189HostRuntime
                 // TriggerBot also needs the exact current loaded-player UUID;
                 // an index alone can be reused across unload/rejoin events.
                 || featureCatalog.triggerBot().active()
+                // The isolated ORIGINAL game negative acceptance must read
+                // actual native UUIDs while TriggerBot itself is still OFF.
+                // No ordinary client runtime enables this property.
+                || Boolean.getBoolean(
+                        "custommc.acceptance.reportTriggerBotRealPvp")
                 || featureCatalog.friendGuard().requiresIdentity()
                 || featureCatalog.wallCheck().active();
     }
