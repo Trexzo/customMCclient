@@ -34,9 +34,20 @@ public final class Minecraft189NoBobbingModule
                     "no-bobbing already active");
         }
 
-        originalViewBobbing =
-                settings.viewBobbing();
-        settings.viewBobbing(false);
+        originalViewBobbing = settings.viewBobbing();
+        try {
+            settings.viewBobbing(false);
+        } catch (RuntimeException failure) {
+            // Original setter may have applied false before throwing.
+            // Restore only our own override, never a concurrent user edit.
+            try {
+                if (!settings.viewBobbing() && originalViewBobbing)
+                    settings.viewBobbing(originalViewBobbing);
+            } catch (RuntimeException rollbackFailure) {
+                failure.addSuppressed(rollbackFailure);
+            }
+            throw failure;
+        }
         active = true;
     }
 
@@ -47,8 +58,11 @@ public final class Minecraft189NoBobbingModule
         }
 
         try {
-            settings.viewBobbing(
-                    originalViewBobbing);
+            final boolean current = settings.viewBobbing();
+            // If the user changed bobbing while the module was active,
+            // the module may not clobber that latest native preference.
+            if (!current && originalViewBobbing)
+                settings.viewBobbing(originalViewBobbing);
         } finally {
             active = false;
         }
