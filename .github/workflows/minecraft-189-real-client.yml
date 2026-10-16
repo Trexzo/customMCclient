@@ -169,6 +169,21 @@ jobs:
             --overlay "build/runtime-overlay" \
             --game "$RUNNER_TEMP/custommc-189-singleplayer" \
             --timeout 120 --native-world-camera --native-safe-walk
+      - name: V94 genuine Mojang Step collision field and physical X11 ClickGUI keyboard focus
+        timeout-minutes: 5
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '2.1'
+        run: |
+          xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189SingleplayerSmoke.py \
+            --java "$JAVA_HOME/bin/java" \
+            --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
+            --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
+            --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
+            --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
+            --overlay "build/runtime-overlay" \
+            --game "$RUNNER_TEMP/custommc-189-native-step-gui" \
+            --timeout 180 --native-step-clickgui
       - name: V46 early strict original-client FOV evidence on genuine rear-player attack
         timeout-minutes: 4
         env:
@@ -787,21 +802,6 @@ jobs:
             --overlay "build/runtime-overlay" \
             --game "$RUNNER_TEMP/custommc-189-native-timer" \
             --timeout 140 --timer-speed
-      - name: V94 genuine Mojang Step collision field and physical X11 ClickGUI keyboard focus
-        timeout-minutes: 5
-        env:
-          LIBGL_ALWAYS_SOFTWARE: '1'
-          MESA_GL_VERSION_OVERRIDE: '2.1'
-        run: |
-          xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189SingleplayerSmoke.py \
-            --java "$JAVA_HOME/bin/java" \
-            --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
-            --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
-            --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
-            --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
-            --overlay "build/runtime-overlay" \
-            --game "$RUNNER_TEMP/custommc-189-native-step-gui" \
-            --timeout 180 --native-step-clickgui
       - name: M426 verify real Auto Clicker native attack is unscoped from Aura UUID and hurts entity
         timeout-minutes: 7
         env:
