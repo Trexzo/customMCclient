@@ -26,6 +26,80 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189TimerSpeedModuleTest {
     @Test
+    void optionalGroundAndRealClickGuiPauseNeverInventMovementOrWorldTime() {
+        final Minecraft189TimerSpeedModule module = new Minecraft189TimerSpeedModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        final TestTimer timer = new TestTimer();
+        assertFalse(module.groundOnlySetting().get());
+        assertFalse(module.pauseClickGuiSetting().get());
+        module.onEnable();
+        try {
+            module.speedPercentSetting().set(180);
+            module.apply(timer, movement.snapshot(), true);
+            assertEquals(1.8F, timer.speed, 0.000001F,
+                    "both new settings default off: unchanged legacy Timer");
+            module.groundOnlySetting().set(Boolean.TRUE);
+            module.apply(timer, movement.snapshot(), false);
+            assertEquals(1.0F, timer.speed, 0.000001F,
+                    "no source onGround snapshot immediately restores vanilla");
+            movement.update(false, false, true);
+            module.apply(timer, movement.snapshot(), false);
+            assertEquals(1.0F, timer.speed, 0.000001F);
+            movement.update(true, false, true);
+            module.apply(timer, movement.snapshot(), false);
+            assertEquals(1.8F, timer.speed, 0.000001F);
+            module.pauseClickGuiSetting().set(Boolean.TRUE);
+            module.apply(timer, movement.snapshot(), true);
+            assertEquals(1.0F, timer.speed, 0.000001F,
+                    "actual open client ClickGUI stops accelerated game ticks");
+            module.apply(timer, movement.snapshot(), false);
+            assertEquals(1.8F, timer.speed, 0.000001F);
+            module.smoothTransitionSetting().set(Boolean.TRUE);
+            module.transitionStepPercentSetting().set(5);
+            module.apply(timer, movement.snapshot(), true);
+            assertEquals(1.0F, timer.speed, 0.000001F,
+                    "GUI veto immediately restores 1x even during smoothing");
+        } finally {
+            module.onDisable();
+        }
+        module.apply(timer, movement.snapshot(), false);
+        assertEquals(1.0F, timer.speed, 0.000001F);
+    }
+
+    @Test
+    void newTimerSettingsArePersistedAndUnregisteredByActualFeature() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final Minecraft189TimerSpeedFeature feature =
+                Minecraft189TimerSpeedFeature.install(
+                        modules, controller,
+                        new ModulePresentationRegistry(),
+                        new ModuleSettingRegistry(modules, settings),
+                        settings, new SettingPresentationRegistry());
+        try {
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.GROUND_ONLY_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.PAUSE_GUI_SETTING_ID));
+            feature.module().groundOnlySetting().set(Boolean.TRUE);
+            feature.module().pauseClickGuiSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.GROUND_ONLY_SETTING_ID));
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189TimerSpeedModule.PAUSE_GUI_SETTING_ID));
+            controller.enable(Minecraft189TimerSpeedModule.ID);
+        } finally {
+            feature.close();
+            feature.close();
+        }
+        assertNull(settings.find(Minecraft189TimerSpeedModule.GROUND_ONLY_SETTING_ID));
+        assertNull(settings.find(Minecraft189TimerSpeedModule.PAUSE_GUI_SETTING_ID));
+        assertNull(modules.find(Minecraft189TimerSpeedModule.ID));
+    }
+
+    @Test
     void timerUsesConfiguredMultiplierAndRestoresVanillaWhenDisabled() {
         final ModuleRegistry modules =
                 new ModuleRegistry();
