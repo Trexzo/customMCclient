@@ -481,6 +481,70 @@ final class Minecraft189AutoSneakModuleTest {
         assertNull(modules.find(Minecraft189AutoSneakModule.ID));
     }
 
+
+    @Test
+    void nativeClickGuiFocusVetoesAutoSneakWithoutOverridingPhysicalState() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(
+                new EventBus(), modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            controller.enable(Minecraft189AutoSneakModule.ID);
+            runtime.inputState().key(LegacyKeyboardCodes.W, true);
+            runtime.playerMovementState(player);
+
+            // Keep the original GUI open with a genuinely held forward key.
+            runtime.clickGuiToggleController().key(
+                    LegacyKeyboardCodes.RIGHT_SHIFT, true, false);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerSneakControl(player);
+            runtime.playerSneakControl(player);
+            assertFalse(player.sneaking);
+            assertEquals(0, player.setCalls,
+                    "GUI focus must veto original player sneak setter");
+            assertTrue(runtime.featureCatalog().autoSneak().active());
+
+            // Only the real GUI-close transition returns authority.
+            runtime.clickGuiToggleController().key(
+                    LegacyKeyboardCodes.RIGHT_SHIFT, true, false);
+            runtime.playerSneakControl(player);
+            assertTrue(player.sneaking);
+            assertEquals(1, player.setCalls);
+
+            // Opening the GUI never forces a native unsneak either.
+            runtime.clickGuiToggleController().key(
+                    LegacyKeyboardCodes.RIGHT_SHIFT, true, false);
+            runtime.playerSneakControl(player);
+            assertTrue(player.sneaking);
+            assertEquals(1, player.setCalls);
+            // Physical/user state may change while UI owns focus. No replay.
+            player.sneaking = false;
+            runtime.playerMovementState(player);
+            runtime.playerSneakControl(player);
+            assertFalse(player.sneaking);
+            assertEquals(1, player.setCalls);
+            controller.disable(Minecraft189AutoSneakModule.ID);
+            runtime.clickGuiToggleController().key(
+                    LegacyKeyboardCodes.RIGHT_SHIFT, true, false);
+            runtime.playerSneakControl(player);
+            assertEquals(1, player.setCalls);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerMovementStateAccess,
             Minecraft189PlayerSneakControl {
