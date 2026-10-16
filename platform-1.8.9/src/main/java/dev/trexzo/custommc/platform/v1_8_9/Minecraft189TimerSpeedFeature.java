@@ -40,6 +40,12 @@ final class Minecraft189TimerSpeedFeature
     private final SettingPresentationRegistry.Registration pauseSneakingPresentation;
     private final ModuleSettingRegistry.Registration sprintOnlyBinding;
     private final ModuleSettingRegistry.Registration pauseSneakingBinding;
+    private final SettingRegistry.Registration groundOnlySetting;
+    private final SettingRegistry.Registration pauseGuiSetting;
+    private final SettingPresentationRegistry.Registration groundOnlyPresentation;
+    private final SettingPresentationRegistry.Registration pauseGuiPresentation;
+    private final ModuleSettingRegistry.Registration groundOnlyBinding;
+    private final ModuleSettingRegistry.Registration pauseGuiBinding;
     private boolean closed;
 
     private Minecraft189TimerSpeedFeature(
@@ -67,7 +73,13 @@ final class Minecraft189TimerSpeedFeature
             final SettingPresentationRegistry.Registration sprintOnlyPresentation,
             final SettingPresentationRegistry.Registration pauseSneakingPresentation,
             final ModuleSettingRegistry.Registration sprintOnlyBinding,
-            final ModuleSettingRegistry.Registration pauseSneakingBinding) {
+            final ModuleSettingRegistry.Registration pauseSneakingBinding,
+            final SettingRegistry.Registration groundOnlySetting,
+            final SettingRegistry.Registration pauseGuiSetting,
+            final SettingPresentationRegistry.Registration groundOnlyPresentation,
+            final SettingPresentationRegistry.Registration pauseGuiPresentation,
+            final ModuleSettingRegistry.Registration groundOnlyBinding,
+            final ModuleSettingRegistry.Registration pauseGuiBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -93,6 +105,12 @@ final class Minecraft189TimerSpeedFeature
         this.pauseSneakingPresentation = pauseSneakingPresentation;
         this.sprintOnlyBinding = sprintOnlyBinding;
         this.pauseSneakingBinding = pauseSneakingBinding;
+        this.groundOnlySetting = groundOnlySetting;
+        this.pauseGuiSetting = pauseGuiSetting;
+        this.groundOnlyPresentation = groundOnlyPresentation;
+        this.pauseGuiPresentation = pauseGuiPresentation;
+        this.groundOnlyBinding = groundOnlyBinding;
+        this.pauseGuiBinding = pauseGuiBinding;
     }
 
     static Minecraft189TimerSpeedFeature install(
@@ -128,6 +146,12 @@ final class Minecraft189TimerSpeedFeature
         SettingPresentationRegistry.Registration pauseSneakingPresentation = null;
         ModuleSettingRegistry.Registration sprintOnlyBinding = null;
         ModuleSettingRegistry.Registration pauseSneakingBinding = null;
+        SettingRegistry.Registration groundOnlySetting = null;
+        SettingRegistry.Registration pauseGuiSetting = null;
+        SettingPresentationRegistry.Registration groundOnlyPresentation = null;
+        SettingPresentationRegistry.Registration pauseGuiPresentation = null;
+        ModuleSettingRegistry.Registration groundOnlyBinding = null;
+        ModuleSettingRegistry.Registration pauseGuiBinding = null;
 
         try {
             moduleRegistration =
@@ -151,6 +175,8 @@ final class Minecraft189TimerSpeedFeature
             transitionStepSetting = settings.register(module.transitionStepPercentSetting());
             sprintOnlySetting = settings.register(module.sprintOnlySetting());
             pauseSneakingSetting = settings.register(module.pauseWhileSneakingSetting());
+            groundOnlySetting = settings.register(module.groundOnlySetting());
+            pauseGuiSetting = settings.register(module.pauseClickGuiSetting());
             speedPresentation =
                     settingPresentations.register(
                             new SettingDescriptor(
@@ -194,6 +220,14 @@ final class Minecraft189TimerSpeedFeature
                     new SettingDescriptor(
                             Minecraft189TimerSpeedModule.PAUSE_WHILE_SNEAKING_SETTING_ID,
                             "Pause While Sneaking", SettingValueKind.BOOLEAN, 60));
+            groundOnlyPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189TimerSpeedModule.GROUND_ONLY_SETTING_ID,
+                            "Ground Only", SettingValueKind.BOOLEAN, 70));
+            pauseGuiPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189TimerSpeedModule.PAUSE_GUI_SETTING_ID,
+                            "Pause In ClickGUI", SettingValueKind.BOOLEAN, 80));
             speedBinding =
                     moduleSettings.register(
                             new ModuleSettingBinding(
@@ -227,6 +261,14 @@ final class Minecraft189TimerSpeedFeature
                     new ModuleSettingBinding(
                             Minecraft189TimerSpeedModule.ID,
                             Minecraft189TimerSpeedModule.PAUSE_WHILE_SNEAKING_SETTING_ID, 60));
+            groundOnlyBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189TimerSpeedModule.ID,
+                            Minecraft189TimerSpeedModule.GROUND_ONLY_SETTING_ID, 70));
+            pauseGuiBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189TimerSpeedModule.ID,
+                            Minecraft189TimerSpeedModule.PAUSE_GUI_SETTING_ID, 80));
 
             return new Minecraft189TimerSpeedFeature(
                     controller,
@@ -253,8 +295,20 @@ final class Minecraft189TimerSpeedFeature
                     sprintOnlyPresentation,
                     pauseSneakingPresentation,
                     sprintOnlyBinding,
-                    pauseSneakingBinding);
+                    pauseSneakingBinding,
+                    groundOnlySetting,
+                    pauseGuiSetting,
+                    groundOnlyPresentation,
+                    pauseGuiPresentation,
+                    groundOnlyBinding,
+                    pauseGuiBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(pauseGuiBinding, failure);
+            closeQuietly(groundOnlyBinding, failure);
+            closeQuietly(pauseGuiPresentation, failure);
+            closeQuietly(groundOnlyPresentation, failure);
+            closeQuietly(pauseGuiSetting, failure);
+            closeQuietly(groundOnlySetting, failure);
             closeQuietly(pauseSneakingBinding, failure);
             closeQuietly(sprintOnlyBinding, failure);
             closeQuietly(pauseSneakingPresentation, failure);
@@ -309,6 +363,12 @@ final class Minecraft189TimerSpeedFeature
             failure = closeFailure;
         }
 
+        failure = close(pauseGuiBinding, failure);
+        failure = close(groundOnlyBinding, failure);
+        failure = close(pauseGuiPresentation, failure);
+        failure = close(groundOnlyPresentation, failure);
+        failure = close(pauseGuiSetting, failure);
+        failure = close(groundOnlySetting, failure);
         failure = close(pauseSneakingBinding, failure);
         failure = close(sprintOnlyBinding, failure);
         failure = close(pauseSneakingPresentation, failure);
