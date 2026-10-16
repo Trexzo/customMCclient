@@ -24,6 +24,9 @@ public final class Minecraft189NoClipModule
     private boolean baselineCaptured;
     private boolean baselineNoClip;
     private boolean restorePending;
+    // Original native player instance that owns the captured collision
+    // baseline. A World transition or respawn is NOT that same player.
+    private Minecraft189PlayerNoClipControl baselineOwner;
 
     @Override
     public String id() {
@@ -33,7 +36,13 @@ public final class Minecraft189NoClipModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
-        baselineCaptured = false;
+        // Disable followed by Enable BEFORE the next original tick must
+        // retain the original player's captured baseline. Throwing it away
+        // would re-capture the module's OWN forced true as the new default.
+        if (!restorePending) {
+            baselineCaptured = false;
+            baselineOwner = null;
+        }
         restorePending = false;
     }
 
@@ -54,6 +63,14 @@ public final class Minecraft189NoClipModule
         if (player == null) {
             return;
         }
+        if (baselineCaptured && baselineOwner != player) {
+            // Source-native player object changed (respawn / world swap).
+            // Never restore the OLD player's collision state onto a new
+            // object; the new player must supply a fresh original baseline.
+            baselineCaptured = false;
+            baselineOwner = null;
+            restorePending = false;
+        }
 
         if (enabled) {
             final boolean gated = requireSneaking.get().booleanValue()
@@ -67,6 +84,7 @@ public final class Minecraft189NoClipModule
             }
             if (!baselineCaptured) {
                 baselineNoClip = player.customMcNoClip();
+                baselineOwner = player;
                 baselineCaptured = true;
             }
             if (!player.customMcNoClip()) {
@@ -86,10 +104,15 @@ public final class Minecraft189NoClipModule
         if (!baselineCaptured) {
             return;
         }
-        if (player.customMcNoClip() != baselineNoClip) {
-            player.customMcSetNoClip(baselineNoClip);
+        // Only undo a forced TRUE that this module could have written.
+        // When the original baseline was true, a user's later native
+        // change to false belongs to them, not to this stale lease.
+        if (baselineOwner == player
+                && player.customMcNoClip() && !baselineNoClip) {
+            player.customMcSetNoClip(false);
         }
         baselineCaptured = false;
+        baselineOwner = null;
     }
 
     synchronized boolean active() {
