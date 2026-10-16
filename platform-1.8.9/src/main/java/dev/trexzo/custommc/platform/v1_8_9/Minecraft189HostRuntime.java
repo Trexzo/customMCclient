@@ -1037,7 +1037,8 @@ public final class Minecraft189HostRuntime
                         player,
                         movement,
                         flightActive,
-                        jumpHeld);
+                        jumpHeld,
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
         featureCatalog.fastFall()
                 .apply(
                         player,
