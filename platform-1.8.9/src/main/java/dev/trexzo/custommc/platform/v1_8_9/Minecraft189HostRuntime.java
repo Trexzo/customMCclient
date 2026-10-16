@@ -759,7 +759,8 @@ public final class Minecraft189HostRuntime
                         inputState.keyPressed(LegacyKeyboardCodes.W)
                                 || inputState.keyPressed(LegacyKeyboardCodes.A)
                                 || inputState.keyPressed(LegacyKeyboardCodes.S)
-                                || inputState.keyPressed(LegacyKeyboardCodes.D));
+                                || inputState.keyPressed(LegacyKeyboardCodes.D),
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     float adjustNoSlowMovement(
