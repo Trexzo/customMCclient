@@ -72,9 +72,18 @@ class NativeKeyboardSourceTest(unittest.TestCase):
         with self.assertRaises(AssertionError):
             self.read(contents + PREFIX + b" step=3 x=-78.12 y=100.0 z=53.5\n", 3)
 
-    def test_step_must_be_a_genuine_three_position_mode(self):
+    def test_fourth_original_source_position_and_duplicates(self):
+        contents = (PREFIX + b" step=1 x=13.05 y=100.0 z=8.5\n"
+                    + PREFIX + b" step=2 x=14.02 y=100.0 z=8.5\n"
+                    + PREFIX + b" step=3 x=15.00 y=100.0 z=8.5\n"
+                    + PREFIX + b" step=4 x=16.01 y=100.0 z=8.5\n")
+        self.assertEqual((16.01, 100.0, 8.5), self.read(contents, 4))
+        with self.assertRaisesRegex(AssertionError, "missing/duplicate"):
+            self.read(contents + PREFIX + b" step=4 x=16.01 y=100.0 z=8.5\n", 4)
+
+    def test_step_must_be_a_genuine_four_position_mode(self):
         with self.assertRaises(ValueError):
-            self.read(b"", 4)
+            self.read(b"", 5)
 
 
 if __name__ == "__main__":
