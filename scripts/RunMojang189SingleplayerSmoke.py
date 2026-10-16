@@ -48,6 +48,7 @@ REACH_DISABLED = b"CUSTOMMC_OFFICIAL_189_REACH_NATIVE_DISABLE_VANILLA_PASS=YES"
 COMBATSLOT_ARMED = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_SELECTION_RESTORE_PASS=YES"
 COMBATSLOT_GUI_OPEN = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_GUI_REAL_KEY_OPEN_VETO_PASS=YES"
 COMBATSLOT_GUI_CLOSED = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_GUI_REAL_KEY_CLOSE_CONFIG_LEASE_PASS=YES"
+COMBATSLOT_WRONG_TOKEN = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_WRONG_TOKEN_VETO_PASS=YES"
 COMBATSLOT_DISABLED = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_DISABLE_ORIGINAL_PASS=YES"
 
 
@@ -508,6 +509,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                              "physical ClickGUI open vetoes real CombatSlot currentItem write")
                 xdotool("key", "Shift_R")
                 print("CUSTOMMC_189_X11_COMBATSLOT_REAL_GUI_CLOSE_SENT=YES", flush=True)
+                await_marker(process, log, COMBATSLOT_WRONG_TOKEN, deadline,
+                             "wrong positive and nested source restore tokens cannot unlock genuine Mojang currentItem")
                 await_marker(process, log, COMBATSLOT_GUI_CLOSED, deadline,
                              "real InventoryPlayer selected slot remains owned across live Preferred Slot edit")
                 await_marker(process, log, COMBATSLOT_DISABLED, deadline,
