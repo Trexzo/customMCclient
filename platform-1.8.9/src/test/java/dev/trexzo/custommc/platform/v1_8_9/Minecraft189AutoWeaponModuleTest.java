@@ -279,10 +279,12 @@ final class Minecraft189AutoWeaponModuleTest {
             assertEquals(-1, module.select(inventory, true, false));
             assertEquals(7, inventory.selected,
                     "the user changed currentItem while source stack was read");
-            assertEquals(-1, module.select(inventory, true, false),
-                    "the current item is already the highest-ranked sword only if real");
-            // A fresh action with the original slot should succeed: the
-            // reentrant read did not leave a stale AutoWeapon lease.
+            assertEquals(7, module.select(inventory, true, false),
+                    "failed reentrant source read leaves no zombie lease");
+            assertEquals(4, inventory.selected);
+            module.restore(inventory, 7);
+            assertEquals(7, inventory.selected);
+            // A fresh action with the original slot must still succeed.
             inventory.selected = 2;
             assertEquals(2, module.select(inventory, true, false));
             module.restore(inventory, 2);
