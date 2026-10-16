@@ -115,6 +115,17 @@ public final class Minecraft189FastBreakModule
             final Minecraft189BlockHitDelayControl controller,
             final boolean attackHeld,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        apply(controller, attackHeld, movement, false);
+    }
+
+    synchronized void apply(
+            final Minecraft189BlockHitDelayControl controller,
+            final boolean attackHeld,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean actualClickGuiOpen) {
+        // Never modify the original PlayerControllerMP mining cooldown
+        // while the ClickGUI owns mouse/keyboard focus.
+        if (actualClickGuiOpen) return;
         if (!enabled
                 || controller == null
                 || (requireAttackHeld.get().booleanValue()

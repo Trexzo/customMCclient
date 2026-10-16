@@ -26,6 +26,29 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189FastPlaceModuleTest {
     @Test
+    void actualClickGuiRetainsVanillaRightClickDelayRegardlessOfModuleOptions() {
+        final Minecraft189FastPlaceModule module = new Minecraft189FastPlaceModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        module.onEnable();
+        try {
+            movement.update(true, false, false);
+            module.delayTicksSetting().set(0);
+            assertEquals(4, module.apply(4, true, movement.snapshot(), true),
+                    "open ClickGUI cannot accelerate real client right-click cooldown");
+            assertEquals(0, module.apply(4, true, movement.snapshot(), false),
+                    "closing GUI restores existing genuine fast-place behavior");
+            module.airborneOverrideSetting().set(Boolean.TRUE);
+            module.airborneDelaySetting().set(1);
+            movement.update(false, false, false);
+            assertEquals(4, module.apply(4, true, movement.snapshot(), true));
+            assertEquals(1, module.apply(4, true, movement.snapshot(), false));
+            module.onDisable();
+            assertEquals(4, module.apply(4, true, movement.snapshot(), false));
+        } finally { module.onDisable(); }
+    }
+
+    @Test
     void optionalGroundOnlyUsesCurrentMappedOnGroundAndVetoesUnknownAirborne() {
         final Minecraft189FastPlaceModule module = new Minecraft189FastPlaceModule();
         final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();

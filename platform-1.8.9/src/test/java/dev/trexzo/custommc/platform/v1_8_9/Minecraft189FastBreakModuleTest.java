@@ -26,6 +26,34 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 final class Minecraft189FastBreakModuleTest {
     @Test
+    void originalClickGuiBlocksAllNativeBreakDelayWritesUntilFocusReturns() {
+        final Minecraft189FastBreakModule module = new Minecraft189FastBreakModule();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        final TestController controller = new TestController();
+        movement.update(true, false, false);
+        module.onEnable();
+        try {
+            module.delaySetting().set(0);
+            module.apply(controller, true, movement.snapshot(), true);
+            assertEquals(0, controller.setCalls);
+            module.apply(controller, true, movement.snapshot(), false);
+            assertEquals(1, controller.setCalls);
+            module.airborneOverrideSetting().set(Boolean.TRUE);
+            module.airborneDelaySetting().set(2);
+            movement.update(false, false, false);
+            module.apply(controller, true, movement.snapshot(), true);
+            assertEquals(1, controller.setCalls);
+            module.apply(controller, true, movement.snapshot(), false);
+            assertEquals(2, controller.setCalls);
+            assertEquals(2, controller.delay);
+            module.onDisable();
+            module.apply(controller, true, movement.snapshot(), false);
+            assertEquals(2, controller.setCalls);
+        } finally { module.onDisable(); }
+    }
+
+    @Test
     void fastBreakWritesZeroOnlyWhileEnabledAndOwnsPlayerLifecycle() {
         final ModuleRegistry modules =
                 new ModuleRegistry();

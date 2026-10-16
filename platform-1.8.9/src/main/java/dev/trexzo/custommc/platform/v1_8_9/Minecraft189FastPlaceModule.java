@@ -112,6 +112,17 @@ public final class Minecraft189FastPlaceModule
             final int currentDelay,
             final boolean useHeld,
             final Minecraft189PlayerMovementState.Snapshot movement) {
+        return apply(currentDelay, useHeld, movement, false);
+    }
+
+    synchronized int apply(
+            final int currentDelay,
+            final boolean useHeld,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean actualClickGuiOpen) {
+        // The original right-click delay stays unchanged while focus belongs
+        // to ClickGUI; do not infer a game use action from keyboard state.
+        if (actualClickGuiOpen) return currentDelay;
         if (!enabled
                 || (requireUseHeld.get().booleanValue() && !useHeld)
                 || (groundOnly.get().booleanValue()
