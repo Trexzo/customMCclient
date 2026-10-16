@@ -62,6 +62,7 @@ public final class Minecraft189HostRuntime
     // the in-flight melee click lease. A reentrant original playerHotbarSlot
     // callback or respawn must not redirect its synchronous finally.
     private Minecraft189InventoryHotbarControl combatSlotLeaseInventory;
+    private int combatSlotLeaseOriginal = -1;
     // One original InventoryPlayer.currentItem may have only one temporary
     // combat owner. Reserve even during native getters/setters: these may
     // reenter the host before a successful selected-slot lease is published.
@@ -71,7 +72,9 @@ public final class Minecraft189HostRuntime
     // synchronous native callback may replace the local player or
     // inventory while another original item-use action owns its slot.
     private Minecraft189InventoryHotbarControl autoRodLeaseInventory;
+    private int autoRodLeaseOriginal = -1;
     private Minecraft189InventoryHotbarControl autoPotLeaseInventory;
+    private int autoPotLeaseOriginal = -1;
     private final Minecraft189NearestPlayerTargetState nearestPlayerTargetState;
     private final Minecraft189TargetRotationState targetRotationState;
     // Range-only Aim Assist targeting does not replace general nearest-player state.
@@ -1705,6 +1708,7 @@ public final class Minecraft189HostRuntime
                 return -1;
             }
             autoPotLeaseInventory = inventory;
+            autoPotLeaseOriginal = prior;
             return prior;
         } finally {
             combatHotbarSelecting = false;
@@ -1724,8 +1728,11 @@ public final class Minecraft189HostRuntime
 
     void restoreAutoPotSlot(final int originalSlot) {
         requireOpen();
+        if (autoPotLeaseInventory == null || originalSlot < 0
+                || autoPotLeaseOriginal != originalSlot) return;
         final Minecraft189InventoryHotbarControl owned = autoPotLeaseInventory;
         autoPotLeaseInventory = null;
+        autoPotLeaseOriginal = -1;
         featureCatalog.autoPot().restoreSlot(owned, originalSlot);
     }
 
@@ -1782,6 +1789,7 @@ public final class Minecraft189HostRuntime
                 return -1;
             }
             autoRodLeaseInventory = inventory;
+            autoRodLeaseOriginal = prior;
             return prior;
         } finally {
             combatHotbarSelecting = false;
@@ -1801,8 +1809,11 @@ public final class Minecraft189HostRuntime
 
     void restoreAutoRodSlot(final int originalSlot) {
         requireOpen();
+        if (autoRodLeaseInventory == null || originalSlot < 0
+                || autoRodLeaseOriginal != originalSlot) return;
         final Minecraft189InventoryHotbarControl owned = autoRodLeaseInventory;
         autoRodLeaseInventory = null;
+        autoRodLeaseOriginal = -1;
         featureCatalog.autoRod().restoreSlot(owned, originalSlot);
     }
 
@@ -1839,6 +1850,7 @@ public final class Minecraft189HostRuntime
                 return -1;
             }
             combatSlotLeaseInventory = source;
+            combatSlotLeaseOriginal = prior;
             autoWeaponOwnedClick = weaponOwner;
             return prior;
         } finally {
@@ -1850,11 +1862,13 @@ public final class Minecraft189HostRuntime
         requireOpen();
         // A nested failed selection returns -1. Its finally must not release
         // the outer original player's valid lease.
-        if (originalSlot < 0 || combatSlotLeaseInventory == null) return;
+        if (originalSlot < 0 || combatSlotLeaseInventory == null
+                || originalSlot != combatSlotLeaseOriginal) return;
         final Minecraft189InventoryHotbarControl captured =
                 combatSlotLeaseInventory;
         final boolean weaponOwner = autoWeaponOwnedClick;
         combatSlotLeaseInventory = null;
+        combatSlotLeaseOriginal = -1;
         autoWeaponOwnedClick = false;
         if (weaponOwner) {
             featureCatalog.autoWeapon().restore(captured, originalSlot);
