@@ -19,6 +19,7 @@ public final class Minecraft189AutoWeaponModule implements Module {
     private boolean enabled;
     private int selected = -1;
     private int previous = -1;
+    private Minecraft189InventoryHotbarControl ownerInventory;
 
     @Override public String id() { return ID; }
     @Override public synchronized void onEnable() { enabled = true; }
@@ -35,8 +36,10 @@ public final class Minecraft189AutoWeaponModule implements Module {
     synchronized int select(
             final Minecraft189InventoryHotbarControl control,
             final boolean verifiedPlayerHit, final boolean guiOpen) {
-        selected = -1;
-        previous = -1;
+        // A reentrant second combat action must not erase the first native
+        // action's selected-slot lease. The first action's finally owns
+        // restoration; do not guess how to merge nested hotbar changes.
+        if (ownerInventory != null) return -1;
         if (!enabled || guiOpen
                 || (requireHit.get() && !verifiedPlayerHit)
                 || !(control instanceof Minecraft189InventoryHotbarItemsAccess))
@@ -64,18 +67,43 @@ public final class Minecraft189AutoWeaponModule implements Module {
             }
         }
         if (bestSlot < 0 || bestSlot == prior) return -1;
-        inventory.customMcSetSelectedHotbarSlot(bestSlot);
+        ownerInventory = inventory;
         selected = bestSlot;
         previous = prior;
-        return prior;
+        try {
+            inventory.customMcSetSelectedHotbarSlot(bestSlot);
+            return prior;
+        } catch (RuntimeException failure) {
+            // Native hotbar setter can mutate its backing currentItem
+            // field BEFORE throwing. Roll back only if our intended slot
+            // still owns it, preserving another actor's later change.
+            try {
+                if (inventory.customMcSelectedHotbarSlot() == bestSlot)
+                    inventory.customMcSetSelectedHotbarSlot(prior);
+            } catch (RuntimeException rollback) {
+                failure.addSuppressed(rollback);
+            } finally {
+                clearLease();
+            }
+            throw failure;
+        }
     }
 
     synchronized void restore(final Minecraft189InventoryHotbarControl inventory,
             final int previousSlot) {
-        if (inventory != null && previousSlot >= 0 && previousSlot == previous
-                && restore.get() && selected >= 0
-                && inventory.customMcSelectedHotbarSlot() == selected)
-            inventory.customMcSetSelectedHotbarSlot(previousSlot);
+        if (inventory == null || inventory != ownerInventory
+                || previousSlot != previous || previousSlot < 0) return;
+        try {
+            if (restore.get() && selected >= 0
+                    && inventory.customMcSelectedHotbarSlot() == selected)
+                inventory.customMcSetSelectedHotbarSlot(previousSlot);
+        } finally {
+            clearLease();
+        }
+    }
+
+    private void clearLease() {
+        ownerInventory = null;
         selected = -1;
         previous = -1;
     }
