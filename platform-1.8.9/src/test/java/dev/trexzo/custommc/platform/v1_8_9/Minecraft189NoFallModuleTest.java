@@ -308,6 +308,54 @@ final class Minecraft189NoFallModuleTest {
         assertNull(modules.find(Minecraft189NoFallModule.ID));
     }
 
+
+    @Test
+    void nativeGuiFocusRetainsPositiveRealFallDistanceWithNoFallEnabled() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final TestPlayer player = new TestPlayer();
+            player.distance = 3.25F;
+            controller.enable(Minecraft189NoFallModule.ID);
+            runtime.playerMovementState().update(false, false, false);
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            assertTrue(runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+            runtime.playerFallDistanceControl(player);
+            runtime.playerFallDistanceControl(player);
+            assertEquals(3.25F, player.distance, 0.000001F);
+            assertEquals(0, player.setCalls);
+
+            runtime.clickGuiToggleController().key(
+                    Minecraft189ClickGuiToggleController.DEFAULT_TOGGLE_KEY,
+                    true, false);
+            runtime.playerFallDistanceControl(player);
+            assertEquals(0.0F, player.distance, 0.000001F);
+            assertEquals(1, player.setCalls);
+            controller.disable(Minecraft189NoFallModule.ID);
+            player.distance = 4.0F;
+            runtime.playerFallDistanceControl(player);
+            assertEquals(4.0F, player.distance, 0.000001F);
+            assertEquals(1, player.setCalls);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class TestPlayer
             implements Minecraft189PlayerFallDistanceControl {
         private float distance;
