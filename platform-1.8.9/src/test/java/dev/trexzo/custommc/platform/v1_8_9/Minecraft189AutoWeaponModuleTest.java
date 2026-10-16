@@ -84,6 +84,66 @@ final class Minecraft189AutoWeaponModuleTest {
         m.onDisable();
     }
 
+    @Test void sameNativeSlotLeaseSurvivesReentrancyForeignRestoreAndDisable() {
+        final Minecraft189AutoWeaponModule module = new Minecraft189AutoWeaponModule();
+        final Inventory inventory = new Inventory();
+        final Inventory foreign = new Inventory();
+        inventory.selected = 2;
+        foreign.selected = 5;
+        inventory.items[7] = new Item(true, 8, 1);
+        foreign.items[8] = new Item(true, 7, 1);
+        module.onEnable();
+        try {
+            assertEquals(2, module.select(inventory, true, false));
+            assertEquals(7, inventory.selected);
+            assertEquals(-1, module.select(inventory, true, false),
+                    "nested action cannot erase previous native item lease");
+            assertEquals(-1, module.select(foreign, true, false),
+                    "foreign inventory cannot supersede in-flight native attack");
+            module.restore(foreign, 2);
+            assertEquals(7, inventory.selected);
+            module.onDisable();
+            module.restore(inventory, 2);
+            assertEquals(2, inventory.selected,
+                    "normal synchronous finally restores after module disable");
+
+            module.onEnable();
+            assertEquals(2, module.select(inventory, true, false));
+            inventory.selected = 4;
+            module.restore(inventory, 2);
+            assertEquals(4, inventory.selected,
+                    "manual hotbar change wins after AutoWeapon selection");
+            assertEquals(4, module.select(inventory, true, false),
+                    "completed native lease permits another fresh selection");
+            module.restore(inventory, 4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            module.onDisable();
+        }
+    }
+
+    @Test void nativeSetterMutatesThenThrowsButOwnsExactRollback() {
+        final Minecraft189AutoWeaponModule module = new Minecraft189AutoWeaponModule();
+        final ThrowingInventory inventory = new ThrowingInventory();
+        inventory.selected = 0;
+        inventory.items[6] = new Item(true, 9, 1);
+        module.onEnable();
+        try {
+            inventory.throwAfterMutation = true;
+            assertThrows(IllegalStateException.class,
+                    () -> module.select(inventory, true, false));
+            assertEquals(0, inventory.selected,
+                    "partial native setter failure restores the original slot");
+            assertEquals(0, module.select(inventory, true, false),
+                    "failure must not leave a zombie/reentrant hotbar lease");
+            assertEquals(6, inventory.selected);
+            module.restore(inventory, 0);
+            assertEquals(0, inventory.selected);
+        } finally {
+            module.onDisable();
+        }
+    }
+
     @Test void registersPersistsAndCloses() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -105,6 +165,22 @@ final class Minecraft189AutoWeaponModuleTest {
         }
         assertNull(modules.find(Minecraft189AutoWeaponModule.ID));
         assertNull(settings.find(Minecraft189AutoWeaponModule.RESTORE));
+    }
+
+    private static final class ThrowingInventory
+            implements Minecraft189InventoryHotbarItemsAccess {
+        int selected;
+        boolean throwAfterMutation;
+        Minecraft189ItemStackAccess[] items = new Minecraft189ItemStackAccess[9];
+        @Override public int customMcSelectedHotbarSlot() { return selected; }
+        @Override public Minecraft189ItemStackAccess[] customMcHotbarItems() { return items; }
+        @Override public void customMcSetSelectedHotbarSlot(final int next) {
+            selected = next;
+            if (throwAfterMutation) {
+                throwAfterMutation = false;
+                throw new IllegalStateException("real hotbar setter mutated before error");
+            }
+        }
     }
 
     private static final class Inventory implements Minecraft189InventoryHotbarItemsAccess {
