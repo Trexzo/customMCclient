@@ -915,7 +915,8 @@ public final class Minecraft189HostRuntime
         featureCatalog.noClip()
                 .apply(
                         player,
-                        playerMovementState.snapshot());
+                        playerMovementState.snapshot(),
+                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     void playerMotionControl(
