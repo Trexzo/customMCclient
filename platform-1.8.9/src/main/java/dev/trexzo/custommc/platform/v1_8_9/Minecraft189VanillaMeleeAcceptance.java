@@ -22,6 +22,9 @@ final class Minecraft189VanillaMeleeAcceptance {
     private static boolean reported;
     private static boolean syntheticCall;
     private static boolean pendingAutoClicker;
+    private static boolean syntheticTrigger;
+    private static boolean pendingTrigger;
+    private static boolean triggerControllerReached;
     private static boolean syntheticAura;
     private static boolean pendingAura;
     private static boolean auraRaycastLogged;
@@ -42,6 +45,9 @@ final class Minecraft189VanillaMeleeAcceptance {
         reported = false;
         syntheticCall = false;
         pendingAutoClicker = false;
+        syntheticTrigger = false;
+        pendingTrigger = false;
+        triggerControllerReached = false;
         syntheticAura = false;
         pendingAura = false;
         auraRaycastLogged = false;
@@ -139,6 +145,36 @@ final class Minecraft189VanillaMeleeAcceptance {
                     System.out.flush();
                 }
             }
+            pendingTrigger = syntheticTrigger
+                    && Boolean.getBoolean(
+                            "custommc.acceptance.reportTriggerBotRealPvp");
+            if (pendingTrigger) {
+                // The exact original World loaded entity must be a REMOTE
+                // genuine player, never an arbitrary native living mob.
+                if (!(world instanceof Minecraft189WorldEntityKindsAccess)) {
+                    pendingTrigger = false;
+                    pendingEntity = null;
+                    return;
+                }
+                final int[] nativeKinds =
+                        ((Minecraft189WorldEntityKindsAccess) world)
+                                .customMcLoadedEntityKinds();
+                if (nativeKinds == null || index >= nativeKinds.length
+                        || (nativeKinds[index]
+                                & (Minecraft189WorldEntityKindState.PLAYER
+                                   | Minecraft189WorldEntityKindState.LIVING))
+                            != (Minecraft189WorldEntityKindState.PLAYER
+                                | Minecraft189WorldEntityKindState.LIVING)
+                        || (nativeKinds[index]
+                                & Minecraft189WorldEntityKindState.LOCAL_PLAYER) != 0) {
+                    pendingTrigger = false;
+                    pendingEntity = null;
+                    return;
+                }
+                System.out.println(
+                        "CUSTOMMC_189_TRIGGERBOT_ORIGINAL_PLAYER_RAYCAST_ARMED=YES");
+                System.out.flush();
+            }
             pendingAutoClicker = syntheticCall
                     && Boolean.getBoolean("custommc.acceptance.reportAutoClicker");
             if (pendingAutoClicker) {
@@ -173,6 +209,15 @@ final class Minecraft189VanillaMeleeAcceptance {
 
     static void onMojangControllerAttack(final Object controller,
             final Object player, final Object target) {
+        if (Boolean.getBoolean("custommc.acceptance.reportTriggerBotRealPvp")
+                && !triggerControllerReached && syntheticTrigger
+                && pendingTrigger && pendingEntity != null
+                && target == pendingEntity && player != null && controller != null) {
+            triggerControllerReached = true;
+            System.out.println(
+                    "CUSTOMMC_189_TRIGGERBOT_REAL_MOJANG_CONTROLLER_ARGUMENT_PASS=YES");
+            System.out.flush();
+        }
         if (!Boolean.getBoolean(
                 "custommc.acceptance.reportKillAuraLocalPvp")
                 || auraControllerReached || !syntheticAura
@@ -220,6 +265,10 @@ final class Minecraft189VanillaMeleeAcceptance {
                 if (pendingAutoClicker) {
                     System.out.println(
                             "CUSTOMMC_OFFICIAL_189_AUTOCLICKER_SAME_ENTITY_HURT_PASS=YES");
+                }
+                if (pendingTrigger && triggerControllerReached) {
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_TRIGGERBOT_REAL_PLAYER_HURT_PASS=YES");
                 }
                 if (pendingAura) {
                     System.out.println(
@@ -296,6 +345,14 @@ final class Minecraft189VanillaMeleeAcceptance {
         } catch (ReflectiveOperationException | SecurityException ignored) {
             return null;
         }
+    }
+
+    static void syntheticTriggerStarted() {
+        syntheticTrigger = true;
+    }
+
+    static void syntheticTriggerFinished() {
+        syntheticTrigger = false;
     }
 
     static void syntheticAuraStarted() {
