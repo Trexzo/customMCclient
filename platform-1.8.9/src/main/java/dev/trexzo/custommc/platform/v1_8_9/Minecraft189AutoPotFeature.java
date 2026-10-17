@@ -49,6 +49,10 @@ final class Minecraft189AutoPotFeature implements AutoCloseable {
                     f.module.preferImmediateHealingSetting(), "Prefer Instant Healing",
                     SettingValueKind.BOOLEAN, 7, null);
             f.bind(moduleSettings, settings, settingPresentations,
+                    f.module.avoidActiveRegenerationSetting(),
+                    "Avoid Duplicate Regeneration",
+                    SettingValueKind.BOOLEAN, 8, null);
+            f.bind(moduleSettings, settings, settingPresentations,
                     f.module.healthThresholdSetting(), "Health Threshold (%)",
                     SettingValueKind.DOUBLE, 10, new SettingNumericSpec(1, 99, 1));
             f.bind(moduleSettings, settings, settingPresentations,
