@@ -161,9 +161,21 @@ public final class Minecraft189AutoWeaponModule implements Module {
                 && item.customMcOriginalItemIdentity()
                         != selectedNativeSwordIdentity)
             return false;
-        // Native getters may reenter a GUI change, a module disable,
-        // or InventoryPlayer.currentItem. Repeat exact lease checks
-        // after reading the original ItemStack and Item identity.
+        // Reading ItemSword, stack count, base damage or original Item may
+        // reenter inventory synchronization. A native getter can replace
+        // InventoryPlayer.mainInventory[selected] without changing
+        // currentItem. Do not authorize a click from metadata belonging
+        // to a displaced ItemStack wrapper. A replacement *between*
+        // independent dispatch checks is fine once revalidated as normal.
+        final Minecraft189ItemStackAccess[] current =
+                ((Minecraft189InventoryHotbarItemsAccess) control)
+                        .customMcHotbarItems();
+        if (current == null || current.length <= selected
+                || current[selected] != item)
+            return false;
+        // Native getters may also reenter a GUI change, module disable,
+        // or currentItem mutation. Check exact lease again after the
+        // stable source ItemStack membership check.
         return enabled && control == ownerInventory && original == previous
                 && control.customMcSelectedHotbarSlot() == selected;
     }
