@@ -431,15 +431,101 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         }
     }
 
+
+    @Test void nativeSetterNoOpOrUserRedirectCannotPublishRodOrPotionLease() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        rod.onEnable();
+        pot.onEnable();
+        try {
+            inventory.selected = 4;
+            player.items[1] = new FakeItem(true, false);
+            player.items[2] = new FakeItem(false, true);
+            inventory.ignoreNextSet = true;
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player),
+                    "ignored native rod setter cannot create a lease");
+            assertEquals(4, inventory.selected);
+            inventory.redirectNextSetTo = 7;
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player),
+                    "reentrant user slot selection defeats a potion lease");
+            assertEquals(7, inventory.selected,
+                    "the user's redirected source currentItem survives");
+            inventory.selected = 4;
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
+            rod.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            rod.onDisable();
+            pot.onDisable();
+        }
+    }
+
+    @Test void nativeSetterDisablingModuleReleasesOnlyItsOwnTemporarySlot() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        rod.onEnable();
+        pot.onEnable();
+        try {
+            inventory.selected = 4;
+            player.items[1] = new FakeItem(true, false);
+            player.items[2] = new FakeItem(false, true);
+            inventory.afterNextSet = rod::onDisable;
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
+            assertEquals(4, inventory.selected);
+            rod.onEnable();
+            inventory.afterNextSet = pot::onDisable;
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(4, inventory.selected);
+            pot.onEnable();
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
+            rod.restoreSlot(inventory, 4);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            pot.restoreSlot(inventory, 4);
+        } finally {
+            rod.onDisable();
+            pot.onDisable();
+        }
+    }
+
     private static final class Inventory implements Minecraft189InventoryHotbarItemsAccess {
         int selected;
+        boolean ignoreNextSet;
+        int redirectNextSetTo = -1;
+        Runnable afterNextSet;
         final Minecraft189ItemStackAccess[] items = new Minecraft189ItemStackAccess[9];
         @Override public Minecraft189ItemStackAccess[] customMcHotbarItems() {
             return items;
         }
         @Override public int customMcSelectedHotbarSlot() { return selected; }
         @Override public void customMcSetSelectedHotbarSlot(final int slot) {
+            if (ignoreNextSet) {
+                ignoreNextSet = false;
+                return;
+            }
+            if (redirectNextSetTo >= 0) {
+                selected = redirectNextSetTo;
+                redirectNextSetTo = -1;
+                return;
+            }
             selected = slot;
+            final Runnable callback = afterNextSet;
+            afterNextSet = null;
+            if (callback != null) callback.run();
         }
     }
 
