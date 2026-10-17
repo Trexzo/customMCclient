@@ -373,6 +373,40 @@ final class Minecraft189CombatItemUseBoundaryTest {
             runtime.restoreAutoPotSlot(4);
             assertEquals(6, inventory.selected);
             assertEquals(4F, player.pitch);
+
+            // The REAL source right-click callback is now orchestrated by
+            // this exact production executor. Observe pitch/ItemStack at
+            // the instant of dispatch, not just before and after it.
+            inventory.selected = 4;
+            final int[] nativeClicks = {0};
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertTrue(Minecraft189AutoPotSourceCast.execute(
+                    runtime, 4, () -> {
+                        nativeClicks[0]++;
+                        assertEquals(85F, player.pitch);
+                        assertEquals(2, inventory.selected);
+                        assertSame(potion, inventory.items[2]);
+                    }));
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(1, nativeClicks[0]);
+            assertEquals(4F, player.pitch);
+            assertEquals(4, inventory.selected);
+
+            // A thrown original callback still cannot strand player pitch,
+            // nor does it get to consume another use at the wrong slot.
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertThrows(IllegalStateException.class,
+                    () -> Minecraft189AutoPotSourceCast.execute(
+                            runtime, 4, () -> {
+                                assertEquals(85F, player.pitch);
+                                throw new IllegalStateException("native callback fault");
+                            }));
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4F, player.pitch);
+            assertEquals(4, inventory.selected);
+            assertFalse(Minecraft189AutoPotSourceCast.execute(
+                    runtime, -1, () -> nativeClicks[0]++));
+            assertEquals(1, nativeClicks[0]);
         } finally {
             runtime.close();
         }
