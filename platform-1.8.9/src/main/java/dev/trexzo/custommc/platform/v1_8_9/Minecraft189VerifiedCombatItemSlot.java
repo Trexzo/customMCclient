@@ -415,11 +415,12 @@ final class Minecraft189VerifiedCombatItemSlot {
                 || original < 0 || !module.ownsSelectedSlot(inventory, original))
             return false;
         final Minecraft189ItemStackAccess item = player.customMcHeldItem();
-        return (module.protectRodDurabilitySetting().get().booleanValue()
+        return module.ownsVerifiedItem(inventory, original, item)
+                && (module.protectRodDurabilitySetting().get().booleanValue()
                     ? stableProtectedRodSourceItem(inventory, player, item,
                             module.minimumRemainingDurabilitySetting().get())
                     : stableRodSourceItem(inventory, player, item))
-                && module.ownsSelectedSlot(inventory, original);
+                && module.ownsVerifiedItem(inventory, original, item);
     }
 
     static boolean stillOwnsPotionAtUse(
@@ -431,24 +432,37 @@ final class Minecraft189VerifiedCombatItemSlot {
                 || original < 0 || !module.ownsSelectedSlot(inventory, original))
             return false;
         final Minecraft189ItemStackAccess item = player.customMcHeldItem();
-        return stablePotionSourceItem(inventory, player, item)
-                && module.ownsSelectedSlot(inventory, original);
+        return module.ownsVerifiedItem(inventory, original, item)
+                && stablePotionSourceItem(inventory, player, item)
+                && module.ownsVerifiedItem(inventory, original, item);
     }
 
     static int selectRod(final Minecraft189AutoRodModule module,
             final Minecraft189InventoryHotbarControl inventory,
             final Minecraft189PlayerHeldItemAccess player) {
+        // Read the GUI intent once BEFORE the original inventory scan.
+        // A reentrant source getter can change Auto Detect, durability
+        // priority or the configured slot while ranking source items.
         final boolean protecting =
                 module.protectRodDurabilitySetting().get().booleanValue();
         final int minimum =
                 module.minimumRemainingDurabilitySetting().get().intValue();
-        final int candidate = module.autoDetectSlotSetting().get().booleanValue()
+        final boolean autodetect =
+                module.autoDetectSlotSetting().get().booleanValue();
+        final boolean durable =
+                module.preferDurableRodSetting().get().booleanValue();
+        final int configured = module.rodSlotSetting().get().intValue();
+        final int candidate = autodetect
                 ? (protecting
-                        ? discoverProtectedRod(inventory, minimum,
-                                module.preferDurableRodSetting().get())
-                        : discover(inventory, true, false,
-                                module.preferDurableRodSetting().get()))
-                : module.rodSlotSetting().get().intValue() - 1;
+                        ? discoverProtectedRod(inventory, minimum, durable)
+                        : discover(inventory, true, false, durable))
+                : configured - 1;
+        if (protecting != module.protectRodDurabilitySetting().get()
+                || minimum != module.minimumRemainingDurabilitySetting().get()
+                || autodetect != module.autoDetectSlotSetting().get()
+                || durable != module.preferDurableRodSetting().get()
+                || configured != module.rodSlotSetting().get())
+            return -1;
         final int original = module.selectSlot(inventory, candidate);
         if (original < 0) return -1;
         boolean matches = false;
@@ -460,7 +474,8 @@ final class Minecraft189VerifiedCombatItemSlot {
                             ? stableProtectedRodSourceItem(
                                     inventory, player, selected, minimum)
                             : stableRodSourceItem(inventory, player, selected))
-                    && module.ownsSelectedSlot(inventory, original);
+                    && module.ownsSelectedSlot(inventory, original)
+                    && module.bindVerifiedItem(inventory, original, selected);
             return matches ? original : -1;
         } finally {
             if (!matches) module.restoreSlot(inventory, original);
@@ -511,9 +526,10 @@ final class Minecraft189VerifiedCombatItemSlot {
                 .get().booleanValue();
         final boolean priority = module.preferImmediateHealingSetting().get()
                 .booleanValue();
-        final boolean conserve = autodetect && priority
-                && module.conserveInstantHealingIISetting().get()
-                        .booleanValue();
+        final boolean conserveConfigured =
+                module.conserveInstantHealingIISetting().get().booleanValue();
+        final int configured = module.potSlotSetting().get().intValue();
+        final boolean conserve = autodetect && priority && conserveConfigured;
         final float missingHealth = conserve
                 ? nativeMissingHealth(player, inventory) : Float.NaN;
         if (conserve && (!Float.isFinite(missingHealth)
@@ -528,9 +544,17 @@ final class Minecraft189VerifiedCombatItemSlot {
                     : (conserve
                         ? discoverHealthAware(inventory, missingHealth)
                         : discover(inventory, false, priority, false)))
-                : module.potSlotSetting().get().intValue() - 1;
-        if (conserve && nativeMissingHealth(player, inventory) != missingHealth)
-            return -1; // Source health changed during candidate ranking.
+                : configured - 1;
+        // Abort a stale candidate if an original ItemStack getter changed
+        // any selection policy during the scan; never quietly bind a newly
+        // configured policy to an old, already-picked potion.
+        if (autodetect != module.autoDetectSlotSetting().get()
+                || avoidDuplicate != module.avoidActiveRegenerationSetting().get()
+                || priority != module.preferImmediateHealingSetting().get()
+                || conserveConfigured != module.conserveInstantHealingIISetting().get()
+                || configured != module.potSlotSetting().get()
+                || (conserve && nativeMissingHealth(player, inventory) != missingHealth))
+            return -1;
         final int original = module.selectSlot(inventory, candidate);
         if (original < 0) return -1;
         boolean matches = false;
@@ -541,7 +565,8 @@ final class Minecraft189VerifiedCombatItemSlot {
                     && stablePotionSourceItem(inventory, player, selected)
                     && (!conserve || nativeMissingHealth(player, inventory)
                             == missingHealth)
-                    && module.ownsSelectedSlot(inventory, original);
+                    && module.ownsSelectedSlot(inventory, original)
+                    && module.bindVerifiedItem(inventory, original, selected);
             return matches ? original : -1;
         } finally {
             if (!matches) module.restoreSlot(inventory, original);
