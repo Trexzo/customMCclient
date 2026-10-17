@@ -53,6 +53,23 @@ class DryChamberFillTest(TestCase):
         self.check_reply(
             b"", b"[CHAT] Cannot place blocks outside of the world\\n", True)
 
+    def test_actual_chunk_preload_requires_new_vanilla_teleport_reply(self):
+        with TemporaryDirectory() as directory:
+            log = Path(directory) / "game.log"
+            log.write_bytes(
+                b"[CHAT] Teleported CIProbe to 8.5, 100.0, 8.5\\n")
+
+            def next_chat(_process, game_log, _window, command):
+                self.assertEqual(command, "/tp CIProbe 8 100 8")
+                with game_log.open("ab") as handle:
+                    handle.write(
+                        b"[CHAT] Teleported CIProbe to 8.5, 100.0, 8.5\\n")
+
+            with patch.object(smoke, "send_command", side_effect=next_chat):
+                with patch.object(smoke.time, "sleep"):
+                    smoke.send_verified_chunk_teleport(
+                        Alive(), log, "mock-window")
+
     def test_dry_chamber_is_single_chunk_and_enclosed(self):
         # 1.8.9 /fill must not depend on unloaded x=-1 or z=-1 chunks.
         # Both cuboids are entirely within block-coordinate chunk (0,0).
@@ -67,6 +84,10 @@ class DryChamberFillTest(TestCase):
         self.assertIn('"/fill 4 79 4 12 87 12 stone"', text)
         self.assertIn('"/fill 5 80 5 11 86 11 air"', text)
         self.assertIn('"/tp CIProbe 8 80 8"', text)
+        self.assertIn('"/gamemode creative CIProbe"', text)
+        self.assertIn('"/tp CIProbe 8 100 8"', text)
+        self.assertLess(text.index('"/tp CIProbe 8 100 8"'),
+                        text.index('"/fill 4 79 4 12 87 12 stone"'))
         self.assertNotIn('"/fill -3 79 -3 3 79 3 stone"', text)
 
 
