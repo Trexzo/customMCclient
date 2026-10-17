@@ -1796,6 +1796,7 @@ public final class Minecraft189HostRuntime
             if (inventory != tickHotbarControl || owner != tickHotbarPlayer
                     || held != tickHeldItemAccess
                     || !sameLocalHotbarAndHeldItemOwner()
+                    || !mayCastWithoutReelingActiveHook()
                     || clickGuiRuntime.coreRuntime().model().snapshot().open()) {
                 featureCatalog.autoRod().restoreSlot(inventory, prior);
                 return -1;
