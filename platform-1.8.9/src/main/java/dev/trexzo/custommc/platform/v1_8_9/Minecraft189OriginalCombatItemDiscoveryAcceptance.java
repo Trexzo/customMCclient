@@ -753,6 +753,14 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                     "production AutoPot never restored original human hotbar");
             assertTrue(syntheticHealUseCallbacks == 1,
                     "repeated source AutoPot attempts cannot prove one healing item");
+            final Minecraft189ItemStackAccess[] afterUse =
+                    inventory.customMcHotbarItems();
+            assertTrue(afterUse != null && afterUse.length >= 9
+                            && (afterUse[syntheticHealSlot]
+                                    != syntheticHealSourceItem
+                                || syntheticHealSourceItem.customMcStackSize() == 0),
+                    "survival original ItemPotion was not consumed by real AutoPot"
+                    + " despite health gain");
             host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
             phase = 20;
             report("CUSTOMMC_OFFICIAL_189_AUTOPOT_REAL_SURVIVAL_HEALTH_GAIN_PASS=YES");
