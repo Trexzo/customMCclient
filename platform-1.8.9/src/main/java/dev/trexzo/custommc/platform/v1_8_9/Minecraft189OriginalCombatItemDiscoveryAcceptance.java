@@ -15,12 +15,13 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
     private static int baseline = -1;
     private static int physicalCastSlot = -1;
     private static int continuousHookCallbacks;
+    private static int sourceRegenerationPotionSlot = -1;
 
     private Minecraft189OriginalCombatItemDiscoveryAcceptance() {}
 
     static synchronized void observe(final Minecraft189HostRuntime host,
             final Minecraft189PlayerInventoryAccess source) {
-        if (!Boolean.getBoolean(PROPERTY) || phase == 8 || source == null
+        if (!Boolean.getBoolean(PROPERTY) || phase == 11 || source == null
                 || !host.playerMovementState().snapshot().available())
             return;
         if (!(source instanceof Minecraft189PlayerHeldItemAccess))
@@ -291,7 +292,116 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
             phase = 8;
             report("CUSTOMMC_OFFICIAL_189_REAL_PHYSICAL_ROD_REEL_HOOK_CLEARED_PASS=YES");
+            return;
         }
+
+        if (phase == 8) {
+            if (gui) return;
+            assertTrue(source instanceof Minecraft189PlayerPotionEffectsAccess,
+                    "original EntityLivingBase lacks source PotionEffect getter");
+            final Minecraft189ItemStackAccess[] items =
+                    inventory.customMcHotbarItems();
+            if (items == null || items.length < 9) return;
+            int regenSlot = -1;
+            for (int i = 0; i < 9; i++) {
+                final Minecraft189ItemStackAccess candidate = items[i];
+                if (candidate != null && candidate.customMcStackSize() > 0
+                        && candidate.customMcIsPotion()
+                        && candidate.customMcItemDamage() == 16417) {
+                    regenSlot = i;
+                    break;
+                }
+            }
+            if (regenSlot < 0 || regenSlot == selected) return;
+            assertTrue(!hasLongNativeRegeneration(source),
+                    "unmodified creative original player unexpectedly has Regeneration");
+            sourceRegenerationPotionSlot = regenSlot;
+            host.featureCatalog().enableOriginalRodPotionDiscoveryAcceptance();
+            host.featureCatalog().autoPot().autoDetectSlotSetting().set(false);
+            host.featureCatalog().autoPot().potSlotSetting().set(regenSlot + 1);
+            host.featureCatalog().autoPot().avoidActiveRegenerationSetting()
+                    .set(Boolean.TRUE);
+            assertTrue(host.featureCatalog().autoPot().active(),
+                    "normal AutoPot module enable missing from effect acceptance");
+            final int saved = host.selectAutoPotSlot();
+            assertTrue(saved == selected,
+                    "real source splash regeneration could not acquire no-effect lease");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot() == regenSlot
+                        && host.mayExecuteAutoPotUse(saved),
+                        "real no-effect Regeneration splash failed final source use gate");
+            } finally {
+                host.restoreAutoPotSlot(saved);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot() == selected,
+                    "source no-effect Regeneration lease changed physical player slot");
+            phase = 9;
+            report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_NO_EFFECT_POTION_ALLOWED_PASS=YES");
+            return;
+        }
+
+        if (phase == 9) {
+            if (!hasLongNativeRegeneration(source)) return;
+            assertTrue(host.selectAutoPotSlot() == -1,
+                    "original /effect Regeneration 10 must veto duplicate splash");
+            assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
+                    "active Regeneration veto overwrote human physical currentItem");
+            phase = 10;
+            report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_ACTIVE_EFFECT_DUPLICATE_VETO_PASS=YES");
+            return;
+        }
+
+        if (phase == 10) {
+            if (hasAnyNativeRegeneration(source)) return;
+            final int saved = host.selectAutoPotSlot();
+            assertTrue(saved == physicalCastSlot,
+                    "original /effect clear did not restore legal Regeneration selection");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot()
+                                == sourceRegenerationPotionSlot
+                        && host.mayExecuteAutoPotUse(saved),
+                        "cleared original PotionEffect denied true native use");
+            } finally {
+                host.restoreAutoPotSlot(saved);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
+                    "post-clear Regeneration use did not restore actual physical slot");
+            host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
+            phase = 11;
+            report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_EFFECT_CLEAR_REARM_PASS=YES");
+        }
+    }
+
+    private static boolean hasLongNativeRegeneration(
+            final Minecraft189PlayerInventoryAccess source) {
+        final Minecraft189PotionEffectAccess[] effects =
+                ((Minecraft189PlayerPotionEffectsAccess) source)
+                        .customMcPotionEffects();
+        if (effects == null)
+            throw new IllegalStateException("original player potion effects unavailable");
+        for (final Minecraft189PotionEffectAccess effect : effects) {
+            if (effect == null)
+                throw new IllegalStateException("null original potion effect");
+            if (effect.customMcPotionId() == 10
+                    && effect.customMcDurationTicks() >= 40)
+                return true;
+        }
+        return false;
+    }
+
+    private static boolean hasAnyNativeRegeneration(
+            final Minecraft189PlayerInventoryAccess source) {
+        final Minecraft189PotionEffectAccess[] effects =
+                ((Minecraft189PlayerPotionEffectsAccess) source)
+                        .customMcPotionEffects();
+        if (effects == null)
+            throw new IllegalStateException("original player potion effects unavailable");
+        for (final Minecraft189PotionEffectAccess effect : effects) {
+            if (effect == null)
+                throw new IllegalStateException("null original potion effect");
+            if (effect.customMcPotionId() == 10) return true;
+        }
+        return false;
     }
 
     private static void verifyRod(final Minecraft189HostRuntime host,
