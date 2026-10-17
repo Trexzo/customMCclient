@@ -15,6 +15,8 @@ public final class Minecraft189AutoPotModule implements Module {
     public static final String PREFER_IMMEDIATE_HEALING =
             ID + ".preferImmediateHealing";
     public static final String HEALTH_THRESHOLD = ID + ".healthPercent";
+    public static final String AVOID_ACTIVE_REGENERATION =
+            ID + ".avoidActiveRegeneration";
     public static final String COOLDOWN_TICKS = ID + ".cooldownTicks";
     public static final String REQUIRE_TARGET = ID + ".requireCombatTarget";
     private final Setting<Integer> potSlot = new Setting<Integer>(
@@ -30,6 +32,10 @@ public final class Minecraft189AutoPotModule implements Module {
     // Defaults off: preserve V131 already-held / first matching slot behavior.
     private final Setting<Boolean> preferImmediateHealing = new Setting<Boolean>(
             PREFER_IMMEDIATE_HEALING, Boolean.FALSE, v -> v != null,
+            SettingCodecs.BOOLEAN);
+    // Default off: preserve legacy potion use even with an active effect.
+    private final Setting<Boolean> avoidActiveRegeneration = new Setting<Boolean>(
+            AVOID_ACTIVE_REGENERATION, Boolean.FALSE, v -> v != null,
             SettingCodecs.BOOLEAN);
     private final Setting<Integer> cooldown = new Setting<Integer>(
             COOLDOWN_TICKS, 120, x -> x != null && x >= 1 && x <= 1200,
@@ -55,6 +61,9 @@ public final class Minecraft189AutoPotModule implements Module {
     public Setting<Boolean> autoDetectSlotSetting() { return autoDetectSlot; }
     public Setting<Boolean> preferImmediateHealingSetting() {
         return preferImmediateHealing;
+    }
+    public Setting<Boolean> avoidActiveRegenerationSetting() {
+        return avoidActiveRegeneration;
     }
     public Setting<Boolean> requireCombatTargetSetting() { return requireTarget; }
     synchronized boolean active() { return enabled; }
