@@ -20,6 +20,8 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
     private static Minecraft189ItemStackAccess physicalImpactPotion;
     private static float physicalImpactOriginalPitch = Float.NaN;
     private static boolean physicalImpactPitchOwned;
+    private static int physicalImpactReadyCallbacks;
+    private static int physicalImpactEffectCallbacks;
 
     private Minecraft189OriginalCombatItemDiscoveryAcceptance() {}
 
@@ -598,6 +600,11 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                     "physical vanilla splash is not same verified original source ItemStack");
             assertTrue(!hasAnyNativeRegeneration(source),
                     "effect must be absent BEFORE physical native splash throw");
+            // Require several independent live Mojang callbacks with the
+            // same physical source potion and NO Regeneration. A late
+            // command effect from the previous acceptance cannot sneak
+            // through a single transient empty snapshot.
+            if (++physicalImpactReadyCallbacks < 5) return;
             final Minecraft189PlayerRotationControl rotation =
                     (Minecraft189PlayerRotationControl) source;
             physicalImpactOriginalPitch = rotation.customMcRotationPitch();
@@ -620,7 +627,13 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             // PotionEffect ID 10 amp 0 on this SAME local original player
             // can only be reported after its genuine physical splash
             // actually reaches the player through vanilla game mechanics.
-            if (!hasNativeRegeneration(source, 0, 20)) return;
+            if (!hasNativeRegeneration(source, 0, 20)) {
+                physicalImpactEffectCallbacks = 0;
+                return;
+            }
+            // A real vanilla potion effect must persist in the exact
+            // original EntityLivingBase over consecutive game callbacks.
+            if (++physicalImpactEffectCallbacks < 5) return;
             assertTrue(owner == source && inventory == source.customMcInventory(),
                     "physical splash effect belongs to a foreign/respawn player");
             assertTrue(inventory.customMcSelectedHotbarSlot() == physicalImpactSlot,
