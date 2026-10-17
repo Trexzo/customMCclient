@@ -4241,6 +4241,7 @@ public final class Minecraft189ClassTransformer
         method.visitInsn(Opcodes.ICONST_1);
         method.visitInsn(Opcodes.IRETURN);
         method.visitLabel(missing);
+        method.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
         method.visitInsn(Opcodes.ICONST_0);
         method.visitInsn(Opcodes.IRETURN);
         method.visitMaxs(1, 1);
