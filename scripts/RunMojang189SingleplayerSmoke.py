@@ -59,6 +59,7 @@ NATIVE_ROD_ACTUAL_CAST = b"CUSTOMMC_OFFICIAL_189_REAL_PHYSICAL_ROD_CAST_ACTIVE_H
 NATIVE_ROD_ACTUAL_REEL = b"CUSTOMMC_OFFICIAL_189_REAL_PHYSICAL_ROD_REEL_HOOK_CLEARED_PASS=YES"
 NATIVE_REGEN_NO_EFFECT = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_NO_EFFECT_POTION_ALLOWED_PASS=YES"
 NATIVE_REGEN_VETO = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_ACTIVE_EFFECT_DUPLICATE_VETO_PASS=YES"
+NATIVE_REGEN_INSTANT_EXEMPT = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_INSTANT_HEAL_EXEMPT_PASS=YES"
 NATIVE_REGEN_CLEARED = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_EFFECT_CLEAR_REARM_PASS=YES"
 NATIVE_ITEMS_NONHEALING = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_NONHEALING_VETO_PASS=YES"
 NATIVE_ITEMS_HEAL_PRIORITY = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_NATIVE_STRONG_HEAL_PRIORITY_PASS=YES"
@@ -605,6 +606,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 send_command(process, log, window, "/effect CIProbe 10 30 1")
                 await_marker(process, log, NATIVE_REGEN_VETO, deadline,
                              "native real source Regeneration effect ID 10 blocks duplicate potion lease")
+                await_marker(process, log, NATIVE_REGEN_INSTANT_EXEMPT, deadline,
+                             "genuine Instant Health II remains eligible despite original active regeneration")
                 send_command(process, log, window, "/effect CIProbe clear")
                 await_marker(process, log, NATIVE_REGEN_CLEARED, deadline,
                              "vanilla source /effect clear restores legal potion lease and owner rollback")
