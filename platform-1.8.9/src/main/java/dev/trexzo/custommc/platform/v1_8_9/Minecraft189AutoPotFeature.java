@@ -37,7 +37,7 @@ final class Minecraft189AutoPotFeature implements AutoCloseable {
             f.owned.add(modules.register(f.module));
             f.owned.add(presentations.register(new ModuleDescriptor(
                     Minecraft189AutoPotModule.ID, "Auto Pot (Configured Slot)",
-                    "Attempts a healing item use below a mapped health threshold.",
+                    "Uses source-verified vanilla splash healing/regeneration potions at low health.",
                     Minecraft189FeatureCatalog.COMBAT_CATEGORY_ID, 105)));
             f.bind(moduleSettings, settings, settingPresentations,
                     f.module.potSlotSetting(), "Potion Hotbar Slot",
