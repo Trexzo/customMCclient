@@ -69,6 +69,10 @@ NATIVE_AUTOPOT_HEAL_SURVIVAL_READY = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_REAL_SURVIV
 NATIVE_AUTOPOT_HEAL_LOW_ARMED = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_REAL_DAMAGED_PLAYER_ARMED_PASS=YES"
 NATIVE_AUTOPOT_HEAL_CAST = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_ACTUAL_SYNTHETIC_RIGHTCLICK_PASS=YES"
 NATIVE_AUTOPOT_HEAL_GAIN = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_REAL_SURVIVAL_HEALTH_GAIN_PASS=YES"
+NATIVE_TIER_REAL_BOTH = b"CUSTOMMC_OFFICIAL_189_HEALTH_TIER_TWO_REAL_POTIONS_READY_PASS=YES"
+NATIVE_TIER_REAL_LARGE = b"CUSTOMMC_OFFICIAL_189_HEALTH_TIER_REAL_LARGE_DEFICIT_STRONG_PASS=YES"
+NATIVE_TIER_REAL_SMALL = b"CUSTOMMC_OFFICIAL_189_HEALTH_TIER_REAL_SMALL_DEFICIT_WEAK_PASS=YES"
+NATIVE_TIER_REAL_LEGACY = b"CUSTOMMC_OFFICIAL_189_HEALTH_TIER_REAL_DEFAULT_STRONG_PASS=YES"
 NATIVE_REGEN_VETO = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_ACTIVE_EFFECT_DUPLICATE_VETO_PASS=YES"
 NATIVE_REGEN_INSTANT_EXEMPT = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_INSTANT_HEAL_EXEMPT_PASS=YES"
 NATIVE_REGEN_CLEARED = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_EFFECT_CLEAR_REARM_PASS=YES"
@@ -697,6 +701,30 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 await_marker(process, log, NATIVE_AUTOPOT_HEAL_GAIN, deadline,
                              "same original hurt Survival player gains four actual health from source potion impact")
                 print("CUSTOMMC_OFFICIAL_189_REAL_SYNTHETIC_AUTOPOT_SELF_HEAL_PASS=YES",
+                      flush=True)
+                # V147 native source health-aware ranking: the original
+                # Survival world applies actual vanilla health/damage,
+                # not a fabricated Java player state or ItemStack.
+                # First restore full HP; /give strong before weak so a
+                # held-first/default rank would select strong.
+                send_command(process, log, window, "/effect CIProbe clear")
+                send_command(process, log, window, "/effect CIProbe 6 1 1")
+                send_command(process, log, window, "/clear CIProbe potion")
+                xdotool("windowactivate", "--sync", window)
+                xdotool("key", "--clearmodifiers", "9")
+                send_command(process, log, window, "/give CIProbe potion 1 16421")
+                send_command(process, log, window, "/give CIProbe potion 1 16389")
+                await_marker(process, log, NATIVE_TIER_REAL_BOTH, deadline,
+                             "genuine original full-health Survival and both source healing tiers")
+                send_command(process, log, window, "/effect CIProbe 7 1 0")
+                await_marker(process, log, NATIVE_TIER_REAL_LARGE, deadline,
+                             "real native player missing >4 HP selects original Instant Health II")
+                send_command(process, log, window, "/effect CIProbe 6 1 0")
+                await_marker(process, log, NATIVE_TIER_REAL_SMALL, deadline,
+                             "real native player missing <=4 HP conserves strong II")
+                await_marker(process, log, NATIVE_TIER_REAL_LEGACY, deadline,
+                             "same source player defaults to stronger II when conservation off")
+                print("CUSTOMMC_OFFICIAL_189_REAL_SURVIVAL_HEALTH_TIER_RANK_PASS=YES",
                       flush=True)
             if native_world_camera:
                 # An already-created world can be paused by focus transition.
