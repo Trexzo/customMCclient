@@ -65,6 +65,10 @@ NATIVE_AUTOPOT_SOURCE_PITCH_RESTORE = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_NATIVE_DOW
 NATIVE_REAL_SPLASH_SLOT_PREFIX = b"CUSTOMMC_OFFICIAL_189_REAL_SPLASH_SOURCE_SLOT="
 NATIVE_REAL_SPLASH_READY = b"CUSTOMMC_OFFICIAL_189_REAL_SPLASH_PHYSICAL_CAST_READY_PASS=YES"
 NATIVE_REAL_SPLASH_EFFECT = b"CUSTOMMC_OFFICIAL_189_REAL_SPLASH_REGEN_IMPACT_SOURCE_EFFECT_PASS=YES"
+NATIVE_AUTOPOT_HEAL_SURVIVAL_READY = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_REAL_SURVIVAL_SOURCE_READY_PASS=YES"
+NATIVE_AUTOPOT_HEAL_LOW_ARMED = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_REAL_DAMAGED_PLAYER_ARMED_PASS=YES"
+NATIVE_AUTOPOT_HEAL_CAST = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_ACTUAL_SYNTHETIC_RIGHTCLICK_PASS=YES"
+NATIVE_AUTOPOT_HEAL_GAIN = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_REAL_SURVIVAL_HEALTH_GAIN_PASS=YES"
 NATIVE_REGEN_VETO = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_ACTIVE_EFFECT_DUPLICATE_VETO_PASS=YES"
 NATIVE_REGEN_INSTANT_EXEMPT = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_INSTANT_HEAL_EXEMPT_PASS=YES"
 NATIVE_REGEN_CLEARED = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_EFFECT_CLEAR_REARM_PASS=YES"
@@ -673,6 +677,26 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 await_marker(process, log, NATIVE_REAL_SPLASH_EFFECT, deadline,
                              "vanilla projectile splash generated NEW original local Regeneration without /effect")
                 print("CUSTOMMC_OFFICIAL_189_REAL_VANILLA_SPLASH_IMPACT_PASS=YES",
+                      flush=True)
+                # V145: the runner intentionally issues NO physical right
+                # click after these chat commands. Only genuine production
+                # AutoPot scheduling and Minecraft.rightClickMouse can cast.
+                send_command(process, log, window, "/effect CIProbe clear")
+                send_command(process, log, window, "/clear CIProbe potion")
+                send_command(process, log, window, "/gamemode survival CIProbe")
+                xdotool("windowactivate", "--sync", window)
+                xdotool("key", "--clearmodifiers", "9")
+                send_command(process, log, window, "/give CIProbe potion 1 16421")
+                await_marker(process, log, NATIVE_AUTOPOT_HEAL_SURVIVAL_READY, deadline,
+                             "real source player has full Survival health and unique genuine Instant Health II splash")
+                send_command(process, log, window, "/effect CIProbe 7 1 0")
+                await_marker(process, log, NATIVE_AUTOPOT_HEAL_LOW_ARMED, deadline,
+                             "actual original Survival player damaged by vanilla Instant Damage and native AutoPot armed")
+                await_marker(process, log, NATIVE_AUTOPOT_HEAL_CAST, deadline,
+                             "true production AutoPot executes original Minecraft.rightClickMouse at source hurt player health")
+                await_marker(process, log, NATIVE_AUTOPOT_HEAL_GAIN, deadline,
+                             "same original hurt Survival player gains four actual health from source potion impact")
+                print("CUSTOMMC_OFFICIAL_189_REAL_SYNTHETIC_AUTOPOT_SELF_HEAL_PASS=YES",
                       flush=True)
             if native_world_camera:
                 # An already-created world can be paused by focus transition.
