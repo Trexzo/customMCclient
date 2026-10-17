@@ -133,6 +133,18 @@ public final class Minecraft189AutoPotModule implements Module {
     private Minecraft189InventoryHotbarControl selectedInventory;
     private int selectedSlot = -1;
     private int previousSlot = -1;
+    private int capturedConfiguredSlot;
+    private boolean capturedAutoDetect;
+    private boolean capturedHealingPriority;
+    private boolean capturedConserveStrong;
+    private boolean capturedAvoidRegeneration;
+    private boolean capturedDownwardAim;
+    private double capturedHealthThreshold;
+    private boolean capturedRequireTarget;
+    private int capturedCooldown;
+    // The actual original source ItemStack that passed native membership
+    // and healing-potion checks, not another potion later in its old slot.
+    private Minecraft189ItemStackAccess verifiedSelectedItem;
 
     synchronized int selectSlot(final Minecraft189InventoryHotbarControl inventory) {
         return selectSlot(inventory, potSlot.get().intValue() - 1);
@@ -150,6 +162,16 @@ public final class Minecraft189AutoPotModule implements Module {
         selectedInventory = inventory;
         selectedSlot = target;
         previousSlot = original;
+        capturedConfiguredSlot = potSlot.get().intValue();
+        capturedAutoDetect = autoDetectSlot.get().booleanValue();
+        capturedHealingPriority = preferImmediateHealing.get().booleanValue();
+        capturedConserveStrong = conserveInstantHealingII.get().booleanValue();
+        capturedAvoidRegeneration = avoidActiveRegeneration.get().booleanValue();
+        capturedDownwardAim = aimDownForSplash.get().booleanValue();
+        capturedHealthThreshold = healthThreshold.get().doubleValue();
+        capturedRequireTarget = requireTarget.get().booleanValue();
+        capturedCooldown = cooldown.get().intValue();
+        verifiedSelectedItem = null;
         try {
             inventory.customMcSetSelectedHotbarSlot(target);
             // An original setter may silently ignore the request,
@@ -182,8 +204,36 @@ public final class Minecraft189AutoPotModule implements Module {
             final Minecraft189InventoryHotbarControl inventory,
             final int original) {
         return enabled && inventory != null && inventory == selectedInventory
+                && capturedConfiguredSlot == potSlot.get()
+                && capturedAutoDetect == autoDetectSlot.get()
+                && capturedHealingPriority == preferImmediateHealing.get()
+                && capturedConserveStrong == conserveInstantHealingII.get()
+                && capturedAvoidRegeneration == avoidActiveRegeneration.get()
+                && capturedDownwardAim == aimDownForSplash.get()
+                && Double.compare(capturedHealthThreshold,
+                        healthThreshold.get().doubleValue()) == 0
+                && capturedRequireTarget == requireTarget.get()
+                && capturedCooldown == cooldown.get()
                 && original == previousSlot && selectedSlot >= 0
                 && inventory.customMcSelectedHotbarSlot() == selectedSlot;
+    }
+
+    /** A native healing potion accepted after the actual source-item scan. */
+    synchronized boolean bindVerifiedItem(
+            final Minecraft189InventoryHotbarControl inventory,
+            final int original, final Minecraft189ItemStackAccess item) {
+        if (item == null || verifiedSelectedItem != null
+                || !ownsSelectedSlot(inventory, original))
+            return false;
+        verifiedSelectedItem = item;
+        return ownsSelectedSlot(inventory, original);
+    }
+
+    synchronized boolean ownsVerifiedItem(
+            final Minecraft189InventoryHotbarControl inventory,
+            final int original, final Minecraft189ItemStackAccess item) {
+        return item != null && verifiedSelectedItem == item
+                && ownsSelectedSlot(inventory, original);
     }
 
     synchronized void restoreSlot(final Minecraft189InventoryHotbarControl inventory,
@@ -202,6 +252,16 @@ public final class Minecraft189AutoPotModule implements Module {
             selectedInventory = null;
             selectedSlot = -1;
             previousSlot = -1;
+            capturedConfiguredSlot = 0;
+            capturedAutoDetect = false;
+            capturedHealingPriority = false;
+            capturedConserveStrong = false;
+            capturedAvoidRegeneration = false;
+            capturedDownwardAim = false;
+            capturedHealthThreshold = 0.0D;
+            capturedRequireTarget = false;
+            capturedCooldown = 0;
+            verifiedSelectedItem = null;
         }
     }
 

@@ -76,7 +76,14 @@ final class Minecraft189CombatItemUseBoundaryTest {
             inventory.items[2] = new Item(false, true, 0);
             assertFalse(runtime.mayExecuteAutoPotUse(originalPotion));
             inventory.items[2] = new Item(false, true, 1);
-            assertTrue(runtime.mayExecuteAutoPotUse(originalPotion));
+            assertFalse(runtime.mayExecuteAutoPotUse(originalPotion),
+                    "replacing the potion with a fresh same-type stack "
+                    + "requires a NEW native use attempt");
+            runtime.restoreAutoPotSlot(originalPotion);
+            assertEquals(4, inventory.selected);
+            final int freshPotion = runtime.selectAutoPotSlot();
+            assertEquals(4, freshPotion);
+            assertTrue(runtime.mayExecuteAutoPotUse(freshPotion));
             inventory.selected = 7;
             assertFalse(runtime.mayExecuteAutoPotUse(originalPotion));
             runtime.restoreAutoPotSlot(originalPotion);
@@ -1129,8 +1136,15 @@ final class Minecraft189CombatItemUseBoundaryTest {
                     inventory.items[1] = new Item(true, false, 1);
             assertFalse(runtime.mayExecuteAutoRodUse(4),
                     "original host may not click based on displaced rod metadata");
+            assertFalse(runtime.mayExecuteAutoRodUse(4),
+                    "a stable replacement rod is NOT authorized by the old native lease");
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, inventory.selected);
+            // A completely new selection can now bind the new genuine
+            // source ItemStack; a same-slot swap is never auto-authorized.
+            assertEquals(4, runtime.selectAutoRodSlot());
             assertTrue(runtime.mayExecuteAutoRodUse(4),
-                    "stable source replacement rod is valid on next check");
+                    "fresh verified rod lease admits the replacement");
             runtime.restoreAutoRodSlot(4);
             assertEquals(4, inventory.selected);
 

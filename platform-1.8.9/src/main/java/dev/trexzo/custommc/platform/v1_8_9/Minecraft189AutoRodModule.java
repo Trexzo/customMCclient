@@ -117,6 +117,18 @@ public final class Minecraft189AutoRodModule implements Module {
     private int previousSlot = -1;
     private boolean capturedRodProtection;
     private int capturedRodMinimum;
+    // The in-flight native right click belongs to one explicit set of
+    // persisted GUI settings, not only an old selected hotbar index.
+    private int capturedConfiguredSlot;
+    private boolean capturedAutoDetect;
+    private boolean capturedDurabilityPriority;
+    private boolean capturedPreserveHook;
+    private boolean capturedRequireHold;
+    private boolean capturedPauseRight;
+    private int capturedCooldown;
+    // Actual source ItemStack reference accepted after native type/count
+    // checks. Another same-class rod arriving in the slot is not this cast.
+    private Minecraft189ItemStackAccess verifiedSelectedItem;
 
     synchronized int selectSlot(final Minecraft189InventoryHotbarControl inventory) {
         return selectSlot(inventory, rodSlot.get().intValue() - 1);
@@ -136,6 +148,14 @@ public final class Minecraft189AutoRodModule implements Module {
         previousSlot = original;
         capturedRodProtection = protectRodDurability.get().booleanValue();
         capturedRodMinimum = minimumRemainingDurability.get().intValue();
+        capturedConfiguredSlot = rodSlot.get().intValue();
+        capturedAutoDetect = autoDetectSlot.get().booleanValue();
+        capturedDurabilityPriority = preferDurableRod.get().booleanValue();
+        capturedPreserveHook = preserveActiveHook.get().booleanValue();
+        capturedRequireHold = requireHold.get().booleanValue();
+        capturedPauseRight = pauseRight.get().booleanValue();
+        capturedCooldown = cooldown.get().intValue();
+        verifiedSelectedItem = null;
         try {
             inventory.customMcSetSelectedHotbarSlot(target);
             // An original setter may silently ignore the request,
@@ -170,8 +190,37 @@ public final class Minecraft189AutoRodModule implements Module {
         return enabled && inventory != null && inventory == selectedInventory
                 && capturedRodProtection == protectRodDurability.get()
                 && capturedRodMinimum == minimumRemainingDurability.get()
+                && capturedConfiguredSlot == rodSlot.get()
+                && capturedAutoDetect == autoDetectSlot.get()
+                && capturedDurabilityPriority == preferDurableRod.get()
+                && capturedPreserveHook == preserveActiveHook.get()
+                && capturedRequireHold == requireHold.get()
+                && capturedPauseRight == pauseRight.get()
+                && capturedCooldown == cooldown.get()
                 && original == previousSlot && selectedSlot >= 0
                 && inventory.customMcSelectedHotbarSlot() == selectedSlot;
+    }
+
+    /**
+     * Pin the actual original ItemStack only AFTER the source-class and
+     * hotbar-membership verifier has approved it. A second module or
+     * inventory sync replacing it with another valid rod revokes this cast.
+     */
+    synchronized boolean bindVerifiedItem(
+            final Minecraft189InventoryHotbarControl inventory,
+            final int original, final Minecraft189ItemStackAccess item) {
+        if (item == null || verifiedSelectedItem != null
+                || !ownsSelectedSlot(inventory, original))
+            return false;
+        verifiedSelectedItem = item;
+        return ownsSelectedSlot(inventory, original);
+    }
+
+    synchronized boolean ownsVerifiedItem(
+            final Minecraft189InventoryHotbarControl inventory,
+            final int original, final Minecraft189ItemStackAccess item) {
+        return item != null && verifiedSelectedItem == item
+                && ownsSelectedSlot(inventory, original);
     }
 
     synchronized void restoreSlot(final Minecraft189InventoryHotbarControl inventory,
@@ -192,6 +241,14 @@ public final class Minecraft189AutoRodModule implements Module {
             previousSlot = -1;
             capturedRodProtection = false;
             capturedRodMinimum = 0;
+            capturedConfiguredSlot = 0;
+            capturedAutoDetect = false;
+            capturedDurabilityPriority = false;
+            capturedPreserveHook = false;
+            capturedRequireHold = false;
+            capturedPauseRight = false;
+            capturedCooldown = 0;
+            verifiedSelectedItem = null;
         }
     }
 }

@@ -154,6 +154,39 @@ final class Minecraft189AutoRodModuleTest {
         assertNull(modules.find(Minecraft189AutoRodModule.ID));
         assertNull(settings.find(Minecraft189AutoRodModule.ROD_SLOT));
     }
+    @Test void everyRodUseSettingRevokesLeaseWithoutStealingUserHotbar() {
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Inventory inventory = new Inventory();
+        inventory.slot = 4;
+        rod.onEnable();
+        try {
+            final Runnable[] changes = {
+                () -> rod.rodSlotSetting().set(3),
+                () -> rod.autoDetectSlotSetting().set(true),
+                () -> rod.preferDurableRodSetting().set(true),
+                () -> rod.protectRodDurabilitySetting().set(true),
+                () -> rod.minimumRemainingDurabilitySetting().set(5),
+                () -> rod.preserveActiveHookSetting().set(true),
+                () -> rod.requireHoldSetting().set(false),
+                () -> rod.pauseRightSetting().set(false),
+                () -> rod.cooldownTicksSetting().set(45)
+            };
+            for (final Runnable change : changes) {
+                assertEquals(4, rod.selectSlot(inventory));
+                assertTrue(rod.ownsSelectedSlot(inventory, 4));
+                change.run();
+                assertFalse(rod.ownsSelectedSlot(inventory, 4),
+                        "an in-flight right click must keep its original GUI policy");
+                rod.restoreSlot(inventory, 4);
+                assertEquals(4, inventory.slot);
+            }
+            assertEquals(4, rod.selectSlot(inventory));
+            assertTrue(rod.ownsSelectedSlot(inventory, 4),
+                    "a new admission with new settings may own a new action");
+            rod.restoreSlot(inventory, 4);
+        } finally { rod.onDisable(); }
+    }
+
     private static final class ThrowingInventory
             implements Minecraft189InventoryHotbarControl {
         private int slot;
