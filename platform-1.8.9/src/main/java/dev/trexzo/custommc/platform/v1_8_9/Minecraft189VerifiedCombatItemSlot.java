@@ -36,6 +36,9 @@ final class Minecraft189VerifiedCombatItemSlot {
             return false;
         if (!(rod ? observed.customMcIsFishingRod() : observed.customMcIsPotion()))
             return false;
+        if (!rod && !Minecraft189LegacySplashHealingPotion
+                .isKnownSplashHealing(observed.customMcItemDamage()))
+            return false;
         // Native class/count getters can replace selected ItemStacks and
         // invoke a user hotbar change. Recheck actual array membership.
         final Minecraft189ItemStackAccess[] after = inv.customMcHotbarItems();
@@ -43,7 +46,9 @@ final class Minecraft189VerifiedCombatItemSlot {
                 || inv.customMcSelectedHotbarSlot() != prior
                 || observed.customMcStackSize() <= 0
                 || !(rod ? observed.customMcIsFishingRod()
-                        : observed.customMcIsPotion()))
+                        : observed.customMcIsPotion())
+                || (!rod && !Minecraft189LegacySplashHealingPotion
+                        .isKnownSplashHealing(observed.customMcItemDamage())))
             return false;
         final Minecraft189ItemStackAccess[] stable = inv.customMcHotbarItems();
         return stable != null && stable.length >= 9
@@ -119,9 +124,13 @@ final class Minecraft189VerifiedCombatItemSlot {
             final Minecraft189ItemStackAccess item) {
         return item != null && item.customMcStackSize() > 0
                 && item.customMcIsPotion()
+                && Minecraft189LegacySplashHealingPotion
+                        .isKnownSplashHealing(item.customMcItemDamage())
                 && stillSelectedSourceStack(inventory, player, item)
                 && item.customMcIsPotion()
                 && item.customMcStackSize() > 0
+                && Minecraft189LegacySplashHealingPotion
+                        .isKnownSplashHealing(item.customMcItemDamage())
                 && stillSelectedSourceStack(inventory, player, item);
     }
 
