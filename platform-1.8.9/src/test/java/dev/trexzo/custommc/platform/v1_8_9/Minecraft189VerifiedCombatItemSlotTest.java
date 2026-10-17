@@ -864,6 +864,14 @@ final class Minecraft189VerifiedCombatItemSlotTest {
                     "protect mode must skip nearly broken held rod");
             assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
                     rod, inv, player, 4));
+            fresh.damageReads = 0;
+            fresh.mutateAfterDamageReadNumber = 3;
+            fresh.afterNthDamageRead = () -> fresh.damage = 63;
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inv, player, 4),
+                    "third original source damage getter reentrantly wears the"
+                    + " same ItemStack immediately before synthetic use");
+            fresh.mutateAfterDamageReadNumber = 0;
             fresh.damage = 62;
             assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
                     rod, inv, player, 4),
@@ -982,6 +990,9 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         Runnable afterPotionTypeRead;
         Runnable afterDamageRead;
         Runnable afterMaxDamageRead;
+        Runnable afterNthDamageRead;
+        int damageReads;
+        int mutateAfterDamageReadNumber;
         int damage;
         int maxDamage;
         FakeItem(final boolean rod, final boolean potion) {
@@ -1000,6 +1011,12 @@ final class Minecraft189VerifiedCombatItemSlotTest {
             final Runnable callback = afterDamageRead;
             afterDamageRead = null;
             if (callback != null) callback.run();
+            damageReads++;
+            if (mutateAfterDamageReadNumber == damageReads) {
+                final Runnable nth = afterNthDamageRead;
+                afterNthDamageRead = null;
+                if (nth != null) nth.run();
+            }
             return damage;
         }
         @Override public int customMcMaxDamage() {
