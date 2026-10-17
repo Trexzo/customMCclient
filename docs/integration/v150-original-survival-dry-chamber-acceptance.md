@@ -29,3 +29,10 @@ The existing actual original Survival player health, distinct vanilla ItemPotion
 - Verify Foundation Linux + Windows and the entire pinned real Mojang X11/binary suite at exact V150 SHA.
 - Inspect actual vanilla two-fill acknowledgements, `CUSTOMMC_189_SURVIVAL_DRY_CHAMBER_FILL_PASS=YES`, real two-healing-tier markers, V148 sword and V149 rod markers, and all existing original multiplayer/dedicated checks.
 - If a source test fails next, **preserve it** and diagnose the exact JVM assertion; never delete or relax gates to force green.
+
+## V150 first original-run feedback and strict follow-up
+
+The first V150 original run [39046204633](https://github.com/Trexzo/customMCclient/actions/runs/39046204633), job 117435310765, validated all early five fixture-parser tests and reached the genuine Rod/Potion X11 world stage. Its first single-chunk `/fill` **also** received genuine `Cannot place blocks outside of the world`: being geometrically inside chunk (0,0) is insufficient unless the *actual original player causes the integrated server to load that chunk first*. The fail-closed runner correctly refused to proceed (there was no misleading drowning or downstream potion PASS).
+
+Second V150 patch `e36352fb` now enters genuine creative mode, sends vanilla `/tp CIProbe 8 100 8`, requires a **fresh** source `[CHAT] Teleported CIProbe to 8.5, 100.0, 8.5` acknowledgement, waits a real client/server tick and then runs the original two verified `/fill` commands. Finally it returns the same original player to the dry chamber and Survival; actual source health, potion consumption, sword and rod tests remain mandatory. The new Python test also checks actual command ordering and fresh preloading teleport acknowledgement. The earlier test failure is retained as evidence, **not** treated as certification.
+
