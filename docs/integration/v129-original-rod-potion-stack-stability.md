@@ -17,8 +17,11 @@ exact head. This is the verified cumulative source baseline.
 - V129 collects both, plus this review and release-gate document,
   in a single integration on V126. The verified GitHub comparison
   V126→V128: **4 linear commits strictly ahead, zero behind, 2
-  changed Java production/test files** before this document. Do
-  not merge children and aggregate separately. All PRs Draft and
+  changed Java production/test files** before this document.
+  The V129 integration additionally updates the genuine original-client
+  workflow's PR path filter so changes to the shared verifier and its
+  source-host tests actually run the pinned Mojang binary/dedicated suite.
+  Do not merge children and aggregate separately. All PRs Draft and
   `main` unchanged without explicit authorization.
 
 ## Grounded original Minecraft 1.8.9 source mapping
@@ -100,15 +103,37 @@ Existing source-native X11 Step/NoClip/Reach/CombatSlot proofs
 remain mandatory, as do original UUID/target lock/rejoin,
 Aura/FOV/PvP and Scaffold/world negative controls.
 
+## CI trigger repair — original-game workflow coverage
+
+Before V129, `.github/workflows/minecraft-189-real-client.yml`
+included patterns for `Minecraft189*Module.java`, many selected
+native host files and ItemStack interfaces, **but not**
+`Minecraft189VerifiedCombatItemSlot.java` or its JUnit suite.
+That is why changing V127/V128's shared use-item helper triggered
+Foundation only: a green Foundation result could not honestly certify
+their original 1.8.9 binary behavior.
+
+V129 explicitly includes the shared `Minecraft189VerifiedCombatItemSlot`
+production and test files and the original combat item-use / melee host
+regression tests in the official binary workflow's `pull_request.paths`.
+The workflow file change itself triggers the same genuine original client
+suite on the V129 review head, not a reduced substitute workflow. Future
+shared helper changes are therefore covered automatically. This does
+**not** retroactively establish native binary CI for V127/V128 child
+SHA versions; only the final V129 exact head can become certified from
+its own completed-success run.
+
 ## Exact-head release gate and rollback
 
 V127 exact head Foundation Windows+Ubuntu run 38988165418
-**SUCCESS**; its full original Mojang suite must be separately
-verified on the V127 SHA.
+**SUCCESS**, but no original Mojang run was automatically triggered
+before V129's path-filter correction.
 
-V128 original Foundation and pinned Mojang status must be checked
-on its exact SHA; V129's own newly launched CI must be verified
-independently. **Do not call V129 fully certified** until both the
+V128 exact head Foundation Windows+Ubuntu run 38988370666
+**SUCCESS**, but the original Mojang workflow likewise was not
+automatically triggered by the shared-helper-only change.
+V129's workflow path correction triggers a new official full binary
+run on its own exact head and must be evaluated independently. **Do not call V129 fully certified** until both the
 Windows/Ubuntu Foundation and **entire pinned Mojang 1.8.9
 graphical/dedicated original binary workflow** have completed
 SUCCESS on the exact V129 commit. Targeted native GUI checks do
