@@ -16,7 +16,7 @@ Only `scripts/RunMojang189SingleplayerSmoke.py` changes in the runner. Construct
 - `/fill 5 80 5 11 86 11 air`
 - `/tp CIProbe 8 80 8` **only after both real server fill replies**
 
-New `send_verified_fill` scans only freshly appended original client log bytes after each dispatched vanilla X11 chat command. Reject observed unloaded-chunk /fill errors, too-large region and no-blocks messages, plus absent new success within a bounded eight-second window. Only an observed `Successfully filled ` acknowledgement lets the subsequent command proceed. The emitted `CUSTOMMC_189_SURVIVAL_DRY_CHAMBER_FILL_PASS=YES` means *vanilla command acknowledgements* for this chamber; it does not itself claim potion healing, sword selection, multiplayer, or server damage.
+New `send_verified_fill` scans only freshly appended original client log bytes after each dispatched vanilla X11 chat command. Reject observed unloaded-chunk /fill errors, too-large region and no-blocks messages, plus absent new success within a bounded eight-second window. Only an observed `[positive count] blocks filled` acknowledgement lets the subsequent command proceed. The emitted `CUSTOMMC_189_SURVIVAL_DRY_CHAMBER_FILL_PASS=YES` means *vanilla command acknowledgements* for this chamber; it does not itself claim potion healing, sword selection, multiplayer, or server damage.
 
 The existing actual original Survival player health, distinct vanilla ItemPotion NBT/damage metadata, true production `Minecraft.rightClickMouse()` and consumption, physical potion impact, native health-tier selection, original ItemSword/ItemFishingRod checks, FOV/GUI/UUID/Scaffold and dedicated server gates are **unchanged and mandatory**.
 
@@ -36,3 +36,7 @@ The first V150 original run [39046204633](https://github.com/Trexzo/customMCclie
 
 Second V150 patch `e36352fb` now enters genuine creative mode, sends vanilla `/tp CIProbe 8 100 8`, requires a **fresh** source `[CHAT] Teleported CIProbe to 8.5, 100.0, 8.5` acknowledgement, waits a real client/server tick and then runs the original two verified `/fill` commands. Finally it returns the same original player to the dry chamber and Survival; actual source health, potion consumption, sword and rod tests remain mandatory. The new Python test also checks actual command ordering and fresh preloading teleport acknowledgement. The earlier test failure is retained as evidence, **not** treated as certification.
 
+
+## Genuine 1.8.9 acknowledgment wording (third run)
+
+The next original-binary run [39046599129](https://github.com/Trexzo/customMCclient/actions/runs/39046599129) got the real `/tp CIProbe 8 100 8` server confirmation and **actually executed the outer fill**: vanilla emitted `[CHAT] 729 blocks filled`. It then failed at the deliberately strict new success-ack parser because that parser assumed the **newer** `Successfully filled ...` wording. This log explicitly proves the first source fill did **not** fail. The parser is now restricted to a freshly appended actual `[CHAT] [1-9][0-9]* blocks filled` message; rejected/error/no-op responses still fail. Offline fixtures use that exact observed 1.8.9 wording. This only proves the first command was accepted in that earlier run, not the second air fill or subsequent source healing; all remain mandatory for a full PASS.
