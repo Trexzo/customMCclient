@@ -2405,17 +2405,9 @@ public final class Minecraft189RuntimeBridge {
                         // AFTER original AutoBlock release and native source
                         // potion revalidation. The same live EntityPlayer
                         // pitch must remain ours at actual right-click.
-                        final Minecraft189AutoPotPitchLease aim =
-                                host.beginAutoPotDownwardPitch(originalPotionSlot);
-                        try {
-                            if (host.mayExecuteAutoPotAtPitch(
-                                    aim, originalPotionSlot)) {
-                                minecraft.customMcRightClickMouse();
-                                host.commitAutoPotUseAttempt();
-                            }
-                        } finally {
-                            if (aim != null) aim.restore();
-                        }
+                        Minecraft189AutoPotSourceCast.execute(
+                                host, originalPotionSlot,
+                                () -> minecraft.customMcRightClickMouse());
                     } finally {
                         host.restoreAutoPotSlot(originalPotionSlot);
                     }
