@@ -55,6 +55,13 @@ public final class Minecraft189HostRuntime
             new Minecraft189CriticalsEvidence();
     // Per-host-tick reference only; cleared before every new position sample.
     private Minecraft189PlayerSprintControl tickSprintControl;
+    // An original synthetic click may restore Sprint only for its exact
+    // source player and the GUI policy that admitted that same click.
+    private Minecraft189PlayerSprintControl pendingKeepSprintSource;
+    private boolean pendingKeepSprintPlayerHit;
+    private boolean pendingKeepSprintForward;
+    private boolean pendingKeepSprintRequireHit;
+    private boolean pendingKeepSprintPauseSneak;
     private Minecraft189InventoryHotbarControl tickHotbarControl;
     private Minecraft189PlayerInventoryAccess tickHotbarPlayer;
     private boolean autoWeaponOwnedClick;
@@ -532,6 +539,7 @@ public final class Minecraft189HostRuntime
         // evidence can authorize an automatic attack after world changes.
         criticalsEvidence.reset();
         tickSprintControl = null;
+        pendingKeepSprintSource = null;
         tickHotbarControl = null;
         tickHotbarPlayer = null;
         tickHeldItemAccess = null;
@@ -738,6 +746,9 @@ public final class Minecraft189HostRuntime
     void playerSprintControl(
             final Minecraft189PlayerSprintControl player) {
         requireOpen();
+        // A source player replacement (including null/world unload)
+        // cannot inherit the prior automatic-click sprint restoration.
+        if (tickSprintControl != player) pendingKeepSprintSource = null;
         tickSprintControl = player;
         if (player == null) {
             featureCatalog.wTap()
@@ -2056,6 +2067,9 @@ public final class Minecraft189HostRuntime
 
     boolean shouldKeepSprintAfterSyntheticClick(final boolean playerHit) {
         requireOpen();
+        // A rejected click must never leave permission for a later
+        // unrelated source click or a new local player.
+        pendingKeepSprintSource = null;
         final Minecraft189PlayerSprintControl current = tickSprintControl;
         if (!(current instanceof Minecraft189PlayerMovementStateAccess)) {
             return false;
@@ -2066,22 +2080,59 @@ public final class Minecraft189HostRuntime
                 new Minecraft189PlayerMovementState();
         measured.update(state.customMcOnGround(), state.customMcSneaking(),
                 state.customMcSprinting());
-        return featureCatalog.keepSprint().shouldRestore(
+        final Minecraft189KeepSprintModule module = featureCatalog.keepSprint();
+        final boolean admitted = module.shouldRestore(
                 measured.snapshot(), state.customMcSprinting(),
                 inputState.keyPressed(LegacyKeyboardCodes.W), playerHit,
                 featureCatalog.wTap().active(),
                 clickGuiRuntime.coreRuntime().model().snapshot().open());
+        if (admitted && tickSprintControl == current) {
+            pendingKeepSprintSource = current;
+            pendingKeepSprintPlayerHit = playerHit;
+            pendingKeepSprintForward =
+                    module.requireForwardSetting().get().booleanValue();
+            pendingKeepSprintRequireHit =
+                    module.requirePlayerHitSetting().get().booleanValue();
+            pendingKeepSprintPauseSneak =
+                    module.pauseWhileSneakingSetting().get().booleanValue();
+        }
+        return admitted && pendingKeepSprintSource == current;
     }
 
     void restoreSprintAfterSyntheticClick() {
         requireOpen();
-        // Called synchronously after the mapped vanilla click. Preserve
-        // WTap's higher-priority sprint-reset behavior if it is active.
-        if (tickSprintControl != null && featureCatalog.keepSprint().active()
-                && !featureCatalog.wTap().active()
-                && !clickGuiRuntime.coreRuntime().model().snapshot().open()) {
-            tickSprintControl.customMcSetSprinting(true);
+        // Consume the one-click grant BEFORE calling the original source.
+        // A throwing or reentrant sprint setter cannot replay it.
+        final Minecraft189PlayerSprintControl owner = pendingKeepSprintSource;
+        pendingKeepSprintSource = null;
+        if (owner == null || owner != tickSprintControl
+                || !(owner instanceof Minecraft189PlayerMovementStateAccess)) {
+            return;
         }
+        final Minecraft189KeepSprintModule module = featureCatalog.keepSprint();
+        if (pendingKeepSprintForward
+                    != module.requireForwardSetting().get().booleanValue()
+                || pendingKeepSprintRequireHit
+                    != module.requirePlayerHitSetting().get().booleanValue()
+                || pendingKeepSprintPauseSneak
+                    != module.pauseWhileSneakingSetting().get().booleanValue()) {
+            return;
+        }
+        final Minecraft189PlayerMovementStateAccess state =
+                (Minecraft189PlayerMovementStateAccess) owner;
+        final Minecraft189PlayerMovementState measured =
+                new Minecraft189PlayerMovementState();
+        measured.update(state.customMcOnGround(), state.customMcSneaking(),
+                state.customMcSprinting());
+        if (!module.shouldRestore(
+                measured.snapshot(), true,
+                inputState.keyPressed(LegacyKeyboardCodes.W),
+                pendingKeepSprintPlayerHit,
+                featureCatalog.wTap().active(),
+                clickGuiRuntime.coreRuntime().model().snapshot().open())) {
+            return;
+        }
+        owner.customMcSetSprinting(true);
     }
 
     boolean shouldAutoClick() {
@@ -2386,6 +2437,7 @@ public final class Minecraft189HostRuntime
         worldEntityPositionState.clear();
         criticalsEvidence.reset();
         tickSprintControl = null;
+        pendingKeepSprintSource = null;
         tickHotbarControl = null;
         tickHotbarPlayer = null;
         tickHeldItemAccess = null;
