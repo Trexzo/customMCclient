@@ -123,9 +123,21 @@ final class Minecraft189VerifiedCombatItemSlot {
                 || maximum - damage < minimumRemaining
                 || !stillSelectedSourceStack(inventory, player, rod))
             return false;
-        return rod.customMcMaxDamage() == maximum
-                && rod.customMcItemDamage() == damage
-                && stableRodSourceItem(inventory, player, rod);
+        if (rod.customMcMaxDamage() != maximum
+                || rod.customMcItemDamage() != damage
+                || !stableRodSourceItem(inventory, player, rod))
+            return false;
+        // Even the *second* native getter or source array membership
+        // check can run a reentrant callback that wears the same ItemStack.
+        // Verify actual remaining uses AFTER those getters, not only from
+        // the original pre-callback snapshot.
+        final int finalMax = rod.customMcMaxDamage();
+        final int finalDamage = rod.customMcItemDamage();
+        return finalMax == maximum && finalDamage == damage
+                && finalMax > 0 && finalDamage >= 0
+                && finalDamage < finalMax
+                && finalMax - finalDamage >= minimumRemaining
+                && stillSelectedSourceStack(inventory, player, rod);
     }
 
     /** Unknown, depleted, displaced or reentrant-mutation candidates fail. */
