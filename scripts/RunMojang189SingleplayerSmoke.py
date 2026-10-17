@@ -710,6 +710,23 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                       flush=True)
                 print("CUSTOMMC_OFFICIAL_189_REAL_AUTOPOT_DOWNWARD_PITCH_SOURCE_PASS=YES",
                       flush=True)
+                # V150: establish a genuinely loaded, dry original-world
+                # chamber BEFORE the V144 physical splash. Earlier original
+                # runs could reach the source item/pitch proof while the
+                # player's world-generated water spawn prevented an actual
+                # self-impact. Retain a real thrown EntityPotion and require
+                # a subsequent same-player native Regeneration effect;
+                # chamber construction is NOT a substitute for that proof.
+                # Load target chunk using genuine Creative teleport FIRST.
+                send_command(process, log, window, "/gamemode creative CIProbe")
+                send_verified_chunk_teleport(process, log, window)
+                send_verified_fill(process, log, window,
+                                   "/fill 4 79 4 12 87 12 stone")
+                send_verified_fill(process, log, window,
+                                   "/fill 5 80 5 11 86 11 air")
+                send_command(process, log, window, "/tp CIProbe 8 80 8")
+                print("CUSTOMMC_189_DRY_CHAMBER_BEFORE_PHYSICAL_SPLASH_PASS=YES",
+                      flush=True)
                 # V144: real vanilla player physically throws a fresh source
                 # splash Regeneration I at own feet. This phase explicitly
                 # contains NO /effect command: a new original player
@@ -745,26 +762,13 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                              "vanilla projectile splash generated NEW original local Regeneration without /effect")
                 print("CUSTOMMC_OFFICIAL_189_REAL_VANILLA_SPLASH_IMPACT_PASS=YES",
                       flush=True)
-                # V145: the runner intentionally issues NO physical right
-                # click after these chat commands. Only genuine production
-                # AutoPot scheduling and Minecraft.rightClickMouse can cast.
+                # V145: physical V144 splash already completed inside the
+                # verified dry cell. No further physical clicks: genuine
+                # AutoPot owns the eventual original native right click.
                 send_command(process, log, window, "/effect CIProbe clear")
                 send_command(process, log, window, "/clear CIProbe potion")
-                # Both earlier -3..3 AND single-chunk fill attempts
-                # failed when the target chunks had not been loaded by the
-                # actual integrated server. Move the original player to
-                # x=8,z=8 in CREATIVE first to force loading of chunk 0,0;
-                # only then request an enclosed source 7x7x7 dry cell.
-                # Original server acknowledgements are mandatory.
-                send_command(process, log, window, "/gamemode creative CIProbe")
-                send_verified_chunk_teleport(process, log, window)
-                send_verified_fill(process, log, window,
-                                   "/fill 4 79 4 12 87 12 stone")
-                send_verified_fill(process, log, window,
-                                   "/fill 5 80 5 11 86 11 air")
-                print("CUSTOMMC_189_SURVIVAL_DRY_CHAMBER_FILL_PASS=YES",
-                      flush=True)
-                send_command(process, log, window, "/tp CIProbe 8 80 8")
+                # Do not reconstruct/replace the chamber or teleport the
+                # source between the real splash and survival health proof.
                 send_command(process, log, window, "/gamemode survival CIProbe")
                 xdotool("windowactivate", "--sync", window)
                 xdotool("key", "--clearmodifiers", "9")
