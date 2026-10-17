@@ -230,10 +230,15 @@ final class Minecraft189CombatItemUseBoundaryTest {
             // V142: genuine original source Auto Detect must SKIP the
             // held-first/lower-slot duplicate rather than wasting the
             // entire combat use lane when Instant Health II is also present.
+            runtime.featureCatalog().autoPot().autoDetectSlotSetting().set(true);
+            assertEquals(-1, runtime.selectAutoPotSlot(),
+                    "when every source splash is redundant, scan must fail"
+                    + " without borrowing any other action's item");
+            assertEquals(4, inventory.selected,
+                    "no eligible source potion must leave currentItem untouched");
             final Item backupInstant = new Item(false, true, 1);
             backupInstant.damage = 16421;
             inventory.items[6] = backupInstant;
-            runtime.featureCatalog().autoPot().autoDetectSlotSetting().set(true);
             assertEquals(4, runtime.selectAutoPotSlot(),
                     "Auto Detect should continue beyond redundant Regen II");
             assertEquals(6, inventory.selected,
