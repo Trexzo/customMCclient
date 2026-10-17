@@ -54,6 +54,7 @@ COMBATSLOT_DISABLED = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_DISABLE_ORIGINAL
 NATIVE_ITEMS_ARMED = b"CUSTOMMC_189_NATIVE_ROD_POTION_SOURCE_MODULES_ARMED=YES"
 NATIVE_ITEMS_NONHEALING = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_NONHEALING_VETO_PASS=YES"
 NATIVE_ITEMS_HEAL_PRIORITY = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_NATIVE_STRONG_HEAL_PRIORITY_PASS=YES"
+NATIVE_ITEMS_ROD_DURABILITY = b"CUSTOMMC_OFFICIAL_189_AUTOROD_NATIVE_DURABLE_ROD_PRIORITY_PASS=YES"
 NATIVE_ITEMS_SELECTED = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_SOURCE_SELECTION_PASS=YES"
 NATIVE_ITEMS_GUI_OPEN = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_GUI_VETO_PASS=YES"
 NATIVE_ITEMS_GUI_CLOSE = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_GUI_CLOSE_RESTORE_PASS=YES"
@@ -536,12 +537,15 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                              "original Mojang player/currentItem and normally enabled source modules")
                 # Actual 1.8.9 /give commands on a real creative integrated
                 # server; no fabricated Java ItemStack or injected packet.
-                send_command(process, log, window, "/give CIProbe fishing_rod 1")
+                send_command(process, log, window, "/give CIProbe fishing_rod 1 60")
+                send_command(process, log, window, "/give CIProbe fishing_rod 1 0")
                 send_command(process, log, window, "/give CIProbe potion 1 0")
                 await_marker(process, log, NATIVE_ITEMS_NONHEALING, deadline,
                              "actual Mojang source water ItemPotion cannot authorize AutoPot")
                 send_command(process, log, window, "/give CIProbe potion 1 16389")
                 send_command(process, log, window, "/give CIProbe potion 1 16421")
+                await_marker(process, log, NATIVE_ITEMS_ROD_DURABILITY, deadline,
+                             "genuine Mojang pristine fishing rod outranks earlier damaged rod when opted in")
                 await_marker(process, log, NATIVE_ITEMS_HEAL_PRIORITY, deadline,
                              "real source splash instant-heal II outranks earlier I when opted in")
                 await_marker(process, log, NATIVE_ITEMS_SELECTED, deadline,
