@@ -7885,6 +7885,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "foodStats", "Lxg;");
         field(writer, "usingItem", "Z");
         field(writer, "bi", "Lwm;");
+        field(writer, "bG", "Lur;");
         field(writer, "bB", "I");
         field(writer, "bC", "I");
         field(writer, "bD", "F");
