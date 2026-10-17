@@ -11,6 +11,115 @@ import static org.junit.jupiter.api.Assertions.*;
 
 final class Minecraft189JumpResetModuleTest {
     @Test
+    void partialNativeJumpExceptionStillCommitsCooldownBeforeAnyNextHurtEdge() {
+        final Minecraft189JumpResetModule reset = new Minecraft189JumpResetModule();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        final Minecraft189PlayerHurtTimeState hurt = new Minecraft189PlayerHurtTimeState();
+        final JumpCounter source = new JumpCounter();
+        reset.cooldownSetting().set(3);
+        reset.onEnable();
+        try {
+            movement.update(true, false, true);
+            hurt.update(0);
+            assertFalse(reset.apply(source, movement.snapshot(),
+                    hurt.snapshot(), true, false));
+            hurt.update(10);
+            assertThrows(IllegalStateException.class,
+                    () -> reset.apply(() -> {
+                        source.jumps++;
+                        throw new IllegalStateException(
+                                "original Minecraft player jump failed after mutation");
+                    }, movement.snapshot(), hurt.snapshot(), true, false));
+            assertEquals(1, source.jumps,
+                    "source jump can mutate real state before throwing");
+            hurt.update(0);
+            assertFalse(reset.apply(source, movement.snapshot(),
+                    hurt.snapshot(), true, false));
+            hurt.update(10);
+            assertFalse(reset.apply(source, movement.snapshot(),
+                    hurt.snapshot(), true, false),
+                    "a new hurt edge while cooldown remains cannot replay");
+            hurt.update(0);
+            assertFalse(reset.apply(source, movement.snapshot(),
+                    hurt.snapshot(), true, false));
+            hurt.update(10);
+            assertTrue(reset.apply(source, movement.snapshot(),
+                    hurt.snapshot(), true, false),
+                    "genuine new hurt after source cooldown is allowed");
+            assertEquals(2, source.jumps);
+        } finally { reset.onDisable(); }
+    }
+
+    @Test
+    void reentrantOriginalJumpCannotSpendSecondFreshHurtEdgeEvenAtZeroCooldown() {
+        final Minecraft189JumpResetModule reset = new Minecraft189JumpResetModule();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        final Minecraft189PlayerHurtTimeState hurt = new Minecraft189PlayerHurtTimeState();
+        final JumpCounter source = new JumpCounter();
+        reset.cooldownSetting().set(0);
+        reset.onEnable();
+        try {
+            movement.update(true, false, true);
+            hurt.update(0);
+            reset.apply(source, movement.snapshot(), hurt.snapshot(), true, false);
+            hurt.update(10);
+            assertTrue(reset.apply(() -> {
+                source.jumps++;
+                hurt.update(11);
+                assertFalse(reset.apply(source, movement.snapshot(),
+                        hurt.snapshot(), true, false),
+                        "original native method cannot dispatch another jump recursively");
+            }, movement.snapshot(), hurt.snapshot(), true, false));
+            assertEquals(1, source.jumps);
+            assertFalse(reset.apply(source, movement.snapshot(),
+                    hurt.snapshot(), true, false),
+                    "nested real hurt edge must be consumed, never replayed");
+            hurt.update(0);
+            assertFalse(reset.apply(source, movement.snapshot(),
+                    hurt.snapshot(), true, false));
+            hurt.update(10);
+            assertTrue(reset.apply(source, movement.snapshot(),
+                    hurt.snapshot(), true, false),
+                    "independent later hurt event remains valid at configured zero cooldown");
+            assertEquals(2, source.jumps);
+        } finally { reset.onDisable(); }
+    }
+
+    @Test
+    void reentrantOriginalJumpThrowCannotLeaveModulePermanentlyBusy() {
+        final Minecraft189JumpResetModule reset = new Minecraft189JumpResetModule();
+        final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
+        final Minecraft189PlayerHurtTimeState hurt = new Minecraft189PlayerHurtTimeState();
+        final JumpCounter source = new JumpCounter();
+        reset.cooldownSetting().set(0);
+        reset.onEnable();
+        try {
+            movement.update(true, false, false);
+            hurt.update(0);
+            reset.apply(source, movement.snapshot(), hurt.snapshot(), true, false);
+            hurt.update(10);
+            assertThrows(IllegalStateException.class, () ->
+                    reset.apply(() -> {
+                        source.jumps++;
+                        hurt.update(11);
+                        assertFalse(reset.apply(source, movement.snapshot(),
+                                hurt.snapshot(), true, false));
+                        throw new IllegalStateException("native jump threw");
+                    }, movement.snapshot(), hurt.snapshot(), true, false));
+            assertEquals(1, source.jumps);
+            assertFalse(reset.apply(source, movement.snapshot(),
+                    hurt.snapshot(), true, false));
+            hurt.update(0);
+            reset.apply(source, movement.snapshot(), hurt.snapshot(), true, false);
+            hurt.update(10);
+            assertTrue(reset.apply(source, movement.snapshot(),
+                    hurt.snapshot(), true, false),
+                    "in-progress guard clears after original source exception");
+            assertEquals(2, source.jumps);
+        } finally { reset.onDisable(); }
+    }
+
+    @Test
     void oneJumpPerFreshLocalHurtEdgeWithCooldown() {
         final Minecraft189JumpResetModule module = new Minecraft189JumpResetModule();
         final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
