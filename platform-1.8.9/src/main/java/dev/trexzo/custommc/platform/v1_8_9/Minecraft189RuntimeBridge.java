@@ -1314,6 +1314,10 @@ public final class Minecraft189RuntimeBridge {
                     "custommc.acceptance.requireNativeCombatSlotGuiFocus")) {
                 Minecraft189OriginalCombatSlotAcceptance.observe(host, player);
             }
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.requireNativeRodPotionDiscovery")) {
+                Minecraft189OriginalCombatItemDiscoveryAcceptance.observe(host, player);
+            }
         }
         if (Boolean.getBoolean(
                 "custommc.acceptance.requireNativeScaffoldTickParity")) {
