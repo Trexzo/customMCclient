@@ -346,7 +346,42 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                     "original /effect Regeneration 10 must veto duplicate splash");
             assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
                     "active Regeneration veto overwrote human physical currentItem");
+            // Negative control: an immediate health potion still protects
+            // the player even while Regeneration 10 is active.
+            final Minecraft189ItemStackAccess[] sourceItems =
+                    inventory.customMcHotbarItems();
+            int instantHealthTwo = -1;
+            if (sourceItems != null && sourceItems.length >= 9) {
+                for (int i = 0; i < 9; i++) {
+                    final Minecraft189ItemStackAccess candidate = sourceItems[i];
+                    if (candidate != null && candidate.customMcStackSize() > 0
+                            && candidate.customMcIsPotion()
+                            && candidate.customMcItemDamage() == 16421) {
+                        instantHealthTwo = i;
+                        break;
+                    }
+                }
+            }
+            assertTrue(instantHealthTwo >= 0,
+                    "original source Instant Health II disappeared during effect test");
+            host.featureCatalog().autoPot().potSlotSetting()
+                    .set(instantHealthTwo + 1);
+            final int savedHealth = host.selectAutoPotSlot();
+            assertTrue(savedHealth == physicalCastSlot,
+                    "active Regeneration must not block genuine Instant Health II");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot() == instantHealthTwo
+                                && host.mayExecuteAutoPotUse(savedHealth),
+                        "native Instant Health blocked despite verified player effect");
+            } finally {
+                host.restoreAutoPotSlot(savedHealth);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
+                    "real Instant Health exception failed native hotbar restoration");
+            host.featureCatalog().autoPot().potSlotSetting()
+                    .set(sourceRegenerationPotionSlot + 1);
             phase = 10;
+            report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_INSTANT_HEAL_EXEMPT_PASS=YES");
             report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_ACTIVE_EFFECT_DUPLICATE_VETO_PASS=YES");
             return;
         }
