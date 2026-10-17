@@ -1197,7 +1197,16 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                     # Do not infer Pig ray-hit or attack success from these
                     # acknowledgments: the existing ORIGINAL native armed,
                     # hurt and UUID-ownership markers remain mandatory.
-                    send_verified_chunk_teleport(process, log, window)
+                    # Keep the actual source player ABOVE the stone fill:
+                    # teleporting into its y=99..104 solid volume would
+                    # displace/suffocate them before the air carve completes.
+                    # The fixed high-spot original teleport loads chunk 0,0
+                    # without entering any block we will subsequently fill.
+                    send_verified_original_chat_reply(
+                        process, log, window,
+                        "/tp CIProbe 8 120 8",
+                        b"[CHAT] Teleported CIProbe to 8.5, 120.0, 8.5")
+                    time.sleep(1.0)  # original vanilla chunk-load tick
                     send_verified_fill(process, log, window,
                                        "/fill 4 99 4 12 104 13 stone")
                     send_verified_fill(process, log, window,
