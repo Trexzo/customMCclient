@@ -1068,6 +1068,14 @@ final class Minecraft189VerifiedCombatItemSlotTest {
                     rod, inventory, player));
             assertEquals(4, inventory.selected,
                     "stale rod candidate must not select from changed GUI intent");
+            rod.autoDetectSlotSetting().set(true);
+            nativeRod.afterRodTypeRead = () ->
+                    rod.preserveActiveHookSetting().set(true);
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player),
+                    "changing hook-ownership intent inside native metadata "
+                    + "must fail before changing currentItem");
+            assertEquals(4, inventory.selected);
         } finally { rod.onDisable(); }
 
         final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
@@ -1082,6 +1090,14 @@ final class Minecraft189VerifiedCombatItemSlotTest {
                     pot, inventory, player));
             assertEquals(4, inventory.selected,
                     "stale healing candidate must not select from changed GUI intent");
+            pot.autoDetectSlotSetting().set(true);
+            nativePotion.afterPotionTypeRead = () ->
+                    pot.aimDownForSplashSetting().set(true);
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player),
+                    "new splash orientation during native source scan "
+                    + "must not authorize a stale healing candidate");
+            assertEquals(4, inventory.selected);
         } finally { pot.onDisable(); }
     }
 
