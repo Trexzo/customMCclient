@@ -53,6 +53,10 @@ COMBATSLOT_MELEE_OWNER = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_MELEE_DISPATC
 COMBATSLOT_DISABLED = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_DISABLE_ORIGINAL_PASS=YES"
 NATIVE_ITEMS_ARMED = b"CUSTOMMC_189_NATIVE_ROD_POTION_SOURCE_MODULES_ARMED=YES"
 NATIVE_ROD_EMPTY_HOOK = b"CUSTOMMC_OFFICIAL_189_ROD_NATIVE_FISH_ENTITY_EMPTY_BASELINE_PASS=YES"
+NATIVE_ROD_PHYSICAL_SLOT_PREFIX = b"CUSTOMMC_OFFICIAL_189_NATIVE_CAST_ROD_SLOT="
+NATIVE_ROD_PHYSICAL_SELECTED = b"CUSTOMMC_OFFICIAL_189_NATIVE_ROD_PHYSICAL_SLOT_SELECTED_PASS=YES"
+NATIVE_ROD_ACTUAL_CAST = b"CUSTOMMC_OFFICIAL_189_REAL_PHYSICAL_ROD_CAST_ACTIVE_HOOK_GUARD_PASS=YES"
+NATIVE_ROD_ACTUAL_REEL = b"CUSTOMMC_OFFICIAL_189_REAL_PHYSICAL_ROD_REEL_HOOK_CLEARED_PASS=YES"
 NATIVE_ITEMS_NONHEALING = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_NONHEALING_VETO_PASS=YES"
 NATIVE_ITEMS_HEAL_PRIORITY = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_NATIVE_STRONG_HEAL_PRIORITY_PASS=YES"
 NATIVE_ITEMS_ROD_DURABILITY = b"CUSTOMMC_OFFICIAL_189_AUTOROD_NATIVE_DURABLE_ROD_PRIORITY_PASS=YES"
@@ -560,7 +564,35 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 xdotool("key", "Shift_R")
                 await_marker(process, log, NATIVE_ITEMS_GUI_CLOSE, deadline,
                              "source Rod/Potion discovery resumes, restores, and normal controller disables")
+                await_marker(process, log, NATIVE_ROD_PHYSICAL_SLOT_PREFIX, deadline,
+                             "native original ItemFishingRod slot handoff for real physical key")
+                slot_values = [line.split(NATIVE_ROD_PHYSICAL_SLOT_PREFIX, 1)[1].strip()
+                               for line in read_tail(log).splitlines()
+                               if NATIVE_ROD_PHYSICAL_SLOT_PREFIX in line]
+                if len(slot_values) != 1 or slot_values[0] not in (
+                        b"1", b"2", b"3", b"4", b"5",
+                        b"6", b"7", b"8", b"9"):
+                    raise AssertionError("missing/invalid genuine original fishing rod hotbar slot")
+                xdotool("windowactivate", "--sync", window)
+                xdotool("key", "--clearmodifiers",
+                        slot_values[0].decode("ascii"))
+                await_marker(process, log, NATIVE_ROD_PHYSICAL_SELECTED, deadline,
+                             "physical 1..9 key selected true source ItemFishingRod with empty hook")
+                # Actual original Mojang right-click, not a Java test fake
+                # or an injected packet. The acceptance side MUST witness
+                # fishEntity become non-null and guard a real selected rod.
+                xdotool("mousemove", "--window", window, 427, 240)
+                xdotool("click", "--window", window, "3")
+                await_marker(process, log, NATIVE_ROD_ACTUAL_CAST, deadline,
+                             "physical original right click created live fishEntity and AutoRod vetoed reeling")
+                # Manual input must remain vanilla even with the optional
+                # automated guard enabled. A second real right-click reels.
+                xdotool("click", "--window", window, "3")
+                await_marker(process, log, NATIVE_ROD_ACTUAL_REEL, deadline,
+                             "physical vanilla right-click cleared original fishEntity and resumed owner gate")
                 print("CUSTOMMC_OFFICIAL_189_ROD_POTION_REAL_SOURCE_GUI_ACCEPTANCE_PASS=YES",
+                      flush=True)
+                print("CUSTOMMC_OFFICIAL_189_PHYSICAL_FISH_ENTITY_CAST_GUARD_REEL_PASS=YES",
                       flush=True)
             if native_world_camera:
                 # An already-created world can be paused by focus transition.

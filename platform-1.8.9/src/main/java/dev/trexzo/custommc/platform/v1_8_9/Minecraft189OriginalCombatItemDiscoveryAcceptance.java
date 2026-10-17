@@ -13,12 +13,14 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
     private static Minecraft189PlayerInventoryAccess owner;
     private static Minecraft189InventoryHotbarItemsAccess inventory;
     private static int baseline = -1;
+    private static int physicalCastSlot = -1;
+    private static int continuousHookCallbacks;
 
     private Minecraft189OriginalCombatItemDiscoveryAcceptance() {}
 
     static synchronized void observe(final Minecraft189HostRuntime host,
             final Minecraft189PlayerInventoryAccess source) {
-        if (!Boolean.getBoolean(PROPERTY) || phase == 5 || source == null
+        if (!Boolean.getBoolean(PROPERTY) || phase == 8 || source == null
                 || !host.playerMovementState().snapshot().available())
             return;
         if (!(source instanceof Minecraft189PlayerHeldItemAccess))
@@ -62,11 +64,15 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             report("CUSTOMMC_189_NATIVE_ROD_POTION_SOURCE_MODULES_ARMED=YES");
             return;
         }
-        assertTrue(owner == source && inventory == mapped && baseline == selected,
-                "source player or InventoryPlayer changed across native use acceptance");
-        assertTrue(host.featureCatalog().autoRod().active()
-                && host.featureCatalog().autoPot().active(),
-                "source Rod/Potion controller disabled unexpectedly");
+        assertTrue(owner == source && inventory == mapped,
+                "original local player/InventoryPlayer changed during native fixture");
+        if (phase <= 4) {
+            assertTrue(baseline == selected,
+                    "original currentItem changed during source selection acceptance");
+            assertTrue(host.featureCatalog().autoRod().active()
+                    && host.featureCatalog().autoPot().active(),
+                    "source Rod/Potion controller disabled unexpectedly");
+        }
 
         if (phase == 1) {
             if (gui) return;
@@ -204,8 +210,87 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                     "normal native module controller disable failed");
             assertTrue(inventory.customMcSelectedHotbarSlot() == baseline,
                     "source InventoryPlayer currentItem not restored after native disable");
+            physicalCastSlot = rod;
+            assertTrue(physicalCastSlot != baseline,
+                    "X11 source rod cast test needs a physical slot transition");
             phase = 5;
             report("CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_GUI_CLOSE_RESTORE_PASS=YES");
+            // The Python runner must use an actual physical hotbar number
+            // matching this exact source-verified genuine fishing rod.
+            report("CUSTOMMC_OFFICIAL_189_NATIVE_CAST_ROD_SLOT="
+                    + (physicalCastSlot + 1));
+            return;
+        }
+
+        // After old selection/GUI gates, the user physically selects the
+        // source rod (one of keys 1..9). No fixture inventory setter or
+        // synthetic right-click establishes a successful cast.
+        if (phase == 5) {
+            if (gui || selected != physicalCastSlot) return;
+            final Minecraft189ItemStackAccess[] items =
+                    inventory.customMcHotbarItems();
+            if (items == null || items.length < 9
+                    || items[selected] == null
+                    || items[selected].customMcStackSize() <= 0
+                    || !items[selected].customMcIsFishingRod()
+                    || ((Minecraft189PlayerFishingHookAccess) source)
+                            .customMcHasFishingHook())
+                throw new IllegalStateException(
+                        "physical hotbar selection lacks real no-hook ItemFishingRod");
+            phase = 6;
+            report("CUSTOMMC_OFFICIAL_189_NATIVE_ROD_PHYSICAL_SLOT_SELECTED_PASS=YES");
+            return;
+        }
+
+        // The runner now physically right-clicks in the original Mojang
+        // X11 game window. A class/name lookup or timer is insufficient:
+        // this transition requires an actual non-null fishEntity object.
+        if (phase == 6) {
+            if (!((Minecraft189PlayerFishingHookAccess) source)
+                    .customMcHasFishingHook()) {
+                continuousHookCallbacks = 0;
+                return;
+            }
+            // Require the real bobber to persist across multiple live
+            // game callbacks rather than briefly observing a transient.
+            if (++continuousHookCallbacks < 5) return;
+            assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
+                    "vanilla cast rewrote real currentItem");
+            host.featureCatalog().enableOriginalRodPotionDiscoveryAcceptance();
+            assertTrue(host.featureCatalog().autoRod()
+                            .preserveActiveHookSetting().get(),
+                    "re-enabled source AutoRod lost persistent active-hook guard");
+            assertTrue(host.selectAutoRodSlot() == -1,
+                    "live original fishing bobber must veto synthetic AutoRod reeling");
+            assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
+                    "hook guard changed physical selected hotbar slot");
+            phase = 7;
+            report("CUSTOMMC_OFFICIAL_189_REAL_PHYSICAL_ROD_CAST_ACTIVE_HOOK_GUARD_PASS=YES");
+            return;
+        }
+
+        // The runner sends a second physical right-click to exercise the
+        // *manual vanilla* reel branch, which the optional AutoRod guard
+        // intentionally does not intercept. Do not infer server trajectory.
+        if (phase == 7) {
+            if (((Minecraft189PlayerFishingHookAccess) source)
+                    .customMcHasFishingHook()) return;
+            assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
+                    "manual vanilla reeling changed the real hotbar slot");
+            final int acquired = host.selectAutoRodSlot();
+            assertTrue(acquired == physicalCastSlot,
+                    "source AutoRod failed to reacquire the exact original slot after reel");
+            try {
+                assertTrue(host.mayExecuteAutoRodUse(acquired),
+                        "original source Rod final-use gate did not recover after hook vanished");
+            } finally {
+                host.restoreAutoRodSlot(acquired);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
+                    "post-reel original source hotbar restore wrote a different slot");
+            host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
+            phase = 8;
+            report("CUSTOMMC_OFFICIAL_189_REAL_PHYSICAL_ROD_REEL_HOOK_CLEARED_PASS=YES");
         }
     }
 

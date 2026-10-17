@@ -704,6 +704,15 @@ final class Minecraft189MappedHostTransformationTest {
             final Object player =
                     playerClass.getDeclaredConstructor()
                             .newInstance();
+            final Minecraft189PlayerFishingHookAccess originalHook =
+                    (Minecraft189PlayerFishingHookAccess) player;
+            assertFalse(originalHook.customMcHasFishingHook());
+            final Object realShapeHook = loader.loadClass("ur")
+                    .getDeclaredConstructor().newInstance();
+            playerClass.getField("bG").set(player, realShapeHook);
+            assertTrue(originalHook.customMcHasFishingHook());
+            playerClass.getField("bG").set(player, null);
+            assertFalse(originalHook.customMcHasFishingHook());
             playerClass.getField("s")
                     .setDouble(
                             player,
