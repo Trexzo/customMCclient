@@ -24,6 +24,24 @@ final class Minecraft189LegacySplashHealingPotion {
         }
     }
 
+    /**
+     * Native original Minecraft instant health tiers: I provides 4 health
+     * points, II provides 8 at full splash strength. If <=4 health points
+     * are missing, the weaker source splash is enough in an ideal direct
+     * hit, so prefer conserving an otherwise useful Instant Health II.
+     * Never prevent use of II if I is unavailable. Other rankings remain
+     * unchanged. Original source health is validated by the caller.
+     */
+    static int healthAwarePriority(final int sourceDamage,
+            final float missingHealth, final boolean conserve) {
+        if (conserve && Float.isFinite(missingHealth)
+                && missingHealth > 0.0F && missingHealth <= 4.0F) {
+            if (sourceDamage == 16389) return 60;
+            if (sourceDamage == 16421) return 50;
+        }
+        return immediateHealingPriority(sourceDamage);
+    }
+
     static boolean isKnownSplashHealing(final int sourceDamage) {
         switch (sourceDamage) {
             case 16389: // splash instant health I
