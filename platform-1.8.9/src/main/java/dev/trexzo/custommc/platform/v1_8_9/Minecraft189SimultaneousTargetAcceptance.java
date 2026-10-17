@@ -131,6 +131,27 @@ final class Minecraft189SimultaneousTargetAcceptance {
                         "CUSTOMMC_189_SIMULTANEOUS_UUID_B_OWNED_ATTACK_PASS=YES");
                 System.out.flush();
             }
+        } else if (phase == 2 && firstOwnedClick
+                && firstUuid.equals(current)) {
+            // A genuine knockback or late movement can move the nearest
+            // target back from B to A before B's required second server
+            // hit. This is *not* proof B was hit. Permit only the fresh
+            // source world with BOTH real alive UUIDs still eligible and
+            // source nearest/rotation explicitly selecting A.
+            final Evidence renewed = read(host);
+            if (!phaseTwoFirstReturnPermitted(phase, firstOwnedClick,
+                    current, firstUuid, playerIndex,
+                    renewed == null ? -1 : renewed.aIndex,
+                    renewed != null && renewed.aNearest
+                            && renewed.currentValid(playerIndex))) {
+                throw new IllegalStateException(
+                        "simultaneous first UUID reprioritized without "
+                        + "both-live-native-owner evidence phase=" + phase
+                        + " uuid=" + current + " index=" + playerIndex);
+            }
+            // Intentionally no phase change, no B PASS marker. The
+            // dedicated server still MUST prove a separate damage event
+            // to B before this acceptance may finish.
         } else if (phase >= 3
                 && (firstUuid.equals(current) || secondUuid.equals(current))) {
             // After proving both official server-owned attacks, real
@@ -140,6 +161,24 @@ final class Minecraft189SimultaneousTargetAcceptance {
                     "simultaneous attack crossed source-native UUID/phase="
                     + phase + " uuid=" + current);
         }
+    }
+
+    /**
+     * Exact native acceptance, never a production target-selection bypass.
+     * The caller MUST first verify original crosshair UUID/kind/combat,
+     * source nearest/rotation and attack range, then re-read BOTH actual
+     * live candidate UUIDs through Evidence. This predicate cannot emit
+     * B's owned-attack marker or advance the witness from phase 2.
+     */
+    static boolean phaseTwoFirstReturnPermitted(final int phase,
+            final boolean firstOwnedClick, final UUID clickedUuid,
+            final UUID firstUuid, final int clickedIndex,
+            final int revalidatedAIndex,
+            final boolean freshBothEligibleANearest) {
+        return phase == 2 && firstOwnedClick
+                && clickedUuid != null && clickedUuid.equals(firstUuid)
+                && clickedIndex >= 0 && clickedIndex == revalidatedAIndex
+                && freshBothEligibleANearest;
     }
 
     private static Evidence read(final Minecraft189HostRuntime host) {
