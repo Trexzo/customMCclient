@@ -618,12 +618,74 @@ final class Minecraft189CombatItemUseBoundaryTest {
         }
     }
 
+
+    @Test void originalHostFinalUseCannotSpendDisplacedRodOrDepletedPotionStack() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 4;
+            final Item rod = new Item(true, false, 1);
+            final Item potion = new Item(false, true, 1);
+            inventory.items[1] = rod;
+            inventory.items[2] = potion;
+            final Player player = new Player(inventory);
+            runtime.playerHotbarSlot(player);
+            runtime.playerHeldItem(player);
+            controller.enable(Minecraft189AutoRodModule.ID);
+            controller.enable(Minecraft189AutoPotModule.ID);
+
+            assertEquals(4, runtime.selectAutoRodSlot());
+            assertEquals(1, inventory.selected);
+            rod.afterRodTypeRead = () ->
+                    inventory.items[1] = new Item(true, false, 1);
+            assertFalse(runtime.mayExecuteAutoRodUse(4),
+                    "original host may not click based on displaced rod metadata");
+            assertTrue(runtime.mayExecuteAutoRodUse(4),
+                    "stable source replacement rod is valid on next check");
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, inventory.selected);
+
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertEquals(2, inventory.selected);
+            potion.afterPotionTypeRead = () -> potion.count = 0;
+            assertFalse(runtime.mayExecuteAutoPotUse(4),
+                    "in-place source ItemStack depletion vetoes native potion click");
+            assertEquals(2, inventory.selected,
+                    "veto must not release owner until the true finally");
+            potion.count = 1;
+            assertTrue(runtime.mayExecuteAutoPotUse(4),
+                    "stable positive source potion may pass a fresh check");
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+            controller.disable(Minecraft189AutoRodModule.ID);
+            controller.disable(Minecraft189AutoPotModule.ID);
+        } finally {
+            runtime.close();
+        }
+    }
+
     private static final class Inventory
-            implements Minecraft189InventoryHotbarControl {
+            implements Minecraft189InventoryHotbarItemsAccess {
         int selected;
         Runnable duringNextSetter;
         final Minecraft189ItemStackAccess[] items =
                 new Minecraft189ItemStackAccess[9];
+        @Override public Minecraft189ItemStackAccess[] customMcHotbarItems() {
+            return items;
+        }
         @Override public int customMcSelectedHotbarSlot() { return selected; }
         @Override public void customMcSetSelectedHotbarSlot(final int slot) {
             selected = slot;
@@ -652,7 +714,9 @@ final class Minecraft189CombatItemUseBoundaryTest {
     private static final class Item implements Minecraft189ItemStackAccess {
         final boolean rod;
         final boolean potion;
-        final int count;
+        int count;
+        Runnable afterRodTypeRead;
+        Runnable afterPotionTypeRead;
         Item(final boolean rod, final boolean potion, final int count) {
             this.rod = rod;
             this.potion = potion;
@@ -662,8 +726,18 @@ final class Minecraft189CombatItemUseBoundaryTest {
         @Override public int customMcStackSize() { return count; }
         @Override public int customMcItemDamage() { return 0; }
         @Override public int customMcMaxDamage() { return 0; }
-        @Override public boolean customMcIsFishingRod() { return rod; }
-        @Override public boolean customMcIsPotion() { return potion; }
+        @Override public boolean customMcIsFishingRod() {
+            final Runnable callback = afterRodTypeRead;
+            afterRodTypeRead = null;
+            if (callback != null) callback.run();
+            return rod;
+        }
+        @Override public boolean customMcIsPotion() {
+            final Runnable callback = afterPotionTypeRead;
+            afterPotionTypeRead = null;
+            if (callback != null) callback.run();
+            return potion;
+        }
     }
 
     private static final class NoOpHost implements LegacyUiHostCallbacks {
