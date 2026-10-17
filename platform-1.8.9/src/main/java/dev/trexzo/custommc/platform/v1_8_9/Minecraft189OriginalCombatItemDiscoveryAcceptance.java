@@ -38,6 +38,7 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
     private static int originalWornDiamondSlot = -1;
     private static int originalHealthyIronSlot = -1;
     private static int originalFreshDiamondSlot = -1;
+    private static int swordDiagnosticCallbacks;
     private static int originalSwordUserSlot = -1;
 
     private Minecraft189OriginalCombatItemDiscoveryAcceptance() {}
@@ -938,6 +939,28 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             final Minecraft189ItemStackAccess[] items =
                     inventory.customMcHotbarItems();
             if (items == null || items.length < 9) return;
+            // Diagnostic only: V148's first official original-world run
+            // reached two real /give commands but no rank marker. Capture
+            // mapped real source ItemSword fields (including all hotbar
+            // slots), never synthesize or relax required acceptance gates.
+            if (++swordDiagnosticCallbacks == 1
+                    || swordDiagnosticCallbacks == 20
+                    || swordDiagnosticCallbacks == 100) {
+                final StringBuilder witness = new StringBuilder(
+                        "CUSTOMMC_OFFICIAL_189_NATIVE_SWORD_DIAGNOSTIC=selected:")
+                        .append(selected);
+                for (int j = 0; j < 9; j++) {
+                    final Minecraft189ItemStackAccess v = items[j];
+                    if (v == null) continue;
+                    witness.append(";slot:").append(j)
+                            .append(",sword:").append(v.customMcIsSword())
+                            .append(",count:").append(v.customMcStackSize())
+                            .append(",damage:").append(v.customMcItemDamage())
+                            .append(",max:").append(v.customMcMaxDamage())
+                            .append(",base:").append(v.customMcSwordBaseDamage());
+                }
+                report(witness.toString());
+            }
             int worn = -1, iron = -1;
             for (int slot = 0; slot < 9; slot++) {
                 final Minecraft189ItemStackAccess item = items[slot];
