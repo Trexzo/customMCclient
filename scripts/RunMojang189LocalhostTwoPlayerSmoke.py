@@ -264,9 +264,41 @@ def actual_server_three_client_simultaneous_fixture(server_log):
 
 
 def actual_server_three_client_rejoin_fixture(server_log):
-    """Server-observed real spawn: A initially nearer; B survives disconnect."""
-    host, a_near, b_outer, _b_near = (
+    """Real server positions, with A nearer and locked survivor B in ray reach.
+
+    Unlike the separate simultaneous-player fixture, the rejoin scenario
+    must make a real original Minecraft raycast and UUID-locked controller
+    attack after A disconnects. The prior B at a diagonal sqrt(8) blocks
+    was repeatedly selectable (native target index and UUID correct), but
+    intermittently NOT under Minecraft.objectMouseOver when its original
+    camera was yaw -45 at feet y=4. Retain a genuine two-axis target
+    (to exercise real native rotation), while bringing B inward to sqrt(5)
+    blocks and leaving A at two. No synthetic game data or widened raycast.
+    """
+    host, a_near, _b_outer, _b_near = (
         actual_server_three_client_simultaneous_fixture(server_log))
+    parts = a_near.split()
+    hparts = host.split()
+    if (len(parts) != 7 or parts[:2] != ["tp", "CITarget"]
+            or len(hparts) != 7 or hparts[:2] != ["tp", "CIHost"]):
+        raise AssertionError("original rejoin fixture lacks server-derived positions")
+    x, y, z = (int(value) for value in parts[2:5])
+    hx, hy, hz = (int(value) for value in hparts[2:5])
+    if x != hx or y != hy or abs(z - hz) != 2:
+        raise AssertionError("unexpected original A/host rejoin geometry")
+    direction = 1 if x % 16 <= 13 else -1
+    bx = x + direction
+    if x // 16 != bx // 16:
+        raise AssertionError("original rejoin B crossed source-loaded chunk")
+    # Distances in the original horizontal plane, from actual server TP
+    # coordinates: A=2, B=sqrt(5), both <3, two distinct non-overlapping
+    # vanilla 0.6-wide player hitboxes, no forced teleport after A unload.
+    if not (math.hypot(bx - hx, z - hz) < 3.0
+            and math.hypot(x - hx, z - hz)
+            < math.hypot(bx - hx, z - hz)
+            and abs(bx - x) >= 1):
+        raise AssertionError("source rejoin B not distinct and in native reach")
+    b_outer = "tp CITargetB {} {} {} 180 0".format(bx, y, z)
     return host, a_near, b_outer
 
 
@@ -1827,9 +1859,11 @@ def run(args):
             # acknowledged B's intended sqrt(8) teleport.
             #
             # The final server-authoritative teleport is deliberately B,
-            # after host and A are tracking the real nearby entity. There
-            # are no synthetic positions, client-side entity writes or
-            # weakened in-range/UUID/real-controller assertions.
+            # after host and A are tracking the real nearby entity. V153
+            # makes B sqrt(5), not previous sqrt(8), from the original
+            # host (A stays nearer at 2 blocks), preserving real client
+            # raycast, UUID ownership, native controller and server damage.
+            # No synthetic positions or weakened original acceptance.
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, a_near)
             send_server_command(server, server_log, b_outer)
