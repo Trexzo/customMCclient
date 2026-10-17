@@ -6,6 +6,7 @@ and CustomMC's opt-in live world tick checkpoint. Never connects to a server,
 supplies online credentials, or claims entity attacks/hits.
 """
 import argparse
+import re
 import os
 from pathlib import Path
 import subprocess
@@ -205,6 +206,64 @@ def send_command(process, log, window, command):
                              + repr(closed))
     print("CUSTOMMC_189_OFFLINE_COMMAND_SENT=" + command.split(" ", 1)[0],
           flush=True)
+
+
+
+def send_verified_chunk_teleport(process, log, window):
+    """Teleport the real vanilla player to LOAD the fixture chunk first.
+
+    A filled region wholly inside chunk (0,0) still fails if that chunk is
+    unloaded. The source player must visit it and receive the genuine
+    integrated-server teleport response before issuing /fill.
+    """
+    cursor = log.stat().st_size if log.exists() else 0
+    send_command(process, log, window, "/tp CIProbe 8 100 8")
+    deadline = time.monotonic() + 8
+    while time.monotonic() < deadline:
+        require_running(process, "original fixture chunk load")
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read()
+        if b"[CHAT] Teleported CIProbe to 8.5, 100.0, 8.5" in fresh:
+            # Allow at least one real client/server tick of chunk loading.
+            time.sleep(1.0)
+            return
+        time.sleep(0.2)
+    raise AssertionError(
+        "no fresh original vanilla teleport reply confirming fixture "
+        "chunk location before bounded deadline")
+
+
+def send_verified_fill(process, log, window, command):
+    """Require a *fresh* vanilla success response before relying on a world cell.
+
+    A /fill spanning unloaded chunks can be rejected by integrated-server
+    vanilla even though the X11 chat opened/closed successfully. Merely
+    sending the command is not proof that the player is in a dry fixture.
+    """
+    cursor = log.stat().st_size if log.exists() else 0
+    send_command(process, log, window, command)
+    deadline = time.monotonic() + 8
+    while time.monotonic() < deadline:
+        require_running(process, "original Survival dry chamber fill")
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read()
+        if (b"Cannot place blocks outside of the world" in fresh
+                or b"Too many blocks in the specified area" in fresh
+                or b"There are no blocks to fill" in fresh):
+            raise AssertionError(
+                "vanilla refused the dry chamber /fill; original "
+                "Survival health acceptance cannot proceed safely")
+        # Genuine Mojang 1.8.9 replies "729 blocks filled" rather
+        # than the newer-version "Successfully filled 729 blocks".
+        # Require source chat, a POSITIVE numeric count and fresh bytes.
+        if re.search(rb"\[CHAT\] [1-9][0-9]* blocks filled", fresh):
+            return
+        time.sleep(0.2)
+    raise AssertionError(
+        "no fresh original vanilla /fill success for dry chamber "
+        "before bounded deadline")
 
 
 def native_safe_walk_positions(log):
@@ -651,6 +710,23 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                       flush=True)
                 print("CUSTOMMC_OFFICIAL_189_REAL_AUTOPOT_DOWNWARD_PITCH_SOURCE_PASS=YES",
                       flush=True)
+                # V150: establish a genuinely loaded, dry original-world
+                # chamber BEFORE the V144 physical splash. Earlier original
+                # runs could reach the source item/pitch proof while the
+                # player's world-generated water spawn prevented an actual
+                # self-impact. Retain a real thrown EntityPotion and require
+                # a subsequent same-player native Regeneration effect;
+                # chamber construction is NOT a substitute for that proof.
+                # Load target chunk using genuine Creative teleport FIRST.
+                send_command(process, log, window, "/gamemode creative CIProbe")
+                send_verified_chunk_teleport(process, log, window)
+                send_verified_fill(process, log, window,
+                                   "/fill 4 79 4 12 87 12 stone")
+                send_verified_fill(process, log, window,
+                                   "/fill 5 80 5 11 86 11 air")
+                send_command(process, log, window, "/tp CIProbe 8 80 8")
+                print("CUSTOMMC_189_DRY_CHAMBER_BEFORE_PHYSICAL_SPLASH_PASS=YES",
+                      flush=True)
                 # V144: real vanilla player physically throws a fresh source
                 # splash Regeneration I at own feet. This phase explicitly
                 # contains NO /effect command: a new original player
@@ -686,17 +762,13 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                              "vanilla projectile splash generated NEW original local Regeneration without /effect")
                 print("CUSTOMMC_OFFICIAL_189_REAL_VANILLA_SPLASH_IMPACT_PASS=YES",
                       flush=True)
-                # V145: the runner intentionally issues NO physical right
-                # click after these chat commands. Only genuine production
-                # AutoPot scheduling and Minecraft.rightClickMouse can cast.
+                # V145: physical V144 splash already completed inside the
+                # verified dry cell. No further physical clicks: genuine
+                # AutoPot owns the eventual original native right click.
                 send_command(process, log, window, "/effect CIProbe clear")
                 send_command(process, log, window, "/clear CIProbe potion")
-                # Real vanilla dry ground before original Survival potion
-                # stage; prevents actual water-spawn drowning without
-                # fabricating source health or disabling cast verification.
-                send_command(process, log, window, "/fill -3 79 -3 3 79 3 stone")
-                send_command(process, log, window, "/fill -3 80 -3 3 84 3 air")
-                send_command(process, log, window, "/tp CIProbe 0 80 0")
+                # Do not reconstruct/replace the chamber or teleport the
+                # source between the real splash and survival health proof.
                 send_command(process, log, window, "/gamemode survival CIProbe")
                 xdotool("windowactivate", "--sync", window)
                 xdotool("key", "--clearmodifiers", "9")
