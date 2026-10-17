@@ -13,6 +13,7 @@ public final class Minecraft189AutoRodModule implements Module {
     public static final String ROD_SLOT = ID + ".rodSlot";
     public static final String AUTO_DETECT_SLOT = ID + ".autoDetectSlot";
     public static final String PREFER_DURABLE_ROD = ID + ".preferDurableRod";
+    public static final String PRESERVE_ACTIVE_HOOK = ID + ".preserveActiveHook";
     public static final String COOLDOWN_TICKS = ID + ".cooldownTicks";
     public static final String REQUIRE_HOLD = ID + ".requireAttackHeld";
     public static final String PAUSE_RIGHT = ID + ".pauseWhileRightClicking";
@@ -25,6 +26,10 @@ public final class Minecraft189AutoRodModule implements Module {
     // Off by default to preserve V131's source held-first policy.
     private final Setting<Boolean> preferDurableRod = new Setting<Boolean>(
             PREFER_DURABLE_ROD, Boolean.FALSE, v -> v != null,
+            SettingCodecs.BOOLEAN);
+    // Off by default to preserve prior original source cast/reel behavior.
+    private final Setting<Boolean> preserveActiveHook = new Setting<Boolean>(
+            PRESERVE_ACTIVE_HOOK, Boolean.FALSE, v -> v != null,
             SettingCodecs.BOOLEAN);
     private final Setting<Integer> cooldown = new Setting<Integer>(
             COOLDOWN_TICKS, 30, x -> x != null && x >= 1 && x <= 200,
@@ -51,6 +56,7 @@ public final class Minecraft189AutoRodModule implements Module {
     public Setting<Integer> cooldownTicksSetting() { return cooldown; }
     public Setting<Boolean> autoDetectSlotSetting() { return autoDetectSlot; }
     public Setting<Boolean> preferDurableRodSetting() { return preferDurableRod; }
+    public Setting<Boolean> preserveActiveHookSetting() { return preserveActiveHook; }
     public Setting<Boolean> requireHoldSetting() { return requireHold; }
     public Setting<Boolean> pauseRightSetting() { return pauseRight; }
     synchronized boolean active() { return enabled; }
