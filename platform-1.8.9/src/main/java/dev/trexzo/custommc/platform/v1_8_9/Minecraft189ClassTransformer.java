@@ -174,6 +174,9 @@ public final class Minecraft189ClassTransformer
                     + "Minecraft189PlayerInventoryAccess";
     private static final String PLAYER_INVENTORY_ACCESS_DESCRIPTOR =
             "L" + PLAYER_INVENTORY_ACCESS_INTERNAL_NAME + ";";
+    private static final String PLAYER_FISHING_HOOK_ACCESS_INTERNAL_NAME =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+                    + "Minecraft189PlayerFishingHookAccess";
     private static final String WORLD_TIME_ACCESS_INTERNAL_NAME =
             "dev/trexzo/custommc/platform/v1_8_9/"
                     + "Minecraft189WorldTimeAccess";
@@ -4221,6 +4224,29 @@ public final class Minecraft189ClassTransformer
         return writer.toByteArray();
     }
 
+    private static void addOriginalFishingHookPresenceGetter(
+            final ClassVisitor visitor) {
+        final Minecraft189Mappings.MappedField original =
+                Minecraft189Mappings.ENTITY_PLAYER_FISH_ENTITY;
+        final MethodVisitor method = visitor.visitMethod(
+                Opcodes.ACC_PUBLIC | Opcodes.ACC_FINAL,
+                "customMcHasFishingHook", "()Z", null, null);
+        final Label missing = new Label();
+        method.visitCode();
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        method.visitFieldInsn(Opcodes.GETFIELD,
+                original.owner().obfuscatedInternalName(),
+                original.obfuscatedName(), original.descriptor());
+        method.visitJumpInsn(Opcodes.IFNULL, missing);
+        method.visitInsn(Opcodes.ICONST_1);
+        method.visitInsn(Opcodes.IRETURN);
+        method.visitLabel(missing);
+        method.visitInsn(Opcodes.ICONST_0);
+        method.visitInsn(Opcodes.IRETURN);
+        method.visitMaxs(1, 1);
+        method.visitEnd();
+    }
+
     private static byte[] transformEntityPlayer(
             final byte[] input) {
         final ClassReader reader =
@@ -4243,20 +4269,18 @@ public final class Minecraft189ClassTransformer
                             final String superName,
                             final String[] interfaces) {
                         super.visit(
-                                version,
-                                access,
-                                name,
-                                signature,
-                                superName,
+                                version, access, name, signature, superName,
                                 withInterface(
                                         withInterface(
                                                 withInterface(
                                                         withInterface(
-                                                                interfaces,
-                                                                PLAYER_HUNGER_ACCESS_INTERNAL_NAME),
-                                                        PLAYER_EXPERIENCE_ACCESS_INTERNAL_NAME),
-                                                PLAYER_INVENTORY_ACCESS_INTERNAL_NAME),
-                                        SCAFFOLD_NATIVE_EYE_ACCESS_INTERNAL_NAME));
+                                                                withInterface(
+                                                                        interfaces,
+                                                                        PLAYER_HUNGER_ACCESS_INTERNAL_NAME),
+                                                                PLAYER_EXPERIENCE_ACCESS_INTERNAL_NAME),
+                                                        PLAYER_INVENTORY_ACCESS_INTERNAL_NAME),
+                                                SCAFFOLD_NATIVE_EYE_ACCESS_INTERNAL_NAME),
+                                        PLAYER_FISHING_HOOK_ACCESS_INTERNAL_NAME));
                     }
 
                     @Override
@@ -4293,6 +4317,7 @@ public final class Minecraft189ClassTransformer
                         addPlayerInventoryGetter(
                                 cv,
                                 "customMcInventory");
+                        addOriginalFishingHookPresenceGetter(cv);
                         super.visitEnd();
                     }
                 },
