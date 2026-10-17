@@ -12,10 +12,22 @@ public final class Minecraft189AutoWeaponModule implements Module {
     public static final String ID = "combat.autoWeapon";
     public static final String REQUIRE_HIT = ID + ".requirePlayerHit";
     public static final String RESTORE = ID + ".restoreAfterAttack";
+    public static final String IGNORE_FRAGILE_SWORDS = ID + ".ignoreFragileSwords";
+    public static final String MIN_REMAINING_DURABILITY = ID + ".minRemainingDurability";
+    public static final String PREFER_DURABLE_TIES = ID + ".preferDurableTies";
     private final Setting<Boolean> requireHit = new Setting<Boolean>(
             REQUIRE_HIT, Boolean.TRUE, v -> v != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> restore = new Setting<Boolean>(
             RESTORE, Boolean.TRUE, v -> v != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> ignoreFragileSwords = new Setting<Boolean>(
+            IGNORE_FRAGILE_SWORDS, Boolean.FALSE, v -> v != null,
+            SettingCodecs.BOOLEAN);
+    private final Setting<Integer> minRemainingDurability = new Setting<Integer>(
+            MIN_REMAINING_DURABILITY, Integer.valueOf(8),
+            v -> v != null && v >= 1 && v <= 128, SettingCodecs.INTEGER);
+    private final Setting<Boolean> preferDurableTies = new Setting<Boolean>(
+            PREFER_DURABLE_TIES, Boolean.FALSE, v -> v != null,
+            SettingCodecs.BOOLEAN);
     private boolean enabled;
     private int selected = -1;
     private int previous = -1;
@@ -24,12 +36,32 @@ public final class Minecraft189AutoWeaponModule implements Module {
     // the original mapped Item singleton when available, not the wrapper.
     private Object selectedNativeSwordIdentity;
     private float selectedSwordBaseDamage = Float.NaN;
+    private boolean selectedFragilePolicy;
+    private int selectedMinimumRemaining;
+    private boolean selectedDurableTies;
 
     @Override public String id() { return ID; }
     @Override public synchronized void onEnable() { enabled = true; }
     @Override public synchronized void onDisable() { enabled = false; }
     public Setting<Boolean> requirePlayerHitSetting() { return requireHit; }
     public Setting<Boolean> restoreAfterAttackSetting() { return restore; }
+    public Setting<Boolean> ignoreFragileSwordsSetting() {
+        return ignoreFragileSwords;
+    }
+    public Setting<Integer> minRemainingDurabilitySetting() {
+        return minRemainingDurability;
+    }
+    public Setting<Boolean> preferDurableTiesSetting() {
+        return preferDurableTies;
+    }
+
+    private static int remainingDurability(final Minecraft189ItemStackAccess item) {
+        if (item == null) return -1;
+        final int max = item.customMcMaxDamage();
+        final int used = item.customMcItemDamage();
+        if (max <= 0 || used < 0 || used >= max) return -1;
+        return max - used;
+    }
     synchronized boolean active() { return enabled; }
 
     /**
@@ -56,25 +88,42 @@ public final class Minecraft189AutoWeaponModule implements Module {
         final Minecraft189ItemStackAccess[] items = inventory.customMcHotbarItems();
         if (items == null || items.length < 9) return -1;
 
+        final boolean rejectFragile = ignoreFragileSwords.get().booleanValue();
+        final int minRemaining = minRemainingDurability.get().intValue();
+        final boolean preferDurable = preferDurableTies.get().booleanValue();
         int bestSlot = -1;
         float bestDamage = Float.NEGATIVE_INFINITY;
+        int bestRemaining = -1;
         for (int slot = 0; slot < 9; slot++) {
             final Minecraft189ItemStackAccess item = items[slot];
             if (item == null || !item.customMcIsSword()
                     || item.customMcStackSize() < 1) continue;
             final float base = item.customMcSwordBaseDamage();
             if (!Float.isFinite(base) || base <= 0) continue;
+            final int remaining = rejectFragile || preferDurable
+                    ? remainingDurability(item) : -1;
+            if ((rejectFragile || preferDurable) && remaining < 0)
+                continue; // Invalid original durability is not evidence.
+            if (rejectFragile && remaining < minRemaining) continue;
             if (base > bestDamage
-                    || (base == bestDamage && slot == prior)) {
+                    || (base == bestDamage && preferDurable
+                        && remaining > bestRemaining)
+                    || (base == bestDamage
+                        && (!preferDurable || remaining == bestRemaining)
+                        && slot == prior)) {
                 bestDamage = base;
                 bestSlot = slot;
+                bestRemaining = remaining;
             }
         }
         if (bestSlot < 0 || bestSlot == prior) return -1;
         // Obtaining original inventory item descriptors can execute mapped
         // native getters with reentrant user/currentItem changes. Never
         // overwrite a different actual selected slot based on an old read.
-        if (!enabled || inventory.customMcSelectedHotbarSlot() != prior)
+        if (!enabled || inventory.customMcSelectedHotbarSlot() != prior
+                || rejectFragile != ignoreFragileSwords.get()
+                || minRemaining != minRemainingDurability.get()
+                || preferDurable != preferDurableTies.get())
             return -1;
         final Object mappedSwordIdentity =
                 items[bestSlot].customMcOriginalItemIdentity();
@@ -83,6 +132,9 @@ public final class Minecraft189AutoWeaponModule implements Module {
         ownerInventory = inventory;
         selectedNativeSwordIdentity = mappedSwordIdentity;
         selectedSwordBaseDamage = bestDamage;
+        selectedFragilePolicy = rejectFragile;
+        selectedMinimumRemaining = minRemaining;
+        selectedDurableTies = preferDurable;
         selected = bestSlot;
         previous = prior;
         try {
@@ -140,6 +192,9 @@ public final class Minecraft189AutoWeaponModule implements Module {
             final Minecraft189InventoryHotbarControl control,
             final int original) {
         if (!enabled || control == null || control != ownerInventory
+                || selectedFragilePolicy != ignoreFragileSwords.get()
+                || selectedMinimumRemaining != minRemainingDurability.get()
+                || selectedDurableTies != preferDurableTies.get()
                 || original < 0 || original != previous || selected < 0
                 || !(control instanceof Minecraft189InventoryHotbarItemsAccess)
                 || control.customMcSelectedHotbarSlot() != selected)
@@ -161,6 +216,11 @@ public final class Minecraft189AutoWeaponModule implements Module {
                 && item.customMcOriginalItemIdentity()
                         != selectedNativeSwordIdentity)
             return false;
+        if (selectedFragilePolicy || selectedDurableTies) {
+            final int remaining = remainingDurability(item);
+            if (remaining < 0 || (selectedFragilePolicy
+                    && remaining < selectedMinimumRemaining)) return false;
+        }
         // Reading ItemSword, stack count, base damage or original Item may
         // reenter inventory synchronization. A native getter can replace
         // InventoryPlayer.mainInventory[selected] without changing
@@ -197,6 +257,9 @@ public final class Minecraft189AutoWeaponModule implements Module {
         ownerInventory = null;
         selectedNativeSwordIdentity = null;
         selectedSwordBaseDamage = Float.NaN;
+        selectedFragilePolicy = false;
+        selectedMinimumRemaining = 0;
+        selectedDurableTies = false;
         selected = -1;
         previous = -1;
     }
