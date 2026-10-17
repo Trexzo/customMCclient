@@ -294,8 +294,8 @@ class RealReconnectNativeIdentityFixtureTest(unittest.TestCase):
     def test_native_survivor_has_source_ray_margin_and_distinct_hitbox(self):
         import math
         for raw in (
-            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\\n",
-            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (-33.5, 4.0, -33.5)\\n",
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\n",
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (-33.5, 4.0, -33.5)\n",
         ):
             with tempfile.TemporaryDirectory() as root:
                 log = Path(root) / "server.log"
