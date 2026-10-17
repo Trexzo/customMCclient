@@ -165,6 +165,66 @@ final class Minecraft189CombatSlotHostLeaseTest {
         }
     }
 
+
+    @Test void itemIdentityGetterSwappingSelectedStackCannotAuthorizeOriginalAttack() {
+        final Harness harness = new Harness();
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 3;
+            final Object nativeSword = new Object();
+            inventory.items[6] = new Item(true, 8.0F, 1, nativeSword);
+            harness.controller.enable(Minecraft189AutoWeaponModule.ID);
+            harness.runtime.playerHotbarSlot(new Player(inventory));
+            assertEquals(3, harness.runtime.selectCombatSlotBeforeSyntheticClick(true));
+            assertEquals(6, inventory.selected);
+
+            final Item originalRead = new Item(true, 8.0F, 1, nativeSword);
+            inventory.items[6] = originalRead;
+            originalRead.afterOriginalItemRead = () ->
+                    inventory.items[6] = new Item(false, 8.0F, 1, nativeSword);
+            assertFalse(harness.runtime.mayDispatchSyntheticMelee(3),
+                    "original Item singleton from a displaced ItemStack is not current source evidence");
+            assertEquals(6, inventory.selected);
+            assertFalse(harness.runtime.mayDispatchSyntheticMelee(3),
+                    "replacement nonsword must independently fail on next original source read");
+
+            // A fresh replacement ItemStack for the *same* Item is still
+            // valid once it remains in InventoryPlayer.mainInventory for
+            // the entire independent verification.
+            inventory.items[6] = new Item(true, 8.0F, 1, nativeSword);
+            assertTrue(harness.runtime.mayDispatchSyntheticMelee(3));
+            harness.runtime.restoreCombatSlotAfterSyntheticClick(3);
+            assertEquals(3, inventory.selected);
+        } finally {
+            harness.close();
+        }
+    }
+
+    @Test void sameSwordWrapperSwapInsideOriginalItemGetterIsVetoedForThatAttempt() {
+        final Harness harness = new Harness();
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 3;
+            final Object nativeSword = new Object();
+            inventory.items[6] = new Item(true, 8.0F, 1, nativeSword);
+            harness.controller.enable(Minecraft189AutoWeaponModule.ID);
+            harness.runtime.playerHotbarSlot(new Player(inventory));
+            assertEquals(3, harness.runtime.selectCombatSlotBeforeSyntheticClick(true));
+            final Item oldRead = new Item(true, 8.0F, 1, nativeSword);
+            inventory.items[6] = oldRead;
+            oldRead.afterOriginalItemRead = () ->
+                    inventory.items[6] = new Item(true, 8.0F, 1, nativeSword);
+            assertFalse(harness.runtime.mayDispatchSyntheticMelee(3),
+                    "a same-Item wrapper replaced mid-native getter needs another consistent read");
+            assertTrue(harness.runtime.mayDispatchSyntheticMelee(3),
+                    "a stable replacement for same original Item must not be permanently rejected");
+            harness.runtime.restoreCombatSlotAfterSyntheticClick(3);
+            assertEquals(3, inventory.selected);
+        } finally {
+            harness.close();
+        }
+    }
+
     private static final class Harness {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -217,6 +277,7 @@ final class Minecraft189CombatSlotHostLeaseTest {
         final float damage;
         final int count;
         final Object originalNativeItem;
+        Runnable afterOriginalItemRead;
         Item(boolean sword, float damage) {
             this(sword, damage, 1, new Object());
         }
@@ -229,6 +290,9 @@ final class Minecraft189CombatSlotHostLeaseTest {
         @Override public String customMcDisplayName() { return "source"; }
         @Override public int customMcStackSize() { return count; }
         @Override public Object customMcOriginalItemIdentity() {
+            final Runnable callback = afterOriginalItemRead;
+            afterOriginalItemRead = null;
+            if (callback != null) callback.run();
             return originalNativeItem;
         }
         @Override public int customMcItemDamage() { return 0; }
