@@ -59,6 +59,7 @@ final class Minecraft189MappedHostTransformationTest {
             loader.put("aug", transformer.transform("aug", axisAlignedBbShape()));
             loader.put("pk", transformer.transform("pk", entityShape()));
             loader.put("pr", transformer.transform("pr", entityLivingBaseShape()));
+            loader.put("ur", emptyClass("ur"));
             loader.put("wn", transformer.transform("wn", entityPlayerShape()));
             loader.put("bda", transformer.transform("bda", playerControllerShape()));
             loader.put("df", scaffoldVec3iShape());
@@ -397,6 +398,7 @@ final class Minecraft189MappedHostTransformationTest {
                 transformer.transform(
                         "wm",
                         inventoryPlayerShape()));
+        loader.put("ur", emptyClass("ur"));
         loader.put(
                 "wn",
                 transformer.transform(
