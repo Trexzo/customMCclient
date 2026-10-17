@@ -569,6 +569,70 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         } finally { rod.onDisable(); pot.onDisable(); }
     }
 
+
+    @Test void splashHealingMetadataExcludesWaterDrinksAndHarmfulPotions() {
+        final Inventory inv = new Inventory();
+        final Player player = new Player(inv);
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        pot.onEnable();
+        try {
+            inv.selected = 4;
+            final FakeItem item = new FakeItem(false, true);
+            player.items[2] = item;
+            for (final int invalid : new int[] {
+                    0, 8197, 8229, 16388, 16420, 16396, 16428, -1
+            }) {
+                item.damage = invalid;
+                assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                        pot, inv, player), "invalid potion data " + invalid);
+                assertEquals(4, inv.selected);
+            }
+            for (final int valid : new int[] {16389, 16421, 16385, 16417, 16449}) {
+                item.damage = valid;
+                assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                        pot, inv, player));
+                assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                        pot, inv, player, 4));
+                item.damage = 16396;
+                assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                        pot, inv, player, 4), "poison/harming cannot use stale lease");
+                pot.restoreSlot(inv, 4);
+                assertEquals(4, inv.selected);
+            }
+        } finally { pot.onDisable(); }
+    }
+
+    @Test void autoDiscoverySkipsWaterAndRejectsNativeDamageGetterMutation() {
+        final Inventory inv = new Inventory();
+        final Player player = new Player(inv);
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        pot.autoDetectSlotSetting().set(true);
+        pot.onEnable();
+        try {
+            inv.selected = 4;
+            final FakeItem water = new FakeItem(false, true);
+            water.damage = 0;
+            player.items[1] = water;
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inv, player));
+            final FakeItem heal = new FakeItem(false, true);
+            player.items[7] = heal;
+            heal.afterDamageRead = () -> heal.damage = 16388;
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inv, player), "metadata getter mutated healing to poison");
+            assertEquals(4, inv.selected);
+            heal.damage = 16421;
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inv, player), "skip earlier water potion");
+            assertEquals(7, inv.selected);
+            heal.afterDamageRead = () -> heal.damage = 16396;
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inv, player, 4), "final use must recheck native damage");
+            pot.restoreSlot(inv, 4);
+            assertEquals(4, inv.selected);
+        } finally { pot.onDisable(); }
+    }
+
     private static final class Inventory implements Minecraft189InventoryHotbarItemsAccess {
         int selected;
         boolean ignoreNextSet;
@@ -614,6 +678,8 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         int count;
         Runnable afterRodTypeRead;
         Runnable afterPotionTypeRead;
+        Runnable afterDamageRead;
+        int damage;
         FakeItem(final boolean rod, final boolean potion) {
             this(rod, potion, 1);
         }
@@ -621,10 +687,16 @@ final class Minecraft189VerifiedCombatItemSlotTest {
             this.rod = rod;
             this.potion = potion;
             this.count = count;
+            this.damage = potion ? 16389 : 0;
         }
         @Override public String customMcDisplayName() { return "untrusted"; }
         @Override public int customMcStackSize() { return count; }
-        @Override public int customMcItemDamage() { return 0; }
+        @Override public int customMcItemDamage() {
+            final Runnable callback = afterDamageRead;
+            afterDamageRead = null;
+            if (callback != null) callback.run();
+            return damage;
+        }
         @Override public int customMcMaxDamage() { return 0; }
         @Override public boolean customMcIsFishingRod() {
             final Runnable callback = afterRodTypeRead;
