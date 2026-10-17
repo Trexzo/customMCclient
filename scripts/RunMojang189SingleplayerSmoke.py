@@ -59,6 +59,8 @@ NATIVE_ROD_ACTUAL_CAST = b"CUSTOMMC_OFFICIAL_189_REAL_PHYSICAL_ROD_CAST_ACTIVE_H
 NATIVE_ROD_ACTUAL_REEL = b"CUSTOMMC_OFFICIAL_189_REAL_PHYSICAL_ROD_REEL_HOOK_CLEARED_PASS=YES"
 NATIVE_REGEN_NO_EFFECT = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_NO_EFFECT_POTION_ALLOWED_PASS=YES"
 NATIVE_REGEN_WEAKER_UPGRADE = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_WEAKER_EFFECT_UPGRADE_PASS=YES"
+NATIVE_REGEN_AUTODETECT_HEAL = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_AUTODETECT_FALLBACK_HEAL_PASS=YES"
+NATIVE_REGEN_AUTODETECT_RANK = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_AUTODETECT_RANK_COMPOSE_PASS=YES"
 NATIVE_REGEN_VETO = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_ACTIVE_EFFECT_DUPLICATE_VETO_PASS=YES"
 NATIVE_REGEN_INSTANT_EXEMPT = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_INSTANT_HEAL_EXEMPT_PASS=YES"
 NATIVE_REGEN_CLEARED = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_EFFECT_CLEAR_REARM_PASS=YES"
@@ -616,6 +618,18 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 await_marker(process, log, NATIVE_REGEN_CLEARED, deadline,
                              "vanilla source /effect clear restores legal potion lease and owner rollback")
                 print("CUSTOMMC_OFFICIAL_189_REAL_REGENERATION_EFFECT_GUARD_X11_PASS=YES",
+                      flush=True)
+                # Regrant the source item order through the *real vanilla*
+                # inventory, not a test adapter or Java array edit.
+                send_command(process, log, window, "/clear CIProbe potion")
+                send_command(process, log, window, "/give CIProbe potion 1 16417")
+                send_command(process, log, window, "/give CIProbe potion 1 16421")
+                send_command(process, log, window, "/effect CIProbe 10 30 1")
+                await_marker(process, log, NATIVE_REGEN_AUTODETECT_HEAL, deadline,
+                             "actual native early redundant Regen II is skipped for later Instant Health II")
+                await_marker(process, log, NATIVE_REGEN_AUTODETECT_RANK, deadline,
+                             "V134 native best-healing rank composes with V142 active-effect eligibility")
+                print("CUSTOMMC_OFFICIAL_189_NATIVE_REGEN_AUTO_DISCOVERY_ALTERNATIVE_X11_PASS=YES",
                       flush=True)
             if native_world_camera:
                 # An already-created world can be paused by focus transition.

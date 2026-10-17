@@ -73,6 +73,54 @@ final class Minecraft189AutoPotRegenerationGuardTest {
                 "invalid original amplifier must fail closed, not pretend weaker");
     }
 
+
+    @Test void nativeReadOnlyDiscoveryProbeIgnoresRedundantRegenerationSlot() {
+        final Inventory inv = new Inventory();
+        final Player owner = new Player(inv);
+        inv.selected = 4;
+        final Item regen = new Item(16417);
+        final Item health = new Item(16421);
+        inv.items[2] = regen;
+        inv.items[6] = health;
+        owner.effects = new Minecraft189PotionEffectAccess[]{
+                new Effect(10, 220, 1)};
+        assertFalse(Minecraft189AutoPotRegenerationGuard
+                .maySelectAtSlot(inv, owner, 2, 4),
+                "current Regen II cannot spend a duplicate source splash");
+        assertTrue(Minecraft189AutoPotRegenerationGuard
+                .maySelectAtSlot(inv, owner, 6, 4),
+                "genuine Instant Health II in a different slot must remain eligible");
+        assertEquals(4, inv.selected,
+                "probing a different slot must NEVER change real currentItem");
+        assertFalse(Minecraft189AutoPotRegenerationGuard
+                .maySelectAtSlot(inv, owner, 6, 7),
+                "stale selected-original witness is not ownership");
+        owner.effects = new Minecraft189PotionEffectAccess[]{
+                new Effect(10, 220, 0)};
+        assertTrue(Minecraft189AutoPotRegenerationGuard
+                .maySelectAtSlot(inv, owner, 2, 4),
+                "genuine Regen II is a viable upgrade over source Regen I");
+    }
+
+    @Test void readOnlySourceProbeRejectsWrapperReplacedByMetadataCallback() {
+        final Inventory inv = new Inventory();
+        final Player owner = new Player(inv);
+        inv.selected = 4;
+        final Item potion = new Item(16421);
+        inv.items[6] = potion;
+        potion.afterDamageRead = () -> inv.items[6] = new Item(16421);
+        assertFalse(Minecraft189AutoPotRegenerationGuard
+                .maySelectAtSlot(inv, owner, 6, 4));
+        assertEquals(4, inv.selected);
+        final Item healthy = new Item(16417);
+        inv.items[2] = healthy;
+        owner.afterEffectsRead = () -> inv.selected = 8;
+        assertFalse(Minecraft189AutoPotRegenerationGuard
+                .maySelectAtSlot(inv, owner, 2, 4));
+        assertEquals(8, inv.selected,
+                "native user change may happen, but guard must not overwrite it");
+    }
+
     @Test void instantHealingStaysAvailableEvenWithLongActiveRegeneration() {
         final Inventory inv = new Inventory();
         final Player owner = new Player(inv);

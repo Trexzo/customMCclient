@@ -227,6 +227,36 @@ final class Minecraft189CombatItemUseBoundaryTest {
             assertEquals(-1, runtime.selectAutoPotSlot(),
                     "reintroduced equal Regen II blocks redundant source use");
 
+            // V142: genuine original source Auto Detect must SKIP the
+            // held-first/lower-slot duplicate rather than wasting the
+            // entire combat use lane when Instant Health II is also present.
+            runtime.featureCatalog().autoPot().autoDetectSlotSetting().set(true);
+            assertEquals(-1, runtime.selectAutoPotSlot(),
+                    "when every source splash is redundant, scan must fail"
+                    + " without borrowing any other action's item");
+            assertEquals(4, inventory.selected,
+                    "no eligible source potion must leave currentItem untouched");
+            final Item backupInstant = new Item(false, true, 1);
+            backupInstant.damage = 16421;
+            inventory.items[6] = backupInstant;
+            assertEquals(4, runtime.selectAutoPotSlot(),
+                    "Auto Detect should continue beyond redundant Regen II");
+            assertEquals(6, inventory.selected,
+                    "native alternative must be real Instant Health II at slot 7");
+            assertTrue(runtime.mayExecuteAutoPotUse(4));
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+            runtime.featureCatalog().autoPot()
+                    .preferImmediateHealingSetting().set(true);
+            assertEquals(4, runtime.selectAutoPotSlot(),
+                    "V134 ranking and V142 viability should compose");
+            assertEquals(6, inventory.selected);
+            runtime.restoreAutoPotSlot(4);
+            runtime.featureCatalog().autoPot().autoDetectSlotSetting().set(false);
+            runtime.featureCatalog().autoPot()
+                    .preferImmediateHealingSetting().set(false);
+            inventory.items[6] = null;
+
             // Instant Health must never be blocked by unrelated regen.
             potion.damage = 16421;
             assertEquals(4, runtime.selectAutoPotSlot());
