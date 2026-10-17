@@ -21,7 +21,7 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
 
     static synchronized void observe(final Minecraft189HostRuntime host,
             final Minecraft189PlayerInventoryAccess source) {
-        if (!Boolean.getBoolean(PROPERTY) || phase == 12 || source == null
+        if (!Boolean.getBoolean(PROPERTY) || phase == 13 || source == null
                 || !host.playerMovementState().snapshot().available())
             return;
         if (!(source instanceof Minecraft189PlayerHeldItemAccess))
@@ -428,6 +428,86 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
             phase = 12;
             report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_EFFECT_CLEAR_REARM_PASS=YES");
+            return;
+        }
+
+        // V142: runner explicitly clears potions and grants genuine source
+        // Regen II *before* genuine Instant Health II, then grants actual
+        // long Regeneration II effect via the vanilla integrated server.
+        // The default held-first source scan would choose the redundant
+        // lower-slot Regen item. The opted-in guard must instead select
+        // the later source instant-heal item with an owned rollback.
+        if (phase == 12) {
+            if (gui || !hasNativeRegeneration(source, 1, 40)) return;
+            final Minecraft189ItemStackAccess[] items =
+                    inventory.customMcHotbarItems();
+            if (items == null || items.length < 9) return;
+            int regen = -1;
+            int heal = -1;
+            for (int slot = 0; slot < 9; slot++) {
+                final Minecraft189ItemStackAccess item = items[slot];
+                if (item == null || item.customMcStackSize() <= 0
+                        || !item.customMcIsPotion()) continue;
+                if (item.customMcItemDamage() == 16417 && regen < 0)
+                    regen = slot;
+                if (item.customMcItemDamage() == 16421 && heal < 0)
+                    heal = slot;
+            }
+            if (regen < 0 || heal < 0) return;
+            assertTrue(regen < heal && selected == physicalCastSlot,
+                    "vanilla /clear and /give did not create native Regen-before-Heal"
+                    + " source hotbar order with preserved physical selected rod");
+            host.featureCatalog().enableOriginalRodPotionDiscoveryAcceptance();
+            final Minecraft189AutoPotModule pot = host.featureCatalog().autoPot();
+            pot.autoDetectSlotSetting().set(Boolean.TRUE);
+            pot.preferImmediateHealingSetting().set(Boolean.FALSE);
+            pot.avoidActiveRegenerationSetting().set(Boolean.FALSE);
+            // Negative control: the old V131 selection really would have
+            // picked the earlier useless Regen potion in this live world.
+            final int oldSelection = host.selectAutoPotSlot();
+            assertTrue(oldSelection == physicalCastSlot,
+                    "original baseline could not acquire actual source Potion");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot() == regen
+                                && host.mayExecuteAutoPotUse(oldSelection),
+                        "pre-v142 unguarded source held-first did not choose Regen II");
+            } finally {
+                host.restoreAutoPotSlot(oldSelection);
+            }
+            pot.avoidActiveRegenerationSetting().set(Boolean.TRUE);
+            final int useful = host.selectAutoPotSlot();
+            assertTrue(useful == physicalCastSlot,
+                    "V142 source scan did not continue past useless Regen");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot() == heal
+                                && host.mayExecuteAutoPotUse(useful),
+                        "real source Instant Health alternative not selected"
+                        + " under active native Regeneration II");
+            } finally {
+                host.restoreAutoPotSlot(useful);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
+                    "alternative Potion native lease overwrote physical hotbar");
+            report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_AUTODETECT_FALLBACK_HEAL_PASS=YES");
+
+            // V134 strongest-heal preference must compose with viability
+            // filtering instead of reinstating the redundant Regen item.
+            pot.preferImmediateHealingSetting().set(Boolean.TRUE);
+            final int ranked = host.selectAutoPotSlot();
+            assertTrue(ranked == physicalCastSlot,
+                    "native instant-healing preference failed with regen guard");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot() == heal
+                                && host.mayExecuteAutoPotUse(ranked),
+                        "V134 native ranking selected disallowed Regen item");
+            } finally {
+                host.restoreAutoPotSlot(ranked);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
+                    "ranked useful Potion failed original hotbar restoration");
+            host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
+            phase = 13;
+            report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_AUTODETECT_RANK_COMPOSE_PASS=YES");
         }
     }
 
