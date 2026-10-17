@@ -505,6 +505,46 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             }
             assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
                     "ranked useful Potion failed original hotbar restoration");
+
+            // V143: a genuinely transformed Mojang player must expose the
+            // original Entity.rotationPitch read/write field, not a fake
+            // HUD value. The optional native lease aims exactly this
+            // source player then restores its real pitch in finally.
+            assertTrue(source instanceof Minecraft189PlayerRotationControl,
+                    "original client missing native pitch control mapping");
+            final Minecraft189PlayerRotationControl pitchOwner =
+                    (Minecraft189PlayerRotationControl) source;
+            final float humanPitch = pitchOwner.customMcRotationPitch();
+            assertTrue(Float.isFinite(humanPitch)
+                    && humanPitch >= -90.0F && humanPitch <= 90.0F,
+                    "vanilla source pitch unknown/invalid");
+            pot.aimDownForSplashSetting().set(Boolean.TRUE);
+            final int aimToken = host.selectAutoPotSlot();
+            assertTrue(aimToken == physicalCastSlot,
+                    "real original splash could not acquire pitch-owned item lease");
+            try {
+                final Minecraft189AutoPotPitchLease aim =
+                        host.beginAutoPotDownwardPitch(aimToken);
+                assertTrue(aim != null,
+                        "enabled source pitch option did not produce a lease");
+                try {
+                    assertTrue(pitchOwner.customMcRotationPitch() == 85.0F,
+                            "original Entity.rotationPitch setter did not aim downward");
+                    assertTrue(host.mayExecuteAutoPotAtPitch(aim, aimToken),
+                            "same-player source pitch did not authorize the verified splash");
+                    // No right-click here: this test proves rotation mapping
+                    // and permission. Actual potion healing needs separate
+                    // server-observed splash evidence, not an assumed result.
+                } finally {
+                    aim.restore();
+                }
+            } finally {
+                host.restoreAutoPotSlot(aimToken);
+            }
+            assertTrue(pitchOwner.customMcRotationPitch() == humanPitch
+                    && inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
+                    "native original pitch or item lease not restored");
+            report("CUSTOMMC_OFFICIAL_189_AUTOPOT_NATIVE_DOWNWARD_PITCH_RESTORE_PASS=YES");
             host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
             phase = 13;
             report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_AUTODETECT_RANK_COMPOSE_PASS=YES");
