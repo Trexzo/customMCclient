@@ -21,7 +21,7 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
 
     static synchronized void observe(final Minecraft189HostRuntime host,
             final Minecraft189PlayerInventoryAccess source) {
-        if (!Boolean.getBoolean(PROPERTY) || phase == 11 || source == null
+        if (!Boolean.getBoolean(PROPERTY) || phase == 12 || source == null
                 || !host.playerMovementState().snapshot().available())
             return;
         if (!(source instanceof Minecraft189PlayerHeldItemAccess))
@@ -341,7 +341,31 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
         }
 
         if (phase == 9) {
-            if (!hasLongNativeRegeneration(source)) return;
+            // Physical vanilla /effect grants weaker Regeneration I (amp 0).
+            // Original splash Regen II must remain eligible as an upgrade.
+            if (!hasNativeRegeneration(source, 0, 40)) return;
+            final int upgraded = host.selectAutoPotSlot();
+            assertTrue(upgraded == physicalCastSlot,
+                    "original source Regeneration II must upgrade weaker ID10 amp0");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot()
+                                == sourceRegenerationPotionSlot
+                        && host.mayExecuteAutoPotUse(upgraded),
+                        "genuine stronger source potion was wrongly vetoed by weaker effect");
+            } finally {
+                host.restoreAutoPotSlot(upgraded);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
+                    "Regeneration II upgrade failed physical hotbar rollback");
+            phase = 10;
+            report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_WEAKER_EFFECT_UPGRADE_PASS=YES");
+            return;
+        }
+
+        if (phase == 10) {
+            // Subsequent physical /effect upgrades to Regeneration II
+            // (amplifier 1). Another Regeneration II is now redundant.
+            if (!hasNativeRegeneration(source, 1, 40)) return;
             assertTrue(host.selectAutoPotSlot() == -1,
                     "original /effect Regeneration 10 must veto duplicate splash");
             assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
@@ -380,13 +404,13 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                     "real Instant Health exception failed native hotbar restoration");
             host.featureCatalog().autoPot().potSlotSetting()
                     .set(sourceRegenerationPotionSlot + 1);
-            phase = 10;
+            phase = 11;
             report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_INSTANT_HEAL_EXEMPT_PASS=YES");
             report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_ACTIVE_EFFECT_DUPLICATE_VETO_PASS=YES");
             return;
         }
 
-        if (phase == 10) {
+        if (phase == 11) {
             if (hasAnyNativeRegeneration(source)) return;
             final int saved = host.selectAutoPotSlot();
             assertTrue(saved == physicalCastSlot,
@@ -402,9 +426,28 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
                     "post-clear Regeneration use did not restore actual physical slot");
             host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
-            phase = 11;
+            phase = 12;
             report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_EFFECT_CLEAR_REARM_PASS=YES");
         }
+    }
+
+    private static boolean hasNativeRegeneration(
+            final Minecraft189PlayerInventoryAccess source,
+            final int requiredAmplifier, final int minimumDuration) {
+        final Minecraft189PotionEffectAccess[] effects =
+                ((Minecraft189PlayerPotionEffectsAccess) source)
+                        .customMcPotionEffects();
+        if (effects == null)
+            throw new IllegalStateException("original potion effects missing");
+        for (final Minecraft189PotionEffectAccess effect : effects) {
+            if (effect == null)
+                throw new IllegalStateException("null native PotionEffect");
+            if (effect.customMcPotionId() == 10
+                    && effect.customMcAmplifier() == requiredAmplifier
+                    && effect.customMcDurationTicks() >= minimumDuration)
+                return true;
+        }
+        return false;
     }
 
     private static boolean hasLongNativeRegeneration(
