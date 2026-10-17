@@ -41,13 +41,13 @@ class DryChamberFillTest(TestCase):
 
     def test_does_not_reuse_old_success_when_new_fill_fails(self):
         self.check_reply(
-            b"[CHAT] Successfully filled 729 blocks\\n",
+            b"[CHAT] 729 blocks filled\\n",
             b"[CHAT] Cannot place blocks outside of the world\\n", True)
 
     def test_requires_real_new_success_even_after_old_failure(self):
         self.check_reply(
             b"[CHAT] Cannot place blocks outside of the world\\n",
-            b"[CHAT] Successfully filled 343 blocks\\n", False)
+            b"[CHAT] 343 blocks filled\\n", False)
 
     def test_fails_closed_on_unloaded_chunk(self):
         self.check_reply(
