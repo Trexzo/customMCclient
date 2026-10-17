@@ -14,6 +14,7 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
     private static Minecraft189InventoryHotbarItemsAccess inventory;
     private static int baseline = -1;
     private static int physicalCastSlot = -1;
+    private static int continuousHookCallbacks;
 
     private Minecraft189OriginalCombatItemDiscoveryAcceptance() {}
 
@@ -246,7 +247,13 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
         // this transition requires an actual non-null fishEntity object.
         if (phase == 6) {
             if (!((Minecraft189PlayerFishingHookAccess) source)
-                    .customMcHasFishingHook()) return;
+                    .customMcHasFishingHook()) {
+                continuousHookCallbacks = 0;
+                return;
+            }
+            // Require the real bobber to persist across multiple live
+            // game callbacks rather than briefly observing a transient.
+            if (++continuousHookCallbacks < 5) return;
             assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
                     "vanilla cast rewrote real currentItem");
             host.featureCatalog().enableOriginalRodPotionDiscoveryAcceptance();
