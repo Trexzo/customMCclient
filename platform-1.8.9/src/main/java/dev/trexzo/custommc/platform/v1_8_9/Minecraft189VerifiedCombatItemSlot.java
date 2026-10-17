@@ -102,7 +102,8 @@ final class Minecraft189VerifiedCombatItemSlot {
     private static int discoverUsefulPotion(
             final Minecraft189InventoryHotbarControl control,
             final Minecraft189PlayerInventoryAccess owner,
-            final boolean preferImmediate) {
+            final boolean preferImmediate, final float missingHealth,
+            final boolean conserveStrong) {
         if (!(control instanceof Minecraft189InventoryHotbarItemsAccess)
                 || owner == null || owner.customMcInventory() != control)
             return -1;
@@ -125,7 +126,8 @@ final class Minecraft189VerifiedCombatItemSlot {
                 choice = slot;
                 break;
             }
-            final int priority = verifiedHealingPriority(inv, original, slot);
+            final int priority = verifiedHealingPriority(inv, original, slot,
+                    missingHealth, conserveStrong);
             if (priority > strongest) {
                 strongest = priority;
                 choice = slot;
@@ -143,13 +145,20 @@ final class Minecraft189VerifiedCombatItemSlot {
     private static int discoverHighestHealing(
             final Minecraft189InventoryHotbarItemsAccess inventory,
             final int original) {
+        return discoverHighestHealing(inventory, original, Float.NaN, false);
+    }
+
+    private static int discoverHighestHealing(
+            final Minecraft189InventoryHotbarItemsAccess inventory,
+            final int original, final float missingHealth,
+            final boolean conserveStrong) {
         int bestSlot = -1;
         int bestPriority = 0;
         for (int slot = 0; slot < 9; slot++) {
             if (inventory.customMcSelectedHotbarSlot() != original)
                 return -1;
             final int priority = verifiedHealingPriority(
-                    inventory, original, slot);
+                    inventory, original, slot, missingHealth, conserveStrong);
             if (priority > bestPriority
                     || (priority > 0 && priority == bestPriority
                         && slot == original)) {
@@ -170,6 +179,14 @@ final class Minecraft189VerifiedCombatItemSlot {
     private static int verifiedHealingPriority(
             final Minecraft189InventoryHotbarItemsAccess inventory,
             final int original, final int slot) {
+        return verifiedHealingPriority(
+                inventory, original, slot, Float.NaN, false);
+    }
+
+    private static int verifiedHealingPriority(
+            final Minecraft189InventoryHotbarItemsAccess inventory,
+            final int original, final int slot,
+            final float missingHealth, final boolean conserveStrong) {
         final Minecraft189ItemStackAccess[] snapshot =
                 inventory.customMcHotbarItems();
         if (snapshot == null || snapshot.length < 9) return 0;
@@ -178,7 +195,7 @@ final class Minecraft189VerifiedCombatItemSlot {
                 || !candidate.customMcIsPotion()) return 0;
         final int damage = candidate.customMcItemDamage();
         final int priority = Minecraft189LegacySplashHealingPotion
-                .immediateHealingPriority(damage);
+                .healthAwarePriority(damage, missingHealth, conserveStrong);
         if (priority <= 0
                 || !nativeCandidate(inventory, original, slot, false))
             return 0;
@@ -358,6 +375,41 @@ final class Minecraft189VerifiedCombatItemSlot {
         }
     }
 
+    /**
+     * The optional heal-conservation preference is allowed only from this
+     * exact native player, which must own the actual source hotbar. A stale
+     * health HUD or another EntityPlayer's health cannot rank potions.
+     */
+    private static float nativeMissingHealth(
+            final Minecraft189PlayerHeldItemAccess player,
+            final Minecraft189InventoryHotbarControl inventory) {
+        if (!(player instanceof Minecraft189PlayerHealthAccess)
+                || !(player instanceof Minecraft189PlayerInventoryAccess)
+                || ((Minecraft189PlayerInventoryAccess) player)
+                        .customMcInventory() != inventory)
+            return Float.NaN;
+        final Minecraft189PlayerHealthAccess health =
+                (Minecraft189PlayerHealthAccess) player;
+        final float maximum = health.customMcMaxHealth();
+        final float current = health.customMcHealth();
+        if (!Float.isFinite(maximum) || !Float.isFinite(current)
+                || maximum <= 0F || current <= 0F || current > maximum)
+            return Float.NaN;
+        return maximum - current;
+    }
+
+    private static int discoverHealthAware(
+            final Minecraft189InventoryHotbarControl control,
+            final float missingHealth) {
+        if (!(control instanceof Minecraft189InventoryHotbarItemsAccess))
+            return -1;
+        final Minecraft189InventoryHotbarItemsAccess source =
+                (Minecraft189InventoryHotbarItemsAccess) control;
+        final int selected = source.customMcSelectedHotbarSlot();
+        if (selected < 0 || selected >= 9) return -1;
+        return discoverHighestHealing(source, selected, missingHealth, true);
+    }
+
     static int selectPotion(final Minecraft189AutoPotModule module,
             final Minecraft189InventoryHotbarControl inventory,
             final Minecraft189PlayerHeldItemAccess player) {
@@ -367,14 +419,26 @@ final class Minecraft189VerifiedCombatItemSlot {
                 .get().booleanValue();
         final boolean priority = module.preferImmediateHealingSetting().get()
                 .booleanValue();
+        final boolean conserve = autodetect && priority
+                && module.conserveInstantHealingIISetting().get()
+                        .booleanValue();
+        final float missingHealth = conserve
+                ? nativeMissingHealth(player, inventory) : Float.NaN;
+        if (conserve && (!Float.isFinite(missingHealth)
+                || missingHealth <= 0F))
+            return -1; // No genuine live low-health ranking witness.
         final int candidate = autodetect
                 ? (avoidDuplicate
                     ? discoverUsefulPotion(inventory,
                             player instanceof Minecraft189PlayerInventoryAccess
                                 ? (Minecraft189PlayerInventoryAccess) player
-                                : null, priority)
-                    : discover(inventory, false, priority, false))
+                                : null, priority, missingHealth, conserve)
+                    : (conserve
+                        ? discoverHealthAware(inventory, missingHealth)
+                        : discover(inventory, false, priority, false)))
                 : module.potSlotSetting().get().intValue() - 1;
+        if (conserve && nativeMissingHealth(player, inventory) != missingHealth)
+            return -1; // Source health changed during candidate ranking.
         final int original = module.selectSlot(inventory, candidate);
         if (original < 0) return -1;
         boolean matches = false;
@@ -383,6 +447,8 @@ final class Minecraft189VerifiedCombatItemSlot {
                     ? null : player.customMcHeldItem();
             matches = module.ownsSelectedSlot(inventory, original)
                     && stablePotionSourceItem(inventory, player, selected)
+                    && (!conserve || nativeMissingHealth(player, inventory)
+                            == missingHealth)
                     && module.ownsSelectedSlot(inventory, original);
             return matches ? original : -1;
         } finally {
