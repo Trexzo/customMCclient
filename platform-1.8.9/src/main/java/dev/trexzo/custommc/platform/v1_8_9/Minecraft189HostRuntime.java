@@ -77,6 +77,13 @@ public final class Minecraft189HostRuntime
     private int autoRodLeaseOriginal = -1;
     private Minecraft189InventoryHotbarControl autoPotLeaseInventory;
     private int autoPotLeaseOriginal = -1;
+    // V147: an item ranked from genuine source HP must not be used after
+    // damage/healing or player replacement changes that ranking. Lease
+    // owns the exact original EntityPlayer and its pre-selection HP witness.
+    private Minecraft189PlayerHealthAccess autoPotHealthLeaseOwner;
+    private float autoPotHealthLeaseHealth = Float.NaN;
+    private float autoPotHealthLeaseMaximum = Float.NaN;
+    private boolean autoPotHealthLeaseConserving;
     private final Minecraft189NearestPlayerTargetState nearestPlayerTargetState;
     private final Minecraft189TargetRotationState targetRotationState;
     // Range-only Aim Assist targeting does not replace general nearest-player state.
@@ -1700,6 +1707,28 @@ public final class Minecraft189HostRuntime
                         tickHotbarControl, tickHotbarPlayer);
     }
 
+    private boolean autoPotConservationEnabled() {
+        final Minecraft189AutoPotModule pot = featureCatalog.autoPot();
+        return pot.autoDetectSlotSetting().get().booleanValue()
+                && pot.preferImmediateHealingSetting().get().booleanValue()
+                && pot.conserveInstantHealingIISetting().get().booleanValue();
+    }
+
+    private boolean sourceAutoPotHealthLeaseValid() {
+        if (autoPotConservationEnabled() != autoPotHealthLeaseConserving)
+            return false; // Changing the ranking setting revokes the lease.
+        if (!autoPotHealthLeaseConserving)
+            return autoPotHealthLeaseOwner == null;
+        return autoPotHealthLeaseOwner != null
+                && tickHotbarPlayer == autoPotHealthLeaseOwner
+                && tickHeldItemAccess == autoPotHealthLeaseOwner
+                && autoPotHealthLeaseOwner.customMcMaxHealth()
+                        == autoPotHealthLeaseMaximum
+                && autoPotHealthLeaseOwner.customMcHealth()
+                        == autoPotHealthLeaseHealth
+                && tickHotbarPlayer == autoPotHealthLeaseOwner;
+    }
+
     int selectAutoPotSlot() {
         requireOpen();
         if (combatHotbarBusy() || !sameLocalHotbarAndHeldItemOwner()
@@ -1708,6 +1737,21 @@ public final class Minecraft189HostRuntime
         final Minecraft189InventoryHotbarControl inventory = tickHotbarControl;
         final Minecraft189PlayerInventoryAccess owner = tickHotbarPlayer;
         final Minecraft189PlayerHeldItemAccess held = tickHeldItemAccess;
+        final boolean conserve = autoPotConservationEnabled();
+        final Minecraft189PlayerHealthAccess healthOwner =
+                conserve && owner instanceof Minecraft189PlayerHealthAccess
+                    && held == owner
+                        ? (Minecraft189PlayerHealthAccess) owner : null;
+        if (conserve && healthOwner == null) return -1;
+        final float observedMaximum = conserve
+                ? healthOwner.customMcMaxHealth() : Float.NaN;
+        final float observedHealth = conserve
+                ? healthOwner.customMcHealth() : Float.NaN;
+        if (conserve && (!Float.isFinite(observedMaximum)
+                || !Float.isFinite(observedHealth)
+                || observedMaximum <= 0F || observedHealth <= 0F
+                || observedHealth >= observedMaximum))
+            return -1;
         combatHotbarSelecting = true;
         try {
             final int prior = Minecraft189VerifiedCombatItemSlot.selectPotion(
@@ -1715,6 +1759,10 @@ public final class Minecraft189HostRuntime
             if (prior < 0) return -1;
             if (inventory != tickHotbarControl || owner != tickHotbarPlayer
                     || held != tickHeldItemAccess
+                    || conserve != autoPotConservationEnabled()
+                    || (conserve
+                        && (healthOwner.customMcMaxHealth() != observedMaximum
+                            || healthOwner.customMcHealth() != observedHealth))
                     || !sameLocalHotbarAndHeldItemOwner()
                     || !mayUseRegenerationPotionWithoutWaste()
                     || clickGuiRuntime.coreRuntime().model().snapshot().open()) {
@@ -1723,6 +1771,10 @@ public final class Minecraft189HostRuntime
             }
             autoPotLeaseInventory = inventory;
             autoPotLeaseOriginal = prior;
+            autoPotHealthLeaseConserving = conserve;
+            autoPotHealthLeaseOwner = healthOwner;
+            autoPotHealthLeaseHealth = observedHealth;
+            autoPotHealthLeaseMaximum = observedMaximum;
             return prior;
         } finally {
             combatHotbarSelecting = false;
@@ -1732,13 +1784,15 @@ public final class Minecraft189HostRuntime
     boolean mayExecuteAutoPotUse(final int originalSlot) {
         requireOpen();
         return !clickGuiRuntime.coreRuntime().model().snapshot().open()
+                && sourceAutoPotHealthLeaseValid()
                 && mayUseRegenerationPotionWithoutWaste()
                 && sameLocalHotbarAndHeldItemOwner()
                 && autoPotLeaseInventory != null
                 && tickHotbarControl == autoPotLeaseInventory
                 && Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
                         featureCatalog.autoPot(), autoPotLeaseInventory,
-                        tickHeldItemAccess, originalSlot);
+                        tickHeldItemAccess, originalSlot)
+                && sourceAutoPotHealthLeaseValid();
     }
 
     /**
@@ -1780,6 +1834,10 @@ public final class Minecraft189HostRuntime
         final Minecraft189InventoryHotbarControl owned = autoPotLeaseInventory;
         autoPotLeaseInventory = null;
         autoPotLeaseOriginal = -1;
+        autoPotHealthLeaseOwner = null;
+        autoPotHealthLeaseHealth = Float.NaN;
+        autoPotHealthLeaseMaximum = Float.NaN;
+        autoPotHealthLeaseConserving = false;
         featureCatalog.autoPot().restoreSlot(owned, originalSlot);
     }
 

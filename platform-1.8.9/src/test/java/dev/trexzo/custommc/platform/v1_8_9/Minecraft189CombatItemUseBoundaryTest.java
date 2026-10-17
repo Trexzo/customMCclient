@@ -371,6 +371,82 @@ final class Minecraft189CombatItemUseBoundaryTest {
         }
     }
 
+    @Test void originalHealthChangeAfterConservingSelectionRevokesFinalPotionCast() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 4;
+            final Item strong = new Item(false, true, 1);
+            strong.damage = 16421;
+            final Item weak = new Item(false, true, 1);
+            weak.damage = 16389;
+            inventory.items[2] = strong;
+            inventory.items[6] = weak;
+            final Player player = new Player(inventory);
+            player.health = 18F; // Only two HP missing.
+            runtime.playerHotbarSlot(player);
+            runtime.playerHeldItem(player);
+            controller.enable(Minecraft189AutoPotModule.ID);
+            final Minecraft189AutoPotModule pot = runtime.featureCatalog().autoPot();
+            pot.autoDetectSlotSetting().set(Boolean.TRUE);
+            pot.preferImmediateHealingSetting().set(Boolean.TRUE);
+            pot.conserveInstantHealingIISetting().set(Boolean.TRUE);
+
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertEquals(6, inventory.selected, "source weak heal selected");
+            assertTrue(runtime.mayExecuteAutoPotUse(4));
+            player.health = 12F; // New damage requires stronger potion.
+            assertFalse(runtime.mayExecuteAutoPotUse(4),
+                    "old weak-potion choice cannot cast after real health changes");
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertEquals(2, inventory.selected,
+                    "next freshly evaluated source health chooses strong II");
+            assertTrue(runtime.mayExecuteAutoPotUse(4));
+            pot.conserveInstantHealingIISetting().set(Boolean.FALSE);
+            assertFalse(runtime.mayExecuteAutoPotUse(4),
+                    "reentrant GUI setting change invalidates existing rank lease");
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+
+            // Default-off remains valid and exact original slot is preserved.
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertEquals(2, inventory.selected);
+            assertTrue(runtime.mayExecuteAutoPotUse(4));
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+
+            pot.conserveInstantHealingIISetting().set(Boolean.TRUE);
+            player.health = 18F;
+            assertEquals(4, runtime.selectAutoPotSlot());
+            final Player respawn = new Player(inventory);
+            respawn.health = player.health;
+            runtime.playerHotbarSlot(respawn);
+            runtime.playerHeldItem(respawn);
+            assertFalse(runtime.mayExecuteAutoPotUse(4),
+                    "new original player cannot inherit old health witness");
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            runtime.close();
+        }
+    }
+
     @Test void nativeAutoPotAimDownOwnerLeaseIsBoundToLivePotionAndUserPitch() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);

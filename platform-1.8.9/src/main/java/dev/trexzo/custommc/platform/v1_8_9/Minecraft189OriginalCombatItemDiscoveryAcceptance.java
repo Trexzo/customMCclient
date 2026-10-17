@@ -31,12 +31,16 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
     private static boolean syntheticHealPreClickWitness;
     private static int syntheticHealUseCallbacks;
     private static int syntheticHealRecoveredCallbacks;
+    private static int sourceTierStrongSlot = -1;
+    private static int sourceTierWeakSlot = -1;
+    private static int sourceTierHumanSlot = -1;
+    private static float sourceTierMaximum = Float.NaN;
 
     private Minecraft189OriginalCombatItemDiscoveryAcceptance() {}
 
     static synchronized void observe(final Minecraft189HostRuntime host,
             final Minecraft189PlayerInventoryAccess source) {
-        if (!Boolean.getBoolean(PROPERTY) || phase == 20 || source == null
+        if (!Boolean.getBoolean(PROPERTY) || phase == 23 || source == null
                 || !host.playerMovementState().snapshot().available())
             return;
         if (!(source instanceof Minecraft189PlayerHeldItemAccess))
@@ -780,6 +784,144 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
             phase = 20;
             report("CUSTOMMC_OFFICIAL_189_AUTOPOT_REAL_SURVIVAL_HEALTH_GAIN_PASS=YES");
+            return;
+        }
+
+        // V147: real original Mojang Survival health and actual vanilla
+        // ItemPotion metadata, never a synthetic Java health or item. The
+        // runner must FIRST heal fully with a vanilla command and /give two
+        // genuine potions in reverse (stronger first) hotbar order.
+        if (phase == 20) {
+            if (gui || !(source instanceof Minecraft189PlayerHealthAccess))
+                return;
+            final Minecraft189PlayerHealthAccess health =
+                    (Minecraft189PlayerHealthAccess) source;
+            final float max = health.customMcMaxHealth();
+            final float now = health.customMcHealth();
+            if (!Float.isFinite(now) || !Float.isFinite(max)
+                    || max < 10F || Math.abs(max - now) > 0.01F)
+                return;
+            final Minecraft189ItemStackAccess[] items =
+                    inventory.customMcHotbarItems();
+            if (items == null || items.length < 9) return;
+            int strong = -1;
+            int weak = -1;
+            for (int slot = 0; slot < 9; slot++) {
+                final Minecraft189ItemStackAccess item = items[slot];
+                if (item == null || item.customMcStackSize() < 1
+                        || !item.customMcIsPotion()) continue;
+                if (item.customMcItemDamage() == 16421) {
+                    assertTrue(strong == -1,
+                            "two real source strong potions make rank ambiguous");
+                    strong = slot;
+                }
+                if (item.customMcItemDamage() == 16389) {
+                    assertTrue(weak == -1,
+                            "two real source weak potions make rank ambiguous");
+                    weak = slot;
+                }
+            }
+            if (strong < 0 || weak < 0) return;
+            assertTrue(strong < weak && selected != strong && selected != weak,
+                    "genuine vanilla /give order or original human slot is wrong");
+            sourceTierHumanSlot = selected;
+            sourceTierStrongSlot = strong;
+            sourceTierWeakSlot = weak;
+            sourceTierMaximum = max;
+            host.featureCatalog().enableOriginalRodPotionDiscoveryAcceptance();
+            final Minecraft189AutoPotModule pot =
+                    host.featureCatalog().autoPot();
+            pot.autoDetectSlotSetting().set(Boolean.TRUE);
+            pot.preferImmediateHealingSetting().set(Boolean.TRUE);
+            pot.conserveInstantHealingIISetting().set(Boolean.TRUE);
+            pot.avoidActiveRegenerationSetting().set(Boolean.FALSE);
+            pot.healthThresholdSetting().set(1D);
+            pot.requireCombatTargetSetting().set(Boolean.FALSE);
+            assertTrue(pot.active(), "real AutoPot owner not module-enabled");
+            phase = 21;
+            report("CUSTOMMC_OFFICIAL_189_HEALTH_TIER_TWO_REAL_POTIONS_READY_PASS=YES");
+            return;
+        }
+
+        // Real vanilla /effect Instant Damage I lowers the true same-player
+        // Survival health by >4. The stronger native potion must win.
+        if (phase == 21) {
+            if (gui || !(source instanceof Minecraft189PlayerHealthAccess))
+                return;
+            final float health =
+                    ((Minecraft189PlayerHealthAccess) source).customMcHealth();
+            final float max =
+                    ((Minecraft189PlayerHealthAccess) source).customMcMaxHealth();
+            final float missing = max - health;
+            if (max != sourceTierMaximum || !Float.isFinite(missing)
+                    || missing <= 4F || missing >= max - 1F)
+                return;
+            final int prior = host.selectAutoPotSlot();
+            assertTrue(prior == sourceTierHumanSlot,
+                    "original stronger-tier source slot lease unavailable");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot()
+                                == sourceTierStrongSlot
+                        && host.mayExecuteAutoPotUse(prior),
+                        "actual original large-health-deficit did not choose strong II");
+            } finally {
+                host.restoreAutoPotSlot(prior);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot()
+                            == sourceTierHumanSlot,
+                    "original higher-tier native choice left user slot changed");
+            phase = 22;
+            report("CUSTOMMC_OFFICIAL_189_HEALTH_TIER_REAL_LARGE_DEFICIT_STRONG_PASS=YES");
+            return;
+        }
+
+        // Real vanilla /effect Instant Health I reduces the already
+        // witnessed health deficit to <=4. Conserve option must now
+        // choose the later weaker native source potion, while toggling it
+        // off returns the original V134 strong-first choice.
+        if (phase == 22) {
+            if (gui || !(source instanceof Minecraft189PlayerHealthAccess))
+                return;
+            final float health =
+                    ((Minecraft189PlayerHealthAccess) source).customMcHealth();
+            final float max =
+                    ((Minecraft189PlayerHealthAccess) source).customMcMaxHealth();
+            final float missing = max - health;
+            if (max != sourceTierMaximum || !Float.isFinite(missing)
+                    || missing <= 0F || missing > 4F)
+                return;
+            final Minecraft189AutoPotModule pot =
+                    host.featureCatalog().autoPot();
+            final int conserveToken = host.selectAutoPotSlot();
+            assertTrue(conserveToken == sourceTierHumanSlot,
+                    "real native low-deficit source lease unavailable");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot()
+                                == sourceTierWeakSlot
+                        && host.mayExecuteAutoPotUse(conserveToken),
+                        "original <=4 missing HP did not save stronger II");
+            } finally {
+                host.restoreAutoPotSlot(conserveToken);
+            }
+            pot.conserveInstantHealingIISetting().set(Boolean.FALSE);
+            final int legacyToken = host.selectAutoPotSlot();
+            assertTrue(legacyToken == sourceTierHumanSlot,
+                    "original default-off ranking could not reacquire lease");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot()
+                                == sourceTierStrongSlot
+                        && host.mayExecuteAutoPotUse(legacyToken),
+                        "V134 native default ranking no longer prefers strong II");
+            } finally {
+                host.restoreAutoPotSlot(legacyToken);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot()
+                            == sourceTierHumanSlot,
+                    "source two-tier rank changed actual physical human slot");
+            host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
+            phase = 23;
+            report("CUSTOMMC_OFFICIAL_189_HEALTH_TIER_REAL_SMALL_DEFICIT_WEAK_PASS=YES");
+            report("CUSTOMMC_OFFICIAL_189_HEALTH_TIER_REAL_DEFAULT_STRONG_PASS=YES");
         }
     }
 
