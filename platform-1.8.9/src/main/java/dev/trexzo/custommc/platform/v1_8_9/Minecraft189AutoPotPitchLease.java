@@ -47,9 +47,17 @@ final class Minecraft189AutoPotPitchLease {
             owner.customMcSetRotationPitch(SPLASH_PITCH);
             lease.valid = owner.customMcRotationPitch() == SPLASH_PITCH;
         } catch (RuntimeException failure) {
-            lease.restore();
-            throw failure;
+            // A broken original setter must cancel this AutoPot attempt,
+            // not turn a local synthetic use attempt into a game crash.
+            lease.valid = false;
+            try {
+                lease.restore();
+            } catch (RuntimeException rollbackFailure) {
+                // Never authorize use even if a native rollback also fails.
+            }
+            return lease;
         }
+        if (!lease.valid) lease.restore();
         return lease;
     }
 
