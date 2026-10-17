@@ -8,6 +8,7 @@ import dev.trexzo.custommc.core.module.ModuleSettingBinding;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
 import dev.trexzo.custommc.core.module.ModuleState;
 import dev.trexzo.custommc.core.setting.SettingDescriptor;
+import dev.trexzo.custommc.core.setting.SettingNumericSpec;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.setting.SettingValueKind;
@@ -51,6 +52,28 @@ final class Minecraft189AutoWeaponFeature implements AutoCloseable {
             f.owned.add(moduleSettings.register(new ModuleSettingBinding(
                     Minecraft189AutoWeaponModule.ID,
                     Minecraft189AutoWeaponModule.RESTORE, 10)));
+            f.owned.add(settings.register(f.module.ignoreFragileSwordsSetting()));
+            f.owned.add(settingPresentations.register(new SettingDescriptor(
+                    Minecraft189AutoWeaponModule.IGNORE_FRAGILE_SWORDS,
+                    "Avoid Fragile Swords", SettingValueKind.BOOLEAN, 20)));
+            f.owned.add(moduleSettings.register(new ModuleSettingBinding(
+                    Minecraft189AutoWeaponModule.ID,
+                    Minecraft189AutoWeaponModule.IGNORE_FRAGILE_SWORDS, 20)));
+            f.owned.add(settings.register(f.module.minRemainingDurabilitySetting()));
+            f.owned.add(settingPresentations.register(new SettingDescriptor(
+                    Minecraft189AutoWeaponModule.MIN_REMAINING_DURABILITY,
+                    "Minimum Durability Left", SettingValueKind.INTEGER, 30,
+                    new SettingNumericSpec(1, 128, 1))));
+            f.owned.add(moduleSettings.register(new ModuleSettingBinding(
+                    Minecraft189AutoWeaponModule.ID,
+                    Minecraft189AutoWeaponModule.MIN_REMAINING_DURABILITY, 30)));
+            f.owned.add(settings.register(f.module.preferDurableTiesSetting()));
+            f.owned.add(settingPresentations.register(new SettingDescriptor(
+                    Minecraft189AutoWeaponModule.PREFER_DURABLE_TIES,
+                    "Prefer Durable Sword Ties", SettingValueKind.BOOLEAN, 40)));
+            f.owned.add(moduleSettings.register(new ModuleSettingBinding(
+                    Minecraft189AutoWeaponModule.ID,
+                    Minecraft189AutoWeaponModule.PREFER_DURABLE_TIES, 40)));
             return f;
         } catch (RuntimeException e) {
             try { f.close(); } catch (RuntimeException cleanup) { e.addSuppressed(cleanup); }
