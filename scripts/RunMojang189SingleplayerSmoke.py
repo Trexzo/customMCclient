@@ -208,6 +208,31 @@ def send_command(process, log, window, command):
 
 
 
+def send_verified_chunk_teleport(process, log, window):
+    """Teleport the real vanilla player to LOAD the fixture chunk first.
+
+    A filled region wholly inside chunk (0,0) still fails if that chunk is
+    unloaded. The source player must visit it and receive the genuine
+    integrated-server teleport response before issuing /fill.
+    """
+    cursor = log.stat().st_size if log.exists() else 0
+    send_command(process, log, window, "/tp CIProbe 8 100 8")
+    deadline = time.monotonic() + 8
+    while time.monotonic() < deadline:
+        require_running(process, "original fixture chunk load")
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read()
+        if b"[CHAT] Teleported CIProbe to 8.5, 100.0, 8.5" in fresh:
+            # Allow at least one real client/server tick of chunk loading.
+            time.sleep(1.0)
+            return
+        time.sleep(0.2)
+    raise AssertionError(
+        "no fresh original vanilla teleport reply confirming fixture "
+        "chunk location before bounded deadline")
+
+
 def send_verified_fill(process, log, window, command):
     """Require a *fresh* vanilla success response before relying on a world cell.
 
@@ -721,13 +746,14 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # AutoPot scheduling and Minecraft.rightClickMouse can cast.
                 send_command(process, log, window, "/effect CIProbe clear")
                 send_command(process, log, window, "/clear CIProbe potion")
-                # The former -3..3 fixture crossed four source chunks;
-                # vanilla 1.8.9 rejected BOTH /fill commands when a
-                # neighboring negative chunk was not loaded. Water then
-                # drowned the source player during the next health tier
-                # checkpoint. Stay wholly inside the loaded (0,0) chunk,
-                # enclose a real 7x7x7 air cell in solid stone, and require
-                # both ORIGINAL server chat responses before teleporting.
+                # Both earlier -3..3 AND single-chunk fill attempts
+                # failed when the target chunks had not been loaded by the
+                # actual integrated server. Move the original player to
+                # x=8,z=8 in CREATIVE first to force loading of chunk 0,0;
+                # only then request an enclosed source 7x7x7 dry cell.
+                # Original server acknowledgements are mandatory.
+                send_command(process, log, window, "/gamemode creative CIProbe")
+                send_verified_chunk_teleport(process, log, window)
                 send_verified_fill(process, log, window,
                                    "/fill 4 79 4 12 87 12 stone")
                 send_verified_fill(process, log, window,
