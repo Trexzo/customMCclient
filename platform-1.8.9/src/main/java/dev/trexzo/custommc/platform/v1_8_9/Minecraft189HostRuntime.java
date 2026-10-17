@@ -1756,7 +1756,8 @@ public final class Minecraft189HostRuntime
         requireOpen();
         final Minecraft189AutoRodModule rod = featureCatalog.autoRod();
         if (clickGuiRuntime.coreRuntime().model().snapshot().open()
-                || tickHotbarControl == null || !confirmedPlayer
+                || tickHotbarControl == null
+                || !mayCastWithoutReelingActiveHook() || !confirmedPlayer
                 || verifiedPlayerIndex < 0
                 || !worldEntityCombatState.snapshot().alive(verifiedPlayerIndex)
                 || !featureCatalog.antiBot().permits(
