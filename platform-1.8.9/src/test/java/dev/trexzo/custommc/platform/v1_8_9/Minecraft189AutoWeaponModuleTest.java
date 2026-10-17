@@ -110,6 +110,46 @@ final class Minecraft189AutoWeaponModuleTest {
     }
 
 
+
+    @Test void sourceSetterAndGuiChangesCannotAuthorizeNewlyFragileSword() {
+        final Minecraft189AutoWeaponModule m = new Minecraft189AutoWeaponModule();
+        final ReentrantInventory inventory = new ReentrantInventory();
+        inventory.selected = 0;
+        final Item chosen = new Item(true, 8F, 1);
+        chosen.maxDurability = 1561;
+        chosen.usedDurability = 30;
+        inventory.items[4] = chosen;
+        m.onEnable();
+        try {
+            m.ignoreFragileSwordsSetting().set(Boolean.TRUE);
+            m.minRemainingDurabilitySetting().set(Integer.valueOf(8));
+            inventory.afterSetter = () -> chosen.usedDurability = 1559;
+            assertEquals(-1, m.select(inventory, true, false),
+                    "native setter reducing source sword below eight uses revokes lease");
+            assertEquals(0, inventory.selected,
+                    "a stale native sword cannot retain user's hotbar");
+            assertEquals(-1, m.select(inventory, true, false),
+                    "without source durability available, do not select broken sword");
+            chosen.usedDurability = 90;
+            assertEquals(0, m.select(inventory, true, false));
+            assertEquals(4, inventory.selected);
+            m.minRemainingDurabilitySetting().set(Integer.valueOf(90));
+            assertFalse(m.ownsVerifiedSwordAtDispatch(inventory, 0),
+                    "new GUI threshold must not inherit old source sword lease");
+            m.restore(inventory, 0);
+            assertEquals(0, inventory.selected);
+            m.minRemainingDurabilitySetting().set(Integer.valueOf(8));
+            assertEquals(0, m.select(inventory, true, false));
+            m.ignoreFragileSwordsSetting().set(Boolean.FALSE);
+            assertFalse(m.ownsVerifiedSwordAtDispatch(inventory, 0),
+                    "source opt-out during attack must not bypass captured rules");
+            m.restore(inventory, 0);
+            assertEquals(0, inventory.selected);
+        } finally {
+            m.onDisable();
+        }
+    }
+
     @Test void nativeEqualDamageChoosesDurableTiesOnlyWhenEnabled() {
         final Minecraft189AutoWeaponModule m = new Minecraft189AutoWeaponModule();
         final Inventory i = new Inventory();
