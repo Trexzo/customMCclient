@@ -11,12 +11,16 @@ import dev.trexzo.custommc.core.setting.SettingCodecs;
 public final class Minecraft189AutoRodModule implements Module {
     public static final String ID = "combat.autoRod";
     public static final String ROD_SLOT = ID + ".rodSlot";
+    public static final String AUTO_DETECT_SLOT = ID + ".autoDetectSlot";
     public static final String COOLDOWN_TICKS = ID + ".cooldownTicks";
     public static final String REQUIRE_HOLD = ID + ".requireAttackHeld";
     public static final String PAUSE_RIGHT = ID + ".pauseWhileRightClicking";
     private final Setting<Integer> rodSlot = new Setting<Integer>(
             ROD_SLOT, 2, x -> x != null && x >= 1 && x <= 9,
             SettingCodecs.INTEGER);
+    private final Setting<Boolean> autoDetectSlot = new Setting<Boolean>(
+            AUTO_DETECT_SLOT, Boolean.FALSE, v -> v != null,
+            SettingCodecs.BOOLEAN);
     private final Setting<Integer> cooldown = new Setting<Integer>(
             COOLDOWN_TICKS, 30, x -> x != null && x >= 1 && x <= 200,
             SettingCodecs.INTEGER);
@@ -40,6 +44,7 @@ public final class Minecraft189AutoRodModule implements Module {
     }
     public Setting<Integer> rodSlotSetting() { return rodSlot; }
     public Setting<Integer> cooldownTicksSetting() { return cooldown; }
+    public Setting<Boolean> autoDetectSlotSetting() { return autoDetectSlot; }
     public Setting<Boolean> requireHoldSetting() { return requireHold; }
     public Setting<Boolean> pauseRightSetting() { return pauseRight; }
     synchronized boolean active() { return enabled; }
@@ -84,10 +89,16 @@ public final class Minecraft189AutoRodModule implements Module {
     private int previousSlot = -1;
 
     synchronized int selectSlot(final Minecraft189InventoryHotbarControl inventory) {
-        if (!enabled || inventory == null || selectedInventory != null) return -1;
+        return selectSlot(inventory, rodSlot.get().intValue() - 1);
+    }
+
+    /** Exact candidate is captured for one native currentItem lease. */
+    synchronized int selectSlot(final Minecraft189InventoryHotbarControl inventory,
+            final int target) {
+        if (!enabled || inventory == null || selectedInventory != null
+                || target < 0 || target > 8) return -1;
         final int original = inventory.customMcSelectedHotbarSlot();
         if (original < 0 || original > 8) return -1;
-        final int target = rodSlot.get().intValue() - 1;
         // Record exact slot ownership before invoking the native setter.
         // A reentrant GUI setting change never changes this lease.
         selectedInventory = inventory;

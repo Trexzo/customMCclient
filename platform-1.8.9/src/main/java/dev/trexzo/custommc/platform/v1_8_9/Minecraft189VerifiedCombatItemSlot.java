@@ -7,6 +7,51 @@ package dev.trexzo.custommc.platform.v1_8_9;
 final class Minecraft189VerifiedCombatItemSlot {
     private Minecraft189VerifiedCombatItemSlot() {}
 
+    /** Optional scan of the original InventoryPlayer.mainInventory mapping. */
+    private static int discover(final Minecraft189InventoryHotbarControl control,
+            final boolean rod) {
+        if (!(control instanceof Minecraft189InventoryHotbarItemsAccess))
+            return -1; // No source array: no guessed fallback.
+        final Minecraft189InventoryHotbarItemsAccess inv =
+                (Minecraft189InventoryHotbarItemsAccess) control;
+        final int prior = control.customMcSelectedHotbarSlot();
+        if (prior < 0 || prior > 8) return -1;
+        // Already-held matching source item wins; otherwise lowest slot.
+        if (nativeCandidate(inv, prior, prior, rod)) return prior;
+        for (int slot = 0; slot < 9; slot++) {
+            if (control.customMcSelectedHotbarSlot() != prior) return -1;
+            if (slot != prior && nativeCandidate(inv, prior, slot, rod))
+                return slot;
+        }
+        return -1;
+    }
+
+    private static boolean nativeCandidate(
+            final Minecraft189InventoryHotbarItemsAccess inv,
+            final int prior, final int slot, final boolean rod) {
+        final Minecraft189ItemStackAccess[] items = inv.customMcHotbarItems();
+        if (items == null || items.length < 9) return false;
+        final Minecraft189ItemStackAccess observed = items[slot];
+        if (observed == null || observed.customMcStackSize() <= 0)
+            return false;
+        if (!(rod ? observed.customMcIsFishingRod() : observed.customMcIsPotion()))
+            return false;
+        // Native class/count getters can replace selected ItemStacks and
+        // invoke a user hotbar change. Recheck actual array membership.
+        final Minecraft189ItemStackAccess[] after = inv.customMcHotbarItems();
+        if (after == null || after.length < 9 || after[slot] != observed
+                || inv.customMcSelectedHotbarSlot() != prior
+                || observed.customMcStackSize() <= 0
+                || !(rod ? observed.customMcIsFishingRod()
+                        : observed.customMcIsPotion()))
+            return false;
+        final Minecraft189ItemStackAccess[] stable = inv.customMcHotbarItems();
+        return stable != null && stable.length >= 9
+                && stable[slot] == observed
+                && inv.customMcSelectedHotbarSlot() == prior;
+    }
+
+
     /**
      * The original 1.8.9 held-item getter returns a source ItemStack from
      * EntityLivingBase.getEquipmentInSlot(0), not an immutable snapshot.
@@ -116,7 +161,10 @@ final class Minecraft189VerifiedCombatItemSlot {
     static int selectRod(final Minecraft189AutoRodModule module,
             final Minecraft189InventoryHotbarControl inventory,
             final Minecraft189PlayerHeldItemAccess player) {
-        final int original = module.selectSlot(inventory);
+        final int candidate = module.autoDetectSlotSetting().get().booleanValue()
+                ? discover(inventory, true)
+                : module.rodSlotSetting().get().intValue() - 1;
+        final int original = module.selectSlot(inventory, candidate);
         if (original < 0) return -1;
         boolean matches = false;
         try {
@@ -134,7 +182,10 @@ final class Minecraft189VerifiedCombatItemSlot {
     static int selectPotion(final Minecraft189AutoPotModule module,
             final Minecraft189InventoryHotbarControl inventory,
             final Minecraft189PlayerHeldItemAccess player) {
-        final int original = module.selectSlot(inventory);
+        final int candidate = module.autoDetectSlotSetting().get().booleanValue()
+                ? discover(inventory, false)
+                : module.potSlotSetting().get().intValue() - 1;
+        final int original = module.selectSlot(inventory, candidate);
         if (original < 0) return -1;
         boolean matches = false;
         try {

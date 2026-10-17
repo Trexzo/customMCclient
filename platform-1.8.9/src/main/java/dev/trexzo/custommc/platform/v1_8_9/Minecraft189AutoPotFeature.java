@@ -43,6 +43,9 @@ final class Minecraft189AutoPotFeature implements AutoCloseable {
                     f.module.potSlotSetting(), "Potion Hotbar Slot",
                     SettingValueKind.INTEGER, 0, new SettingNumericSpec(1, 9, 1));
             f.bind(moduleSettings, settings, settingPresentations,
+                    f.module.autoDetectSlotSetting(), "Auto Detect Potion Slot",
+                    SettingValueKind.BOOLEAN, 5, null);
+            f.bind(moduleSettings, settings, settingPresentations,
                     f.module.healthThresholdSetting(), "Health Threshold (%)",
                     SettingValueKind.DOUBLE, 10, new SettingNumericSpec(1, 99, 1));
             f.bind(moduleSettings, settings, settingPresentations,

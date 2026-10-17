@@ -502,6 +502,73 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         }
     }
 
+
+    @Test void nativeAutoDiscoveryIsOptInAndNeverInventsItemTypes() {
+        final Inventory inv = new Inventory();
+        final Player player = new Player(inv);
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        rod.onEnable();
+        pot.onEnable();
+        try {
+            inv.selected = 4;
+            player.items[6] = new FakeItem(true, false);
+            player.items[7] = new FakeItem(false, true);
+            assertFalse(rod.autoDetectSlotSetting().get());
+            assertFalse(pot.autoDetectSlotSetting().get());
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(rod, inv, player));
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(pot, inv, player));
+            assertEquals(4, inv.selected);
+            rod.autoDetectSlotSetting().set(true);
+            pot.autoDetectSlotSetting().set(true);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(rod, inv, player));
+            assertEquals(6, inv.selected);
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(rod, inv, player, 4));
+            rod.restoreSlot(inv, 4);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(pot, inv, player));
+            assertEquals(7, inv.selected);
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(pot, inv, player, 4));
+            pot.restoreSlot(inv, 4);
+            assertEquals(4, inv.selected);
+            inv.selected = 6;
+            player.items[1] = new FakeItem(true, false);
+            assertEquals(6, Minecraft189VerifiedCombatItemSlot.selectRod(rod, inv, player));
+            assertEquals(6, inv.selected, "verified already-held rod must be preferred");
+            rod.restoreSlot(inv, 6);
+        } finally { rod.onDisable(); pot.onDisable(); }
+    }
+
+    @Test void nativeAutoDiscoveryVetoesGetterUserSlotChangeAndEmptyStacks() {
+        final Inventory inv = new Inventory();
+        final Player player = new Player(inv);
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        rod.autoDetectSlotSetting().set(true);
+        pot.autoDetectSlotSetting().set(true);
+        rod.onEnable();
+        pot.onEnable();
+        try {
+            inv.selected = 4;
+            player.items[1] = new FakeItem(true, false, 0);
+            player.items[2] = new FakeItem(false, true, -1);
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(rod, inv, player));
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(pot, inv, player));
+            final FakeItem good = new FakeItem(true, false);
+            player.items[8] = good;
+            good.afterRodTypeRead = () -> inv.selected = 5;
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(rod, inv, player));
+            assertEquals(5, inv.selected, "preserve real user currentItem");
+            inv.selected = 4;
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(rod, inv, player));
+            assertEquals(8, inv.selected);
+            rod.restoreSlot(inv, 4);
+            player.items[2] = new FakeItem(false, true);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(pot, inv, player));
+            assertEquals(2, inv.selected);
+            pot.restoreSlot(inv, 4);
+        } finally { rod.onDisable(); pot.onDisable(); }
+    }
+
     private static final class Inventory implements Minecraft189InventoryHotbarItemsAccess {
         int selected;
         boolean ignoreNextSet;

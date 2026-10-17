@@ -11,6 +11,7 @@ import dev.trexzo.custommc.core.setting.SettingCodecs;
 public final class Minecraft189AutoPotModule implements Module {
     public static final String ID = "combat.autoPot";
     public static final String POT_SLOT = ID + ".potSlot";
+    public static final String AUTO_DETECT_SLOT = ID + ".autoDetectSlot";
     public static final String HEALTH_THRESHOLD = ID + ".healthPercent";
     public static final String COOLDOWN_TICKS = ID + ".cooldownTicks";
     public static final String REQUIRE_TARGET = ID + ".requireCombatTarget";
@@ -21,6 +22,9 @@ public final class Minecraft189AutoPotModule implements Module {
             HEALTH_THRESHOLD, 35.0D,
             x -> x != null && Double.isFinite(x) && x >= 1.0D && x <= 99.0D,
             SettingCodecs.DOUBLE);
+    private final Setting<Boolean> autoDetectSlot = new Setting<Boolean>(
+            AUTO_DETECT_SLOT, Boolean.FALSE, v -> v != null,
+            SettingCodecs.BOOLEAN);
     private final Setting<Integer> cooldown = new Setting<Integer>(
             COOLDOWN_TICKS, 120, x -> x != null && x >= 1 && x <= 1200,
             SettingCodecs.INTEGER);
@@ -42,6 +46,7 @@ public final class Minecraft189AutoPotModule implements Module {
     public Setting<Integer> potSlotSetting() { return potSlot; }
     public Setting<Double> healthThresholdSetting() { return healthThreshold; }
     public Setting<Integer> cooldownTicksSetting() { return cooldown; }
+    public Setting<Boolean> autoDetectSlotSetting() { return autoDetectSlot; }
     public Setting<Boolean> requireCombatTargetSetting() { return requireTarget; }
     synchronized boolean active() { return enabled; }
 
@@ -93,10 +98,16 @@ public final class Minecraft189AutoPotModule implements Module {
     private int previousSlot = -1;
 
     synchronized int selectSlot(final Minecraft189InventoryHotbarControl inventory) {
-        if (!enabled || inventory == null || selectedInventory != null) return -1;
+        return selectSlot(inventory, potSlot.get().intValue() - 1);
+    }
+
+    /** Exact candidate is captured for one native currentItem lease. */
+    synchronized int selectSlot(final Minecraft189InventoryHotbarControl inventory,
+            final int target) {
+        if (!enabled || inventory == null || selectedInventory != null
+                || target < 0 || target > 8) return -1;
         final int original = inventory.customMcSelectedHotbarSlot();
         if (original < 0 || original > 8) return -1;
-        final int target = potSlot.get().intValue() - 1;
         // Record exact slot ownership before invoking the native setter.
         // A reentrant GUI setting change never changes this lease.
         selectedInventory = inventory;
