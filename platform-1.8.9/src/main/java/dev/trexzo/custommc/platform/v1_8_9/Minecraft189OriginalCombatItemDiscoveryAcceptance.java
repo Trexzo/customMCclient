@@ -35,12 +35,16 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
     private static int sourceTierWeakSlot = -1;
     private static int sourceTierHumanSlot = -1;
     private static float sourceTierMaximum = Float.NaN;
+    private static int originalWornDiamondSlot = -1;
+    private static int originalHealthyIronSlot = -1;
+    private static int originalFreshDiamondSlot = -1;
+    private static int originalSwordUserSlot = -1;
 
     private Minecraft189OriginalCombatItemDiscoveryAcceptance() {}
 
     static synchronized void observe(final Minecraft189HostRuntime host,
             final Minecraft189PlayerInventoryAccess source) {
-        if (!Boolean.getBoolean(PROPERTY) || phase == 23 || source == null
+        if (!Boolean.getBoolean(PROPERTY) || phase == 26 || source == null
                 || !host.playerMovementState().snapshot().available())
             return;
         if (!(source instanceof Minecraft189PlayerHeldItemAccess))
@@ -922,6 +926,131 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             phase = 23;
             report("CUSTOMMC_OFFICIAL_189_HEALTH_TIER_REAL_SMALL_DEFICIT_WEAK_PASS=YES");
             report("CUSTOMMC_OFFICIAL_189_HEALTH_TIER_REAL_DEFAULT_STRONG_PASS=YES");
+            return;
+        }
+
+        // V148 uses genuine vanilla ItemSword objects supplied by /give,
+        // never a fabricated ItemStack or an attack-network shortcut.
+        // The runner grants an almost-broken original diamond sword FIRST,
+        // then a viable original iron sword, with no fresh diamond yet.
+        if (phase == 23) {
+            if (gui || host.featureCatalog().autoWeapon().active()) return;
+            final Minecraft189ItemStackAccess[] items =
+                    inventory.customMcHotbarItems();
+            if (items == null || items.length < 9) return;
+            int worn = -1, iron = -1;
+            for (int slot = 0; slot < 9; slot++) {
+                final Minecraft189ItemStackAccess item = items[slot];
+                if (item == null || item.customMcStackSize() <= 0
+                        || !item.customMcIsSword()) continue;
+                final int max = item.customMcMaxDamage();
+                final int remaining = max - item.customMcItemDamage();
+                final float damage = item.customMcSwordBaseDamage();
+                if (max > 0 && remaining == 3 && damage == 7F)
+                    worn = slot;
+                if (max >= 200 && remaining >= 8 && damage == 6F)
+                    iron = slot;
+            }
+            if (worn < 0 || iron < 0) return;
+            assertTrue(worn < iron && selected != worn && selected != iron,
+                    "real source diamond/iron sword grant order or human slot invalid");
+            originalWornDiamondSlot = worn;
+            originalHealthyIronSlot = iron;
+            originalSwordUserSlot = selected;
+            host.featureCatalog().enableOriginalAutoWeaponDurabilityAcceptance();
+            final Minecraft189AutoWeaponModule sword =
+                    host.featureCatalog().autoWeapon();
+            sword.ignoreFragileSwordsSetting().set(Boolean.FALSE);
+            sword.preferDurableTiesSetting().set(Boolean.FALSE);
+            final int legacy = sword.select(inventory, true, false);
+            assertTrue(legacy == originalSwordUserSlot,
+                    "legacy original stronger diamond sword did not acquire native lease");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot() == worn
+                            && sword.ownsVerifiedSwordAtDispatch(inventory, legacy),
+                        "original source unfiltered stronger sword mismatch");
+            } finally {
+                sword.restore(inventory, legacy);
+            }
+            sword.ignoreFragileSwordsSetting().set(Boolean.TRUE);
+            sword.minRemainingDurabilitySetting().set(Integer.valueOf(8));
+            final int protectedToken = sword.select(inventory, true, false);
+            assertTrue(protectedToken == originalSwordUserSlot,
+                    "original safer viable iron sword did not acquire native lease");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot() == iron
+                            && sword.ownsVerifiedSwordAtDispatch(
+                                    inventory, protectedToken),
+                        "native fragile original diamond was not skipped");
+            } finally {
+                sword.restore(inventory, protectedToken);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot()
+                            == originalSwordUserSlot,
+                    "fragile sword option overwrote original user hotbar");
+            phase = 24;
+            report("CUSTOMMC_OFFICIAL_189_AUTO_WEAPON_REAL_FRAGILE_DIAMOND_VETO_PASS=YES");
+            return;
+        }
+
+        // Runner now grants a pristine SECOND diamond sword. With equal
+        // actual source base damage, optional durability priority must
+        // choose the fresh original item over the earlier worn original.
+        if (phase == 24) {
+            if (gui) return;
+            final Minecraft189ItemStackAccess[] items =
+                    inventory.customMcHotbarItems();
+            if (items == null || items.length < 9) return;
+            int fresh = -1;
+            for (int slot = 0; slot < 9; slot++) {
+                final Minecraft189ItemStackAccess item = items[slot];
+                if (item != null && item.customMcIsSword()
+                        && item.customMcStackSize() > 0
+                        && item.customMcSwordBaseDamage() == 7F
+                        && item.customMcMaxDamage() >= 1500
+                        && item.customMcItemDamage() == 0)
+                    fresh = slot;
+            }
+            if (fresh < 0) return;
+            assertTrue(originalWornDiamondSlot < fresh
+                            && originalHealthyIronSlot < fresh
+                            && selected == originalSwordUserSlot,
+                    "original pristine sword did not land after worn source swords");
+            originalFreshDiamondSlot = fresh;
+            final Minecraft189AutoWeaponModule sword =
+                    host.featureCatalog().autoWeapon();
+            sword.ignoreFragileSwordsSetting().set(Boolean.FALSE);
+            sword.preferDurableTiesSetting().set(Boolean.FALSE);
+            final int legacy = sword.select(inventory, true, false);
+            assertTrue(legacy == originalSwordUserSlot,
+                    "genuine old sword order did not select earliest stronger diamond");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot()
+                                == originalWornDiamondSlot
+                            && sword.ownsVerifiedSwordAtDispatch(inventory, legacy),
+                        "source base-damage tie did not preserve legacy first sword");
+            } finally {
+                sword.restore(inventory, legacy);
+            }
+            sword.preferDurableTiesSetting().set(Boolean.TRUE);
+            final int durable = sword.select(inventory, true, false);
+            assertTrue(durable == originalSwordUserSlot,
+                    "source more-durable same-damage sword lacked native lease");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot()
+                                == originalFreshDiamondSlot
+                            && sword.ownsVerifiedSwordAtDispatch(inventory, durable),
+                        "fresh original diamond not chosen among true 7-damage ties");
+            } finally {
+                sword.restore(inventory, durable);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot()
+                            == originalSwordUserSlot,
+                    "durability tie selection failed native human slot restore");
+            host.featureCatalog().disableOriginalAutoWeaponDurabilityAcceptance();
+            phase = 26;
+            report("CUSTOMMC_OFFICIAL_189_AUTO_WEAPON_REAL_DURABLE_TIE_PASS=YES");
+            return;
         }
     }
 
