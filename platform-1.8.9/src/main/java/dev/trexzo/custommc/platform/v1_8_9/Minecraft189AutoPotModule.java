@@ -104,6 +104,14 @@ public final class Minecraft189AutoPotModule implements Module {
         previousSlot = original;
         try {
             inventory.customMcSetSelectedHotbarSlot(target);
+            // An original setter may silently ignore the request,
+            // reenter a user hotbar change, or disable the module.
+            // Selection must never publish a successful lease unless
+            // the actual source currentItem and module still agree.
+            if (!enabled || inventory.customMcSelectedHotbarSlot() != target) {
+                restoreSlot(inventory, original);
+                return -1;
+            }
         } catch (RuntimeException failure) {
             try {
                 restoreSlot(inventory, original);
