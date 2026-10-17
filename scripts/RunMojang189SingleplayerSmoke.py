@@ -689,6 +689,15 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # AutoPot scheduling and Minecraft.rightClickMouse can cast.
                 send_command(process, log, window, "/effect CIProbe clear")
                 send_command(process, log, window, "/clear CIProbe potion")
+                # V148 official CI diagnosed a genuine AutoPot click with
+                # no health result because the original vanilla player
+                # subsequently DROWNED on the world-generated water spawn.
+                # Real vanilla /fill + /tp form dry, stable ground: same
+                # exact original EntityPlayer, real water-free Survival,
+                # untouched ItemPotion mechanics and strict health witness.
+                send_command(process, log, window, "/fill -3 79 -3 3 79 3 stone")
+                send_command(process, log, window, "/fill -3 80 -3 3 84 3 air")
+                send_command(process, log, window, "/tp CIProbe 0 80 0")
                 send_command(process, log, window, "/gamemode survival CIProbe")
                 xdotool("windowactivate", "--sync", window)
                 xdotool("key", "--clearmodifiers", "9")
