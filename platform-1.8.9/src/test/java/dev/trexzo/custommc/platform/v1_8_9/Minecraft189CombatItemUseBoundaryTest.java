@@ -188,6 +188,13 @@ final class Minecraft189CombatItemUseBoundaryTest {
                 @Override public int customMcAmplifier() { return 1; }
                 @Override public String customMcEffectName() { return "regen"; }
             };
+            final Minecraft189PotionEffectAccess weakerRegen =
+                    new Minecraft189PotionEffectAccess() {
+                @Override public int customMcPotionId() { return 10; }
+                @Override public int customMcDurationTicks() { return 200; }
+                @Override public int customMcAmplifier() { return 0; }
+                @Override public String customMcEffectName() { return "weakRegen"; }
+            };
             owner.sourceEffects = new Minecraft189PotionEffectAccess[]{longRegen};
             runtime.playerHotbarSlot(owner);
             runtime.playerHeldItem(owner);
@@ -207,6 +214,18 @@ final class Minecraft189CombatItemUseBoundaryTest {
                     "genuine owner with long active regen cannot acquire regen splash");
             assertEquals(4, inventory.selected,
                     "veto must release and restore original currentItem");
+
+            // Genuine weaker source regeneration must NOT waste an upgrade.
+            owner.sourceEffects = new Minecraft189PotionEffectAccess[]{weakerRegen};
+            assertEquals(4, runtime.selectAutoPotSlot(),
+                    "Regen II must upgrade a weaker active Regen I");
+            assertEquals(2, inventory.selected);
+            assertTrue(runtime.mayExecuteAutoPotUse(4));
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+            owner.sourceEffects = new Minecraft189PotionEffectAccess[]{longRegen};
+            assertEquals(-1, runtime.selectAutoPotSlot(),
+                    "reintroduced equal Regen II blocks redundant source use");
 
             // Instant Health must never be blocked by unrelated regen.
             potion.damage = 16421;

@@ -58,6 +58,7 @@ NATIVE_ROD_PHYSICAL_SELECTED = b"CUSTOMMC_OFFICIAL_189_NATIVE_ROD_PHYSICAL_SLOT_
 NATIVE_ROD_ACTUAL_CAST = b"CUSTOMMC_OFFICIAL_189_REAL_PHYSICAL_ROD_CAST_ACTIVE_HOOK_GUARD_PASS=YES"
 NATIVE_ROD_ACTUAL_REEL = b"CUSTOMMC_OFFICIAL_189_REAL_PHYSICAL_ROD_REEL_HOOK_CLEARED_PASS=YES"
 NATIVE_REGEN_NO_EFFECT = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_NO_EFFECT_POTION_ALLOWED_PASS=YES"
+NATIVE_REGEN_WEAKER_UPGRADE = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_WEAKER_EFFECT_UPGRADE_PASS=YES"
 NATIVE_REGEN_VETO = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_ACTIVE_EFFECT_DUPLICATE_VETO_PASS=YES"
 NATIVE_REGEN_INSTANT_EXEMPT = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_INSTANT_HEAL_EXEMPT_PASS=YES"
 NATIVE_REGEN_CLEARED = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_EFFECT_CLEAR_REARM_PASS=YES"
@@ -603,9 +604,12 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 send_command(process, log, window, "/give CIProbe potion 1 16417")
                 await_marker(process, log, NATIVE_REGEN_NO_EFFECT, deadline,
                              "real splash Regeneration II selected when actual player has no effect")
+                send_command(process, log, window, "/effect CIProbe 10 30 0")
+                await_marker(process, log, NATIVE_REGEN_WEAKER_UPGRADE, deadline,
+                             "vanilla Regeneration I amplifier 0 permits stronger source Regeneration II upgrade")
                 send_command(process, log, window, "/effect CIProbe 10 30 1")
                 await_marker(process, log, NATIVE_REGEN_VETO, deadline,
-                             "native real source Regeneration effect ID 10 blocks duplicate potion lease")
+                             "native real source Regeneration II amplifier 1 blocks duplicate source splash")
                 await_marker(process, log, NATIVE_REGEN_INSTANT_EXEMPT, deadline,
                              "genuine Instant Health II remains eligible despite original active regeneration")
                 send_command(process, log, window, "/effect CIProbe clear")

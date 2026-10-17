@@ -19,6 +19,23 @@ final class Minecraft189AutoPotRegenerationGuard {
                 || itemDamage == 16449;
     }
 
+    /**
+     * Vanilla 1.8.9 splash regeneration II has amplifier 1, normal and
+     * extended regeneration I have amplifier 0. This metadata has already
+     * passed V133 original ItemPotion verification at the caller.
+     */
+    static int sourceRegenerationAmplifier(final int itemDamage) {
+        switch (itemDamage) {
+            case 16385:
+            case 16449:
+                return 0;
+            case 16417:
+                return 1;
+            default:
+                return -1;
+        }
+    }
+
     static boolean mayUse(final Minecraft189InventoryHotbarControl inventory,
             final Minecraft189PlayerInventoryAccess sourcePlayer) {
         if (!(inventory instanceof Minecraft189InventoryHotbarItemsAccess)
@@ -50,27 +67,38 @@ final class Minecraft189AutoPotRegenerationGuard {
 
         final Minecraft189PlayerPotionEffectsAccess nativeEffects =
                 (Minecraft189PlayerPotionEffectsAccess) sourcePlayer;
-        if (duplicatesRegeneration(nativeEffects.customMcPotionEffects())
+        if (duplicatesRegeneration(nativeEffects.customMcPotionEffects(), damage)
                 || !sameLiveItem(sourceInventory, sourcePlayer, slot,
                         item, damage))
             return false;
         // Callbacks reading source inventory may install a new effect.
         // Revalidate the actual live player's active effects before use.
-        return !duplicatesRegeneration(nativeEffects.customMcPotionEffects())
+        return !duplicatesRegeneration(nativeEffects.customMcPotionEffects(), damage)
                 && sameLiveItem(sourceInventory, sourcePlayer, slot,
                         item, damage);
     }
 
+    /**
+     * Do not suppress a genuine stronger native splash upgrade. A current
+     * Regen I (amplifier 0) still permits verified Regen II (amplifier 1).
+     * A current Regen II suppresses redundant II and weaker I/extended.
+     * Missing, malformed, or unknown source effect metadata fails closed.
+     */
     private static boolean duplicatesRegeneration(
-            final Minecraft189PotionEffectAccess[] effects) {
+            final Minecraft189PotionEffectAccess[] effects,
+            final int sourceItemDamage) {
         if (effects == null) return true;
+        final int incomingAmplifier = sourceRegenerationAmplifier(sourceItemDamage);
+        if (incomingAmplifier < 0) return true;
         for (final Minecraft189PotionEffectAccess effect : effects) {
             if (effect == null) return true;
             final int id = effect.customMcPotionId();
             final int duration = effect.customMcDurationTicks();
-            if (duration < 0) return true;
+            final int amplifier = effect.customMcAmplifier();
+            if (duration < 0 || amplifier < 0) return true;
             if (id == REGENERATION_EFFECT_ID
-                    && duration >= MINIMUM_REMAINING_TICKS)
+                    && duration >= MINIMUM_REMAINING_TICKS
+                    && amplifier >= incomingAmplifier)
                 return true;
         }
         return false;
