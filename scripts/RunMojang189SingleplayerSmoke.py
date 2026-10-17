@@ -207,6 +207,36 @@ def send_command(process, log, window, command):
           flush=True)
 
 
+
+def send_verified_fill(process, log, window, command):
+    """Require a *fresh* vanilla success response before relying on a world cell.
+
+    A /fill spanning unloaded chunks can be rejected by integrated-server
+    vanilla even though the X11 chat opened/closed successfully. Merely
+    sending the command is not proof that the player is in a dry fixture.
+    """
+    cursor = log.stat().st_size if log.exists() else 0
+    send_command(process, log, window, command)
+    deadline = time.monotonic() + 8
+    while time.monotonic() < deadline:
+        require_running(process, "original Survival dry chamber fill")
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read()
+        if (b"Cannot place blocks outside of the world" in fresh
+                or b"Too many blocks in the specified area" in fresh
+                or b"There are no blocks to fill" in fresh):
+            raise AssertionError(
+                "vanilla refused the dry chamber /fill; original "
+                "Survival health acceptance cannot proceed safely")
+        if b"Successfully filled " in fresh:
+            return
+        time.sleep(0.2)
+    raise AssertionError(
+        "no fresh original vanilla /fill success for dry chamber "
+        "before bounded deadline")
+
+
 def native_safe_walk_positions(log):
     """Native per-tick positions from source-mapped local player, never GUI guesses."""
     prefix = b"CUSTOMMC_189_NATIVE_LOCAL_POS="
@@ -691,12 +721,20 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # AutoPot scheduling and Minecraft.rightClickMouse can cast.
                 send_command(process, log, window, "/effect CIProbe clear")
                 send_command(process, log, window, "/clear CIProbe potion")
-                # Real vanilla dry ground before original Survival potion
-                # stage; prevents actual water-spawn drowning without
-                # fabricating source health or disabling cast verification.
-                send_command(process, log, window, "/fill -3 79 -3 3 79 3 stone")
-                send_command(process, log, window, "/fill -3 80 -3 3 84 3 air")
-                send_command(process, log, window, "/tp CIProbe 0 80 0")
+                # The former -3..3 fixture crossed four source chunks;
+                # vanilla 1.8.9 rejected BOTH /fill commands when a
+                # neighboring negative chunk was not loaded. Water then
+                # drowned the source player during the next health tier
+                # checkpoint. Stay wholly inside the loaded (0,0) chunk,
+                # enclose a real 7x7x7 air cell in solid stone, and require
+                # both ORIGINAL server chat responses before teleporting.
+                send_verified_fill(process, log, window,
+                                   "/fill 4 79 4 12 87 12 stone")
+                send_verified_fill(process, log, window,
+                                   "/fill 5 80 5 11 86 11 air")
+                print("CUSTOMMC_189_SURVIVAL_DRY_CHAMBER_FILL_PASS=YES",
+                      flush=True)
+                send_command(process, log, window, "/tp CIProbe 8 80 8")
                 send_command(process, log, window, "/gamemode survival CIProbe")
                 xdotool("windowactivate", "--sync", window)
                 xdotool("key", "--clearmodifiers", "9")
