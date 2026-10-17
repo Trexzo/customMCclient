@@ -1,0 +1,25 @@
+# V144 — genuine vanilla splash impact, not merely potion selection and aiming
+
+## Scope, ancestry, and original authority
+
+Draft cumulative child of V143 #609 exact parent `831e7615092e29832f621755c9cd5cfba72f5e00`. Main unchanged. V143 implements optional source-owned `Aim Down for Splash` at +85-degree original Entity.rotationPitch during AutoPot's native right-click and restores human pitch. Its genuine pinned 1.8.9 original-world acceptance only proved real pitch mapping/verified ItemPotion dispatch *permission*; it deliberately did not throw. V144 finally checks a truly thrown vanilla potion's **source player effect result** through physical gameplay.
+
+## Mandatory real Mojang 1.8.9 physical X11 integrated-server acceptance
+
+V144 extends the same required `--native-rod-potion-discovery` graphical/integrated-server test, **after** all retained V132–V143 original Rod/Potion source class/count/damage, UI focus, AutoRod genuine fishing cast and reel, real PotionEffect strength and clear, useful potion alternative auto-scan, and source-owned downward pitch tests.
+
+1. Through actual original game chat, Python sends `/effect CIProbe clear`, `/clear CIProbe potion`, and **only** `/give CIProbe potion 1 16449` (genuine pre-1.9 extended splash Regeneration I, original ItemPotion metadata). **No /effect command is sent again until the new evidence has been observed.** All previous test effects were removed first.
+2. The Java fixture requires SAME original EntityPlayer object and InventoryPlayer as the whole V132–V143 acceptance, original active Regeneration ID10 absent, and a unique actual source `ItemPotion` with damage `16449`, positive stack count and verified source slot. It announces exactly one source one-based hotbar position `CUSTOMMC_OFFICIAL_189_REAL_SPLASH_SOURCE_SLOT=<1..9>`.
+3. The physical runner uses X11 to focus the existing pinned Minecraft window, positions the cursor over the world **before** setting the original pitch, and presses that exact physical 1..9 hotbar key. Java independently validates actual `InventoryPlayer.currentItem`, the unchanged genuine ItemStack object/class/count/damage, the lack of active Regeneration, and the same original `Entity.rotationPitch` native field. It records human pitch, sets pitch 85 degrees toward the ground, requires the actual original getter acknowledge it and announces `CUSTOMMC_OFFICIAL_189_REAL_SPLASH_PHYSICAL_CAST_READY_PASS=YES`.
+4. Python sends **one real X11 right mouse click** to the original running Mojang Minecraft 1.8.9 client, without generating Java potion entities, synthetic effects, fabricated right-click packets, or server commands. The genuine game's ItemPotion right-click and vanilla splash projectile/impact code must cause a **new** PotionEffect ID10 **amplifier 0** with at least 20 ticks remaining to appear in the *same actual source-mapped EntityLivingBase player*.
+5. Java waits for this effect transition on the exact original local player and inventory, verifies human selected hotbar ownership, restores the original pitch only if still set to its own 85-degree aim (does not overwrite an intervening human pitch), and announces `CUSTOMMC_OFFICIAL_189_REAL_SPLASH_REGEN_IMPACT_SOURCE_EFFECT_PASS=YES`. The runner requires that marker to print `CUSTOMMC_OFFICIAL_189_REAL_VANILLA_SPLASH_IMPACT_PASS=YES`. Missing/no effect, wrong source player, wrong selected source ItemStack, failed right click, wrong effect amplifier, or timeout makes the mandatory official binary job fail.
+
+This is a stronger **actual physical vanilla potion and local server-backed effect** test than V143's item eligibility. It is deliberately not a second `/effect`-command verification: without a physical splash, the effect must remain absent. It is also not a claimed server-observed **Instant Health health delta**; Regeneration I is periodic and this test checks the real effect application after a thrown projectile, not medical healing or a remote dedicated-server replication outcome.
+
+## Safety and CI completeness
+
+- Exact same original pinned Mojang jar/class mapping, Java 8, graphical X11 and integrated world. No synthetic ItemStack/PotionEffect can produce PASS.
+- Existing official workflow full suite (native GUI/UUID two living targets/Scaffold/FOV/Wall Check/rejoin) must remain required.
+- This test-only fixture controls pitch inside its own original world acceptance to ensure the physical X11 throw points down; unlike the V143 **production** AutoPot opt-in pitch lease, it is not claiming AutoPot itself issued the physical click.
+- Current creative world can retain item count; PASS relies on real new effect, not an assumed ItemStack decrement. A separate full **synthetic AutoPot cast with measured Instant Health gain** and remote dedicated server replication remain further, independent certification targets.
+- Certification requires exact V144 head Foundation Windows+Ubuntu **both SUCCESS** and the **entire** official original Mojang binary/dedicated workflow SUCCESS, not merely the new X11 step. Draft only; main untouched.
