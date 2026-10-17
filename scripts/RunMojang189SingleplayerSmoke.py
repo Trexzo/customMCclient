@@ -258,7 +258,7 @@ def send_verified_fill(process, log, window, command):
         # Genuine Mojang 1.8.9 replies "729 blocks filled" rather
         # than the newer-version "Successfully filled 729 blocks".
         # Require source chat, a POSITIVE numeric count and fresh bytes.
-        if re.search(rb"\\[CHAT\\] [1-9][0-9]* blocks filled", fresh):
+        if re.search(rb"\[CHAT\] [1-9][0-9]* blocks filled", fresh):
             return
         time.sleep(0.2)
     raise AssertionError(
