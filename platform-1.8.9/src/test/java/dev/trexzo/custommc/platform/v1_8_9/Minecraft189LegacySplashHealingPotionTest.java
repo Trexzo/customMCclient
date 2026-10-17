@@ -4,6 +4,24 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 final class Minecraft189LegacySplashHealingPotionTest {
+    @Test void rankPrefersFastImmediateHealingOverSlowRegeneration() {
+        assertEquals(50, Minecraft189LegacySplashHealingPotion
+                .immediateHealingPriority(16421));
+        assertEquals(40, Minecraft189LegacySplashHealingPotion
+                .immediateHealingPriority(16389));
+        assertEquals(30, Minecraft189LegacySplashHealingPotion
+                .immediateHealingPriority(16417));
+        assertEquals(20, Minecraft189LegacySplashHealingPotion
+                .immediateHealingPriority(16385));
+        assertEquals(10, Minecraft189LegacySplashHealingPotion
+                .immediateHealingPriority(16449));
+        for (final int denied : new int[] {
+                0, -1, 8197, 8229, 16388, 16396, 16428
+        })
+            assertEquals(0, Minecraft189LegacySplashHealingPotion
+                    .immediateHealingPriority(denied));
+    }
+
     @Test void onlyKnownVanillaSplashHealingAndRegenerationMetadataPass() {
         for (final int permitted : new int[] {
                 16389, 16421, 16385, 16417, 16449

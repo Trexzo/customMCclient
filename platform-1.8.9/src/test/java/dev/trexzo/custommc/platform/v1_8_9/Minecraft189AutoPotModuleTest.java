@@ -125,6 +125,11 @@ final class Minecraft189AutoPotModuleTest {
         try {
             assertEquals("35.0", settings.snapshotEncoded().get(Minecraft189AutoPotModule.HEALTH_THRESHOLD));
             f.module().healthThresholdSetting().set(25D);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoPotModule.PREFER_IMMEDIATE_HEALING));
+            f.module().preferImmediateHealingSetting().set(true);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoPotModule.PREFER_IMMEDIATE_HEALING));
             f.module().autoDetectSlotSetting().set(true);
             assertEquals("true", settings.snapshotEncoded().get(Minecraft189AutoPotModule.AUTO_DETECT_SLOT));
             assertEquals("25.0", settings.snapshotEncoded().get(Minecraft189AutoPotModule.HEALTH_THRESHOLD));

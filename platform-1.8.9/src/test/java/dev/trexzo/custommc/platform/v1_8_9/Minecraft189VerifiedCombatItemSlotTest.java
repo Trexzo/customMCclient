@@ -633,6 +633,104 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         } finally { pot.onDisable(); }
     }
 
+
+    @Test void optInRankedPotionsPreferActualInstantHealingOverEarlierRegeneration() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        pot.autoDetectSlotSetting().set(true);
+        pot.onEnable();
+        try {
+            inventory.selected = 4;
+            final FakeItem regeneration = new FakeItem(false, true);
+            regeneration.damage = 16417;
+            player.items[1] = regeneration;
+            final FakeItem instantOne = new FakeItem(false, true);
+            instantOne.damage = 16389;
+            player.items[2] = instantOne;
+            final FakeItem instantTwo = new FakeItem(false, true);
+            instantTwo.damage = 16421;
+            player.items[6] = instantTwo;
+            // Previous V131 selection remains unchanged by default.
+            assertFalse(pot.preferImmediateHealingSetting().get());
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(1, inventory.selected);
+            pot.restoreSlot(inventory, 4);
+
+            pot.preferImmediateHealingSetting().set(true);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(6, inventory.selected);
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4));
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+
+            // Current lower-rank regeneration is deliberately bypassed.
+            inventory.selected = 1;
+            assertEquals(1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(6, inventory.selected);
+            pot.restoreSlot(inventory, 1);
+            assertEquals(1, inventory.selected);
+
+            // Rank tie is stable and preserves already-held source slot.
+            final FakeItem sameRank = new FakeItem(false, true);
+            sameRank.damage = 16421;
+            player.items[3] = sameRank;
+            inventory.selected = 3;
+            assertEquals(3, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(3, inventory.selected);
+            pot.restoreSlot(inventory, 3);
+            assertEquals(3, inventory.selected);
+        } finally { pot.onDisable(); }
+    }
+
+    @Test void rankedPotionSearchDoesNotBorrowReentrantMetadataOrChangedHotbar() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        pot.autoDetectSlotSetting().set(true);
+        pot.preferImmediateHealingSetting().set(true);
+        pot.onEnable();
+        try {
+            inventory.selected = 4;
+            final FakeItem stable = new FakeItem(false, true);
+            stable.damage = 16389;
+            player.items[2] = stable;
+            final FakeItem candidate = new FakeItem(false, true);
+            candidate.damage = 16421;
+            player.items[7] = candidate;
+            candidate.afterDamageRead = () -> {
+                // Source callback replaces a higher-priority item with water.
+                player.items[7] = new FakeItem(false, true);
+                ((FakeItem) player.items[7]).damage = 0;
+            };
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(2, inventory.selected,
+                    "displaced stronger wrapper must not outrank stable heal");
+            pot.restoreSlot(inventory, 4);
+
+            // Candidate class getter changes the actual user selected slot.
+            final FakeItem switched = new FakeItem(false, true);
+            switched.damage = 16421;
+            player.items[7] = switched;
+            switched.afterPotionTypeRead = () -> inventory.selected = 5;
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(5, inventory.selected);
+            inventory.selected = 4;
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(7, inventory.selected);
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+        } finally { pot.onDisable(); }
+    }
+
     private static final class Inventory implements Minecraft189InventoryHotbarItemsAccess {
         int selected;
         boolean ignoreNextSet;

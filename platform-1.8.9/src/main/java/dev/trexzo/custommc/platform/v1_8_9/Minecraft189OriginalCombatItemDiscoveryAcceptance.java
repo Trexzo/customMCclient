@@ -92,17 +92,21 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             if (items == null || items.length < 9) return;
             int rodSlot = -1;
             int potSlot = -1;
+            int strongestSlot = -1;
             for (int i = 0; i < 9; i++) {
                 final Minecraft189ItemStackAccess stack = items[i];
                 if (stack == null || stack.customMcStackSize() < 1) continue;
                 if (stack.customMcIsFishingRod() && rodSlot < 0) rodSlot = i;
-                if (stack.customMcIsPotion() && potSlot < 0
-                        && Minecraft189LegacySplashHealingPotion.isKnownSplashHealing(
-                                stack.customMcItemDamage())) potSlot = i;
+                if (stack.customMcIsPotion()) {
+                    final int damage = stack.customMcItemDamage();
+                    if (damage == 16389 && potSlot < 0) potSlot = i;
+                    if (damage == 16421 && strongestSlot < 0) strongestSlot = i;
+                }
             }
             // Explicit positive item evidence is required; empty creative
             // world and an unfulfilled /give must never emit the PASS marker.
-            if (rodSlot < 0 || potSlot < 0 || rodSlot == potSlot) return;
+            if (rodSlot < 0 || potSlot < 0 || strongestSlot < 0
+                    || rodSlot == potSlot || potSlot == strongestSlot) return;
             assertTrue(inventory.customMcHotbarItems()[rodSlot] == items[rodSlot]
                     && inventory.customMcHotbarItems()[potSlot] == items[potSlot],
                     "original /give ItemStack membership changed during scan");
@@ -116,7 +120,14 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                     && host.featureCatalog().autoPot().autoDetectSlotSetting().get(),
                     "source scan was not enabled through persisted settings");
             verifyRod(host, rodSlot);
+            assertTrue(!host.featureCatalog().autoPot()
+                    .preferImmediateHealingSetting().get(),
+                    "V134 default priority must preserve V131 legacy scan ordering");
             verifyPotion(host, potSlot);
+            host.featureCatalog().autoPot()
+                    .preferImmediateHealingSetting().set(Boolean.TRUE);
+            verifyPotion(host, strongestSlot);
+            report("CUSTOMMC_OFFICIAL_189_AUTOPOT_NATIVE_STRONG_HEAL_PRIORITY_PASS=YES");
             phase = 3;
             report("CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_SOURCE_SELECTION_PASS=YES");
             return;
@@ -136,14 +147,20 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             final Minecraft189ItemStackAccess[] items = inventory.customMcHotbarItems();
             int rod = -1;
             int pot = -1;
+            int priority = 0;
             if (items == null || items.length < 9)
                 throw new IllegalStateException("original /give inventory disappeared");
             for (int i = 0; i < 9; i++) {
                 if (items[i] == null || items[i].customMcStackSize() < 1) continue;
                 if (rod < 0 && items[i].customMcIsFishingRod()) rod = i;
-                if (pot < 0 && items[i].customMcIsPotion()
-                        && Minecraft189LegacySplashHealingPotion.isKnownSplashHealing(
-                                items[i].customMcItemDamage())) pot = i;
+                if (items[i].customMcIsPotion()) {
+                    final int score = Minecraft189LegacySplashHealingPotion
+                            .immediateHealingPriority(items[i].customMcItemDamage());
+                    if (score > priority) {
+                        priority = score;
+                        pot = i;
+                    }
+                }
             }
             assertTrue(rod >= 0 && pot >= 0, "original source items vanished before GUI-close");
             verifyRod(host, rod);

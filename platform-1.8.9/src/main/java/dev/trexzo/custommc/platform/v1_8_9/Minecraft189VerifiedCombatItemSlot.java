@@ -9,13 +9,17 @@ final class Minecraft189VerifiedCombatItemSlot {
 
     /** Optional scan of the original InventoryPlayer.mainInventory mapping. */
     private static int discover(final Minecraft189InventoryHotbarControl control,
-            final boolean rod) {
+            final boolean rod, final boolean prioritizeInstantHealing) {
         if (!(control instanceof Minecraft189InventoryHotbarItemsAccess))
             return -1; // No source array: no guessed fallback.
         final Minecraft189InventoryHotbarItemsAccess inv =
                 (Minecraft189InventoryHotbarItemsAccess) control;
         final int prior = control.customMcSelectedHotbarSlot();
         if (prior < 0 || prior > 8) return -1;
+        // Existing default is held-first. Opt-in ranks exact vanilla
+        // source potion metadata instead; Rod discovery stays untouched.
+        if (!rod && prioritizeInstantHealing)
+            return discoverHighestHealing(inv, prior);
         // Already-held matching source item wins; otherwise lowest slot.
         if (nativeCandidate(inv, prior, prior, rod)) return prior;
         for (int slot = 0; slot < 9; slot++) {
@@ -24,6 +28,62 @@ final class Minecraft189VerifiedCombatItemSlot {
                 return slot;
         }
         return -1;
+    }
+
+
+    private static int discoverHighestHealing(
+            final Minecraft189InventoryHotbarItemsAccess inventory,
+            final int original) {
+        int bestSlot = -1;
+        int bestPriority = 0;
+        for (int slot = 0; slot < 9; slot++) {
+            if (inventory.customMcSelectedHotbarSlot() != original)
+                return -1;
+            final int priority = verifiedHealingPriority(
+                    inventory, original, slot);
+            if (priority > bestPriority
+                    || (priority > 0 && priority == bestPriority
+                        && slot == original)) {
+                bestPriority = priority;
+                bestSlot = slot;
+            }
+        }
+        return inventory.customMcSelectedHotbarSlot() == original
+                ? bestSlot : -1;
+    }
+
+    /**
+     * ItemStack data and class getters may invoke a reentrant source
+     * inventory mutation. Never rank a displaced wrapper, changing
+     * metadata, or a different user-selected currentItem. The selected
+     * candidate still passes normal native setter and final-use checks.
+     */
+    private static int verifiedHealingPriority(
+            final Minecraft189InventoryHotbarItemsAccess inventory,
+            final int original, final int slot) {
+        final Minecraft189ItemStackAccess[] snapshot =
+                inventory.customMcHotbarItems();
+        if (snapshot == null || snapshot.length < 9) return 0;
+        final Minecraft189ItemStackAccess candidate = snapshot[slot];
+        if (candidate == null || candidate.customMcStackSize() <= 0
+                || !candidate.customMcIsPotion()) return 0;
+        final int damage = candidate.customMcItemDamage();
+        final int priority = Minecraft189LegacySplashHealingPotion
+                .immediateHealingPriority(damage);
+        if (priority <= 0
+                || !nativeCandidate(inventory, original, slot, false))
+            return 0;
+        final Minecraft189ItemStackAccess[] after =
+                inventory.customMcHotbarItems();
+        return after != null && after.length >= 9
+                && after[slot] == candidate
+                && inventory.customMcSelectedHotbarSlot() == original
+                && candidate.customMcItemDamage() == damage
+                && inventory.customMcSelectedHotbarSlot() == original
+                && inventory.customMcHotbarItems() != null
+                && inventory.customMcHotbarItems().length >= 9
+                && inventory.customMcHotbarItems()[slot] == candidate
+                ? priority : 0;
     }
 
     private static boolean nativeCandidate(
@@ -171,7 +231,7 @@ final class Minecraft189VerifiedCombatItemSlot {
             final Minecraft189InventoryHotbarControl inventory,
             final Minecraft189PlayerHeldItemAccess player) {
         final int candidate = module.autoDetectSlotSetting().get().booleanValue()
-                ? discover(inventory, true)
+                ? discover(inventory, true, false)
                 : module.rodSlotSetting().get().intValue() - 1;
         final int original = module.selectSlot(inventory, candidate);
         if (original < 0) return -1;
@@ -192,7 +252,9 @@ final class Minecraft189VerifiedCombatItemSlot {
             final Minecraft189InventoryHotbarControl inventory,
             final Minecraft189PlayerHeldItemAccess player) {
         final int candidate = module.autoDetectSlotSetting().get().booleanValue()
-                ? discover(inventory, false)
+                ? discover(inventory, false,
+                        module.preferImmediateHealingSetting().get()
+                                .booleanValue())
                 : module.potSlotSetting().get().intValue() - 1;
         final int original = module.selectSlot(inventory, candidate);
         if (original < 0) return -1;
