@@ -452,6 +452,14 @@ final class Minecraft189VerifiedCombatItemSlot {
         final boolean durable =
                 module.preferDurableRodSetting().get().booleanValue();
         final int configured = module.rodSlotSetting().get().intValue();
+        final boolean preserveHook =
+                module.preserveActiveHookSetting().get().booleanValue();
+        final boolean requireHold =
+                module.requireHoldSetting().get().booleanValue();
+        final boolean pauseRight =
+                module.pauseRightSetting().get().booleanValue();
+        final int cooldown =
+                module.cooldownTicksSetting().get().intValue();
         final int candidate = autodetect
                 ? (protecting
                         ? discoverProtectedRod(inventory, minimum, durable)
@@ -461,7 +469,11 @@ final class Minecraft189VerifiedCombatItemSlot {
                 || minimum != module.minimumRemainingDurabilitySetting().get()
                 || autodetect != module.autoDetectSlotSetting().get()
                 || durable != module.preferDurableRodSetting().get()
-                || configured != module.rodSlotSetting().get())
+                || configured != module.rodSlotSetting().get()
+                || preserveHook != module.preserveActiveHookSetting().get()
+                || requireHold != module.requireHoldSetting().get()
+                || pauseRight != module.pauseRightSetting().get()
+                || cooldown != module.cooldownTicksSetting().get())
             return -1;
         final int original = module.selectSlot(inventory, candidate);
         if (original < 0) return -1;
@@ -529,6 +541,14 @@ final class Minecraft189VerifiedCombatItemSlot {
         final boolean conserveConfigured =
                 module.conserveInstantHealingIISetting().get().booleanValue();
         final int configured = module.potSlotSetting().get().intValue();
+        final boolean aimDown =
+                module.aimDownForSplashSetting().get().booleanValue();
+        final double healthThreshold =
+                module.healthThresholdSetting().get().doubleValue();
+        final boolean requireTarget =
+                module.requireCombatTargetSetting().get().booleanValue();
+        final int cooldown =
+                module.cooldownTicksSetting().get().intValue();
         final boolean conserve = autodetect && priority && conserveConfigured;
         final float missingHealth = conserve
                 ? nativeMissingHealth(player, inventory) : Float.NaN;
@@ -553,6 +573,11 @@ final class Minecraft189VerifiedCombatItemSlot {
                 || priority != module.preferImmediateHealingSetting().get()
                 || conserveConfigured != module.conserveInstantHealingIISetting().get()
                 || configured != module.potSlotSetting().get()
+                || aimDown != module.aimDownForSplashSetting().get()
+                || Double.compare(healthThreshold,
+                        module.healthThresholdSetting().get()) != 0
+                || requireTarget != module.requireCombatTargetSetting().get()
+                || cooldown != module.cooldownTicksSetting().get()
                 || (conserve && nativeMissingHealth(player, inventory) != missingHealth))
             return -1;
         final int original = module.selectSlot(inventory, candidate);
