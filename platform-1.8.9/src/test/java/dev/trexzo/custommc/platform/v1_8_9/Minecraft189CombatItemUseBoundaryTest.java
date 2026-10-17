@@ -293,6 +293,84 @@ final class Minecraft189CombatItemUseBoundaryTest {
     }
 
 
+
+    @Test void originalPlayerLowMissingHealthConservesStrongerInstantHealing() {
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        inventory.selected = 4;
+        final Item weak = new Item(false, true, 1);
+        weak.damage = 16389; // genuine splash Instant Health I
+        final Item strong = new Item(false, true, 1);
+        strong.damage = 16421; // genuine splash Instant Health II
+        inventory.items[2] = strong; // earlier slot must not win by accident
+        inventory.items[6] = weak;
+        pot.onEnable();
+        pot.autoDetectSlotSetting().set(Boolean.TRUE);
+        pot.preferImmediateHealingSetting().set(Boolean.TRUE);
+        try {
+            player.health = 18F; // missing only two real source health points
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(2, inventory.selected,
+                    "default-off legacy priority prefers Instant Health II");
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+
+            pot.conserveInstantHealingIISetting().set(Boolean.TRUE);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(6, inventory.selected,
+                    "conserving the stronger splash must choose native weaker I");
+            pot.restoreSlot(inventory, 4);
+            player.health = 14F; // missing six, so stronger II really matters
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(2, inventory.selected);
+            pot.restoreSlot(inventory, 4);
+
+            player.health = 16F; // exactly four missing, I still enough
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(6, inventory.selected);
+            pot.restoreSlot(inventory, 4);
+
+            // If the weaker potion disappears, never withhold the only
+            // eligible strong potion in an actual low-health emergency.
+            inventory.items[6] = null;
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(2, inventory.selected);
+            pot.restoreSlot(inventory, 4);
+            inventory.items[6] = weak;
+
+            // Source metadata callback changes the genuine player health
+            // while discovery runs. Never publish a stale potion lease.
+            player.health = 18F;
+            weak.afterPotionTypeRead = () -> player.health = 12F;
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(4, inventory.selected,
+                    "native health reentrancy must leave human slot unchanged");
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(2, inventory.selected,
+                    "a later stable low-health source snapshot must recover");
+            pot.restoreSlot(inventory, 4);
+
+            player.health = Float.NaN;
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player),
+                    "invalid source player health is never a conservation witness");
+            player.health = 20F;
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player),
+                    "full health must not authorize conservation-triggered potion");
+        } finally {
+            pot.onDisable();
+        }
+    }
+
     @Test void nativeAutoPotAimDownOwnerLeaseIsBoundToLivePotionAndUserPitch() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -1020,12 +1098,17 @@ final class Minecraft189CombatItemUseBoundaryTest {
     private static final class Player implements Minecraft189PlayerInventoryAccess,
             Minecraft189PlayerHeldItemAccess, Minecraft189PlayerFishingHookAccess,
             Minecraft189PlayerPotionEffectsAccess,
-            Minecraft189PlayerRotationControl {
+            Minecraft189PlayerRotationControl,
+            Minecraft189PlayerHealthAccess {
         final Inventory inventory;
         Runnable duringHeldItemRead;
         boolean hasFishingHook;
         float pitch;
+        float health = 20F;
+        float maxHealth = 20F;
         Runnable duringPitchSetter;
+        @Override public float customMcHealth() { return health; }
+        @Override public float customMcMaxHealth() { return maxHealth; }
         @Override public float customMcRotationYaw() { return 0F; }
         @Override public float customMcRotationPitch() { return pitch; }
         @Override public void customMcSetRotationYaw(final float yaw) {}
