@@ -70,6 +70,26 @@ class DryChamberFillTest(TestCase):
                     smoke.send_verified_chunk_teleport(
                         Alive(), log, "mock-window")
 
+    def test_native_splash_and_survival_share_prepared_original_room(self):
+        source = Path(smoke.__file__).read_text(encoding="utf-8")
+        # The entire original physical throw must happen AFTER the genuine
+        # vanilla world accepts both fills; don't merely make a dry stage
+        # that runs only AFTER the throw has already failed.
+        within = source.split("            if native_rod_potion_discovery:", 1)[1]
+        fixture = within.index("CUSTOMMC_189_DRY_CHAMBER_BEFORE_PHYSICAL_SPLASH_PASS")
+        fill_outer = within.index('"/fill 4 79 4 12 87 12 stone"')
+        fill_inner = within.index('"/fill 5 80 5 11 86 11 air"')
+        physical = within.index("await_marker(process, log, NATIVE_REAL_SPLASH_READY")
+        real_effect = within.index("await_marker(process, log, NATIVE_REAL_SPLASH_EFFECT")
+        survival = within.index('"/gamemode survival CIProbe"')
+        self.assertLess(fill_outer, fill_inner)
+        self.assertLess(fill_inner, fixture)
+        self.assertLess(fixture, physical)
+        self.assertLess(physical, real_effect)
+        self.assertLess(real_effect, survival)
+        self.assertEqual(within.count('"/fill 4 79 4 12 87 12 stone"'), 1)
+        self.assertEqual(within.count('"/fill 5 80 5 11 86 11 air"'), 1)
+
     def test_dry_chamber_is_single_chunk_and_enclosed(self):
         # 1.8.9 /fill must not depend on unloaded x=-1 or z=-1 chunks.
         # Both cuboids are entirely within block-coordinate chunk (0,0).
