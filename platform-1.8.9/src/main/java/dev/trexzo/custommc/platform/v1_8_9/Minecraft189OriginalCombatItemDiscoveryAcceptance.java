@@ -932,6 +932,10 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
 
         // V148 uses genuine vanilla ItemSword objects supplied by /give,
         // never a fabricated ItemStack or an attack-network shortcut.
+        // Vanilla ItemSword.getDamageVsEntity returns ORIGINAL per-item
+        // bonus 3F diamond / 2F iron, not the 7F/6F total attack damage
+        // including player base 4. These exact values were witnessed by
+        // the genuine pinned Mojang ItemSword class getter in CI.
         // The runner grants an almost-broken original diamond sword FIRST,
         // then a viable original iron sword, with no fresh diamond yet.
         if (phase == 23) {
@@ -969,9 +973,9 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                 final int max = item.customMcMaxDamage();
                 final int remaining = max - item.customMcItemDamage();
                 final float damage = item.customMcSwordBaseDamage();
-                if (max > 0 && remaining == 3 && damage == 7F)
+                if (max > 0 && remaining == 3 && damage == 3F)
                     worn = slot;
-                if (max >= 200 && remaining >= 8 && damage == 6F)
+                if (max >= 200 && remaining >= 8 && damage == 2F)
                     iron = slot;
             }
             if (worn < 0 || iron < 0) return;
@@ -1029,7 +1033,7 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                 final Minecraft189ItemStackAccess item = items[slot];
                 if (item != null && item.customMcIsSword()
                         && item.customMcStackSize() > 0
-                        && item.customMcSwordBaseDamage() == 7F
+                        && item.customMcSwordBaseDamage() == 3F
                         && item.customMcMaxDamage() >= 1500
                         && item.customMcItemDamage() == 0)
                     fresh = slot;
@@ -1063,7 +1067,7 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                 assertTrue(inventory.customMcSelectedHotbarSlot()
                                 == originalFreshDiamondSlot
                             && sword.ownsVerifiedSwordAtDispatch(inventory, durable),
-                        "fresh original diamond not chosen among true 7-damage ties");
+                        "fresh original diamond not chosen among true source 3.0-damage ties");
             } finally {
                 sword.restore(inventory, durable);
             }
