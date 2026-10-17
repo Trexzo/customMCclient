@@ -660,13 +660,15 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                     raise AssertionError(
                         "original splash source slot missing or ambiguous")
                 xdotool("windowactivate", "--sync", window)
+                xdotool("mousemove", "--window", window, 427, 240)
                 xdotool("key", "--clearmodifiers",
                         physical_splash_slots[0].decode("ascii"))
                 await_marker(process, log, NATIVE_REAL_SPLASH_READY, deadline,
                              "real original splash potion and 85-degree physical pitch armed with no native effect")
-                # The original Minecraft source itself generates the
-                # vanilla throwable EntityPotion with a real mouse event.
-                xdotool("mousemove", "--window", window, 427, 240)
+                # Cursor already centered BEFORE the source pitch lease
+                # was installed. Moving it after native +85 could count as
+                # real mouse aim movement and revoke the cast evidence.
+                # Physical vanilla right-click creates EntityPotion.
                 xdotool("click", "--window", window, "3")
                 await_marker(process, log, NATIVE_REAL_SPLASH_EFFECT, deadline,
                              "vanilla projectile splash generated NEW original local Regeneration without /effect")
