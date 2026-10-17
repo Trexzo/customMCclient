@@ -943,6 +943,126 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         } finally { rod.onDisable(); }
     }
 
+    @Test void nativeRodUsePinsExactOriginalItemAndRejectsLateGuiIntentChanges() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        inventory.selected = 4;
+        inventory.items[1] = new FakeItem(true, false);
+        rod.onEnable();
+        try {
+            rod.autoDetectSlotSetting().set(true);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
+            assertEquals(1, inventory.selected);
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, 4));
+            // Even a second REAL rod of equal class/durability in the same
+            // source slot is not the exact ItemStack that owned this cast.
+            inventory.items[1] = new FakeItem(true, false);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, 4));
+            rod.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+            // A fresh independent selection can explicitly own the new rod.
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, 4));
+            rod.preferDurableRodSetting().set(true);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, 4),
+                    "live GUI durability ranking change revokes old cast");
+            rod.restoreSlot(inventory, 4);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
+            rod.preserveActiveHookSetting().set(true);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, 4),
+                    "live hook policy change revokes in-flight native cast");
+            rod.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+        } finally { rod.onDisable(); }
+    }
+
+    @Test void nativePotionUsePinsSameSourceStackAndCapturedHealingPolicy() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        inventory.selected = 4;
+        inventory.items[2] = new FakeItem(false, true);
+        pot.onEnable();
+        try {
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4));
+            inventory.items[2] = new FakeItem(false, true);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4),
+                    "same vanilla healing type cannot replace captured ItemStack");
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4));
+            pot.preferImmediateHealingSetting().set(true);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4),
+                    "changing potion rank while item selected revokes cast");
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            pot.aimDownForSplashSetting().set(true);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4),
+                    "changed physical splash aim cannot inherit a stale lease");
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            pot.healthThresholdSetting().set(20D);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4),
+                    "modified health threshold must re-admit the action");
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+        } finally { pot.onDisable(); }
+    }
+
+    @Test void sourceItemGetterChangingSelectionPolicyAbortsBeforeNativeHotbarWrite() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        inventory.selected = 4;
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final FakeItem nativeRod = new FakeItem(true, false);
+        inventory.items[1] = nativeRod;
+        rod.autoDetectSlotSetting().set(true);
+        rod.onEnable();
+        try {
+            nativeRod.afterRodTypeRead = () ->
+                    rod.autoDetectSlotSetting().set(false);
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
+            assertEquals(4, inventory.selected,
+                    "stale rod candidate must not select from changed GUI intent");
+        } finally { rod.onDisable(); }
+
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        final FakeItem nativePotion = new FakeItem(false, true);
+        inventory.items[2] = nativePotion;
+        pot.autoDetectSlotSetting().set(true);
+        pot.onEnable();
+        try {
+            nativePotion.afterPotionTypeRead = () ->
+                    pot.autoDetectSlotSetting().set(false);
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            assertEquals(4, inventory.selected,
+                    "stale healing candidate must not select from changed GUI intent");
+        } finally { pot.onDisable(); }
+    }
+
     private static final class Inventory implements Minecraft189InventoryHotbarItemsAccess {
         int selected;
         boolean ignoreNextSet;
