@@ -268,8 +268,98 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         }
     }
 
-    private static final class Inventory implements Minecraft189InventoryHotbarControl {
+
+    @Test void sourceRodPotionReplacedDuringInitialNativeTypeReadNeverPublishLease() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        rod.onEnable();
+        pot.onEnable();
+        try {
+            inventory.selected = 4;
+            final FakeItem initialRod = new FakeItem(true, false);
+            player.items[1] = initialRod;
+            initialRod.afterRodTypeRead = () ->
+                    player.items[1] = new FakeItem(true, false);
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player),
+                    "a same-type replacement during getter cannot authorize a stale rod");
+            assertEquals(4, inventory.selected,
+                    "initial failure must restore original hotbar slot");
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player),
+                    "a later stable replacement rod must work normally");
+            rod.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+
+            final FakeItem initialPotion = new FakeItem(false, true);
+            player.items[2] = initialPotion;
+            initialPotion.afterPotionTypeRead = () ->
+                    player.items[2] = new FakeItem(true, false);
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player),
+                    "a source potion replaced by rod during getter must veto use");
+            assertEquals(4, inventory.selected);
+            player.items[2] = new FakeItem(false, true);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            rod.onDisable();
+            pot.onDisable();
+        }
+    }
+
+    @Test void sourceRodPotionReplacedDuringFinalNativeTypeReadCannotSpendClick() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        rod.onEnable();
+        pot.onEnable();
+        try {
+            inventory.selected = 4;
+            final FakeItem rodBefore = new FakeItem(true, false);
+            player.items[1] = rodBefore;
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
+            rodBefore.afterRodTypeRead = () ->
+                    player.items[1] = new FakeItem(true, false);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, 4),
+                    "matching rod type is insufficient after ItemStack replacement");
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, 4),
+                    "same-type stable new ItemStack is legal next independent check");
+            rod.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+
+            final FakeItem potionBefore = new FakeItem(false, true);
+            player.items[2] = potionBefore;
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            potionBefore.afterPotionTypeRead = () ->
+                    player.items[2] = new FakeItem(false, true);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4));
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4));
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            rod.onDisable();
+            pot.onDisable();
+        }
+    }
+
+    private static final class Inventory implements Minecraft189InventoryHotbarItemsAccess {
         int selected;
+        final Minecraft189ItemStackAccess[] items = new Minecraft189ItemStackAccess[9];
+        @Override public Minecraft189ItemStackAccess[] customMcHotbarItems() {
+            return items;
+        }
         @Override public int customMcSelectedHotbarSlot() { return selected; }
         @Override public void customMcSetSelectedHotbarSlot(final int slot) {
             selected = slot;
@@ -278,8 +368,11 @@ final class Minecraft189VerifiedCombatItemSlotTest {
 
     private static final class Player implements Minecraft189PlayerHeldItemAccess {
         final Inventory inventory;
-        final Minecraft189ItemStackAccess[] items = new Minecraft189ItemStackAccess[9];
-        Player(final Inventory inventory) { this.inventory = inventory; }
+        final Minecraft189ItemStackAccess[] items;
+        Player(final Inventory inventory) {
+            this.inventory = inventory;
+            this.items = inventory.items;
+        }
         @Override public Minecraft189ItemStackAccess customMcHeldItem() {
             return items[inventory.selected];
         }
@@ -289,6 +382,8 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         final boolean rod;
         final boolean potion;
         final int count;
+        Runnable afterRodTypeRead;
+        Runnable afterPotionTypeRead;
         FakeItem(final boolean rod, final boolean potion) {
             this(rod, potion, 1);
         }
@@ -301,7 +396,17 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         @Override public int customMcStackSize() { return count; }
         @Override public int customMcItemDamage() { return 0; }
         @Override public int customMcMaxDamage() { return 0; }
-        @Override public boolean customMcIsFishingRod() { return rod; }
-        @Override public boolean customMcIsPotion() { return potion; }
+        @Override public boolean customMcIsFishingRod() {
+            final Runnable callback = afterRodTypeRead;
+            afterRodTypeRead = null;
+            if (callback != null) callback.run();
+            return rod;
+        }
+        @Override public boolean customMcIsPotion() {
+            final Runnable callback = afterPotionTypeRead;
+            afterPotionTypeRead = null;
+            if (callback != null) callback.run();
+            return potion;
+        }
     }
 }
