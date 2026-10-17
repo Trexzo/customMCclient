@@ -93,6 +93,53 @@ final class Minecraft189VerifiedCombatItemSlot {
                 ? maximum - damage : -1;
     }
 
+    /**
+     * V142 prevents an unusable Regeneration splash from monopolizing the
+     * Auto Detect selection when another source healing potion is valid.
+     * This is an entirely read-only candidate scan; the same source setter,
+     * original ItemStack checks and final use gate are still required.
+     */
+    private static int discoverUsefulPotion(
+            final Minecraft189InventoryHotbarControl control,
+            final Minecraft189PlayerInventoryAccess owner,
+            final boolean preferImmediate) {
+        if (!(control instanceof Minecraft189InventoryHotbarItemsAccess)
+                || owner == null || owner.customMcInventory() != control)
+            return -1;
+        final Minecraft189InventoryHotbarItemsAccess inv =
+                (Minecraft189InventoryHotbarItemsAccess) control;
+        final int original = inv.customMcSelectedHotbarSlot();
+        if (original < 0 || original > 8) return -1;
+        int choice = -1;
+        int strongest = 0;
+        // Held-first when unranked. With V134 rank option on, maximize
+        // source vanilla heal priority but skip any redundant regeneration.
+        for (int n = 0; n < 9; n++) {
+            final int slot = n == 0 ? original : (n <= original ? n - 1 : n);
+            if (inv.customMcSelectedHotbarSlot() != original) return -1;
+            if (!nativeCandidate(inv, original, slot, false)
+                    || !Minecraft189AutoPotRegenerationGuard
+                            .maySelectAtSlot(inv, owner, slot, original))
+                continue;
+            if (!preferImmediate) {
+                choice = slot;
+                break;
+            }
+            final int priority = verifiedHealingPriority(inv, original, slot);
+            if (priority > strongest) {
+                strongest = priority;
+                choice = slot;
+            }
+        }
+        if (choice < 0
+                || inv.customMcSelectedHotbarSlot() != original
+                || !nativeCandidate(inv, original, choice, false)
+                || !Minecraft189AutoPotRegenerationGuard
+                        .maySelectAtSlot(inv, owner, choice, original))
+            return -1;
+        return choice;
+    }
+
     private static int discoverHighestHealing(
             final Minecraft189InventoryHotbarItemsAccess inventory,
             final int original) {
@@ -314,10 +361,19 @@ final class Minecraft189VerifiedCombatItemSlot {
     static int selectPotion(final Minecraft189AutoPotModule module,
             final Minecraft189InventoryHotbarControl inventory,
             final Minecraft189PlayerHeldItemAccess player) {
-        final int candidate = module.autoDetectSlotSetting().get().booleanValue()
-                ? discover(inventory, false,
-                        module.preferImmediateHealingSetting().get()
-                                .booleanValue(), false)
+        final boolean autodetect = module.autoDetectSlotSetting().get()
+                .booleanValue();
+        final boolean avoidDuplicate = module.avoidActiveRegenerationSetting()
+                .get().booleanValue();
+        final boolean priority = module.preferImmediateHealingSetting().get()
+                .booleanValue();
+        final int candidate = autodetect
+                ? (avoidDuplicate
+                    ? discoverUsefulPotion(inventory,
+                            player instanceof Minecraft189PlayerInventoryAccess
+                                ? (Minecraft189PlayerInventoryAccess) player
+                                : null, priority)
+                    : discover(inventory, false, priority, false))
                 : module.potSlotSetting().get().intValue() - 1;
         final int original = module.selectSlot(inventory, candidate);
         if (original < 0) return -1;
