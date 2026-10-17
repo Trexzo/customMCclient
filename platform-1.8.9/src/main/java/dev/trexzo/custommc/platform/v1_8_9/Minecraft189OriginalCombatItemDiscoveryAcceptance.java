@@ -18,7 +18,7 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
 
     static synchronized void observe(final Minecraft189HostRuntime host,
             final Minecraft189PlayerInventoryAccess source) {
-        if (!Boolean.getBoolean(PROPERTY) || phase == 4 || source == null
+        if (!Boolean.getBoolean(PROPERTY) || phase == 5 || source == null
                 || !host.playerMovementState().snapshot().available())
             return;
         if (!(source instanceof Minecraft189PlayerHeldItemAccess))
@@ -64,13 +64,41 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             if (gui) return;
             final Minecraft189ItemStackAccess[] items = inventory.customMcHotbarItems();
             if (items == null || items.length < 9) return;
+            boolean rod = false;
+            boolean water = false;
+            boolean heal = false;
+            for (final Minecraft189ItemStackAccess item : items) {
+                if (item == null || item.customMcStackSize() < 1) continue;
+                rod |= item.customMcIsFishingRod();
+                if (!item.customMcIsPotion()) continue;
+                final int damage = item.customMcItemDamage();
+                if (damage == 0) water = true;
+                if (Minecraft189LegacySplashHealingPotion
+                        .isKnownSplashHealing(damage)) heal = true;
+            }
+            if (!rod || !water || heal) return;
+            assertTrue(host.selectAutoPotSlot() == -1,
+                    "real source water ItemPotion must not acquire AutoPot");
+            assertTrue(inventory.customMcSelectedHotbarSlot() == baseline,
+                    "rejected water ItemPotion changed original currentItem");
+            phase = 2;
+            report("CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_NONHEALING_VETO_PASS=YES");
+            return;
+        }
+
+        if (phase == 2) {
+            if (gui) return;
+            final Minecraft189ItemStackAccess[] items = inventory.customMcHotbarItems();
+            if (items == null || items.length < 9) return;
             int rodSlot = -1;
             int potSlot = -1;
             for (int i = 0; i < 9; i++) {
                 final Minecraft189ItemStackAccess stack = items[i];
                 if (stack == null || stack.customMcStackSize() < 1) continue;
                 if (stack.customMcIsFishingRod() && rodSlot < 0) rodSlot = i;
-                if (stack.customMcIsPotion() && potSlot < 0) potSlot = i;
+                if (stack.customMcIsPotion() && potSlot < 0
+                        && Minecraft189LegacySplashHealingPotion.isKnownSplashHealing(
+                                stack.customMcItemDamage())) potSlot = i;
             }
             // Explicit positive item evidence is required; empty creative
             // world and an unfulfilled /give must never emit the PASS marker.
@@ -89,22 +117,22 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                     "source scan was not enabled through persisted settings");
             verifyRod(host, rodSlot);
             verifyPotion(host, potSlot);
-            phase = 2;
+            phase = 3;
             report("CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_SOURCE_SELECTION_PASS=YES");
             return;
         }
-        if (phase == 2) {
+        if (phase == 3) {
             if (!gui) return;
             assertTrue(host.selectAutoRodSlot() == -1
                     && host.selectAutoPotSlot() == -1,
                     "physical ClickGUI should veto both genuine source item leases");
             assertTrue(inventory.customMcSelectedHotbarSlot() == baseline,
                     "GUI veto overwrote genuine user selected currentItem");
-            phase = 3;
+            phase = 4;
             report("CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_GUI_VETO_PASS=YES");
             return;
         }
-        if (phase == 3 && !gui) {
+        if (phase == 4 && !gui) {
             final Minecraft189ItemStackAccess[] items = inventory.customMcHotbarItems();
             int rod = -1;
             int pot = -1;
@@ -113,7 +141,9 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             for (int i = 0; i < 9; i++) {
                 if (items[i] == null || items[i].customMcStackSize() < 1) continue;
                 if (rod < 0 && items[i].customMcIsFishingRod()) rod = i;
-                if (pot < 0 && items[i].customMcIsPotion()) pot = i;
+                if (pot < 0 && items[i].customMcIsPotion()
+                        && Minecraft189LegacySplashHealingPotion.isKnownSplashHealing(
+                                items[i].customMcItemDamage())) pot = i;
             }
             assertTrue(rod >= 0 && pot >= 0, "original source items vanished before GUI-close");
             verifyRod(host, rod);
@@ -124,7 +154,7 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                     "normal native module controller disable failed");
             assertTrue(inventory.customMcSelectedHotbarSlot() == baseline,
                     "source InventoryPlayer currentItem not restored after native disable");
-            phase = 4;
+            phase = 5;
             report("CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_GUI_CLOSE_RESTORE_PASS=YES");
         }
     }
