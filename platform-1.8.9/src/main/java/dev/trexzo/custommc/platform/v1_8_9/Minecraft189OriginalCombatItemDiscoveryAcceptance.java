@@ -45,7 +45,7 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
 
     static synchronized void observe(final Minecraft189HostRuntime host,
             final Minecraft189PlayerInventoryAccess source) {
-        if (!Boolean.getBoolean(PROPERTY) || phase == 26 || source == null
+        if (!Boolean.getBoolean(PROPERTY) || phase == 27 || source == null
                 || !host.playerMovementState().snapshot().available())
             return;
         if (!(source instanceof Minecraft189PlayerHeldItemAccess))
@@ -932,10 +932,8 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
 
         // V148 uses genuine vanilla ItemSword objects supplied by /give,
         // never a fabricated ItemStack or an attack-network shortcut.
-        // Vanilla ItemSword.getDamageVsEntity returns ORIGINAL per-item
-        // bonus 3F diamond / 2F iron, not the 7F/6F total attack damage
-        // including player base 4. These exact values were witnessed by
-        // the genuine pinned Mojang ItemSword class getter in CI.
+        // Original ItemSword.getDamageVsEntity maps 3F diamond / 2F iron;
+        // 7F/6F include the player's separate default melee base 4.
         // The runner grants an almost-broken original diamond sword FIRST,
         // then a viable original iron sword, with no fresh diamond yet.
         if (phase == 23) {
@@ -1078,6 +1076,83 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             phase = 26;
             report("CUSTOMMC_OFFICIAL_189_AUTO_WEAPON_REAL_DURABLE_TIE_PASS=YES");
             return;
+        }
+
+        // V149 — physical original vanilla /give worn and fresh fishing
+        // rods, preserving the strict earlier actual fishEntity cast/reel
+        // fixture and all genuine Survival potion/ItemSword witnesses.
+        if (phase == 26) {
+            if (gui || host.featureCatalog().autoRod().active()) return;
+            final Minecraft189ItemStackAccess[] rods =
+                    inventory.customMcHotbarItems();
+            if (rods == null || rods.length < 9) return;
+            int worn = -1;
+            int fresh = -1;
+            for (int slot = 0; slot < 9; slot++) {
+                final Minecraft189ItemStackAccess item = rods[slot];
+                if (item == null || item.customMcStackSize() <= 0
+                        || !item.customMcIsFishingRod()) continue;
+                final int max = item.customMcMaxDamage();
+                final int used = item.customMcItemDamage();
+                if (max == 64 && used == 62) worn = slot;
+                if (max == 64 && used == 0) fresh = slot;
+            }
+            if (worn < 0 || fresh < 0) return;
+            assertTrue(worn < fresh && selected != worn && selected != fresh,
+                    "real Mojang worn/fresh fishing rods are not owned hotbar slots");
+            host.featureCatalog().enableOriginalRodPotionDiscoveryAcceptance();
+            final Minecraft189AutoRodModule module =
+                    host.featureCatalog().autoRod();
+            module.autoDetectSlotSetting().set(Boolean.TRUE);
+            module.preferDurableRodSetting().set(Boolean.FALSE);
+            module.protectRodDurabilitySetting().set(Boolean.FALSE);
+            final int legacy = host.selectAutoRodSlot();
+            assertTrue(legacy == selected,
+                    "original rod legacy selection did not acquire source lease");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot() == worn
+                                && host.mayExecuteAutoRodUse(legacy),
+                        "vanilla source unfiltered worn fishing rod selection failed");
+            } finally {
+                host.restoreAutoRodSlot(legacy);
+            }
+            module.protectRodDurabilitySetting().set(Boolean.TRUE);
+            module.minimumRemainingDurabilitySetting().set(Integer.valueOf(3));
+            final int protectedToken = host.selectAutoRodSlot();
+            assertTrue(protectedToken == selected,
+                    "protected original rod could not acquire source lease");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot() == fresh
+                                && host.mayExecuteAutoRodUse(protectedToken),
+                        "genuine near-broken rod not skipped for healthy one");
+            } finally {
+                host.restoreAutoRodSlot(protectedToken);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot() == selected,
+                    "rod protection failed human currentItem restore");
+            report("CUSTOMMC_OFFICIAL_189_AUTO_ROD_NATIVE_FRAGILE_FALLBACK_PASS=YES");
+            module.autoDetectSlotSetting().set(Boolean.FALSE);
+            module.rodSlotSetting().set(Integer.valueOf(worn + 1));
+            assertTrue(host.selectAutoRodSlot() == -1
+                            && inventory.customMcSelectedHotbarSlot() == selected,
+                    "configured original nearly-broken rod must be vetoed");
+            module.autoDetectSlotSetting().set(Boolean.TRUE);
+            module.preferDurableRodSetting().set(Boolean.TRUE);
+            final int ranked = host.selectAutoRodSlot();
+            assertTrue(ranked == selected,
+                    "native V135 durability ranking failed with rod protection");
+            try {
+                assertTrue(inventory.customMcSelectedHotbarSlot() == fresh
+                                && host.mayExecuteAutoRodUse(ranked),
+                        "durability-priority reintroduced a worn native rod");
+            } finally {
+                host.restoreAutoRodSlot(ranked);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot() == selected,
+                    "original ranked native rod lease stranded human slot");
+            host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
+            phase = 27;
+            report("CUSTOMMC_OFFICIAL_189_AUTO_ROD_NATIVE_FIXED_SLOT_AND_RANK_PASS=YES");
         }
     }
 

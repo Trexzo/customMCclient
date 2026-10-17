@@ -75,6 +75,8 @@ NATIVE_TIER_REAL_SMALL = b"CUSTOMMC_OFFICIAL_189_HEALTH_TIER_REAL_SMALL_DEFICIT_
 NATIVE_TIER_REAL_LEGACY = b"CUSTOMMC_OFFICIAL_189_HEALTH_TIER_REAL_DEFAULT_STRONG_PASS=YES"
 NATIVE_WEAPON_FRAGILE = b"CUSTOMMC_OFFICIAL_189_AUTO_WEAPON_REAL_FRAGILE_DIAMOND_VETO_PASS=YES"
 NATIVE_WEAPON_FRESH_TIE = b"CUSTOMMC_OFFICIAL_189_AUTO_WEAPON_REAL_DURABLE_TIE_PASS=YES"
+NATIVE_ROD_SAFE_FALLBACK = b"CUSTOMMC_OFFICIAL_189_AUTO_ROD_NATIVE_FRAGILE_FALLBACK_PASS=YES"
+NATIVE_ROD_FIXED_RANK = b"CUSTOMMC_OFFICIAL_189_AUTO_ROD_NATIVE_FIXED_SLOT_AND_RANK_PASS=YES"
 NATIVE_REGEN_VETO = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_ACTIVE_EFFECT_DUPLICATE_VETO_PASS=YES"
 NATIVE_REGEN_INSTANT_EXEMPT = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_INSTANT_HEAL_EXEMPT_PASS=YES"
 NATIVE_REGEN_CLEARED = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_EFFECT_CLEAR_REARM_PASS=YES"
@@ -689,12 +691,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # AutoPot scheduling and Minecraft.rightClickMouse can cast.
                 send_command(process, log, window, "/effect CIProbe clear")
                 send_command(process, log, window, "/clear CIProbe potion")
-                # V148 official CI diagnosed a genuine AutoPot click with
-                # no health result because the original vanilla player
-                # subsequently DROWNED on the world-generated water spawn.
-                # Real vanilla /fill + /tp form dry, stable ground: same
-                # exact original EntityPlayer, real water-free Survival,
-                # untouched ItemPotion mechanics and strict health witness.
+                # Real vanilla dry ground before original Survival potion
+                # stage; prevents actual water-spawn drowning without
+                # fabricating source health or disabling cast verification.
                 send_command(process, log, window, "/fill -3 79 -3 3 79 3 stone")
                 send_command(process, log, window, "/fill -3 80 -3 3 84 3 air")
                 send_command(process, log, window, "/tp CIProbe 0 80 0")
@@ -751,6 +750,19 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 await_marker(process, log, NATIVE_WEAPON_FRESH_TIE, deadline,
                              "native pristine diamond wins equal true ItemSword base-damage durability tie")
                 print("CUSTOMMC_OFFICIAL_189_REAL_SWORD_DURABILITY_POLICY_X11_PASS=YES",
+                      flush=True)
+                # V149: two real original Mojang ItemFishingRod stacks,
+                # with only 2 versus 64 remaining source uses.
+                send_command(process, log, window, "/clear CIProbe")
+                xdotool("windowactivate", "--sync", window)
+                xdotool("key", "--clearmodifiers", "9")
+                send_command(process, log, window, "/give CIProbe fishing_rod 1 62")
+                send_command(process, log, window, "/give CIProbe fishing_rod 1 0")
+                await_marker(process, log, NATIVE_ROD_SAFE_FALLBACK, deadline,
+                             "real original worn fishing rod skipped for later source full rod")
+                await_marker(process, log, NATIVE_ROD_FIXED_RANK, deadline,
+                             "protected original fixed-slot rod veto and V135 durable priority")
+                print("CUSTOMMC_OFFICIAL_189_REAL_ROD_DURABILITY_PROTECTION_X11_PASS=YES",
                       flush=True)
             if native_world_camera:
                 # An already-created world can be paused by focus transition.
