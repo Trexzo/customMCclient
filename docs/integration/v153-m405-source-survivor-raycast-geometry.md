@@ -1,0 +1,19 @@
+# V153 — original 1.8.9 M405 source-UUID survivor ray geometry
+
+## Parent and directly witnessed failure
+
+This is the cumulative Draft child of V152 PR #618 at `a62e4703aca75623ba4bfe97fd6efcf85823a217`. Parent Foundation SUCCESS on both Windows and Ubuntu. The first V152 full pinned original game [run 39058698625](https://github.com/Trexzo/customMCclient/actions/runs/39058698625), attempt 1, **FAILED** in the preexisting M405 three-original-client rejoin native-controller-B checkpoint after about 50 successful steps. This is a distinct test from V152's manual M425 room fixture, which was not reached in that failing original run. A same-source rerun of original V152 was requested to establish reproducibility.
+
+Real original-Minecraft failure trace, *not synthetic evidence*: after A genuinely disconnected, the source owner retained B UUID in original loaded entity index 1, detected B alive and at horizontal `sqrt(8) ≈ 2.828` blocks, with yaw `-45.0°`, pitch `0.0°`, B native geometry available and source AABB vertical overlapping original player eye height. Nevertheless `realPlayerHit=false`, `realHitUuid=null` persisted for the bounded 3-client phase. Since the actual `Minecraft.objectMouseOver` never selected B, no native attack/click or source server damage was permitted; the strict verifier correctly failed. This is an **intermittent original 1.8.9 client fixture/geometry witness** until evidence proves otherwise, not proof that UUID ownership sent the wrong player.
+
+## Actual fixture change
+
+Only `actual_server_three_client_rejoin_fixture` in `scripts/RunMojang189LocalhostTwoPlayerSmoke.py` now derives an independent B teleport position from the real original server login: A remains 2 blocks directly forward; B is at x-offset one original block and the same z-depth as A, giving **actual server horizontal sqrt(5) ≈ 2.236 blocks**, both within original vanilla ray distance and with non-overlapping 0.6-block player AABBs. B is still farther than A and off-axis; the original renderer must still calculate a genuine rotation and directly ray-hit B after A disconnect. This narrows the ray intersection distance in the exact failing M405 scenario instead of widening original ray tolerance or bypassing it. The separate true simultaneous/two-player and PvP fixtures are untouched.
+
+The server must *actually* teleport the genuine players, exactly as before. No source client positions, raycast results, UUIDs, attack targets, packets or server scoreboard values are synthesized or written by the test. The existing mandatory source gates stay identical: A genuinely leaves; B lock and index are original; native actual mouse-over selects correct B UUID; original controller attackEntity argument is exact B; true B hurt and server taken scoreboard increase while A remains unchanged; rejoined original A UUID is validated after a new JVM and source entity order changes with sentinels. No positive acceptance markers added or inferred.
+
+Unit tests in `scripts/test_mojang189_server_spawn.py` now cover both positive and negative original logged spawn chunks; ensure source A distance exactly 2, B distance exactly sqrt(5), B < 3, distinct A/B physical player hitboxes, same original loaded chunk for B and host and only server-derived teleport commands. These are only offline Python tests and never gameplay evidence.
+
+## Required verification
+
+Require exact-head V153 Foundation Windows+Ubuntu and full pinned original 1.8.9 GUI/dedicated-server preflight, including inherited new M425 physically grounded room, original V151 potion/rod use gates, and M405 genuine UUID damage, then repeat the unchanged V153 full game SHA to assess intermittent behavior. All PRs remain Draft, `main` unchanged. Do not report V152 or V153 original binary certified until GitHub completes their respective exact-head native runs.
