@@ -73,6 +73,8 @@ NATIVE_TIER_REAL_BOTH = b"CUSTOMMC_OFFICIAL_189_HEALTH_TIER_TWO_REAL_POTIONS_REA
 NATIVE_TIER_REAL_LARGE = b"CUSTOMMC_OFFICIAL_189_HEALTH_TIER_REAL_LARGE_DEFICIT_STRONG_PASS=YES"
 NATIVE_TIER_REAL_SMALL = b"CUSTOMMC_OFFICIAL_189_HEALTH_TIER_REAL_SMALL_DEFICIT_WEAK_PASS=YES"
 NATIVE_TIER_REAL_LEGACY = b"CUSTOMMC_OFFICIAL_189_HEALTH_TIER_REAL_DEFAULT_STRONG_PASS=YES"
+NATIVE_WEAPON_FRAGILE = b"CUSTOMMC_OFFICIAL_189_AUTO_WEAPON_REAL_FRAGILE_DIAMOND_VETO_PASS=YES"
+NATIVE_WEAPON_FRESH_TIE = b"CUSTOMMC_OFFICIAL_189_AUTO_WEAPON_REAL_DURABLE_TIE_PASS=YES"
 NATIVE_REGEN_VETO = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_ACTIVE_EFFECT_DUPLICATE_VETO_PASS=YES"
 NATIVE_REGEN_INSTANT_EXEMPT = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_INSTANT_HEAL_EXEMPT_PASS=YES"
 NATIVE_REGEN_CLEARED = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_EFFECT_CLEAR_REARM_PASS=YES"
@@ -687,6 +689,15 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # AutoPot scheduling and Minecraft.rightClickMouse can cast.
                 send_command(process, log, window, "/effect CIProbe clear")
                 send_command(process, log, window, "/clear CIProbe potion")
+                # V148 official CI diagnosed a genuine AutoPot click with
+                # no health result because the original vanilla player
+                # subsequently DROWNED on the world-generated water spawn.
+                # Real vanilla /fill + /tp form dry, stable ground: same
+                # exact original EntityPlayer, real water-free Survival,
+                # untouched ItemPotion mechanics and strict health witness.
+                send_command(process, log, window, "/fill -3 79 -3 3 79 3 stone")
+                send_command(process, log, window, "/fill -3 80 -3 3 84 3 air")
+                send_command(process, log, window, "/tp CIProbe 0 80 0")
                 send_command(process, log, window, "/gamemode survival CIProbe")
                 xdotool("windowactivate", "--sync", window)
                 xdotool("key", "--clearmodifiers", "9")
@@ -725,6 +736,21 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 await_marker(process, log, NATIVE_TIER_REAL_LEGACY, deadline,
                              "same source player defaults to stronger II when conservation off")
                 print("CUSTOMMC_OFFICIAL_189_REAL_SURVIVAL_HEALTH_TIER_RANK_PASS=YES",
+                      flush=True)
+                # V148: genuine original vanilla source ItemSword durability.
+                # Three actual in-world /give commands; no mocked Java
+                # source sword objects and no combat packet fabricated.
+                send_command(process, log, window, "/clear CIProbe")
+                xdotool("windowactivate", "--sync", window)
+                xdotool("key", "--clearmodifiers", "9")
+                send_command(process, log, window, "/give CIProbe diamond_sword 1 1558")
+                send_command(process, log, window, "/give CIProbe iron_sword 1 10")
+                await_marker(process, log, NATIVE_WEAPON_FRAGILE, deadline,
+                             "original worn diamond sword is rejected in favor of durable genuine iron sword")
+                send_command(process, log, window, "/give CIProbe diamond_sword 1 0")
+                await_marker(process, log, NATIVE_WEAPON_FRESH_TIE, deadline,
+                             "native pristine diamond wins equal true ItemSword base-damage durability tie")
+                print("CUSTOMMC_OFFICIAL_189_REAL_SWORD_DURABILITY_POLICY_X11_PASS=YES",
                       flush=True)
             if native_world_camera:
                 # An already-created world can be paused by focus transition.

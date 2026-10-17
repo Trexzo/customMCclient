@@ -36,6 +36,49 @@ final class Minecraft189AutoWeaponModuleTest {
         assertEquals(-1, m.select(i, true, false));
     }
 
+
+    @Test void genuineSourceDurabilityAvoidsNearBrokenStrongestSword() {
+        final Minecraft189AutoWeaponModule m = new Minecraft189AutoWeaponModule();
+        final Inventory i = new Inventory();
+        i.selected = 0;
+        final Item diamond = new Item(true, 7F, 1);
+        diamond.maxDurability = 1561;
+        diamond.usedDurability = 1558; // three uses left
+        final Item iron = new Item(true, 6F, 1);
+        iron.maxDurability = 250;
+        iron.usedDurability = 12;
+        i.items[2] = diamond;
+        i.items[6] = iron;
+        m.onEnable();
+        try {
+            assertEquals(0, m.select(i, true, false));
+            assertEquals(2, i.selected, "default remains strongest original sword");
+            m.restore(i, 0);
+            m.ignoreFragileSwordsSetting().set(Boolean.TRUE);
+            assertEquals(0, m.select(i, true, false));
+            assertEquals(6, i.selected,
+                    "original almost-broken diamond sword must be skipped");
+            assertTrue(m.ownsVerifiedSwordAtDispatch(i, 0));
+            m.restore(i, 0);
+            m.minRemainingDurabilitySetting().set(12);
+            assertEquals(0, m.select(i, true, false));
+            assertEquals(6, i.selected);
+            iron.usedDurability = 247;
+            assertFalse(m.ownsVerifiedSwordAtDispatch(i, 0),
+                    "source native iron sword now has under 12 durability");
+            m.restore(i, 0);
+            assertEquals(0, i.selected);
+            assertEquals(-1, m.select(i, true, false),
+                    "no verified durable sword must not create hotbar lease");
+            assertEquals(0, i.selected);
+            m.minRemainingDurabilitySetting().set(1);
+            assertEquals(0, m.select(i, true, false));
+            assertEquals(2, i.selected,
+                    "relaxed threshold may use genuine source 3-use diamond");
+            m.restore(i, 0);
+        } finally { m.onDisable(); }
+    }
+
     @Test void currentSwordWinsTieAndNoKnownSwordMakesNoChange() {
         final Minecraft189AutoWeaponModule m = new Minecraft189AutoWeaponModule();
         final Inventory i = new Inventory();
@@ -64,6 +107,85 @@ final class Minecraft189AutoWeaponModuleTest {
         i.selected = -1;
         assertEquals(-1, m.select(i, true, false));
         m.onDisable();
+    }
+
+
+
+    @Test void sourceSetterAndGuiChangesCannotAuthorizeNewlyFragileSword() {
+        final Minecraft189AutoWeaponModule m = new Minecraft189AutoWeaponModule();
+        final ReentrantInventory inventory = new ReentrantInventory();
+        inventory.selected = 0;
+        final Item chosen = new Item(true, 8F, 1);
+        chosen.maxDurability = 1561;
+        chosen.usedDurability = 30;
+        inventory.items[4] = chosen;
+        m.onEnable();
+        try {
+            m.ignoreFragileSwordsSetting().set(Boolean.TRUE);
+            m.minRemainingDurabilitySetting().set(Integer.valueOf(8));
+            inventory.afterSetter = () -> chosen.usedDurability = 1559;
+            assertEquals(-1, m.select(inventory, true, false),
+                    "native setter reducing source sword below eight uses revokes lease");
+            assertEquals(0, inventory.selected,
+                    "a stale native sword cannot retain user's hotbar");
+            assertEquals(-1, m.select(inventory, true, false),
+                    "without source durability available, do not select broken sword");
+            chosen.usedDurability = 90;
+            assertEquals(0, m.select(inventory, true, false));
+            assertEquals(4, inventory.selected);
+            m.minRemainingDurabilitySetting().set(Integer.valueOf(90));
+            assertFalse(m.ownsVerifiedSwordAtDispatch(inventory, 0),
+                    "new GUI threshold must not inherit old source sword lease");
+            m.restore(inventory, 0);
+            assertEquals(0, inventory.selected);
+            m.minRemainingDurabilitySetting().set(Integer.valueOf(8));
+            assertEquals(0, m.select(inventory, true, false));
+            m.ignoreFragileSwordsSetting().set(Boolean.FALSE);
+            assertFalse(m.ownsVerifiedSwordAtDispatch(inventory, 0),
+                    "source opt-out during attack must not bypass captured rules");
+            m.restore(inventory, 0);
+            assertEquals(0, inventory.selected);
+        } finally {
+            m.onDisable();
+        }
+    }
+
+    @Test void nativeEqualDamageChoosesDurableTiesOnlyWhenEnabled() {
+        final Minecraft189AutoWeaponModule m = new Minecraft189AutoWeaponModule();
+        final Inventory i = new Inventory();
+        i.selected = 3;
+        final Item worn = new Item(true, 7F, 1);
+        worn.maxDurability = 1561;
+        worn.usedDurability = 1557;
+        final Item fresh = new Item(true, 7F, 1);
+        fresh.maxDurability = 1561;
+        fresh.usedDurability = 0;
+        i.items[3] = worn;
+        i.items[7] = fresh;
+        m.onEnable();
+        try {
+            assertEquals(-1, m.select(i, true, false),
+                    "legacy tied same-damage held source sword wins");
+            m.preferDurableTiesSetting().set(Boolean.TRUE);
+            assertEquals(3, m.select(i, true, false));
+            assertEquals(7, i.selected,
+                    "fresh native source sword beats worn same-base-damage held");
+            assertTrue(m.ownsVerifiedSwordAtDispatch(i, 3));
+            m.preferDurableTiesSetting().set(Boolean.FALSE);
+            assertFalse(m.ownsVerifiedSwordAtDispatch(i, 3),
+                    "settings changed during attack must revoke lease");
+            m.restore(i, 3);
+            assertEquals(3, i.selected);
+            m.preferDurableTiesSetting().set(Boolean.TRUE);
+            worn.usedDurability = 0;
+            assertEquals(-1, m.select(i, true, false),
+                    "tied original durability still favors human-held sword");
+            worn.maxDurability = 0;
+            assertEquals(3, m.select(i, true, false),
+                    "invalid original durability excludes suspect sword");
+            assertEquals(7, i.selected);
+            m.restore(i, 3);
+        } finally { m.onDisable(); }
     }
 
     @Test void restoreOffAndOtherSlotModulesRemainSeparate() {
@@ -158,6 +280,19 @@ final class Minecraft189AutoWeaponModuleTest {
             f.module().restoreAfterAttackSetting().set(false);
             assertEquals("false", settings.snapshotEncoded().get(
                     Minecraft189AutoWeaponModule.RESTORE));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoWeaponModule.IGNORE_FRAGILE_SWORDS));
+            f.module().ignoreFragileSwordsSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoWeaponModule.IGNORE_FRAGILE_SWORDS));
+            assertEquals("8", settings.snapshotEncoded().get(
+                    Minecraft189AutoWeaponModule.MIN_REMAINING_DURABILITY));
+            f.module().minRemainingDurabilitySetting().set(Integer.valueOf(5));
+            assertEquals("5", settings.snapshotEncoded().get(
+                    Minecraft189AutoWeaponModule.MIN_REMAINING_DURABILITY));
+            f.module().preferDurableTiesSetting().set(Boolean.TRUE);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoWeaponModule.PREFER_DURABLE_TIES));
             controller.enable(Minecraft189AutoWeaponModule.ID);
         } finally {
             f.close();
@@ -360,6 +495,8 @@ final class Minecraft189AutoWeaponModuleTest {
         final float damage;
         final int count;
         final Object originalNativeItem;
+        int maxDurability;
+        int usedDurability;
         Item(boolean sword, float damage, int count) {
             this(sword, damage, count, null);
         }
@@ -371,8 +508,8 @@ final class Minecraft189AutoWeaponModuleTest {
         }
         @Override public String customMcDisplayName() { return "unnamed"; }
         @Override public int customMcStackSize() { return count; }
-        @Override public int customMcItemDamage() { return 0; }
-        @Override public int customMcMaxDamage() { return 0; }
+        @Override public int customMcItemDamage() { return usedDurability; }
+        @Override public int customMcMaxDamage() { return maxDurability; }
         @Override public boolean customMcIsSword() { return sword; }
         @Override public Object customMcOriginalItemIdentity() {
             return originalNativeItem;

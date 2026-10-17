@@ -1752,6 +1752,31 @@ public final class Minecraft189FeatureCatalog
             throw new IllegalStateException("original source combat module disable failed");
     }
 
+    /** Genuine source ItemSword hotbar admission; no synthetic attack. */
+    void enableOriginalAutoWeaponDurabilityAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean(
+                "custommc.acceptance.requireNativeRodPotionDiscovery")
+                || moduleController.stateOf(Minecraft189AutoWeaponModule.ID)
+                        != ModuleState.DISABLED)
+            throw new IllegalStateException("original sword fixture not armed");
+        moduleController.enable(Minecraft189AutoWeaponModule.ID);
+        if (!autoWeapon().active())
+            throw new IllegalStateException("source AutoWeapon did not enable");
+    }
+
+    void disableOriginalAutoWeaponDurabilityAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean(
+                "custommc.acceptance.requireNativeRodPotionDiscovery")
+                || moduleController.stateOf(Minecraft189AutoWeaponModule.ID)
+                        != ModuleState.ENABLED)
+            throw new IllegalStateException("original sword fixture disable not armed");
+        moduleController.disable(Minecraft189AutoWeaponModule.ID);
+        if (autoWeapon().active())
+            throw new IllegalStateException("native sword module still active");
+    }
+
     void enableCombatSlotForOriginalGuiAcceptance(final int targetOneBased) {
         requireOpen();
         if (!Boolean.getBoolean(
