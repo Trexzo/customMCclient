@@ -53,6 +53,10 @@ final class Minecraft189AutoPotFeature implements AutoCloseable {
                     "Avoid Duplicate Regeneration",
                     SettingValueKind.BOOLEAN, 8, null);
             f.bind(moduleSettings, settings, settingPresentations,
+                    f.module.aimDownForSplashSetting(),
+                    "Aim Down for Splash",
+                    SettingValueKind.BOOLEAN, 9, null);
+            f.bind(moduleSettings, settings, settingPresentations,
                     f.module.healthThresholdSetting(), "Health Threshold (%)",
                     SettingValueKind.DOUBLE, 10, new SettingNumericSpec(1, 99, 1));
             f.bind(moduleSettings, settings, settingPresentations,

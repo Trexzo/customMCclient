@@ -132,6 +132,11 @@ final class Minecraft189AutoPotModuleTest {
             f.module().avoidActiveRegenerationSetting().set(true);
             assertEquals("true", settings.snapshotEncoded().get(
                     Minecraft189AutoPotModule.AVOID_ACTIVE_REGENERATION));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoPotModule.AIM_DOWN_FOR_SPLASH));
+            f.module().aimDownForSplashSetting().set(true);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoPotModule.AIM_DOWN_FOR_SPLASH));
             f.module().preferImmediateHealingSetting().set(true);
             assertEquals("true", settings.snapshotEncoded().get(
                     Minecraft189AutoPotModule.PREFER_IMMEDIATE_HEALING));

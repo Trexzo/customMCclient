@@ -17,6 +17,8 @@ public final class Minecraft189AutoPotModule implements Module {
     public static final String HEALTH_THRESHOLD = ID + ".healthPercent";
     public static final String AVOID_ACTIVE_REGENERATION =
             ID + ".avoidActiveRegeneration";
+    public static final String AIM_DOWN_FOR_SPLASH =
+            ID + ".aimDownForSplash";
     public static final String COOLDOWN_TICKS = ID + ".cooldownTicks";
     public static final String REQUIRE_TARGET = ID + ".requireCombatTarget";
     private final Setting<Integer> potSlot = new Setting<Integer>(
@@ -36,6 +38,10 @@ public final class Minecraft189AutoPotModule implements Module {
     // Default off: preserve legacy potion use even with an active effect.
     private final Setting<Boolean> avoidActiveRegeneration = new Setting<Boolean>(
             AVOID_ACTIVE_REGENERATION, Boolean.FALSE, v -> v != null,
+            SettingCodecs.BOOLEAN);
+    // Opt-in only: existing native right-click pitch remains default.
+    private final Setting<Boolean> aimDownForSplash = new Setting<Boolean>(
+            AIM_DOWN_FOR_SPLASH, Boolean.FALSE, v -> v != null,
             SettingCodecs.BOOLEAN);
     private final Setting<Integer> cooldown = new Setting<Integer>(
             COOLDOWN_TICKS, 120, x -> x != null && x >= 1 && x <= 1200,
@@ -64,6 +70,9 @@ public final class Minecraft189AutoPotModule implements Module {
     }
     public Setting<Boolean> avoidActiveRegenerationSetting() {
         return avoidActiveRegeneration;
+    }
+    public Setting<Boolean> aimDownForSplashSetting() {
+        return aimDownForSplash;
     }
     public Setting<Boolean> requireCombatTargetSetting() { return requireTarget; }
     synchronized boolean active() { return enabled; }

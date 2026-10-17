@@ -1741,6 +1741,38 @@ public final class Minecraft189HostRuntime
                         tickHeldItemAccess, originalSlot);
     }
 
+    /**
+     * The verified native potion owns currentItem first. Opt-in pitch
+     * adjustment is subordinate to the SAME real local player lease, not
+     * a cached look vector or target-player rotation.
+     */
+    Minecraft189AutoPotPitchLease beginAutoPotDownwardPitch(
+            final int originalSlot) {
+        requireOpen();
+        if (!featureCatalog.autoPot().aimDownForSplashSetting().get())
+            return null; // Legacy native orientation unchanged.
+        if (!mayExecuteAutoPotUse(originalSlot))
+            return Minecraft189AutoPotPitchLease.begin(null);
+        return Minecraft189AutoPotPitchLease.begin(
+                tickHotbarPlayer instanceof Minecraft189PlayerRotationControl
+                        ? (Minecraft189PlayerRotationControl) tickHotbarPlayer
+                        : null);
+    }
+
+    boolean mayExecuteAutoPotAtPitch(
+            final Minecraft189AutoPotPitchLease lease,
+            final int originalSlot) {
+        requireOpen();
+        if (!mayExecuteAutoPotUse(originalSlot)) return false;
+        if (lease == null)
+            return !featureCatalog.autoPot().aimDownForSplashSetting().get();
+        return featureCatalog.autoPot().aimDownForSplashSetting().get()
+                && tickHotbarPlayer instanceof Minecraft189PlayerRotationControl
+                && lease.mayThrow(
+                        (Minecraft189PlayerRotationControl) tickHotbarPlayer)
+                && mayExecuteAutoPotUse(originalSlot);
+    }
+
     void restoreAutoPotSlot(final int originalSlot) {
         requireOpen();
         if (autoPotLeaseInventory == null || originalSlot < 0
