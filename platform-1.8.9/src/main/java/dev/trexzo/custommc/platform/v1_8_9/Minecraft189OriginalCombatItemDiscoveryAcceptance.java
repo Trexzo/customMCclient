@@ -26,6 +26,7 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
     private static Minecraft189ItemStackAccess syntheticHealSourceItem;
     private static float syntheticHealHealthBefore = Float.NaN;
     private static float syntheticHealExpectedMax = Float.NaN;
+    private static boolean syntheticHealPreClickWitness;
     private static int syntheticHealUseCallbacks;
     private static int syntheticHealRecoveredCallbacks;
 
@@ -759,25 +760,39 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
     }
 
     /**
-     * Called only by the production original right-click executor after
-     * successful Minecraft.rightClickMouse() return, never a fixture
-     * manually invoking right-click or injecting packets.
+     * Source witness immediately before the actual production
+     * Minecraft.rightClickMouse callback while original ItemPotion is still
+     * held. A consumed Survival ItemStack cannot be checked after clicking.
      */
-    static synchronized void observeNativeAutoPotUse(
+    static synchronized void beforeNativeAutoPotUse(
             final Minecraft189HostRuntime host,
             final int priorSelectedSlot) {
         if (!Boolean.getBoolean(PROPERTY) || phase != 18) return;
-        assertTrue(host.featureCatalog().autoPot().active()
-                        && priorSelectedSlot >= 0 && priorSelectedSlot <= 8,
-                "unarmed native AutoPot original source use");
-        assertTrue(host.mayExecuteAutoPotUse(priorSelectedSlot),
-                "original AutoPot used revoked potion source slot");
+        assertTrue(!syntheticHealPreClickWitness
+                        && host.featureCatalog().autoPot().active()
+                        && priorSelectedSlot >= 0 && priorSelectedSlot <= 8
+                        && host.mayExecuteAutoPotUse(priorSelectedSlot),
+                "unowned original potion at real AutoPot dispatch");
         final Minecraft189PlayerHealthState.Snapshot health =
                 host.playerHealthState().snapshot();
         assertTrue(health.available() && health.health() > 0F
                         && health.health() <= syntheticHealHealthBefore
                         && health.maxHealth() == syntheticHealExpectedMax,
                 "native AutoPot dispatch not at original hurt player health");
+        syntheticHealPreClickWitness = true;
+    }
+
+    /**
+     * Called only after the actual original Minecraft.rightClickMouse()
+     * returns successfully from the production AutoPot executor. The
+     * real player's later health increase is a separate mandatory witness.
+     */
+    static synchronized void afterNativeAutoPotUse(
+            final Minecraft189HostRuntime host) {
+        if (!Boolean.getBoolean(PROPERTY) || phase != 18) return;
+        assertTrue(syntheticHealPreClickWitness
+                        && host.featureCatalog().autoPot().active(),
+                "native AutoPot callback was not preceded by source owner proof");
         assertTrue(++syntheticHealUseCallbacks == 1,
                 "original user got multiple AutoPot synthetic use attempts");
         phase = 19;
