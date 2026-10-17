@@ -1743,6 +1743,14 @@ public final class Minecraft189HostRuntime
         featureCatalog.autoPot().commitUseAttempt();
     }
 
+    private boolean mayCastWithoutReelingActiveHook() {
+        if (!featureCatalog.autoRod().preserveActiveHookSetting().get())
+            return true;
+        return tickHotbarPlayer instanceof Minecraft189PlayerFishingHookAccess
+                && !((Minecraft189PlayerFishingHookAccess) tickHotbarPlayer)
+                        .customMcHasFishingHook();
+    }
+
     boolean shouldAutoRod(final boolean confirmedPlayer,
             final int verifiedPlayerIndex) {
         requireOpen();
