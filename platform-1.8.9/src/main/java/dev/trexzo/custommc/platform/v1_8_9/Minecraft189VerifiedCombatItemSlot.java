@@ -61,6 +61,85 @@ final class Minecraft189VerifiedCombatItemSlot {
                 ? bestSlot : -1;
     }
 
+    /**
+     * Opt-in conservation scans only actually usable original rods. Legacy
+     * held-first and V135 strongest-durability priorities remain separate.
+     */
+    private static int discoverProtectedRod(
+            final Minecraft189InventoryHotbarControl inventory,
+            final int minimumRemaining, final boolean preferMostDurable) {
+        if (!(inventory instanceof Minecraft189InventoryHotbarItemsAccess))
+            return -1;
+        final Minecraft189InventoryHotbarItemsAccess hotbar =
+                (Minecraft189InventoryHotbarItemsAccess) inventory;
+        final int original = inventory.customMcSelectedHotbarSlot();
+        if (original < 0 || original >= 9) return -1;
+        if (preferMostDurable) {
+            int chosen = -1;
+            int best = -1;
+            for (int slot = 0; slot < 9; slot++) {
+                if (inventory.customMcSelectedHotbarSlot() != original)
+                    return -1;
+                final int remaining = verifiedRodRemainingDurability(
+                        hotbar, original, slot);
+                if (remaining < minimumRemaining) continue;
+                if (remaining > best
+                        || (remaining == best && slot == original)) {
+                    best = remaining;
+                    chosen = slot;
+                }
+            }
+            return chosen >= 0 && inventory.customMcSelectedHotbarSlot()
+                    == original
+                    && verifiedRodRemainingDurability(
+                            hotbar, original, chosen) >= minimumRemaining
+                    ? chosen : -1;
+        }
+        // Original held-first, then lowest real hotbar index among viable rods.
+        final int held = verifiedRodRemainingDurability(hotbar, original, original);
+        if (held >= minimumRemaining) return original;
+        for (int slot = 0; slot < 9; slot++) {
+            if (inventory.customMcSelectedHotbarSlot() != original)
+                return -1;
+            if (slot != original
+                    && verifiedRodRemainingDurability(
+                            hotbar, original, slot) >= minimumRemaining
+                    && verifiedRodRemainingDurability(
+                            hotbar, original, slot) >= minimumRemaining)
+                return slot;
+        }
+        return -1;
+    }
+
+    private static boolean stableProtectedRodSourceItem(
+            final Minecraft189InventoryHotbarControl inventory,
+            final Minecraft189PlayerHeldItemAccess player,
+            final Minecraft189ItemStackAccess rod,
+            final int minimumRemaining) {
+        if (!stableRodSourceItem(inventory, player, rod)) return false;
+        final int maximum = rod.customMcMaxDamage();
+        final int damage = rod.customMcItemDamage();
+        if (maximum <= 0 || damage < 0 || damage >= maximum
+                || maximum - damage < minimumRemaining
+                || !stillSelectedSourceStack(inventory, player, rod))
+            return false;
+        if (rod.customMcMaxDamage() != maximum
+                || rod.customMcItemDamage() != damage
+                || !stableRodSourceItem(inventory, player, rod))
+            return false;
+        // Even the *second* native getter or source array membership
+        // check can run a reentrant callback that wears the same ItemStack.
+        // Verify actual remaining uses AFTER those getters, not only from
+        // the original pre-callback snapshot.
+        final int finalMax = rod.customMcMaxDamage();
+        final int finalDamage = rod.customMcItemDamage();
+        return finalMax == maximum && finalDamage == damage
+                && finalMax > 0 && finalDamage >= 0
+                && finalDamage < finalMax
+                && finalMax - finalDamage >= minimumRemaining
+                && stillSelectedSourceStack(inventory, player, rod);
+    }
+
     /** Unknown, depleted, displaced or reentrant-mutation candidates fail. */
     private static int verifiedRodRemainingDurability(
             final Minecraft189InventoryHotbarItemsAccess inventory,
@@ -336,7 +415,10 @@ final class Minecraft189VerifiedCombatItemSlot {
                 || original < 0 || !module.ownsSelectedSlot(inventory, original))
             return false;
         final Minecraft189ItemStackAccess item = player.customMcHeldItem();
-        return stableRodSourceItem(inventory, player, item)
+        return (module.protectRodDurabilitySetting().get().booleanValue()
+                    ? stableProtectedRodSourceItem(inventory, player, item,
+                            module.minimumRemainingDurabilitySetting().get())
+                    : stableRodSourceItem(inventory, player, item))
                 && module.ownsSelectedSlot(inventory, original);
     }
 
@@ -356,9 +438,16 @@ final class Minecraft189VerifiedCombatItemSlot {
     static int selectRod(final Minecraft189AutoRodModule module,
             final Minecraft189InventoryHotbarControl inventory,
             final Minecraft189PlayerHeldItemAccess player) {
+        final boolean protecting =
+                module.protectRodDurabilitySetting().get().booleanValue();
+        final int minimum =
+                module.minimumRemainingDurabilitySetting().get().intValue();
         final int candidate = module.autoDetectSlotSetting().get().booleanValue()
-                ? discover(inventory, true, false,
-                        module.preferDurableRodSetting().get().booleanValue())
+                ? (protecting
+                        ? discoverProtectedRod(inventory, minimum,
+                                module.preferDurableRodSetting().get())
+                        : discover(inventory, true, false,
+                                module.preferDurableRodSetting().get()))
                 : module.rodSlotSetting().get().intValue() - 1;
         final int original = module.selectSlot(inventory, candidate);
         if (original < 0) return -1;
@@ -367,7 +456,10 @@ final class Minecraft189VerifiedCombatItemSlot {
             final Minecraft189ItemStackAccess selected = player == null
                     ? null : player.customMcHeldItem();
             matches = module.ownsSelectedSlot(inventory, original)
-                    && stableRodSourceItem(inventory, player, selected)
+                    && (protecting
+                            ? stableProtectedRodSourceItem(
+                                    inventory, player, selected, minimum)
+                            : stableRodSourceItem(inventory, player, selected))
                     && module.ownsSelectedSlot(inventory, original);
             return matches ? original : -1;
         } finally {

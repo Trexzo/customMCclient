@@ -13,6 +13,8 @@ public final class Minecraft189AutoRodModule implements Module {
     public static final String ROD_SLOT = ID + ".rodSlot";
     public static final String AUTO_DETECT_SLOT = ID + ".autoDetectSlot";
     public static final String PREFER_DURABLE_ROD = ID + ".preferDurableRod";
+    public static final String PROTECT_ROD_DURABILITY = ID + ".protectRodDurability";
+    public static final String MIN_REMAINING_DURABILITY = ID + ".minRemainingDurability";
     public static final String PRESERVE_ACTIVE_HOOK = ID + ".preserveActiveHook";
     public static final String COOLDOWN_TICKS = ID + ".cooldownTicks";
     public static final String REQUIRE_HOLD = ID + ".requireAttackHeld";
@@ -28,6 +30,14 @@ public final class Minecraft189AutoRodModule implements Module {
             PREFER_DURABLE_ROD, Boolean.FALSE, v -> v != null,
             SettingCodecs.BOOLEAN);
     // Off by default to preserve prior original source cast/reel behavior.
+    // Off by default; no change to legacy source rod choice.
+    private final Setting<Boolean> protectRodDurability = new Setting<Boolean>(
+            PROTECT_ROD_DURABILITY, Boolean.FALSE, v -> v != null,
+            SettingCodecs.BOOLEAN);
+    private final Setting<Integer> minimumRemainingDurability =
+            new Setting<Integer>(MIN_REMAINING_DURABILITY, Integer.valueOf(3),
+                    v -> v != null && v >= 1 && v <= 64,
+                    SettingCodecs.INTEGER);
     private final Setting<Boolean> preserveActiveHook = new Setting<Boolean>(
             PRESERVE_ACTIVE_HOOK, Boolean.FALSE, v -> v != null,
             SettingCodecs.BOOLEAN);
@@ -56,6 +66,12 @@ public final class Minecraft189AutoRodModule implements Module {
     public Setting<Integer> cooldownTicksSetting() { return cooldown; }
     public Setting<Boolean> autoDetectSlotSetting() { return autoDetectSlot; }
     public Setting<Boolean> preferDurableRodSetting() { return preferDurableRod; }
+    public Setting<Boolean> protectRodDurabilitySetting() {
+        return protectRodDurability;
+    }
+    public Setting<Integer> minimumRemainingDurabilitySetting() {
+        return minimumRemainingDurability;
+    }
     public Setting<Boolean> preserveActiveHookSetting() { return preserveActiveHook; }
     public Setting<Boolean> requireHoldSetting() { return requireHold; }
     public Setting<Boolean> pauseRightSetting() { return pauseRight; }
@@ -99,6 +115,8 @@ public final class Minecraft189AutoRodModule implements Module {
     private Minecraft189InventoryHotbarControl selectedInventory;
     private int selectedSlot = -1;
     private int previousSlot = -1;
+    private boolean capturedRodProtection;
+    private int capturedRodMinimum;
 
     synchronized int selectSlot(final Minecraft189InventoryHotbarControl inventory) {
         return selectSlot(inventory, rodSlot.get().intValue() - 1);
@@ -116,6 +134,8 @@ public final class Minecraft189AutoRodModule implements Module {
         selectedInventory = inventory;
         selectedSlot = target;
         previousSlot = original;
+        capturedRodProtection = protectRodDurability.get().booleanValue();
+        capturedRodMinimum = minimumRemainingDurability.get().intValue();
         try {
             inventory.customMcSetSelectedHotbarSlot(target);
             // An original setter may silently ignore the request,
@@ -148,6 +168,8 @@ public final class Minecraft189AutoRodModule implements Module {
             final Minecraft189InventoryHotbarControl inventory,
             final int original) {
         return enabled && inventory != null && inventory == selectedInventory
+                && capturedRodProtection == protectRodDurability.get()
+                && capturedRodMinimum == minimumRemainingDurability.get()
                 && original == previousSlot && selectedSlot >= 0
                 && inventory.customMcSelectedHotbarSlot() == selectedSlot;
     }
@@ -168,6 +190,8 @@ public final class Minecraft189AutoRodModule implements Module {
             selectedInventory = null;
             selectedSlot = -1;
             previousSlot = -1;
+            capturedRodProtection = false;
+            capturedRodMinimum = 0;
         }
     }
 }

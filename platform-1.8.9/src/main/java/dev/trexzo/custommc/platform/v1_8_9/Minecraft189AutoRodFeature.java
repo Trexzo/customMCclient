@@ -49,6 +49,13 @@ final class Minecraft189AutoRodFeature implements AutoCloseable {
                     f.module.preferDurableRodSetting(), "Prefer Durable Rod",
                     SettingValueKind.BOOLEAN, 7, null);
             f.bind(moduleSettings, settings, settingPresentations,
+                    f.module.protectRodDurabilitySetting(),
+                    "Protect Rod Durability", SettingValueKind.BOOLEAN, 9, null);
+            f.bind(moduleSettings, settings, settingPresentations,
+                    f.module.minimumRemainingDurabilitySetting(),
+                    "Minimum Rod Durability", SettingValueKind.INTEGER, 9,
+                    new SettingNumericSpec(1, 64, 1));
+            f.bind(moduleSettings, settings, settingPresentations,
                     f.module.preserveActiveHookSetting(), "Preserve Active Fishing Hook",
                     SettingValueKind.BOOLEAN, 8, null);
             f.bind(moduleSettings, settings, settingPresentations,

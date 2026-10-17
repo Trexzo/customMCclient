@@ -838,6 +838,111 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         } finally { rod.onDisable(); }
     }
 
+    @Test void nativeRodProtectionSkipsFragileHeldRodAndUsesHealthyAlternative() {
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Inventory inv = new Inventory();
+        final Player player = new Player(inv);
+        inv.selected = 4;
+        final FakeItem worn = new FakeItem(true, false);
+        worn.damage = 62; // only 2 uses left of original 64
+        final FakeItem fresh = new FakeItem(true, false);
+        inv.items[4] = worn;
+        inv.items[7] = fresh;
+        rod.onEnable();
+        try {
+            rod.autoDetectSlotSetting().set(true);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inv, player));
+            assertEquals(4, inv.selected,
+                    "legacy original held-first choice stays unchanged");
+            rod.restoreSlot(inv, 4);
+            rod.protectRodDurabilitySetting().set(true);
+            rod.minimumRemainingDurabilitySetting().set(3);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inv, player));
+            assertEquals(7, inv.selected,
+                    "protect mode must skip nearly broken held rod");
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inv, player, 4));
+            fresh.damageReads = 0;
+            fresh.mutateAfterDamageReadNumber = 3;
+            fresh.afterNthDamageRead = () -> fresh.damage = 63;
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inv, player, 4),
+                    "third original source damage getter reentrantly wears the"
+                    + " same ItemStack immediately before synthetic use");
+            fresh.mutateAfterDamageReadNumber = 0;
+            fresh.damage = 62;
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inv, player, 4),
+                    "source rod must be revalidated just before actual rightclick");
+            rod.restoreSlot(inv, 4);
+            assertEquals(4, inv.selected);
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inv, player),
+                    "no usable original rod must not steal source hotbar");
+            assertEquals(4, inv.selected);
+
+            fresh.damage = 0;
+            rod.autoDetectSlotSetting().set(false);
+            rod.rodSlotSetting().set(5); // configured worn, not fresh
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inv, player),
+                    "configured original fragile rod is also vetoed");
+            assertEquals(4, inv.selected);
+            rod.autoDetectSlotSetting().set(true);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inv, player));
+            assertEquals(7, inv.selected);
+            rod.minimumRemainingDurabilitySetting().set(5);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inv, player, 4),
+                    "GUI threshold changed during native lease revokes use");
+            rod.restoreSlot(inv, 4);
+            assertEquals(4, inv.selected);
+        } finally { rod.onDisable(); }
+    }
+
+    @Test void protectedRodRankingKeepsV135DurablePreferenceWithoutUnknownMetadata() {
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Inventory inv = new Inventory();
+        final Player player = new Player(inv);
+        inv.selected = 4;
+        final FakeItem worn = new FakeItem(true, false);
+        worn.damage = 60; // 4 left
+        final FakeItem sturdy = new FakeItem(true, false);
+        sturdy.damage = 10; // 54 left
+        inv.items[2] = worn;
+        inv.items[7] = sturdy;
+        rod.onEnable();
+        try {
+            rod.autoDetectSlotSetting().set(true);
+            rod.protectRodDurabilitySetting().set(true);
+            rod.minimumRemainingDurabilitySetting().set(3);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inv, player));
+            assertEquals(2, inv.selected, "default eligible lowest-slot wins");
+            rod.restoreSlot(inv, 4);
+            rod.preferDurableRodSetting().set(true);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inv, player));
+            assertEquals(7, inv.selected,
+                    "existing V135 strongest remaining durability wins");
+            rod.restoreSlot(inv, 4);
+            sturdy.afterMaxDamageRead = () -> sturdy.maxDamage = 0;
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inv, player));
+            assertEquals(2, inv.selected,
+                    "invalid source metadata cannot win guarded durable scan");
+            rod.restoreSlot(inv, 4);
+            rod.minimumRemainingDurabilitySetting().set(5);
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inv, player),
+                    "every source rod beneath minimum must fail closed");
+            assertEquals(4, inv.selected);
+        } finally { rod.onDisable(); }
+    }
+
     private static final class Inventory implements Minecraft189InventoryHotbarItemsAccess {
         int selected;
         boolean ignoreNextSet;
@@ -885,6 +990,9 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         Runnable afterPotionTypeRead;
         Runnable afterDamageRead;
         Runnable afterMaxDamageRead;
+        Runnable afterNthDamageRead;
+        int damageReads;
+        int mutateAfterDamageReadNumber;
         int damage;
         int maxDamage;
         FakeItem(final boolean rod, final boolean potion) {
@@ -903,6 +1011,12 @@ final class Minecraft189VerifiedCombatItemSlotTest {
             final Runnable callback = afterDamageRead;
             afterDamageRead = null;
             if (callback != null) callback.run();
+            damageReads++;
+            if (mutateAfterDamageReadNumber == damageReads) {
+                final Runnable nth = afterNthDamageRead;
+                afterNthDamageRead = null;
+                if (nth != null) nth.run();
+            }
             return damage;
         }
         @Override public int customMcMaxDamage() {

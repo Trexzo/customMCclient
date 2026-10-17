@@ -121,6 +121,20 @@ final class Minecraft189AutoRodModuleTest {
                 new ModuleSettingRegistry(modules, settings),
                 settings, new SettingPresentationRegistry());
         try {
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoRodModule.PROTECT_ROD_DURABILITY));
+            assertEquals("3", settings.snapshotEncoded().get(
+                    Minecraft189AutoRodModule.MIN_REMAINING_DURABILITY));
+            feature.module().protectRodDurabilitySetting().set(Boolean.TRUE);
+            feature.module().minimumRemainingDurabilitySetting().set(5);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoRodModule.PROTECT_ROD_DURABILITY));
+            assertEquals("5", settings.snapshotEncoded().get(
+                    Minecraft189AutoRodModule.MIN_REMAINING_DURABILITY));
+            assertThrows(IllegalArgumentException.class,
+                    () -> feature.module().minimumRemainingDurabilitySetting().set(0));
+            assertThrows(IllegalArgumentException.class,
+                    () -> feature.module().minimumRemainingDurabilitySetting().set(65));
             feature.module().rodSlotSetting().set(9);
             assertEquals("false", settings.snapshotEncoded().get(
                     Minecraft189AutoRodModule.PREFER_DURABLE_ROD));
