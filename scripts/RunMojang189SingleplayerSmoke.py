@@ -6,6 +6,7 @@ and CustomMC's opt-in live world tick checkpoint. Never connects to a server,
 supplies online credentials, or claims entity attacks/hits.
 """
 import argparse
+import re
 import os
 from pathlib import Path
 import subprocess
@@ -254,7 +255,10 @@ def send_verified_fill(process, log, window, command):
             raise AssertionError(
                 "vanilla refused the dry chamber /fill; original "
                 "Survival health acceptance cannot proceed safely")
-        if b"Successfully filled " in fresh:
+        # Genuine Mojang 1.8.9 replies "729 blocks filled" rather
+        # than the newer-version "Successfully filled 729 blocks".
+        # Require source chat, a POSITIVE numeric count and fresh bytes.
+        if re.search(rb"\\[CHAT\\] [1-9][0-9]* blocks filled", fresh):
             return
         time.sleep(0.2)
     raise AssertionError(
