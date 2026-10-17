@@ -2401,9 +2401,20 @@ public final class Minecraft189RuntimeBridge {
                         // callback: it may change the real selected slot,
                         // held stack or ClickGUI focus. Re-verify the exact
                         // inventory lease before *any* synthetic right click.
-                        if (host.mayExecuteAutoPotUse(originalPotionSlot)) {
-                            minecraft.customMcRightClickMouse();
-                            host.commitAutoPotUseAttempt();
+                        // The optional downward-aim lease is taken only
+                        // AFTER original AutoBlock release and native source
+                        // potion revalidation. The same live EntityPlayer
+                        // pitch must remain ours at actual right-click.
+                        final Minecraft189AutoPotPitchLease aim =
+                                host.beginAutoPotDownwardPitch(originalPotionSlot);
+                        try {
+                            if (host.mayExecuteAutoPotAtPitch(
+                                    aim, originalPotionSlot)) {
+                                minecraft.customMcRightClickMouse();
+                                host.commitAutoPotUseAttempt();
+                            }
+                        } finally {
+                            if (aim != null) aim.restore();
                         }
                     } finally {
                         host.restoreAutoPotSlot(originalPotionSlot);
