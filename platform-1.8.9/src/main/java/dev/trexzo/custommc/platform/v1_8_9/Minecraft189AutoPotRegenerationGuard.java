@@ -38,6 +38,22 @@ final class Minecraft189AutoPotRegenerationGuard {
 
     static boolean mayUse(final Minecraft189InventoryHotbarControl inventory,
             final Minecraft189PlayerInventoryAccess sourcePlayer) {
+        if (inventory == null) return false;
+        final int selected = inventory.customMcSelectedHotbarSlot();
+        return maySelectAtSlot(inventory, sourcePlayer, selected, selected);
+    }
+
+    /**
+     * Read-only candidate probe for optional Auto Detect Potion Slot.
+     * No setter or temporary hotbar selection: verify that a genuine source
+     * ItemStack at 'candidateSlot' is useful for the player's CURRENT effect,
+     * while guarding the original selected currentItem through every getter.
+     * The normal setter and final-use gate are still mandatory afterwards.
+     */
+    static boolean maySelectAtSlot(
+            final Minecraft189InventoryHotbarControl inventory,
+            final Minecraft189PlayerInventoryAccess sourcePlayer,
+            final int candidateSlot, final int originalSelectedSlot) {
         if (!(inventory instanceof Minecraft189InventoryHotbarItemsAccess)
                 || !(sourcePlayer instanceof Minecraft189PlayerPotionEffectsAccess)
                 || sourcePlayer.customMcInventory() != inventory)
@@ -45,8 +61,11 @@ final class Minecraft189AutoPotRegenerationGuard {
 
         final Minecraft189InventoryHotbarItemsAccess sourceInventory =
                 (Minecraft189InventoryHotbarItemsAccess) inventory;
-        final int slot = sourceInventory.customMcSelectedHotbarSlot();
-        if (slot < 0 || slot >= 9) return false;
+        final int slot = candidateSlot;
+        if (slot < 0 || slot >= 9
+                || originalSelectedSlot < 0 || originalSelectedSlot >= 9
+                || sourceInventory.customMcSelectedHotbarSlot()
+                        != originalSelectedSlot) return false;
         final Minecraft189ItemStackAccess[] first =
                 sourceInventory.customMcHotbarItems();
         if (first == null || first.length < 9) return false;
@@ -63,19 +82,19 @@ final class Minecraft189AutoPotRegenerationGuard {
         // slow regeneration is active, so it must remain eligible.
         if (!isRegenerationSplash(damage))
             return sameLiveItem(sourceInventory, sourcePlayer, slot,
-                    item, damage);
+                    originalSelectedSlot, item, damage);
 
         final Minecraft189PlayerPotionEffectsAccess nativeEffects =
                 (Minecraft189PlayerPotionEffectsAccess) sourcePlayer;
         if (duplicatesRegeneration(nativeEffects.customMcPotionEffects(), damage)
                 || !sameLiveItem(sourceInventory, sourcePlayer, slot,
-                        item, damage))
+                        originalSelectedSlot, item, damage))
             return false;
         // Callbacks reading source inventory may install a new effect.
         // Revalidate the actual live player's active effects before use.
         return !duplicatesRegeneration(nativeEffects.customMcPotionEffects(), damage)
                 && sameLiveItem(sourceInventory, sourcePlayer, slot,
-                        item, damage);
+                        originalSelectedSlot, item, damage);
     }
 
     /**
@@ -107,19 +126,30 @@ final class Minecraft189AutoPotRegenerationGuard {
     private static boolean sameLiveItem(
             final Minecraft189InventoryHotbarItemsAccess inventory,
             final Minecraft189PlayerInventoryAccess player,
-            final int slot, final Minecraft189ItemStackAccess item,
-            final int damage) {
+            final int slot, final int originalSelectedSlot,
+            final Minecraft189ItemStackAccess item, final int damage) {
         final Minecraft189ItemStackAccess[] now =
                 inventory.customMcHotbarItems();
         return now != null && now.length >= 9
                 && player.customMcInventory() == inventory
-                && inventory.customMcSelectedHotbarSlot() == slot
+                && inventory.customMcSelectedHotbarSlot() == originalSelectedSlot
                 && now[slot] == item
                 && item.customMcIsPotion() && item.customMcStackSize() > 0
                 && item.customMcItemDamage() == damage
-                && inventory.customMcSelectedHotbarSlot() == slot
-                && inventory.customMcHotbarItems() != null
-                && inventory.customMcHotbarItems().length >= 9
-                && inventory.customMcHotbarItems()[slot] == item;
+                && inventory.customMcSelectedHotbarSlot() == originalSelectedSlot
+                && stableNativeSlot(inventory, originalSelectedSlot, slot,
+                        item);
+    }
+
+    private static boolean stableNativeSlot(
+            final Minecraft189InventoryHotbarItemsAccess inventory,
+            final int originalSelectedSlot, final int candidateSlot,
+            final Minecraft189ItemStackAccess originalItem) {
+        final Minecraft189ItemStackAccess[] finalItems =
+                inventory.customMcHotbarItems();
+        return finalItems != null && finalItems.length >= 9
+                && finalItems[candidateSlot] == originalItem
+                && inventory.customMcSelectedHotbarSlot()
+                        == originalSelectedSlot;
     }
 }
