@@ -154,6 +154,38 @@ final class Minecraft189AutoPotModuleTest {
         assertNull(settings.find(Minecraft189AutoPotModule.HEALTH_THRESHOLD));
     }
 
+    @Test void allPotionUseSettingsRevokeOldLeaseButAllowOwnedRestoration() {
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        final Inventory inventory = new Inventory();
+        inventory.slot = 4;
+        pot.onEnable();
+        try {
+            final Runnable[] changes = {
+                () -> pot.potSlotSetting().set(4),
+                () -> pot.autoDetectSlotSetting().set(true),
+                () -> pot.preferImmediateHealingSetting().set(true),
+                () -> pot.conserveInstantHealingIISetting().set(true),
+                () -> pot.avoidActiveRegenerationSetting().set(true),
+                () -> pot.aimDownForSplashSetting().set(true),
+                () -> pot.healthThresholdSetting().set(25.0D),
+                () -> pot.requireCombatTargetSetting().set(true),
+                () -> pot.cooldownTicksSetting().set(140)
+            };
+            for (final Runnable change : changes) {
+                assertEquals(4, pot.selectSlot(inventory));
+                assertTrue(pot.ownsSelectedSlot(inventory, 4));
+                change.run();
+                assertFalse(pot.ownsSelectedSlot(inventory, 4),
+                        "changed source healing policy must revoke stale right click");
+                pot.restoreSlot(inventory, 4);
+                assertEquals(4, inventory.slot);
+            }
+            assertEquals(4, pot.selectSlot(inventory));
+            assertTrue(pot.ownsSelectedSlot(inventory, 4));
+            pot.restoreSlot(inventory, 4);
+        } finally { pot.onDisable(); }
+    }
+
     private static final class ThrowingInventory
             implements Minecraft189InventoryHotbarControl {
         private int slot;
