@@ -52,6 +52,7 @@ COMBATSLOT_WRONG_TOKEN = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_WRONG_TOKEN_V
 COMBATSLOT_MELEE_OWNER = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_MELEE_DISPATCH_OWNER_PASS=YES"
 COMBATSLOT_DISABLED = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_DISABLE_ORIGINAL_PASS=YES"
 NATIVE_ITEMS_ARMED = b"CUSTOMMC_189_NATIVE_ROD_POTION_SOURCE_MODULES_ARMED=YES"
+NATIVE_ITEMS_NONHEALING = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_NONHEALING_VETO_PASS=YES"
 NATIVE_ITEMS_SELECTED = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_SOURCE_SELECTION_PASS=YES"
 NATIVE_ITEMS_GUI_OPEN = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_GUI_VETO_PASS=YES"
 NATIVE_ITEMS_GUI_CLOSE = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_GUI_CLOSE_RESTORE_PASS=YES"
@@ -535,7 +536,10 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # Actual 1.8.9 /give commands on a real creative integrated
                 # server; no fabricated Java ItemStack or injected packet.
                 send_command(process, log, window, "/give CIProbe fishing_rod 1")
-                send_command(process, log, window, "/give CIProbe potion 1")
+                send_command(process, log, window, "/give CIProbe potion 1 0")
+                await_marker(process, log, NATIVE_ITEMS_NONHEALING, deadline,
+                             "actual Mojang source water ItemPotion cannot authorize AutoPot")
+                send_command(process, log, window, "/give CIProbe potion 1 16389")
                 await_marker(process, log, NATIVE_ITEMS_SELECTED, deadline,
                              "real transformed ItemFishingRod/ItemPotion discovery and owner-safe restore")
                 xdotool("windowactivate", "--sync", window)
