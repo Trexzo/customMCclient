@@ -209,6 +209,38 @@ def send_command(process, log, window, command):
 
 
 
+def send_verified_original_chat_reply(process, log, window, command,
+                                      expected):
+    """Fail closed on a FRESH original integrated-server chat confirmation.
+
+    GUI open/close and a successfully typed X11 command alone never prove
+    a teleport or a genuine Minecraft entity spawn happened. This helper
+    provides no gameplay shortcuts, synthetic entities or bypassed hit gates.
+    """
+    if not expected or not expected.startswith(b"[CHAT] "):
+        raise ValueError("require an exact original-client chat witness")
+    cursor = log.stat().st_size if log.exists() else 0
+    send_command(process, log, window, command)
+    deadline = time.monotonic() + 8
+    while time.monotonic() < deadline:
+        require_running(process, "original manual melee native fixture")
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read()
+        if (b"[CHAT] Unknown command" in fresh
+                or b"[CHAT] Unable to summon object" in fresh
+                or b"[CHAT] No entity was found" in fresh):
+            raise AssertionError(
+                "genuine original command rejected manual melee fixture: "
+                + command.split(" ", 1)[0])
+        if expected in fresh:
+            return
+        time.sleep(0.2)
+    raise AssertionError(
+        "missing new source integrated-server reply for manual melee "
+        + command.split(" ", 1)[0])
+
+
 def send_verified_chunk_teleport(process, log, window):
     """Teleport the real vanilla player to LOAD the fixture chunk first.
 
@@ -1154,17 +1186,57 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # Offline integrated-server commands only. No external server
                 # join, forged damage or direct entity edits.
                 send_command(process, log, window, "/time set 1000")
-                # Deterministic platform and clear LOS. Random normal-world
-                # spawns otherwise leave a no-AI pig falling into a ravine,
-                # causing intermittent loss of the 20-tick raycast gate.
-                # Both are genuine local integrated-server vanilla commands.
-                send_command(process, log, window,
-                             "/fill ~-3 ~-1 ~-3 ~3 ~-1 ~5 stone")
-                send_command(process, log, window,
-                             "/fill ~-2 ~ ~1 ~2 ~2 ~4 air")
-                send_command(process, log, window, "/tp ~ ~ ~ 0 26")
-                send_command(process, log, window,
-                             "/summon Pig ~ ~ ~2 {NoAI:1b}")
+                if attack:
+                    # V152: the SAME unchanged V150 commit passed genuine
+                    # M425 vanilla melee in full run #1, but its identical
+                    # second run missed native raycast before any legal hit.
+                    # One reproducible cause to isolate is /fill relative to
+                    # a random spawn/chunk or falling source mob. Construct
+                    # a real closed, in-chunk room BEFORE summoning or X11
+                    # clicking, with independently acknowledged commands.
+                    # Do not infer Pig ray-hit or attack success from these
+                    # acknowledgments: the existing ORIGINAL native armed,
+                    # hurt and UUID-ownership markers remain mandatory.
+                    # Load source chunk (0,0) while the player is safely
+                    # ABOVE the future room. First construct a genuine small
+                    # stone support at y=119. Then teleport and keep source
+                    # player standing on it while building the sealed room
+                    # y=99..104 below; no freefall or temporary suffocation.
+                    send_verified_original_chat_reply(
+                        process, log, window,
+                        "/tp CIProbe 8 200 8",
+                        b"[CHAT] Teleported CIProbe to 8.5, 200.0, 8.5")
+                    send_verified_fill(process, log, window,
+                                       "/fill 8 119 8 8 119 8 stone")
+                    send_verified_original_chat_reply(
+                        process, log, window,
+                        "/tp CIProbe 8 120 8",
+                        b"[CHAT] Teleported CIProbe to 8.5, 120.0, 8.5")
+                    time.sleep(1.0)  # source chunk and support are loaded
+                    send_verified_fill(process, log, window,
+                                       "/fill 4 99 4 12 104 13 stone")
+                    send_verified_fill(process, log, window,
+                                       "/fill 5 100 5 11 103 12 air")
+                    send_verified_original_chat_reply(
+                        process, log, window,
+                        "/tp CIProbe 8 100 8 0 26",
+                        b"[CHAT] Teleported CIProbe to 8.5, 100.0, 8.5")
+                    send_verified_original_chat_reply(
+                        process, log, window,
+                        "/summon Pig 8.5 100 10.5 {NoAI:1b}",
+                        b"[CHAT] Object successfully summoned")
+                    print("CUSTOMMC_189_MANUAL_MELEE_FIXED_NATIVE_ROOM_PASS=YES",
+                          flush=True)
+                else:
+                    # The separate module-negative/AutoClicker scenarios
+                    # keep their existing geometry and native requirements.
+                    send_command(process, log, window,
+                                 "/fill ~-3 ~-1 ~-3 ~3 ~-1 ~5 stone")
+                    send_command(process, log, window,
+                                 "/fill ~-2 ~ ~1 ~2 ~2 ~4 air")
+                    send_command(process, log, window, "/tp ~ ~ ~ 0 26")
+                    send_command(process, log, window,
+                                 "/summon Pig ~ ~ ~2 {NoAI:1b}")
                 time.sleep(1.2)
                 require_running(process, "live vanilla melee fixture")
                 if kill_aura_nonplayer:
