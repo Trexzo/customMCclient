@@ -62,6 +62,9 @@ NATIVE_REGEN_WEAKER_UPGRADE = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_WEAKER_EFFECT
 NATIVE_REGEN_AUTODETECT_HEAL = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_AUTODETECT_FALLBACK_HEAL_PASS=YES"
 NATIVE_REGEN_AUTODETECT_RANK = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_AUTODETECT_RANK_COMPOSE_PASS=YES"
 NATIVE_AUTOPOT_SOURCE_PITCH_RESTORE = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_NATIVE_DOWNWARD_PITCH_RESTORE_PASS=YES"
+NATIVE_REAL_SPLASH_SLOT_PREFIX = b"CUSTOMMC_OFFICIAL_189_REAL_SPLASH_SOURCE_SLOT="
+NATIVE_REAL_SPLASH_READY = b"CUSTOMMC_OFFICIAL_189_REAL_SPLASH_PHYSICAL_CAST_READY_PASS=YES"
+NATIVE_REAL_SPLASH_EFFECT = b"CUSTOMMC_OFFICIAL_189_REAL_SPLASH_REGEN_IMPACT_SOURCE_EFFECT_PASS=YES"
 NATIVE_REGEN_VETO = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_ACTIVE_EFFECT_DUPLICATE_VETO_PASS=YES"
 NATIVE_REGEN_INSTANT_EXEMPT = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_INSTANT_HEAL_EXEMPT_PASS=YES"
 NATIVE_REGEN_CLEARED = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_EFFECT_CLEAR_REARM_PASS=YES"
@@ -635,6 +638,41 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 print("CUSTOMMC_OFFICIAL_189_NATIVE_REGEN_AUTO_DISCOVERY_ALTERNATIVE_X11_PASS=YES",
                       flush=True)
                 print("CUSTOMMC_OFFICIAL_189_REAL_AUTOPOT_DOWNWARD_PITCH_SOURCE_PASS=YES",
+                      flush=True)
+                # V144: real vanilla player physically throws a fresh source
+                # splash Regeneration I at own feet. This phase explicitly
+                # contains NO /effect command: a new original player
+                # Regeneration 10 effect must originate from the thrown
+                # vanilla potion instead of fixture-supplied effects.
+                send_command(process, log, window, "/effect CIProbe clear")
+                send_command(process, log, window, "/clear CIProbe potion")
+                send_command(process, log, window, "/give CIProbe potion 1 16449")
+                await_marker(process, log, NATIVE_REAL_SPLASH_SLOT_PREFIX, deadline,
+                             "genuine new extended Regeneration splash source slot handoff")
+                physical_splash_slots = [
+                    line.split(NATIVE_REAL_SPLASH_SLOT_PREFIX, 1)[1].strip()
+                    for line in read_tail(log).splitlines()
+                    if NATIVE_REAL_SPLASH_SLOT_PREFIX in line
+                ]
+                if len(physical_splash_slots) != 1 or physical_splash_slots[0] not in (
+                        b"1", b"2", b"3", b"4", b"5",
+                        b"6", b"7", b"8", b"9"):
+                    raise AssertionError(
+                        "original splash source slot missing or ambiguous")
+                xdotool("windowactivate", "--sync", window)
+                xdotool("mousemove", "--window", window, 427, 240)
+                xdotool("key", "--clearmodifiers",
+                        physical_splash_slots[0].decode("ascii"))
+                await_marker(process, log, NATIVE_REAL_SPLASH_READY, deadline,
+                             "real original splash potion and 85-degree physical pitch armed with no native effect")
+                # Cursor already centered BEFORE the source pitch lease
+                # was installed. Moving it after native +85 could count as
+                # real mouse aim movement and revoke the cast evidence.
+                # Physical vanilla right-click creates EntityPotion.
+                xdotool("click", "--window", window, "3")
+                await_marker(process, log, NATIVE_REAL_SPLASH_EFFECT, deadline,
+                             "vanilla projectile splash generated NEW original local Regeneration without /effect")
+                print("CUSTOMMC_OFFICIAL_189_REAL_VANILLA_SPLASH_IMPACT_PASS=YES",
                       flush=True)
             if native_world_camera:
                 # An already-created world can be paused by focus transition.
