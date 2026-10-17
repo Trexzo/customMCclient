@@ -489,6 +489,15 @@ public final class Minecraft189Mappings {
                     "Lwm;",
                     "field_71071_by",
                     "inventory");
+    // Pinned 1.8.9 EntityPlayer.fishEntity, original public EntityFishHook
+    // owner. SRG field_71104_cf: do not infer from rod animation/state.
+    public static final MappedField ENTITY_PLAYER_FISH_ENTITY =
+            new MappedField(
+                    ENTITY_PLAYER,
+                    "bG",
+                    "Lur;",
+                    "field_71104_cf",
+                    "fishEntity");
     // Exact MCP 1.8.9 joined.srg: wm.a [Lzx; field_70462_a.
     public static final MappedField INVENTORY_PLAYER_MAIN_INVENTORY =
             new MappedField(INVENTORY_PLAYER, "a", "[Lzx;",
