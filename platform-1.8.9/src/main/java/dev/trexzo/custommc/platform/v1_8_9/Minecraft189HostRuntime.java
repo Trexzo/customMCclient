@@ -62,6 +62,10 @@ public final class Minecraft189HostRuntime
     private boolean pendingKeepSprintForward;
     private boolean pendingKeepSprintRequireHit;
     private boolean pendingKeepSprintPauseSneak;
+    private long pendingKeepSprintLifecycleEpoch;
+    // Admission serial forbids a nested source callback from minting or
+    // resurrecting an older approval in the same original click stack.
+    private long keepSprintAdmissionSerial;
     private Minecraft189InventoryHotbarControl tickHotbarControl;
     private Minecraft189PlayerInventoryAccess tickHotbarPlayer;
     private boolean autoWeaponOwnedClick;
@@ -540,6 +544,7 @@ public final class Minecraft189HostRuntime
         criticalsEvidence.reset();
         tickSprintControl = null;
         pendingKeepSprintSource = null;
+        keepSprintAdmissionSerial++;
         tickHotbarControl = null;
         tickHotbarPlayer = null;
         tickHeldItemAccess = null;
@@ -748,7 +753,10 @@ public final class Minecraft189HostRuntime
         requireOpen();
         // A source player replacement (including null/world unload)
         // cannot inherit the prior automatic-click sprint restoration.
-        if (tickSprintControl != player) pendingKeepSprintSource = null;
+        if (tickSprintControl != player) {
+            pendingKeepSprintSource = null;
+            keepSprintAdmissionSerial++;
+        }
         tickSprintControl = player;
         if (player == null) {
             featureCatalog.wTap()
@@ -2070,6 +2078,9 @@ public final class Minecraft189HostRuntime
         // A rejected click must never leave permission for a later
         // unrelated source click or a new local player.
         pendingKeepSprintSource = null;
+        final long admission = ++keepSprintAdmissionSerial;
+        final Minecraft189KeepSprintModule module = featureCatalog.keepSprint();
+        final long lifetime = module.lifecycleEpoch();
         final Minecraft189PlayerSprintControl current = tickSprintControl;
         if (!(current instanceof Minecraft189PlayerMovementStateAccess)) {
             return false;
@@ -2080,14 +2091,21 @@ public final class Minecraft189HostRuntime
                 new Minecraft189PlayerMovementState();
         measured.update(state.customMcOnGround(), state.customMcSneaking(),
                 state.customMcSprinting());
-        final Minecraft189KeepSprintModule module = featureCatalog.keepSprint();
         final boolean admitted = module.shouldRestore(
                 measured.snapshot(), state.customMcSprinting(),
                 inputState.keyPressed(LegacyKeyboardCodes.W), playerHit,
                 featureCatalog.wTap().active(),
                 clickGuiRuntime.coreRuntime().model().snapshot().open());
+        if (admission != keepSprintAdmissionSerial
+                || module.lifecycleEpoch() != lifetime) {
+            // A nested original callback (or module disable/re-enable)
+            // invalidates BOTH approvals; no older frame may resurrect it.
+            pendingKeepSprintSource = null;
+            return false;
+        }
         if (admitted && tickSprintControl == current) {
             pendingKeepSprintSource = current;
+            pendingKeepSprintLifecycleEpoch = lifetime;
             pendingKeepSprintPlayerHit = playerHit;
             pendingKeepSprintForward =
                     module.requireForwardSetting().get().booleanValue();
@@ -2096,7 +2114,9 @@ public final class Minecraft189HostRuntime
             pendingKeepSprintPauseSneak =
                     module.pauseWhileSneakingSetting().get().booleanValue();
         }
-        return admitted && pendingKeepSprintSource == current;
+        return admitted && pendingKeepSprintSource == current
+                && pendingKeepSprintLifecycleEpoch == module.lifecycleEpoch()
+                && admission == keepSprintAdmissionSerial;
     }
 
     void restoreSprintAfterSyntheticClick() {
@@ -2110,6 +2130,11 @@ public final class Minecraft189HostRuntime
             return;
         }
         final Minecraft189KeepSprintModule module = featureCatalog.keepSprint();
+        if (pendingKeepSprintLifecycleEpoch != module.lifecycleEpoch()) {
+            // Even immediate OFF->ON with identical persisted policy is a
+            // distinct lifecycle and cannot adopt an in-flight click grant.
+            return;
+        }
         if (pendingKeepSprintForward
                     != module.requireForwardSetting().get().booleanValue()
                 || pendingKeepSprintRequireHit
@@ -2438,6 +2463,7 @@ public final class Minecraft189HostRuntime
         criticalsEvidence.reset();
         tickSprintControl = null;
         pendingKeepSprintSource = null;
+        keepSprintAdmissionSerial++;
         tickHotbarControl = null;
         tickHotbarPlayer = null;
         tickHeldItemAccess = null;

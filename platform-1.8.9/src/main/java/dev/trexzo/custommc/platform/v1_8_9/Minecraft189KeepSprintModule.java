@@ -21,10 +21,20 @@ public final class Minecraft189KeepSprintModule implements Module {
     private final Setting<Boolean> pauseSneak = new Setting<Boolean>(
             PAUSE_SNEAK, Boolean.TRUE, v -> v != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // Increment even when an enable/disable sequence ends at the original
+    // enabled value. The old native click cannot inherit a NEW lifecycle.
+    private long lifecycleEpoch;
 
     @Override public String id() { return ID; }
-    @Override public synchronized void onEnable() { enabled = true; }
-    @Override public synchronized void onDisable() { enabled = false; }
+    @Override public synchronized void onEnable() {
+        lifecycleEpoch++;
+        enabled = true;
+    }
+    @Override public synchronized void onDisable() {
+        lifecycleEpoch++;
+        enabled = false;
+    }
+    synchronized long lifecycleEpoch() { return lifecycleEpoch; }
     public Setting<Boolean> requireForwardSetting() { return forward; }
     public Setting<Boolean> requirePlayerHitSetting() { return playerHit; }
     public Setting<Boolean> pauseWhileSneakingSetting() { return pauseSneak; }

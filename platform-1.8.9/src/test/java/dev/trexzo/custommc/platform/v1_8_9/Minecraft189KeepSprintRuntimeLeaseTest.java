@@ -116,6 +116,72 @@ final class Minecraft189KeepSprintRuntimeLeaseTest {
         }
     }
 
+    @Test void disableReenableSameSourceSettingsCannotAdoptPreviousClickLease() {
+        try (final Fixture fixture = new Fixture()) {
+            final Player source = fixture.player();
+            fixture.controller.enable(Minecraft189KeepSprintModule.ID);
+            assertTrue(fixture.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            fixture.controller.disable(Minecraft189KeepSprintModule.ID);
+            fixture.controller.enable(Minecraft189KeepSprintModule.ID);
+            source.sprinting = false;
+            fixture.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(0, source.setCalls,
+                    "new enabled module lifecycle cannot inherit old click");
+            source.sprinting = true;
+            assertTrue(fixture.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            source.sprinting = false;
+            fixture.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(1, source.setCalls,
+                    "fresh admission in new module lifecycle is allowed");
+        }
+    }
+
+    @Test void nestedSourceAdmissionMustNotResurrectOuterClickPermission() {
+        try (final Fixture fixture = new Fixture()) {
+            final Player source = fixture.player();
+            fixture.controller.enable(Minecraft189KeepSprintModule.ID);
+            source.onRead = () -> {
+                source.onRead = null;
+                assertTrue(fixture.runtime.shouldKeepSprintAfterSyntheticClick(true),
+                        "reentrant native source can independently evaluate");
+            };
+            assertFalse(fixture.runtime.shouldKeepSprintAfterSyntheticClick(true),
+                    "older admission must fail when source getter reenters");
+            source.sprinting = false;
+            fixture.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(0, source.setCalls,
+                    "nested approval is also revoked when outer frame is stale");
+            source.sprinting = true;
+            assertTrue(fixture.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            source.sprinting = false;
+            fixture.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(1, source.setCalls,
+                    "fresh independent original click re-authorizes");
+        }
+    }
+
+    @Test void nativeSourceLifecycleChangesDuringApprovalNeverMintGrant() {
+        try (final Fixture fixture = new Fixture()) {
+            final Player source = fixture.player();
+            fixture.controller.enable(Minecraft189KeepSprintModule.ID);
+            source.onRead = () -> {
+                source.onRead = null;
+                fixture.controller.disable(Minecraft189KeepSprintModule.ID);
+                fixture.controller.enable(Minecraft189KeepSprintModule.ID);
+            };
+            assertFalse(fixture.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            source.sprinting = false;
+            fixture.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(0, source.setCalls,
+                    "module was reset mid-check, even if end state enabled");
+            source.sprinting = true;
+            assertTrue(fixture.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            source.sprinting = false;
+            fixture.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(1, source.setCalls);
+        }
+    }
+
     @Test void nativeSprintSetterReentryAndExceptionCannotReplayOldGrant() {
         try (final Fixture fixture = new Fixture()) {
             final Player source = fixture.player();
@@ -149,9 +215,13 @@ final class Minecraft189KeepSprintRuntimeLeaseTest {
         private boolean sprinting = true;
         private int setCalls;
         private Runnable onSet;
+        private Runnable onRead;
         @Override public boolean customMcOnGround() { return onGround; }
         @Override public boolean customMcSneaking() { return sneaking; }
-        @Override public boolean customMcSprinting() { return sprinting; }
+        @Override public boolean customMcSprinting() {
+            if (onRead != null) onRead.run();
+            return sprinting;
+        }
         @Override public void customMcSetSprinting(boolean value) {
             setCalls++;
             sprinting = value;
