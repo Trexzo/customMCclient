@@ -1812,6 +1812,7 @@ public final class Minecraft189HostRuntime
     boolean mayExecuteAutoRodUse(final int originalSlot) {
         requireOpen();
         return !clickGuiRuntime.coreRuntime().model().snapshot().open()
+                && mayCastWithoutReelingActiveHook()
                 && sameLocalHotbarAndHeldItemOwner()
                 && autoRodLeaseInventory != null
                 && tickHotbarControl == autoRodLeaseInventory
