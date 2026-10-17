@@ -29,6 +29,50 @@ final class Minecraft189AutoPotRegenerationGuardTest {
         }
     }
 
+
+    @Test void strongerOriginalRegenTwoCanUpgradeWeakerRegenerationOne() {
+        final Inventory inv = new Inventory();
+        final Player owner = new Player(inv);
+        inv.selected = 3;
+        final Item candidate = new Item(16417);
+        inv.items[3] = candidate;
+        owner.effects = new Minecraft189PotionEffectAccess[]{
+                new Effect(10, 220, 0)};
+        assertEquals(1, Minecraft189AutoPotRegenerationGuard
+                .sourceRegenerationAmplifier(16417));
+        assertEquals(0, Minecraft189AutoPotRegenerationGuard
+                .sourceRegenerationAmplifier(16385));
+        assertEquals(0, Minecraft189AutoPotRegenerationGuard
+                .sourceRegenerationAmplifier(16449));
+        assertEquals(-1, Minecraft189AutoPotRegenerationGuard
+                .sourceRegenerationAmplifier(16421));
+        assertTrue(Minecraft189AutoPotRegenerationGuard.mayUse(inv, owner),
+                "original source Regeneration II upgrades active weaker Regen I");
+        candidate.damage = 16385;
+        assertFalse(Minecraft189AutoPotRegenerationGuard.mayUse(inv, owner),
+                "Regeneration I duplicated into active Regen I should be vetoed");
+        candidate.damage = 16449;
+        assertFalse(Minecraft189AutoPotRegenerationGuard.mayUse(inv, owner),
+                "extended Regeneration I must also be vetoed");
+        candidate.damage = 16417;
+        owner.effects = new Minecraft189PotionEffectAccess[]{
+                new Effect(10, 220, 1)};
+        assertFalse(Minecraft189AutoPotRegenerationGuard.mayUse(inv, owner),
+                "equal-strength native Regeneration II is redundant");
+        owner.effects = new Minecraft189PotionEffectAccess[]{
+                new Effect(10, 220, 2)};
+        assertFalse(Minecraft189AutoPotRegenerationGuard.mayUse(inv, owner),
+                "weaker incoming potion cannot overwrite stronger source effect");
+        owner.effects = new Minecraft189PotionEffectAccess[]{
+                new Effect(10, 39, 1)};
+        assertTrue(Minecraft189AutoPotRegenerationGuard.mayUse(inv, owner),
+                "an effect about to expire may be refreshed regardless of strength");
+        owner.effects = new Minecraft189PotionEffectAccess[]{
+                new Effect(10, 220, -1)};
+        assertFalse(Minecraft189AutoPotRegenerationGuard.mayUse(inv, owner),
+                "invalid original amplifier must fail closed, not pretend weaker");
+    }
+
     @Test void instantHealingStaysAvailableEvenWithLongActiveRegeneration() {
         final Inventory inv = new Inventory();
         final Player owner = new Player(inv);
@@ -125,14 +169,18 @@ final class Minecraft189AutoPotRegenerationGuardTest {
     }
 
     private static final class Effect implements Minecraft189PotionEffectAccess {
-        final int id, duration;
+        final int id, duration, amplifier;
         Effect(final int id, final int duration) {
+            this(id, duration, 1);
+        }
+        Effect(final int id, final int duration, final int amplifier) {
             this.id = id;
             this.duration = duration;
+            this.amplifier = amplifier;
         }
         @Override public int customMcPotionId() { return id; }
         @Override public int customMcDurationTicks() { return duration; }
-        @Override public int customMcAmplifier() { return 1; }
+        @Override public int customMcAmplifier() { return amplifier; }
         @Override public String customMcEffectName() { return "source.effect"; }
     }
 
