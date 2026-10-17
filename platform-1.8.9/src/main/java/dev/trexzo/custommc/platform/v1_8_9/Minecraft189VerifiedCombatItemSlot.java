@@ -9,7 +9,8 @@ final class Minecraft189VerifiedCombatItemSlot {
 
     /** Optional scan of the original InventoryPlayer.mainInventory mapping. */
     private static int discover(final Minecraft189InventoryHotbarControl control,
-            final boolean rod, final boolean prioritizeInstantHealing) {
+            final boolean rod, final boolean prioritizeInstantHealing,
+            final boolean prioritizeRodDurability) {
         if (!(control instanceof Minecraft189InventoryHotbarItemsAccess))
             return -1; // No source array: no guessed fallback.
         final Minecraft189InventoryHotbarItemsAccess inv =
@@ -20,6 +21,8 @@ final class Minecraft189VerifiedCombatItemSlot {
         // source potion metadata instead; Rod discovery stays untouched.
         if (!rod && prioritizeInstantHealing)
             return discoverHighestHealing(inv, prior);
+        if (rod && prioritizeRodDurability)
+            return discoverMostDurableRod(inv, prior);
         // Already-held matching source item wins; otherwise lowest slot.
         if (nativeCandidate(inv, prior, prior, rod)) return prior;
         for (int slot = 0; slot < 9; slot++) {
@@ -30,6 +33,65 @@ final class Minecraft189VerifiedCombatItemSlot {
         return -1;
     }
 
+
+    /**
+     * V135 source-only fishing-rod choice. Ranking is relative to real
+     * source ItemStack.getMaxDamage/getItemDamage, not display names.
+     * Equal remaining durability prefers the genuine currently-held item,
+     * then the lowest slot. No guess if metadata/owner changes mid-scan.
+     */
+    private static int discoverMostDurableRod(
+            final Minecraft189InventoryHotbarItemsAccess inventory,
+            final int original) {
+        int bestSlot = -1;
+        int mostRemaining = -1;
+        for (int slot = 0; slot < 9; slot++) {
+            if (inventory.customMcSelectedHotbarSlot() != original)
+                return -1;
+            final int remaining = verifiedRodRemainingDurability(
+                    inventory, original, slot);
+            if (remaining > mostRemaining
+                    || (remaining >= 0 && remaining == mostRemaining
+                        && slot == original)) {
+                mostRemaining = remaining;
+                bestSlot = slot;
+            }
+        }
+        return inventory.customMcSelectedHotbarSlot() == original
+                ? bestSlot : -1;
+    }
+
+    /** Unknown, depleted, displaced or reentrant-mutation candidates fail. */
+    private static int verifiedRodRemainingDurability(
+            final Minecraft189InventoryHotbarItemsAccess inventory,
+            final int original, final int slot) {
+        final Minecraft189ItemStackAccess[] first =
+                inventory.customMcHotbarItems();
+        if (first == null || first.length < 9) return -1;
+        final Minecraft189ItemStackAccess rod = first[slot];
+        if (rod == null || rod.customMcStackSize() <= 0
+                || !rod.customMcIsFishingRod()) return -1;
+        final int maximum = rod.customMcMaxDamage();
+        final int damage = rod.customMcItemDamage();
+        if (maximum <= 0 || damage < 0 || damage >= maximum
+                || !nativeCandidate(inventory, original, slot, true))
+            return -1;
+        final Minecraft189ItemStackAccess[] verified =
+                inventory.customMcHotbarItems();
+        if (verified == null || verified.length < 9
+                || verified[slot] != rod
+                || inventory.customMcSelectedHotbarSlot() != original
+                || rod.customMcMaxDamage() != maximum
+                || rod.customMcItemDamage() != damage
+                || inventory.customMcSelectedHotbarSlot() != original)
+            return -1;
+        final Minecraft189ItemStackAccess[] finalArray =
+                inventory.customMcHotbarItems();
+        return finalArray != null && finalArray.length >= 9
+                && finalArray[slot] == rod
+                && inventory.customMcSelectedHotbarSlot() == original
+                ? maximum - damage : -1;
+    }
 
     private static int discoverHighestHealing(
             final Minecraft189InventoryHotbarItemsAccess inventory,
@@ -231,7 +293,8 @@ final class Minecraft189VerifiedCombatItemSlot {
             final Minecraft189InventoryHotbarControl inventory,
             final Minecraft189PlayerHeldItemAccess player) {
         final int candidate = module.autoDetectSlotSetting().get().booleanValue()
-                ? discover(inventory, true, false)
+                ? discover(inventory, true, false,
+                        module.preferDurableRodSetting().get().booleanValue())
                 : module.rodSlotSetting().get().intValue() - 1;
         final int original = module.selectSlot(inventory, candidate);
         if (original < 0) return -1;
@@ -254,7 +317,7 @@ final class Minecraft189VerifiedCombatItemSlot {
         final int candidate = module.autoDetectSlotSetting().get().booleanValue()
                 ? discover(inventory, false,
                         module.preferImmediateHealingSetting().get()
-                                .booleanValue())
+                                .booleanValue(), false)
                 : module.potSlotSetting().get().intValue() - 1;
         final int original = module.selectSlot(inventory, candidate);
         if (original < 0) return -1;
