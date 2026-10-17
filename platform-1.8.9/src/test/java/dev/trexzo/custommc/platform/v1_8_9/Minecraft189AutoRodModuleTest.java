@@ -122,6 +122,8 @@ final class Minecraft189AutoRodModuleTest {
                 settings, new SettingPresentationRegistry());
         try {
             feature.module().rodSlotSetting().set(9);
+            feature.module().autoDetectSlotSetting().set(true);
+            assertEquals("true", settings.snapshotEncoded().get(Minecraft189AutoRodModule.AUTO_DETECT_SLOT));
             assertEquals("9", settings.snapshotEncoded().get(Minecraft189AutoRodModule.ROD_SLOT));
             controller.enable(Minecraft189AutoRodModule.ID);
         } finally { feature.close(); feature.close(); }
