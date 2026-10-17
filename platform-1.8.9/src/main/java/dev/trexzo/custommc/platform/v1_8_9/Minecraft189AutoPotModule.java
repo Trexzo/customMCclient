@@ -12,6 +12,8 @@ public final class Minecraft189AutoPotModule implements Module {
     public static final String ID = "combat.autoPot";
     public static final String POT_SLOT = ID + ".potSlot";
     public static final String AUTO_DETECT_SLOT = ID + ".autoDetectSlot";
+    public static final String PREFER_IMMEDIATE_HEALING =
+            ID + ".preferImmediateHealing";
     public static final String HEALTH_THRESHOLD = ID + ".healthPercent";
     public static final String COOLDOWN_TICKS = ID + ".cooldownTicks";
     public static final String REQUIRE_TARGET = ID + ".requireCombatTarget";
@@ -24,6 +26,10 @@ public final class Minecraft189AutoPotModule implements Module {
             SettingCodecs.DOUBLE);
     private final Setting<Boolean> autoDetectSlot = new Setting<Boolean>(
             AUTO_DETECT_SLOT, Boolean.FALSE, v -> v != null,
+            SettingCodecs.BOOLEAN);
+    // Defaults off: preserve V131 already-held / first matching slot behavior.
+    private final Setting<Boolean> preferImmediateHealing = new Setting<Boolean>(
+            PREFER_IMMEDIATE_HEALING, Boolean.FALSE, v -> v != null,
             SettingCodecs.BOOLEAN);
     private final Setting<Integer> cooldown = new Setting<Integer>(
             COOLDOWN_TICKS, 120, x -> x != null && x >= 1 && x <= 1200,
@@ -47,6 +53,9 @@ public final class Minecraft189AutoPotModule implements Module {
     public Setting<Double> healthThresholdSetting() { return healthThreshold; }
     public Setting<Integer> cooldownTicksSetting() { return cooldown; }
     public Setting<Boolean> autoDetectSlotSetting() { return autoDetectSlot; }
+    public Setting<Boolean> preferImmediateHealingSetting() {
+        return preferImmediateHealing;
+    }
     public Setting<Boolean> requireCombatTargetSetting() { return requireTarget; }
     synchronized boolean active() { return enabled; }
 
