@@ -91,12 +91,20 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             final Minecraft189ItemStackAccess[] items = inventory.customMcHotbarItems();
             if (items == null || items.length < 9) return;
             int rodSlot = -1;
+            int freshRodSlot = -1;
             int potSlot = -1;
             int strongestSlot = -1;
             for (int i = 0; i < 9; i++) {
                 final Minecraft189ItemStackAccess stack = items[i];
                 if (stack == null || stack.customMcStackSize() < 1) continue;
-                if (stack.customMcIsFishingRod() && rodSlot < 0) rodSlot = i;
+                if (stack.customMcIsFishingRod()) {
+                    if (stack.customMcItemDamage() == 60 && rodSlot < 0)
+                        rodSlot = i;
+                    if (stack.customMcItemDamage() == 0
+                            && stack.customMcMaxDamage() > 0
+                            && freshRodSlot < 0)
+                        freshRodSlot = i;
+                }
                 if (stack.customMcIsPotion()) {
                     final int damage = stack.customMcItemDamage();
                     if (damage == 16389 && potSlot < 0) potSlot = i;
@@ -105,8 +113,9 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             }
             // Explicit positive item evidence is required; empty creative
             // world and an unfulfilled /give must never emit the PASS marker.
-            if (rodSlot < 0 || potSlot < 0 || strongestSlot < 0
-                    || rodSlot == potSlot || potSlot == strongestSlot) return;
+            if (rodSlot < 0 || freshRodSlot < 0 || potSlot < 0
+                    || strongestSlot < 0 || rodSlot == freshRodSlot
+                    || rodSlot == potSlot || rodSlot == strongestSlot) return;
             assertTrue(inventory.customMcHotbarItems()[rodSlot] == items[rodSlot]
                     && inventory.customMcHotbarItems()[potSlot] == items[potSlot],
                     "original /give ItemStack membership changed during scan");
@@ -119,7 +128,14 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             assertTrue(host.featureCatalog().autoRod().autoDetectSlotSetting().get()
                     && host.featureCatalog().autoPot().autoDetectSlotSetting().get(),
                     "source scan was not enabled through persisted settings");
+            assertTrue(!host.featureCatalog().autoRod()
+                    .preferDurableRodSetting().get(),
+                    "V135 default durability preference must preserve V131 selection");
             verifyRod(host, rodSlot);
+            host.featureCatalog().autoRod()
+                    .preferDurableRodSetting().set(Boolean.TRUE);
+            verifyRod(host, freshRodSlot);
+            report("CUSTOMMC_OFFICIAL_189_AUTOROD_NATIVE_DURABLE_ROD_PRIORITY_PASS=YES");
             assertTrue(!host.featureCatalog().autoPot()
                     .preferImmediateHealingSetting().get(),
                     "V134 default priority must preserve V131 legacy scan ordering");
@@ -146,13 +162,22 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
         if (phase == 4 && !gui) {
             final Minecraft189ItemStackAccess[] items = inventory.customMcHotbarItems();
             int rod = -1;
+            int mostRodDurability = -1;
             int pot = -1;
             int priority = 0;
             if (items == null || items.length < 9)
                 throw new IllegalStateException("original /give inventory disappeared");
             for (int i = 0; i < 9; i++) {
                 if (items[i] == null || items[i].customMcStackSize() < 1) continue;
-                if (rod < 0 && items[i].customMcIsFishingRod()) rod = i;
+                if (items[i].customMcIsFishingRod()) {
+                    final int maximum = items[i].customMcMaxDamage();
+                    final int damage = items[i].customMcItemDamage();
+                    if (maximum > 0 && damage >= 0 && damage < maximum
+                            && maximum - damage > mostRodDurability) {
+                        rod = i;
+                        mostRodDurability = maximum - damage;
+                    }
+                }
                 if (items[i].customMcIsPotion()) {
                     final int score = Minecraft189LegacySplashHealingPotion
                             .immediateHealingPriority(items[i].customMcItemDamage());

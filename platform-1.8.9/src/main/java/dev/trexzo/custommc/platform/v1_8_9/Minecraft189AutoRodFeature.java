@@ -46,6 +46,9 @@ final class Minecraft189AutoRodFeature implements AutoCloseable {
                     f.module.autoDetectSlotSetting(), "Auto Detect Rod Slot",
                     SettingValueKind.BOOLEAN, 5, null);
             f.bind(moduleSettings, settings, settingPresentations,
+                    f.module.preferDurableRodSetting(), "Prefer Durable Rod",
+                    SettingValueKind.BOOLEAN, 7, null);
+            f.bind(moduleSettings, settings, settingPresentations,
                     f.module.cooldownTicksSetting(), "Cooldown Ticks",
                     SettingValueKind.INTEGER, 10, new SettingNumericSpec(1, 200, 1));
             f.bind(moduleSettings, settings, settingPresentations,
