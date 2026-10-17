@@ -57,6 +57,10 @@ public final class Minecraft189AutoJumpModule
     private boolean armed = true;
     private boolean airborneObserved;
     private int groundedUpdatesRemaining;
+    // One grounded contact owns one specific persisted delay policy. Changing
+    // its countdown after landing must not replay an old native jump on the
+    // same player contact (including after countdown reaches zero).
+    private int landingDelayAtContact = -1;
 
     @Override
     public String id() {
@@ -126,6 +130,7 @@ public final class Minecraft189AutoJumpModule
             armed = false;
             airborneObserved = false;
             groundedUpdatesRemaining = 0;
+            landingDelayAtContact = -1;
             return;
         }
         if (!enabled || player == null || !movement.available()) {
@@ -146,6 +151,7 @@ public final class Minecraft189AutoJumpModule
             armed = false;
             airborneObserved = false;
             groundedUpdatesRemaining = 0;
+            landingDelayAtContact = -1;
             return;
         }
 
@@ -153,6 +159,7 @@ public final class Minecraft189AutoJumpModule
             airborneObserved = true;
             armed = true;
             groundedUpdatesRemaining = 0;
+            landingDelayAtContact = -1;
             return;
         }
 
@@ -161,7 +168,18 @@ public final class Minecraft189AutoJumpModule
             // every grounded callback. Each delayed callback represents one
             // grounded update; a new airborne sample cancels the countdown.
             airborneObserved = false;
-            groundedUpdatesRemaining = landingDelayTicks.get().intValue();
+            landingDelayAtContact = landingDelayTicks.get().intValue();
+            groundedUpdatesRemaining = landingDelayAtContact;
+        }
+        if (armed && landingDelayAtContact >= 0
+                && landingDelayAtContact != landingDelayTicks.get()) {
+            // A GUI/profile edit invalidates THIS observed landing even if
+            // its old countdown has already elapsed and movement is gated.
+            // Do not schedule a new jump until real source air->ground occurs.
+            armed = false;
+            groundedUpdatesRemaining = 0;
+            landingDelayAtContact = -1;
+            return;
         }
         if (groundedUpdatesRemaining > 0) {
             groundedUpdatesRemaining--;
@@ -181,6 +199,7 @@ public final class Minecraft189AutoJumpModule
         // Consume the grounded lease BEFORE the original native action.
         // A throwing source bridge cannot replay the same grounded jump.
         armed = false;
+        landingDelayAtContact = -1;
         player.customMcJump();
     }
 
@@ -192,5 +211,6 @@ public final class Minecraft189AutoJumpModule
         armed = true;
         airborneObserved = false;
         groundedUpdatesRemaining = 0;
+        landingDelayAtContact = -1;
     }
 }
