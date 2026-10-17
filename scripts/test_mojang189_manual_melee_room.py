@@ -78,13 +78,20 @@ class OriginalManualMeleeRoomTests(TestCase):
         manual = runner.split("                if attack:", 1)[1].split(
             "                else:", 1)[0]
         # Validates independent, real integrated-server command acceptance.
+        load = manual.index('"/tp CIProbe 8 200 8"')
+        support = manual.index('"/fill 8 119 8 8 119 8 stone"')
         pre = manual.index('"/tp CIProbe 8 120 8"')
         stone = manual.index('"/fill 4 99 4 12 104 13 stone"')
         air = manual.index('"/fill 5 100 5 11 103 12 air"')
         look = manual.index('"/tp CIProbe 8 100 8 0 26"')
         pig = manual.index('"/summon Pig 8.5 100 10.5 {NoAI:1b}"')
         proof = manual.index("CUSTOMMC_189_MANUAL_MELEE_FIXED_NATIVE_ROOM_PASS")
-        self.assertTrue(pre < stone < air < look < pig < proof)
+        self.assertTrue(load < support < pre < stone < air < look < pig < proof)
+        self.assertLess(104, 119,
+                        "support block must be strictly above stone room volume")
+        self.assertLess(119, 120,
+                        "original player feet must be above genuinely verified "
+                        "support before any world-room /fill")
         self.assertLess(104, 120,
                         "original source player must stay above solid stone "
                         "fill until genuine /fill air makes the room safe")
