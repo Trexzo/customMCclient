@@ -27,6 +27,73 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189AutoJumpModuleTest {
     @Test
+    void changingLiveLandingDelayCancelsOldGroundContactUntilRealReLanding() {
+        final Minecraft189AutoJumpModule module = new Minecraft189AutoJumpModule();
+        final Minecraft189PlayerMovementState source =
+                new Minecraft189PlayerMovementState();
+        final int[] nativeJumps = {0};
+        final Minecraft189PlayerJumpControl player = () -> nativeJumps[0]++;
+        module.landingDelayTicksSetting().set(2);
+        module.onEnable();
+        try {
+            source.update(false, false, false);
+            module.apply(player, source.snapshot(), true, true);
+            source.update(true, false, false);
+            module.apply(player, source.snapshot(), true, true); // 1/2
+            assertEquals(0, nativeJumps[0]);
+            module.landingDelayTicksSetting().set(0);
+            module.apply(player, source.snapshot(), true, true);
+            assertEquals(0, nativeJumps[0],
+                    "shortening GUI delay cannot spend an old landing lease");
+            module.apply(player, source.snapshot(), true, true);
+            assertEquals(0, nativeJumps[0],
+                    "old grounded contact stays disarmed");
+            source.update(false, false, false);
+            module.apply(player, source.snapshot(), true, true);
+            source.update(true, false, false);
+            module.apply(player, source.snapshot(), true, true);
+            assertEquals(1, nativeJumps[0],
+                    "a genuinely new landing uses the live zero delay");
+            module.apply(player, source.snapshot(), true, true);
+            assertEquals(1, nativeJumps[0], "no duplicate native action");
+        } finally { module.onDisable(); }
+    }
+
+    @Test
+    void changingDelayAfterCountdownWhileForwardGatedStillRevokesContact() {
+        final Minecraft189AutoJumpModule module = new Minecraft189AutoJumpModule();
+        final Minecraft189PlayerMovementState source =
+                new Minecraft189PlayerMovementState();
+        final int[] nativeJumps = {0};
+        final Minecraft189PlayerJumpControl player = () -> nativeJumps[0]++;
+        module.requireForwardSetting().set(true);
+        module.landingDelayTicksSetting().set(1);
+        module.onEnable();
+        try {
+            source.update(false, false, false);
+            module.apply(player, source.snapshot(), false, false);
+            source.update(true, false, false);
+            module.apply(player, source.snapshot(), false, false); // 1/1
+            module.apply(player, source.snapshot(), false, false); // gated
+            module.landingDelayTicksSetting().set(2);
+            module.apply(player, source.snapshot(), true, true);
+            assertEquals(0, nativeJumps[0],
+                    "editing policy AFTER countdown must not release old jump");
+            module.apply(player, source.snapshot(), true, true);
+            assertEquals(0, nativeJumps[0]);
+            source.update(false, false, false);
+            module.apply(player, source.snapshot(), true, true);
+            source.update(true, false, false);
+            module.apply(player, source.snapshot(), true, true); // 1/2
+            module.apply(player, source.snapshot(), true, true); // 2/2
+            assertEquals(0, nativeJumps[0]);
+            module.apply(player, source.snapshot(), true, true);
+            assertEquals(1, nativeJumps[0],
+                    "independent observed landing follows new exact delay");
+        } finally { module.onDisable(); }
+    }
+
+    @Test
     void realClickGuiFocusRevokesAutoJumpGroundedLeaseUntilFreshLanding() {
         final Minecraft189AutoJumpModule jump = new Minecraft189AutoJumpModule();
         final Minecraft189PlayerMovementState movement = new Minecraft189PlayerMovementState();
