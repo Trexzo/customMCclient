@@ -624,7 +624,7 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         }
         @Override public String customMcDisplayName() { return "untrusted"; }
         @Override public int customMcStackSize() { return count; }
-        @Override public int customMcItemDamage() { return 0; }
+        @Override public int customMcItemDamage() { return potion ? 16389 : 0; }
         @Override public int customMcMaxDamage() { return 0; }
         @Override public boolean customMcIsFishingRod() {
             final Runnable callback = afterRodTypeRead;
