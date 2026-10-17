@@ -236,6 +236,21 @@ jobs:
             --overlay "build/runtime-overlay" \
             --game "$RUNNER_TEMP/custommc-189-native-combatslot-gui" \
             --timeout 180 --native-combatslot-clickgui
+      - name: V132 original Mojang fishing rod and potion discovery in genuine inventory with physical X11 GUI
+        timeout-minutes: 5
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '2.1'
+        run: |
+          xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189SingleplayerSmoke.py \
+            --java "$JAVA_HOME/bin/java" \
+            --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
+            --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
+            --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
+            --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
+            --overlay "build/runtime-overlay" \
+            --game "$RUNNER_TEMP/custommc-189-native-rod-potion-discovery" \
+            --timeout 180 --native-rod-potion-discovery
       - name: V46 early strict original-client FOV evidence on genuine rear-player attack
         timeout-minutes: 4
         env:

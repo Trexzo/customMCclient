@@ -1719,6 +1719,39 @@ public final class Minecraft189FeatureCatalog
      * Only the opt-in pinned Mojang client fixture can start a temporary
      * original InventoryPlayer.currentItem lease through CombatSlot.
      */
+    /** Dedicated pinned original-client fixture; normal ModuleController only. */
+    void enableOriginalRodPotionDiscoveryAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean(
+                "custommc.acceptance.requireNativeRodPotionDiscovery")
+                || moduleController.stateOf(Minecraft189AutoRodModule.ID)
+                        != ModuleState.DISABLED
+                || moduleController.stateOf(Minecraft189AutoPotModule.ID)
+                        != ModuleState.DISABLED)
+            throw new IllegalStateException("source item discovery fixture not armed");
+        autoRod().autoDetectSlotSetting().set(Boolean.TRUE);
+        autoPot().autoDetectSlotSetting().set(Boolean.TRUE);
+        moduleController.enable(Minecraft189AutoRodModule.ID);
+        moduleController.enable(Minecraft189AutoPotModule.ID);
+        if (!autoRod().active() || !autoPot().active())
+            throw new IllegalStateException("source combat item modules not active");
+    }
+
+    void disableOriginalRodPotionDiscoveryAcceptance() {
+        requireOpen();
+        if (!Boolean.getBoolean(
+                "custommc.acceptance.requireNativeRodPotionDiscovery")
+                || moduleController.stateOf(Minecraft189AutoRodModule.ID)
+                        != ModuleState.ENABLED
+                || moduleController.stateOf(Minecraft189AutoPotModule.ID)
+                        != ModuleState.ENABLED)
+            throw new IllegalStateException("source item discovery disable not armed");
+        moduleController.disable(Minecraft189AutoPotModule.ID);
+        moduleController.disable(Minecraft189AutoRodModule.ID);
+        if (autoRod().active() || autoPot().active())
+            throw new IllegalStateException("original source combat module disable failed");
+    }
+
     void enableCombatSlotForOriginalGuiAcceptance(final int targetOneBased) {
         requireOpen();
         if (!Boolean.getBoolean(

@@ -51,6 +51,10 @@ COMBATSLOT_GUI_CLOSED = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_GUI_REAL_KEY_CLOSE_CO
 COMBATSLOT_WRONG_TOKEN = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_WRONG_TOKEN_VETO_PASS=YES"
 COMBATSLOT_MELEE_OWNER = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_MELEE_DISPATCH_OWNER_PASS=YES"
 COMBATSLOT_DISABLED = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_DISABLE_ORIGINAL_PASS=YES"
+NATIVE_ITEMS_ARMED = b"CUSTOMMC_189_NATIVE_ROD_POTION_SOURCE_MODULES_ARMED=YES"
+NATIVE_ITEMS_SELECTED = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_SOURCE_SELECTION_PASS=YES"
+NATIVE_ITEMS_GUI_OPEN = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_GUI_VETO_PASS=YES"
+NATIVE_ITEMS_GUI_CLOSE = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_GUI_CLOSE_RESTORE_PASS=YES"
 
 
 def xdotool(*arguments):
@@ -214,12 +218,13 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         native_scaffold_context=False, native_scaffold_candidate=False,
         native_scaffold_placement=None, native_step_clickgui=False,
         native_noclip_clickgui=False, native_reach_clickgui=False,
-        native_combatslot_clickgui=False):
+        native_combatslot_clickgui=False, native_rod_potion_discovery=False):
     if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer,
                              timer_speed, native_step_clickgui,
                              native_noclip_clickgui,
                              native_reach_clickgui,
-                             native_combatslot_clickgui)) > 1:
+                             native_combatslot_clickgui,
+                             native_rod_potion_discovery)) > 1:
         raise ValueError("manual and module combat tests are exclusive")
     controlled_combat = attack or auto_clicker or kill_aura_nonplayer
     if safe_walk_edge not in (None, "enabled", "disabled"):
@@ -254,7 +259,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         raise ValueError("native survival placement must run in an isolated world")
     # A real rendered world camera requires a focused Minecraft window;
     # vanilla singleplayer otherwise automatically opens the pause GUI.
-    needs_active_window = controlled_combat or timer_speed or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or bool(native_scaffold_placement) or native_step_clickgui or native_noclip_clickgui or native_reach_clickgui or native_combatslot_clickgui
+    needs_active_window = controlled_combat or timer_speed or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or bool(native_scaffold_placement) or native_step_clickgui or native_noclip_clickgui or native_reach_clickgui or native_combatslot_clickgui or native_rod_potion_discovery
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
@@ -335,6 +340,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
     if native_combatslot_clickgui:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireNativeCombatSlotGuiFocus=true")
+    if native_rod_potion_discovery:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireNativeRodPotionDiscovery=true")
     if controlled_combat:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportVanillaMelee=true")
@@ -418,7 +426,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
             # Actual 1.8.9 GuiCreateWorld Game Mode button is centered
             # at x427,y125. Survival -> Hardcore -> Creative; Creative
             # enables commands unless explicitly overridden.
-            if controlled_combat or safe_walk_edge or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or native_scaffold_placement:
+            if controlled_combat or safe_walk_edge or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or native_scaffold_placement or native_rod_potion_discovery:
                 if create_screen != b"axb":
                     raise AssertionError("unexpected create-world GUI")
                 click(window, 427, 125)
@@ -519,6 +527,25 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 await_marker(process, log, COMBATSLOT_DISABLED, deadline,
                              "normal CombatSlot disable returns unchanged native selected slot")
                 print("CUSTOMMC_OFFICIAL_189_COMBATSLOT_REAL_HOTBAR_GUI_LIFECYCLE_PASS=YES",
+                      flush=True)
+            if native_rod_potion_discovery:
+                resume_if_paused(process, log, window)
+                await_marker(process, log, NATIVE_ITEMS_ARMED, deadline,
+                             "original Mojang player/currentItem and normally enabled source modules")
+                # Actual 1.8.9 /give commands on a real creative integrated
+                # server; no fabricated Java ItemStack or injected packet.
+                send_command(process, log, window, "/give CIProbe fishing_rod 1")
+                send_command(process, log, window, "/give CIProbe potion 1")
+                await_marker(process, log, NATIVE_ITEMS_SELECTED, deadline,
+                             "real transformed ItemFishingRod/ItemPotion discovery and owner-safe restore")
+                xdotool("windowactivate", "--sync", window)
+                xdotool("key", "Shift_R")
+                await_marker(process, log, NATIVE_ITEMS_GUI_OPEN, deadline,
+                             "physical Right Shift ClickGUI vetoes source Rod/Potion selection")
+                xdotool("key", "Shift_R")
+                await_marker(process, log, NATIVE_ITEMS_GUI_CLOSE, deadline,
+                             "source Rod/Potion discovery resumes, restores, and normal controller disables")
+                print("CUSTOMMC_OFFICIAL_189_ROD_POTION_REAL_SOURCE_GUI_ACCEPTANCE_PASS=YES",
                       flush=True)
             if native_world_camera:
                 # An already-created world can be paused by focus transition.
@@ -982,6 +1009,8 @@ if __name__ == "__main__":
                         help="prove original Mojang renderer Reach ray operand and physical X11 ClickGUI focus")
     parser.add_argument("--native-combatslot-clickgui", action="store_true",
                         help="prove original Mojang InventoryPlayer.currentItem CombatSlot lease, settings edit and real X11 ClickGUI focus")
+    parser.add_argument("--native-rod-potion-discovery", action="store_true",
+                        help="prove opt-in source Rod/Potion auto-selection on genuine Mojang /give ItemStacks and physical X11 GUI veto")
     parser.add_argument("--auto-clicker", action="store_true",
                         help="verify enabled Auto Clicker causes offline entity hurt without X11 attack")
     parser.add_argument("--kill-aura-nonplayer", action="store_true",
@@ -1018,6 +1047,7 @@ if __name__ == "__main__":
             native_noclip_clickgui=args.native_noclip_clickgui,
             native_reach_clickgui=args.native_reach_clickgui,
             native_combatslot_clickgui=args.native_combatslot_clickgui,
+            native_rod_potion_discovery=args.native_rod_potion_discovery,
             native_world_camera=args.native_world_camera,
             native_safe_walk=args.native_safe_walk,
             safe_walk_edge=args.safe_walk_edge,
