@@ -1689,6 +1689,17 @@ public final class Minecraft189HostRuntime
                 || combatSlotLeaseInventory != null;
     }
 
+    private boolean mayUseRegenerationPotionWithoutWaste() {
+        if (!featureCatalog.autoPot().avoidActiveRegenerationSetting().get())
+            return true;
+        // No potion-effects snapshot from a previous tick, respawn or
+        // another player can be borrowed for this native right-click.
+        return tickHotbarControl != null
+                && tickHotbarPlayer != null
+                && Minecraft189AutoPotRegenerationGuard.mayUse(
+                        tickHotbarControl, tickHotbarPlayer);
+    }
+
     int selectAutoPotSlot() {
         requireOpen();
         if (combatHotbarBusy() || !sameLocalHotbarAndHeldItemOwner()
@@ -1705,6 +1716,7 @@ public final class Minecraft189HostRuntime
             if (inventory != tickHotbarControl || owner != tickHotbarPlayer
                     || held != tickHeldItemAccess
                     || !sameLocalHotbarAndHeldItemOwner()
+                    || !mayUseRegenerationPotionWithoutWaste()
                     || clickGuiRuntime.coreRuntime().model().snapshot().open()) {
                 featureCatalog.autoPot().restoreSlot(inventory, prior);
                 return -1;
@@ -1720,6 +1732,7 @@ public final class Minecraft189HostRuntime
     boolean mayExecuteAutoPotUse(final int originalSlot) {
         requireOpen();
         return !clickGuiRuntime.coreRuntime().model().snapshot().open()
+                && mayUseRegenerationPotionWithoutWaste()
                 && sameLocalHotbarAndHeldItemOwner()
                 && autoPotLeaseInventory != null
                 && tickHotbarControl == autoPotLeaseInventory
