@@ -10,7 +10,7 @@ The failing graphical test visibly opened/closed genuine 1.8.9 chat, and the act
 
 Instead of relative `/fill ~...` and `/summon Pig ~...` at random spawn coordinates, the **manual** `--attack` variant now:
 
-1. Sends a real X11 `/tp CIProbe 8 100 8`, and waits for a **fresh** genuine integrated-server chat reply confirming x=8.5, y=100, z=8.5 plus one tick of chunk load.
+1. Sends a real X11 `/tp CIProbe 8 120 8`, and waits for a **fresh** genuine integrated-server chat reply confirming x=8.5, y=120, z=8.5 plus one chunk-load tick. The player is safely ABOVE the y=99–104 solid fill rather than embedded in freshly generated stone; the interior is carved first, then the player is brought down.
 2. Sends genuine `/fill 4 99 4 12 104 13 stone` and `/fill 5 100 5 11 103 12 air`; each must have a **fresh positive** original 1.8.9 blocks-filled response. This builds a bounded single-chunk floor/ceiling/side enclosure rather than relying on ungenerated ground or unrelated loaded chunks. No fabricated World mutations.
 3. Sends a second real X11 `/tp CIProbe 8 100 8 0 26` and requires a **new, precise original client teleport reply** after that command, retaining the existing native manual 0-yaw, 26-pitch orientation.
 4. Sends `/summon Pig 8.5 100 10.5 {NoAI:1b}` in the same chamber and requires an original chat `Object successfully summoned` **from that command**, not a stale earlier line.
