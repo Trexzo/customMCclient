@@ -292,6 +292,92 @@ final class Minecraft189CombatItemUseBoundaryTest {
         }
     }
 
+
+    @Test void nativeAutoPotAimDownOwnerLeaseIsBoundToLivePotionAndUserPitch() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 4;
+            final Item potion = new Item(false, true, 1);
+            potion.damage = 16421;
+            inventory.items[2] = potion;
+            final Player player = new Player(inventory);
+            player.pitch = -14F;
+            runtime.playerHotbarSlot(player);
+            runtime.playerHeldItem(player);
+            controller.enable(Minecraft189AutoPotModule.ID);
+
+            assertFalse(runtime.featureCatalog().autoPot()
+                    .aimDownForSplashSetting().get(),
+                    "opt-in must preserve legacy original pitch by default");
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertNull(runtime.beginAutoPotDownwardPitch(4));
+            assertTrue(runtime.mayExecuteAutoPotAtPitch(null, 4));
+            assertEquals(-14F, player.pitch);
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+
+            runtime.featureCatalog().autoPot()
+                    .aimDownForSplashSetting().set(Boolean.TRUE);
+            assertEquals(4, runtime.selectAutoPotSlot());
+            final Minecraft189AutoPotPitchLease aim =
+                    runtime.beginAutoPotDownwardPitch(4);
+            assertNotNull(aim);
+            assertEquals(85F, player.pitch,
+                    "same original local Entity rotationPitch must aim down");
+            assertTrue(runtime.mayExecuteAutoPotAtPitch(aim, 4),
+                    "the exact original potion and native player can right click");
+            player.pitch = 28F;
+            assertFalse(runtime.mayExecuteAutoPotAtPitch(aim, 4),
+                    "genuine user mouse movement revokes synthetic pitch ownership");
+            aim.restore();
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(28F, player.pitch, "finally must preserve user mouse pitch");
+            assertEquals(4, inventory.selected);
+
+            player.pitch = 4F;
+            assertEquals(4, runtime.selectAutoPotSlot());
+            final Minecraft189AutoPotPitchLease second =
+                    runtime.beginAutoPotDownwardPitch(4);
+            assertEquals(85F, player.pitch);
+            inventory.selected = 7;
+            assertFalse(runtime.mayExecuteAutoPotAtPitch(second, 4),
+                    "real user hotbar change must revoke source potion as well");
+            second.restore();
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4F, player.pitch);
+            assertEquals(7, inventory.selected,
+                    "a foreign/current human-selected hotbar is never overwritten");
+
+            inventory.selected = 4;
+            assertEquals(4, runtime.selectAutoPotSlot());
+            player.duringPitchSetter = () -> inventory.selected = 6;
+            final Minecraft189AutoPotPitchLease stale =
+                    runtime.beginAutoPotDownwardPitch(4);
+            assertFalse(runtime.mayExecuteAutoPotAtPitch(stale, 4),
+                    "reentrant source rotation setter changing hotbar vetoes");
+            stale.restore();
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(6, inventory.selected);
+            assertEquals(4F, player.pitch);
+        } finally {
+            runtime.close();
+        }
+    }
+
     @Test void sourcePlayerRespawnCannotBorrowOldItemOrStrandCapturedInventory() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -899,10 +985,22 @@ final class Minecraft189CombatItemUseBoundaryTest {
 
     private static final class Player implements Minecraft189PlayerInventoryAccess,
             Minecraft189PlayerHeldItemAccess, Minecraft189PlayerFishingHookAccess,
-            Minecraft189PlayerPotionEffectsAccess {
+            Minecraft189PlayerPotionEffectsAccess,
+            Minecraft189PlayerRotationControl {
         final Inventory inventory;
         Runnable duringHeldItemRead;
         boolean hasFishingHook;
+        float pitch;
+        Runnable duringPitchSetter;
+        @Override public float customMcRotationYaw() { return 0F; }
+        @Override public float customMcRotationPitch() { return pitch; }
+        @Override public void customMcSetRotationYaw(final float yaw) {}
+        @Override public void customMcSetRotationPitch(final float next) {
+            pitch = next;
+            final Runnable callback = duringPitchSetter;
+            duringPitchSetter = null;
+            if (callback != null) callback.run();
+        }
         Minecraft189PotionEffectAccess[] sourceEffects =
                 new Minecraft189PotionEffectAccess[0];
         @Override public Minecraft189PotionEffectAccess[] customMcPotionEffects() {
