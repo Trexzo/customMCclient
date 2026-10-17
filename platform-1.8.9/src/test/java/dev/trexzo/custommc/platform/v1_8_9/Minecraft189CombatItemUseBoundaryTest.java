@@ -724,7 +724,7 @@ final class Minecraft189CombatItemUseBoundaryTest {
         }
         @Override public String customMcDisplayName() { return "source item"; }
         @Override public int customMcStackSize() { return count; }
-        @Override public int customMcItemDamage() { return 0; }
+        @Override public int customMcItemDamage() { return potion ? 16389 : 0; }
         @Override public int customMcMaxDamage() { return 0; }
         @Override public boolean customMcIsFishingRod() {
             final Runnable callback = afterRodTypeRead;
