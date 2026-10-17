@@ -61,6 +61,7 @@ NATIVE_REGEN_NO_EFFECT = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_NO_EFFECT_POTION_A
 NATIVE_REGEN_WEAKER_UPGRADE = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_WEAKER_EFFECT_UPGRADE_PASS=YES"
 NATIVE_REGEN_AUTODETECT_HEAL = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_AUTODETECT_FALLBACK_HEAL_PASS=YES"
 NATIVE_REGEN_AUTODETECT_RANK = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_AUTODETECT_RANK_COMPOSE_PASS=YES"
+NATIVE_AUTOPOT_SOURCE_PITCH_RESTORE = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_NATIVE_DOWNWARD_PITCH_RESTORE_PASS=YES"
 NATIVE_REGEN_VETO = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_ACTIVE_EFFECT_DUPLICATE_VETO_PASS=YES"
 NATIVE_REGEN_INSTANT_EXEMPT = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_INSTANT_HEAL_EXEMPT_PASS=YES"
 NATIVE_REGEN_CLEARED = b"CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_EFFECT_CLEAR_REARM_PASS=YES"
@@ -629,7 +630,11 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                              "actual native early redundant Regen II is skipped for later Instant Health II")
                 await_marker(process, log, NATIVE_REGEN_AUTODETECT_RANK, deadline,
                              "V134 native best-healing rank composes with V142 active-effect eligibility")
+                await_marker(process, log, NATIVE_AUTOPOT_SOURCE_PITCH_RESTORE, deadline,
+                             "real Mojang Entity.rotationPitch aims self-splash down and restores physical player's pitch")
                 print("CUSTOMMC_OFFICIAL_189_NATIVE_REGEN_AUTO_DISCOVERY_ALTERNATIVE_X11_PASS=YES",
+                      flush=True)
+                print("CUSTOMMC_OFFICIAL_189_REAL_AUTOPOT_DOWNWARD_PITCH_SOURCE_PASS=YES",
                       flush=True)
             if native_world_camera:
                 # An already-created world can be paused by focus transition.
