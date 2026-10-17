@@ -90,6 +90,74 @@ final class Minecraft189CombatItemUseBoundaryTest {
     }
 
 
+
+    @Test void genuineRodFishingHookPresenceVetoesReelAndRestoresNativeOwner() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 4;
+            inventory.items[1] = new Item(true, false, 1);
+            final Player player = new Player(inventory);
+            controller.enable(Minecraft189AutoRodModule.ID);
+            runtime.playerHotbarSlot(player);
+            runtime.playerHeldItem(player);
+
+            assertFalse(runtime.featureCatalog().autoRod()
+                    .preserveActiveHookSetting().get(),
+                    "legacy behavior must remain unchanged by default");
+            player.hasFishingHook = true;
+            assertEquals(4, runtime.selectAutoRodSlot(),
+                    "default-off option preserves original cast/reel behavior");
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, inventory.selected);
+
+            runtime.featureCatalog().autoRod()
+                    .preserveActiveHookSetting().set(Boolean.TRUE);
+            assertEquals(-1, runtime.selectAutoRodSlot(),
+                    "active original EntityPlayer.fishEntity cannot be reeled");
+            assertEquals(4, inventory.selected);
+            player.hasFishingHook = false;
+            assertEquals(4, runtime.selectAutoRodSlot());
+            assertEquals(1, inventory.selected);
+
+            player.hasFishingHook = true;
+            assertFalse(runtime.mayExecuteAutoRodUse(4),
+                    "fishing hook starting after original setter revokes use");
+            assertEquals(-1, runtime.selectAutoRodSlot(),
+                    "still held live hook cannot acquire another slot");
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, inventory.selected);
+
+            player.hasFishingHook = false;
+            inventory.duringNextSetter = () -> player.hasFishingHook = true;
+            assertEquals(-1, runtime.selectAutoRodSlot(),
+                    "hook spawned reentrantly during original setter must veto");
+            assertEquals(4, inventory.selected,
+                    "setter-time live hook veto must roll back own hotbar");
+            player.hasFishingHook = false;
+            assertEquals(4, runtime.selectAutoRodSlot(),
+                    "no zombie owner after callback hook veto");
+            assertTrue(runtime.mayExecuteAutoRodUse(4));
+            runtime.restoreAutoRodSlot(4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            runtime.close();
+        }
+    }
+
     @Test void sourcePlayerRespawnCannotBorrowOldItemOrStrandCapturedInventory() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -696,10 +764,14 @@ final class Minecraft189CombatItemUseBoundaryTest {
     }
 
     private static final class Player implements Minecraft189PlayerInventoryAccess,
-            Minecraft189PlayerHeldItemAccess {
+            Minecraft189PlayerHeldItemAccess, Minecraft189PlayerFishingHookAccess {
         final Inventory inventory;
         Runnable duringHeldItemRead;
+        boolean hasFishingHook;
         Player(final Inventory inventory) { this.inventory = inventory; }
+        @Override public boolean customMcHasFishingHook() {
+            return hasFishingHook;
+        }
         @Override public Minecraft189InventoryHotbarAccess customMcInventory() {
             return inventory;
         }

@@ -46,7 +46,15 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                 stableTicks = 0;
             }
             if (++stableTicks < 12) return;
+            assertTrue(source instanceof Minecraft189PlayerFishingHookAccess,
+                    "original EntityPlayer lacks source-mapped fishEntity getter");
+            assertTrue(!((Minecraft189PlayerFishingHookAccess) source)
+                            .customMcHasFishingHook(),
+                    "original creative baseline unexpectedly has a cast hook");
+            report("CUSTOMMC_OFFICIAL_189_ROD_NATIVE_FISH_ENTITY_EMPTY_BASELINE_PASS=YES");
             host.featureCatalog().enableOriginalRodPotionDiscoveryAcceptance();
+            host.featureCatalog().autoRod()
+                    .preserveActiveHookSetting().set(Boolean.TRUE);
             assertTrue(host.featureCatalog().autoRod().active()
                     && host.featureCatalog().autoPot().active(),
                     "original module controller did not enable native Rod/Potion");

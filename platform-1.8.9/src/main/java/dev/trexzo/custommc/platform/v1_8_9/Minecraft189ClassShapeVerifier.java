@@ -293,6 +293,7 @@ public final class Minecraft189ClassShapeVerifier {
                 Minecraft189Mappings.ENTITY_PLAYER,
                 new Minecraft189Mappings.MappedField[]{
                         Minecraft189Mappings.ENTITY_PLAYER_INVENTORY,
+                        Minecraft189Mappings.ENTITY_PLAYER_FISH_ENTITY,
                         Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL,
                         Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_TOTAL,
                         Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_PROGRESS

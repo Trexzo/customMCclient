@@ -124,6 +124,11 @@ final class Minecraft189AutoRodModuleTest {
             feature.module().rodSlotSetting().set(9);
             assertEquals("false", settings.snapshotEncoded().get(
                     Minecraft189AutoRodModule.PREFER_DURABLE_ROD));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189AutoRodModule.PRESERVE_ACTIVE_HOOK));
+            feature.module().preserveActiveHookSetting().set(true);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189AutoRodModule.PRESERVE_ACTIVE_HOOK));
             feature.module().preferDurableRodSetting().set(true);
             assertEquals("true", settings.snapshotEncoded().get(
                     Minecraft189AutoRodModule.PREFER_DURABLE_ROD));

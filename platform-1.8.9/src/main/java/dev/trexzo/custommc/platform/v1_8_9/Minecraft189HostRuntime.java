@@ -1743,12 +1743,21 @@ public final class Minecraft189HostRuntime
         featureCatalog.autoPot().commitUseAttempt();
     }
 
+    private boolean mayCastWithoutReelingActiveHook() {
+        if (!featureCatalog.autoRod().preserveActiveHookSetting().get())
+            return true;
+        return tickHotbarPlayer instanceof Minecraft189PlayerFishingHookAccess
+                && !((Minecraft189PlayerFishingHookAccess) tickHotbarPlayer)
+                        .customMcHasFishingHook();
+    }
+
     boolean shouldAutoRod(final boolean confirmedPlayer,
             final int verifiedPlayerIndex) {
         requireOpen();
         final Minecraft189AutoRodModule rod = featureCatalog.autoRod();
         if (clickGuiRuntime.coreRuntime().model().snapshot().open()
-                || tickHotbarControl == null || !confirmedPlayer
+                || tickHotbarControl == null
+                || !mayCastWithoutReelingActiveHook() || !confirmedPlayer
                 || verifiedPlayerIndex < 0
                 || !worldEntityCombatState.snapshot().alive(verifiedPlayerIndex)
                 || !featureCatalog.antiBot().permits(
@@ -1773,6 +1782,7 @@ public final class Minecraft189HostRuntime
     int selectAutoRodSlot() {
         requireOpen();
         if (combatHotbarBusy() || !sameLocalHotbarAndHeldItemOwner()
+                || !mayCastWithoutReelingActiveHook()
                 || clickGuiRuntime.coreRuntime().model().snapshot().open())
             return -1;
         final Minecraft189InventoryHotbarControl inventory = tickHotbarControl;
@@ -1786,6 +1796,7 @@ public final class Minecraft189HostRuntime
             if (inventory != tickHotbarControl || owner != tickHotbarPlayer
                     || held != tickHeldItemAccess
                     || !sameLocalHotbarAndHeldItemOwner()
+                    || !mayCastWithoutReelingActiveHook()
                     || clickGuiRuntime.coreRuntime().model().snapshot().open()) {
                 featureCatalog.autoRod().restoreSlot(inventory, prior);
                 return -1;
@@ -1801,6 +1812,7 @@ public final class Minecraft189HostRuntime
     boolean mayExecuteAutoRodUse(final int originalSlot) {
         requireOpen();
         return !clickGuiRuntime.coreRuntime().model().snapshot().open()
+                && mayCastWithoutReelingActiveHook()
                 && sameLocalHotbarAndHeldItemOwner()
                 && autoRodLeaseInventory != null
                 && tickHotbarControl == autoRodLeaseInventory

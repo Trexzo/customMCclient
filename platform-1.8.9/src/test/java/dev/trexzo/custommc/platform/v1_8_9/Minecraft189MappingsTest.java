@@ -412,6 +412,13 @@ final class Minecraft189MappingsTest {
                 "field_71071_by",
                 "inventory");
         assertField(
+                Minecraft189Mappings.ENTITY_PLAYER_FISH_ENTITY,
+                Minecraft189Mappings.ENTITY_PLAYER,
+                "bG",
+                "Lur;",
+                "field_71104_cf",
+                "fishEntity");
+        assertField(
                 Minecraft189Mappings.INVENTORY_PLAYER_CURRENT_ITEM,
                 Minecraft189Mappings.INVENTORY_PLAYER,
                 "c",
@@ -2609,6 +2616,9 @@ final class Minecraft189MappingsTest {
                 Minecraft189Mappings.ENTITY_PLAYER_INVENTORY);
         addField(
                 writer,
+                Minecraft189Mappings.ENTITY_PLAYER_FISH_ENTITY);
+        addField(
+                writer,
                 Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL);
         addField(
                 writer,
@@ -2634,6 +2644,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_PLAYER_INVENTORY);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_FISH_ENTITY);
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL);
@@ -2812,6 +2825,9 @@ final class Minecraft189MappingsTest {
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_PLAYER_INVENTORY);
+        addField(
+                writer,
+                Minecraft189Mappings.ENTITY_PLAYER_FISH_ENTITY);
         addField(
                 writer,
                 Minecraft189Mappings.ENTITY_PLAYER_EXPERIENCE_LEVEL);

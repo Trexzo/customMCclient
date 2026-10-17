@@ -52,6 +52,7 @@ COMBATSLOT_WRONG_TOKEN = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_WRONG_TOKEN_V
 COMBATSLOT_MELEE_OWNER = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_MELEE_DISPATCH_OWNER_PASS=YES"
 COMBATSLOT_DISABLED = b"CUSTOMMC_OFFICIAL_189_COMBATSLOT_NATIVE_DISABLE_ORIGINAL_PASS=YES"
 NATIVE_ITEMS_ARMED = b"CUSTOMMC_189_NATIVE_ROD_POTION_SOURCE_MODULES_ARMED=YES"
+NATIVE_ROD_EMPTY_HOOK = b"CUSTOMMC_OFFICIAL_189_ROD_NATIVE_FISH_ENTITY_EMPTY_BASELINE_PASS=YES"
 NATIVE_ITEMS_NONHEALING = b"CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_NONHEALING_VETO_PASS=YES"
 NATIVE_ITEMS_HEAL_PRIORITY = b"CUSTOMMC_OFFICIAL_189_AUTOPOT_NATIVE_STRONG_HEAL_PRIORITY_PASS=YES"
 NATIVE_ITEMS_ROD_DURABILITY = b"CUSTOMMC_OFFICIAL_189_AUTOROD_NATIVE_DURABLE_ROD_PRIORITY_PASS=YES"
@@ -535,6 +536,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 resume_if_paused(process, log, window)
                 await_marker(process, log, NATIVE_ITEMS_ARMED, deadline,
                              "original Mojang player/currentItem and normally enabled source modules")
+                await_marker(process, log, NATIVE_ROD_EMPTY_HOOK, deadline,
+                             "genuine Mojang 1.8.9 EntityPlayer fishEntity read-only absent baseline")
                 # Actual 1.8.9 /give commands on a real creative integrated
                 # server; no fabricated Java ItemStack or injected packet.
                 send_command(process, log, window, "/give CIProbe fishing_rod 1 60")
