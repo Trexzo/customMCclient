@@ -259,8 +259,16 @@ final class Minecraft189VerifiedCombatItemSlotTest {
             assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
                     pot, inventory, player, 4));
             player.items[2] = new FakeItem(false, true, 1);
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4),
+                    "new source ItemStack must never reanimate old use permission");
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
             assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
-                    pot, inventory, player, 4));
+                    pot, inventory, player, 4),
+                    "explicitly renewed source use is valid");
             pot.restoreSlot(inventory, 4);
             assertEquals(4, inventory.selected);
         } finally {
@@ -330,9 +338,16 @@ final class Minecraft189VerifiedCombatItemSlotTest {
             assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
                     rod, inventory, player, 4),
                     "matching rod type is insufficient after ItemStack replacement");
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                    rod, inventory, player, 4),
+                    "same-type replacement cannot borrow the old action lease");
+            rod.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
             assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
                     rod, inventory, player, 4),
-                    "same-type stable new ItemStack is legal next independent check");
+                    "separately selected stable replacement can now cast");
             rod.restoreSlot(inventory, 4);
             assertEquals(4, inventory.selected);
 
@@ -344,6 +359,13 @@ final class Minecraft189VerifiedCombatItemSlotTest {
                     player.items[2] = new FakeItem(false, true);
             assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
                     pot, inventory, player, 4));
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4),
+                    "new same-type potion cannot adopt a replaced source lease");
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
             assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
                     pot, inventory, player, 4));
             pot.restoreSlot(inventory, 4);
