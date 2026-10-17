@@ -1782,6 +1782,7 @@ public final class Minecraft189HostRuntime
     int selectAutoRodSlot() {
         requireOpen();
         if (combatHotbarBusy() || !sameLocalHotbarAndHeldItemOwner()
+                || !mayCastWithoutReelingActiveHook()
                 || clickGuiRuntime.coreRuntime().model().snapshot().open())
             return -1;
         final Minecraft189InventoryHotbarControl inventory = tickHotbarControl;
