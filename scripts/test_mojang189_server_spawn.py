@@ -277,7 +277,7 @@ class RealReconnectNativeIdentityFixtureTest(unittest.TestCase):
             self.assertEqual(actual_server_three_client_rejoin_fixture(path), (
                 "tp CIHost 243 5 444 0 0",
                 "tp CITarget 243 5 446 180 0",
-                "tp CITargetB 245 5 446 180 0",
+                "tp CITargetB 244 5 446 180 0",
             ))
 
     def test_real_reverse_spawn_keeps_survivor_in_loaded_chunk(self):
@@ -288,8 +288,35 @@ class RealReconnectNativeIdentityFixtureTest(unittest.TestCase):
             self.assertEqual(actual_server_three_client_rejoin_fixture(path), (
                 "tp CIHost -34 5 -34 180 0",
                 "tp CITarget -34 5 -36 0 0",
-                "tp CITargetB -36 5 -36 180 0",
+                "tp CITargetB -35 5 -36 180 0",
             ))
+
+    def test_native_survivor_has_source_ray_margin_and_distinct_hitbox(self):
+        import math
+        for raw in (
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\\n",
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (-33.5, 4.0, -33.5)\\n",
+        ):
+            with tempfile.TemporaryDirectory() as root:
+                log = Path(root) / "server.log"
+                log.write_bytes(raw)
+                host, a, b = actual_server_three_client_rejoin_fixture(log)
+                hx, hy, hz = map(int, host.split()[2:5])
+                ax, ay, az = map(int, a.split()[2:5])
+                bx, by, bz = map(int, b.split()[2:5])
+                self.assertEqual(hy, ay)
+                self.assertEqual(ay, by)
+                self.assertEqual(ax, hx)
+                self.assertEqual(abs(az-hz), 2)
+                self.assertEqual(abs(ax-bx), 1,
+                                 "original player A and B hitboxes stay distinct")
+                self.assertEqual(bz, az)
+                self.assertEqual(math.hypot(ax-hx, az-hz), 2)
+                self.assertEqual(math.hypot(bx-hx, bz-hz), math.sqrt(5))
+                self.assertLess(math.hypot(bx-hx, bz-hz), 3)
+                self.assertNotEqual((ax, az), (bx, bz))
+                self.assertEqual(hx // 16, bx // 16)
+                self.assertEqual(hz // 16, bz // 16)
 
     def test_server_spawn_unknown_cannot_fake_rejoin_fixture(self):
         with tempfile.TemporaryDirectory() as root:
