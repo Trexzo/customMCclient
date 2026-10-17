@@ -11,6 +11,7 @@ on:
       - 'scripts/FetchMojang189NativeAssets.py'
       - 'scripts/test_mojang189_complete_assets.py'
       - 'scripts/test_mojang189_server_spawn.py'
+      - 'scripts/test_mojang189_workflow_acceptance_paths.py'
       - 'scripts/test_mojang189_x11_host_keys.py'
       - 'scripts/RunMojang189GraphicalSmoke.py'
       - 'scripts/RunMojang189SingleplayerSmoke.py'
@@ -18,6 +19,12 @@ on:
       - 'bootstrap/src/main/java/dev/trexzo/custommc/bootstrap/TransformingTargetClassLoader.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RuntimeBridge.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RejoinTargetAcceptance.java'
+      # V138: original-binary proof code MUST NOT run Foundation alone.
+      # A witness rejecting or accepting a genuine live attack, rod, GUI,
+      # world source or packet requires the full pinned Mojang suite.
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189*Acceptance.java'
+      - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189*AcceptanceTest.java'
+      - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SimultaneousPriorityRevalidationTest.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RejoinNativeUnloadTransitionTest.java'
       # V71: all real game-module implementation and settings changes must
       # run the SAME genuine Mojang binary/server suite, not Foundation only.
