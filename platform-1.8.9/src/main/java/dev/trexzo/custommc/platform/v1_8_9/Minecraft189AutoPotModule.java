@@ -14,6 +14,8 @@ public final class Minecraft189AutoPotModule implements Module {
     public static final String AUTO_DETECT_SLOT = ID + ".autoDetectSlot";
     public static final String PREFER_IMMEDIATE_HEALING =
             ID + ".preferImmediateHealing";
+    public static final String CONSERVE_INSTANT_HEALING_II =
+            ID + ".conserveInstantHealingII";
     public static final String HEALTH_THRESHOLD = ID + ".healthPercent";
     public static final String AVOID_ACTIVE_REGENERATION =
             ID + ".avoidActiveRegeneration";
@@ -35,6 +37,11 @@ public final class Minecraft189AutoPotModule implements Module {
     private final Setting<Boolean> preferImmediateHealing = new Setting<Boolean>(
             PREFER_IMMEDIATE_HEALING, Boolean.FALSE, v -> v != null,
             SettingCodecs.BOOLEAN);
+    // Default off. With source Auto Detect + Prefer Instant Healing,
+    // prefer Instant Health I when the original player lacks <=4 HP.
+    private final Setting<Boolean> conserveInstantHealingII =
+            new Setting<Boolean>(CONSERVE_INSTANT_HEALING_II, Boolean.FALSE,
+                    v -> v != null, SettingCodecs.BOOLEAN);
     // Default off: preserve legacy potion use even with an active effect.
     private final Setting<Boolean> avoidActiveRegeneration = new Setting<Boolean>(
             AVOID_ACTIVE_REGENERATION, Boolean.FALSE, v -> v != null,
@@ -67,6 +74,9 @@ public final class Minecraft189AutoPotModule implements Module {
     public Setting<Boolean> autoDetectSlotSetting() { return autoDetectSlot; }
     public Setting<Boolean> preferImmediateHealingSetting() {
         return preferImmediateHealing;
+    }
+    public Setting<Boolean> conserveInstantHealingIISetting() {
+        return conserveInstantHealingII;
     }
     public Setting<Boolean> avoidActiveRegenerationSetting() {
         return avoidActiveRegeneration;
