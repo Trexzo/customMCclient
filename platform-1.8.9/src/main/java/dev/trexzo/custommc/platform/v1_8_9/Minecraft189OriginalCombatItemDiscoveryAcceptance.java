@@ -589,7 +589,10 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
         }
 
         if (phase == 14) {
-            if (gui || selected != physicalImpactSlot) return;
+            if (gui || selected != physicalImpactSlot) {
+                physicalImpactReadyCallbacks = 0;
+                return;
+            }
             final Minecraft189ItemStackAccess[] now =
                     inventory.customMcHotbarItems();
             assertTrue(now != null && now.length >= 9
