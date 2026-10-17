@@ -48,23 +48,32 @@ final class Minecraft189AutoPotRegenerationGuard {
             return sameLiveItem(sourceInventory, sourcePlayer, slot,
                     item, damage);
 
-        final Minecraft189PotionEffectAccess[] effects =
-                ((Minecraft189PlayerPotionEffectsAccess) sourcePlayer)
-                        .customMcPotionEffects();
-        if (effects == null) return false;
+        final Minecraft189PlayerPotionEffectsAccess nativeEffects =
+                (Minecraft189PlayerPotionEffectsAccess) sourcePlayer;
+        if (duplicatesRegeneration(nativeEffects.customMcPotionEffects())
+                || !sameLiveItem(sourceInventory, sourcePlayer, slot,
+                        item, damage))
+            return false;
+        // Callbacks reading source inventory may install a new effect.
+        // Revalidate the actual live player's active effects before use.
+        return !duplicatesRegeneration(nativeEffects.customMcPotionEffects())
+                && sameLiveItem(sourceInventory, sourcePlayer, slot,
+                        item, damage);
+    }
+
+    private static boolean duplicatesRegeneration(
+            final Minecraft189PotionEffectAccess[] effects) {
+        if (effects == null) return true;
         for (final Minecraft189PotionEffectAccess effect : effects) {
-            if (effect == null) return false;
+            if (effect == null) return true;
             final int id = effect.customMcPotionId();
             final int duration = effect.customMcDurationTicks();
-            // Conservative: unknown/negative original effect duration does
-            // not authorize spending a regeneration splash potion.
-            if (duration < 0) return false;
+            if (duration < 0) return true;
             if (id == REGENERATION_EFFECT_ID
                     && duration >= MINIMUM_REMAINING_TICKS)
-                return false;
+                return true;
         }
-        return sameLiveItem(sourceInventory, sourcePlayer, slot,
-                item, damage);
+        return false;
     }
 
     private static boolean sameLiveItem(
