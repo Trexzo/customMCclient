@@ -78,13 +78,18 @@ class OriginalManualMeleeRoomTests(TestCase):
         manual = runner.split("                if attack:", 1)[1].split(
             "                else:", 1)[0]
         # Validates independent, real integrated-server command acceptance.
-        pre = manual.index("send_verified_chunk_teleport")
+        pre = manual.index('"/tp CIProbe 8 120 8"')
         stone = manual.index('"/fill 4 99 4 12 104 13 stone"')
         air = manual.index('"/fill 5 100 5 11 103 12 air"')
         look = manual.index('"/tp CIProbe 8 100 8 0 26"')
         pig = manual.index('"/summon Pig 8.5 100 10.5 {NoAI:1b}"')
         proof = manual.index("CUSTOMMC_189_MANUAL_MELEE_FIXED_NATIVE_ROOM_PASS")
         self.assertTrue(pre < stone < air < look < pig < proof)
+        self.assertLess(104, 120,
+                        "original source player must stay above solid stone "
+                        "fill until genuine /fill air makes the room safe")
+        self.assertIn(
+            'b"[CHAT] Teleported CIProbe to 8.5, 120.0, 8.5"', manual)
         # Both fill cuboids are wholly inside a loaded chunk and enclose
         # a source player x=8.5 z=8.5 and Pig x=8.5 z=10.5.
         outer = (4, 99, 4, 12, 104, 13)
