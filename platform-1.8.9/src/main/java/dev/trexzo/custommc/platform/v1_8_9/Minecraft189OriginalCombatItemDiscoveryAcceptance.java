@@ -16,12 +16,16 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
     private static int physicalCastSlot = -1;
     private static int continuousHookCallbacks;
     private static int sourceRegenerationPotionSlot = -1;
+    private static int physicalImpactSlot = -1;
+    private static Minecraft189ItemStackAccess physicalImpactPotion;
+    private static float physicalImpactOriginalPitch = Float.NaN;
+    private static boolean physicalImpactPitchOwned;
 
     private Minecraft189OriginalCombatItemDiscoveryAcceptance() {}
 
     static synchronized void observe(final Minecraft189HostRuntime host,
             final Minecraft189PlayerInventoryAccess source) {
-        if (!Boolean.getBoolean(PROPERTY) || phase == 13 || source == null
+        if (!Boolean.getBoolean(PROPERTY) || phase == 16 || source == null
                 || !host.playerMovementState().snapshot().available())
             return;
         if (!(source instanceof Minecraft189PlayerHeldItemAccess))
@@ -548,6 +552,90 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
             phase = 13;
             report("CUSTOMMC_OFFICIAL_189_REGEN_NATIVE_AUTODETECT_RANK_COMPOSE_PASS=YES");
+            return;
+        }
+
+        // V144: unlike earlier source selection/permission checks, the
+        // vanilla integrated-world player will physically THROW this
+        // actual splash item. The preceding effect is cleared using a
+        // different vanilla chat command, and must remain absent until
+        // an X11 physical original right click causes a true new effect.
+        if (phase == 13) {
+            if (gui || hasAnyNativeRegeneration(source)) return;
+            final Minecraft189ItemStackAccess[] items =
+                    inventory.customMcHotbarItems();
+            if (items == null || items.length < 9) return;
+            int sourceSplash = -1;
+            for (int slot = 0; slot < 9; slot++) {
+                final Minecraft189ItemStackAccess item = items[slot];
+                if (item != null && item.customMcStackSize() > 0
+                        && item.customMcIsPotion()
+                        && item.customMcItemDamage() == 16449) {
+                    sourceSplash = slot;
+                    physicalImpactPotion = item;
+                    break;
+                }
+            }
+            if (sourceSplash < 0 || sourceSplash == selected) return;
+            assertTrue(source instanceof Minecraft189PlayerRotationControl,
+                    "real physical splash needs source-mapped Mojang rotationPitch");
+            physicalImpactSlot = sourceSplash;
+            phase = 14;
+            report("CUSTOMMC_OFFICIAL_189_REAL_SPLASH_SOURCE_SLOT="
+                    + (sourceSplash + 1));
+            return;
+        }
+
+        if (phase == 14) {
+            if (gui || selected != physicalImpactSlot) return;
+            final Minecraft189ItemStackAccess[] now =
+                    inventory.customMcHotbarItems();
+            assertTrue(now != null && now.length >= 9
+                    && now[physicalImpactSlot] == physicalImpactPotion
+                    && physicalImpactPotion.customMcIsPotion()
+                    && physicalImpactPotion.customMcStackSize() > 0
+                    && physicalImpactPotion.customMcItemDamage() == 16449,
+                    "physical vanilla splash is not same verified original source ItemStack");
+            assertTrue(!hasAnyNativeRegeneration(source),
+                    "effect must be absent BEFORE physical native splash throw");
+            final Minecraft189PlayerRotationControl rotation =
+                    (Minecraft189PlayerRotationControl) source;
+            physicalImpactOriginalPitch = rotation.customMcRotationPitch();
+            assertTrue(Float.isFinite(physicalImpactOriginalPitch)
+                    && physicalImpactOriginalPitch >= -90F
+                    && physicalImpactOriginalPitch <= 90F,
+                    "physical original source user look pitch invalid");
+            rotation.customMcSetRotationPitch(85F);
+            physicalImpactPitchOwned =
+                    rotation.customMcRotationPitch() == 85F;
+            assertTrue(physicalImpactPitchOwned,
+                    "real vanilla source cannot aim physical Regeneration splash at own feet");
+            phase = 15;
+            report("CUSTOMMC_OFFICIAL_189_REAL_SPLASH_PHYSICAL_CAST_READY_PASS=YES");
+            return;
+        }
+
+        if (phase == 15) {
+            // The runner does not issue /effect in this phase. A new
+            // PotionEffect ID 10 amp 0 on this SAME local original player
+            // can only be reported after its genuine physical splash
+            // actually reaches the player through vanilla game mechanics.
+            if (!hasNativeRegeneration(source, 0, 20)) return;
+            assertTrue(owner == source && inventory == source.customMcInventory(),
+                    "physical splash effect belongs to a foreign/respawn player");
+            assertTrue(inventory.customMcSelectedHotbarSlot() == physicalImpactSlot,
+                    "physical splash switched the actual human hotbar");
+            final Minecraft189PlayerRotationControl rotation =
+                    (Minecraft189PlayerRotationControl) source;
+            if (physicalImpactPitchOwned
+                    && rotation.customMcRotationPitch() == 85F)
+                rotation.customMcSetRotationPitch(physicalImpactOriginalPitch);
+            assertTrue(rotation.customMcRotationPitch()
+                            == physicalImpactOriginalPitch,
+                    "true splash must restore original user pitch");
+            physicalImpactPitchOwned = false;
+            phase = 16;
+            report("CUSTOMMC_OFFICIAL_189_REAL_SPLASH_REGEN_IMPACT_SOURCE_EFFECT_PASS=YES");
         }
     }
 
