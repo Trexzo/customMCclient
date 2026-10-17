@@ -298,6 +298,39 @@ def send_verified_fill(process, log, window, command):
         "before bounded deadline")
 
 
+def prepare_native_scaffold_context_chamber(process, log, window):
+    """Make a real vanilla ground fixture INSIDE loaded chunk (0, 0).
+
+    A single blind /setblock and /tp at x=0.5 can interact with unknown
+    neighboring terrain. The original server must positively acknowledge
+    the two actual /fill commands and exact real player teleports.
+    """
+    send_verified_original_chat_reply(
+        process, log, window, "/tp CIProbe 2 120 2 0 0",
+        b"[CHAT] Teleported CIProbe to 2.5, 120.0, 2.5")
+    # The real player stays above the future fill while it is solid.
+    send_verified_fill(process, log, window,
+                       "/fill 0 99 0 4 104 4 stone")
+    # Positive air fill is guaranteed by the acknowledged solid fill.
+    send_verified_fill(process, log, window,
+                       "/fill 0 100 0 4 104 4 air")
+    send_verified_original_chat_reply(
+        process, log, window, "/tp CIProbe 2 100 2 0 0",
+        b"[CHAT] Teleported CIProbe to 2.5, 100.0, 2.5")
+
+
+def native_scaffold_context_grounded(readings):
+    """Use only genuine player position ticks, not a teleport command log."""
+    if len(readings) < 3:
+        return False
+    last = readings[-3:]
+    if not all(abs(x - 2.5) < .15 and abs(y - 100.0) < .15
+               and abs(z - 2.5) < .15 for x, y, z in last):
+        return False
+    return all(max(p[axis] for p in last) - min(p[axis] for p in last)
+               <= .03 for axis in range(3))
+
+
 def native_safe_walk_positions(log):
     """Native per-tick positions from source-mapped local player, never GUI guesses."""
     prefix = b"CUSTOMMC_189_NATIVE_LOCAL_POS="
@@ -1044,25 +1077,26 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_NATIVE_ITEM_WORLD_PARITY_PASS=YES",
                       flush=True)
             if native_scaffold_context:
-                # V23: Minecraft.runTick itself publishes original h/f/s.
-                # No complete witness before genuine vanilla ItemBlock delivery.
+                # V158: earlier V155 unchanged-source original run failed with
+                # source position x=-0.4096 instead of expected x=0.5 after a
+                # fire-and-forget /setblock and /tp at the chunk border. Build
+                # a real, acknowledged hollow stone chamber first, and place
+                # the original source player safely at its center. Keep ALL
+                # post-ItemBlock original runTick/controller evidence strict.
                 resume_if_paused(process, log, window)
                 send_command(process, log, window, "/time set 1000")
-                send_command(process, log, window, "/tp 0.5 120 0.5 0 0")
-                time.sleep(2.0)
-                send_command(process, log, window, "/setblock 0 99 0 stone")
-                send_command(process, log, window, "/tp 0.5 100 0.5 0 0")
+                prepare_native_scaffold_context_chamber(process, log, window)
                 stable_start = time.monotonic()
                 while time.monotonic() - stable_start < 12:
                     readings = native_safe_walk_positions(log)[-5:]
-                    if len(readings) >= 3 and all(
-                            abs(x - .5) < .3 and abs(y - 100.0) < .2
-                            and abs(z - .5) < .3 for x, y, z in readings[-3:]):
+                    if native_scaffold_context_grounded(readings):
                         break
                     require_running(process, "original context source grounding")
                     time.sleep(.15)
                 else:
-                    raise AssertionError("native original Scaffold context player not grounded")
+                    raise AssertionError(
+                        "native original Scaffold context player not grounded "
+                        "at confirmed source-chunk chamber center")
                 tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_TICK_CONTEXT_PASS=YES"
                 eye_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_PLAYER_EYE_PASS=YES"
                 reach_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_REACH_PASS=YES"
