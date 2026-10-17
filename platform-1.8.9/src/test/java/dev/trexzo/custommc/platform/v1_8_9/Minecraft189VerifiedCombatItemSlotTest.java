@@ -354,6 +354,83 @@ final class Minecraft189VerifiedCombatItemSlotTest {
         }
     }
 
+
+    @Test void inPlaceSourceRodPotionStackDepletionDuringNativeTypeGetterFailsClosed() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        rod.onEnable();
+        pot.onEnable();
+        try {
+            inventory.selected = 4;
+            final FakeItem rodItem = new FakeItem(true, false, 1);
+            player.items[1] = rodItem;
+            rodItem.afterRodTypeRead = () -> rodItem.count = 0;
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player),
+                    "source getter depleted *same* original ItemStack wrapper");
+            assertEquals(4, inventory.selected);
+            rodItem.count = 1;
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
+            rod.restoreSlot(inventory, 4);
+
+            final FakeItem potionItem = new FakeItem(false, true, 1);
+            player.items[2] = potionItem;
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            potionItem.afterPotionTypeRead = () -> potionItem.count = 0;
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4),
+                    "in-place potion depletion after AutoBlock release vetoes click");
+            assertEquals(2, inventory.selected);
+            potionItem.count = 1;
+            assertTrue(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4),
+                    "a genuinely restored stable source potion may be checked anew");
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            rod.onDisable();
+            pot.onDisable();
+        }
+    }
+
+    @Test void sourceTypeChangingInPlaceDuringGetterNeverBorrowsOldClassEvidence() {
+        final Inventory inventory = new Inventory();
+        final Player player = new Player(inventory);
+        final Minecraft189AutoRodModule rod = new Minecraft189AutoRodModule();
+        final Minecraft189AutoPotModule pot = new Minecraft189AutoPotModule();
+        rod.onEnable();
+        pot.onEnable();
+        try {
+            inventory.selected = 4;
+            final FakeItem rodStack = new FakeItem(true, false, 1);
+            player.items[1] = rodStack;
+            rodStack.afterRodTypeRead = () -> { rodStack.rod = false; rodStack.potion = true; };
+            assertEquals(-1, Minecraft189VerifiedCombatItemSlot.selectRod(
+                    rod, inventory, player));
+            assertEquals(4, inventory.selected);
+
+            final FakeItem potionStack = new FakeItem(false, true, 1);
+            player.items[2] = potionStack;
+            assertEquals(4, Minecraft189VerifiedCombatItemSlot.selectPotion(
+                    pot, inventory, player));
+            potionStack.afterPotionTypeRead = () -> {
+                potionStack.potion = false;
+                potionStack.rod = true;
+            };
+            assertFalse(Minecraft189VerifiedCombatItemSlot.stillOwnsPotionAtUse(
+                    pot, inventory, player, 4));
+            pot.restoreSlot(inventory, 4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            rod.onDisable();
+            pot.onDisable();
+        }
+    }
+
     private static final class Inventory implements Minecraft189InventoryHotbarItemsAccess {
         int selected;
         final Minecraft189ItemStackAccess[] items = new Minecraft189ItemStackAccess[9];
@@ -379,9 +456,9 @@ final class Minecraft189VerifiedCombatItemSlotTest {
     }
 
     private static final class FakeItem implements Minecraft189ItemStackAccess {
-        final boolean rod;
-        final boolean potion;
-        final int count;
+        boolean rod;
+        boolean potion;
+        int count;
         Runnable afterRodTypeRead;
         Runnable afterPotionTypeRead;
         FakeItem(final boolean rod, final boolean potion) {
