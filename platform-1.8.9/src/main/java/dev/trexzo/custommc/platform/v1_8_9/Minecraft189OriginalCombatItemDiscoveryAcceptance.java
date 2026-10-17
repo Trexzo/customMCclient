@@ -210,6 +210,8 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             assertTrue(inventory.customMcSelectedHotbarSlot() == baseline,
                     "source InventoryPlayer currentItem not restored after native disable");
             physicalCastSlot = rod;
+            assertTrue(physicalCastSlot != baseline,
+                    "X11 source rod cast test needs a physical slot transition");
             phase = 5;
             report("CUSTOMMC_OFFICIAL_189_ROD_POTION_NATIVE_GUI_CLOSE_RESTORE_PASS=YES");
             // The Python runner must use an actual physical hotbar number
@@ -268,9 +270,17 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                     .customMcHasFishingHook()) return;
             assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
                     "manual vanilla reeling changed the real hotbar slot");
-            assertTrue(host.selectAutoRodSlot() >= 0,
-                    "AutoRod remained vetoed even though real hook disappeared");
-            host.restoreAutoRodSlot(physicalCastSlot);
+            final int acquired = host.selectAutoRodSlot();
+            assertTrue(acquired == physicalCastSlot,
+                    "source AutoRod failed to reacquire the exact original slot after reel");
+            try {
+                assertTrue(host.mayExecuteAutoRodUse(acquired),
+                        "original source Rod final-use gate did not recover after hook vanished");
+            } finally {
+                host.restoreAutoRodSlot(acquired);
+            }
+            assertTrue(inventory.customMcSelectedHotbarSlot() == physicalCastSlot,
+                    "post-reel original source hotbar restore wrote a different slot");
             host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
             phase = 8;
             report("CUSTOMMC_OFFICIAL_189_REAL_PHYSICAL_ROD_REEL_HOOK_CLEARED_PASS=YES");
