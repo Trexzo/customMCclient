@@ -23,6 +23,8 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
     private static int physicalImpactReadyCallbacks;
     private static int physicalImpactEffectCallbacks;
     private static int syntheticHealSlot = -1;
+    private static int syntheticHealOriginalSelected = -1;
+    private static float syntheticHealHumanPitch = Float.NaN;
     private static Minecraft189ItemStackAccess syntheticHealSourceItem;
     private static float syntheticHealHealthBefore = Float.NaN;
     private static float syntheticHealExpectedMax = Float.NaN;
@@ -717,6 +719,16 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
                             && syntheticHealSourceItem.customMcItemDamage() == 16421,
                     "original survival ItemPotion ownership changed before AutoPot");
             syntheticHealHealthBefore = health;
+            syntheticHealOriginalSelected = selected;
+            assertTrue(source instanceof Minecraft189PlayerRotationControl,
+                    "damaged original player lacks mapped rotationPitch");
+            syntheticHealHumanPitch =
+                    ((Minecraft189PlayerRotationControl) source)
+                            .customMcRotationPitch();
+            assertTrue(Float.isFinite(syntheticHealHumanPitch)
+                            && syntheticHealHumanPitch >= -90F
+                            && syntheticHealHumanPitch <= 90F,
+                    "invalid source human pitch before auto healing");
             final Minecraft189AutoPotModule pot = host.featureCatalog().autoPot();
             pot.autoDetectSlotSetting().set(Boolean.FALSE);
             pot.potSlotSetting().set(syntheticHealSlot + 1);
@@ -749,8 +761,12 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             if (++syntheticHealRecoveredCallbacks < 5) return;
             assertTrue(owner == source && inventory == source.customMcInventory(),
                     "healed native source object is not same original player");
-            assertTrue(inventory.customMcSelectedHotbarSlot() != syntheticHealSlot,
-                    "production AutoPot never restored original human hotbar");
+            assertTrue(inventory.customMcSelectedHotbarSlot()
+                            == syntheticHealOriginalSelected,
+                    "production AutoPot did not restore EXACT original user hotbar");
+            assertTrue(((Minecraft189PlayerRotationControl) source)
+                            .customMcRotationPitch() == syntheticHealHumanPitch,
+                    "actual original AutoPot cast did not restore user pitch");
             assertTrue(syntheticHealUseCallbacks == 1,
                     "repeated source AutoPot attempts cannot prove one healing item");
             final Minecraft189ItemStackAccess[] afterUse =
@@ -776,11 +792,25 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             final Minecraft189HostRuntime host,
             final int priorSelectedSlot) {
         if (!Boolean.getBoolean(PROPERTY) || phase != 18) return;
+        final Minecraft189ItemStackAccess[] sourceItems =
+                inventory.customMcHotbarItems();
         assertTrue(!syntheticHealPreClickWitness
                         && host.featureCatalog().autoPot().active()
-                        && priorSelectedSlot >= 0 && priorSelectedSlot <= 8
+                        && priorSelectedSlot == syntheticHealOriginalSelected
+                        && inventory.customMcSelectedHotbarSlot()
+                                == syntheticHealSlot
+                        && sourceItems != null && sourceItems.length >= 9
+                        && sourceItems[syntheticHealSlot]
+                                == syntheticHealSourceItem
+                        && syntheticHealSourceItem.customMcIsPotion()
+                        && syntheticHealSourceItem.customMcStackSize() > 0
+                        && syntheticHealSourceItem.customMcItemDamage() == 16421
                         && host.mayExecuteAutoPotUse(priorSelectedSlot),
-                "unowned original potion at real AutoPot dispatch");
+                "unowned or substituted source ItemPotion at real AutoPot dispatch");
+        assertTrue(owner instanceof Minecraft189PlayerRotationControl
+                        && ((Minecraft189PlayerRotationControl) owner)
+                                .customMcRotationPitch() == 85F,
+                "production self-heal did not aim the SAME original owner downward");
         final Minecraft189PlayerHealthState.Snapshot health =
                 host.playerHealthState().snapshot();
         assertTrue(health.available() && health.health() > 0F
