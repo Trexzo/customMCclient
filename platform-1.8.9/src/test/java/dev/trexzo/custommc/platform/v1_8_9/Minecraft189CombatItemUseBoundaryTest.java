@@ -158,6 +158,91 @@ final class Minecraft189CombatItemUseBoundaryTest {
         }
     }
 
+
+    @Test void optedInAutoPotUsesActualRegenerationAndRollsBackLiveHotbar() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(),
+                new NoOpHost());
+        try {
+            final Inventory inventory = new Inventory();
+            inventory.selected = 4;
+            final Item potion = new Item(false, true, 1);
+            potion.damage = 16417;
+            inventory.items[2] = potion;
+            final Player owner = new Player(inventory);
+            final Minecraft189PotionEffectAccess longRegen =
+                    new Minecraft189PotionEffectAccess() {
+                @Override public int customMcPotionId() { return 10; }
+                @Override public int customMcDurationTicks() { return 200; }
+                @Override public int customMcAmplifier() { return 1; }
+                @Override public String customMcEffectName() { return "regen"; }
+            };
+            owner.sourceEffects = new Minecraft189PotionEffectAccess[]{longRegen};
+            runtime.playerHotbarSlot(owner);
+            runtime.playerHeldItem(owner);
+            controller.enable(Minecraft189AutoPotModule.ID);
+
+            // Default-off compatibility: opt-in cannot modify legacy item use.
+            assertFalse(runtime.featureCatalog().autoPot()
+                    .avoidActiveRegenerationSetting().get());
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertTrue(runtime.mayExecuteAutoPotUse(4));
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+
+            runtime.featureCatalog().autoPot()
+                    .avoidActiveRegenerationSetting().set(Boolean.TRUE);
+            assertEquals(-1, runtime.selectAutoPotSlot(),
+                    "genuine owner with long active regen cannot acquire regen splash");
+            assertEquals(4, inventory.selected,
+                    "veto must release and restore original currentItem");
+
+            // Instant Health must never be blocked by unrelated regen.
+            potion.damage = 16421;
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertEquals(2, inventory.selected);
+            assertTrue(runtime.mayExecuteAutoPotUse(4));
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+
+            potion.damage = 16417;
+            owner.sourceEffects = new Minecraft189PotionEffectAccess[0];
+            assertEquals(4, runtime.selectAutoPotSlot());
+            assertTrue(runtime.mayExecuteAutoPotUse(4));
+            owner.sourceEffects = new Minecraft189PotionEffectAccess[]{longRegen};
+            assertFalse(runtime.mayExecuteAutoPotUse(4),
+                    "effect beginning after native slot selection revokes final use");
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+
+            // Source setter callback installs regeneration after selection.
+            owner.sourceEffects = new Minecraft189PotionEffectAccess[0];
+            inventory.duringNextSetter =
+                    () -> owner.sourceEffects = new Minecraft189PotionEffectAccess[]{longRegen};
+            assertEquals(-1, runtime.selectAutoPotSlot(),
+                    "late source effect must revoke lease after original setter");
+            assertEquals(4, inventory.selected);
+            owner.sourceEffects = new Minecraft189PotionEffectAccess[0];
+            assertEquals(4, runtime.selectAutoPotSlot(),
+                    "failed attempt must not strand the next valid source lease");
+            runtime.restoreAutoPotSlot(4);
+            assertEquals(4, inventory.selected);
+        } finally {
+            runtime.close();
+        }
+    }
+
     @Test void sourcePlayerRespawnCannotBorrowOldItemOrStrandCapturedInventory() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -764,10 +849,16 @@ final class Minecraft189CombatItemUseBoundaryTest {
     }
 
     private static final class Player implements Minecraft189PlayerInventoryAccess,
-            Minecraft189PlayerHeldItemAccess, Minecraft189PlayerFishingHookAccess {
+            Minecraft189PlayerHeldItemAccess, Minecraft189PlayerFishingHookAccess,
+            Minecraft189PlayerPotionEffectsAccess {
         final Inventory inventory;
         Runnable duringHeldItemRead;
         boolean hasFishingHook;
+        Minecraft189PotionEffectAccess[] sourceEffects =
+                new Minecraft189PotionEffectAccess[0];
+        @Override public Minecraft189PotionEffectAccess[] customMcPotionEffects() {
+            return sourceEffects;
+        }
         Player(final Inventory inventory) { this.inventory = inventory; }
         @Override public boolean customMcHasFishingHook() {
             return hasFishingHook;
@@ -787,16 +878,18 @@ final class Minecraft189CombatItemUseBoundaryTest {
         final boolean rod;
         final boolean potion;
         int count;
+        int damage;
         Runnable afterRodTypeRead;
         Runnable afterPotionTypeRead;
         Item(final boolean rod, final boolean potion, final int count) {
             this.rod = rod;
             this.potion = potion;
             this.count = count;
+            this.damage = potion ? 16389 : 0;
         }
         @Override public String customMcDisplayName() { return "source item"; }
         @Override public int customMcStackSize() { return count; }
-        @Override public int customMcItemDamage() { return potion ? 16389 : 0; }
+        @Override public int customMcItemDamage() { return damage; }
         @Override public int customMcMaxDamage() { return 0; }
         @Override public boolean customMcIsFishingRod() {
             final Runnable callback = afterRodTypeRead;
