@@ -36,6 +36,10 @@ public final class Minecraft189JumpResetModule implements Module {
     private int previousHurtTime;
     private int cooldownRemaining;
     private int scheduledCooldown = cooldown.get();
+    // Native player.customMcJump() may synchronously reenter the same
+    // hurt callback (including when it throws). Never let an in-flight
+    // source action dispatch an extra jump or replay its hurt edge.
+    private boolean nativeJumpDispatching;
 
     @Override
     public String id() { return ID; }
@@ -67,7 +71,14 @@ public final class Minecraft189JumpResetModule implements Module {
         if (!enabled || player == null || movement == null
                 || !movement.available() || hurt == null
                 || !hurt.available()) {
-            clear();
+            if (!nativeJumpDispatching) clear();
+            return false;
+        }
+        if (nativeJumpDispatching) {
+            // A reentrant actual hurt observation must still be consumed,
+            // not banked for a later callback after native dispatch exits.
+            previousAvailable = true;
+            previousHurtTime = hurt.hurtTime();
             return false;
         }
         final int value = hurt.hurtTime();
@@ -95,9 +106,17 @@ public final class Minecraft189JumpResetModule implements Module {
         if (chance.get() != 100 && ThreadLocalRandom.current().nextInt(100) >= chance.get()) {
             return false;
         }
-        player.customMcJump();
+        // Commit cooldown BEFORE the real native call: the source bridge
+        // may partially jump and then throw. The same hurt edge cannot
+        // immediately spend a second original action on another callback.
         cooldownRemaining = configuredCooldown;
-        return true;
+        nativeJumpDispatching = true;
+        try {
+            player.customMcJump();
+            return true;
+        } finally {
+            nativeJumpDispatching = false;
+        }
     }
 
     synchronized boolean active() { return enabled; }
