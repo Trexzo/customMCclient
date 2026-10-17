@@ -22,12 +22,18 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
     private static boolean physicalImpactPitchOwned;
     private static int physicalImpactReadyCallbacks;
     private static int physicalImpactEffectCallbacks;
+    private static int syntheticHealSlot = -1;
+    private static Minecraft189ItemStackAccess syntheticHealSourceItem;
+    private static float syntheticHealHealthBefore = Float.NaN;
+    private static float syntheticHealExpectedMax = Float.NaN;
+    private static int syntheticHealUseCallbacks;
+    private static int syntheticHealRecoveredCallbacks;
 
     private Minecraft189OriginalCombatItemDiscoveryAcceptance() {}
 
     static synchronized void observe(final Minecraft189HostRuntime host,
             final Minecraft189PlayerInventoryAccess source) {
-        if (!Boolean.getBoolean(PROPERTY) || phase == 16 || source == null
+        if (!Boolean.getBoolean(PROPERTY) || phase == 20 || source == null
                 || !host.playerMovementState().snapshot().available())
             return;
         if (!(source instanceof Minecraft189PlayerHeldItemAccess))
@@ -652,7 +658,130 @@ final class Minecraft189OriginalCombatItemDiscoveryAcceptance {
             physicalImpactPitchOwned = false;
             phase = 16;
             report("CUSTOMMC_OFFICIAL_189_REAL_SPLASH_REGEN_IMPACT_SOURCE_EFFECT_PASS=YES");
+            return;
         }
+
+        // V145: a distinctly new actual Survival-mode original client
+        // acceptance. The runner does NOT issue a physical right click.
+        // It only gives a potion and later applies vanilla Instant Damage,
+        // while the real AutoPot production tick owns the native throw.
+        if (phase == 16) {
+            if (gui || !(source instanceof Minecraft189PlayerHealthAccess)
+                    || hasAnyNativeRegeneration(source)) return;
+            final Minecraft189PlayerHealthAccess player =
+                    (Minecraft189PlayerHealthAccess) source;
+            final float health = player.customMcHealth();
+            final float maxHealth = player.customMcMaxHealth();
+            if (!Float.isFinite(health) || !Float.isFinite(maxHealth)
+                    || maxHealth < 10F || health < maxHealth - 0.01F) return;
+            final Minecraft189ItemStackAccess[] items =
+                    inventory.customMcHotbarItems();
+            if (items == null || items.length < 9) return;
+            for (int slot = 0; slot < 9; slot++) {
+                final Minecraft189ItemStackAccess item = items[slot];
+                if (item != null && item.customMcIsPotion()
+                        && item.customMcStackSize() > 0
+                        && item.customMcItemDamage() == 16421
+                        && slot != selected) {
+                    syntheticHealSlot = slot;
+                    syntheticHealSourceItem = item;
+                    syntheticHealExpectedMax = maxHealth;
+                    phase = 17;
+                    report("CUSTOMMC_OFFICIAL_189_AUTOPOT_REAL_SURVIVAL_SOURCE_READY_PASS=YES");
+                    return;
+                }
+            }
+            return;
+        }
+
+        if (phase == 17) {
+            if (gui) return;
+            final Minecraft189PlayerHealthAccess player =
+                    (Minecraft189PlayerHealthAccess) source;
+            final float health = player.customMcHealth();
+            final float maxHealth = player.customMcMaxHealth();
+            if (maxHealth != syntheticHealExpectedMax
+                    || !Float.isFinite(health)
+                    || health > maxHealth - 4.0F || health <= 1F) return;
+            assertTrue(!hasAnyNativeRegeneration(source),
+                    "actual low health has a forbidden healing effect");
+            assertTrue(selected != syntheticHealSlot,
+                    "manual user is holding automatic source potion");
+            final Minecraft189ItemStackAccess[] items =
+                    inventory.customMcHotbarItems();
+            assertTrue(items != null && items.length >= 9
+                            && items[syntheticHealSlot] == syntheticHealSourceItem
+                            && syntheticHealSourceItem.customMcIsPotion()
+                            && syntheticHealSourceItem.customMcStackSize() > 0
+                            && syntheticHealSourceItem.customMcItemDamage() == 16421,
+                    "original survival ItemPotion ownership changed before AutoPot");
+            syntheticHealHealthBefore = health;
+            final Minecraft189AutoPotModule pot = host.featureCatalog().autoPot();
+            pot.autoDetectSlotSetting().set(Boolean.FALSE);
+            pot.potSlotSetting().set(syntheticHealSlot + 1);
+            pot.healthThresholdSetting().set(99D);
+            pot.requireCombatTargetSetting().set(Boolean.FALSE);
+            pot.aimDownForSplashSetting().set(Boolean.TRUE);
+            pot.avoidActiveRegenerationSetting().set(Boolean.FALSE);
+            pot.cooldownTicksSetting().set(120);
+            host.featureCatalog().enableOriginalRodPotionDiscoveryAcceptance();
+            // The acceptance enable method defaults Auto Detect to true.
+            // Restore an exact source slot after the normal controller
+            // enable to remove all ambiguity from health/cast evidence.
+            pot.autoDetectSlotSetting().set(Boolean.FALSE);
+            phase = 18;
+            report("CUSTOMMC_OFFICIAL_189_AUTOPOT_REAL_DAMAGED_PLAYER_ARMED_PASS=YES");
+            return;
+        }
+
+        if (phase == 18 || phase == 19) {
+            final Minecraft189PlayerHealthAccess player =
+                    (Minecraft189PlayerHealthAccess) source;
+            final float nowHealth = player.customMcHealth();
+            if (syntheticHealUseCallbacks == 0) return;
+            if (!Float.isFinite(nowHealth)
+                    || player.customMcMaxHealth() != syntheticHealExpectedMax
+                    || nowHealth < syntheticHealHealthBefore + 4F) {
+                syntheticHealRecoveredCallbacks = 0;
+                return;
+            }
+            if (++syntheticHealRecoveredCallbacks < 5) return;
+            assertTrue(owner == source && inventory == source.customMcInventory(),
+                    "healed native source object is not same original player");
+            assertTrue(inventory.customMcSelectedHotbarSlot() != syntheticHealSlot,
+                    "production AutoPot never restored original human hotbar");
+            assertTrue(syntheticHealUseCallbacks == 1,
+                    "repeated source AutoPot attempts cannot prove one healing item");
+            host.featureCatalog().disableOriginalRodPotionDiscoveryAcceptance();
+            phase = 20;
+            report("CUSTOMMC_OFFICIAL_189_AUTOPOT_REAL_SURVIVAL_HEALTH_GAIN_PASS=YES");
+        }
+    }
+
+    /**
+     * Called only by the production original right-click executor after
+     * successful Minecraft.rightClickMouse() return, never a fixture
+     * manually invoking right-click or injecting packets.
+     */
+    static synchronized void observeNativeAutoPotUse(
+            final Minecraft189HostRuntime host,
+            final int priorSelectedSlot) {
+        if (!Boolean.getBoolean(PROPERTY) || phase != 18) return;
+        assertTrue(host.featureCatalog().autoPot().active()
+                        && priorSelectedSlot >= 0 && priorSelectedSlot <= 8,
+                "unarmed native AutoPot original source use");
+        assertTrue(host.mayExecuteAutoPotUse(priorSelectedSlot),
+                "original AutoPot used revoked potion source slot");
+        final Minecraft189PlayerHealthState.Snapshot health =
+                host.playerHealthState().snapshot();
+        assertTrue(health.available() && health.health() > 0F
+                        && health.health() <= syntheticHealHealthBefore
+                        && health.maxHealth() == syntheticHealExpectedMax,
+                "native AutoPot dispatch not at original hurt player health");
+        assertTrue(++syntheticHealUseCallbacks == 1,
+                "original user got multiple AutoPot synthetic use attempts");
+        phase = 19;
+        report("CUSTOMMC_OFFICIAL_189_AUTOPOT_ACTUAL_SYNTHETIC_RIGHTCLICK_PASS=YES");
     }
 
     private static boolean hasNativeRegeneration(
