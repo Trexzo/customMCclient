@@ -276,7 +276,7 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
             (b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at "
              b"(243.5, 4.0, 444.5)\n", "tp CITarget 243 5 446.0 180 0"),
             (b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at "
-             b"(-33.5, 4.0, -33.5)\n", "tp CITarget -34 5 -34.0 0 0"),
+             b"(-33.5, 4.0, -33.5)\n", "tp CITarget -34 5 -35.0 0 0"),
         ):
             with tempfile.TemporaryDirectory() as root:
                 path = Path(root) / "server.log"
