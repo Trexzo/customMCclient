@@ -186,6 +186,91 @@ final class Minecraft189AutoPotModuleTest {
         } finally { pot.onDisable(); }
     }
 
+    @Test void nativePOTLeaseRejectsDisableReenableSameSourcePolicy() {
+        final Minecraft189AutoPotModule mod = new Minecraft189AutoPotModule();
+        final Inventory inv = new Inventory();
+        inv.slot = 5;
+        mod.onEnable();
+        assertEquals(5, mod.selectSlot(inv));
+        assertTrue(mod.ownsSelectedSlot(inv, 5));
+        mod.onDisable();
+        mod.onEnable();
+        try {
+            assertFalse(mod.ownsSelectedSlot(inv, 5),
+                    "same original currentItem and GUI policy cannot carry prior module lifecycle");
+            mod.restoreSlot(inv, 5);
+            assertEquals(5, inv.slot, "original finally restores own old source slot");
+            assertEquals(5, mod.selectSlot(inv));
+            assertTrue(mod.ownsSelectedSlot(inv, 5),
+                    "new original selection owns new enabled module epoch");
+            mod.restoreSlot(inv, 5);
+        } finally { mod.onDisable(); }
+    }
+
+    @Test void nativePOTSetterReentryMayNotPublishStaleUseItemPermission() {
+        final Minecraft189AutoPotModule mod = new Minecraft189AutoPotModule();
+        final ReentrantInventory inv = new ReentrantInventory();
+        inv.slot = 4;
+        mod.onEnable();
+        try {
+            inv.afterSetter = () -> mod.requireCombatTargetSetting().set(false);
+            assertEquals(-1, mod.selectSlot(inv),
+                    "changed GUI policy during original setter revokes use");
+            assertEquals(4, inv.slot, "only owned original source item restores");
+            mod.requireCombatTargetSetting().set(true);
+            inv.afterSetter = () -> { mod.onDisable(); mod.onEnable(); };
+            assertEquals(-1, mod.selectSlot(inv),
+                    "native disable/reenable during hotbar setter revokes lease");
+            assertEquals(4, inv.slot);
+            assertEquals(4, mod.selectSlot(inv));
+            assertTrue(mod.ownsSelectedSlot(inv, 4));
+            mod.restoreSlot(inv, 4);
+        } finally { mod.onDisable(); }
+    }
+
+    @Test void nativePOTCurrentItemGetterReentryMustBeRecheckedAtUse() {
+        final Minecraft189AutoPotModule mod = new Minecraft189AutoPotModule();
+        final ReentrantInventory inv = new ReentrantInventory();
+        inv.slot = 6;
+        mod.onEnable();
+        try {
+            assertEquals(6, mod.selectSlot(inv));
+            inv.afterGetter = () -> mod.requireCombatTargetSetting().set(false);
+            assertFalse(mod.ownsSelectedSlot(inv, 6),
+                    "native accessor may reenter a new policy during use");
+            mod.restoreSlot(inv, 6);
+            assertEquals(6, inv.slot);
+            mod.requireCombatTargetSetting().set(true);
+            assertEquals(6, mod.selectSlot(inv));
+            inv.afterGetter = () -> inv.slot = 7;
+            assertFalse(mod.ownsSelectedSlot(inv, 6),
+                    "original currentItem changed by player during the getter");
+            mod.restoreSlot(inv, 6);
+            assertEquals(7, inv.slot,
+                    "never overwrite actual human-selected currentItem");
+        } finally { mod.onDisable(); }
+    }
+
+    private static final class ReentrantInventory
+            implements Minecraft189InventoryHotbarControl {
+        int slot;
+        Runnable afterSetter;
+        Runnable afterGetter;
+        @Override public int customMcSelectedHotbarSlot() {
+            final int original = slot;
+            final Runnable callback = afterGetter;
+            afterGetter = null;
+            if (callback != null) callback.run();
+            return original;
+        }
+        @Override public void customMcSetSelectedHotbarSlot(int next) {
+            slot = next;
+            final Runnable callback = afterSetter;
+            afterSetter = null;
+            if (callback != null) callback.run();
+        }
+    }
+
     private static final class ThrowingInventory
             implements Minecraft189InventoryHotbarControl {
         private int slot;
