@@ -62,6 +62,8 @@ public final class Minecraft189FastFallModule
             PAUSE_WHILE_SNEAKING_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // Revokes a native motion read when module lifecycle reenters mid-getter.
+    private long nativeReadEpoch;
     private int eligibleDescentCallbacks;
     private int observedActivationDelay;
 
@@ -93,12 +95,14 @@ public final class Minecraft189FastFallModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeReadEpoch++;
         resetActivationDelay();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeReadEpoch++;
         resetActivationDelay();
     }
 
@@ -130,8 +134,31 @@ public final class Minecraft189FastFallModule
             return;
         }
 
-        final double currentMotionY =
-                player.customMcMotionY();
+        // A real mapped getter can synchronously restart this module or
+        // change persisted GUI policy. Capture permission BEFORE reading it.
+        final long approvedEpoch = nativeReadEpoch;
+        final int approvedDelay = activationDelayTicks.get().intValue();
+        final boolean approvedPauseSneaking =
+                pauseWhileSneaking.get().booleanValue();
+        final double approvedFallSpeed = fallSpeed.get().doubleValue();
+        final boolean approvedProgressive = progressive.get().booleanValue();
+        final double approvedRampStep = rampStep.get().doubleValue();
+        final double currentMotionY = player.customMcMotionY();
+        if (!enabled || nativeReadEpoch != approvedEpoch) {
+            // onEnable/onDisable already reset the new lifetime delay.
+            return;
+        }
+        if (activationDelayTicks.get().intValue() != approvedDelay
+                || pauseWhileSneaking.get().booleanValue()
+                    != approvedPauseSneaking
+                || fallSpeed.get().doubleValue() != approvedFallSpeed
+                || progressive.get().booleanValue() != approvedProgressive
+                || rampStep.get().doubleValue() != approvedRampStep) {
+            // A GUI edit invalidates any previously accumulated descent
+            // callbacks; the next real source call starts a fresh policy.
+            resetActivationDelay();
+            return;
+        }
         // Unknown vertical motion must not produce a synthetic write.
         // Preserve the existing no-write behavior for upward and stationary
         // motion, and for descent already at or faster than the target.
@@ -140,7 +167,7 @@ public final class Minecraft189FastFallModule
             return;
         }
 
-        final int delay = activationDelayTicks.get().intValue();
+        final int delay = approvedDelay;
         if (delay != observedActivationDelay) {
             eligibleDescentCallbacks = 0;
             observedActivationDelay = delay;
@@ -150,12 +177,11 @@ public final class Minecraft189FastFallModule
             return;
         }
 
-        final double targetMotionY =
-                -fallSpeed.get().doubleValue();
+        final double targetMotionY = -approvedFallSpeed;
         if (currentMotionY > targetMotionY) {
-            final double nextMotionY = progressive.get().booleanValue()
+            final double nextMotionY = approvedProgressive
                     ? Math.max(targetMotionY,
-                            currentMotionY - rampStep.get().doubleValue())
+                            currentMotionY - approvedRampStep)
                     : targetMotionY;
             if (nextMotionY < currentMotionY) {
                 player.customMcSetMotionY(nextMotionY);
