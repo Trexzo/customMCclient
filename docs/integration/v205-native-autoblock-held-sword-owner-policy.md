@@ -1,0 +1,19 @@
+# V205 — real original sword blocking ownership cannot be prolonged by post-use GUI edits
+
+## Previous genuine Minecraft binary evidence
+V200 immutable SHA `a230080819a57ac5fe8ccc50e398a6941554f1f8` passed **two independent official pinned 78-step genuine original Mojang 1.8.9 X11 + vanilla dedicated-server runs**. V201 and corrected V202 passed one full 78-step original run each. V203 and V204 had their own full original runs in progress; their separate exact source SHAs must be verified independently. Earlier V196–V199 original M419 FAIL remain failures.
+
+## Source bug
+`Minecraft189AutoBlockModule` owns a genuine successful sword-blocking `Minecraft.customMcRightClickMouse()` only after checking actual `EntityPlayer.isUsingItem()`, current original held sword, module activation, current GUI/manual right input and original source Hold Ticks/Manual Right policy. The V201 one-shot source-use ticket correctly captured settings *until the native use succeeded* but `shouldStop` subsequently read the **CURRENT** `holdTicks.get()`, not the exact original approved policy. A late UI change from Hold=1 to Hold=20 could silently prolong **the same previously minted original synthetic right-use state**; a changed Pause Manual Right policy could likewise alter who ought to release old use. This is an actual Java source lifecycle gap, not evidence that Mojang native gameplay had a particular crash.
+
+## V205 production fix
+- When the verified native `completeNativeUse` ticket successfully commits the **actual Minecraft sword right-click**, capture the immutable original held-use policy `ownedHoldTicks` and `ownedManualPolicy` from its pre-native admitted ticket.
+- On every original tick's `shouldStop`, compare that owned policy against current saved GUI settings. If Hold Ticks or Pause Manual Right changed and real manual right is NOT pressed, release the old original synthetic-use owner immediately, rather than extend/compress a stale action using post-use values.
+- Keep the pre-existing absolute manual native mouse priority: physical right button takes ownership from synthetic block **without issuing native stopUsingItem** that would interfere with the player's actual input, even if GUI changed. Real GUI focus, missing sword/target, module disable, or expiration still request the genuine native release, never a fake use/packet.
+- Preserve exactly the original 2-tick default and arbitrary 1–20 tick configured duration when no policy edit happened, including the retained direct-test `started()` fallback which now records its own current policy. One-shot synthetic action `releaseForAction`, shutdown and old native owned block release clear policy metadata.
+- A GUI value edited and returned to its prior exact value between ticks is indistinguishable by the source policy adapter and retains the existing lease; this change does not claim to observe unexposed transient setting history.
+
+## Offline regression evidence
+Twelve new JUnit module tests exercise real source right-click lease: exact 4-tick hold, shortening/lengthening mid-use requiring release, Manual Right policy edit, genuine user mouse takeover, exact default 2-tick expiry, edited-and-restored GUI setting, new source use with changed Hold, module disable requiring real release, competing action one-shot release, manual takeover after edit, shutdown/no stale replay. These are deterministic offline source-policy tests, not original Mojang graphical runtime proof. Existing V201 14 true original-right-click owner tests retained.
+
+Cumulative Draft child V204 #670, V203 #669, V202 #668 and V201 #667. Require own exact V205 Foundation Windows+Ubuntu, pinned full 78-step Minecraft 1.8.9 graphical X11+vanilla dedicated-server suite, and independent same-SHA original repeat. Historical first green parents do not certify the new SHA; PR stays Draft and `main` unchanged.

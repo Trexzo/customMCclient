@@ -29,6 +29,11 @@ public final class Minecraft189AutoBlockModule implements Module {
     private long pendingEpoch;
     private int pendingHoldTicks;
     private boolean pendingManualPolicy;
+    // The synthetic sword block already owns a genuine original use-item
+    // action. Persist the EXACT policy that authorized THAT action rather
+    // than allowing a later GUI edit to extend its lifetime.
+    private int ownedHoldTicks;
+    private boolean ownedManualPolicy;
 
     @Override public String id() { return ID; }
     @Override public synchronized void onEnable() {
@@ -58,12 +63,16 @@ public final class Minecraft189AutoBlockModule implements Module {
             // release that could interrupt their genuine held input.
             ownsBlock = false;
             age = 0;
+            clearOwnedPolicy();
             return false;
         }
         if (!enabled || guiOpen || !swordPresent || !targetPresent
-                || ++age >= holdTicks.get()) {
+                || ownedHoldTicks != holdTicks.get()
+                || ownedManualPolicy != pauseManualRight.get()
+                || ++age >= ownedHoldTicks) {
             ownsBlock = false;
             age = 0;
+            clearOwnedPolicy();
             return true;
         }
         return false;
@@ -74,6 +83,7 @@ public final class Minecraft189AutoBlockModule implements Module {
         if (!ownsBlock) return false;
         ownsBlock = false;
         age = 0;
+        clearOwnedPolicy();
         return !manualRightHeld;
     }
 
@@ -110,6 +120,8 @@ public final class Minecraft189AutoBlockModule implements Module {
         if (valid) {
             ownsBlock = true;
             age = 0;
+            ownedHoldTicks = pendingHoldTicks;
+            ownedManualPolicy = pendingManualPolicy;
         }
         return valid;
     }
@@ -119,6 +131,8 @@ public final class Minecraft189AutoBlockModule implements Module {
         if (enabled) {
             ownsBlock = true;
             age = 0;
+            ownedHoldTicks = holdTicks.get();
+            ownedManualPolicy = pauseManualRight.get();
         }
     }
 
@@ -127,6 +141,12 @@ public final class Minecraft189AutoBlockModule implements Module {
         pendingUseToken = 0;
         ownsBlock = false;
         age = 0;
+        clearOwnedPolicy();
         enabled = false;
+    }
+
+    private void clearOwnedPolicy() {
+        ownedHoldTicks = 0;
+        ownedManualPolicy = false;
     }
 }
