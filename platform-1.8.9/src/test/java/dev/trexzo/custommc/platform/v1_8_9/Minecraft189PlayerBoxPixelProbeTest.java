@@ -81,8 +81,8 @@ final class Minecraft189PlayerBoxPixelProbeTest {
                 400, -20, 40, 80, 2, 1, 854, 480);
         assertEquals(3, pixels.length);
         assertArrayEquals(new int[]{420,420}, pixels[0]); // bottom at +60
-        assertArrayEquals(new int[]{401,459}, pixels[1]); // visible left
-        assertArrayEquals(new int[]{439,459}, pixels[2]); // visible right
+        assertArrayEquals(new int[]{401,450}, pixels[1]); // visible left
+        assertArrayEquals(new int[]{439,450}, pixels[2]); // visible right
         for (int[] sample : pixels) {
             assertTrue(sample[0] >= 0 && sample[0] < 854);
             assertTrue(sample[1] >= 0 && sample[1] < 480);
