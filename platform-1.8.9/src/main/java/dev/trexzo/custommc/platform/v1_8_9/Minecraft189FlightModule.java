@@ -105,6 +105,8 @@ public final class Minecraft189FlightModule
                             && value.doubleValue() <= MAXIMUM_HORIZONTAL_STEP,
                     SettingCodecs.DOUBLE);
     private boolean enabled;
+    // Revokes mapped native player reads after an OFF/ON cycle.
+    private long nativeReadEpoch;
 
     Minecraft189FlightModule(
             final Minecraft189InputState inputState) {
@@ -154,11 +156,13 @@ public final class Minecraft189FlightModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeReadEpoch++;
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeReadEpoch++;
     }
 
     synchronized void apply(
@@ -188,7 +192,13 @@ public final class Minecraft189FlightModule
             return;
         }
 
+        final long callbackEpoch = nativeReadEpoch;
         applyVertical(player);
+        // A genuine mapped vertical setter can synchronously disable and
+        // restart the module. No old callback may then write X or Z.
+        if (!enabled || callbackEpoch != nativeReadEpoch) {
+            return;
+        }
         if (rotation.available()) {
             applyHorizontal(player, rotation.yaw(), movement);
         }
@@ -219,16 +229,25 @@ public final class Minecraft189FlightModule
                     -configuredVerticalSpeed;
         }
 
+        // Snapshot real Space/Shift direction and persisted vertical GUI
+        // policy BEFORE calling the mapped original player's Y getter.
+        final long ownerEpoch = nativeReadEpoch;
+        final boolean smooth = smoothVertical.get().booleanValue();
+        final double maxStep = verticalStep.get().doubleValue();
         final double currentMotionY = player.customMcMotionY();
+        if (!verticalReadStillOwned(
+                ownerEpoch, ascend, descend, configuredVerticalSpeed,
+                smooth, maxStep)) {
+            return;
+        }
         double nextMotionY = targetMotionY;
-        if (smoothVertical.get().booleanValue()) {
+        if (smooth) {
             // Fail closed when the mapped motion source is not finite.
             // No synthetic motion writes should be derived from NaN/Infinity.
             if (!Double.isFinite(currentMotionY)) {
                 return;
             }
             final double delta = targetMotionY - currentMotionY;
-            final double maxStep = verticalStep.get().doubleValue();
             if (Math.abs(delta) > maxStep) {
                 nextMotionY = currentMotionY
                         + Math.copySign(maxStep, delta);
@@ -239,28 +258,31 @@ public final class Minecraft189FlightModule
         }
     }
 
+    private boolean verticalReadStillOwned(
+            final long epoch, final boolean ascend,
+            final boolean descend, final double speed, final boolean smooth,
+            final double step) {
+        final boolean nowAscend = inputState.keyPressed(LegacyKeyboardCodes.SPACE);
+        final boolean nowDescend =
+                inputState.keyPressed(LegacyKeyboardCodes.LEFT_SHIFT)
+                || inputState.keyPressed(LegacyKeyboardCodes.RIGHT_SHIFT);
+        return enabled && nativeReadEpoch == epoch
+                && nowAscend == ascend && nowDescend == descend
+                && verticalSpeed.get().doubleValue() == speed
+                && smoothVertical.get().booleanValue() == smooth
+                && verticalStep.get().doubleValue() == step;
+    }
+
     private void applyHorizontal(
             final Minecraft189PlayerMotionControl player,
             final float yawDegrees,
             final Minecraft189PlayerMovementState.Snapshot movement) {
-        double forward =
-                (inputState.keyPressed(
-                        LegacyKeyboardCodes.W)
-                        ? 1.0D
-                        : 0.0D)
-                        + (inputState.keyPressed(
-                                LegacyKeyboardCodes.S)
-                                ? -1.0D
-                                : 0.0D);
-        double strafe =
-                (inputState.keyPressed(
-                        LegacyKeyboardCodes.A)
-                        ? 1.0D
-                        : 0.0D)
-                        + (inputState.keyPressed(
-                                LegacyKeyboardCodes.D)
-                                ? -1.0D
-                                : 0.0D);
+        final boolean w = inputState.keyPressed(LegacyKeyboardCodes.W);
+        final boolean s = inputState.keyPressed(LegacyKeyboardCodes.S);
+        final boolean a = inputState.keyPressed(LegacyKeyboardCodes.A);
+        final boolean d = inputState.keyPressed(LegacyKeyboardCodes.D);
+        double forward = (w ? 1.0D : 0.0D) - (s ? 1.0D : 0.0D);
+        double strafe = (a ? 1.0D : 0.0D) - (d ? 1.0D : 0.0D);
 
         final double inputLength =
                 Math.sqrt(
@@ -283,15 +305,18 @@ public final class Minecraft189FlightModule
         // Sprint boost applies only to horizontal motion when the mapped
         // live player snapshot confirms sprinting. Unknown movement state
         // retains the certified normal Flight speed and vertical motion.
-        final double multiplier =
-                sprintBoost.get().booleanValue()
+        final long ownerEpoch = nativeReadEpoch;
+        final boolean boost = sprintBoost.get().booleanValue();
+        final double sprintScale = sprintMultiplier.get().doubleValue();
+        final double speed = horizontalSpeed.get().doubleValue();
+        final boolean smooth = smoothHorizontal.get().booleanValue();
+        final double step = horizontalStep.get().doubleValue();
+        final double multiplier = boost
                         && movement != null
                         && movement.available()
                         && movement.sprinting()
-                                ? sprintMultiplier.get().doubleValue()
-                                : 1.0D;
-        final double configuredHorizontalSpeed =
-                horizontalSpeed.get().doubleValue() * multiplier;
+                                ? sprintScale : 1.0D;
+        final double configuredHorizontalSpeed = speed * multiplier;
 
         final double targetMotionX =
                 cleanZero(
@@ -305,10 +330,20 @@ public final class Minecraft189FlightModule
                                 * configuredHorizontalSpeed);
 
         final double currentMotionX = player.customMcMotionX();
+        if (!horizontalReadStillOwned(
+                ownerEpoch, w, s, a, d, boost, sprintScale,
+                speed, smooth, step)) {
+            return;
+        }
         final double currentMotionZ = player.customMcMotionZ();
+        if (!horizontalReadStillOwned(
+                ownerEpoch, w, s, a, d, boost, sprintScale,
+                speed, smooth, step)) {
+            return;
+        }
         double nextMotionX = targetMotionX;
         double nextMotionZ = targetMotionZ;
-        if (smoothHorizontal.get().booleanValue()) {
+        if (smooth) {
             // Failed authority cannot produce a synthetic horizontal write.
             if (!Double.isFinite(currentMotionX)
                     || !Double.isFinite(currentMotionZ)) {
@@ -320,7 +355,6 @@ public final class Minecraft189FlightModule
             if (!Double.isFinite(magnitude)) {
                 return;
             }
-            final double step = horizontalStep.get().doubleValue();
             if (magnitude > step) {
                 final double ratio = step / magnitude;
                 nextMotionX = cleanZero(currentMotionX + dx * ratio);
@@ -329,10 +363,34 @@ public final class Minecraft189FlightModule
         }
         if (Double.compare(currentMotionX, nextMotionX) != 0) {
             player.customMcSetMotionX(nextMotionX);
+            // A mapped X setter can synchronously re-enter settings or
+            // disable Flight; never follow it with a stale Z write.
+            if (!horizontalReadStillOwned(
+                    ownerEpoch, w, s, a, d, boost, sprintScale,
+                    speed, smooth, step)) {
+                return;
+            }
         }
         if (Double.compare(currentMotionZ, nextMotionZ) != 0) {
             player.customMcSetMotionZ(nextMotionZ);
         }
+    }
+
+    private boolean horizontalReadStillOwned(
+            final long epoch, final boolean w, final boolean s,
+            final boolean a, final boolean d, final boolean boost,
+            final double sprintScale, final double speed,
+            final boolean smooth, final double step) {
+        return enabled && nativeReadEpoch == epoch
+                && inputState.keyPressed(LegacyKeyboardCodes.W) == w
+                && inputState.keyPressed(LegacyKeyboardCodes.S) == s
+                && inputState.keyPressed(LegacyKeyboardCodes.A) == a
+                && inputState.keyPressed(LegacyKeyboardCodes.D) == d
+                && sprintBoost.get().booleanValue() == boost
+                && sprintMultiplier.get().doubleValue() == sprintScale
+                && horizontalSpeed.get().doubleValue() == speed
+                && smoothHorizontal.get().booleanValue() == smooth
+                && horizontalStep.get().doubleValue() == step;
     }
 
     private static boolean validSprintMultiplier(final Double value) {
