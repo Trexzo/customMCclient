@@ -55,8 +55,11 @@ class OriginalScaffoldRealSurvivalEdgeFixtureTest(unittest.TestCase):
         self.assertGreater(player_min_x, 0.0)
         self.assertLess(player_min_x, 1.0)
         self.assertEqual(100-1, 99)
-        self.assertEqual((0, 99, 0), (0, 99, 0))
-        self.assertEqual((1, 99, 0), (1, 99, 0))
+        commands = self.exercise(b"[CHAT] No blocks filled\\n")
+        self.assertEqual(commands[1][1].split()[1:],
+                         ["0", "99", "0", "1", "99", "0", "stone"])
+        self.assertEqual(commands[2][1].split()[1:],
+                         ["1", "99", "0", "1", "99", "0", "air"])
 
     def test_stale_previous_log_air_reply_never_proves_fresh_reset(self):
         with tempfile.TemporaryDirectory() as root:
@@ -97,7 +100,10 @@ class OriginalScaffoldRealSurvivalEdgeFixtureTest(unittest.TestCase):
 
     def test_original_real_enabled_and_disabled_place_gates_not_relaxed(self):
         text = Path(smoke.__file__).read_text(encoding="utf-8")
-        v29 = text.split("            if native_scaffold_placement:", 2)[-1]
+        start = text.index(
+            "# V29: actual integrated-server vanilla survival block placement.")
+        finish = text.index("            if native_scaffold_candidate:", start)
+        v29 = text[start:finish]
         self.assertIn("prepare_verified_original_scaffold_survival_edge(", v29)
         self.assertIn("await_marker(process, log, module_tag", v29)
         self.assertIn("await_marker(process, log, attempt_tag", v29)
