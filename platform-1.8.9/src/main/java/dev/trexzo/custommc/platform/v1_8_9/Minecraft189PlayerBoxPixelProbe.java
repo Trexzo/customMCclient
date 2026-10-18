@@ -30,6 +30,24 @@ final class Minecraft189PlayerBoxPixelProbe {
         return new int[]{ix, iy};
     }
 
+    /**
+     * The first successful original native HUD draw does not prove that
+     * a glReadPixels from that same frame saw the opaque foreground.
+     * Retry on every independently source-verified subsequent frame until
+     * a real framebuffer sample passes. Wrong player, invalid rectangle
+     * and normal gameplay (acceptance switch OFF) never arm the probe.
+     */
+    static boolean shouldProbeOriginalRemote(
+            final boolean acceptanceEnabled,
+            final boolean pixelAlreadyReported,
+            final String expectedUuid, final String actualUuid,
+            final float width, final float height) {
+        return acceptanceEnabled && !pixelAlreadyReported
+                && expectedUuid != null && expectedUuid.equals(actualUuid)
+                && Float.isFinite(width) && Float.isFinite(height)
+                && width > 1.0F && height > 1.0F;
+    }
+
     static boolean isForegroundColor(final int red, final int green,
             final int blue) {
         // GL11.glColor4f(112,217,255,255) is fully opaque. Small

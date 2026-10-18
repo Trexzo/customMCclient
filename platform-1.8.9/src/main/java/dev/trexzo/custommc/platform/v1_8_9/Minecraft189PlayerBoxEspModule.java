@@ -97,7 +97,10 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
             final String expected = System.getProperty(
                     "custommc.acceptance.expectedRealRemotePlayerBoxUuid");
             String realRemoteDrawn = null;
+            String pixelRemoteUuid = null;
             int[] sample = null;
+            final boolean pixelRequired = Boolean.getBoolean(
+                    "custommc.acceptance.requireRealRemoteBoxPixel");
             host.beginUi(new UiViewport(fw, fh, scale));
             RuntimeException failure = null;
             try {
@@ -117,18 +120,30 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
                     final int underlay = 0xC0101422, color = 0xFF70D9FF;
                     drawOutline(left-1, top-1, width+2, height+2, t+1, underlay);
                     drawOutline(left, top, width, height, t, color);
+                    final String actualUuid = p.uuid.toString();
                     if (!acceptanceRemoteBoxReported && expected != null
-                            && expected.equals(p.uuid.toString())
-                            && width > 1.0F && height > 1.0F)
-                        {
-                            realRemoteDrawn = p.uuid.toString();
-                            if (Boolean.getBoolean(
-                                    "custommc.acceptance.requireRealRemoteBoxPixel")) {
-                                sample = Minecraft189PlayerBoxPixelProbe.sampleTopStroke(
+                            && expected.equals(actualUuid)
+                            && width > 1.0F && height > 1.0F) {
+                        realRemoteDrawn = actualUuid;
+                    }
+                    // A successful original HUD draw is a one-time event;
+                    // the real framebuffer pixel is a DISTINCT event.
+                    // Never disable future original per-frame pixel probes
+                    // simply because the first HUD-draw callback occurred.
+                    // V190 real native original CI proved HUD PASS but
+                    // timed out waiting for cyan framebuffer evidence.
+                    if (Minecraft189PlayerBoxPixelProbe.shouldProbeOriginalRemote(
+                            pixelRequired, acceptancePixelReported,
+                            expected, actualUuid, width, height)) {
+                        final int[] candidate =
+                                Minecraft189PlayerBoxPixelProbe.sampleTopStroke(
                                         left, top, width, height, t,
                                         scale, fw, fh);
-                            }
+                        if (candidate != null) {
+                            sample = candidate;
+                            pixelRemoteUuid = actualUuid;
                         }
+                    }
                 }
             } catch (RuntimeException error) {
                 failure = error;
@@ -152,9 +167,8 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
             // Exact expected UUID's outline was genuinely drawn into the
             // CURRENT native GL render target; only the explicit acceptance
             // test uses glReadPixels. No screenshot/pixel read in normal play.
-            if (realRemoteDrawn != null && sample != null
-                    && !acceptancePixelReported
-                    && Boolean.getBoolean("custommc.acceptance.requireRealRemoteBoxPixel")) {
+            if (pixelRemoteUuid != null && sample != null
+                    && !acceptancePixelReported && pixelRequired) {
                 try {
                     final ByteBuffer rgba = BufferUtils.createByteBuffer(4);
                     GL11.glReadPixels(sample[0], sample[1], 1, 1,
@@ -167,7 +181,7 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
                         acceptancePixelReported = true;
                         System.out.println(
                                 "CUSTOMMC_OFFICIAL_189_REAL_REMOTE_BOX_FRAMEBUFFER_PIXEL_PASS=YES uuid="
-                                        + realRemoteDrawn
+                                        + pixelRemoteUuid
                                         + " rgba=" + red + "," + green + ","
                                         + blue + "," + (rgba.get(3) & 0xFF));
                         System.out.flush();
