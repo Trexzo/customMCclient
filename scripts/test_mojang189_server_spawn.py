@@ -6,12 +6,14 @@ import unittest
 from RunMojang189LocalhostTwoPlayerSmoke import (
     actual_server_spawn_fixture,
     actual_server_spawn_fov_fixture,
+    actual_server_fov_ground_support_fixture,
     actual_server_spawn_wall_fixture,
     actual_server_three_client_target_switch_fixture,
     actual_server_three_client_simultaneous_fixture,
     actual_server_three_client_locked_fixture,
     actual_server_three_client_rejoin_fixture,
     actual_server_rejoined_a_controller_fixture,
+    actual_server_rejoined_host_recenter_fixture,
     official_offline_uuid,
     actual_server_spawn_positive_pvp_fixture,
     actual_server_clear_wall_command,
@@ -499,3 +501,97 @@ class RealReconnectNativeIdentityFixtureTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OriginalLateFixtureGroundingAndHostLeaseTest(unittest.TestCase):
+    def test_real_fov_support_positive_and_reverse_chunk(self):
+        for login in (
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\n",
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (-33.5, 4.0, -33.5)\n"):
+            with tempfile.TemporaryDirectory() as root:
+                path = Path(root) / "server.log"
+                path.write_bytes(login)
+                host, target = actual_server_spawn_fov_fixture(path)
+                air, stone = actual_server_fov_ground_support_fixture(host, target)
+                self.assertEqual(air[:-4], stone[:-6])
+                p = air.split()
+                self.assertEqual(p[0], "fill")
+                x0,y0,z0,x1,y1,z1 = map(int, p[1:7])
+                self.assertEqual((x1-x0+1)*(y1-y0+1)*(z1-z0+1),15)
+                self.assertEqual(y0, int(host.split()[3])-1)
+                self.assertEqual(z1-z0,4)
+                self.assertEqual(x1-x0,2)
+
+    def test_original_fov_support_rejects_malformed_or_divergent_world(self):
+        host = "tp CIHost -34 5 -34 0 0"
+        target = "tp CITarget -34 5 -32 180 0"
+        self.assertEqual(actual_server_fov_ground_support_fixture(
+            host, target)[1], "fill -35 4 -35 -33 4 -31 stone")
+        for a,b in (
+            (host,"tp CITarget -34 5 -30 180 0"),
+            (host,"tp CITarget -33 5 -32 180 0"),
+            (host,"tp CITarget -34 6 -32 180 0"),
+            ("tp CIHost -34 0 -34 0 0",target),
+            (host,"tp BOGUS -34 5 -32 180 0")
+        ):
+            with self.assertRaises(AssertionError):
+                actual_server_fov_ground_support_fixture(a,b)
+
+    def test_v175_actual_fov_vertical_separation_is_not_valid_reach(self):
+        # Exact V175 late native source: horizontal 2.0 but real 3D 5.85235.
+        import math
+        observed=5.852349955359813
+        self.assertGreater(observed,3.5)
+        self.assertAlmostEqual(math.sqrt(observed*observed-4),5.5,delta=.15)
+        # Pure source fixture does NOT authorize a client attack.
+        script=(Path(__file__).parent /
+                "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
+        self.assertIn('wait_for(host, host_log, FOV_DISABLED, deadline,',script)
+        self.assertIn('wait_for(host, host_log, FOV_VETO, deadline,',script)
+        self.assertIn('expected=b"15 blocks filled"',script)
+        self.assertIn('expected=b"blocks filled"',script)
+
+    def test_v176_original_host_drift_fails_uncorrected_closer_bound(self):
+        import math
+        host=(-1.20,-.09)
+        a=(-.06,-2.15)
+        b=(-1.5,-2.5)
+        actual_a=math.hypot(a[0]-host[0],a[1]-host[1])
+        actual_b=math.hypot(b[0]-host[0],b[1]-host[1])
+        self.assertLess(actual_b-actual_a,.12)
+        # This is only a counterfactual ideal static fixture, NOT a
+        # replacement for genuine World-source M419 acceptance.
+        ideal_host=(-.5,-.5)
+        ideal_a=math.hypot(a[0]-ideal_host[0],a[1]-ideal_host[1])
+        ideal_b=math.hypot(b[0]-ideal_host[0],b[1]-ideal_host[1])
+        self.assertGreater(ideal_b-ideal_a,.12)
+
+    def test_m419_recenter_checks_real_fractional_a_opposite_b(self):
+        for login in (
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\n",
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (-33.5, 4.0, -33.5)\n"):
+            with tempfile.TemporaryDirectory() as root:
+                p=Path(root)/"server.log"
+                p.write_bytes(login)
+                host,a,b=actual_server_three_client_rejoin_fixture(p)
+                relocated=actual_server_rejoined_a_controller_fixture(host,a,b)
+                self.assertEqual(actual_server_rejoined_host_recenter_fixture(
+                    host,relocated,b),host)
+                a_bad=relocated.replace("CITarget","CITargetB")
+                with self.assertRaises(AssertionError):
+                    actual_server_rejoined_host_recenter_fixture(host,a_bad,b)
+                with self.assertRaises(AssertionError):
+                    actual_server_rejoined_host_recenter_fixture(
+                        host,relocated.replace("445.85","448.85"),b)
+
+    def test_original_host_recenter_precedes_fresh_damage_and_keeps_native_gates(self):
+        script=(Path(__file__).parent /
+                "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
+        section=script.split('if args.require_rejoined_controller_b:',4)[-1]
+        recenter=section.find('expected=b"Teleported CIHost to"')
+        reset=section.find('"scoreboard players set CITargetB taken 0"')
+        native=section.find('wait_for(host,host_log,REJOIN_REAL_CONTROLLER_B')
+        self.assertGreaterEqual(recenter,0)
+        self.assertTrue(recenter < reset < native)
+        self.assertIn('wait_for_real_score(server,server_log,"CITargetB"',section)
+        self.assertIn('REJOIN_CONTROLLER_ARGUMENT_UUID_B',section)
