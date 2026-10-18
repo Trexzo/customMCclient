@@ -61,6 +61,8 @@ public final class Minecraft189StrafeModule
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // Mapped native motion getter callbacks may reenter module lifecycle.
+    private long nativeReadEpoch;
 
     Minecraft189StrafeModule(
             final Minecraft189InputState inputState) {
@@ -98,11 +100,13 @@ public final class Minecraft189StrafeModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeReadEpoch++;
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeReadEpoch++;
     }
 
     synchronized void apply(
@@ -137,81 +141,87 @@ public final class Minecraft189StrafeModule
             return;
         }
 
-        double forward =
-                (inputState.keyPressed(
-                        LegacyKeyboardCodes.W)
-                        ? 1.0D
-                        : 0.0D)
-                        + (inputState.keyPressed(
-                                LegacyKeyboardCodes.S)
-                                ? -1.0D
-                                : 0.0D);
-        double strafe =
-                (inputState.keyPressed(
-                        LegacyKeyboardCodes.A)
-                        ? 1.0D
-                        : 0.0D)
-                        + (inputState.keyPressed(
-                                LegacyKeyboardCodes.D)
-                                ? -1.0D
-                                : 0.0D);
-
-        if (Double.compare(
-                forward,
-                0.0D) == 0
-                && Double.compare(
-                        strafe,
-                        0.0D) == 0) {
+        final long ownerEpoch = nativeReadEpoch;
+        final boolean w = inputState.keyPressed(LegacyKeyboardCodes.W);
+        final boolean backward = inputState.keyPressed(LegacyKeyboardCodes.S);
+        final boolean a = inputState.keyPressed(LegacyKeyboardCodes.A);
+        final boolean d = inputState.keyPressed(LegacyKeyboardCodes.D);
+        double forward = (w ? 1.0D : 0.0D) - (backward ? 1.0D : 0.0D);
+        double strafe = (a ? 1.0D : 0.0D) - (d ? 1.0D : 0.0D);
+        if (forward == 0.0D && strafe == 0.0D) {
             return;
         }
-
-        final double inputLength =
-                Math.sqrt(
-                        forward * forward
-                                + strafe * strafe);
+        final double inputLength = Math.hypot(forward, strafe);
         if (inputLength > 1.0D) {
             forward /= inputLength;
             strafe /= inputLength;
         }
 
-        final double yawRadians =
-                Math.toRadians(
-                        rotation.yaw());
-        final double sin =
-                Math.sin(
-                        yawRadians);
-        final double cos =
-                Math.cos(
-                        yawRadians);
-        final double configuredSpeed =
-                speed.get().doubleValue();
-
-        final double targetMotionX =
-                cleanZero(
-                        (-sin * forward
-                                + cos * strafe)
-                                * configuredSpeed);
-        final double targetMotionZ =
-                cleanZero(
-                        (cos * forward
-                                + sin * strafe)
-                                * configuredSpeed);
-
+        final double configuredSpeed = speed.get().doubleValue();
         final boolean smooth = smoothAcceleration.get().booleanValue();
-        final double fraction = smooth
-                ? accelerationPercent.get().intValue() / 100.0D
-                : 1.0D;
-        final double currentX = player.customMcMotionX();
-        final double currentZ = player.customMcMotionZ();
-        final double nextX = interpolate(currentX, targetMotionX, fraction);
-        final double nextZ = interpolate(currentZ, targetMotionZ, fraction);
+        final int acceleration = accelerationPercent.get().intValue();
+        final boolean groundGuard = groundOnly.get().booleanValue();
+        final boolean sneakGuard = pauseWhileSneaking.get().booleanValue();
+        final double fraction = smooth ? acceleration / 100.0D : 1.0D;
+        final double yawRadians = Math.toRadians(rotation.yaw());
+        final double sin = Math.sin(yawRadians);
+        final double cos = Math.cos(yawRadians);
+        final double targetX = cleanZero(
+                (-sin * forward + cos * strafe) * configuredSpeed);
+        final double targetZ = cleanZero(
+                (cos * forward + sin * strafe) * configuredSpeed);
 
+        // Actual mapped player motion getters can synchronously reenter
+        // module activation, edit speed/ground/sneak policy, or change
+        // physical keys. Recheck BEFORE reading Z, before either write,
+        // and after X setter before a dependent Z setter.
+        final double currentX = player.customMcMotionX();
+        if (!nativeMotionOwned(ownerEpoch, w, backward, a, d,
+                configuredSpeed, smooth, acceleration, groundGuard,
+                sneakGuard, movement)) {
+            return;
+        }
+        final double currentZ = player.customMcMotionZ();
+        if (!nativeMotionOwned(ownerEpoch, w, backward, a, d,
+                configuredSpeed, smooth, acceleration, groundGuard,
+                sneakGuard, movement)) {
+            return;
+        }
+        final double nextX = interpolate(currentX, targetX, fraction);
+        final double nextZ = interpolate(currentZ, targetZ, fraction);
         if (Double.compare(currentX, nextX) != 0) {
             player.customMcSetMotionX(nextX);
+            if (!nativeMotionOwned(ownerEpoch, w, backward, a, d,
+                    configuredSpeed, smooth, acceleration, groundGuard,
+                    sneakGuard, movement)) {
+                return;
+            }
         }
         if (Double.compare(currentZ, nextZ) != 0) {
             player.customMcSetMotionZ(nextZ);
         }
+    }
+
+    private boolean nativeMotionOwned(
+            final long epoch, final boolean w, final boolean backward,
+            final boolean a, final boolean d, final double desiredSpeed,
+            final boolean smooth, final int acceleration,
+            final boolean groundGuard, final boolean sneakGuard,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
+        return enabled && nativeReadEpoch == epoch
+                && inputState.keyPressed(LegacyKeyboardCodes.W) == w
+                && inputState.keyPressed(LegacyKeyboardCodes.S) == backward
+                && inputState.keyPressed(LegacyKeyboardCodes.A) == a
+                && inputState.keyPressed(LegacyKeyboardCodes.D) == d
+                && speed.get().doubleValue() == desiredSpeed
+                && smoothAcceleration.get().booleanValue() == smooth
+                && accelerationPercent.get().intValue() == acceleration
+                && groundOnly.get().booleanValue() == groundGuard
+                && pauseWhileSneaking.get().booleanValue() == sneakGuard
+                && (!groundGuard || (movement != null
+                    && movement.available() && movement.onGround()))
+                && (!sneakGuard || (movement != null
+                    && movement.available() && !movement.sneaking()));
     }
 
     synchronized boolean active() {
