@@ -274,9 +274,9 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
         import math
         for login, expected in (
             (b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at "
-             b"(243.5, 4.0, 444.5)\n", "tp CITarget 243 5 446.0 180 0"),
+             b"(243.5, 4.0, 444.5)\n", "tp CITarget 243 5 445.85 180 0"),
             (b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at "
-             b"(-33.5, 4.0, -33.5)\n", "tp CITarget -34 5 -35.0 0 0"),
+             b"(-33.5, 4.0, -33.5)\n", "tp CITarget -34 5 -34.85 0 0"),
         ):
             with tempfile.TemporaryDirectory() as root:
                 path = Path(root) / "server.log"
@@ -289,9 +289,9 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
                 az = float(chosen.split()[4])
                 bx, by, bz = map(int, b.split()[2:5])
                 self.assertEqual((ax, ay), (hx, hy))
-                self.assertTrue(chosen.split()[4].endswith(".0"),
-                                "source vanilla teleport MUST use explicit decimal")
-                self.assertEqual(abs(az-(hz+.5)), 1.5,
+                self.assertTrue(chosen.split()[4].endswith(".85"),
+                                "original fractional vanilla teleport must not re-center")
+                self.assertAlmostEqual(abs(az-(hz+.5)), 1.35,
                                  "actual Minecraft /tp centers integer host")
                 self.assertEqual(abs((bz+.5)-(hz+.5)), 2)
                 self.assertEqual(abs(bx-hx), 1)
@@ -299,9 +299,9 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
                 self.assertEqual(math.floor(az/16), bz//16)
                 self.assertGreater(
                     math.hypot(bx-hx, bz-hz),
-                    math.hypot(1.5, 0.9)+.12,
+                    math.hypot(1.35, 0.9)+.12,
                     "actual original 3D A jump must leave B closer margin")
-                self.assertGreaterEqual(1.5-.3, 1.0,
+                self.assertGreaterEqual(1.35-.3, 1.0,
                                         "native A minimum reach survives drift")
                 self.assertNotEqual((ax, az), (bx+.5, bz+.5))
 
@@ -314,14 +314,48 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
         actual_previous = old_integer_world_z - .34
         self.assertLess(math.hypot(-.43, actual_previous-host_z), 1.0,
                         "observed V159 genuine old A source x/z failed da>=1")
-        new_explicit_decimal_z = -135.0
-        self.assertEqual(new_explicit_decimal_z-host_z, 1.5)
+        new_explicit_decimal_z = -135.15
+        self.assertAlmostEqual(new_explicit_decimal_z-host_z, 1.35)
         self.assertGreater(math.hypot(-.43,
                                      new_explicit_decimal_z-.34-host_z), 1.0)
-        # Previous two-forward true A rose .89 above host while B stayed
-        # lateral: source gap < .12. The new interior source stays within.
-        self.assertLess(math.hypot(1.5,.89)+.12, math.sqrt(5.0))
+        # Historical true 1.5-block fixture had only 0.098 source margin
+        # after actual host/player drift in V170. The new real server TP
+        # moves A a further .15 toward its logged host, but native 3D
+        # bounds remain STRICT and every full real source gate still runs.
+        self.assertLess(math.hypot(1.35,.89)+.12, math.sqrt(5.0))
         self.assertGreater(math.hypot(2,.89)+.12, math.sqrt(5.0))
+
+    def test_original_v170_true_source_crash_margin_and_fractional_counterfactual(self):
+        import math
+        host_x, host_z = -1.20, -1.09
+        source_a_x, source_a_z = -0.50, -3.31
+        source_b_x, source_b_z = -1.50, -3.50
+        observed_a = math.hypot(source_a_x-host_x, source_a_z-host_z)
+        observed_b = math.hypot(source_b_x-host_x, source_b_z-host_z)
+        self.assertLess(observed_b-observed_a, .12,
+                        "actual V170 crash report must fail source closer gate")
+        # A 0.15 genuine server spawn shift towards the host preserves
+        # the same observed lateral drift yet leaves the original .12
+        # distance margin. This is a fixture counterfactual, NOT real
+        # original runtime evidence or an authority to accept any click.
+        shifted_a_z = source_a_z + .15
+        shifted_a = math.hypot(source_a_x-host_x, shifted_a_z-host_z)
+        self.assertGreater(observed_b-shifted_a, .12)
+        self.assertGreaterEqual(shifted_a, 1.0)
+        self.assertLessEqual(shifted_a, 3.25)
+        self.assertLessEqual(observed_b, 3.5)
+
+    def test_original_v159_too_close_lower_boundary_remains_positive_with_135(self):
+        import math
+        # Real original V159 host, A coordinates from crash report.
+        hx, hz = -413.50, -136.50
+        ax, az = -413.93, -135.84
+        original_da = math.hypot(ax-hx, az-hz)
+        self.assertLess(original_da, 1.0)
+        # The old 1-block vanilla /tp was 0.35 blocks closer than the
+        # new dedicated vanilla fraction. Keep 3D native min unchanged.
+        shifted_da = math.hypot(ax-hx, az-hz+.35)
+        self.assertGreaterEqual(shifted_da, 1.0)
 
     def test_reject_wrong_uuid_names_source_positions_or_overlap(self):
         valid = ("tp CIHost 243 5 444 0 0",
