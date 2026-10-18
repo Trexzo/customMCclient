@@ -21,6 +21,8 @@ public final class Minecraft189NoClipModule
     }
 
     private boolean enabled;
+    // A native getter must not outlive the ModuleController activation.
+    private long nativeReadEpoch;
     private boolean baselineCaptured;
     private boolean baselineNoClip;
     private boolean restorePending;
@@ -36,6 +38,7 @@ public final class Minecraft189NoClipModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeReadEpoch++;
         // Disable followed by Enable BEFORE the next original tick must
         // retain the original player's captured baseline. Throwing it away
         // would re-capture the module's OWN forced true as the new default.
@@ -49,6 +52,7 @@ public final class Minecraft189NoClipModule
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeReadEpoch++;
         restorePending = baselineCaptured;
     }
 
@@ -97,21 +101,50 @@ public final class Minecraft189NoClipModule
                 restoreCaptured(player);
                 return;
             }
+            final long currentEpoch = nativeReadEpoch;
+            final boolean needsSneak = requireSneaking.get().booleanValue();
             if (!baselineCaptured) {
-                baselineNoClip = player.customMcNoClip();
+                // This first REAL original getter supplies the only valid
+                // baseline; do not capture it if the getter reenters OFF/ON.
+                final boolean originalValue = player.customMcNoClip();
+                if (!activationOwnsRead(currentEpoch, needsSneak, movement)) {
+                    return;
+                }
+                baselineNoClip = originalValue;
                 baselineOwner = player;
                 baselineCaptured = true;
             }
-            if (!player.customMcNoClip()) {
+            final boolean nativeValue = player.customMcNoClip();
+            if (!activationOwnsRead(currentEpoch, needsSneak, movement)
+                    || !baselineCaptured || baselineOwner != player) {
+                return;
+            }
+            if (!nativeValue) {
                 player.customMcSetNoClip(true);
             }
             return;
         }
 
         if (restorePending) {
+            final long restoringEpoch = nativeReadEpoch;
             restoreCaptured(player);
-            restorePending = false;
+            // A getter can reenter enable/disable while trying to restore.
+            // The newly owned pending lease must remain pending in that
+            // case and must NOT be discarded by the old callback.
+            if (!enabled && restoringEpoch == nativeReadEpoch) {
+                restorePending = false;
+            }
         }
+    }
+
+    private boolean activationOwnsRead(
+            final long epoch, final boolean needsSneak,
+            final Minecraft189PlayerMovementState.Snapshot movement) {
+        return enabled && nativeReadEpoch == epoch
+                && requireSneaking.get().booleanValue() == needsSneak
+                && (!needsSneak
+                    || (movement != null && movement.available()
+                        && movement.sneaking()));
     }
 
     private void restoreCaptured(
@@ -119,15 +152,36 @@ public final class Minecraft189NoClipModule
         if (!baselineCaptured) {
             return;
         }
-        // Only undo a forced TRUE that this module could have written.
-        // When the original baseline was true, a user's later native
-        // change to false belongs to them, not to this stale lease.
-        if (baselineOwner == player
-                && player.customMcNoClip() && !baselineNoClip) {
-            player.customMcSetNoClip(false);
+        final long restoringEpoch = nativeReadEpoch;
+        final boolean originalEnabled = enabled;
+        final Minecraft189PlayerNoClipControl owner = baselineOwner;
+        final boolean originalNoClip = baselineNoClip;
+        // Only undo forced true that this module owned on the SAME
+        // original player. An original baseline already true is not ours.
+        if (owner == player && !originalNoClip) {
+            final boolean currentlyEnabled = player.customMcNoClip();
+            if (restoringEpoch != nativeReadEpoch
+                    || enabled != originalEnabled
+                    || !baselineCaptured || baselineOwner != owner) {
+                // Old read cannot revert a newly enabled module or a
+                // different original player. Keep its lease for next tick.
+                return;
+            }
+            if (currentlyEnabled) {
+                player.customMcSetNoClip(false);
+                if (restoringEpoch != nativeReadEpoch
+                        || enabled != originalEnabled
+                        || !baselineCaptured || baselineOwner != owner) {
+                    return;
+                }
+            }
         }
-        baselineCaptured = false;
-        baselineOwner = null;
+        if (restoringEpoch == nativeReadEpoch
+                && enabled == originalEnabled
+                && baselineOwner == owner) {
+            baselineCaptured = false;
+            baselineOwner = null;
+        }
     }
 
     synchronized boolean active() {
