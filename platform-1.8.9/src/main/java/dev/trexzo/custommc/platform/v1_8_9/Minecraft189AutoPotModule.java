@@ -90,7 +90,14 @@ public final class Minecraft189AutoPotModule implements Module {
     public Setting<Boolean> requireCombatTargetSetting() { return requireTarget; }
     synchronized boolean active() { return enabled; }
 
-    synchronized void suspend() { reset(); }
+    synchronized void suspend() {
+        // An actual original native potion/currentItem callback may cause
+        // GUI focus, a different combat owner or a real health-policy
+        // suspension. Revoke the old in-flight use lease as well as its
+        // rate credit; do not let later callback completion charge cooldown.
+        ++lifecycleEpoch;
+        reset();
+    }
 
     synchronized boolean shouldUse(
             final Minecraft189PlayerHealthState.Snapshot health,
