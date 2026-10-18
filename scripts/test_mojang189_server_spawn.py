@@ -13,6 +13,7 @@ from RunMojang189LocalhostTwoPlayerSmoke import (
     actual_server_three_client_locked_fixture,
     actual_server_three_client_rejoin_fixture,
     actual_server_rejoined_a_controller_fixture,
+    actual_server_original_rejoin_prelock_a_fixture,
     actual_server_rejoined_host_recenter_fixture,
     wait_for_new_original_source_marker,
     official_offline_uuid,
@@ -655,6 +656,66 @@ class OriginalM419PostTeleportWorldConvergenceTest(unittest.TestCase):
         self.assertIn("if (!(da + 0.12D < db))",source)
         self.assertIn("&& db - da >= 0.30D;",source)
 
+
+class OriginalM419InitialPrelockRealSourceMarginTest(unittest.TestCase):
+    def test_real_source_prelock_moves_only_original_a_for_two_chunk_signs(self):
+        import math
+        for login in (
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\n",
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (-33.5, 4.0, -33.5)\n"):
+            with tempfile.TemporaryDirectory() as root:
+                p=Path(root)/"original-server.log"
+                p.write_bytes(login)
+                host,a,b=actual_server_three_client_rejoin_fixture(p)
+                moved=actual_server_original_rejoin_prelock_a_fixture(host,a,b)
+                self.assertEqual(moved.split()[0:2],["tp","CITarget"])
+                self.assertEqual(moved.split()[3],a.split()[3])
+                self.assertEqual(moved.split()[5:],a.split()[5:])
+                hx,hy,hz=(int(v) for v in host.split()[2:5])
+                ax,ay,az=(float(v) for v in moved.split()[2:5])
+                bx,by,bz=(int(v) for v in b.split()[2:5])
+                self.assertAlmostEqual(ax,hx+.5)
+                self.assertAlmostEqual(abs(az-(hz+.5)),1.55)
+                self.assertEqual(math.floor(ax/16),hx//16)
+                self.assertEqual(math.floor(az/16),hz//16)
+                self.assertAlmostEqual(math.hypot(bx-hx,bz-hz),math.sqrt(5))
+                self.assertGreater(math.sqrt(5)-(1.55+.30),.12)
+                self.assertGreater(1.55-.30,1.0)
+
+    def test_true_v177_initial_prelock_observation_lacked_source_margin(self):
+        da=2.2222683371951284
+        db=2.23606797749979
+        self.assertLess(db-da,.12)
+        self.assertGreater(da,1)
+        self.assertLess(db,3.5)
+        # Selection alone does not satisfy 20 original A-preferred reads.
+        source=(Path(__file__).parents[1] /
+                "platform-1.8.9/src/main/java/dev/trexzo/custommc/"
+                "platform/v1_8_9/Minecraft189RejoinTargetAcceptance.java").read_text()
+        self.assertIn("da+0.12D<db && selected(a)",source)
+
+    def test_original_a_prelock_rejects_wrong_uuid_or_chunk(self):
+        host="tp CIHost 15 5 3 0 0"
+        a="tp CITarget 15 5 5 180 0"
+        b="tp CITargetB 16 5 5 180 0"
+        with self.assertRaisesRegex(AssertionError,"chunk"):
+            actual_server_original_rejoin_prelock_a_fixture(host,a,b)
+        for broken in ("tp NOT_A 15 5 5 180 0",
+                       "tp CITarget 13 5 5 180 0",
+                       "tp CITarget 15 5 9 180 0"):
+            with self.assertRaises(AssertionError):
+                actual_server_original_rejoin_prelock_a_fixture(
+                    "tp CIHost 14 5 3 0 0",broken,"tp CITargetB 15 5 5 180 0")
+
+    def test_original_server_rejoin_stage_keeps_b_last_and_native_gates(self):
+        source=(Path(__file__).parent /
+                "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
+        start=source.find("prelock_a=actual_server_original_rejoin_prelock_a_fixture(")
+        a_tp=source.find("send_server_command(server, server_log, prelock_a,",start)
+        b_tp=source.find("send_server_command(server, server_log, b_outer)",a_tp)
+        ready=source.find("wait_for(host, host_log, REJOIN_READY,",b_tp)
+        self.assertTrue(0<=start<a_tp<b_tp<ready)
+        self.assertIn("actual_server_rejoined_a_controller_fixture(",source[ready:])
 
 if __name__ == "__main__":
     unittest.main()

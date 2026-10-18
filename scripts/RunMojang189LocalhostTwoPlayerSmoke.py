@@ -343,6 +343,51 @@ def actual_server_three_client_simultaneous_fixture(server_log):
     return host, a_near, b_outer, b_near
 
 
+def actual_server_original_rejoin_prelock_a_fixture(host_tp, a_near, b_outer):
+    """Real original A must beat real B by .12 in initial source World.
+
+    V177 genuine final late rejoin saw A=2.222268337, B=2.236067977:
+    A was selected but .014 native separation did NOT satisfy the
+    existing .12 initial UUID lock prerequisite over 20 callbacks.
+    Position only the ORIGINAL real A 1.55 blocks forward (rather than
+    two); keep genuine B at sqrt(5), actual server chunk, normal vanilla
+    player/camera, untouched target and unchanged acceptance thresholds.
+    """
+    host=host_tp.split()
+    a=a_near.split()
+    b=b_outer.split()
+    if (len(host)!=7 or len(a)!=7 or len(b)!=7
+            or host[:2]!=["tp","CIHost"] or a[:2]!=["tp","CITarget"]
+            or b[:2]!=["tp","CITargetB"]):
+        raise AssertionError("initial original A source commands malformed")
+    try:
+        hx,hy,hz=(int(v) for v in host[2:5])
+        ax,ay,az=(int(v) for v in a[2:5])
+        bx,by,bz=(int(v) for v in b[2:5])
+    except ValueError as exc:
+        raise AssertionError("initial original A source coordinates invalid") from exc
+    direction=1 if az>hz else -1
+    if (ax!=hx or ay!=hy or by!=hy or bz!=az
+            or abs(az-hz)!=2 or abs(bx-hx)!=1):
+        raise AssertionError("initial original A/B source geometry unexpected")
+    new_z=hz+0.5+direction*1.55
+    new_x=hx+0.5
+    if (math.floor(new_z/16)!=hz//16
+            or math.floor(new_x/16)!=hx//16
+            or bz//16!=hz//16 or bx//16!=hx//16):
+        raise AssertionError("initial original A source crossed loaded chunk")
+    # A true 1.55 original 3D block baseline survives +/-0.30
+    # source-native drift; actual Mojang World still decides the 20-tick
+    # eligible window and exact lock/UUID/ray before any controller PASS.
+    d_a=math.hypot(new_x-(hx+.5),new_z-(hz+.5))
+    d_b=math.hypot(bx-hx,bz-hz)
+    if not (d_a-.30>1 and d_a+.30+.12<d_b
+            and abs(bx-(hx))==1 and abs(az-hz)==2):
+        raise AssertionError("initial original A real 3D source margin lost")
+    return "tp CITarget {:.2f} {} {:.2f} {} {}".format(
+        new_x,ay,new_z,a[5],a[6])
+
+
 def actual_server_rejoined_a_controller_fixture(host_tp, a_near, b_outer):
     """Original M419 A must satisfy BOTH native reach lower and upper bounds.
 
@@ -2059,7 +2104,18 @@ def run(args):
             # No synthetic positions or weakened original acceptance.
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, a_near)
+            # The genuine late V177 source had only 0.014 initial A/B
+            # distance margin even while the actual A was selected. Move
+            # ONLY original real A forward in the same loaded chunk,
+            # before B's final real server teleport; do not change the
+            # source UUID lock criterion or any subsequent rejoined A.
+            prelock_a=actual_server_original_rejoin_prelock_a_fixture(
+                host_tp,a_near,b_outer)
+            send_server_command(server, server_log, prelock_a,
+                                expected=b"Teleported CITarget to")
             send_server_command(server, server_log, b_outer)
+            print("CUSTOMMC_189_REJOIN_INITIAL_A_REAL_SOURCE_BUFFER_TELEPORT_PASS=YES",
+                  flush=True)
             print("CUSTOMMC_189_REJOIN_FINAL_B_SERVER_TELEPORT_AFTER_HOST_A=YES",
                   flush=True)
             wait_for(host, host_log, REJOIN_READY, deadline,
