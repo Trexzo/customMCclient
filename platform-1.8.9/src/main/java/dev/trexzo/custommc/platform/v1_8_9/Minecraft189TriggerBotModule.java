@@ -66,6 +66,10 @@ public final class Minecraft189TriggerBotModule implements Module {
     public Setting<Boolean> pauseRightSetting() { return pauseRight; }
     public Setting<Boolean> pauseSneakSetting() { return pauseSneak; }
     synchronized boolean active() { return enabled; }
+    /** Token epoch for the exact original source UUID that earned credit. */
+    synchronized long nativeWorldOwnerEpoch() {
+        return nativeWorldEpoch;
+    }
 
     @Override
     public synchronized void onEnable() {
