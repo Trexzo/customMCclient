@@ -112,11 +112,26 @@ final class Minecraft189RejoinTargetAcceptance {
      * distinction without setting rotation, selecting entities, clicking,
      * touching packets or changing a single admission rule.
      */
+    /**
+     * Real click-lane telemetry for both the original locked-B phase and
+     * the post-rejoin M419 controller phase. Observing phase 4 is critical:
+     * the original selected B UUID and source 3D distance can be valid
+     * while vanilla objectMouseOver never hits a real B collision box.
+     * This classifier can neither authorize nor manufacture a click.
+     */
+    static boolean originalCrosshairObservationDue(
+            final int sourcePhase, final int sourceTickCount) {
+        return (sourcePhase == 3 || sourcePhase == 4)
+                && sourceTickCount > 0 && sourceTickCount % 40 == 0;
+    }
+
     static void observeOriginalCrosshairAtClick(
             final Minecraft189HostRuntime host,
             final boolean originalPlayerHit, final int originalHitIndex) {
         if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraRejoin")
-                || phase != 3 || ++nativeCrosshairEvidenceTicks % 40 != 0)
+                || (phase != 3 && phase != 4)
+                || !originalCrosshairObservationDue(
+                        phase, ++nativeCrosshairEvidenceTicks))
             return;
         final Minecraft189WorldEntityUuidState.Snapshot ids =
                 host.worldEntityUuidState().snapshot();
@@ -169,6 +184,7 @@ final class Minecraft189RejoinTargetAcceptance {
                 && combat.available() && combat.entityCount() == ids.entityCount()
                 && combat.alive(nativeBIndex);
         System.out.println("CUSTOMMC_189_REJOIN_ORIGINAL_CROSSHAIR_AT_CLICK"
+                + " phase=" + phase
                 + " tick=" + nativeCrosshairEvidenceTicks
                 + " realPlayerHit=" + originalPlayerHit
                 + " realHitIndex=" + originalHitIndex
