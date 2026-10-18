@@ -34,6 +34,8 @@ public final class Minecraft189HighJumpModule
                     REQUIRE_MOVEMENT_SETTING_ID, Boolean.FALSE,
                     value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // Original player jump()/motionY() may reenter module lifecycle.
+    private long nativeJumpEpoch;
     private boolean spaceWasPressed;
     private boolean boostPending;
 
@@ -64,6 +66,7 @@ public final class Minecraft189HighJumpModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeJumpEpoch++;
         boostPending = false;
         spaceWasPressed =
                 inputState.keyPressed(
@@ -73,6 +76,7 @@ public final class Minecraft189HighJumpModule
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeJumpEpoch++;
         boostPending = false;
         spaceWasPressed =
                 inputState.keyPressed(
@@ -89,6 +93,8 @@ public final class Minecraft189HighJumpModule
         final boolean spacePressed =
                 inputState.keyPressed(
                         LegacyKeyboardCodes.SPACE);
+        final long ownerEpoch = nativeJumpEpoch;
+        final boolean requiresMovement = requireMovement.get().booleanValue();
         try {
             if (!enabled
                     || suspended
@@ -97,16 +103,29 @@ public final class Minecraft189HighJumpModule
                     || !movement.onGround()
                     || !spacePressed
                     || spaceWasPressed
-                    || (requireMovement.get().booleanValue()
+                    || (requiresMovement
                             && !movementInputHeld())) {
                 return false;
             }
 
             player.customMcJump();
+            // Real mapped jump() can synchronously disable/re-enable
+            // HighJump, alter its policy, or consume the input edge.
+            // Only the ORIGINAL activation may queue a subsequent motion.
+            if (!enabled || ownerEpoch != nativeJumpEpoch
+                    || requireMovement.get().booleanValue() != requiresMovement) {
+                return false;
+            }
             boostPending = true;
             return true;
         } finally {
-            spaceWasPressed = spacePressed;
+            // onEnable/onDisable already sampled physical Space for the
+            // NEW owner. Never overwrite that source edge with an old
+            // pre-callback read. Normal ownership observes current input.
+            if (ownerEpoch == nativeJumpEpoch) {
+                spaceWasPressed = inputState.keyPressed(
+                        LegacyKeyboardCodes.SPACE);
+            }
         }
     }
 
@@ -124,12 +143,19 @@ public final class Minecraft189HighJumpModule
             return false;
         }
 
+        final long ownerEpoch = nativeJumpEpoch;
         final double targetMotionY =
                 verticalSpeed.get().doubleValue();
-        if (player.customMcMotionY()
-                < targetMotionY) {
-            player.customMcSetMotionY(
-                    targetMotionY);
+        final double originalMotionY = player.customMcMotionY();
+        // A mapped original getter may restart the module or change the
+        // live boost speed. Do not apply a stale pending jump's velocity
+        // to the new native player/module lifetime.
+        if (!enabled || ownerEpoch != nativeJumpEpoch
+                || verticalSpeed.get().doubleValue() != targetMotionY) {
+            return false;
+        }
+        if (originalMotionY < targetMotionY) {
+            player.customMcSetMotionY(targetMotionY);
         }
         return true;
     }
