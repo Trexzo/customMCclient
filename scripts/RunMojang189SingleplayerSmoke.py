@@ -298,6 +298,58 @@ def send_verified_fill(process, log, window, command):
         "before bounded deadline")
 
 
+def original_dry_chamber_preclear_reply(fresh):
+    """Classify only a FRESH original Minecraft 1.8.9 /fill air reply.
+
+    'No blocks filled' is legitimate solely for this sacrificial pre-clear:
+    it does NOT establish the required positive subsequent stone chamber.
+    No result from this classifier is a gameplay or health PASS.
+    """
+    if (b"Cannot place blocks outside of the world" in fresh
+            or b"Too many blocks in the specified area" in fresh
+            or b"There are no blocks to fill" in fresh):
+        raise AssertionError("original dry preclear vanilla command rejected")
+    if re.search(rb"\[CHAT\] [1-9][0-9]* blocks filled", fresh):
+        return "source-blocks-cleared"
+    if b"[CHAT] No blocks filled" in fresh:
+        return "source-already-air"
+    return None
+
+
+def prepare_verified_native_dry_chamber(process, log, window):
+    """Real World pre-clear, mandatory positive stone fill, positive carve.
+
+    An original V165 Mojang run proved that /fill stone can genuinely
+    return 'No blocks filled' after previous World commands. Always begin
+    this separate healing-potion fixture with the *opposite* vanilla
+    material, air. The preclear can be an acknowledged no-op; BOTH
+    subsequent original /fill commands must alter real server blocks.
+    """
+    clear = "/fill 4 79 4 12 87 12 air"
+    cursor = log.stat().st_size if log.exists() else 0
+    send_command(process, log, window, clear)
+    stop = time.monotonic() + 8
+    while time.monotonic() < stop:
+        require_running(process, "original dry chamber genuine air preclear")
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read()
+        outcome = original_dry_chamber_preclear_reply(fresh)
+        if outcome is not None:
+            break
+        time.sleep(.2)
+    else:
+        raise AssertionError(
+            "no fresh original vanilla preclear acknowledgment before "
+            "bounded dry chamber deadline")
+    # These MUST each return an original, fresh positive changed-block count.
+    # Never interpret the preclear (even when changed) as either proof.
+    send_verified_fill(process, log, window,
+                       "/fill 4 79 4 12 87 12 stone")
+    send_verified_fill(process, log, window,
+                       "/fill 5 80 5 11 86 11 air")
+
+
 def prepare_native_scaffold_context_chamber(process, log, window):
     """Make a real vanilla ground fixture INSIDE loaded chunk (0, 0).
 
@@ -785,10 +837,12 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # Load target chunk using genuine Creative teleport FIRST.
                 send_command(process, log, window, "/gamemode creative CIProbe")
                 send_verified_chunk_teleport(process, log, window)
-                send_verified_fill(process, log, window,
-                                   "/fill 4 79 4 12 87 12 stone")
-                send_verified_fill(process, log, window,
-                                   "/fill 5 80 5 11 86 11 air")
+                # V166 original dry-chamber contrast reset: the old
+                # initial solid /fill sometimes returned genuine vanilla
+                # '[CHAT] No blocks filled' after other original-world work.
+                # An acknowledged air preclear followed by TWO real changed
+                # /fill replies supplies fresh source-world proof.
+                prepare_verified_native_dry_chamber(process, log, window)
                 send_command(process, log, window, "/tp CIProbe 8 80 8")
                 print("CUSTOMMC_189_DRY_CHAMBER_BEFORE_PHYSICAL_SPLASH_PASS=YES",
                       flush=True)
