@@ -183,14 +183,15 @@ public final class Minecraft189AutoJumpModule
         }
         if (armed && landingDelayAtContact >= 0
                 && (landingDelayAtContact != landingDelayTicks.get()
-                || forwardRequiredAtContact
-                        != requireForward.get().booleanValue()
-                || movementRequiredAtContact
-                        != requireMovement.get().booleanValue()
-                || sprintRequiredAtContact
-                        != requireSprinting.get().booleanValue()
-                || pauseSneakingAtContact
-                        != pauseWhileSneaking.get().booleanValue())) {
+                || (landingDelayAtContact > 0
+                    && (forwardRequiredAtContact
+                            != requireForward.get().booleanValue()
+                    || movementRequiredAtContact
+                            != requireMovement.get().booleanValue()
+                    || sprintRequiredAtContact
+                            != requireSprinting.get().booleanValue()
+                    || pauseSneakingAtContact
+                            != pauseWhileSneaking.get().booleanValue())))) {
             // A GUI/profile edit invalidates THIS observed landing even if
             // its old countdown has already elapsed and movement is gated.
             // Do not schedule a new jump until real source air->ground occurs.
