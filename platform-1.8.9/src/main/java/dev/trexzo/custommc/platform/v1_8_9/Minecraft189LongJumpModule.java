@@ -34,6 +34,8 @@ public final class Minecraft189LongJumpModule
                     PRESERVE_MOMENTUM_SETTING_ID, Boolean.FALSE,
                     value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // Invalidate original jump and horizontal reads across OFF/ON.
+    private long nativeJumpEpoch;
     private boolean spaceWasPressed;
     private boolean boostPending;
 
@@ -64,6 +66,7 @@ public final class Minecraft189LongJumpModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeJumpEpoch++;
         boostPending = false;
         spaceWasPressed =
                 inputState.keyPressed(
@@ -73,6 +76,7 @@ public final class Minecraft189LongJumpModule
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeJumpEpoch++;
         boostPending = false;
         spaceWasPressed =
                 inputState.keyPressed(
@@ -89,6 +93,7 @@ public final class Minecraft189LongJumpModule
         final boolean spacePressed =
                 inputState.keyPressed(
                         LegacyKeyboardCodes.SPACE);
+        final long ownerEpoch = nativeJumpEpoch;
         try {
             if (!enabled
                     || suspended
@@ -102,9 +107,14 @@ public final class Minecraft189LongJumpModule
             }
 
             player.customMcJump();
-            boostPending = true;
+            if (enabled && ownerEpoch == nativeJumpEpoch) {
+                boostPending = true;
+            }
         } finally {
-            spaceWasPressed = spacePressed;
+            if (ownerEpoch == nativeJumpEpoch) {
+                spaceWasPressed = inputState.keyPressed(
+                        LegacyKeyboardCodes.SPACE);
+            }
         }
     }
 
@@ -127,29 +137,16 @@ public final class Minecraft189LongJumpModule
             return false;
         }
 
-        double forward =
-                (inputState.keyPressed(
-                        LegacyKeyboardCodes.W)
-                        ? 1.0D
-                        : 0.0D)
-                        + (inputState.keyPressed(
-                                LegacyKeyboardCodes.S)
-                                ? -1.0D
-                                : 0.0D);
-        double strafe =
-                (inputState.keyPressed(
-                        LegacyKeyboardCodes.A)
-                        ? 1.0D
-                        : 0.0D)
-                        + (inputState.keyPressed(
-                                LegacyKeyboardCodes.D)
-                                ? -1.0D
-                                : 0.0D);
-
-        final double inputLength =
-                Math.sqrt(
-                        forward * forward
-                                + strafe * strafe);
+        final long ownerEpoch = nativeJumpEpoch;
+        final boolean w = inputState.keyPressed(LegacyKeyboardCodes.W);
+        final boolean a = inputState.keyPressed(LegacyKeyboardCodes.A);
+        final boolean backward = inputState.keyPressed(LegacyKeyboardCodes.S);
+        final boolean d = inputState.keyPressed(LegacyKeyboardCodes.D);
+        double forward = (w ? 1.0D : 0.0D)
+                - (backward ? 1.0D : 0.0D);
+        double strafe = (a ? 1.0D : 0.0D)
+                - (d ? 1.0D : 0.0D);
+        final double inputLength = Math.hypot(forward, strafe);
         if (inputLength <= 0.0D) {
             return false;
         }
@@ -158,57 +155,67 @@ public final class Minecraft189LongJumpModule
             strafe /= inputLength;
         }
 
-        final double yawRadians =
-                Math.toRadians(
-                        rotation.yaw());
-        final double sin =
-                Math.sin(
-                        yawRadians);
-        final double cos =
-                Math.cos(
-                        yawRadians);
-        final double configuredSpeed =
-                speed.get().doubleValue();
+        final double configuredSpeed = speed.get().doubleValue();
+        final boolean preserve = preserveHigherMomentum.get().booleanValue();
+        final double yawRadians = Math.toRadians(rotation.yaw());
+        final double sin = Math.sin(yawRadians);
+        final double cos = Math.cos(yawRadians);
+        final double targetMotionX = cleanZero(
+                (-sin * forward + cos * strafe) * configuredSpeed);
+        final double targetMotionZ = cleanZero(
+                (cos * forward + sin * strafe) * configuredSpeed);
 
-        if (preserveHigherMomentum.get().booleanValue()) {
-            final double existingX = player.customMcMotionX();
-            final double existingZ = player.customMcMotionZ();
-            final double existingMagnitude = Math.hypot(existingX, existingZ);
-            // Preserve the full existing horizontal vector if its real
-            // magnitude already exceeds the configured Long Jump boost.
-            // A fresh jump still owns this callback, preventing lower
-            // priority movement modules from overwriting the preserved
-            // momentum. Invalid mapped velocity fails closed.
+        // Read the two actual original player axes only once each; either
+        // source getter may reenter module enable/disable, GUI settings
+        // or mapped input. Revalidate BEFORE touching the second source
+        // and BEFORE producing either horizontal write.
+        final double originalX = player.customMcMotionX();
+        if (!nativeMotionReadOwned(ownerEpoch, configuredSpeed, preserve,
+                w, a, backward, d)) {
+            return false;
+        }
+        final double originalZ = player.customMcMotionZ();
+        if (!nativeMotionReadOwned(ownerEpoch, configuredSpeed, preserve,
+                w, a, backward, d)) {
+            return false;
+        }
+
+        if (preserve) {
+            final double existingMagnitude = Math.hypot(originalX, originalZ);
+            // Original momentum remains authoritative when above the
+            // requested boost; invalid native source still fails closed.
             if (!Double.isFinite(existingMagnitude)
                     || existingMagnitude + 0.000000001D >= configuredSpeed) {
                 return true;
             }
         }
 
-        final double targetMotionX =
-                cleanZero(
-                        (-sin * forward
-                                + cos * strafe)
-                                * configuredSpeed);
-        final double targetMotionZ =
-                cleanZero(
-                        (cos * forward
-                                + sin * strafe)
-                                * configuredSpeed);
-
-        if (Double.compare(
-                player.customMcMotionX(),
-                targetMotionX) != 0) {
-            player.customMcSetMotionX(
-                    targetMotionX);
+        if (Double.compare(originalX, targetMotionX) != 0) {
+            player.customMcSetMotionX(targetMotionX);
+            // An original mapped X setter can revoke this entire jump
+            // owner; never issue stale Z after an OFF/ON or key edit.
+            if (!nativeMotionReadOwned(ownerEpoch, configuredSpeed, preserve,
+                    w, a, backward, d)) {
+                return false;
+            }
         }
-        if (Double.compare(
-                player.customMcMotionZ(),
-                targetMotionZ) != 0) {
-            player.customMcSetMotionZ(
-                    targetMotionZ);
+        if (Double.compare(originalZ, targetMotionZ) != 0) {
+            player.customMcSetMotionZ(targetMotionZ);
         }
         return true;
+    }
+
+    private boolean nativeMotionReadOwned(
+            final long epoch, final double desiredSpeed,
+            final boolean preserve, final boolean w, final boolean a,
+            final boolean backward, final boolean d) {
+        return enabled && nativeJumpEpoch == epoch
+                && speed.get().doubleValue() == desiredSpeed
+                && preserveHigherMomentum.get().booleanValue() == preserve
+                && inputState.keyPressed(LegacyKeyboardCodes.W) == w
+                && inputState.keyPressed(LegacyKeyboardCodes.A) == a
+                && inputState.keyPressed(LegacyKeyboardCodes.S) == backward
+                && inputState.keyPressed(LegacyKeyboardCodes.D) == d;
     }
 
     synchronized boolean active() {
