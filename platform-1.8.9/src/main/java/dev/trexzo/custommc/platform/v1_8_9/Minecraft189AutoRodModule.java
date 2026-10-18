@@ -80,7 +80,15 @@ public final class Minecraft189AutoRodModule implements Module {
     public Setting<Boolean> pauseRightSetting() { return pauseRight; }
     synchronized boolean active() { return enabled; }
 
-    synchronized void suspend() { remaining = 0; activeCooldown = cooldown.get(); }
+    synchronized void suspend() {
+        // Original GUI/manual input or another combat owner can suspend
+        // the scheduler WHILE the mapped currentItem/rightClick getter
+        // is executing. The previous cooldown reset alone left its
+        // in-flight native use token valid across that suspension.
+        ++lifecycleEpoch;
+        remaining = 0;
+        activeCooldown = cooldown.get();
+    }
 
     synchronized boolean shouldUse(final boolean confirmedPlayer,
             final boolean leftHeld, final boolean rightHeld,
