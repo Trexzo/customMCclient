@@ -34,6 +34,8 @@ public final class Minecraft189LowHopModule
                     REQUIRE_MOVEMENT_SETTING_ID, Boolean.FALSE,
                     value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // Old native jump and mapped Y reads never own a new activation.
+    private long nativeJumpEpoch;
     private boolean spaceWasPressed;
     private boolean adjustmentPending;
 
@@ -64,6 +66,7 @@ public final class Minecraft189LowHopModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeJumpEpoch++;
         adjustmentPending = false;
         spaceWasPressed =
                 inputState.keyPressed(
@@ -73,6 +76,7 @@ public final class Minecraft189LowHopModule
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeJumpEpoch++;
         adjustmentPending = false;
         spaceWasPressed =
                 inputState.keyPressed(
@@ -89,6 +93,8 @@ public final class Minecraft189LowHopModule
         final boolean spacePressed =
                 inputState.keyPressed(
                         LegacyKeyboardCodes.SPACE);
+        final long ownerEpoch = nativeJumpEpoch;
+        final boolean needsMovement = requireMovement.get().booleanValue();
         try {
             if (!enabled
                     || suspended
@@ -97,16 +103,25 @@ public final class Minecraft189LowHopModule
                     || !movement.onGround()
                     || !spacePressed
                     || spaceWasPressed
-                    || (requireMovement.get().booleanValue()
+                    || (needsMovement
                             && !movementInputHeld())) {
                 return false;
             }
 
             player.customMcJump();
+            if (!enabled || ownerEpoch != nativeJumpEpoch
+                    || requireMovement.get().booleanValue() != needsMovement) {
+                return false;
+            }
             adjustmentPending = true;
             return true;
         } finally {
-            spaceWasPressed = spacePressed;
+            // Reentrant module restart has already sampled its new Space.
+            // The old jump callback must never clobber a fresh key edge.
+            if (ownerEpoch == nativeJumpEpoch) {
+                spaceWasPressed = inputState.keyPressed(
+                        LegacyKeyboardCodes.SPACE);
+            }
         }
     }
 
@@ -124,12 +139,16 @@ public final class Minecraft189LowHopModule
             return false;
         }
 
+        final long ownerEpoch = nativeJumpEpoch;
         final double targetMotionY =
                 verticalSpeed.get().doubleValue();
-        if (player.customMcMotionY()
-                > targetMotionY) {
-            player.customMcSetMotionY(
-                    targetMotionY);
+        final double originalMotionY = player.customMcMotionY();
+        if (!enabled || ownerEpoch != nativeJumpEpoch
+                || verticalSpeed.get().doubleValue() != targetMotionY) {
+            return false;
+        }
+        if (originalMotionY > targetMotionY) {
+            player.customMcSetMotionY(targetMotionY);
         }
         return true;
     }
