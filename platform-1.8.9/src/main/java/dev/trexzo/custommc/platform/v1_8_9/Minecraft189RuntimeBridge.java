@@ -2507,7 +2507,7 @@ public final class Minecraft189RuntimeBridge {
                             swordBlock.customMcStopUsingItem();
                         if (host.mayExecuteAutoRodUse(originalRodSlot)) {
                             minecraft.customMcRightClickMouse();
-                            host.commitAutoRodUseAttempt();
+                            host.commitAutoRodUseAttempt(originalRodSlot);
                         }
                     } finally {
                         host.restoreAutoRodSlot(originalRodSlot);
