@@ -1596,9 +1596,19 @@ public final class Minecraft189HostRuntime
                 itemAlreadyInUse);
     }
 
-    void recordAutoBlockStart() {
+    long beginAutoBlockNativeUse() {
         requireOpen();
-        featureCatalog.autoBlock().started();
+        return featureCatalog.autoBlock().beginNativeUse();
+    }
+
+    void recordAutoBlockStart(final long useToken) {
+        requireOpen();
+        final boolean currentSword = holdingVerifiedSword();
+        featureCatalog.autoBlock().completeNativeUse(
+                useToken, currentSword,
+                clickGuiRuntime.coreRuntime().model().snapshot().open(),
+                inputState.pointerPressed(
+                        Minecraft189ClickRateTracker.RIGHT_BUTTON));
     }
 
     private boolean identityRequired() {
