@@ -299,12 +299,14 @@ def actual_server_rejoined_a_controller_fixture(host_tp, a_near, b_outer):
     moving native A only .79 from host (below da>=1), while the original
     1.5-decimal fixture later let A drift to da≈2.330 vs B db≈2.428,
     violating the unchanged da+.12<db mandatory real 3D gap (≈.098).
-    Use a true fractional 1.35-block host-center displacement for the
-    original post-rejoin A alone, preserving >=1 even after .30 motion
-    toward host while reserving .15 more nominal separation from B.
-    The real original Minecraft World, actual player drift and source
-    controller/UUID/ray/server damage gates decide if this is sufficient.
-    B remains two forward + one lateral; no native acceptance is changed.
+    V172 proves a THIRD independent failure: true native B UUID/rotation
+    selected with a valid 3D margin, yet original objectMouseOver actually
+    hits *A*, entity index 6, instead of B at index 1, yielding no new B
+    server damage. Keep A 1.35 blocks forward, but offset genuine A 0.45
+    blocks laterally AWAY from B's original x-side. This changes only the
+    dedicated original Minecraft server's REAL A /tp coordinates, not
+    player objects, source ray, controller, UUID or acceptance thresholds.
+    The original ray-B-and-server-B-damage checks still decide success.
     """
     host = host_tp.split()
     a = a_near.split()
@@ -320,12 +322,17 @@ def actual_server_rejoined_a_controller_fixture(host_tp, a_near, b_outer):
             or abs(az - hz) != 2 or abs(bx - hx) != 1):
         raise AssertionError("M419 source A/B world geometry unexpected")
     direction = 1 if az > hz else -1
-    # Vanilla integer /tp centers at z+.5. Decimal z is the exact
-    # ORIGINAL player coordinate. Interior 1.35 world blocks avoids both
-    # native lower >=1.0 and observed V170 closer-by->.12 loss.
+    # Vanilla integer /tp centers at x/z+.5. Explicit DECIMAL coordinates
+    # place a real original source player without integer block centering.
+    # Real B remains the original two-forward/one-lateral off-axis player.
+    # Offset only rejoined A's x center to the OPPOSITE side of the ray
+    # toward B. Both A and B remain actual separate vanilla 0.6 hitboxes.
     near_z = hz + 0.5 + direction * 1.35
-    if (hx // 16 != ax // 16
+    b_side = 1 if bx > hx else -1
+    near_x = hx + 0.5 - b_side * 0.45
+    if (math.floor(near_x / 16) != hx // 16
             or math.floor(near_z / 16) != hz // 16
+            or hx // 16 != bx // 16
             or hz // 16 != bz // 16):
         raise AssertionError("M419 real source A/B crossed loaded chunk")
     real_host_z = hz + 0.5
@@ -334,7 +341,15 @@ def actual_server_rejoined_a_controller_fixture(host_tp, a_near, b_outer):
     real_b_x = bx + 0.5
     real_distance_b = math.hypot(real_b_x-real_host_x,
                                   real_b_z-real_host_z)
-    real_distance_a = abs(near_z-real_host_z)
+    real_distance_a = math.hypot(near_x-real_host_x,
+                                 near_z-real_host_z)
+    # 2D ray toward genuine B crosses rejoined A's Z band. It must never
+    # intersect A's original 0.6-wide x hitbox on these source commands.
+    # Minecraft's full real 3D objectMouseOver remains the actual proof.
+    b_ray_x_at_a_near = (real_b_x-real_host_x) * (
+        (abs(near_z-real_host_z)-0.30) / abs(real_b_z-real_host_z))
+    if abs(b_ray_x_at_a_near - (near_x-real_host_x)) <= 0.30:
+        raise AssertionError("M419 rejoined A blocks source ray toward B")
     # Source acceptance STILL requires da>=1, da<=3.25 and da+.12<db.
     # Check 0.30 native A movement toward the host against lower bound,
     # independent .9 vertical movement against closer-than-B upper margin.
@@ -345,8 +360,8 @@ def actual_server_rejoined_a_controller_fixture(host_tp, a_near, b_outer):
             and 1 < real_distance_a < real_distance_b
             and abs(bx - ax) == 1):
         raise AssertionError("M419 source native A/B 3D reach window lost")
-    return "tp CITarget {} {} {:.2f} {} {}".format(
-        ax, ay, near_z, a[5], a[6])
+    return "tp CITarget {:.2f} {} {:.2f} {} {}".format(
+        near_x, ay, near_z, a[5], a[6])
 
 
 def actual_server_three_client_rejoin_fixture(server_log):
