@@ -85,6 +85,8 @@ public final class Minecraft189TimerSpeedModule
             PAUSE_GUI_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // The mapped game Timer getter may reenter module lifecycle/GUI policy.
+    private long nativeReadEpoch;
 
     @Override
     public String id() {
@@ -125,11 +127,13 @@ public final class Minecraft189TimerSpeedModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeReadEpoch++;
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeReadEpoch++;
     }
 
     synchronized void apply(
@@ -151,11 +155,20 @@ public final class Minecraft189TimerSpeedModule
             return;
         }
 
+        final long epoch = nativeReadEpoch;
+        // Persisted timer settings determine both the target and whether
+        // the REAL game clock is permitted to remain accelerated. Capture
+        // ALL policy before the external mapped Timer read.
+        final int configuredSpeed = speedPercent.get().intValue();
+        final boolean airOverride = airborneOverride.get().booleanValue();
+        final int airSpeed = airborneSpeedPercent.get().intValue();
+        final boolean smoothing = smoothTransition.get().booleanValue();
+        final int transitionStep = transitionStepPercent.get().intValue();
+        final boolean configuredGuiPause = pauseClickGui.get().booleanValue();
         final boolean requireSprint = sprintOnly.get().booleanValue();
         final boolean pauseSneak = pauseWhileSneaking.get().booleanValue();
         final boolean requireGround = groundOnly.get().booleanValue();
-        final boolean pauseForGui = pauseClickGui.get().booleanValue()
-                && actualClickGuiOpen;
+        final boolean pauseForGui = configuredGuiPause && actualClickGuiOpen;
         final boolean permitted = enabled && !pauseForGui
                 && ((!requireSprint && !pauseSneak && !requireGround)
                 || (movement != null && movement.available()
@@ -163,28 +176,57 @@ public final class Minecraft189TimerSpeedModule
                     && (!pauseSneak || !movement.sneaking())
                     && (!requireGround || movement.onGround())));
         final boolean airborne = permitted
-                && airborneOverride.get().booleanValue()
+                && airOverride
                 && movement != null
                 && movement.available()
                 && !movement.onGround();
         final int configuredPercent = airborne
-                ? airborneSpeedPercent.get().intValue()
-                : speedPercent.get().intValue();
+                ? airSpeed : configuredSpeed;
         // A failed mapped movement gate must undo an earlier timer boost
         // immediately, not keep an obsolete accelerated world clock.
         final float target = permitted ? configuredPercent / 100.0F : 1.0F;
         final float current = timer.customMcTimerSpeed();
-        // Disabling Timer must always restore vanilla immediately, even
-        // when smoothing was enabled and an earlier transition was active.
-        // Nonfinite mapped current state is repaired directly to target.
-        final float next = permitted && smoothTransition.get().booleanValue()
-                ? stepToward(current, target,
-                        transitionStepPercent.get().intValue())
+        if (!nativeReadOwned(epoch, configuredSpeed, airOverride, airSpeed,
+                smoothing, transitionStep, configuredGuiPause, requireSprint,
+                pauseSneak, requireGround)) {
+            // A *disabled* Timer must release its persistent native world
+            // clock to exactly 1x, even if the external read disabled it.
+            // OFF->ON is a NEW owner and receives no old callback writes.
+            // A live GUI policy edit also cannot spend the old timer read.
+            if (!enabled && (!Float.isFinite(current)
+                    || Math.abs(current - 1.0F) > 0.000001F)) {
+                timer.customMcSetTimerSpeed(1.0F);
+            }
+            return;
+        }
+        // Disabling Timer restores 1x instantly even if smoothing was
+        // active; valid enabled owners use current genuine native state.
+        final float next = permitted && smoothing
+                ? stepToward(current, target, transitionStep)
                 : target;
         if (!Float.isFinite(current)
                 || Math.abs(current - next) > 0.000001F) {
             timer.customMcSetTimerSpeed(next);
         }
+    }
+
+    private boolean nativeReadOwned(final long epoch,
+            final int configuredSpeed, final boolean airOverride,
+            final int airSpeed, final boolean smoothing, final int transitionStep,
+            final boolean configuredGuiPause, final boolean requireSprint,
+            final boolean pauseSneak, final boolean requireGround) {
+        // A disabled call is still authorized to restore the true 1x clock
+        // if its own epoch/policy stayed unchanged across source getter.
+        return nativeReadEpoch == epoch
+                && speedPercent.get().intValue() == configuredSpeed
+                && airborneOverride.get().booleanValue() == airOverride
+                && airborneSpeedPercent.get().intValue() == airSpeed
+                && smoothTransition.get().booleanValue() == smoothing
+                && transitionStepPercent.get().intValue() == transitionStep
+                && pauseClickGui.get().booleanValue() == configuredGuiPause
+                && sprintOnly.get().booleanValue() == requireSprint
+                && pauseWhileSneaking.get().booleanValue() == pauseSneak
+                && groundOnly.get().booleanValue() == requireGround;
     }
 
     static float stepToward(
