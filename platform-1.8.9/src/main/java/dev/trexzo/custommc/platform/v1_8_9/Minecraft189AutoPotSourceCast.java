@@ -28,7 +28,7 @@ final class Minecraft189AutoPotSourceCast {
                 Minecraft189OriginalCombatItemDiscoveryAcceptance
                         .beforeNativeAutoPotUse(host, originalSlot);
             nativeRightClick.run();
-            host.commitAutoPotUseAttempt();
+            host.commitAutoPotUseAttempt(originalSlot);
             if (Boolean.getBoolean(
                     "custommc.acceptance.requireNativeRodPotionDiscovery"))
                 Minecraft189OriginalCombatItemDiscoveryAcceptance

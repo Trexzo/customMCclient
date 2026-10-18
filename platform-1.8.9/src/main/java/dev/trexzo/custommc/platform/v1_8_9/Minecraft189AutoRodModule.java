@@ -111,6 +111,28 @@ public final class Minecraft189AutoRodModule implements Module {
         }
     }
 
+    /**
+     * Only the completed genuine native right-click may spend cooldown on
+     * the SAME one-shot original module/InventoryPlayer activation. The
+     * original right-click can consume the ItemStack or move currentItem,
+     * so post-click identity cannot be re-read here; this is a lifetime
+     * and one-shot token, NOT a new native use authorization.
+     */
+    synchronized boolean commitCompletedOriginalUse(
+            final Minecraft189InventoryHotbarControl inventory,
+            final int original) {
+        if (!enabled || inventory == null || inventory != selectedInventory
+                || original != previousSlot || original < 0 || original > 8
+                || selectedSlot < 0 || selectedSlot > 8
+                || capturedLifecycleEpoch != lifecycleEpoch
+                || cooldownCommittedForLease)
+            return false;
+        cooldownCommittedForLease = true; // consume before any source callback
+        remaining = cooldown.get();
+        activeCooldown = cooldown.get();
+        return true;
+    }
+
     /** Selects the user-configured slot for one synchronous native right click. */
     // Synchronous native hotbar lease. Persist the ACTUAL slot chosen for
     // this attempt: a UI setting change before finally/restore must not
@@ -130,6 +152,7 @@ public final class Minecraft189AutoRodModule implements Module {
     private boolean capturedPauseRight;
     private int capturedCooldown;
     private long capturedLifecycleEpoch;
+    private boolean cooldownCommittedForLease;
     // Actual source ItemStack reference accepted after native type/count
     // checks. Another same-class rod arriving in the slot is not this cast.
     private Minecraft189ItemStackAccess verifiedSelectedItem;
@@ -160,6 +183,7 @@ public final class Minecraft189AutoRodModule implements Module {
         capturedPauseRight = pauseRight.get().booleanValue();
         capturedCooldown = cooldown.get().intValue();
         capturedLifecycleEpoch = lifecycleEpoch;
+        cooldownCommittedForLease = false;
         verifiedSelectedItem = null;
         try {
             inventory.customMcSetSelectedHotbarSlot(target);
@@ -271,6 +295,7 @@ public final class Minecraft189AutoRodModule implements Module {
             capturedPauseRight = false;
             capturedCooldown = 0;
             capturedLifecycleEpoch = 0;
+            cooldownCommittedForLease = false;
             verifiedSelectedItem = null;
         }
     }
