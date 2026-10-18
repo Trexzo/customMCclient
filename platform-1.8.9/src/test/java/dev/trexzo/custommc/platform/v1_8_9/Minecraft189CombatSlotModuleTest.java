@@ -151,14 +151,120 @@ final class Minecraft189CombatSlotModuleTest {
         module.onDisable();
     }
 
+    @Test void nativeDispatchRequiresSameLiveSlotAndExplicitPolicy() {
+        final Minecraft189CombatSlotModule module = new Minecraft189CombatSlotModule();
+        final FakeInventory source = new FakeInventory();
+        source.slot = 2;
+        module.preferredSlotSetting().set(5);
+        module.onEnable();
+        assertEquals(2, module.select(source, true, false));
+        assertTrue(module.ownsVerifiedSlotAtDispatch(source, 2));
+        assertFalse(module.ownsVerifiedSlotAtDispatch(new FakeInventory(), 2));
+        assertFalse(module.ownsVerifiedSlotAtDispatch(source, 3));
+        source.slot = 7; // Real user currentItem change, not source-authorized.
+        assertFalse(module.ownsVerifiedSlotAtDispatch(source, 2));
+        source.slot = 4;
+        module.preferredSlotSetting().set(8);
+        assertFalse(module.ownsVerifiedSlotAtDispatch(source, 2),
+                "old selected native slot cannot spend changed GUI policy");
+        module.restore(source, 2);
+        assertEquals(2, source.slot, "a rejected dispatch still restores owned temporary slot");
+        module.preferredSlotSetting().set(5);
+        assertEquals(2, module.select(source, true, false));
+        assertTrue(module.ownsVerifiedSlotAtDispatch(source, 2));
+        module.requirePlayerHitSetting().set(false);
+        assertFalse(module.ownsVerifiedSlotAtDispatch(source, 2),
+                "new RequirePlayerHit policy revokes earlier click permission");
+        module.restore(source, 2);
+        assertEquals(2, source.slot);
+        module.onDisable();
+    }
+
+    @Test void originalModuleDisableReenableMustNotReuseOldAcceptedClick() {
+        final Minecraft189CombatSlotModule module = new Minecraft189CombatSlotModule();
+        final FakeInventory source = new FakeInventory();
+        source.slot = 1;
+        module.preferredSlotSetting().set(5);
+        module.onEnable();
+        assertEquals(1, module.select(source, true, false));
+        assertTrue(module.ownsVerifiedSlotAtDispatch(source, 1));
+        module.onDisable();
+        module.onEnable(); // Same final enabled state, different lifetime.
+        assertFalse(module.ownsVerifiedSlotAtDispatch(source, 1));
+        module.restore(source, 1);
+        assertEquals(1, source.slot);
+        assertEquals(1, module.select(source, true, false));
+        assertTrue(module.ownsVerifiedSlotAtDispatch(source, 1),
+                "new observed native click must get fresh lifecycle");
+        module.restore(source, 1);
+        module.onDisable();
+    }
+
+    @Test void changedPolicyDuringNativeSlotSetterCancelsAndRestoresOnlyOwnedSlot() {
+        final Minecraft189CombatSlotModule module = new Minecraft189CombatSlotModule();
+        final AdversarialInventory inv = new AdversarialInventory();
+        inv.slot = 2;
+        module.preferredSlotSetting().set(5);
+        module.onEnable();
+        inv.afterSetter = () -> module.preferredSlotSetting().set(8);
+        assertEquals(-1, module.select(inv, true, false),
+                "source setter cannot publish stale selected slot policy");
+        assertEquals(2, inv.slot, "original user's slot restored after stale grant");
+        module.preferredSlotSetting().set(5);
+        inv.afterSetter = () -> module.requirePlayerHitSetting().set(false);
+        assertEquals(-1, module.select(inv, true, false));
+        assertEquals(2, inv.slot);
+        module.requirePlayerHitSetting().set(true);
+        inv.afterSetter = () -> { module.onDisable(); module.onEnable(); };
+        assertEquals(-1, module.select(inv, true, false),
+                "off/on source lifecycle during setter cannot adopt click");
+        assertEquals(2, inv.slot);
+        assertEquals(2, module.select(inv, true, false));
+        assertTrue(module.ownsVerifiedSlotAtDispatch(inv, 2));
+        module.restore(inv, 2);
+        module.onDisable();
+    }
+
+    @Test void sourceCurrentItemGetterReentryRevokesNativeDispatchPermission() {
+        final Minecraft189CombatSlotModule module = new Minecraft189CombatSlotModule();
+        final AdversarialInventory inv = new AdversarialInventory();
+        inv.slot = 1;
+        module.preferredSlotSetting().set(4);
+        module.onEnable();
+        assertEquals(1, module.select(inv, true, false));
+        inv.afterRead = () -> module.preferredSlotSetting().set(5);
+        assertFalse(module.ownsVerifiedSlotAtDispatch(inv, 1),
+                "native getter can mutate GUI policy during validation");
+        module.restore(inv, 1);
+        assertEquals(1, inv.slot);
+        module.preferredSlotSetting().set(4);
+        assertEquals(1, module.select(inv, true, false));
+        inv.afterRead = () -> inv.slot = 7;
+        assertFalse(module.ownsVerifiedSlotAtDispatch(inv, 1),
+                "native getter can redirect original currentItem");
+        module.restore(inv, 1);
+        assertEquals(7, inv.slot, "human currentItem choice is never overwritten");
+        module.onDisable();
+    }
+
     private static final class AdversarialInventory
             implements Minecraft189InventoryHotbarControl {
         private int slot;
         private boolean throwAfterMutation;
         private boolean ignoreNextSetter;
         private int redirectNextSetterTo = -1;
+        private Runnable afterSetter;
+        private Runnable afterRead;
 
-        @Override public int customMcSelectedHotbarSlot() { return slot; }
+        @Override public int customMcSelectedHotbarSlot() {
+            final int actual = slot;
+            if (afterRead != null) {
+                final Runnable action = afterRead;
+                afterRead = null;
+                action.run();
+            }
+            return actual;
+        }
 
         @Override public void customMcSetSelectedHotbarSlot(final int next) {
             if (ignoreNextSetter) {
@@ -171,6 +277,11 @@ final class Minecraft189CombatSlotModuleTest {
                 return;
             }
             slot = next;
+            if (afterSetter != null) {
+                final Runnable action = afterSetter;
+                afterSetter = null;
+                action.run();
+            }
             if (throwAfterMutation) {
                 throwAfterMutation = false;
                 throw new IllegalStateException("native selection mutated then threw");
