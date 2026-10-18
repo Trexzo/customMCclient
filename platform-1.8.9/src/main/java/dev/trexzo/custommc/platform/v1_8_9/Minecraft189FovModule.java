@@ -27,7 +27,12 @@ public final class Minecraft189FovModule
 
     private EventBus.Subscription tickSubscription;
     private boolean active;
+    private boolean enabling;
+    private boolean disabling;
+    // The original GameSettings getter/setter may reenter onDisable.
+    private long nativeSettingsEpoch;
     private float originalFov;
+    private float lastInjectedFov;
 
     public Minecraft189FovModule(
             final Minecraft189GuiSettingsAccess settings,
@@ -53,67 +58,98 @@ public final class Minecraft189FovModule
 
     @Override
     public synchronized void onEnable() {
-        if (active) {
-            throw new IllegalStateException(
-                    "FOV changer already active");
+        if (active || enabling || disabling) {
+            throw new IllegalStateException("FOV changer already active or transitioning");
         }
-
-        final float current =
-                settings.fovSetting();
-        requireFinite(
-                current,
-                "current FOV");
-        originalFov = current;
-
-        settings.fovSetting(
-                targetFov.get().floatValue());
+        enabling = true;
+        final long ownerEpoch = ++nativeSettingsEpoch;
+        float captured = Float.NaN;
+        boolean attemptedOverride = false;
+        RuntimeException failure = null;
         try {
-            tickSubscription =
-                    events.subscribe(
-                            Minecraft189Hooks.TickEvent.class,
-                            event -> applyConfiguredFov());
+            // Genuine Minecraft GameSettings FOV is the only baseline.
+            // A synchronous disable during this getter cancels the owner
+            // BEFORE any override or tick subscription is installed.
+            captured = settings.fovSetting();
+            requireFinite(captured, "current FOV");
+            if (ownerEpoch != nativeSettingsEpoch) return;
+            originalFov = captured;
+            final float desired = targetFov.get().floatValue();
+            lastInjectedFov = desired;
+            attemptedOverride = true;
+            settings.fovSetting(desired);
+            // A real original setter can reenter onDisable. Do not let
+            // that cancelled transaction subsequently register a live
+            // tick callback or mark itself active.
+            if (ownerEpoch != nativeSettingsEpoch) return;
+            tickSubscription = events.subscribe(
+                    Minecraft189Hooks.TickEvent.class,
+                    event -> applyConfiguredFov());
+            if (ownerEpoch != nativeSettingsEpoch) return;
             active = true;
-        } catch (RuntimeException failure) {
-            settings.fovSetting(
-                    originalFov);
-            throw failure;
+        } catch (RuntimeException originalFailure) {
+            failure = originalFailure;
+            throw originalFailure;
+        } finally {
+            try {
+                if (!active) {
+                    if (tickSubscription != null) {
+                        tickSubscription.close();
+                        tickSubscription = null;
+                    }
+                    if (attemptedOverride
+                            && Float.compare(captured, lastInjectedFov) != 0
+                            && Float.compare(settings.fovSetting(), lastInjectedFov) == 0) {
+                        // Failed or cancelled native setters may mutate
+                        // before returning/throwing. Restore only the
+                        // exact value written by THIS transaction.
+                        settings.fovSetting(captured);
+                    }
+                }
+            } catch (RuntimeException rollbackFailure) {
+                if (failure != null) failure.addSuppressed(rollbackFailure);
+                else throw rollbackFailure;
+            } finally {
+                enabling = false;
+            }
         }
     }
 
     @Override
     public synchronized void onDisable() {
-        if (!active) {
-            return;
-        }
-
+        if (disabling) return;
+        ++nativeSettingsEpoch;
+        if (!active) return;
+        disabling = true;
         RuntimeException failure = null;
-        if (tickSubscription != null) {
-            try {
-                tickSubscription.close();
-            } catch (RuntimeException closeFailure) {
-                failure = closeFailure;
-            } finally {
-                tickSubscription = null;
-            }
-        }
-
         try {
-            settings.fovSetting(
-                    originalFov);
-        } catch (RuntimeException restoreFailure) {
-            if (failure == null) {
-                failure = restoreFailure;
-            } else {
-                failure.addSuppressed(
-                        restoreFailure);
+            if (tickSubscription != null) {
+                try {
+                    tickSubscription.close();
+                } catch (RuntimeException closeFailure) {
+                    failure = closeFailure;
+                } finally {
+                    tickSubscription = null;
+                }
+            }
+            try {
+                // A user's own later GameSettings FOV change must survive
+                // disable. The module restores ONLY its current injected
+                // value, not an unrelated native preference.
+                final float current = settings.fovSetting();
+                if (Float.compare(current, lastInjectedFov) == 0
+                        && Float.compare(originalFov, lastInjectedFov) != 0) {
+                    settings.fovSetting(originalFov);
+                }
+            } catch (RuntimeException restoreFailure) {
+                if (failure == null) failure = restoreFailure;
+                else failure.addSuppressed(restoreFailure);
             }
         } finally {
             active = false;
+            disabling = false;
         }
-
-        if (failure != null) {
-            throw failure;
-        }
+        if (failure != null) throw failure;
     }
 
     public synchronized boolean active() {
@@ -132,8 +168,11 @@ public final class Minecraft189FovModule
         if (!active) {
             return;
         }
-        settings.fovSetting(
-                targetFov.get().floatValue());
+        // Track the newest exact module-owned FOV BEFORE native write:
+        // a synchronous onDisable inside GameSettings setter must be
+        // able to restore this specific value immediately.
+        lastInjectedFov = targetFov.get().floatValue();
+        settings.fovSetting(lastInjectedFov);
     }
 
     private static void requireFinite(
