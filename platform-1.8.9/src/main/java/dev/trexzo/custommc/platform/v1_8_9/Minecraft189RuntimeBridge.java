@@ -2879,9 +2879,13 @@ public final class Minecraft189RuntimeBridge {
                     // Source-mapped rightClickMouse is the only way to begin
                     // vanilla sword use. Verify it actually started before
                     // tracking ownership (cooldown/no-item may refuse it).
-                    minecraft.customMcRightClickMouse();
-                    if (swordBlock.customMcIsUsingItem())
-                        host.recordAutoBlockStart();
+                    final long useToken = host.beginAutoBlockNativeUse();
+                    if (useToken != 0) {
+                        minecraft.customMcRightClickMouse();
+                        if (swordBlock.customMcIsUsingItem()) {
+                            host.recordAutoBlockStart(useToken);
+                        }
+                    }
                 }
             }
         }
