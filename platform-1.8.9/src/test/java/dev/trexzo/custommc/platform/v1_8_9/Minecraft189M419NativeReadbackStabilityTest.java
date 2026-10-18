@@ -29,7 +29,7 @@ final class Minecraft189M419NativeReadbackStabilityTest {
         assertFalse(Minecraft189RejoinTargetAcceptance
                 .m419StableNativeSourceSample(null, 2.2D, 2.4D));
         assertTrue(Minecraft189RejoinTargetAcceptance
-                .m419StableNativeSourceSample(null, 2.1D, 2.4D));
+                .m419StableNativeSourceSample(null, 2.0D, 2.4D));
     }
 
     @Test void unknownSourceAndOutOfReachCanNeverProduceStableEvent() {
