@@ -499,10 +499,6 @@ class RealReconnectNativeIdentityFixtureTest(unittest.TestCase):
                 actual_server_three_client_rejoin_fixture(path)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class OriginalLateFixtureGroundingAndHostLeaseTest(unittest.TestCase):
     def test_real_fov_support_positive_and_reverse_chunk(self):
         for login in (
@@ -523,16 +519,16 @@ class OriginalLateFixtureGroundingAndHostLeaseTest(unittest.TestCase):
                 self.assertEqual(x1-x0,2)
 
     def test_original_fov_support_rejects_malformed_or_divergent_world(self):
-        host = "tp CIHost -34 5 -34 0 0"
-        target = "tp CITarget -34 5 -32 180 0"
+        host = "tp CIHost -36 5 -36 0 0"
+        target = "tp CITarget -36 5 -34 180 0"
         self.assertEqual(actual_server_fov_ground_support_fixture(
-            host, target)[1], "fill -35 4 -35 -33 4 -31 stone")
+            host, target)[1], "fill -37 4 -37 -35 4 -33 stone")
         for a,b in (
-            (host,"tp CITarget -34 5 -30 180 0"),
-            (host,"tp CITarget -33 5 -32 180 0"),
-            (host,"tp CITarget -34 6 -32 180 0"),
-            ("tp CIHost -34 0 -34 0 0",target),
-            (host,"tp BOGUS -34 5 -32 180 0")
+            (host,"tp CITarget -36 5 -32 180 0"),
+            (host,"tp CITarget -35 5 -34 180 0"),
+            (host,"tp CITarget -36 6 -34 180 0"),
+            ("tp CIHost -36 0 -36 0 0",target),
+            (host,"tp BOGUS -36 5 -34 180 0")
         ):
             with self.assertRaises(AssertionError):
                 actual_server_fov_ground_support_fixture(a,b)
@@ -582,16 +578,21 @@ class OriginalLateFixtureGroundingAndHostLeaseTest(unittest.TestCase):
                     actual_server_rejoined_host_recenter_fixture(host,a_bad,b)
                 with self.assertRaises(AssertionError):
                     actual_server_rejoined_host_recenter_fixture(
-                        host,relocated.replace("445.85","448.85"),b)
+                        host,relocated.split()[0] + " " + relocated.split()[1]
+                        + " " + relocated.split()[2] + " " + relocated.split()[3]
+                        + " 999.99 " + relocated.split()[5] + " " + relocated.split()[6],b)
 
     def test_original_host_recenter_precedes_fresh_damage_and_keeps_native_gates(self):
         script=(Path(__file__).parent /
                 "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
-        section=script.split('if args.require_rejoined_controller_b:',4)[-1]
-        recenter=section.find('expected=b"Teleported CIHost to"')
-        reset=section.find('"scoreboard players set CITargetB taken 0"')
-        native=section.find('wait_for(host,host_log,REJOIN_REAL_CONTROLLER_B')
+        recenter=script.find('expected=b"Teleported CIHost to"')
+        reset=script.find('"scoreboard players set CITargetB taken 0"',recenter)
+        native=script.find('wait_for(host,host_log,REJOIN_REAL_CONTROLLER_B',reset)
         self.assertGreaterEqual(recenter,0)
         self.assertTrue(recenter < reset < native)
-        self.assertIn('wait_for_real_score(server,server_log,"CITargetB"',section)
-        self.assertIn('REJOIN_CONTROLLER_ARGUMENT_UUID_B',section)
+        self.assertIn('wait_for_real_score(server,server_log,"CITargetB"',script)
+        self.assertIn('REJOIN_CONTROLLER_ARGUMENT_UUID_B',script)
+
+
+if __name__ == "__main__":
+    unittest.main()
