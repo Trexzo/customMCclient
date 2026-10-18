@@ -252,6 +252,77 @@ final class Minecraft189AutoRodModuleTest {
         } finally { mod.onDisable(); }
     }
 
+    @Test void completedNativeRodUseCooldownCommitsExactlyOnceForOriginalLease() {
+        final Minecraft189AutoRodModule mod = new Minecraft189AutoRodModule();
+        final Inventory source = new Inventory();
+        source.slot = 5;
+        mod.onEnable();
+        try {
+            assertEquals(5, mod.selectSlot(source));
+            assertEquals(1, source.slot);
+            assertTrue(mod.ownsSelectedSlot(source, 5));
+            assertTrue(mod.commitCompletedOriginalUse(source, 5),
+                    "real completed original use spends exactly this action");
+            assertFalse(mod.commitCompletedOriginalUse(source, 5),
+                    "duplicate original callback cannot reuse cooldown token");
+            mod.restoreSlot(source, 5);
+            assertFalse(mod.commitCompletedOriginalUse(source, 5),
+                    "restored source inventory is no longer owned");
+            assertEquals(5, source.slot);
+            assertEquals(5, mod.selectSlot(source));
+            assertTrue(mod.commitCompletedOriginalUse(source, 5),
+                    "independent genuine action has independent token");
+            mod.restoreSlot(source, 5);
+        } finally { mod.onDisable(); }
+    }
+
+    @Test void reactivatedRodModuleCannotBankOldOriginalUseCooldown() {
+        final Minecraft189AutoRodModule mod = new Minecraft189AutoRodModule();
+        final Inventory source = new Inventory();
+        source.slot = 6;
+        mod.onEnable();
+        assertEquals(6, mod.selectSlot(source));
+        mod.onDisable();
+        mod.onEnable();
+        try {
+            assertFalse(mod.commitCompletedOriginalUse(source, 6),
+                    "old native rightClick returning after OFF-ON must not debit new lifetime");
+            mod.restoreSlot(source, 6);
+            assertEquals(6, source.slot);
+            assertEquals(6, mod.selectSlot(source));
+            assertTrue(mod.commitCompletedOriginalUse(source, 6),
+                    "new native rightClick can correctly bank current cooldown");
+            mod.restoreSlot(source, 6);
+        } finally { mod.onDisable(); }
+    }
+
+    @Test void wrongNativeRodOwnerOrSlotCannotSpendAnyOriginalCooldown() {
+        final Minecraft189AutoRodModule mod = new Minecraft189AutoRodModule();
+        final Inventory source = new Inventory();
+        final Inventory other = new Inventory();
+        source.slot = 4;
+        other.slot = 4;
+        mod.onEnable();
+        try {
+            assertFalse(mod.commitCompletedOriginalUse(source, 4),
+                    "no original hotbar selection, no native use credit");
+            assertEquals(4, mod.selectSlot(source));
+            assertFalse(mod.commitCompletedOriginalUse(other, 4),
+                    "foreign source player/inventory is never this native use");
+            assertFalse(mod.commitCompletedOriginalUse(source, 3),
+                    "wrong captured original source slot cannot commit");
+            // The original right-click can genuinely consume a potion or
+            // invoke a native hotbar callback; token ownership is pinned
+            // to the source at admission rather than a post-use stack read.
+            source.slot = 7;
+            assertTrue(mod.commitCompletedOriginalUse(source, 4),
+                    "completed action belongs to original source even after use-time slot change");
+            mod.restoreSlot(source, 4);
+            assertEquals(7, source.slot,
+                    "real player-selected slot must not be overwritten");
+        } finally { mod.onDisable(); }
+    }
+
     private static final class ReentrantInventory
             implements Minecraft189InventoryHotbarControl {
         int slot;
