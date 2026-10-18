@@ -75,6 +75,8 @@ public final class Minecraft189SpeedMineModule
             value -> value != null && value >= 0 && value <= 100,
             SettingCodecs.INTEGER);
     private boolean enabled;
+    // Real controller hit/progress native getters may restart this module.
+    private long nativeMiningEpoch;
 
     @Override
     public String id() {
@@ -116,11 +118,13 @@ public final class Minecraft189SpeedMineModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeMiningEpoch++;
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeMiningEpoch++;
     }
 
     synchronized void apply(
@@ -143,48 +147,74 @@ public final class Minecraft189SpeedMineModule
         // A stale original hit-block flag may remain set across menu focus.
         // UI ownership must never continue artificial break progress.
         if (actualClickGuiOpen) return;
-        if (!enabled
-                || controller == null
-                || !controller.customMcIsHittingBlock()
-                || (requireAttackHeld.get().booleanValue()
-                        && !attackHeld)
-                || (pauseWhileSneaking.get().booleanValue()
-                        && (movement == null
-                        || !movement.available()
-                        || movement.sneaking()))
-                || (groundOnly.get().booleanValue()
-                        && (movement == null
-                        || !movement.available()
-                        || !movement.onGround()))) {
-            return;
-        }
+        if (!enabled || controller == null) return;
+        final long epoch = nativeMiningEpoch;
+        final int configuredMinimum = progressPercent.get().intValue();
+        final boolean progressiveNow = progressive.get().booleanValue();
+        final int configuredStep = stepPercent.get().intValue();
+        final boolean requiresAttack = requireAttackHeld.get().booleanValue();
+        final boolean pausesSneaking = pauseWhileSneaking.get().booleanValue();
+        final boolean needsGround = groundOnly.get().booleanValue();
+        final boolean airborne = airborneOverride.get().booleanValue();
+        final int airMinimum = airborneProgressPercent.get().intValue();
+        if ((requiresAttack && !attackHeld)
+                || (pausesSneaking && (movement == null
+                    || !movement.available() || movement.sneaking()))
+                || (needsGround && (movement == null
+                    || !movement.available() || !movement.onGround()))) return;
 
-        final float current =
-                controller.customMcBlockDamageProgress();
-        // Select the alternate cap only from confirmed mapped airborne
-        // movement. Missing movement falls back to the original minimum.
-        // Ground Only has already vetoed all airborne writes above.
-        final boolean airborne = airborneOverride.get().booleanValue()
+        // Both getters are MAPPED ORIGINAL PlayerControllerMP accesses.
+        // Native callbacks can synchronously change module epoch, GUI
+        // profile or mining state. Do not even read progress after an
+        // unowned "isHittingBlock" result.
+        final boolean hitting = controller.customMcIsHittingBlock();
+        if (!nativeReadOwned(epoch, configuredMinimum, progressiveNow,
+                configuredStep, requiresAttack, pausesSneaking, needsGround,
+                airborne, airMinimum) || !hitting) return;
+        final float current = controller.customMcBlockDamageProgress();
+        if (!nativeReadOwned(epoch, configuredMinimum, progressiveNow,
+                configuredStep, requiresAttack, pausesSneaking, needsGround,
+                airborne, airMinimum)) return;
+
+        // Select airborne progress only from actual mapped movement state,
+        // not a guessed block target or missing native World snapshot.
+        final boolean sourceAirborne = airborne
                 && movement != null && movement.available()
                 && !movement.onGround();
-        final float minimum =
-                (airborne ? airborneProgressPercent.get().intValue()
-                        : progressPercent.get().intValue()) / 100.0F;
+        final float minimum = (sourceAirborne
+                ? airMinimum : configuredMinimum) / 100.0F;
         if (!Float.isFinite(current) || current < 0.0F
-                || current >= minimum) {
-            return;
-        }
+                || current >= minimum) return;
 
-        // The legacy instant minimum remains the default. Progressive mode
-        // advances only the locally mapped active break-progress field and
-        // never writes above the configured minimum or above full progress.
-        final float next = progressive.get().booleanValue()
-                ? Math.min(minimum,
-                        current + stepPercent.get().intValue() / 100.0F)
+        final float next = progressiveNow
+                ? Math.min(minimum, current + configuredStep / 100.0F)
                 : minimum;
-        if (next > current) {
-            controller.customMcSetBlockDamageProgress(next);
-        }
+        if (next <= current) return;
+
+        // Original mining can end DURING the progress getter. A second
+        // actual source hit-state read immediately before setter prevents
+        // committing old block progress when no native mining remains.
+        if (!controller.customMcIsHittingBlock()
+                || !nativeReadOwned(epoch, configuredMinimum, progressiveNow,
+                    configuredStep, requiresAttack, pausesSneaking, needsGround,
+                    airborne, airMinimum)) return;
+        controller.customMcSetBlockDamageProgress(next);
+    }
+
+    private boolean nativeReadOwned(final long epoch,
+            final int configuredMinimum, final boolean progressiveNow,
+            final int configuredStep, final boolean requiresAttack,
+            final boolean pausesSneaking, final boolean needsGround,
+            final boolean airborne, final int airMinimum) {
+        return enabled && nativeMiningEpoch == epoch
+                && progressPercent.get().intValue() == configuredMinimum
+                && progressive.get().booleanValue() == progressiveNow
+                && stepPercent.get().intValue() == configuredStep
+                && requireAttackHeld.get().booleanValue() == requiresAttack
+                && pauseWhileSneaking.get().booleanValue() == pausesSneaking
+                && groundOnly.get().booleanValue() == needsGround
+                && airborneOverride.get().booleanValue() == airborne
+                && airborneProgressPercent.get().intValue() == airMinimum;
     }
 
     synchronized boolean active() {
