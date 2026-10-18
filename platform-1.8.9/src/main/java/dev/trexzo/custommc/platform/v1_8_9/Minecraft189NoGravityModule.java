@@ -43,6 +43,8 @@ public final class Minecraft189NoGravityModule
             REQUIRE_JUMP_HELD_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // Invalidates callbacks that read a native source owner before restart.
+    private long nativeReadEpoch;
 
     public Setting<Double> liftSpeedSetting() {
         return liftSpeed;
@@ -68,11 +70,13 @@ public final class Minecraft189NoGravityModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeReadEpoch++;
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeReadEpoch++;
     }
 
     synchronized void apply(
@@ -111,19 +115,32 @@ public final class Minecraft189NoGravityModule
             return;
         }
 
+        // Capture live settings and lifetime BEFORE the native Y-motion
+        // read. That getter may synchronously restart this module or edit
+        // settings; neither may spend the old permission after it returns.
+        final long approvedEpoch = nativeReadEpoch;
         final double target = liftSpeed.get().doubleValue();
+        final boolean smooth = smoothLift.get().booleanValue();
+        final double step = liftStep.get().doubleValue();
         // The original zero-gravity behavior is exactly target=0.
         // A positive setting is an optional minimum upward speed:
         // never slow an existing faster upward jump.
         final double current = player.customMcMotionY();
+        if (!enabled || nativeReadEpoch != approvedEpoch
+                || !ownsVertical(jumpHeld)
+                || liftSpeed.get().doubleValue() != target
+                || smoothLift.get().booleanValue() != smooth
+                || liftStep.get().doubleValue() != step) {
+            return;
+        }
         if (current < target) {
             // Optional smoothing reduces the gap at most one step per
             // eligible callback. Every value derives from current real
             // vertical motion: no hidden accumulator or catch-up credit.
             // Invalid mapped speed is safely normalized to finite target.
-            final double next = smoothLift.get().booleanValue()
+            final double next = smooth
                     && Double.isFinite(current)
-                            ? Math.min(target, current + liftStep.get().doubleValue())
+                            ? Math.min(target, current + step)
                             : target;
             if (next > current) {
                 player.customMcSetMotionY(next);

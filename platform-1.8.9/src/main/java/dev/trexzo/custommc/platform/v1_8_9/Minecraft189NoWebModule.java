@@ -38,6 +38,8 @@ public final class Minecraft189NoWebModule
     }
 
     private boolean enabled;
+    // Invalidates callbacks that read a native source owner before restart.
+    private long nativeReadEpoch;
 
     @Override
     public String id() {
@@ -47,11 +49,13 @@ public final class Minecraft189NoWebModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeReadEpoch++;
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeReadEpoch++;
     }
 
     synchronized void apply(
@@ -91,7 +95,17 @@ public final class Minecraft189NoWebModule
             // mapped-state condition is not confirmed.
             return;
         }
-        if (player.customMcInWeb()) {
+        // The mapped player getter is an external callback. A module
+        // OFF -> ON, or GUI policy mutation while reading it, cannot
+        // authorize a write under the previous source lease.
+        final long approvedEpoch = nativeReadEpoch;
+        final boolean originalInWeb = player.customMcInWeb();
+        if (originalInWeb
+                && enabled
+                && nativeReadEpoch == approvedEpoch
+                && groundOnly.get().booleanValue() == ground
+                && requireSneaking.get().booleanValue() == sneak
+                && airborneOnly.get().booleanValue() == airborne) {
             player.customMcSetInWeb(false);
         }
     }
