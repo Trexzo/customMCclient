@@ -74,6 +74,7 @@ public final class Minecraft189RuntimeBridge {
     private static int acceptanceWallLifecyclePhase;
     private static int acceptanceWallLifecycleDisabledSelectionTicks;
     private static int acceptanceWallLifecycleReenabledVetoTicks;
+    private static int acceptanceWallLifecycleSourceEvidenceTicks;
     private static boolean acceptanceAuraWallRecoveryVisibleReported;
     private static boolean acceptanceAuraWallRecoveryClickReported;
     private static boolean acceptanceAuraWallRecoveryControllerReported;
@@ -85,6 +86,62 @@ public final class Minecraft189RuntimeBridge {
     private static boolean acceptanceAuraFovReported;
 
     private Minecraft189RuntimeBridge() {
+    }
+
+    /**
+     * Read-only classification of why a positive original Wall Check
+     * lifecycle source witness cannot advance. These reasons NEVER replace
+     * the real original 30 consecutive callbacks or grant attack permission.
+     * Kept pure to test both absent data and genuine selected-target veto.
+     */
+    static String originalWallLifecycleSourceReason(
+            final int targetIndex, final boolean availableKinds,
+            final boolean availableCombat, final boolean availableVisibility,
+            final int kindsCount, final int combatCount, final int visibilityCount,
+            final boolean player, final boolean living,
+            final boolean localPlayer, final boolean alive,
+            final boolean occluded, final boolean auraEnabled,
+            final boolean wallCheckEnabled,
+            final boolean nearestFound, final boolean rotationAvailable) {
+        if (targetIndex < 0) return "no-original-target-index";
+        if (!availableKinds || !availableCombat || !availableVisibility)
+            return "native-world-snapshot-unavailable";
+        if (targetIndex >= kindsCount || targetIndex >= combatCount
+                || targetIndex >= visibilityCount)
+            return "source-index-outside-original-world";
+        if (!player || !living || localPlayer || !alive)
+            return "source-entity-no-longer-remote-living-player";
+        if (!occluded) return "original-source-line-of-sight-no-longer-occluded";
+        if (!auraEnabled) return "source-aura-disabled";
+        if (!wallCheckEnabled) return "source-wall-check-disabled";
+        if (nearestFound || rotationAvailable)
+            return "stale-original-target-still-selected";
+        return "real-occluded-and-both-target-snapshots-cleared";
+    }
+
+    private static String originalWallLifecycleReason(
+            final int idx,
+            final Minecraft189WorldEntityKindState.Snapshot kinds,
+            final Minecraft189WorldEntityCombatState.Snapshot combat,
+            final Minecraft189WorldEntityVisibilityState.Snapshot los,
+            final Minecraft189NearestPlayerTargetState.Snapshot nearest,
+            final Minecraft189TargetRotationState.Snapshot target,
+            final Minecraft189HostRuntime host) {
+        final boolean inBounds = idx >= 0
+                && kinds.available() && combat.available() && los.available()
+                && idx < kinds.entityCount() && idx < combat.entityCount()
+                && idx < los.entityCount();
+        return originalWallLifecycleSourceReason(
+                idx, kinds.available(), combat.available(), los.available(),
+                kinds.entityCount(), combat.entityCount(), los.entityCount(),
+                inBounds && kinds.player(idx),
+                inBounds && kinds.living(idx),
+                inBounds && kinds.localPlayer(idx),
+                inBounds && combat.alive(idx),
+                inBounds && los.occluded(idx),
+                host.featureCatalog().killAura().active(),
+                host.featureCatalog().wallCheck().active(),
+                nearest.found(), target.available());
     }
 
     static synchronized Registration install(
@@ -158,6 +215,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceWallLifecyclePhase = 0;
         acceptanceWallLifecycleDisabledSelectionTicks = 0;
         acceptanceWallLifecycleReenabledVetoTicks = 0;
+        acceptanceWallLifecycleSourceEvidenceTicks = 0;
         acceptanceAuraWallRecoveryVisibleReported = false;
         acceptanceAuraWallRecoveryClickReported = false;
         acceptanceAuraWallRecoveryControllerReported = false;
@@ -1967,6 +2025,28 @@ public final class Minecraft189RuntimeBridge {
                         && !kinds.localPlayer(idx) && combat.alive(idx)
                         && los.occluded(idx)
                         && host.featureCatalog().killAura().active();
+                if (acceptanceWallLifecyclePhase == 2
+                        && ++acceptanceWallLifecycleSourceEvidenceTicks % 80 == 0) {
+                    // V164: genuine original tick source-only heartbeat.
+                    // The 30 unbroken occluded/no-target ticks remain strict.
+                    System.out.println(
+                            "CUSTOMMC_189_WALL_LIFECYCLE_NATIVE_SOURCE_DIAG"
+                            + " reason=" + originalWallLifecycleReason(
+                                    idx, kinds, combat, los, nearest, target, host)
+                            + " phase=" + acceptanceWallLifecyclePhase
+                            + " sourceIndex=" + idx
+                            + " kindsCount=" + kinds.entityCount()
+                            + " combatCount=" + combat.entityCount()
+                            + " losCount=" + los.entityCount()
+                            + " nativeOccluded=" + (stableOccluded)
+                            + " nearestFound=" + nearest.found()
+                            + " nearestIndex=" + nearest.entityIndex()
+                            + " rotationAvailable=" + target.available()
+                            + " rotationIndex=" + target.entityIndex()
+                            + " validConsecutiveSourceClearTicks="
+                                    + acceptanceWallLifecycleReenabledVetoTicks);
+                    System.out.flush();
+                }
                 if (!stableOccluded) {
                     acceptanceWallLifecycleDisabledSelectionTicks = 0;
                     acceptanceWallLifecycleReenabledVetoTicks = 0;
