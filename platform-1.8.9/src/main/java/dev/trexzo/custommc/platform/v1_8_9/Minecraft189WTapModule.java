@@ -114,6 +114,9 @@ public final class Minecraft189WTapModule
     private int resetTicksRemaining;
     private int eligibleReleasedTicks;
     private int scheduledMinReleaseTicks;
+    // Genuine mapped EntityPlayer.setSprinting(false) may reenter a
+    // module enable/disable, ClickGUI, or persisted sprint-reset policy.
+    private long nativeSprintWriteEpoch;
 
     @Override
     public String id() {
@@ -158,12 +161,14 @@ public final class Minecraft189WTapModule
 
     @Override
     public synchronized void onEnable() {
+        ++nativeSprintWriteEpoch;
         enabled = true;
         resetState();
     }
 
     @Override
     public synchronized void onDisable() {
+        ++nativeSprintWriteEpoch;
         enabled = false;
         resetState();
     }
@@ -258,7 +263,16 @@ public final class Minecraft189WTapModule
             resetTicksRemaining--;
             previousLeftButtonHeld =
                     leftButtonHeld;
+            final long originalEpoch = nativeSprintWriteEpoch;
+            final NativeSprintPolicy originalPolicy = new NativeSprintPolicy(this);
             writeOriginalSprintReset(player, leftButtonHeld);
+            if (!nativeSprintWriteOwned(originalEpoch, originalPolicy)) {
+                // An original setter changed lifecycle/UI policy. Cancel
+                // remaining stale timed writes, preserving physical edge.
+                resetState();
+                previousLeftButtonHeld = leftButtonHeld;
+                return false;
+            }
             return true;
         }
 
@@ -286,11 +300,18 @@ public final class Minecraft189WTapModule
             return false;
         }
 
+        final long originalEpoch = nativeSprintWriteEpoch;
+        final NativeSprintPolicy originalPolicy = new NativeSprintPolicy(this);
         writeOriginalSprintReset(player, leftButtonHeld);
-        cooldownRemaining =
-                cooldownTicks.get().intValue();
-        resetTicksRemaining =
-                resetTicks.get().intValue() - 1;
+        if (!nativeSprintWriteOwned(originalEpoch, originalPolicy)) {
+            // Do not schedule new synthetic cooldown/reset writes on
+            // another activation after a reentrant ORIGINAL setter.
+            resetState();
+            previousLeftButtonHeld = leftButtonHeld;
+            return false;
+        }
+        cooldownRemaining = originalPolicy.cooldown;
+        resetTicksRemaining = originalPolicy.reset - 1;
         return true;
     }
 
@@ -314,12 +335,49 @@ public final class Minecraft189WTapModule
     // Preserve a currently-held physical button so closing the GUI
     // cannot fabricate a new attack-button press edge.
     synchronized void suspendForGui(final boolean attackHeld) {
+        ++nativeSprintWriteEpoch;
         resetState();
         previousLeftButtonHeld = attackHeld;
     }
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    private boolean nativeSprintWriteOwned(final long expectedEpoch,
+            final NativeSprintPolicy policy) {
+        return enabled && nativeSprintWriteEpoch == expectedEpoch
+                && policy.sameAs(this);
+    }
+
+    /** All persisted admission/cadence rules for ONE actual original setter. */
+    private static final class NativeSprintPolicy {
+        final boolean ground, forward, sneak, nearby, cancel;
+        final int cooldown, reset, minRelease;
+        final double distance;
+        NativeSprintPolicy(final Minecraft189WTapModule m) {
+            ground = m.requireGround.get();
+            forward = m.requireForward.get();
+            sneak = m.pauseWhileSneaking.get();
+            nearby = m.requireNearbyPlayer.get();
+            cancel = m.cancelResetOnRelease.get();
+            cooldown = m.cooldownTicks.get();
+            reset = m.resetTicks.get();
+            minRelease = m.minReleaseTicks.get();
+            distance = m.maxPlayerDistance.get();
+        }
+        boolean sameAs(final Minecraft189WTapModule m) {
+            return ground == m.requireGround.get()
+                    && forward == m.requireForward.get()
+                    && sneak == m.pauseWhileSneaking.get()
+                    && nearby == m.requireNearbyPlayer.get()
+                    && cancel == m.cancelResetOnRelease.get()
+                    && cooldown == m.cooldownTicks.get()
+                    && reset == m.resetTicks.get()
+                    && minRelease == m.minReleaseTicks.get()
+                    && Double.doubleToLongBits(distance)
+                        == Double.doubleToLongBits(m.maxPlayerDistance.get());
+        }
     }
 
     private void resetState() {
