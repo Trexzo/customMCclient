@@ -26,7 +26,8 @@ final class Minecraft189AutoJumpLandingPolicyOwnerTest {
     @Test void changingRequireForwardAfterGenuineLandingDoesNotSpendOldGroundContact(){
         Minecraft189AutoJumpModule m=new Minecraft189AutoJumpModule();
         Source s=new Source();
-        m.requireForwardSetting().set(true);m.onEnable();
+        m.requireForwardSetting().set(true);
+        m.landingDelayTicksSetting().set(1);m.onEnable();
         s.air(m);
         s.ground(m,false,false,false);
         assertEquals(0,s.jumps);
@@ -35,30 +36,35 @@ final class Minecraft189AutoJumpLandingPolicyOwnerTest {
         s.ground(m,true,true,true);
         assertEquals(0,s.jumps);
         s.air(m);s.ground(m,false,false,false);
+        s.ground(m,false,false,false);
         assertEquals(1,s.jumps);
         m.onDisable();
     }
     @Test void changingRequireMovementAfterGenuineLandingDoesNotReplayOldContact(){
         Minecraft189AutoJumpModule m=new Minecraft189AutoJumpModule();
         Source s=new Source();
-        m.requireMovementSetting().set(true);m.onEnable();
+        m.requireMovementSetting().set(true);
+        m.landingDelayTicksSetting().set(1);m.onEnable();
         s.air(m);s.ground(m,false,false,false);
         m.requireMovementSetting().set(false);
         s.ground(m,false,false,false);
         assertEquals(0,s.jumps);
         s.air(m);s.ground(m,false,false,false);
+        s.ground(m,false,false,false);
         assertEquals(1,s.jumps);
         m.onDisable();
     }
     @Test void changingRequireNativeSprintAfterLandingDoesNotReplayOldContact(){
         Minecraft189AutoJumpModule m=new Minecraft189AutoJumpModule();
         Source s=new Source();
-        m.requireSprintingSetting().set(true);m.onEnable();
+        m.requireSprintingSetting().set(true);
+        m.landingDelayTicksSetting().set(1);m.onEnable();
         s.air(m);s.ground(m,true,true,false);
         m.requireSprintingSetting().set(false);
         s.ground(m,true,true,true);
         assertEquals(0,s.jumps);
         s.air(m);s.ground(m,true,true,false);
+        s.ground(m,true,true,false);
         assertEquals(1,s.jumps);
         m.onDisable();
     }
@@ -141,21 +147,22 @@ final class Minecraft189AutoJumpLandingPolicyOwnerTest {
         assertEquals(1,s.jumps);
         m.onDisable();
     }
-    @Test void newPhysicalAirContactAlwaysCapturesUpdatedExactSettings(){
+    @Test void zeroDelayPreservesImmediateLivePolicyAndNewLandings(){
         Minecraft189AutoJumpModule m=new Minecraft189AutoJumpModule();
         Source s=new Source();
         m.requireForwardSetting().set(true);m.onEnable();
         s.air(m);s.ground(m,false,false,false);
         m.requireForwardSetting().set(false);
+        // Existing original zero-delay policy is immediately live.
         s.ground(m,false,false,false);
-        assertEquals(0,s.jumps);
-        s.air(m);s.ground(m,false,false,false);
         assertEquals(1,s.jumps);
+        s.air(m);s.ground(m,false,false,false);
+        assertEquals(2,s.jumps);
         m.requireMovementSetting().set(true);
         s.air(m);s.ground(m,false,false,false);
-        assertEquals(1,s.jumps);
-        s.ground(m,false,true,false);
         assertEquals(2,s.jumps);
+        s.ground(m,false,true,false);
+        assertEquals(3,s.jumps);
         m.onDisable();
     }
 }
