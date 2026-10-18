@@ -429,6 +429,89 @@ final class Minecraft189AutoWeaponModuleTest {
         }
     }
 
+    @Test void validOriginalSwordCannotSpendOldRequireHitPolicyAfterGuiEdit() {
+        final Minecraft189AutoWeaponModule m = new Minecraft189AutoWeaponModule();
+        final Inventory inv = new Inventory();
+        inv.selected = 0;
+        inv.items[5] = new Item(true, 8F, 1);
+        m.onEnable();
+        try {
+            assertEquals(0, m.select(inv, true, false));
+            assertEquals(5, inv.selected);
+            assertTrue(m.ownsVerifiedSwordAtDispatch(inv, 0));
+            m.requirePlayerHitSetting().set(Boolean.FALSE);
+            assertFalse(m.ownsVerifiedSwordAtDispatch(inv, 0),
+                    "fresh GUI Require Hit policy cannot inherit older click");
+            m.restore(inv, 0);
+            assertEquals(0, inv.selected, "denied click restores own original slot");
+            assertEquals(0, m.select(inv, false, false));
+            assertTrue(m.ownsVerifiedSwordAtDispatch(inv, 0),
+                    "new valid source action uses current persisted policy");
+            m.restore(inv, 0);
+        } finally { m.onDisable(); }
+    }
+
+    @Test void nativeSwordModuleDisableReenableRevokesPreviousAttackEvenWhenSameItem() {
+        final Minecraft189AutoWeaponModule m = new Minecraft189AutoWeaponModule();
+        final Inventory inv = new Inventory();
+        inv.selected = 1;
+        inv.items[4] = new Item(true, 9F, 1);
+        m.onEnable();
+        assertEquals(1, m.select(inv, true, false));
+        assertTrue(m.ownsVerifiedSwordAtDispatch(inv, 1));
+        m.onDisable();
+        m.onEnable();
+        try {
+            assertFalse(m.ownsVerifiedSwordAtDispatch(inv, 1),
+                    "same enabled setting but different module lifetime is new owner");
+            m.restore(inv, 1);
+            assertEquals(1, inv.selected);
+            assertEquals(1, m.select(inv, true, false));
+            assertTrue(m.ownsVerifiedSwordAtDispatch(inv, 1));
+            m.restore(inv, 1);
+        } finally { m.onDisable(); }
+    }
+
+    @Test void actualNativeSetterReentrancyRejectsOldSwordPolicyAndRestoresSlot() {
+        final Minecraft189AutoWeaponModule m = new Minecraft189AutoWeaponModule();
+        final ReentrantInventory inv = new ReentrantInventory();
+        inv.selected = 2;
+        inv.items[4] = new Item(true, 8F, 1);
+        m.onEnable();
+        try {
+            inv.afterSetter = () -> m.requirePlayerHitSetting().set(Boolean.FALSE);
+            assertEquals(-1, m.select(inv, true, false));
+            assertEquals(2, inv.selected, "native mutation must roll back owned sword");
+            m.requirePlayerHitSetting().set(Boolean.TRUE);
+            inv.afterSetter = () -> { m.onDisable(); m.onEnable(); };
+            assertEquals(-1, m.select(inv, true, false),
+                    "synchronous module off/on must revoke this sword selection");
+            assertEquals(2, inv.selected);
+            assertEquals(2, m.select(inv, true, false));
+            assertTrue(m.ownsVerifiedSwordAtDispatch(inv, 2));
+            m.restore(inv, 2);
+        } finally { m.onDisable(); }
+    }
+
+    @Test void actualNativeSwordGetterEditingRequireHitCannotAuthorizeMeleeDispatch() {
+        final Minecraft189AutoWeaponModule m = new Minecraft189AutoWeaponModule();
+        final ReentrantInventory inv = new ReentrantInventory();
+        inv.selected = 0;
+        inv.items[7] = new Item(true, 8F, 1);
+        m.onEnable();
+        try {
+            assertEquals(0, m.select(inv, true, false));
+            inv.afterItemRead = () -> m.requirePlayerHitSetting().set(Boolean.FALSE);
+            assertFalse(m.ownsVerifiedSwordAtDispatch(inv, 0),
+                    "original source getter can mutate GUI permission during dispatch");
+            m.restore(inv, 0);
+            m.requirePlayerHitSetting().set(Boolean.TRUE);
+            assertEquals(0, m.select(inv, true, false));
+            assertTrue(m.ownsVerifiedSwordAtDispatch(inv, 0));
+            m.restore(inv, 0);
+        } finally { m.onDisable(); }
+    }
+
     private static final class ReentrantInventory
             implements Minecraft189InventoryHotbarItemsAccess {
         int selected;
