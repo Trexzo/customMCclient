@@ -12,6 +12,8 @@ public final class Minecraft189AirJumpModule
 
     private final Minecraft189InputState inputState;
     private boolean enabled;
+    // Prevent a reentrant original jump() from rewriting the new key-edge owner.
+    private long nativeJumpEpoch;
     private boolean spaceWasPressed;
 
     Minecraft189AirJumpModule(
@@ -33,6 +35,7 @@ public final class Minecraft189AirJumpModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeJumpEpoch++;
         spaceWasPressed =
                 inputState.keyPressed(
                         LegacyKeyboardCodes.SPACE);
@@ -41,6 +44,7 @@ public final class Minecraft189AirJumpModule
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeJumpEpoch++;
         spaceWasPressed =
                 inputState.keyPressed(
                         LegacyKeyboardCodes.SPACE);
@@ -63,6 +67,7 @@ public final class Minecraft189AirJumpModule
         final boolean spacePressed =
                 inputState.keyPressed(
                         LegacyKeyboardCodes.SPACE);
+        final long ownerEpoch = nativeJumpEpoch;
         try {
             // The GUI consumes its own Space press. Keep observing the
             // physical key in finally so closing the menu with Space still
@@ -79,7 +84,13 @@ public final class Minecraft189AirJumpModule
 
             player.customMcJump();
         } finally {
-            spaceWasPressed = spacePressed;
+            // The original native jump() callback can restart AirJump.
+            // onEnable/Disable already re-sample the real Space state for
+            // that fresh owner: old callbacks must not clobber its edge.
+            if (ownerEpoch == nativeJumpEpoch) {
+                spaceWasPressed = inputState.keyPressed(
+                        LegacyKeyboardCodes.SPACE);
+            }
         }
     }
 
