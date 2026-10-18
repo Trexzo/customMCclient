@@ -91,15 +91,18 @@ final class Minecraft189FlightNativeAxisReadbackLeaseTest {
     }
 
     @Test void verticalNativeGetterGuiSpeedEditVetoesOldY() {
+        final Minecraft189InputState input = new Minecraft189InputState();
         final Minecraft189FlightModule flight =
-                new Minecraft189FlightModule(new Minecraft189InputState());
+                new Minecraft189FlightModule(input);
         final Motion p = new Motion();
+        input.key(LegacyKeyboardCodes.SPACE, true);
         flight.onEnable();
         p.onReadY = () -> flight.verticalSpeedSetting().set(0.45D);
         flight.apply(p, yawZero());
         assertEquals(0, p.writeY);
         flight.apply(p, yawZero());
-        assertEquals(0, p.writeY); // Still real hover: zero.
+        assertEquals(1, p.writeY);
+        assertEquals(0.45D, p.y, 0.000001D);
         flight.onDisable();
     }
 
