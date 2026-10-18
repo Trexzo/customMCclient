@@ -11,6 +11,7 @@ from RunMojang189LocalhostTwoPlayerSmoke import (
     actual_server_three_client_simultaneous_fixture,
     actual_server_three_client_locked_fixture,
     actual_server_three_client_rejoin_fixture,
+    actual_server_rejoined_a_controller_fixture,
     official_offline_uuid,
     actual_server_spawn_positive_pvp_fixture,
     actual_server_clear_wall_command,
@@ -266,6 +267,68 @@ class RealLockedTargetFixtureTest(unittest.TestCase):
             log.write_bytes(b"CITargetB joined the game\n")
             with self.assertRaises(AssertionError):
                 actual_server_three_client_locked_fixture(log)
+
+
+class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
+    def test_real_positive_and_negative_sources_move_only_rejoined_a(self):
+        import math
+        for login, expected in (
+            (b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at "
+             b"(243.5, 4.0, 444.5)\n", "tp CITarget 243 5 445 180 0"),
+            (b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at "
+             b"(-33.5, 4.0, -33.5)\n", "tp CITarget -34 5 -35 0 0"),
+        ):
+            with tempfile.TemporaryDirectory() as root:
+                path = Path(root) / "server.log"
+                path.write_bytes(login)
+                host, a, b = actual_server_three_client_rejoin_fixture(path)
+                chosen = actual_server_rejoined_a_controller_fixture(host, a, b)
+                self.assertEqual(chosen, expected)
+                hx, hy, hz = map(int, host.split()[2:5])
+                ax, ay, az = map(int, chosen.split()[2:5])
+                bx, by, bz = map(int, b.split()[2:5])
+                self.assertEqual((ax, ay), (hx, hy))
+                self.assertEqual(abs(az-hz), 1,
+                                 "A is still real and one block forward")
+                self.assertEqual(abs(bz-hz), 2)
+                self.assertEqual(abs(bx-hx), 1)
+                self.assertEqual(hz//16, az//16)
+                self.assertEqual(az//16, bz//16)
+                self.assertGreater(math.hypot(bx-hx, bz-hz),
+                                   math.sqrt(1+0.9**2)+.12,
+                                   "original native distance must survive y drift")
+                self.assertNotEqual((ax, az), (bx, bz))
+
+    def test_reject_wrong_uuid_names_source_positions_or_overlap(self):
+        valid = ("tp CIHost 243 5 444 0 0",
+                 "tp CITarget 243 5 446 180 0",
+                 "tp CITargetB 244 5 446 180 0")
+        rejects = [
+            ("tp Stranger 243 5 444 0 0", valid[1], valid[2]),
+            (valid[0], "tp CIHost 243 5 446 180 0", valid[2]),
+            (valid[0], valid[1], "tp CITargetB 243 5 446 180 0"),
+            (valid[0], valid[1], "tp CITargetB 244 5 445 180 0"),
+            (valid[0], "tp CITarget 243 7 446 180 0", valid[2]),
+            (valid[0], "tp CITarget 243 5 445 180 0", valid[2]),
+        ]
+        for h, a, b in rejects:
+            with self.subTest(host=h, a=a, b=b):
+                with self.assertRaises(AssertionError):
+                    actual_server_rejoined_a_controller_fixture(h, a, b)
+
+    def test_original_m419_runtime_rejoin_and_native_controller_stay_mandatory(self):
+        script = (Path(__file__).parent /
+                  "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
+        self.assertIn("if args.require_rejoined_controller_b else a_near", script)
+        self.assertIn("send_server_command(server, server_log, a_rejoined)", script)
+        self.assertIn("ap=a_rejoined.split()", script)
+        self.assertIn("send_server_command(server,server_log,a_rejoined)", script)
+        for required in ("REJOIN_B_RETAINED", "REJOIN_WRONG_UUID_VETO",
+                         "REJOIN_REAL_CONTROLLER_B",
+                         "REJOIN_CONTROLLER_ARGUMENT_UUID_B",
+                         'wait_for_real_score(server,server_log,"CITargetB",deadline)',
+                         "CUSTOMMC_OFFICIAL_189_REJOIN_CONTROLLER_B_SERVER_DAMAGE_PASS"):
+            self.assertIn(required, script)
 
 
 class RealReconnectNativeIdentityFixtureTest(unittest.TestCase):
