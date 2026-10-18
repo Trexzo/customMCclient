@@ -15,7 +15,7 @@ Each module increments a native-read lifetime epoch on both enable and disable. 
 No new packets, host player objects, synthetic world state, original game mouse actions, native click, damage or false acceptance markers. The default successful source behavior remains unchanged.
 
 ## Offline evidence
-Seven adversarial JUnit tests in \`Minecraft189NativeReadbackLeaseTest\` cover module OFF->ON during each genuine interface getter, independent NoWeb require-sneaking and NoFall threshold GUI edits, NoGravity lift-speed edit, and opt-in GUI focus veto. Fresh subsequent authorized calls still succeed.
+Nine adversarial JUnit tests in \`Minecraft189NativeReadbackLeaseTest\` cover module OFF->ON during each genuine interface getter, independent NoWeb require-sneaking and NoFall threshold GUI edits, NoGravity lift-speed/physical Space policy edits, a mid-read module disable, and opt-in GUI focus that skips all original getters. Fresh subsequent authorized calls still succeed.
 
 These tests use Java adapter fakes; they prove **only policy logic**. They do not prove original Mojang Minecraft 1.8.9 runtime, physical movement, combat or dedicated-server parity.
 
