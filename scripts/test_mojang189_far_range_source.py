@@ -73,9 +73,8 @@ class OriginalFarPlayerSourceFixtureTest(unittest.TestCase):
     def test_original_negative_source_gates_and_positive_pvp_unchanged(self):
         script = (Path(__file__).parent /
                   "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
-        start = script.index("        if args.range_veto:\n", script.index(
-            "def main(")) if "def main(" in script else script.rfind(
-            "        if args.range_veto:\n")
+        start = script.rfind("        if args.range_veto:\n")
+        self.assertGreaterEqual(start, 0, "actual original far-player branch missing")
         segment = script[start:start+3200]
         self.assertIn("actual_server_spawn_range_negative_fixture(", segment)
         self.assertIn("wait_for(host, host_log, RANGE_VETO", segment)
