@@ -12,6 +12,9 @@ public final class Minecraft189NoBobbingModule
 
     private final Minecraft189GuiSettingsAccess settings;
     private boolean active;
+    private boolean enabling;
+    private boolean disabling;
+    private long nativeSettingsEpoch;
     private boolean originalViewBobbing;
 
     public Minecraft189NoBobbingModule(
@@ -29,42 +32,55 @@ public final class Minecraft189NoBobbingModule
 
     @Override
     public synchronized void onEnable() {
-        if (active) {
-            throw new IllegalStateException(
-                    "no-bobbing already active");
+        if (active || enabling || disabling) {
+            throw new IllegalStateException("no-bobbing already active or transitioning");
         }
-
-        originalViewBobbing = settings.viewBobbing();
+        enabling = true;
+        final long ownerEpoch = ++nativeSettingsEpoch;
+        boolean captured = false;
+        boolean hasBaseline = false;
+        boolean attemptedOverride = false;
+        RuntimeException failure = null;
         try {
+            captured = settings.viewBobbing();
+            hasBaseline = true;
+            if (ownerEpoch != nativeSettingsEpoch) return;
+            originalViewBobbing = captured;
+            attemptedOverride = true;
             settings.viewBobbing(false);
-        } catch (RuntimeException failure) {
-            // Original setter may have applied false before throwing.
-            // Restore only our own override, never a concurrent user edit.
+            if (ownerEpoch == nativeSettingsEpoch) active = true;
+        } catch (RuntimeException originalFailure) {
+            failure = originalFailure;
+            throw originalFailure;
+        } finally {
             try {
-                if (!settings.viewBobbing() && originalViewBobbing)
-                    settings.viewBobbing(originalViewBobbing);
+                if (!active && hasBaseline && attemptedOverride
+                        && captured && !settings.viewBobbing()) {
+                    // Only restore the false override written by the old
+                    // transaction. A concurrent native true is user-owned.
+                    settings.viewBobbing(true);
+                }
             } catch (RuntimeException rollbackFailure) {
-                failure.addSuppressed(rollbackFailure);
+                if (failure != null) failure.addSuppressed(rollbackFailure);
+                else throw rollbackFailure;
+            } finally {
+                enabling = false;
             }
-            throw failure;
         }
-        active = true;
     }
 
     @Override
     public synchronized void onDisable() {
-        if (!active) {
-            return;
-        }
-
+        if (disabling) return;
+        nativeSettingsEpoch++;
+        if (!active) return;
+        disabling = true;
         try {
             final boolean current = settings.viewBobbing();
-            // If the user changed bobbing while the module was active,
-            // the module may not clobber that latest native preference.
-            if (!current && originalViewBobbing)
-                settings.viewBobbing(originalViewBobbing);
+            if (!current && originalViewBobbing) settings.viewBobbing(true);
         } finally {
             active = false;
+            disabling = false;
         }
     }
 
