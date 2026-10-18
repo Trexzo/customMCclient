@@ -388,6 +388,40 @@ class OriginalM419GroundedNativeThreePlayerFixtureTest(unittest.TestCase):
         self.assertIn("originalNativeHostXYZ",acceptance)
 
 
+class OriginalM419SourceNativePhaseFourSyntheticVetoTest(unittest.TestCase):
+    def test_original_m419_veto_occurs_before_any_real_aura_synthetic_dispatch(self):
+        src=(Path(__file__).parent.parent /
+             "platform-1.8.9/src/main/java/dev/trexzo/custommc/platform"
+             "/v1_8_9/Minecraft189RuntimeBridge.java").read_text()
+        start=src.index("vetoTransientUnownedPhaseFourSyntheticClick(")
+        schedule=src.index("if (host.shouldAutoClick(",start)
+        owned=src.index("Minecraft189RejoinTargetAcceptance.verifyOwnedClick(",schedule)
+        self.assertTrue(start < schedule < owned)
+        self.assertIn("host, playerHit, playerIndex)) return;",src[start:schedule],
+                      "no wrong source UUID may issue synthetic packet/controller")
+        self.assertIn("verifyRealControllerB(",(Path(__file__).parent.parent /
+            "platform-1.8.9/src/main/java/dev/trexzo/custommc/platform"
+            "/v1_8_9/Minecraft189RejoinTargetAcceptance.java").read_text())
+
+    def test_only_original_opt_in_phase4_and_strict_positive_original_controller(self):
+        src=(Path(__file__).parent.parent /
+             "platform-1.8.9/src/main/java/dev/trexzo/custommc/platform"
+             "/v1_8_9/Minecraft189RejoinTargetAcceptance.java").read_text()
+        begin=src.index("static boolean vetoTransientUnownedPhaseFourSyntheticClick(")
+        end=src.index("static void verifyRealControllerB(",begin)
+        sub=src[begin:end]
+        self.assertIn('Boolean.getBoolean("custommc.acceptance.reportKillAuraRejoin")',sub)
+        self.assertIn('Boolean.getBoolean("custommc.acceptance.requireRejoinedControllerB")',sub)
+        self.assertIn("phase != 4",sub)
+        self.assertIn("m419SourceRejection(e, aura, true)",sub)
+        self.assertIn("originalPlayerHit && originalHitIndex == e.b",sub)
+        self.assertIn("return true;",sub)
+        self.assertNotIn("CUSTOMMC_189_M419_NATIVE_PHASE4_SOURCE_STABLE=20",sub)
+        self.assertNotIn("CUSTOMMC_189_REJOIN_REAL_B_NATIVE_CONTROLLER_UUID_PASS=YES",sub)
+        self.assertIn("if (!(da + 0.12D < db))",src)
+        self.assertIn("db - da >= 0.30D",src)
+
+
 class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
     def test_real_positive_and_negative_sources_move_only_rejoined_a(self):
         import math
