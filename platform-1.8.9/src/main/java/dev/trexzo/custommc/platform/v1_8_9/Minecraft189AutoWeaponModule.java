@@ -39,10 +39,21 @@ public final class Minecraft189AutoWeaponModule implements Module {
     private boolean selectedFragilePolicy;
     private int selectedMinimumRemaining;
     private boolean selectedDurableTies;
+    // A temporary original ItemSword cannot carry the permission of an
+    // older module activation or a different persisted Require Hit policy.
+    private boolean selectedRequireHit;
+    private long selectedLifecycleEpoch;
+    private long lifecycleEpoch;
 
     @Override public String id() { return ID; }
-    @Override public synchronized void onEnable() { enabled = true; }
-    @Override public synchronized void onDisable() { enabled = false; }
+    @Override public synchronized void onEnable() {
+        lifecycleEpoch++;
+        enabled = true;
+    }
+    @Override public synchronized void onDisable() {
+        lifecycleEpoch++;
+        enabled = false;
+    }
     public Setting<Boolean> requirePlayerHitSetting() { return requireHit; }
     public Setting<Boolean> restoreAfterAttackSetting() { return restore; }
     public Setting<Boolean> ignoreFragileSwordsSetting() {
@@ -91,6 +102,8 @@ public final class Minecraft189AutoWeaponModule implements Module {
         final boolean rejectFragile = ignoreFragileSwords.get().booleanValue();
         final int minRemaining = minRemainingDurability.get().intValue();
         final boolean preferDurable = preferDurableTies.get().booleanValue();
+        final boolean requireVerifiedHit = requireHit.get().booleanValue();
+        final long selectedEpoch = lifecycleEpoch;
         int bestSlot = -1;
         float bestDamage = Float.NEGATIVE_INFINITY;
         int bestRemaining = -1;
@@ -123,11 +136,15 @@ public final class Minecraft189AutoWeaponModule implements Module {
         if (!enabled || inventory.customMcSelectedHotbarSlot() != prior
                 || rejectFragile != ignoreFragileSwords.get()
                 || minRemaining != minRemainingDurability.get()
-                || preferDurable != preferDurableTies.get())
+                || preferDurable != preferDurableTies.get()
+                || requireVerifiedHit != requireHit.get()
+                || selectedEpoch != lifecycleEpoch)
             return -1;
         final Object mappedSwordIdentity =
                 items[bestSlot].customMcOriginalItemIdentity();
-        if (!enabled || inventory.customMcSelectedHotbarSlot() != prior)
+        if (!enabled || inventory.customMcSelectedHotbarSlot() != prior
+                || requireVerifiedHit != requireHit.get()
+                || selectedEpoch != lifecycleEpoch)
             return -1;
         ownerInventory = inventory;
         selectedNativeSwordIdentity = mappedSwordIdentity;
@@ -135,6 +152,8 @@ public final class Minecraft189AutoWeaponModule implements Module {
         selectedFragilePolicy = rejectFragile;
         selectedMinimumRemaining = minRemaining;
         selectedDurableTies = preferDurable;
+        selectedRequireHit = requireVerifiedHit;
+        selectedLifecycleEpoch = selectedEpoch;
         selected = bestSlot;
         previous = prior;
         try {
@@ -195,6 +214,8 @@ public final class Minecraft189AutoWeaponModule implements Module {
                 || selectedFragilePolicy != ignoreFragileSwords.get()
                 || selectedMinimumRemaining != minRemainingDurability.get()
                 || selectedDurableTies != preferDurableTies.get()
+                || selectedRequireHit != requireHit.get()
+                || selectedLifecycleEpoch != lifecycleEpoch
                 || original < 0 || original != previous || selected < 0
                 || !(control instanceof Minecraft189InventoryHotbarItemsAccess)
                 || control.customMcSelectedHotbarSlot() != selected)
@@ -237,6 +258,8 @@ public final class Minecraft189AutoWeaponModule implements Module {
         // or currentItem mutation. Check exact lease again after the
         // stable source ItemStack membership check.
         return enabled && control == ownerInventory && original == previous
+                && selectedRequireHit == requireHit.get()
+                && selectedLifecycleEpoch == lifecycleEpoch
                 && control.customMcSelectedHotbarSlot() == selected;
     }
 
@@ -260,6 +283,8 @@ public final class Minecraft189AutoWeaponModule implements Module {
         selectedFragilePolicy = false;
         selectedMinimumRemaining = 0;
         selectedDurableTies = false;
+        selectedRequireHit = false;
+        selectedLifecycleEpoch = 0;
         selected = -1;
         previous = -1;
     }
