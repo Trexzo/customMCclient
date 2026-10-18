@@ -60,6 +60,8 @@ public final class Minecraft189GlideModule
                     && value <= MAXIMUM_ACTIVATION_DELAY_TICKS,
             SettingCodecs.INTEGER);
     private boolean enabled;
+    // Revokes a native motion read when module lifecycle reenters mid-getter.
+    private long nativeReadEpoch;
     private int eligibleDescentCallbacks;
     private int observedActivationDelay;
 
@@ -91,12 +93,14 @@ public final class Minecraft189GlideModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeReadEpoch++;
         resetActivationDelay();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeReadEpoch++;
         resetActivationDelay();
     }
 
@@ -127,9 +131,31 @@ public final class Minecraft189GlideModule
             return;
         }
 
-        final double targetMotionY =
-                -fallSpeed.get().doubleValue();
+        // Original vertical source getters can reenter GUI or module
+        // lifecycle. No old descent callback may spend a new policy's
+        // delay or move the current player after source permission changed.
+        final long approvedEpoch = nativeReadEpoch;
+        final int approvedDelay = activationDelayTicks.get().intValue();
+        final boolean approvedRequireSneak =
+                requireSneaking.get().booleanValue();
+        final double approvedFallSpeed = fallSpeed.get().doubleValue();
+        final boolean approvedProgressive =
+                progressiveDeceleration.get().booleanValue();
+        final double approvedStep = decelerationStep.get().doubleValue();
+        final double targetMotionY = -approvedFallSpeed;
         final double currentMotionY = player.customMcMotionY();
+        if (!enabled || nativeReadEpoch != approvedEpoch) {
+            return;
+        }
+        if (activationDelayTicks.get().intValue() != approvedDelay
+                || requireSneaking.get().booleanValue() != approvedRequireSneak
+                || fallSpeed.get().doubleValue() != approvedFallSpeed
+                || progressiveDeceleration.get().booleanValue()
+                    != approvedProgressive
+                || decelerationStep.get().doubleValue() != approvedStep) {
+            resetActivationDelay();
+            return;
+        }
         if (!Double.isFinite(currentMotionY)
                 || currentMotionY >= targetMotionY) {
             // No eligible descent (or invalid mapped motion): accumulated
@@ -138,7 +164,7 @@ public final class Minecraft189GlideModule
             return;
         }
 
-        final int delay = activationDelayTicks.get().intValue();
+        final int delay = approvedDelay;
         if (delay != observedActivationDelay) {
             eligibleDescentCallbacks = 0;
             observedActivationDelay = delay;
@@ -153,9 +179,9 @@ public final class Minecraft189GlideModule
             // sudden jump from fast descent to the Glide cap. The next
             // value always derives from current mapped motion, never
             // from accumulated credit or a hidden scheduler.
-            final double nextMotionY = progressiveDeceleration.get().booleanValue()
+            final double nextMotionY = approvedProgressive
                     ? Math.min(targetMotionY,
-                            currentMotionY + decelerationStep.get().doubleValue())
+                            currentMotionY + approvedStep)
                     : targetMotionY;
             if (nextMotionY > currentMotionY) {
                 player.customMcSetMotionY(nextMotionY);
