@@ -45,6 +45,8 @@ public final class Minecraft189AirSpeedModule
                     value -> value != null && value >= 10 && value <= 100,
                     SettingCodecs.INTEGER);
     private boolean enabled;
+    // Reject native X/Z reads that outlive the current enabled activation.
+    private long nativeReadEpoch;
 
     Minecraft189AirSpeedModule(
             final Minecraft189InputState inputState) {
@@ -74,11 +76,13 @@ public final class Minecraft189AirSpeedModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeReadEpoch++;
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeReadEpoch++;
     }
 
     synchronized boolean apply(
@@ -101,29 +105,14 @@ public final class Minecraft189AirSpeedModule
             return false;
         }
 
-        double forward =
-                (inputState.keyPressed(
-                        LegacyKeyboardCodes.W)
-                        ? 1.0D
-                        : 0.0D)
-                        + (inputState.keyPressed(
-                                LegacyKeyboardCodes.S)
-                                ? -1.0D
-                                : 0.0D);
-        double strafe =
-                (inputState.keyPressed(
-                        LegacyKeyboardCodes.A)
-                        ? 1.0D
-                        : 0.0D)
-                        + (inputState.keyPressed(
-                                LegacyKeyboardCodes.D)
-                                ? -1.0D
-                                : 0.0D);
-
-        final double inputLength =
-                Math.sqrt(
-                        forward * forward
-                                + strafe * strafe);
+        final long epoch = nativeReadEpoch;
+        final boolean w = inputState.keyPressed(LegacyKeyboardCodes.W);
+        final boolean backward = inputState.keyPressed(LegacyKeyboardCodes.S);
+        final boolean a = inputState.keyPressed(LegacyKeyboardCodes.A);
+        final boolean d = inputState.keyPressed(LegacyKeyboardCodes.D);
+        double forward = (w ? 1.0D : 0.0D) - (backward ? 1.0D : 0.0D);
+        double strafe = (a ? 1.0D : 0.0D) - (d ? 1.0D : 0.0D);
+        final double inputLength = Math.hypot(forward, strafe);
         if (inputLength <= 0.0D) {
             return false;
         }
@@ -131,47 +120,58 @@ public final class Minecraft189AirSpeedModule
             forward /= inputLength;
             strafe /= inputLength;
         }
+        final double configuredSpeed = speed.get().doubleValue();
+        final boolean smoothing = smoothAcceleration.get().booleanValue();
+        final int acceleration = accelerationPercent.get().intValue();
+        final double fraction = smoothing ? acceleration / 100.0D : 1.0D;
+        final double yawRadians = Math.toRadians(rotation.yaw());
+        final double sin = Math.sin(yawRadians);
+        final double cos = Math.cos(yawRadians);
+        final double targetX = cleanZero(
+                (-sin * forward + cos * strafe) * configuredSpeed);
+        final double targetZ = cleanZero(
+                (cos * forward + sin * strafe) * configuredSpeed);
 
-        final double yawRadians =
-                Math.toRadians(
-                        rotation.yaw());
-        final double sin =
-                Math.sin(
-                        yawRadians);
-        final double cos =
-                Math.cos(
-                        yawRadians);
-        final double configuredSpeed =
-                speed.get().doubleValue();
-
-        final double targetMotionX =
-                cleanZero(
-                        (-sin * forward
-                                + cos * strafe)
-                                * configuredSpeed);
-        final double targetMotionZ =
-                cleanZero(
-                        (cos * forward
-                                + sin * strafe)
-                                * configuredSpeed);
-
-        final double fraction = smoothAcceleration.get().booleanValue()
-                ? accelerationPercent.get().intValue() / 100.0D
-                : 1.0D;
-        // Interpolate independently from the actual mapped X/Z velocity.
-        // No scheduling credit is retained when airborne authority,
-        // physical movement input or module priority disallows writes.
+        // Original native getters may synchronously reenter module state,
+        // physical WASD or GUI policy. Stale reads cannot control the
+        // second axis or authorize stale velocity writes.
         final double currentX = player.customMcMotionX();
+        if (!nativeReadOwned(epoch, w, backward, a, d, configuredSpeed,
+                smoothing, acceleration)) {
+            return false;
+        }
         final double currentZ = player.customMcMotionZ();
-        final double nextX = interpolate(currentX, targetMotionX, fraction);
-        final double nextZ = interpolate(currentZ, targetMotionZ, fraction);
+        if (!nativeReadOwned(epoch, w, backward, a, d, configuredSpeed,
+                smoothing, acceleration)) {
+            return false;
+        }
+        final double nextX = interpolate(currentX, targetX, fraction);
+        final double nextZ = interpolate(currentZ, targetZ, fraction);
         if (Double.compare(currentX, nextX) != 0) {
             player.customMcSetMotionX(nextX);
+            if (!nativeReadOwned(epoch, w, backward, a, d, configuredSpeed,
+                    smoothing, acceleration)) {
+                return false;
+            }
         }
         if (Double.compare(currentZ, nextZ) != 0) {
             player.customMcSetMotionZ(nextZ);
         }
         return true;
+    }
+
+    private boolean nativeReadOwned(final long epoch,
+            final boolean w, final boolean backward,
+            final boolean a, final boolean d, final double configuredSpeed,
+            final boolean smoothing, final int acceleration) {
+        return enabled && nativeReadEpoch == epoch
+                && inputState.keyPressed(LegacyKeyboardCodes.W) == w
+                && inputState.keyPressed(LegacyKeyboardCodes.S) == backward
+                && inputState.keyPressed(LegacyKeyboardCodes.A) == a
+                && inputState.keyPressed(LegacyKeyboardCodes.D) == d
+                && speed.get().doubleValue() == configuredSpeed
+                && smoothAcceleration.get().booleanValue() == smoothing
+                && accelerationPercent.get().intValue() == acceleration;
     }
 
     synchronized boolean active() {
