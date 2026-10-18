@@ -2261,6 +2261,10 @@ public final class Minecraft189HostRuntime
             // Runtime source evidence, NOT a cached index or a synthetic
             // guess: bind TriggerBot's confirmation/click credit to the
             // current ORIGINAL World loaded UUID at this exact crosshair.
+            // Snapshot this activation and click policy BEFORE querying
+            // the external mapped original World loaded-entity UUIDs.
+            final long uuidReadTicket = confirmedHit
+                    ? trigger.beginNativeWorldUuidRead() : 0;
             java.util.UUID nativeTarget = null;
             final Minecraft189WorldEntityUuidState.Snapshot identities =
                     worldEntityUuidState.snapshot();
@@ -2277,6 +2281,19 @@ public final class Minecraft189HostRuntime
                 } catch (RuntimeException staleNativeWorld) {
                     nativeTarget = null;
                 }
+            }
+            if (confirmedHit && !trigger.completeNativeWorldUuidRead(
+                    uuidReadTicket)) {
+                // This original World getter may have OFF->ON reentered
+                // or edited the GUI policy. Revoke its stale source and
+                // all scheduler credit rather than clicking from it.
+                trigger.suspend();
+                return false;
+            }
+            if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+                // The native getter may itself open the ClickGUI.
+                trigger.suspend();
+                return false;
             }
             click = trigger.shouldClick(
                     confirmedHit, attackHeld, rightHeld,
