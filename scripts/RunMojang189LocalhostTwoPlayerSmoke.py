@@ -264,12 +264,16 @@ def actual_server_three_client_simultaneous_fixture(server_log):
 
 
 def actual_server_rejoined_a_controller_fixture(host_tp, a_near, b_outer):
-    """Original M419 A must stay measurably nearer even after natural vertical motion.
+    """Original M419 A must satisfy BOTH native reach lower and upper bounds.
 
-    Rejoined A is independently server-teleported to one block along the
-    original forward lane instead of two; B stays two forward and one to the
-    side, retaining its real UUID, visible hitbox and locked source target.
-    These are vanilla /tp positions, not modified client World snapshots.
+    Prior exact-head runs prove either endpoint can fail: one integer-forward
+    vanilla /tp placed the genuine moving A only 0.79 blocks from the host
+    (below source da>=1), while two forward plus vanilla vertical movement
+    broke required da+0.12<db. Teleport actual rejoined A 1.5 blocks ahead
+    using an explicit DECIMAL coordinate (Minecraft centers integer /tp
+    blocks by +0.5), retaining the independent 3D margins. Real B stays
+    two forward and one sideways. This adjusts only actual vanilla server
+    player positions, never source ray/UUID/attack or acceptance thresholds.
     """
     host = host_tp.split()
     a = a_near.split()
@@ -284,19 +288,31 @@ def actual_server_rejoined_a_controller_fixture(host_tp, a_near, b_outer):
     if (ax != hx or ay != hy or by != hy or bz != az
             or abs(az - hz) != 2 or abs(bx - hx) != 1):
         raise AssertionError("M419 source A/B world geometry unexpected")
-    near_z = hz + (az - hz) // 2
-    if hz // 16 != near_z // 16 or hz // 16 != bz // 16:
-        raise AssertionError("M419 real source A/B crossed loaded z chunk")
-    # Original full 3D snapshot includes vanilla A airborne displacement.
-    # Even when y moves up by .9 after a genuine player hop, A must still
-    # satisfy the *unmodified* acceptance da+.12 < db distance margin.
-    distance_b = math.hypot(bx - hx, bz - hz)
-    distance_a_with_air = math.sqrt((near_z - hz) ** 2 + 0.9 ** 2)
-    if not (distance_a_with_air + .12 < distance_b
-            and 1 <= abs(near_z - hz) < abs(bz - hz)
+    direction = 1 if az > hz else -1
+    # Vanilla /tp with integral coordinates centers the player at x/z+.5;
+    # an explicit decimal z instead places the original source player at
+    # EXACT z. This is 1.5 world blocks forward from real host center.
+    near_z = hz + 0.5 + direction * 1.5
+    if (hx // 16 != ax // 16
+            or math.floor(near_z / 16) != hz // 16
+            or hz // 16 != bz // 16):
+        raise AssertionError("M419 real source A/B crossed loaded chunk")
+    real_host_z = hz + 0.5
+    real_b_z = bz + 0.5
+    real_host_x = hx + 0.5
+    real_b_x = bx + 0.5
+    real_distance_b = math.hypot(real_b_x-real_host_x,
+                                  real_b_z-real_host_z)
+    real_distance_a = abs(near_z-real_host_z)
+    # Source acceptance requires da>=1, da<=3.25 and da+.12<db. Check
+    # an actual 0.3-block A movement TOWARD the host and an independent
+    # 0.9-block upward hop (worst positive 3D extent), not just idle tp.
+    if not (real_distance_a-0.3 >= 1.0
+            and math.hypot(real_distance_a,0.9) + 0.12 < real_distance_b
+            and 1 < real_distance_a < real_distance_b
             and abs(bx - ax) == 1):
-        raise AssertionError("M419 source native A/B reach/owner margin lost")
-    return "tp CITarget {} {} {} {} {}".format(
+        raise AssertionError("M419 source native A/B 3D reach window lost")
+    return "tp CITarget {} {} {:.1f} {} {}".format(
         ax, ay, near_z, a[5], a[6])
 
 
