@@ -284,6 +284,23 @@ final class Minecraft189RejoinTargetAcceptance {
                                     host.worldEntityKindState().snapshot())));
             System.out.flush();
         }
+        if (phase == 4
+                && Boolean.getBoolean(
+                        "custommc.acceptance.requireRejoinedControllerB")
+                && ++nativeOwnerDiagnosticsTicks % 80 == 0) {
+            // A missing attackEntity callback is a failure too. Sample the
+            // identical *real native* source criteria while waiting, rather
+            // than invent a controller call or a server damage marker.
+            System.out.println("CUSTOMMC_189_M419_WAITING_NATIVE_CONTROLLER_SOURCE"
+                    + " reason=" + m419SourceRejection(e, aura, true)
+                    + " Aindex=" + (e == null ? -2 : e.a)
+                    + " Bindex=" + (e == null ? -2 : e.b)
+                    + " original3DA=" + (e == null ? Double.NaN : e.da)
+                    + " original3DB=" + (e == null ? Double.NaN : e.db)
+                    + " nativeSelectedB=" + (e != null && e.selected(e.b))
+                    + " locked=" + aura.lockedTargetUuid());
+            System.out.flush();
+        }
         if (phase==0) {
             if (aura.active()) throw new IllegalStateException("rejoin Aura preenabled");
             disabledTicks=e!=null && e.aPreferred()
@@ -485,6 +502,56 @@ final class Minecraft189RejoinTargetAcceptance {
     }
 
     /**
+     * M419 observational classifier for the genuine original-world data at
+     * the actual source controller boundary. This intentionally duplicates
+     * the unchanged *strict* Evidence.aCloserButBSelected checks into
+     * distinguishable failure reasons; it never grants a click.
+     *
+     * Keep the source 3D distance lower bound, upper bound and .12 closer
+     * margin visible separately. In actual CI these failed on distinct
+     * identical-acceptance branches before the caller could tell why.
+     */
+    static String m419RejectionReason(
+            final boolean evidenceAvailable,
+            final int aIndex, final int bIndex,
+            final double da, final double db,
+            final boolean sourceBSelected,
+            final boolean aUuidMatches, final boolean bUuidMatches,
+            final boolean lockedB, final boolean controllerReady) {
+        if (!evidenceAvailable) return "source-evidence-unavailable";
+        if (aIndex < 0) return "rejoined-A-missing";
+        if (bIndex < 0) return "survivor-B-missing";
+        if (!Double.isFinite(da) || da < 1.0D || da > 3.25D)
+            return "rejoined-A-outside-original-[1,3.25]-reach";
+        if (!Double.isFinite(db) || db < 1.0D || db > 3.5D)
+            return "survivor-B-outside-original-[1,3.5]-reach";
+        if (!(da + 0.12D < db))
+            return "rejoined-A-not-0.12-closer-in-3D";
+        if (!sourceBSelected) return "survivor-B-not-source-selected";
+        if (!aUuidMatches) return "rejoined-A-original-UUID-mismatch";
+        if (!bUuidMatches) return "survivor-B-original-UUID-mismatch";
+        if (!lockedB) return "survivor-B-not-locked-by-KillAura";
+        if (!controllerReady) return "original-controller-player-entity-null";
+        return null;
+    }
+
+    private static String m419SourceRejection(
+            final Evidence e, final Minecraft189KillAuraModule aura,
+            final boolean controllerReady) {
+        return m419RejectionReason(
+                e != null, e == null ? -2 : e.a, e == null ? -2 : e.b,
+                e == null ? Double.NaN : e.da,
+                e == null ? Double.NaN : e.db,
+                e != null && e.selected(e.b),
+                e != null && e.a >= 0
+                    && originalUuid.equals(e.ids.at(e.a)),
+                e != null && e.b >= 0
+                    && survivorUuid.equals(e.ids.at(e.b)),
+                survivorUuid.equals(aura.lockedTargetUuid()),
+                controllerReady);
+    }
+
+    /**
      * M419: the ORIGINAL mapped Mojang PlayerControllerMP.attackEntity
      * callback was entered in a genuine three-client session. Revalidate
      * both real UUIDs, their current native indices and sticky B ownership
@@ -499,13 +566,20 @@ final class Minecraft189RejoinTargetAcceptance {
                 || phase!=4) return;
         Evidence e=read(host);
         Minecraft189KillAuraModule aura=host.featureCatalog().killAura();
-        if (e==null || !e.aCloserButBSelected() || !e.bInRange()
-                || !survivorUuid.equals(e.ids.at(e.b))
-                || !originalUuid.equals(e.ids.at(e.a))
-                || !survivorUuid.equals(aura.lockedTargetUuid())
-                || controller==null || player==null || entity==null)
+        final String reason = m419SourceRejection(
+                e, aura, controller != null && player != null && entity != null);
+        if (reason != null)
             throw new IllegalStateException(
-                    "M419 real outgoing controller not owned by live locked B UUID");
+                    "M419 real outgoing controller not owned by live locked B UUID"
+                    + " reason=" + reason
+                    + " phase=" + phase
+                    + " Aindex=" + (e == null ? -2 : e.a)
+                    + " Bindex=" + (e == null ? -2 : e.b)
+                    + " original3DA=" + (e == null ? Double.NaN : e.da)
+                    + " original3DB=" + (e == null ? Double.NaN : e.db)
+                    + " nativeSelectedB=" + (e != null && e.selected(e.b))
+                    + " locked=" + aura.lockedTargetUuid()
+                    + " expectedB=" + survivorUuid);
         if (Boolean.getBoolean(
                 "custommc.acceptance.requireRejoinedControllerEntityUuid")) {
             if (!(entity instanceof Minecraft189NativeEntityUuidAccess))
