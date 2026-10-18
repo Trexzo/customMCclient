@@ -14,6 +14,7 @@ from RunMojang189LocalhostTwoPlayerSmoke import (
     actual_server_three_client_rejoin_fixture,
     actual_server_rejoined_a_controller_fixture,
     actual_server_rejoined_host_recenter_fixture,
+    wait_for_new_original_source_marker,
     official_offline_uuid,
     actual_server_spawn_positive_pvp_fixture,
     actual_server_clear_wall_command,
@@ -592,6 +593,67 @@ class OriginalLateFixtureGroundingAndHostLeaseTest(unittest.TestCase):
         self.assertTrue(recenter < reset < native)
         self.assertIn('wait_for_real_score(server,server_log,"CITargetB"',script)
         self.assertIn('REJOIN_CONTROLLER_ARGUMENT_UUID_B',script)
+
+
+class OriginalM419PostTeleportWorldConvergenceTest(unittest.TestCase):
+    def test_only_fresh_original_stdout_after_teleport_offset_counts(self):
+        import time
+        class Living:
+            def poll(self):
+                return None
+        marker=b"CUSTOMMC_189_M419_NATIVE_PHASE4_SOURCE_STABLE=20"
+        with tempfile.TemporaryDirectory() as root:
+            p=Path(root)/"real-original-mojang-client.log"
+            p.write_bytes(marker+b"\n")
+            old_end=p.stat().st_size
+            with self.assertRaisesRegex(AssertionError,"missing fresh original"):
+                wait_for_new_original_source_marker(
+                    Living(),p,old_end,marker,time.monotonic()+.025,"M419")
+            with p.open("ab") as out:
+                out.write(b"actual client observed "+marker+b"\n")
+            wait_for_new_original_source_marker(
+                Living(),p,old_end,marker,time.monotonic()+.5,"M419")
+
+    def test_fail_closed_on_missing_or_invalid_original_evidence(self):
+        import time
+        class Living:
+            def poll(self):
+                return None
+        with tempfile.TemporaryDirectory() as root:
+            p=Path(root)/"original.log"
+            p.write_bytes(b"")
+            for offset,marker in ((-1,b"sample"),(0,b""),(0,"string")):
+                with self.assertRaises(AssertionError):
+                    wait_for_new_original_source_marker(
+                        Living(),p,offset,marker,time.monotonic()+.5,"M419")
+            class Exited:
+                def poll(self):
+                    return 255
+            with self.assertRaisesRegex(AssertionError,"process exited early"):
+                wait_for_new_original_source_marker(
+                    Exited(),p,0,b"marker",time.monotonic()+.5,"M419")
+
+    def test_actual_native_fence_precedes_real_pvp_and_server_damage(self):
+        text=(Path(__file__).parent /
+              "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
+        start=text.find("original_source_start = host_log.stat().st_size")
+        source=text.find("wait_for_new_original_source_marker(",start)
+        ready=text.find("CUSTOMMC_189_M419_LIVE_SOURCE_STABLE_BEFORE_B_DAMAGE",source)
+        reset=text.find('"scoreboard players set CITargetB taken 0"',ready)
+        survivor=text.find('send_server_command(server,server_log,"gamemode 0 CITargetB")',reset)
+        self.assertTrue(0 <= start < source < ready < reset < survivor)
+        self.assertIn("REJOIN_REAL_CONTROLLER_B",text[survivor:])
+        self.assertIn('wait_for_real_score(server,server_log,"CITargetB"',text[survivor:])
+
+    def test_v176_v178_original_crashes_still_fail_original_controller_gate(self):
+        for da,db in ((2.3491730716924386,2.4281797437686015),
+                      (2.3400644431964785,2.4281797437686015)):
+            self.assertLess(db-da,.12)
+        source=(Path(__file__).parents[1] /
+                "platform-1.8.9/src/main/java/dev/trexzo/custommc/"
+                "platform/v1_8_9/Minecraft189RejoinTargetAcceptance.java").read_text()
+        self.assertIn("if (!(da + 0.12D < db))",source)
+        self.assertIn("&& db - da >= 0.30D;",source)
 
 
 if __name__ == "__main__":
