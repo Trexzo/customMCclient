@@ -1136,6 +1136,21 @@ public final class Minecraft189RuntimeBridge {
     // Strictly observational: never touches vanilla collision or controls.
     private static int acceptanceSafeWalkPositionTicks;
 
+    /**
+     * Test-only original Mojang FOV geometry. The real two-player source
+     * fixture uses identical X/Y and two blocks of Z. Server /tp ACK does
+     * not mean that the client's World has consumed that teleport.
+     * This guard never affects production FOV, Aura or vanilla clicks.
+     */
+    static boolean originalFovNegativeFixtureSourceAligned(
+            final double dx, final double dy, final double dz) {
+        return Double.isFinite(dx) && Double.isFinite(dy)
+                && Double.isFinite(dz)
+                && Math.abs(dx) <= 0.20D
+                && Math.abs(dy) <= 0.30D
+                && Math.abs(Math.abs(dz) - 2.0D) <= 0.25D;
+    }
+
     public static synchronized void playerPosition(
             final Minecraft189PlayerPositionAccess player) {
         if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")) {
@@ -2194,7 +2209,11 @@ public final class Minecraft189RuntimeBridge {
                             && distance >= 1.5D && distance <= 3.25D
                             && Double.isFinite(horizontal) && horizontal > 0.0D
                             && Double.isFinite(yawError)
-                            && Math.abs(yawError) >= 120.0D;
+                            && Math.abs(yawError) >= 120.0D
+                            // The original client must have consumed both
+                            // genuine dedicated-server player teleports
+                            // BEFORE test Aura can be enabled after 20 reads.
+                            && originalFovNegativeFixtureSourceAligned(dx, dy, dz);
                 }
                 // V52: read-only witness for V51's intermittent failure to
                 // observe 80 consecutive *real* rear-player FOV rejections.
@@ -2249,6 +2268,8 @@ public final class Minecraft189RuntimeBridge {
                                 + (rotation.available() ? rotation.yaw() : Float.NaN)
                             + " actualTargetYaw=" + nativeTargetYaw
                             + " actualYawDelta=" + nativeYawDelta
+                            + " originalFovWorldAligned="
+                                + originalFovNegativeFixtureSourceAligned(dx,dy,dz)
                             + " selectedFound=" + nativeTarget.found()
                             + " selectedRotationAvailable=" + nativeRotation.available()
                             + " auraEnabled=" + acceptanceAuraFovEnabled
