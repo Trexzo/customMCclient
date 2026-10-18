@@ -146,9 +146,16 @@ public final class Minecraft189AutoPotModule implements Module {
                 || capturedLifecycleEpoch != lifecycleEpoch
                 || cooldownCommittedForLease)
             return false;
-        cooldownCommittedForLease = true; // consume before any source callback
-        remaining = cooldown.get();
-        knownCooldown = cooldown.get();
+        // A genuine vanilla rightClick already happened. Consume its one
+        // completion token even if a GUI setting changed synchronously in
+        // the mapped callback; reverting the GUI must not replay credit.
+        cooldownCommittedForLease = true;
+        if (!capturedNativeUsePolicyMatches(inventory, original))
+            return false;
+        // Charge the original admission's duration, not a freshly edited
+        // GUI cooldown. Never inspect a post-consumption ItemStack.
+        remaining = capturedCooldown;
+        knownCooldown = capturedCooldown;
         return true;
     }
 

@@ -323,6 +323,71 @@ final class Minecraft189AutoRodModuleTest {
         } finally { mod.onDisable(); }
     }
 
+
+    @Test void completedNativeUseRejectsChangedGuiPolicyWithoutReplayingOnRevert() {
+        final Minecraft189AutoRodModule module = new Minecraft189AutoRodModule();
+        final Inventory source = new Inventory();
+        source.slot = 5;
+        module.onEnable();
+        try {
+            assertEquals(5, module.selectSlot(source));
+            module.requireHoldSetting().set(false);
+            assertFalse(module.commitCompletedOriginalUse(source, 5),
+                    "old genuine click cannot debit the newly edited GUI policy");
+            module.requireHoldSetting().set(true);
+            assertFalse(module.commitCompletedOriginalUse(source, 5),
+                    "GUI reverting must not replay an already completed action");
+            module.restoreSlot(source, 5);
+            assertEquals(5, source.slot);
+            assertEquals(5, module.selectSlot(source));
+            assertTrue(module.commitCompletedOriginalUse(source, 5),
+                    "new legal original source action receives independent credit");
+            module.restoreSlot(source, 5);
+        } finally { module.onDisable(); }
+    }
+
+    @Test void completedNativeUseRejectsEditedCooldownAndPreservesOriginalTiming() {
+        final Minecraft189AutoRodModule module = new Minecraft189AutoRodModule();
+        final Inventory source = new Inventory();
+        source.slot = 4;
+        module.cooldownTicksSetting().set(17);
+        module.onEnable();
+        try {
+            assertEquals(4, module.selectSlot(source));
+            module.cooldownTicksSetting().set(19);
+            assertFalse(module.commitCompletedOriginalUse(source, 4),
+                    "new GUI cooldown does not retroactively own older native use");
+            module.cooldownTicksSetting().set(17);
+            assertFalse(module.commitCompletedOriginalUse(source, 4),
+                    "stale original callback cannot be replayed after reverting");
+            module.restoreSlot(source, 4);
+            assertEquals(4, module.selectSlot(source));
+            assertTrue(module.commitCompletedOriginalUse(source, 4));
+            assertFalse(module.commitCompletedOriginalUse(source, 4));
+            module.restoreSlot(source, 4);
+        } finally { module.onDisable(); }
+    }
+
+    @Test void completedNativeUseWithPostClickConsumedOrChangedSlotNeedsNoNewGetter() {
+        final Minecraft189AutoRodModule module = new Minecraft189AutoRodModule();
+        final ReentrantInventory source = new ReentrantInventory();
+        source.slot = 6;
+        module.onEnable();
+        try {
+            assertEquals(6, module.selectSlot(source));
+            source.slot = 8;
+            source.afterGetter = () -> {
+                throw new AssertionError("postclick source currentItem must NOT be re-read");
+            };
+            assertTrue(module.commitCompletedOriginalUse(source, 6),
+                    "real native click may change selected currentItem/consume item");
+            assertFalse(module.commitCompletedOriginalUse(source, 6));
+            source.afterGetter = null;
+            module.restoreSlot(source, 6);
+            assertEquals(8, source.slot);
+        } finally { module.onDisable(); }
+    }
+
     private static final class ReentrantInventory
             implements Minecraft189InventoryHotbarControl {
         int slot;
