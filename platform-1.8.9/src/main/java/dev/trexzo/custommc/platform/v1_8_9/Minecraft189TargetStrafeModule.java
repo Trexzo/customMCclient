@@ -41,6 +41,8 @@ public final class Minecraft189TargetStrafeModule implements Module {
             GROUND_ONLY_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // Local-player native X/Z getters may revoke this activation.
+    private long nativeReadEpoch;
 
     @Override public String id() { return ID; }
     public Setting<Double> speedSetting() { return speed; }
@@ -50,8 +52,14 @@ public final class Minecraft189TargetStrafeModule implements Module {
     public Setting<Boolean> requireForwardSetting() { return requireForward; }
     public Setting<Boolean> groundOnlySetting() { return groundOnly; }
 
-    @Override public synchronized void onEnable() { enabled = true; }
-    @Override public synchronized void onDisable() { enabled = false; }
+    @Override public synchronized void onEnable() {
+        enabled = true;
+        nativeReadEpoch++;
+    }
+    @Override public synchronized void onDisable() {
+        enabled = false;
+        nativeReadEpoch++;
+    }
     synchronized boolean active() { return enabled; }
 
     synchronized boolean apply(
@@ -80,19 +88,24 @@ public final class Minecraft189TargetStrafeModule implements Module {
         if (!Double.isFinite(distance) || distance < 0.000001D) {
             return false;
         }
+        final long epoch = nativeReadEpoch;
+        final double configuredSpeed = speed.get().doubleValue();
+        final double configuredRadius = radius.get().doubleValue();
+        final double configuredMaxDistance = maxDistance.get().doubleValue();
+        final boolean configuredClockwise = clockwise.get().booleanValue();
+        final boolean needsForward = requireForward.get().booleanValue();
+        final boolean needsGround = groundOnly.get().booleanValue();
         final double rx = dx / distance;
         final double rz = dz / distance;
-        final double turn = clockwise.get().booleanValue() ? 1.0D : -1.0D;
+        final double turn = configuredClockwise ? 1.0D : -1.0D;
         final double correction = Math.max(-0.70D, Math.min(0.70D,
-                (distance - radius.get().doubleValue())
-                        / radius.get().doubleValue()));
+                (distance - configuredRadius) / configuredRadius));
         final double vx = -rz * turn - rx * correction;
         final double vz = rx * turn - rz * correction;
         final double norm = Math.hypot(vx, vz);
         if (!Double.isFinite(norm) || norm < 0.000001D) {
             return false;
         }
-        final double configuredSpeed = speed.get().doubleValue();
         // Canonicalize signed and tiny floating-point zero so a tangent
         // aligned to one axis never produces an unnecessary -0.0 write.
         final double rawX = vx / norm * configuredSpeed;
@@ -100,9 +113,18 @@ public final class Minecraft189TargetStrafeModule implements Module {
         final double nextX = Math.abs(rawX) < 1.0E-12D ? 0.0D : rawX;
         final double nextZ = Math.abs(rawZ) < 1.0E-12D ? 0.0D : rawZ;
         final double currentX = player.customMcMotionX();
+        if (!nativeReadOwned(epoch, configuredSpeed, configuredRadius,
+                configuredMaxDistance, configuredClockwise,
+                needsForward, needsGround, movement, forwardHeld)) return false;
         final double currentZ = player.customMcMotionZ();
+        if (!nativeReadOwned(epoch, configuredSpeed, configuredRadius,
+                configuredMaxDistance, configuredClockwise,
+                needsForward, needsGround, movement, forwardHeld)) return false;
         if (Double.compare(currentX, nextX) != 0) {
             player.customMcSetMotionX(nextX);
+            if (!nativeReadOwned(epoch, configuredSpeed, configuredRadius,
+                    configuredMaxDistance, configuredClockwise,
+                    needsForward, needsGround, movement, forwardHeld)) return false;
         }
         if (Double.compare(currentZ, nextZ) != 0) {
             player.customMcSetMotionZ(nextZ);
@@ -110,5 +132,23 @@ public final class Minecraft189TargetStrafeModule implements Module {
         // Eligible no-op frames still own horizontal motion, preventing
         // Strafe from overwriting the orbit with yaw-relative input.
         return true;
+    }
+
+    private boolean nativeReadOwned(final long epoch,
+            final double configuredSpeed, final double configuredRadius,
+            final double configuredMaxDistance, final boolean configuredClockwise,
+            final boolean needsForward, final boolean needsGround,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean forwardHeld) {
+        return enabled && nativeReadEpoch == epoch
+                && speed.get().doubleValue() == configuredSpeed
+                && radius.get().doubleValue() == configuredRadius
+                && maxDistance.get().doubleValue() == configuredMaxDistance
+                && clockwise.get().booleanValue() == configuredClockwise
+                && requireForward.get().booleanValue() == needsForward
+                && groundOnly.get().booleanValue() == needsGround
+                && (!needsForward || forwardHeld)
+                && (!needsGround || (movement != null
+                    && movement.available() && movement.onGround()));
     }
 }

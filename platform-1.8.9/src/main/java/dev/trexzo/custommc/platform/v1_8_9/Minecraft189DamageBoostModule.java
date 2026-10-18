@@ -54,6 +54,8 @@ public final class Minecraft189DamageBoostModule
                             && value <= MAXIMUM_MAX_HORIZONTAL_SPEED,
                     SettingCodecs.DOUBLE);
     private boolean enabled;
+    // Revoke old genuine hurt-source motion callbacks after OFF/ON.
+    private long nativeReadEpoch;
     private boolean previousAvailable;
     private int previousHurtTime;
 
@@ -81,12 +83,14 @@ public final class Minecraft189DamageBoostModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeReadEpoch++;
         resetObservation();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeReadEpoch++;
         resetObservation();
     }
 
@@ -119,12 +123,21 @@ public final class Minecraft189DamageBoostModule
                 multiplier.get().doubleValue();
         final double configuredVerticalMultiplier =
                 verticalMultiplier.get().doubleValue();
-        final double currentX =
-                player.customMcMotionX();
-        final double currentY =
-                player.customMcMotionY();
-        final double currentZ =
-                player.customMcMotionZ();
+        final boolean capped = capHorizontal.get().booleanValue();
+        final double cap = maxHorizontalSpeed.get().doubleValue();
+        final long epoch = nativeReadEpoch;
+        // The hurt edge has already been consumed. The original X/Y/Z
+        // player getters may reenter module lifecycle/GUI policy; no old
+        // impulse can then write or read further axes for a new owner.
+        final double currentX = player.customMcMotionX();
+        if (!nativeReadOwned(epoch, configuredMultiplier,
+                configuredVerticalMultiplier, capped, cap)) return false;
+        final double currentY = player.customMcMotionY();
+        if (!nativeReadOwned(epoch, configuredMultiplier,
+                configuredVerticalMultiplier, capped, cap)) return false;
+        final double currentZ = player.customMcMotionZ();
+        if (!nativeReadOwned(epoch, configuredMultiplier,
+                configuredVerticalMultiplier, capped, cap)) return false;
         double targetX =
                 cleanZero(currentX * configuredMultiplier);
         final double targetY =
@@ -132,14 +145,13 @@ public final class Minecraft189DamageBoostModule
         double targetZ =
                 cleanZero(currentZ * configuredMultiplier);
 
-        if (capHorizontal.get().booleanValue()) {
+        if (capped) {
             // Cap only the *additional* momentum from this boost.
             // Never slow pre-existing horizontal motion above the cap.
             // If real mapped velocity is malformed, fail closed on
             // horizontal writes without affecting the vertical owner.
             final double currentMagnitude = Math.hypot(currentX, currentZ);
             final double boostedMagnitude = Math.hypot(targetX, targetZ);
-            final double cap = maxHorizontalSpeed.get().doubleValue();
             if (!Double.isFinite(currentMagnitude)
                     || !Double.isFinite(boostedMagnitude)
                     || currentMagnitude >= cap) {
@@ -159,22 +171,31 @@ public final class Minecraft189DamageBoostModule
             player.customMcSetMotionX(
                     targetX);
             changed = true;
+            if (!nativeReadOwned(epoch, configuredMultiplier,
+                    configuredVerticalMultiplier, capped, cap)) return changed;
         }
-        if (Double.compare(
-                currentY,
-                targetY) != 0) {
-            player.customMcSetMotionY(
-                    targetY);
+        if (Double.compare(currentY, targetY) != 0) {
+            player.customMcSetMotionY(targetY);
             changed = true;
+            if (!nativeReadOwned(epoch, configuredMultiplier,
+                    configuredVerticalMultiplier, capped, cap)) return changed;
         }
-        if (Double.compare(
-                currentZ,
-                targetZ) != 0) {
-            player.customMcSetMotionZ(
-                    targetZ);
+        if (Double.compare(currentZ, targetZ) != 0) {
+            player.customMcSetMotionZ(targetZ);
             changed = true;
         }
         return changed;
+    }
+
+    private boolean nativeReadOwned(
+            final long epoch, final double horizontalMultiplier,
+            final double verticalScale, final boolean capped,
+            final double cap) {
+        return enabled && nativeReadEpoch == epoch
+                && multiplier.get().doubleValue() == horizontalMultiplier
+                && verticalMultiplier.get().doubleValue() == verticalScale
+                && capHorizontal.get().booleanValue() == capped
+                && maxHorizontalSpeed.get().doubleValue() == cap;
     }
 
     synchronized boolean active() {
