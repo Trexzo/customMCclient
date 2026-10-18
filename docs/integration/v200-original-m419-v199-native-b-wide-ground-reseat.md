@@ -1,0 +1,23 @@
+# V200 — original M419 survivor B real-world landing platform and source re-seat
+
+## Observed native failure, not just an offline conjecture
+[V199 official Mojang Minecraft 1.8.9 graphical X11 + original dedicated-server CI #39142320445](https://github.com/Trexzo/customMCclient/actions/runs/39142320445) completed **FAIL** at genuine phase4 B-source convergence. Its actual native fail-closed synthetic-click veto rejected thousands of wrong A-UUID proposals; the client **did not falsely attack A**. The original acceptance harness correctly timed out because real B was persistently not selected and locked for 20 consecutive source frames; **no B-only server damage PASS** was possible. The native source log repeatedly showed actual:
+- Original host XYZ `(-597.5,5.0,-311.5)`
+- Original rejoined A XYZ `(-597.96875,5.0,-310.15625)`
+- Original survivor B XYZ `(-595.59375,4.0,-309.09375)`
+- Native A3D `1.423162192`, B3D `3.228595380`, native `selectedB=false`, actual ray index A=6, B=1
+- Real **vanilla B server teleport** acknowledged `(-596.5,5,-309.5)`, but later native observed B had moved about +0.9 X, +0.4 Z and -1 Y. The prior V196/V197 *small* floor under only the planned host/A/B teleport blocks did not cover that real native B position: `math.floor(-595.59375)=-596`, beyond intended B center support X=-597.
+
+This establishes *actual client World divergence and insufficient floor coverage*. It does not prove the precise native knockback, input or collision cause of that drift. Earlier V196/V197/V198 native original attempts also failed on invalid B geometry or A selection, as recorded in issues #503/#537. No earlier red run is reclassified.
+
+## Genuine vanilla-server fixture change
+- Derive the original server's real host `/tp`, rejoined A's genuine non-occluding opposite-ray `/tp` and B's genuine canonical `/tp` using the **existing validated source geometry**. Never construct fake client entities, Java snapshots, mock collision or a direct target selector.
+- Build a bounded rectangular **vanilla stone floor with 3 blocks padding on EACH side** of the union of actual original host/A/B coordinate footprints at **feetY - 1**. V199 actual B floor column `x=-596,z=-310` lies within this true server floor, unlike the prior narrow 2–3 block footprint. The dedicated server must acknowledge the actual `fill ... stone` and separately verify native actual host/A/B stone using three genuine `testforblock` console commands. No generated terrain/WorldClient is spoofed.
+- Explicitly issue the genuine dedicated server's `effect CITargetB 2 600 5 true` (Slowness 5) to limit ordinary native client movement after earlier PvP/knockback, then a **single** real B `/tp` **after** the large floor is present, with positive original `Teleported CITargetB to` response. This is distinct from the *ineffective* V196 second B teleport over a narrow floor. Keep the actual one original post-Survival A `/tp`, host native recenter, and bounded real strict 20-fresh-source B observations.
+- A genuine server ACK and Slowness do **not** count as locked B, correct original ray/controller or positive B-only server damage. The strict real original 3D `A + 0.12 < B`, `db - da >= 0.30` over 20 frames, B reach [1,3.5], B UUID lock, exact ray B, actual `PlayerControllerMP.attackEntity` argument UUID B and **fresh B-only damage scoreboard** are all unchanged. The V199 opt-in wrong-UUID no-click veto remains **fail closed**; if source B never becomes selected, the original run remains FAILURE.
+- No ordinary gameplay modules, synthetic packets, client positions, item/chunk data, entity identities, or original acceptance color/ray thresholds are changed.
+
+## Offline regression / certification
+The Python original-server fixture tests now verify enlarged exact source floor coordinates for both chunk signs and existing valid A/B non-occluding geometry; literal reproduction of V199 real observed native B drifting outside the old stone platform while within the new one; correct native server floor/slowness/B then A then host sequence with real reply requirements **before** fresh 20-source-tick B lock and server damage; exact V196 and V197 genuine B-out-of-reach values remain negative; wrong UUID/Y/chunk geometry still rejected. This is offline fixture evidence, not original Mojang runtime success.
+
+Cumulative **Draft child of V199 #665**; the new V200 exact immutable SHA must pass Foundation Windows+Ubuntu and the full pinned original Minecraft 1.8.9 graphical X11 + dedicated-server **78-step suite**, plus independent same-SHA original rerun, before any release consideration. Failed historical V190, V193, V196–V199 runs remain failed. No merge; `main` unchanged.

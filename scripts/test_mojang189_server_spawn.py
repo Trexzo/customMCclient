@@ -313,7 +313,7 @@ class OriginalM419GroundedNativeThreePlayerFixtureTest(unittest.TestCase):
             "tp CIHost 911 5 862 180 0",
             "tp CITarget 911.95 5 861.15 0 0",
             "tp CITargetB 910 5 860 0 0")
-        self.assertEqual(cmd,"fill 910 4 860 912 4 862 stone")
+        self.assertEqual(cmd,"fill 907 4 857 915 4 865 stone")
         # Strict B ray and UUID geometry are unchanged from V175/V181.
         self.assertEqual(actual_server_rejoined_host_recenter_fixture(
             "tp CIHost 911 5 862 180 0",
@@ -334,48 +334,61 @@ class OriginalM419GroundedNativeThreePlayerFixtureTest(unittest.TestCase):
                 actual_server_rejoined_phase4_grounded_floor_fixture(
                     good_host,wrong_a,good_b)
 
-    def test_original_source_stone_ack_then_one_a_and_host_no_second_b(self):
+    def test_real_stone_ack_slowness_then_one_b_a_host_and_20_native_samples(self):
         src=(Path(__file__).parent /
              "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
-        start=src.find("grounded_floor = actual_server_rejoined_phase4_grounded_floor_fixture")
-        self.assertGreater(start,0)
-        floor_ack=src.find('expected=b"blocks filled"',start)
-        real_stone=src.find('"testforblock {} {} {} stone"',floor_ack)
-        a_teleport=src.find("send_server_command(server,server_log,a_rejoined",real_stone)
-        host_teleport=src.find("send_server_command(server,server_log,phase4_host",a_teleport)
-        stable=src.find("wait_for_new_original_source_marker(",host_teleport)
-        reset=src.find('"scoreboard players set CITargetB taken 0"',stable)
-        self.assertTrue(0<start<floor_ack<real_stone<a_teleport
-                        <host_teleport<stable<reset,
-                        "true native A+host teleport follows verified three-player stone"
-                        " and precedes fresh 20-source snapshots and damage")
-        phase4=src[start:host_teleport]
-        self.assertNotIn("send_server_command(server,server_log,b_outer",phase4,
-                         "re-teleporting previously locked B can transiently"
-                         " invalidate the actual source World B UUID lock")
-        self.assertEqual(phase4.count(
-            "send_server_command(server,server_log,a_rejoined"),1,
-            "exactly one pre-controller true native A after Survival gate")
-        self.assertIn('expected=b"Teleported CITarget to"',phase4)
+        begin=src.index("grounded_floor = actual_server_rejoined_phase4_grounded_floor_fixture")
+        ack=src.index('expected=b"blocks filled"',begin)
+        native_stone=src.index('"testforblock {} {} {} stone"',ack)
+        slow=src.index('"effect CITargetB 2 600 5 true"',native_stone)
+        b=src.index("send_server_command(server,server_log,b_outer",slow)
+        a=src.index("send_server_command(server,server_log,a_rejoined",b)
+        host=src.index("send_server_command(server,server_log,phase4_host",a)
+        original=src.index("wait_for_new_original_source_marker(",host)
+        score=src.index('"scoreboard players set CITargetB taken 0"',original)
+        self.assertTrue(0<begin<ack<native_stone<slow<b<a<host<original<score)
+        self.assertEqual(src[begin:host].count(
+            "send_server_command(server,server_log,b_outer"),1)
+        self.assertEqual(src[begin:host].count(
+            "send_server_command(server,server_log,a_rejoined"),1)
+        self.assertIn('expected=b"Teleported CITargetB to"',src[b:a])
+        self.assertIn('expected=b"Teleported CITarget to"',src[a:host])
+        self.assertIn("CUSTOMMC_189_M419_NATIVE_B_WIDE_PLATFORM_RESEAT_PASS=YES",
+                      src[b:host])
 
-    def test_original_v196_failure_was_real_transient_b_range_not_fake_uuid(self):
-        # The historical native Minecraft original failure was a REAL
-        # source state: B moved beyond the unchanged maximum reach and the
-        # client selected A. Never count that as positive owner evidence.
-        da, db = 1.7891839931361735, 3.960637161313068
-        self.assertLess(da,db)
-        self.assertGreater(db,3.5)
-        src=(Path(__file__).parent /
-             "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
-        begin=src.find("grounded_floor = actual_server_rejoined_phase4_grounded_floor_fixture")
-        end=src.find("wait_for_new_original_source_marker(",begin)
-        self.assertNotIn("send_server_command(server,server_log,b_outer",src[begin:end])
+    def test_true_v199_original_b_native_drift_lands_on_new_stone_not_old(self):
+        import math
+        original_x, original_z = -595.59375, -309.09375
+        observed_y = 4.0
+        tp_host="tp CIHost -598 5 -312 180 0"
+        tp_a="tp CITarget -597.95 5 -310.15 0 0"
+        tp_b="tp CITargetB -597 5 -310 0 0"
+        # The original logged B /tp was -596.5,-309.5 (integer
+        # -597,-310). Its later native position was outside 3x3 floor.
+        cmd=actual_server_rejoined_phase4_grounded_floor_fixture(
+            tp_host,tp_a,tp_b)
+        chunks=cmd.split()
+        lx,ly,lz,hx,hy,hz=map(int,chunks[1:7])
+        self.assertEqual(ly,4)
+        self.assertEqual(hy,4)
+        self.assertEqual(int(observed_y),ly)
+        self.assertTrue(lx<=math.floor(original_x)<=hx)
+        self.assertTrue(lz<=math.floor(original_z)<=hz)
+        # Previous narrow planned-only floor would exclude the real B.
+        self.assertGreater(math.floor(original_x),max(-598,-597,-597))
+
+    def test_exact_v196_v197_b_outside_native_reach_still_fails_closed(self):
+        for da,db in (
+            (1.7891839931361735,3.960637161313068),
+            (1.7580159040626773,3.9382332372799493),
+            (1.4231621920919626,3.228595379572981)):
+            self.assertLess(da,db)
         acceptance=(Path(__file__).parent.parent /
                     "platform-1.8.9/src/main/java/dev/trexzo/custommc/platform"
                     "/v1_8_9/Minecraft189RejoinTargetAcceptance.java").read_text()
         self.assertIn('return "survivor-B-outside-original-[1,3.5]-reach"',acceptance)
         self.assertIn("survivorUuid.equals(aura.lockedTargetUuid())",acceptance)
-
+        self.assertIn("m419MustVetoPendingSyntheticClick(",acceptance)
 
     def test_original_controller_strict_three_dimensional_margin_not_weakened(self):
         acceptance=(Path(__file__).parent.parent /

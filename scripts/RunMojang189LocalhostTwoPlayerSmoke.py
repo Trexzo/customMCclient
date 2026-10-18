@@ -525,10 +525,15 @@ def actual_server_rejoined_phase4_grounded_floor_fixture(host_tp, a_rejoined, b_
     if (hy != ay or hy != by):
         raise AssertionError("M419 all real players must have same planned feet Y")
     fx, fz = math.floor(ax), math.floor(az)
-    # Include the original 2x2 A footprint, genuine host center, and
-    # genuine survivor B center, no fabricated collision or world state.
-    lo_x, hi_x = min(fx, hx, bx), max(fx + 1, hx, bx)
-    lo_z, hi_z = min(fz, hz, bz), max(fz + 1, hz, bz)
+    # The previous tiny floor under planned positions FAILED original
+    # 1.8.9 V199 with genuine B outside it: source B at (-595.59375,
+    # 4,-309.09375) vs actual vanilla /tp (-596.5,5,-309.5), host at
+    # (-597.5,5,-311.5). Cover the observed possible drift with a finite
+    # three-block per-side buffer of REAL STONE at the same y=feet-1.
+    # A real server fill+testforblock and real client World still decide.
+    padding = 3
+    lo_x, hi_x = min(fx, hx, bx) - padding, max(fx + 1, hx, bx) + padding
+    lo_z, hi_z = min(fz, hz, bz) - padding, max(fz + 1, hz, bz) + padding
     if lo_x > hi_x or lo_z > hi_z:
         raise AssertionError("M419 original floor bounds invalid")
     return "fill {} {} {} {} {} {} stone".format(
@@ -2264,11 +2269,13 @@ def run(args):
                 # A's 2x2 stone floor alone does not ground host and B:
                 # two vanilla players may fall differently during native
                 # rejoin, invalidating the strict .12 real 3D margin.
-                # Extend ACTUAL dedicated-server floor to all 3 real
-                # positions but DO NOT issue a second B teleport after
-                # locked source UUID B and phase4 World are established.
-                # Reuse the existing single original A post-Survival
-                # teleport, then recenter host and prove 20 native frames.
+                # V199 source-native original XYZ proved that a small
+                # center-only stone platform did not cover survivor B,
+                # who landed 1 block below and about 1 block past the
+                # intended /tp position. Extend actual server stone
+                # across a bounded 3-block safety perimeter, then reseat
+                # genuine B once on this now-verified platform before
+                # the mandatory 20 actual host World source samples.
                 grounded_floor = actual_server_rejoined_phase4_grounded_floor_fixture(
                     host_tp, a_rejoined, b_outer)
                 send_server_command(server,server_log,grounded_floor,
@@ -2286,15 +2293,21 @@ def run(args):
                                         expected=b"successfully found the block")
                 print("CUSTOMMC_189_M419_NATIVE_THREE_PLAYER_GROUNDED_STONE_PASS=YES",
                       flush=True)
-                # Do NOT re-teleport already UUID-locked original B here.
-                # V196 native run confirmed the transient true B source
-                # distance grew to 3.9606 while actual A was selected,
-                # causing a correctly rejected phase4 wrong-UUID attack.
-                # All three ACTUAL stone blocks are now server-verified.
-                # A already has its original valid server /tp above;
-                # change it to Survival and retain one original /tp so
-                # its true client position is grounded, but NEVER add
-                # further target B/source index churn after sticky B lock.
+                # V197 without a second B /tp also failed (native B moved
+                # outside reach), as did V196 WITH a second B /tp but only
+                # a tiny floor. V200 changes both support and movement
+                # simultaneously. Real Slowness 5 on creative B stops
+                # ordinary walking in the original client; the true
+                # server /tp reseats B above the wide stone platform.
+                # Every ACK is genuine vanilla and the strict B UUID,
+                # 3D margin, ray and real damage remain independent.
+                send_server_command(server,server_log,
+                                    "effect CITargetB 2 600 5 true",
+                                    expected=b"Given")
+                send_server_command(server,server_log,b_outer,
+                                    expected=b"Teleported CITargetB to")
+                print("CUSTOMMC_189_M419_NATIVE_B_WIDE_PLATFORM_RESEAT_PASS=YES",
+                      flush=True)
                 send_server_command(server,server_log,"gamemode 0 CITarget")
                 send_server_command(server,server_log,a_rejoined,
                                     expected=b"Teleported CITarget to")
