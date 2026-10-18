@@ -213,11 +213,11 @@ final class Minecraft189AutoPotModuleTest {
         inv.slot = 4;
         mod.onEnable();
         try {
-            inv.afterSetter = () -> mod.requireCombatTargetSetting().set(false);
+            inv.afterSetter = () -> mod.requireCombatTargetSetting().set(true);
             assertEquals(-1, mod.selectSlot(inv),
                     "changed GUI policy during original setter revokes use");
             assertEquals(4, inv.slot, "only owned original source item restores");
-            mod.requireCombatTargetSetting().set(true);
+            mod.requireCombatTargetSetting().set(false);
             inv.afterSetter = () -> { mod.onDisable(); mod.onEnable(); };
             assertEquals(-1, mod.selectSlot(inv),
                     "native disable/reenable during hotbar setter revokes lease");
@@ -235,12 +235,12 @@ final class Minecraft189AutoPotModuleTest {
         mod.onEnable();
         try {
             assertEquals(6, mod.selectSlot(inv));
-            inv.afterGetter = () -> mod.requireCombatTargetSetting().set(false);
+            inv.afterGetter = () -> mod.requireCombatTargetSetting().set(true);
             assertFalse(mod.ownsSelectedSlot(inv, 6),
                     "native accessor may reenter a new policy during use");
             mod.restoreSlot(inv, 6);
             assertEquals(6, inv.slot);
-            mod.requireCombatTargetSetting().set(true);
+            mod.requireCombatTargetSetting().set(false);
             assertEquals(6, mod.selectSlot(inv));
             inv.afterGetter = () -> inv.slot = 7;
             assertFalse(mod.ownsSelectedSlot(inv, 6),
