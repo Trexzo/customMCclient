@@ -263,6 +263,43 @@ def actual_server_three_client_simultaneous_fixture(server_log):
     return host, a_near, b_outer, b_near
 
 
+def actual_server_rejoined_a_controller_fixture(host_tp, a_near, b_outer):
+    """Original M419 A must stay measurably nearer even after natural vertical motion.
+
+    Rejoined A is independently server-teleported to one block along the
+    original forward lane instead of two; B stays two forward and one to the
+    side, retaining its real UUID, visible hitbox and locked source target.
+    These are vanilla /tp positions, not modified client World snapshots.
+    """
+    host = host_tp.split()
+    a = a_near.split()
+    b = b_outer.split()
+    if (len(host) != 7 or host[:2] != ["tp", "CIHost"]
+            or len(a) != 7 or a[:2] != ["tp", "CITarget"]
+            or len(b) != 7 or b[:2] != ["tp", "CITargetB"]):
+        raise AssertionError("M419 original server teleport positions invalid")
+    hx, hy, hz = (int(value) for value in host[2:5])
+    ax, ay, az = (int(value) for value in a[2:5])
+    bx, by, bz = (int(value) for value in b[2:5])
+    if (ax != hx or ay != hy or by != hy or bz != az
+            or abs(az - hz) != 2 or abs(bx - hx) != 1):
+        raise AssertionError("M419 source A/B world geometry unexpected")
+    near_z = hz + (az - hz) // 2
+    if hz // 16 != near_z // 16 or hz // 16 != bz // 16:
+        raise AssertionError("M419 real source A/B crossed loaded z chunk")
+    # Original full 3D snapshot includes vanilla A airborne displacement.
+    # Even when y moves up by .9 after a genuine player hop, A must still
+    # satisfy the *unmodified* acceptance da+.12 < db distance margin.
+    distance_b = math.hypot(bx - hx, bz - hz)
+    distance_a_with_air = math.sqrt((near_z - hz) ** 2 + 0.9 ** 2)
+    if not (distance_a_with_air + .12 < distance_b
+            and 1 <= abs(near_z - hz) < abs(bz - hz)
+            and abs(bx - ax) == 1):
+        raise AssertionError("M419 source native A/B reach/owner margin lost")
+    return "tp CITarget {} {} {} {} {}".format(
+        ax, ay, near_z, a[5], a[6])
+
+
 def actual_server_three_client_rejoin_fixture(server_log):
     """Real server positions, with A nearer and locked survivor B in ray reach.
 
@@ -1939,7 +1976,12 @@ def run(args):
                 server, server_log, TARGET_JOIN, 2, deadline,
                 "same real CITarget username second dedicated-server join")
             send_server_command(server, server_log, "gamemode 1 CITarget")
-            send_server_command(server, server_log, a_near)
+            # M419 alone uses a more stable real A server position.
+            # The original earlier A/B interaction remains unchanged.
+            a_rejoined = (actual_server_rejoined_a_controller_fixture(
+                host_tp, a_near, b_outer)
+                if args.require_rejoined_controller_b else a_near)
+            send_server_command(server, server_log, a_rejoined)
             print("CUSTOMMC_189_REJOIN_REAL_A_NEW_JVM_RECONNECTED_PASS=YES",
                   flush=True)
             wait_for(host, host_log, REJOIN_UUID, deadline,
@@ -1962,7 +2004,7 @@ def run(args):
                 # invocation and NEW authoritative damage only to locked B.
                 # Survival A stands on 4 genuine stone blocks (no gravity
                 # drift; B remains separately visible and eligible).
-                ap=a_near.split()
+                ap=a_rejoined.split()
                 if len(ap)!=7 or ap[:2]!=["tp","CITarget"]:
                     raise AssertionError("invalid native A floor coordinate")
                 ax, ay, az=(float(v) for v in ap[2:5])
@@ -1972,7 +2014,7 @@ def run(args):
                 send_server_command(server,server_log,floor,
                                     expected=b"4 blocks filled")
                 send_server_command(server,server_log,"gamemode 0 CITarget")
-                send_server_command(server,server_log,a_near)
+                send_server_command(server,server_log,a_rejoined)
                 send_server_command(server,server_log,
                                     "scoreboard players set CITargetB taken 0")
                 send_server_command(server,server_log,
