@@ -31,6 +31,78 @@ final class Minecraft189PlayerBoxPixelProbe {
     }
 
     /**
+     * Candidate pixels from the four ACTUALLY DRAWN opaque cyan stroke
+     * rectangles, clipped to the real framebuffer. The original projected
+     * AABB may extend beyond the X11 viewport: its top stroke can then be
+     * invisible even while a genuine left/right/bottom segment is drawn.
+     * Only internal pixels of visible foreground segments are eligible.
+     * No sample represents a synthetic success; the caller still MUST
+     * perform actual GL11.glReadPixels and enforce isForegroundColor.
+     */
+    static int[][] sampleVisibleStrokePixels(
+            final float left, final float top,
+            final float width, final float height,
+            final float thickness, final float scale,
+            final int framebufferWidth, final int framebufferHeight) {
+        if (!Float.isFinite(left) || !Float.isFinite(top)
+                || !Float.isFinite(width) || !Float.isFinite(height)
+                || !Float.isFinite(thickness) || !Float.isFinite(scale)
+                || width <= 2.0F || height <= 2.0F
+                || thickness <= 0.0F || scale <= 0.0F
+                || framebufferWidth < 100 || framebufferHeight < 100) {
+            return new int[0][2];
+        }
+        final double t = Math.min(thickness, Math.min(width, height) * 0.5D);
+        final double centerHeight = Math.max(0D, height - 2D * t);
+        // Same four foreground rectangles as BoxPass.drawOutline.
+        final double[][] segments = {
+                {left, top, width, t},
+                {left, top + height - t, width, t},
+                {left, top + t, t, centerHeight},
+                {left + width - t, top + t, t, centerHeight}
+        };
+        final int[][] candidates = new int[4][2];
+        int used = 0;
+        for (final double[] segment : segments) {
+            if (segment[2] <= 0D || segment[3] <= 0D) continue;
+            final double x0 = Math.max(0D, segment[0] * scale);
+            final double y0 = Math.max(0D, segment[1] * scale);
+            final double x1 = Math.min(framebufferWidth,
+                    (segment[0] + segment[2]) * scale);
+            final double y1 = Math.min(framebufferHeight,
+                    (segment[1] + segment[3]) * scale);
+            // Require a genuine pixel footprint inside opaque foreground,
+            // not a cropped edge, translucent underlay or outside area.
+            if (!Double.isFinite(x0) || !Double.isFinite(y0)
+                    || !Double.isFinite(x1) || !Double.isFinite(y1)
+                    || x1 - x0 <= 1D || y1 - y0 <= 1D) continue;
+            final int px = (int)Math.floor((x0 + x1) * 0.5D);
+            final int fromTop = (int)Math.floor((y0 + y1) * 0.5D);
+            if (px < 0 || px >= framebufferWidth
+                    || fromTop < 0 || fromTop >= framebufferHeight) continue;
+            final int py = framebufferHeight - 1 - fromTop;
+            boolean duplicate = false;
+            for (int i = 0; i < used; i++) {
+                if (candidates[i][0] == px && candidates[i][1] == py) {
+                    duplicate = true;
+                    break;
+                }
+            }
+            if (!duplicate) {
+                candidates[used][0] = px;
+                candidates[used][1] = py;
+                used++;
+            }
+        }
+        final int[][] result = new int[used][2];
+        for (int i = 0; i < used; i++) {
+            result[i][0] = candidates[i][0];
+            result[i][1] = candidates[i][1];
+        }
+        return result;
+    }
+
+    /**
      * The first successful original native HUD draw does not prove that
      * a glReadPixels from that same frame saw the opaque foreground.
      * Retry on every independently source-verified subsequent frame until
