@@ -15,6 +15,7 @@ from RunMojang189LocalhostTwoPlayerSmoke import (
     actual_server_rejoined_a_controller_fixture,
     actual_server_original_rejoin_prelock_a_fixture,
     actual_server_rejoined_host_recenter_fixture,
+    actual_server_rejoined_phase4_grounded_floor_fixture,
     wait_for_new_original_source_marker,
     official_offline_uuid,
     actual_server_spawn_positive_pvp_fixture,
@@ -273,6 +274,94 @@ class RealLockedTargetFixtureTest(unittest.TestCase):
                 actual_server_three_client_locked_fixture(log)
 
 
+class OriginalM419GroundedNativeThreePlayerFixtureTest(unittest.TestCase):
+    def test_actual_server_ground_floor_covers_all_original_three_positions(self):
+        import math
+        for login in (
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\n",
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (-33.5, 4.0, -33.5)\n",
+        ):
+            with tempfile.TemporaryDirectory() as root:
+                log=Path(root)/"server.log"
+                log.write_bytes(login)
+                host,a,b=actual_server_three_client_rejoin_fixture(log)
+                new_a=actual_server_rejoined_a_controller_fixture(host,a,b)
+                cmd=actual_server_rejoined_phase4_grounded_floor_fixture(
+                    host,new_a,b)
+                parts=cmd.split()
+                self.assertEqual(len(parts),8)
+                self.assertEqual(parts[0],"fill")
+                self.assertEqual(parts[7],"stone")
+                lx,ly,lz,hx,hy,hz=map(int,parts[1:7])
+                self.assertEqual(ly,hy)
+                self.assertEqual(ly,int(host.split()[3])-1)
+                host_x,host_z=int(host.split()[2]),int(host.split()[4])
+                b_x,b_z=int(b.split()[2]),int(b.split()[4])
+                a_x=math.floor(float(new_a.split()[2]))
+                a_z=math.floor(float(new_a.split()[4]))
+                for x,z in ((host_x,host_z),(b_x,b_z),
+                            (a_x,a_z),(a_x+1,a_z+1)):
+                    self.assertLessEqual(lx,x)
+                    self.assertLessEqual(x,hx)
+                    self.assertLessEqual(lz,z)
+                    self.assertLessEqual(z,hz)
+                self.assertGreater((hx-lx+1)*(hz-lz+1),4,
+                                   "real original A-only 2x2 stone floor is insufficient")
+
+    def test_native_m419_real_run_ground_floor_expected_actual_server_positions(self):
+        cmd=actual_server_rejoined_phase4_grounded_floor_fixture(
+            "tp CIHost 911 5 862 180 0",
+            "tp CITarget 911.95 5 861.15 0 0",
+            "tp CITargetB 910 5 860 0 0")
+        self.assertEqual(cmd,"fill 910 4 860 912 4 862 stone")
+        # Strict B ray and UUID geometry are unchanged from V175/V181.
+        self.assertEqual(actual_server_rejoined_host_recenter_fixture(
+            "tp CIHost 911 5 862 180 0",
+            "tp CITarget 911.95 5 861.15 0 0",
+            "tp CITargetB 910 5 860 0 0"),
+            "tp CIHost 911 5 862 180 0")
+
+    def test_invalid_original_rejoin_geometry_rejected_before_ground_floor(self):
+        good_host="tp CIHost 911 5 862 180 0"
+        good_b="tp CITargetB 910 5 860 0 0"
+        for wrong_a in (
+            "tp CITarget 911.05 5 861.15 0 0",
+            "tp CITarget 911.95 7 861.15 0 0",
+            "tp CITarget 911.95 5 862.15 0 0",
+            "tp CITargetB 911.95 5 861.15 0 0",
+        ):
+            with self.assertRaises(AssertionError):
+                actual_server_rejoined_phase4_grounded_floor_fixture(
+                    good_host,wrong_a,good_b)
+
+    def test_three_original_server_teleports_and_stone_ack_before_live_b_proof(self):
+        src=(Path(__file__).parent /
+             "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
+        start=src.find("grounded_floor = actual_server_rejoined_phase4_grounded_floor_fixture")
+        self.assertGreater(start,0)
+        floor_ack=src.find('expected=b"blocks filled"',start)
+        real_stone=src.find('"testforblock {} {} {} stone"',floor_ack)
+        b_teleport=src.find("send_server_command(server,server_log,b_outer",real_stone)
+        a_teleport=src.find("send_server_command(server,server_log,a_rejoined",b_teleport)
+        host_teleport=src.find("send_server_command(server,server_log,phase4_host",a_teleport)
+        stable=src.find("wait_for_new_original_source_marker(",host_teleport)
+        reset=src.find('"scoreboard players set CITargetB taken 0"',stable)
+        self.assertTrue(0<start<floor_ack<real_stone<b_teleport
+                        <a_teleport<host_teleport<stable<reset,
+                        "real native stone and real three teleports precede"
+                        " 20 live-source checks and independent B damage")
+
+    def test_original_controller_strict_three_dimensional_margin_not_weakened(self):
+        acceptance=(Path(__file__).parent.parent /
+                    "platform-1.8.9/src/main/java/dev/trexzo/custommc/platform"
+                    "/v1_8_9/Minecraft189RejoinTargetAcceptance.java").read_text()
+        self.assertIn("if (!(da + 0.12D < db))",acceptance)
+        self.assertIn("db - da >= 0.30D",acceptance)
+        self.assertIn("verifyRealControllerB(",acceptance)
+        self.assertIn("m419NativeCoordinateDiagnostics(host,e)",acceptance)
+        self.assertIn("originalNativeHostXYZ",acceptance)
+
+
 class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
     def test_real_positive_and_negative_sources_move_only_rejoined_a(self):
         import math
@@ -356,7 +445,8 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
                   "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
         self.assertIn("ax, ay, az=(float(v) for v in ap[2:5])", script)
         self.assertIn("fx, fz=math.floor(ax), math.floor(az)", script)
-        self.assertIn("send_server_command(server,server_log,a_rejoined)", script)
+        self.assertIn("send_server_command(server,server_log,a_rejoined,", script)
+        self.assertIn('expected=b"Teleported CITarget to"', script)
         self.assertIn('expected=b"4 blocks filled"', script)
 
     def test_integer_teleport_centering_was_actual_cause_of_both_bounds(self):
@@ -434,7 +524,8 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
         self.assertIn("if args.require_rejoined_controller_b else a_near", script)
         self.assertIn("send_server_command(server, server_log, a_rejoined)", script)
         self.assertIn("ap=a_rejoined.split()", script)
-        self.assertIn("send_server_command(server,server_log,a_rejoined)", script)
+        self.assertIn("send_server_command(server,server_log,a_rejoined,", script)
+        self.assertIn('expected=b"Teleported CITarget to"', script)
         for required in ("REJOIN_B_RETAINED", "REJOIN_WRONG_UUID_VETO",
                          "REJOIN_REAL_CONTROLLER_B",
                          "REJOIN_CONTROLLER_ARGUMENT_UUID_B",
