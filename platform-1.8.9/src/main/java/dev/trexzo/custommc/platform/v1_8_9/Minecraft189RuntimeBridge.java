@@ -88,6 +88,62 @@ public final class Minecraft189RuntimeBridge {
     private Minecraft189RuntimeBridge() {
     }
 
+    /**
+     * Read-only classification of why a positive original Wall Check
+     * lifecycle source witness cannot advance. These reasons NEVER replace
+     * the real original 30 consecutive callbacks or grant attack permission.
+     * Kept pure to test both absent data and genuine selected-target veto.
+     */
+    static String originalWallLifecycleSourceReason(
+            final int targetIndex, final boolean availableKinds,
+            final boolean availableCombat, final boolean availableVisibility,
+            final int kindsCount, final int combatCount, final int visibilityCount,
+            final boolean player, final boolean living,
+            final boolean localPlayer, final boolean alive,
+            final boolean occluded, final boolean auraEnabled,
+            final boolean wallCheckEnabled,
+            final boolean nearestFound, final boolean rotationAvailable) {
+        if (targetIndex < 0) return "no-original-target-index";
+        if (!availableKinds || !availableCombat || !availableVisibility)
+            return "native-world-snapshot-unavailable";
+        if (targetIndex >= kindsCount || targetIndex >= combatCount
+                || targetIndex >= visibilityCount)
+            return "source-index-outside-original-world";
+        if (!player || !living || localPlayer || !alive)
+            return "source-entity-no-longer-remote-living-player";
+        if (!occluded) return "original-source-line-of-sight-no-longer-occluded";
+        if (!auraEnabled) return "source-aura-disabled";
+        if (!wallCheckEnabled) return "source-wall-check-disabled";
+        if (nearestFound || rotationAvailable)
+            return "stale-original-target-still-selected";
+        return "real-occluded-and-both-target-snapshots-cleared";
+    }
+
+    private static String originalWallLifecycleReason(
+            final int idx,
+            final Minecraft189WorldEntityKindState.Snapshot kinds,
+            final Minecraft189WorldEntityCombatState.Snapshot combat,
+            final Minecraft189WorldEntityVisibilityState.Snapshot los,
+            final Minecraft189NearestPlayerTargetState.Snapshot nearest,
+            final Minecraft189TargetRotationState.Snapshot target,
+            final Minecraft189HostRuntime host) {
+        final boolean inBounds = idx >= 0
+                && kinds.available() && combat.available() && los.available()
+                && idx < kinds.entityCount() && idx < combat.entityCount()
+                && idx < los.entityCount();
+        return originalWallLifecycleSourceReason(
+                idx, kinds.available(), combat.available(), los.available(),
+                kinds.entityCount(), combat.entityCount(), los.entityCount(),
+                inBounds && kinds.player(idx),
+                inBounds && kinds.living(idx),
+                inBounds && kinds.localPlayer(idx),
+                inBounds && combat.alive(idx),
+                inBounds && los.occluded(idx),
+                host.featureCatalog().killAura().active(),
+                host.featureCatalog().wallCheck().active(),
+                nearest.found(), target.available());
+    }
+
     static synchronized Registration install(
             final Minecraft189BootstrapRuntime runtime) {
         final Minecraft189BootstrapRuntime next =
@@ -1944,62 +2000,6 @@ public final class Minecraft189RuntimeBridge {
                     }
                 }
             }
-    /**
-     * Read-only classification of why a positive original Wall Check
-     * lifecycle source witness cannot advance. These reasons NEVER replace
-     * the real original 30 consecutive callbacks or grant attack permission.
-     * Kept pure to test both absent data and genuine selected-target veto.
-     */
-    static String originalWallLifecycleSourceReason(
-            final int targetIndex, final boolean availableKinds,
-            final boolean availableCombat, final boolean availableVisibility,
-            final int kindsCount, final int combatCount, final int visibilityCount,
-            final boolean player, final boolean living,
-            final boolean localPlayer, final boolean alive,
-            final boolean occluded, final boolean auraEnabled,
-            final boolean wallCheckEnabled,
-            final boolean nearestFound, final boolean rotationAvailable) {
-        if (targetIndex < 0) return "no-original-target-index";
-        if (!availableKinds || !availableCombat || !availableVisibility)
-            return "native-world-snapshot-unavailable";
-        if (targetIndex >= kindsCount || targetIndex >= combatCount
-                || targetIndex >= visibilityCount)
-            return "source-index-outside-original-world";
-        if (!player || !living || localPlayer || !alive)
-            return "source-entity-no-longer-remote-living-player";
-        if (!occluded) return "original-source-line-of-sight-no-longer-occluded";
-        if (!auraEnabled) return "source-aura-disabled";
-        if (!wallCheckEnabled) return "source-wall-check-disabled";
-        if (nearestFound || rotationAvailable)
-            return "stale-original-target-still-selected";
-        return "real-occluded-and-both-target-snapshots-cleared";
-    }
-
-    private static String originalWallLifecycleReason(
-            final int idx,
-            final Minecraft189WorldEntityKindState.Snapshot kinds,
-            final Minecraft189WorldEntityCombatState.Snapshot combat,
-            final Minecraft189WorldEntityVisibilityState.Snapshot los,
-            final Minecraft189NearestPlayerTargetState.Snapshot nearest,
-            final Minecraft189TargetRotationState.Snapshot target,
-            final Minecraft189HostRuntime host) {
-        final boolean inBounds = idx >= 0
-                && kinds.available() && combat.available() && los.available()
-                && idx < kinds.entityCount() && idx < combat.entityCount()
-                && idx < los.entityCount();
-        return originalWallLifecycleSourceReason(
-                idx, kinds.available(), combat.available(), los.available(),
-                kinds.entityCount(), combat.entityCount(), los.entityCount(),
-                inBounds && kinds.player(idx),
-                inBounds && kinds.living(idx),
-                inBounds && kinds.localPlayer(idx),
-                inBounds && combat.alive(idx),
-                inBounds && los.occluded(idx),
-                host.featureCatalog().killAura().active(),
-                host.featureCatalog().wallCheck().active(),
-                nearest.found(), target.available());
-    }
-
             if (Boolean.getBoolean(
                     "custommc.acceptance.reportKillAuraWallLifecycle")
                     && acceptanceAuraWallReported
