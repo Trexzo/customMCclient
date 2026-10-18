@@ -39,6 +39,8 @@ public final class Minecraft189NoFallModule
                     value -> value != null, SettingCodecs.BOOLEAN);
 
     private boolean enabled;
+    // Invalidates callbacks that read a native source owner before restart.
+    private long nativeReadEpoch;
 
     @Override
     public String id() {
@@ -60,11 +62,13 @@ public final class Minecraft189NoFallModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeReadEpoch++;
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeReadEpoch++;
     }
 
     synchronized void apply(
@@ -99,15 +103,23 @@ public final class Minecraft189NoFallModule
             return;
         }
 
-        final float distance =
-                player.customMcFallDistance();
-        final double configured =
-                threshold.get().doubleValue();
+        // Snapshot the exact enabled lifetime and policy before invoking
+        // the original player's native getter. It may reenter this module
+        // or change GUI settings, so an old callback must not zero a new
+        // lifetime's real fall-distance source.
+        final long approvedEpoch = nativeReadEpoch;
+        final double configured = threshold.get().doubleValue();
+        final float distance = player.customMcFallDistance();
         // Only a finite, positive ORIGINAL falling distance is evidence
         // for a falling-damage reduction. Negative sentinel/transition
         // values and nonfinite corrupted readbacks are not a valid fall;
         // never overwrite those native source states with synthetic zero.
-        if (Float.isFinite(distance)
+        if (enabled
+                && nativeReadEpoch == approvedEpoch
+                && threshold.get().doubleValue() == configured
+                && airborneOnly.get().booleanValue() == requireAirborne
+                && pauseWhileSneaking.get().booleanValue() == pauseSneak
+                && Float.isFinite(distance)
                 && distance > 0.0F
                 && (double) distance > configured + 0.000001D) {
             player.customMcSetFallDistance(0.0F);
