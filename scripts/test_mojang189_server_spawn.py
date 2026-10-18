@@ -445,7 +445,8 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
                   "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
         self.assertIn("ax, ay, az=(float(v) for v in ap[2:5])", script)
         self.assertIn("fx, fz=math.floor(ax), math.floor(az)", script)
-        self.assertIn("send_server_command(server,server_log,a_rejoined)", script)
+        self.assertIn("send_server_command(server,server_log,a_rejoined,", script)
+        self.assertIn('expected=b"Teleported CITarget to"', script)
         self.assertIn('expected=b"4 blocks filled"', script)
 
     def test_integer_teleport_centering_was_actual_cause_of_both_bounds(self):
@@ -523,7 +524,8 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
         self.assertIn("if args.require_rejoined_controller_b else a_near", script)
         self.assertIn("send_server_command(server, server_log, a_rejoined)", script)
         self.assertIn("ap=a_rejoined.split()", script)
-        self.assertIn("send_server_command(server,server_log,a_rejoined)", script)
+        self.assertIn("send_server_command(server,server_log,a_rejoined,", script)
+        self.assertIn('expected=b"Teleported CITarget to"', script)
         for required in ("REJOIN_B_RETAINED", "REJOIN_WRONG_UUID_VETO",
                          "REJOIN_REAL_CONTROLLER_B",
                          "REJOIN_CONTROLLER_ARGUMENT_UUID_B",
