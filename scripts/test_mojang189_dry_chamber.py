@@ -86,7 +86,8 @@ class DryChamberFillTest(TestCase):
         # original-command helper. Check its body AND verify it is called
         # before any genuine physical splash or survival confirmation.
         helper = source.split("def prepare_verified_native_dry_chamber(", 1)[1]
-        helper = helper.split("def prepare_native_scaffold_context_chamber(", 1)[0]
+        helper = helper.split(
+            "def prepare_verified_original_scaffold_survival_edge(", 1)[0]
         preclear = helper.index('"/fill 4 79 4 12 87 12 air"')
         fill_outer = helper.index('"/fill 4 79 4 12 87 12 stone"')
         fill_inner = helper.index('"/fill 5 80 5 11 86 11 air"')
