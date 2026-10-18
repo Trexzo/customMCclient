@@ -1860,9 +1860,13 @@ public final class Minecraft189HostRuntime
         featureCatalog.autoPot().restoreSlot(owned, originalSlot);
     }
 
-    void commitAutoPotUseAttempt() {
+    boolean commitAutoPotUseAttempt(final int originalSlot) {
         requireOpen();
-        featureCatalog.autoPot().commitUseAttempt();
+        return autoPotLeaseInventory != null
+                && tickHotbarControl == autoPotLeaseInventory
+                && autoPotLeaseOriginal == originalSlot
+                && featureCatalog.autoPot().commitCompletedOriginalUse(
+                        autoPotLeaseInventory, originalSlot);
     }
 
     private boolean mayCastWithoutReelingActiveHook() {
@@ -1953,9 +1957,13 @@ public final class Minecraft189HostRuntime
         featureCatalog.autoRod().restoreSlot(owned, originalSlot);
     }
 
-    void commitAutoRodUseAttempt() {
+    boolean commitAutoRodUseAttempt(final int originalSlot) {
         requireOpen();
-        featureCatalog.autoRod().commitUseAttempt();
+        return autoRodLeaseInventory != null
+                && tickHotbarControl == autoRodLeaseInventory
+                && autoRodLeaseOriginal == originalSlot
+                && featureCatalog.autoRod().commitCompletedOriginalUse(
+                        autoRodLeaseInventory, originalSlot);
     }
 
     int selectCombatSlotBeforeSyntheticClick(final boolean playerHit) {
