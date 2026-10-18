@@ -274,9 +274,9 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
         import math
         for login, expected in (
             (b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at "
-             b"(243.5, 4.0, 444.5)\n", "tp CITarget 243 5 445 180 0"),
+             b"(243.5, 4.0, 444.5)\n", "tp CITarget 243 5 446.0 180 0"),
             (b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at "
-             b"(-33.5, 4.0, -33.5)\n", "tp CITarget -34 5 -35 0 0"),
+             b"(-33.5, 4.0, -33.5)\n", "tp CITarget -34 5 -34.0 0 0"),
         ):
             with tempfile.TemporaryDirectory() as root:
                 path = Path(root) / "server.log"
@@ -285,19 +285,43 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
                 chosen = actual_server_rejoined_a_controller_fixture(host, a, b)
                 self.assertEqual(chosen, expected)
                 hx, hy, hz = map(int, host.split()[2:5])
-                ax, ay, az = map(int, chosen.split()[2:5])
+                ax, ay = map(int, chosen.split()[2:4])
+                az = float(chosen.split()[4])
                 bx, by, bz = map(int, b.split()[2:5])
                 self.assertEqual((ax, ay), (hx, hy))
-                self.assertEqual(abs(az-hz), 1,
-                                 "A is still real and one block forward")
-                self.assertEqual(abs(bz-hz), 2)
+                self.assertTrue(chosen.split()[4].endswith(".0"),
+                                "source vanilla teleport MUST use explicit decimal")
+                self.assertEqual(abs(az-(hz+.5)), 1.5,
+                                 "actual Minecraft /tp centers integer host")
+                self.assertEqual(abs((bz+.5)-(hz+.5)), 2)
                 self.assertEqual(abs(bx-hx), 1)
-                self.assertEqual(hz//16, az//16)
-                self.assertEqual(az//16, bz//16)
-                self.assertGreater(math.hypot(bx-hx, bz-hz),
-                                   math.sqrt(1+0.9**2)+.12,
-                                   "original native distance must survive y drift")
-                self.assertNotEqual((ax, az), (bx, bz))
+                self.assertEqual(hz//16, math.floor(az/16))
+                self.assertEqual(math.floor(az/16), bz//16)
+                self.assertGreater(
+                    math.hypot(bx-hx, bz-hz),
+                    math.hypot(1.5, 0.9)+.12,
+                    "actual original 3D A jump must leave B closer margin")
+                self.assertGreaterEqual(1.5-.3, 1.0,
+                                        "native A minimum reach survives drift")
+                self.assertNotEqual((ax, az), (bx+.5, bz+.5))
+
+    def test_integer_teleport_centering_was_actual_cause_of_both_bounds(self):
+        import math
+        # Genuine old integer /tp into a 1-block-forward source cell
+        # centers it at only one block from Minecraft host (not 1.5).
+        host_z = -136.5
+        old_integer_world_z = -135.5
+        actual_previous = old_integer_world_z - .34
+        self.assertLess(math.hypot(-.43, actual_previous-host_z), 1.0,
+                        "observed V159 genuine old A source x/z failed da>=1")
+        new_explicit_decimal_z = -135.0
+        self.assertEqual(new_explicit_decimal_z-host_z, 1.5)
+        self.assertGreater(math.hypot(-.43,
+                                     new_explicit_decimal_z-.34-host_z), 1.0)
+        # Previous two-forward true A rose .89 above host while B stayed
+        # lateral: source gap < .12. The new interior source stays within.
+        self.assertLess(math.hypot(1.5,.89)+.12, math.sqrt(5.0))
+        self.assertGreater(math.hypot(2,.89)+.12, math.sqrt(5.0))
 
     def test_reject_wrong_uuid_names_source_positions_or_overlap(self):
         valid = ("tp CIHost 243 5 444 0 0",
