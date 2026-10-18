@@ -150,6 +150,35 @@ def actual_server_spawn_fixture(server_log):
     )
 
 
+def actual_server_spawn_range_negative_fixture(server_log):
+    """Real source-logged spawn chunk; far-player range veto only.
+
+    The general four-block two-client fixture is used by POSITIVE cases,
+    and must not change. In an observed negative original run, target
+    movement shrank the source distance to sqrt(2.31) before 80 callback
+    confirmations and the correctly strict native out-of-range assertion
+    crashed. Reserve seven genuine world blocks of same-chunk clearance
+    for only the negative reach case, using vanilla server teleports.
+    """
+    host, _normal_target = actual_server_spawn_fixture(server_log)
+    source = host.split()
+    if len(source) != 7 or source[:2] != ["tp", "CIHost"]:
+        raise AssertionError("range negative original host teleport malformed")
+    hx, hy, hz = (int(n) for n in source[2:5])
+    offset = 7 if hz % 16 <= 8 else -7
+    target_z = hz + offset
+    if hz // 16 != target_z // 16:
+        raise AssertionError("range negative crossed real host spawn chunk")
+    if abs(offset) < 7 or abs(offset) > 8:
+        raise AssertionError("source range negative lacks original reach clearance")
+    target_yaw = 180 if offset > 0 else 0
+    host_yaw = 0 if offset > 0 else 180
+    return (
+        "tp CIHost {} {} {} {} 0".format(hx, hy, hz, host_yaw),
+        "tp CITarget {} {} {} {} 0".format(hx, hy, target_z, target_yaw),
+    )
+
+
 def actual_server_spawn_fov_fixture(server_log):
     """Position an actual nonlocal server player 2 blocks behind CIHost."""
     import math
@@ -2433,7 +2462,8 @@ def run(args):
             # any combat range, selector or damage gate.
             send_server_command(server, server_log,
                                 "effect CITarget 2 600 5 true")
-            host_tp, target_tp = actual_server_spawn_fixture(server_log)
+            host_tp, target_tp = actual_server_spawn_range_negative_fixture(
+                server_log)
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, target_tp)
             print("CUSTOMMC_189_RANGE_ACTUAL_SERVER_SPAWN_CHUNK_PASS=YES",
