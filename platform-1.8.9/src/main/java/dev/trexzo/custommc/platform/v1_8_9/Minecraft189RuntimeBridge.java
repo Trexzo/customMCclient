@@ -2757,7 +2757,9 @@ public final class Minecraft189RuntimeBridge {
                                     "CUSTOMMC_189_TRIGGERBOT_NATIVE_RAY_UUID_OWNED_CLICK_PASS=YES");
                             System.out.flush();
                         }
-                        Minecraft189VanillaMeleeAcceptance.syntheticTriggerStarted();
+                        // Do not arm a positive native TriggerBot attack
+                        // until the exact scheduled UUID is reverified at
+                        // original controller dispatch below.
                     }
                     if (Boolean.getBoolean(
                             "custommc.acceptance.reportAutoClicker")) {
@@ -2811,10 +2813,21 @@ public final class Minecraft189RuntimeBridge {
                             if (sourceUuid == null)
                                 throw new IllegalStateException(
                                         "TriggerBot dispatch has null source UUID");
+                            // The current World entity at playerIndex can
+                            // differ from the source native UUID that
+                            // originally earned TriggerBot CPS/confirmation.
+                            // A changed A->B->A index or OFF->ON must not
+                            // receive a synthetic attack. The original
+                            // entity/ray is checked again in the real
+                            // controller hook after this one-shot gate.
+                            if (!host.consumeTriggerDispatchUuid(sourceUuid))
+                                return;
                             if (Boolean.getBoolean(
-                                    "custommc.acceptance.reportTriggerBotRealPvp"))
+                                    "custommc.acceptance.reportTriggerBotRealPvp")) {
+                                Minecraft189VanillaMeleeAcceptance.syntheticTriggerStarted();
                                 Minecraft189VanillaMeleeAcceptance.onNativeClick(
                                         minecraft);
+                            }
                             triggerDispatchUuid.set(sourceUuid);
                             try {
                                 minecraft.customMcAttackCrosshairEntity();
