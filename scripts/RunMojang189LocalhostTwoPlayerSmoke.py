@@ -501,6 +501,40 @@ def actual_server_rejoined_host_recenter_fixture(host_tp, a_rejoined, b_outer):
     return host_tp
 
 
+def actual_server_rejoined_phase4_grounded_floor_fixture(host_tp, a_rejoined, b_outer):
+    """Return a real dedicated-server stone floor under ALL 3 phase4 players.
+
+    V193 original M419 failed after native phase4 source convergence:
+    actual 3D A=2.468526924, B=2.428179743, violating the unchanged
+    strict da+.12<db gate. A four-block survival floor alone did not
+    constrain both the original host and creative B's vertical physics.
+    Place genuine vanilla stone below all original server /tp feet,
+    preserving real player UUIDs, camera rays, exact target rotation,
+    original native controller and strict 3D checks.
+    """
+    # Existing source validation still requires 1.35 forward real A,
+    # offset 0.45 opposite B, same loaded chunk and non-occluding ray.
+    actual_server_rejoined_host_recenter_fixture(
+        host_tp, a_rejoined, b_outer)
+    host = host_tp.split()
+    a = a_rejoined.split()
+    b = b_outer.split()
+    hx, hy, hz = (int(v) for v in host[2:5])
+    ax, ay, az = (float(v) for v in a[2:5])
+    bx, by, bz = (int(v) for v in b[2:5])
+    if (hy != ay or hy != by):
+        raise AssertionError("M419 all real players must have same planned feet Y")
+    fx, fz = math.floor(ax), math.floor(az)
+    # Include the original 2x2 A footprint, genuine host center, and
+    # genuine survivor B center, no fabricated collision or world state.
+    lo_x, hi_x = min(fx, hx, bx), max(fx + 1, hx, bx)
+    lo_z, hi_z = min(fz, hz, bz), max(fz + 1, hz, bz)
+    if lo_x > hi_x or lo_z > hi_z:
+        raise AssertionError("M419 original floor bounds invalid")
+    return "fill {} {} {} {} {} {} stone".format(
+        lo_x, hy - 1, lo_z, hi_x, hy - 1, hi_z)
+
+
 def actual_server_three_client_rejoin_fixture(server_log):
     """Real server positions, with A nearer and locked survivor B in ray reach.
 
@@ -2225,8 +2259,36 @@ def run(args):
                     fx,int(ay)-1,fz,fx+1,int(ay)-1,fz+1)
                 send_server_command(server,server_log,floor,
                                     expected=b"4 blocks filled")
+                # V193 exact native original runtime later exposed REAL
+                # phase4 player-height divergence (A3D=2.469, B3D=2.428).
+                # A's 2x2 stone floor alone does not ground host and B:
+                # two vanilla players may fall differently during native
+                # rejoin, invalidating the strict .12 real 3D margin.
+                # Extend the ACTUAL dedicated-server floor to all 3 real
+                # positions, then reset B and A via server teleports
+                # BEFORE the host recenter and its 20 source snapshots.
+                grounded_floor = actual_server_rejoined_phase4_grounded_floor_fixture(
+                    host_tp, a_rejoined, b_outer)
+                send_server_command(server,server_log,grounded_floor,
+                                    expected=b"blocks filled")
+                hp, ap, bp = host_tp.split(), a_rejoined.split(), b_outer.split()
+                floor_y = int(hp[3]) - 1
+                original_stone_columns = (
+                    (int(hp[2]), int(hp[4])),
+                    (math.floor(float(ap[2])), math.floor(float(ap[4]))),
+                    (int(bp[2]), int(bp[4])))
+                for px,pz in set(original_stone_columns):
+                    send_server_command(server,server_log,
+                                        "testforblock {} {} {} stone".format(
+                                            px,floor_y,pz),
+                                        expected=b"successfully found the block")
+                print("CUSTOMMC_189_M419_NATIVE_THREE_PLAYER_GROUNDED_STONE_PASS=YES",
+                      flush=True)
                 send_server_command(server,server_log,"gamemode 0 CITarget")
-                send_server_command(server,server_log,a_rejoined)
+                send_server_command(server,server_log,b_outer,
+                                    expected=b"Teleported CITargetB to")
+                send_server_command(server,server_log,a_rejoined,
+                                    expected=b"Teleported CITarget to")
                 # V176 actual original crash: CIHost drifted ~0.7 from
                 # server-authored position during earlier live B combat,
                 # reducing strict 3D A/B separation to 0.079 < 0.120.
