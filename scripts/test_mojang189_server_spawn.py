@@ -292,7 +292,8 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
                 self.assertTrue(chosen.split()[4].endswith(".85"),
                                 "original fractional vanilla teleport must not re-center")
                 self.assertAlmostEqual(abs(az-(hz+.5)), 1.35,
-                                 "actual Minecraft /tp centers integer host")
+                                       places=6,
+                                       msg="actual Minecraft /tp centers integer host")
                 self.assertEqual(abs((bz+.5)-(hz+.5)), 2)
                 self.assertEqual(abs(bx-hx), 1)
                 self.assertEqual(hz//16, math.floor(az/16))
