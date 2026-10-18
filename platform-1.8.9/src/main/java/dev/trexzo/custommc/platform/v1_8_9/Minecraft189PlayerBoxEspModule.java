@@ -98,7 +98,7 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
                     "custommc.acceptance.expectedRealRemotePlayerBoxUuid");
             String realRemoteDrawn = null;
             String pixelRemoteUuid = null;
-            int[] sample = null;
+            int[][] samples = null;
             final boolean pixelRequired = Boolean.getBoolean(
                     "custommc.acceptance.requireRealRemoteBoxPixel");
             host.beginUi(new UiViewport(fw, fh, scale));
@@ -135,13 +135,23 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
                     if (Minecraft189PlayerBoxPixelProbe.shouldProbeOriginalRemote(
                             pixelRequired, acceptancePixelReported,
                             expected, actualUuid, width, height)) {
-                        final int[] candidate =
-                                Minecraft189PlayerBoxPixelProbe.sampleTopStroke(
+                        final int[][] candidate =
+                                Minecraft189PlayerBoxPixelProbe.sampleVisibleStrokePixels(
                                         left, top, width, height, t,
                                         scale, fw, fh);
-                        if (candidate != null) {
-                            sample = candidate;
+                        if (candidate.length > 0) {
+                            samples = candidate;
                             pixelRemoteUuid = actualUuid;
+                        } else if (acceptancePixelFailureSamples++ < 4) {
+                            // Distinguish a real clipped original AABB
+                            // with zero on-screen strokes from a failed GL
+                            // color read. No success is inferred in either.
+                            System.out.println("CUSTOMMC_BOX_PIXEL_DIAG no_visible_foreground_stroke"
+                                    + " uuid=" + actualUuid
+                                    + " rect=" + left + "," + top
+                                    + "," + width + "," + height
+                                    + " framebuffer=" + fw + "x" + fh);
+                            System.out.flush();
                         }
                     }
                 }
@@ -167,29 +177,37 @@ public final class Minecraft189PlayerBoxEspModule implements Module {
             // Exact expected UUID's outline was genuinely drawn into the
             // CURRENT native GL render target; only the explicit acceptance
             // test uses glReadPixels. No screenshot/pixel read in normal play.
-            if (pixelRemoteUuid != null && sample != null
+            if (pixelRemoteUuid != null && samples != null
                     && !acceptancePixelReported && pixelRequired) {
                 try {
-                    final ByteBuffer rgba = BufferUtils.createByteBuffer(4);
-                    GL11.glReadPixels(sample[0], sample[1], 1, 1,
-                            GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, rgba);
-                    final int red = rgba.get(0) & 0xFF;
-                    final int green = rgba.get(1) & 0xFF;
-                    final int blue = rgba.get(2) & 0xFF;
-                    if (Minecraft189PlayerBoxPixelProbe.isForegroundColor(
-                            red, green, blue)) {
-                        acceptancePixelReported = true;
-                        System.out.println(
-                                "CUSTOMMC_OFFICIAL_189_REAL_REMOTE_BOX_FRAMEBUFFER_PIXEL_PASS=YES uuid="
-                                        + pixelRemoteUuid
-                                        + " rgba=" + red + "," + green + ","
-                                        + blue + "," + (rgba.get(3) & 0xFF));
-                        System.out.flush();
-                    } else if (acceptancePixelFailureSamples++ < 4) {
-                        System.out.println("CUSTOMMC_BOX_PIXEL_DIAG expected=112,217,255"
-                                + " actual=" + red + "," + green + "," + blue
-                                + " sample=" + sample[0] + "," + sample[1]);
-                        System.out.flush();
+                    // Every candidate lies within an actual visible opaque
+                    // cyan original HUD stroke on the exact UUID-matched
+                    // source native projected player rectangle. Only the
+                    // REAL current GL framebuffer can certify its color.
+                    for (final int[] sample : samples) {
+                        final ByteBuffer rgba = BufferUtils.createByteBuffer(4);
+                        GL11.glReadPixels(sample[0], sample[1], 1, 1,
+                                GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, rgba);
+                        final int red = rgba.get(0) & 0xFF;
+                        final int green = rgba.get(1) & 0xFF;
+                        final int blue = rgba.get(2) & 0xFF;
+                        if (Minecraft189PlayerBoxPixelProbe.isForegroundColor(
+                                red, green, blue)) {
+                            acceptancePixelReported = true;
+                            System.out.println(
+                                    "CUSTOMMC_OFFICIAL_189_REAL_REMOTE_BOX_FRAMEBUFFER_PIXEL_PASS=YES uuid="
+                                            + pixelRemoteUuid
+                                            + " rgba=" + red + "," + green + ","
+                                            + blue + "," + (rgba.get(3) & 0xFF));
+                            System.out.flush();
+                            break;
+                        }
+                        if (acceptancePixelFailureSamples++ < 4) {
+                            System.out.println("CUSTOMMC_BOX_PIXEL_DIAG expected=112,217,255"
+                                    + " actual=" + red + "," + green + "," + blue
+                                    + " sample=" + sample[0] + "," + sample[1]);
+                            System.out.flush();
+                        }
                     }
                 } catch (RuntimeException | LinkageError readError) {
                     if (acceptancePixelFailureSamples++ < 4) {
