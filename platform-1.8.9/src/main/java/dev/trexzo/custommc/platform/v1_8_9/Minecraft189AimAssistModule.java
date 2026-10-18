@@ -232,6 +232,9 @@ public final class Minecraft189AimAssistModule
     private boolean enabled;
     private int correctionsUntilEligible;
     private int scheduledCorrectionInterval = DEFAULT_CORRECTION_INTERVAL;
+    // Original EntityPlayer yaw/pitch setters can synchronously change
+    // module activation or persisted eligibility between axes.
+    private long nativeRotationWriteEpoch;
 
     @Override
     public String id() {
@@ -328,12 +331,14 @@ public final class Minecraft189AimAssistModule
 
     @Override
     public synchronized void onEnable() {
+        ++nativeRotationWriteEpoch;
         enabled = true;
         resetCorrectionInterval();
     }
 
     @Override
     public synchronized void onDisable() {
+        ++nativeRotationWriteEpoch;
         enabled = false;
         resetCorrectionInterval();
     }
@@ -485,13 +490,27 @@ public final class Minecraft189AimAssistModule
             correctionsUntilEligible = interval - 1;
         }
 
+        // Exactly the current activation and source eligibility must own
+        // BOTH mapped vanilla rotation setters. The real yaw callback can
+        // disable/re-enable the module, open UI through persisted settings,
+        // or revoke pitch before the second original axis setter.
+        final long originalEpoch = nativeRotationWriteEpoch;
+        final Object[] originalPolicy = nativeRotationPolicy();
         if (adjustYaw
                 && Float.compare(rotation.yaw(), nextYaw) != 0) {
             player.customMcSetRotationYaw(nextYaw);
+            if (!nativeRotationWriteOwned(originalEpoch, originalPolicy)) {
+                resetCorrectionInterval();
+                return false;
+            }
         }
         if (adjustPitch
                 && Float.compare(rotation.pitch(), nextPitch) != 0) {
             player.customMcSetRotationPitch(nextPitch);
+            if (!nativeRotationWriteOwned(originalEpoch, originalPolicy)) {
+                resetCorrectionInterval();
+                return false;
+            }
         }
 
         return true;
@@ -499,6 +518,45 @@ public final class Minecraft189AimAssistModule
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    /**
+     * Immutable values of EVERY persisted source permission, axis, step,
+     * offset, FOV and correction cadence used by a single genuine yaw/pitch
+     * pair. Arrays.equals compares boxed immutable Setting values exactly.
+     */
+    private Object[] nativeRotationPolicy() {
+        return new Object[]{
+                yawSpeed.get(),
+                pitchSpeed.get(),
+                requireSprint.get(),
+                pauseWhileSneaking.get(),
+                requireGround.get(),
+                requireForward.get(),
+                requireHold.get(),
+                prioritizeCrosshair.get(),
+                minDistance.get(),
+                maxDistance.get(),
+                maxFov.get(),
+                maxPitchFov.get(),
+                yawOffset.get(),
+                pitchOffset.get(),
+                deadZone.get(),
+                yawEnabled.get(),
+                pitchEnabled.get(),
+                angularEasing.get(),
+                easingStrength.get(),
+                combinedStep.get(),
+                maxCombinedStep.get(),
+                correctionIntervalTicks.get()
+        };
+    }
+
+    private boolean nativeRotationWriteOwned(
+            final long expectedEpoch, final Object[] originalPolicy) {
+        return enabled && nativeRotationWriteEpoch == expectedEpoch
+                && java.util.Arrays.equals(
+                        originalPolicy, nativeRotationPolicy());
     }
 
     private void resetCorrectionInterval() {
