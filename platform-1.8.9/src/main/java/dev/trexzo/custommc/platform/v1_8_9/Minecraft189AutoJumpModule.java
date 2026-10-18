@@ -61,6 +61,12 @@ public final class Minecraft189AutoJumpModule
     // its countdown after landing must not replay an old native jump on the
     // same player contact (including after countdown reaches zero).
     private int landingDelayAtContact = -1;
+    // A physical airborne -> grounded contact owns the entire current
+    // persisted movement eligibility profile, not just its delay value.
+    private boolean forwardRequiredAtContact;
+    private boolean movementRequiredAtContact;
+    private boolean sprintRequiredAtContact;
+    private boolean pauseSneakingAtContact;
 
     @Override
     public String id() {
@@ -169,10 +175,23 @@ public final class Minecraft189AutoJumpModule
             // grounded update; a new airborne sample cancels the countdown.
             airborneObserved = false;
             landingDelayAtContact = landingDelayTicks.get().intValue();
+            forwardRequiredAtContact = requireForward.get().booleanValue();
+            movementRequiredAtContact = requireMovement.get().booleanValue();
+            sprintRequiredAtContact = requireSprinting.get().booleanValue();
+            pauseSneakingAtContact = pauseWhileSneaking.get().booleanValue();
             groundedUpdatesRemaining = landingDelayAtContact;
         }
         if (armed && landingDelayAtContact >= 0
-                && landingDelayAtContact != landingDelayTicks.get()) {
+                && (landingDelayAtContact != landingDelayTicks.get()
+                || (landingDelayAtContact > 0
+                    && (forwardRequiredAtContact
+                            != requireForward.get().booleanValue()
+                    || movementRequiredAtContact
+                            != requireMovement.get().booleanValue()
+                    || sprintRequiredAtContact
+                            != requireSprinting.get().booleanValue()
+                    || pauseSneakingAtContact
+                            != pauseWhileSneaking.get().booleanValue())))) {
             // A GUI/profile edit invalidates THIS observed landing even if
             // its old countdown has already elapsed and movement is gated.
             // Do not schedule a new jump until real source air->ground occurs.
