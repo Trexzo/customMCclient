@@ -51,6 +51,11 @@ public final class Minecraft189HostRuntime
     private Minecraft189WorldEntityVisibilityAccess tickVisibilityWorld;
     // Exact loaded-world object used for UUID parity, never a stored entity index.
     private Minecraft189WorldEntityUuidAccess tickUuidWorld;
+    // The genuine source UUID that earned a synthetic TriggerBot click
+    // must remain the SAME UUID at actual PlayerControllerMP dispatch.
+    private final Minecraft189TriggerDispatchUuidLease triggerDispatchLease =
+            new Minecraft189TriggerDispatchUuidLease();
+    private long triggerDispatchAdmissionSerial;
     private final Minecraft189CriticalsEvidence criticalsEvidence =
             new Minecraft189CriticalsEvidence();
     // Per-host-tick reference only; cleared before every new position sample.
@@ -2207,6 +2212,10 @@ public final class Minecraft189HostRuntime
     boolean shouldAutoClick(final boolean crosshairPlayerHit,
             final int crosshairPlayerIndex, final double[] nativeHitbox) {
         requireOpen();
+        // Nested external mapped World getters may reenter this scheduler.
+        // An older outer callback cannot revive its stale prior admission.
+        final long admissionSerial = ++triggerDispatchAdmissionSerial;
+        triggerDispatchLease.clear();
         // No automatic attack may cross the native ClickGUI focus boundary.
         // The same rule applies to hold and trigger modes; pending phase
         // is cancelled so closing the GUI cannot replay banked clicks.
@@ -2227,6 +2236,8 @@ public final class Minecraft189HostRuntime
         final boolean rightHeld = inputState.pointerPressed(
                 Minecraft189ClickRateTracker.RIGHT_BUTTON);
         final boolean click;
+        java.util.UUID verifiedTriggerUuid = null;
+        long verifiedTriggerEpoch = -1L;
         if (aura.active()) {
             trigger.suspend();
             featureCatalog.autoClicker().suspendForGui();
@@ -2295,9 +2306,19 @@ public final class Minecraft189HostRuntime
                 trigger.suspend();
                 return false;
             }
+            // Do not use pre-getter keyboard/pointer state after native
+            // World read: manual user input may have changed concurrently.
             click = trigger.shouldClick(
-                    confirmedHit, attackHeld, rightHeld,
+                    confirmedHit,
+                    inputState.pointerPressed(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON),
+                    inputState.pointerPressed(
+                            Minecraft189ClickRateTracker.RIGHT_BUTTON),
                     playerMovementState.snapshot(), nativeTarget);
+            if (click) {
+                verifiedTriggerUuid = nativeTarget;
+                verifiedTriggerEpoch = trigger.nativeWorldOwnerEpoch();
+            }
         } else {
             aura.suspend();
             trigger.suspend();
@@ -2360,9 +2381,44 @@ public final class Minecraft189HostRuntime
                         || featureCatalog.noClip().active())) {
             return false;
         }
+        if (admissionSerial != triggerDispatchAdmissionSerial)
+            return false;
+        if (verifiedTriggerUuid != null) {
+            // Require the ORIGINAL source UUID and module activation that
+            // actually earned confirmation, not just the reused index of
+            // the later native controller call.
+            final Minecraft189WorldEntityUuidState.Snapshot ids =
+                    worldEntityUuidState.snapshot();
+            if (!trigger.active() || aura.active()
+                    || verifiedTriggerEpoch != trigger.nativeWorldOwnerEpoch()
+                    || !ids.available() || crosshairPlayerIndex < 0
+                    || crosshairPlayerIndex >= ids.entityCount()
+                    || !verifiedTriggerUuid.equals(
+                            ids.at(crosshairPlayerIndex)))
+                return false;
+            triggerDispatchLease.arm(
+                    verifiedTriggerUuid, verifiedTriggerEpoch);
+        }
         clickRateTracker.recordPress(
                 Minecraft189ClickRateTracker.LEFT_BUTTON);
         return true;
+    }
+
+    /**
+     * Last gate BEFORE the original real player controller attack. The
+     * current original source UUID must equal the one that earned native
+     * TriggerBot crosshair confirmation; spend it exactly once even if
+     * the native player list index or module activation has changed.
+     */
+    boolean consumeTriggerDispatchUuid(final java.util.UUID sourceUuid) {
+        requireOpen();
+        return triggerDispatchLease.consume(
+                sourceUuid,
+                featureCatalog.triggerBot().nativeWorldOwnerEpoch(),
+                featureCatalog.triggerBot().active()
+                        && !featureCatalog.killAura().active()
+                        && !featureCatalog.autoClicker().active(),
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     public void publishTick(
