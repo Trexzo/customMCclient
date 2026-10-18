@@ -55,6 +55,8 @@ public final class Minecraft189BunnyHopModule
                     && value <= MAXIMUM_LANDING_DELAY_TICKS,
             SettingCodecs.INTEGER);
     private boolean enabled;
+    // Original native jump/velocity callbacks cannot own a later activation.
+    private long nativeHopEpoch;
     private boolean armed = true;
     private int eligibleLandingCallbacks;
     private int observedLandingDelay;
@@ -91,6 +93,7 @@ public final class Minecraft189BunnyHopModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeHopEpoch++;
         armed = true;
         resetLandingDelay();
     }
@@ -98,6 +101,7 @@ public final class Minecraft189BunnyHopModule
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeHopEpoch++;
         armed = true;
         resetLandingDelay();
     }
@@ -153,9 +157,13 @@ public final class Minecraft189BunnyHopModule
             return;
         }
 
-        player.customMcJump();
+        // Consume the old ground-contact lease BEFORE the mapped original
+        // player jump. That external call may synchronously OFF->ON and
+        // arm a NEW BunnyHop activation; the old callback cannot then
+        // disarm its new owner after the jump.
         armed = false;
         eligibleLandingCallbacks = 0;
+        player.customMcJump();
     }
 
     synchronized boolean applyMotion(
@@ -172,29 +180,15 @@ public final class Minecraft189BunnyHopModule
             return false;
         }
 
-        double forward =
-                (inputState.keyPressed(
-                        LegacyKeyboardCodes.W)
-                        ? 1.0D
-                        : 0.0D)
-                        + (inputState.keyPressed(
-                                LegacyKeyboardCodes.S)
-                                ? -1.0D
-                                : 0.0D);
-        double strafe =
-                (inputState.keyPressed(
-                        LegacyKeyboardCodes.A)
-                        ? 1.0D
-                        : 0.0D)
-                        + (inputState.keyPressed(
-                                LegacyKeyboardCodes.D)
-                                ? -1.0D
-                                : 0.0D);
-
-        final double inputLength =
-                Math.sqrt(
-                        forward * forward
-                                + strafe * strafe);
+        final long ownerEpoch = nativeHopEpoch;
+        final boolean w = inputState.keyPressed(LegacyKeyboardCodes.W);
+        final boolean backward = inputState.keyPressed(LegacyKeyboardCodes.S);
+        final boolean a = inputState.keyPressed(LegacyKeyboardCodes.A);
+        final boolean d = inputState.keyPressed(LegacyKeyboardCodes.D);
+        double forward = (w ? 1.0D : 0.0D)
+                - (backward ? 1.0D : 0.0D);
+        double strafe = (a ? 1.0D : 0.0D) - (d ? 1.0D : 0.0D);
+        final double inputLength = Math.hypot(forward, strafe);
         if (inputLength <= 0.0D) {
             return false;
         }
@@ -203,45 +197,60 @@ public final class Minecraft189BunnyHopModule
             strafe /= inputLength;
         }
 
-        final double yawRadians =
-                Math.toRadians(
-                        rotation.yaw());
-        final double sin =
-                Math.sin(
-                        yawRadians);
-        final double cos =
-                Math.cos(
-                        yawRadians);
-        final double configuredSpeed =
-                speed.get().doubleValue();
+        final double configuredSpeed = speed.get().doubleValue();
+        final boolean smoothing = smoothAcceleration.get().booleanValue();
+        final int acceleration = accelerationPercent.get().intValue();
+        final double fraction = smoothing ? acceleration / 100.0D : 1.0D;
+        final double yawRadians = Math.toRadians(rotation.yaw());
+        final double sin = Math.sin(yawRadians);
+        final double cos = Math.cos(yawRadians);
+        final double targetMotionX = cleanZero(
+                (-sin * forward + cos * strafe) * configuredSpeed);
+        final double targetMotionZ = cleanZero(
+                (cos * forward + sin * strafe) * configuredSpeed);
 
-        final double targetMotionX =
-                cleanZero(
-                        (-sin * forward
-                                + cos * strafe)
-                                * configuredSpeed);
-        final double targetMotionZ =
-                cleanZero(
-                        (cos * forward
-                                + sin * strafe)
-                                * configuredSpeed);
-
-        final double fraction = smoothAcceleration.get().booleanValue()
-                ? accelerationPercent.get().intValue() / 100.0D
-                : 1.0D;
-        // Each callback interpolates from the actual mapped velocity.
-        // No hidden phase credit, accumulated target or deferred writes.
+        // Use genuine original velocity for interpolation; each native
+        // getter may synchronously reenter module lifecycle, GUI policy
+        // or physical keys. Never read Z or write old X/Z after losing
+        // the exact callback owner.
         final double currentX = player.customMcMotionX();
+        if (!nativeMotionReadOwned(ownerEpoch, w, backward, a, d,
+                configuredSpeed, smoothing, acceleration)) {
+            return false;
+        }
         final double currentZ = player.customMcMotionZ();
+        if (!nativeMotionReadOwned(ownerEpoch, w, backward, a, d,
+                configuredSpeed, smoothing, acceleration)) {
+            return false;
+        }
+
         final double nextX = interpolate(currentX, targetMotionX, fraction);
         final double nextZ = interpolate(currentZ, targetMotionZ, fraction);
         if (Double.compare(currentX, nextX) != 0) {
             player.customMcSetMotionX(nextX);
+            if (!nativeMotionReadOwned(ownerEpoch, w, backward, a, d,
+                    configuredSpeed, smoothing, acceleration)) {
+                return false;
+            }
         }
         if (Double.compare(currentZ, nextZ) != 0) {
             player.customMcSetMotionZ(nextZ);
         }
         return true;
+    }
+
+    private boolean nativeMotionReadOwned(
+            final long epoch, final boolean w, final boolean backward,
+            final boolean a, final boolean d, final double speedAtRead,
+            final boolean smoothing, final int acceleration) {
+        return enabled && nativeHopEpoch == epoch
+                && inputState.keyPressed(LegacyKeyboardCodes.W) == w
+                && inputState.keyPressed(LegacyKeyboardCodes.S) == backward
+                && inputState.keyPressed(LegacyKeyboardCodes.A) == a
+                && inputState.keyPressed(LegacyKeyboardCodes.D) == d
+                && speed.get().doubleValue() == speedAtRead
+                && smoothAcceleration.get().booleanValue() == smoothing
+                && accelerationPercent.get().intValue() == acceleration;
     }
 
     synchronized boolean active() {
