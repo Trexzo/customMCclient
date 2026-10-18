@@ -89,6 +89,25 @@ public final class Minecraft189RuntimeBridge {
     }
 
     /**
+     * Strict ORIGINAL offline-acceptance window for the actual vanilla
+     * dedicated-server seven-block range-negative fixture.
+     *
+     * V165 moved its real remote player from four to seven blocks to avoid
+     * native drift into Aura's configured 3.5 reach, but this M189 source
+     * observer had continued requiring squared 3.8..4.8. It therefore
+     * *always* rejected real 7.0 (49.0) and could never collect the
+     * mandatory disabled-20 / enabled-80 source callbacks.
+     *
+     * This is ONLY a test-fixture source eligibility predicate. It does not
+     * alter actual Aura range, target selection, packets, hits or credits.
+     */
+    static boolean originalSevenBlockRangeFixtureDistance(final double squared) {
+        return Double.isFinite(squared)
+                && squared >= 42.25D // original 6.5 blocks: true 7 +/- 0.5
+                && squared <= 56.25D; // original 7.5 blocks
+    }
+
+    /**
      * Read-only classification of why a positive original Wall Check
      * lifecycle source witness cannot advance. These reasons NEVER replace
      * the real original 30 consecutive callbacks or grant attack permission.
@@ -2284,9 +2303,12 @@ public final class Minecraft189RuntimeBridge {
                     "custommc.acceptance.reportKillAuraRangeVeto")
                     && !acceptanceAuraFarReported) {
                 // Real-game fail-closed test: one genuinely server-owned
-                // nonlocal player, alive and consistently 3.8..4.8 blocks from
-                // CIHost. With default Kill Aura range 3.5 this player must
-                // NEVER become an automated attack target.
+                // remote living player, ~7 real blocks from CIHost in the
+                // same loaded dedicated-server chunk. The V165 native source
+                // fixture uses 7 +/- 0.5; the pre-V165 3.8..4.8 check
+                // rejected true 49.0 distanceSquared forever. Preserve
+                // Aura's ORIGINAL configured 3.5 reach and native no-hit
+                // negative; this is ONLY an observation-validity window.
                 final Minecraft189PlayerPositionState.Snapshot local =
                         host.playerPositionState().snapshot();
                 final Minecraft189WorldEntityPositionState.Snapshot positions =
@@ -2310,8 +2332,8 @@ public final class Minecraft189RuntimeBridge {
                         final double squared = dx * dx + dy * dy + dz * dz;
                         lastRemoteDistanceSquared = squared;
                         if (farIndex >= 0 || !kinds.living(i)
-                                || !Double.isFinite(squared)
-                                || squared < 14.44D || squared > 23.04D) {
+                                || !originalSevenBlockRangeFixtureDistance(
+                                        squared)) {
                             ambiguous = true;
                             break;
                         }
@@ -2331,7 +2353,13 @@ public final class Minecraft189RuntimeBridge {
                             + " entities=" + positions.entityCount()
                             + " remotePlayers=" + realRemotePlayers
                             + " distanceSquared=" + lastRemoteDistanceSquared
-                            + " qualifyingIndex=" + farIndex);
+                            + " validSevenBlockRange="
+                                    + originalSevenBlockRangeFixtureDistance(
+                                            lastRemoteDistanceSquared)
+                            + " qualifyingIndex=" + farIndex
+                            + " auraEnabledForAcceptance=" + acceptanceAuraFarEnabled
+                            + " disabledConsecutive=" + acceptanceAuraFarDisabledTicks
+                            + " enabledConsecutive=" + acceptanceAuraFarEnabledTicks);
                     System.out.flush();
                 }
                 if (farIndex < 0
