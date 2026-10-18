@@ -58,13 +58,16 @@ public final class Minecraft189AutoPotModule implements Module {
     private boolean enabled;
     private int remaining;
     private int knownCooldown;
+    private long lifecycleEpoch;
 
     @Override public String id() { return ID; }
     @Override public synchronized void onEnable() {
+        lifecycleEpoch++;
         enabled = true;
         reset();
     }
     @Override public synchronized void onDisable() {
+        lifecycleEpoch++;
         enabled = false;
         reset();
     }
@@ -142,6 +145,7 @@ public final class Minecraft189AutoPotModule implements Module {
     private double capturedHealthThreshold;
     private boolean capturedRequireTarget;
     private int capturedCooldown;
+    private long capturedLifecycleEpoch;
     // The actual original source ItemStack that passed native membership
     // and healing-potion checks, not another potion later in its old slot.
     private Minecraft189ItemStackAccess verifiedSelectedItem;
@@ -171,6 +175,7 @@ public final class Minecraft189AutoPotModule implements Module {
         capturedHealthThreshold = healthThreshold.get().doubleValue();
         capturedRequireTarget = requireTarget.get().booleanValue();
         capturedCooldown = cooldown.get().intValue();
+        capturedLifecycleEpoch = lifecycleEpoch;
         verifiedSelectedItem = null;
         try {
             inventory.customMcSetSelectedHotbarSlot(target);
@@ -178,7 +183,7 @@ public final class Minecraft189AutoPotModule implements Module {
             // reenter a user hotbar change, or disable the module.
             // Selection must never publish a successful lease unless
             // the actual source currentItem and module still agree.
-            if (!enabled || inventory.customMcSelectedHotbarSlot() != target) {
+            if (!ownsSelectedSlot(inventory, original)) {
                 restoreSlot(inventory, original);
                 return -1;
             }
@@ -200,7 +205,7 @@ public final class Minecraft189AutoPotModule implements Module {
      * during the native held-item read; that cannot authorize a synthetic
      * use of an unrelated item, even if its type happens to match.
      */
-    synchronized boolean ownsSelectedSlot(
+    private boolean capturedNativeUsePolicyMatches(
             final Minecraft189InventoryHotbarControl inventory,
             final int original) {
         return enabled && inventory != null && inventory == selectedInventory
@@ -215,7 +220,24 @@ public final class Minecraft189AutoPotModule implements Module {
                 && capturedRequireTarget == requireTarget.get()
                 && capturedCooldown == cooldown.get()
                 && original == previousSlot && selectedSlot >= 0
-                && inventory.customMcSelectedHotbarSlot() == selectedSlot;
+
+                && capturedLifecycleEpoch == lifecycleEpoch;
+    }
+
+    synchronized boolean ownsSelectedSlot(
+            final Minecraft189InventoryHotbarControl inventory,
+            final int original) {
+        if (!capturedNativeUsePolicyMatches(inventory, original))
+            return false;
+        // Genuine original InventoryPlayer.currentItem is an accessor and
+        // can synchronously trigger GUI edits/module restart/player input.
+        // Check the source slot twice and revalidate exact original policy
+        // after BOTH potentially reentrant reads.
+        if (inventory.customMcSelectedHotbarSlot() != selectedSlot
+                || !capturedNativeUsePolicyMatches(inventory, original))
+            return false;
+        return inventory.customMcSelectedHotbarSlot() == selectedSlot
+                && capturedNativeUsePolicyMatches(inventory, original);
     }
 
     /** A native healing potion accepted after the actual source-item scan. */
@@ -261,6 +283,7 @@ public final class Minecraft189AutoPotModule implements Module {
             capturedHealthThreshold = 0.0D;
             capturedRequireTarget = false;
             capturedCooldown = 0;
+            capturedLifecycleEpoch = 0;
             verifiedSelectedItem = null;
         }
     }
