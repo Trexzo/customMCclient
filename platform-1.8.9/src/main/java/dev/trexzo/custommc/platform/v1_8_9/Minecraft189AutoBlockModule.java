@@ -23,11 +23,23 @@ public final class Minecraft189AutoBlockModule implements Module {
     private boolean enabled;
     private boolean ownsBlock;
     private int age;
+    private long lifecycleEpoch;
+    private long nextUseToken;
+    private long pendingUseToken;
+    private long pendingEpoch;
+    private int pendingHoldTicks;
+    private boolean pendingManualPolicy;
 
     @Override public String id() { return ID; }
-    @Override public synchronized void onEnable() { enabled = true; }
+    @Override public synchronized void onEnable() {
+        lifecycleEpoch++;
+        pendingUseToken = 0;
+        enabled = true;
+    }
     @Override public synchronized void onDisable() {
         // Preserve pending release: native stop must happen on next callback.
+        lifecycleEpoch++;
+        pendingUseToken = 0;
         enabled = false;
     }
 
@@ -74,6 +86,34 @@ public final class Minecraft189AutoBlockModule implements Module {
                 && (!pauseManualRight.get() || !manualRightHeld);
     }
 
+    /** Reserves a single use-result token after the current native admission. */
+    synchronized long beginNativeUse() {
+        if (!enabled || ownsBlock) return 0;
+        final long token = ++nextUseToken;
+        pendingUseToken = token;
+        pendingEpoch = lifecycleEpoch;
+        pendingHoldTicks = holdTicks.get();
+        pendingManualPolicy = pauseManualRight.get();
+        return token;
+    }
+
+    /** Commit only an unchanged native right-click result for this activation. */
+    synchronized boolean completeNativeUse(final long token,
+            final boolean swordStillHeld, final boolean guiOpen,
+            final boolean manualRightHeld) {
+        final boolean valid = token != 0 && token == pendingUseToken
+                && pendingEpoch == lifecycleEpoch && enabled
+                && !ownsBlock && swordStillHeld && !guiOpen
+                && !manualRightHeld && pendingHoldTicks == holdTicks.get()
+                && pendingManualPolicy == pauseManualRight.get();
+        if (token != 0 && token == pendingUseToken) pendingUseToken = 0;
+        if (valid) {
+            ownsBlock = true;
+            age = 0;
+        }
+        return valid;
+    }
+
     /** Only call after native rightClickMouse returns and isUsingItem is true. */
     synchronized void started() {
         if (enabled) {
@@ -83,6 +123,8 @@ public final class Minecraft189AutoBlockModule implements Module {
     }
 
     synchronized void forgetForShutdown() {
+        lifecycleEpoch++;
+        pendingUseToken = 0;
         ownsBlock = false;
         age = 0;
         enabled = false;
