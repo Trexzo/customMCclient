@@ -350,6 +350,37 @@ def prepare_verified_native_dry_chamber(process, log, window):
                        "/fill 5 80 5 11 86 11 air")
 
 
+def prepare_verified_original_scaffold_raytrace_support(
+        process, log, window):
+    """Build the genuine V19 World.rayTraceBlocks stone source fixture.
+
+    Old V19 used fire-and-forget /setblock; an original run can keep the
+    player stably at x=.5,y=100,z=.5 yet never prove the block under them
+    was stone. Fresh vanilla AIR contrast and a strictly changed STONE
+    reply prove World construction ONLY, not source ray-hit acceptance.
+    """
+    command = "/fill 0 99 0 0 99 0 air"
+    cursor = log.stat().st_size if log.exists() else 0
+    send_command(process, log, window, command)
+    stop = time.monotonic() + 8
+    while time.monotonic() < stop:
+        require_running(process, "genuine original Scaffold raytrace air reset")
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read()
+        result = original_dry_chamber_preclear_reply(fresh)
+        if result is not None:
+            break
+        time.sleep(.2)
+    else:
+        raise AssertionError(
+            "missing fresh vanilla V19 raytrace support preclear reply")
+    # The preclear is not a positive raycast or source World certification.
+    # Original 1.8.9 must subsequently acknowledge a CHANGED stone cell.
+    send_verified_fill(process, log, window,
+                       "/fill 0 99 0 0 99 0 stone")
+
+
 def prepare_verified_original_scaffold_survival_edge(
         process, log, window):
     """A genuine block-edge fixture with independently changed World cells.
@@ -1295,7 +1326,11 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 prior = read_tail(log)
                 if b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_NATIVE_WORLD_UP_FACE_RAYTRACE_PASS=YES" in prior:
                     raise AssertionError("raytrace witness appeared before real stone support setup")
-                send_command(process, log, window, "/setblock 0 99 0 stone")
+                # V172: the old /setblock had no actual server-changed
+                # confirmation; a stable original player position alone
+                # does not prove the UP-face target exists in World.
+                prepare_verified_original_scaffold_raytrace_support(
+                    process, log, window)
                 send_command(process, log, window, "/tp 0.5 100 0.5 0 0")
                 await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_RAYTRACE_WRONG_FACE_BLOCK_VETO_PASS=YES",
