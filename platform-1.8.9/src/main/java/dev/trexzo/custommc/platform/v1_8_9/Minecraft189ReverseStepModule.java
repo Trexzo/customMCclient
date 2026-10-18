@@ -50,6 +50,8 @@ public final class Minecraft189ReverseStepModule
                     REQUIRE_MOVEMENT_SETTING_ID, Boolean.FALSE,
                     value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // A real mapped Y getter can synchronously revoke a prior departure.
+    private long nativeReadEpoch;
     private boolean previousAvailable;
     private boolean previousOnGround;
     // -1 means there is no armed ground-to-air transition. A value of
@@ -81,12 +83,14 @@ public final class Minecraft189ReverseStepModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeReadEpoch++;
         resetTransition();
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeReadEpoch++;
         resetTransition();
     }
 
@@ -156,15 +160,30 @@ public final class Minecraft189ReverseStepModule
             pendingDelay--;
             return false;
         }
-        // Consume exactly once per real grounded -> airborne transition,
-        // including when the player is rising or already descending faster.
+        // Consume exactly once per genuine ground->air transition BEFORE
+        // reading external player state: an old source callback never
+        // passes the pending delay credit into a new module activation.
         pendingDelay = -1;
+        final long epoch = nativeReadEpoch;
+        final double configuredSpeed = speed.get().doubleValue();
+        final int configuredDelay = delayTicks.get().intValue();
+        final boolean requiresSneak = requireSneaking.get().booleanValue();
+        final boolean requiresMovement = requireMovement.get().booleanValue();
         final double currentMotionY = player.customMcMotionY();
+        if (!enabled || nativeReadEpoch != epoch
+                || speed.get().doubleValue() != configuredSpeed
+                || delayTicks.get().intValue() != configuredDelay
+                || requireSneaking.get().booleanValue() != requiresSneak
+                || requireMovement.get().booleanValue() != requiresMovement
+                || (requiresSneak && !movement.sneaking())
+                || (requiresMovement && !movementHeld)) {
+            // No synthetic delayed replay after a reentrant GUI edit.
+            return false;
+        }
         if (!Double.isFinite(currentMotionY) || currentMotionY > 0.0D) {
             return false;
         }
-
-        final double targetMotionY = -speed.get().doubleValue();
+        final double targetMotionY = -configuredSpeed;
         if (currentMotionY > targetMotionY) {
             player.customMcSetMotionY(targetMotionY);
             return true;
