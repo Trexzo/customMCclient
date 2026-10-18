@@ -334,22 +334,48 @@ class OriginalM419GroundedNativeThreePlayerFixtureTest(unittest.TestCase):
                 actual_server_rejoined_phase4_grounded_floor_fixture(
                     good_host,wrong_a,good_b)
 
-    def test_three_original_server_teleports_and_stone_ack_before_live_b_proof(self):
+    def test_original_source_stone_ack_then_one_a_and_host_no_second_b(self):
         src=(Path(__file__).parent /
              "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
         start=src.find("grounded_floor = actual_server_rejoined_phase4_grounded_floor_fixture")
         self.assertGreater(start,0)
         floor_ack=src.find('expected=b"blocks filled"',start)
         real_stone=src.find('"testforblock {} {} {} stone"',floor_ack)
-        b_teleport=src.find("send_server_command(server,server_log,b_outer",real_stone)
-        a_teleport=src.find("send_server_command(server,server_log,a_rejoined",b_teleport)
+        a_teleport=src.find("send_server_command(server,server_log,a_rejoined",real_stone)
         host_teleport=src.find("send_server_command(server,server_log,phase4_host",a_teleport)
         stable=src.find("wait_for_new_original_source_marker(",host_teleport)
         reset=src.find('"scoreboard players set CITargetB taken 0"',stable)
-        self.assertTrue(0<start<floor_ack<real_stone<b_teleport
-                        <a_teleport<host_teleport<stable<reset,
-                        "real native stone and real three teleports precede"
-                        " 20 live-source checks and independent B damage")
+        self.assertTrue(0<start<floor_ack<real_stone<a_teleport
+                        <host_teleport<stable<reset,
+                        "true native A+host teleport follows verified three-player stone"
+                        " and precedes fresh 20-source snapshots and damage")
+        phase4=src[start:host_teleport]
+        self.assertNotIn("send_server_command(server,server_log,b_outer",phase4,
+                         "re-teleporting previously locked B can transiently"
+                         " invalidate the actual source World B UUID lock")
+        self.assertEqual(phase4.count(
+            "send_server_command(server,server_log,a_rejoined"),1,
+            "exactly one pre-controller true native A after Survival gate")
+        self.assertIn('expected=b"Teleported CITarget to"',phase4)
+
+    def test_original_v196_failure_was_real_transient_b_range_not_fake_uuid(self):
+        # The historical native Minecraft original failure was a REAL
+        # source state: B moved beyond the unchanged maximum reach and the
+        # client selected A. Never count that as positive owner evidence.
+        da, db = 1.7891839931361735, 3.960637161313068
+        self.assertLess(da,db)
+        self.assertGreater(db,3.5)
+        src=(Path(__file__).parent /
+             "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
+        begin=src.find("grounded_floor = actual_server_rejoined_phase4_grounded_floor_fixture")
+        end=src.find("wait_for_new_original_source_marker(",begin)
+        self.assertNotIn("send_server_command(server,server_log,b_outer",src[begin:end])
+        acceptance=(Path(__file__).parent.parent /
+                    "platform-1.8.9/src/main/java/dev/trexzo/custommc/platform"
+                    "/v1_8_9/Minecraft189RejoinTargetAcceptance.java").read_text()
+        self.assertIn('return "survivor-B-outside-original-[1,3.5]-reach"',acceptance)
+        self.assertIn("survivorUuid.equals(aura.lockedTargetUuid())",acceptance)
+
 
     def test_original_controller_strict_three_dimensional_margin_not_weakened(self):
         acceptance=(Path(__file__).parent.parent /

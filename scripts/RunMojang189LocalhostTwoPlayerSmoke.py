@@ -2264,9 +2264,11 @@ def run(args):
                 # A's 2x2 stone floor alone does not ground host and B:
                 # two vanilla players may fall differently during native
                 # rejoin, invalidating the strict .12 real 3D margin.
-                # Extend the ACTUAL dedicated-server floor to all 3 real
-                # positions, then reset B and A via server teleports
-                # BEFORE the host recenter and its 20 source snapshots.
+                # Extend ACTUAL dedicated-server floor to all 3 real
+                # positions but DO NOT issue a second B teleport after
+                # locked source UUID B and phase4 World are established.
+                # Reuse the existing single original A post-Survival
+                # teleport, then recenter host and prove 20 native frames.
                 grounded_floor = actual_server_rejoined_phase4_grounded_floor_fixture(
                     host_tp, a_rejoined, b_outer)
                 send_server_command(server,server_log,grounded_floor,
@@ -2284,9 +2286,16 @@ def run(args):
                                         expected=b"successfully found the block")
                 print("CUSTOMMC_189_M419_NATIVE_THREE_PLAYER_GROUNDED_STONE_PASS=YES",
                       flush=True)
+                # Do NOT re-teleport already UUID-locked original B here.
+                # V196 native run confirmed the transient true B source
+                # distance grew to 3.9606 while actual A was selected,
+                # causing a correctly rejected phase4 wrong-UUID attack.
+                # All three ACTUAL stone blocks are now server-verified.
+                # A already has its original valid server /tp above;
+                # change it to Survival and retain one original /tp so
+                # its true client position is grounded, but NEVER add
+                # further target B/source index churn after sticky B lock.
                 send_server_command(server,server_log,"gamemode 0 CITarget")
-                send_server_command(server,server_log,b_outer,
-                                    expected=b"Teleported CITargetB to")
                 send_server_command(server,server_log,a_rejoined,
                                     expected=b"Teleported CITarget to")
                 # V176 actual original crash: CIHost drifted ~0.7 from
