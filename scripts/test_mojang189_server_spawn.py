@@ -701,7 +701,7 @@ class OriginalM419InitialPrelockRealSourceMarginTest(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError,"chunk"):
             actual_server_original_rejoin_prelock_a_fixture(host,a,b)
         for broken in ("tp NOT_A 15 5 5 180 0",
-                       "tp CITarget 14 5 5 180 0",
+                       "tp CITarget 13 5 5 180 0",
                        "tp CITarget 15 5 9 180 0"):
             with self.assertRaises(AssertionError):
                 actual_server_original_rejoin_prelock_a_fixture(
