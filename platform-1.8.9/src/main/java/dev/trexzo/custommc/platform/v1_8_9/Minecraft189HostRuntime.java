@@ -2045,6 +2045,14 @@ public final class Minecraft189HostRuntime
                 && !featureCatalog.autoWeapon().ownsVerifiedSwordAtDispatch(
                         combatSlotLeaseInventory, originalSlot))
             return false;
+        // Unlike AutoWeapon's typed ItemSword, fixed CombatSlot's original
+        // slot authorization is a live GUI policy. Do not attack using an
+        // old selected currentItem after preferredSlot/requireHit edits or
+        // disable->enable, even when the same original slot remains set.
+        if (!autoWeaponOwnedClick
+                && !featureCatalog.combatSlot().ownsVerifiedSlotAtDispatch(
+                        combatSlotLeaseInventory, originalSlot))
+            return false;
         return combatSlotLeasePlayer == tickHotbarPlayer
                 && combatSlotLeaseInventory == tickHotbarControl
                 && combatSlotLeaseInventory.customMcSelectedHotbarSlot()
