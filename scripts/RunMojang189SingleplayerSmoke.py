@@ -350,6 +350,42 @@ def prepare_verified_native_dry_chamber(process, log, window):
                        "/fill 5 80 5 11 86 11 air")
 
 
+def prepare_verified_original_scaffold_survival_edge(
+        process, log, window):
+    """A genuine block-edge fixture with independently changed World cells.
+
+    Prior original V169 V29 source player was stable at 1.05/100/.5 but
+    the enabled Scaffold did not admit a vanilla controller click. Its
+    original /setblock stone/air messages were fire-and-forget. Require
+    a fresh vanilla reply to a sacrificial AIR preclear, and actual
+    positive World changes to BOTH support and target with real /fill.
+    This is only World preparation, never a synthetic placement PASS.
+    """
+    preclear = "/fill 0 99 0 1 99 0 air"
+    cursor = log.stat().st_size if log.exists() else 0
+    send_command(process, log, window, preclear)
+    stop = time.monotonic() + 8
+    while time.monotonic() < stop:
+        require_running(process, "original survival Scaffold real air reset")
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read()
+        result = original_dry_chamber_preclear_reply(fresh)
+        if result is not None:
+            break
+        time.sleep(.2)
+    else:
+        raise AssertionError(
+            "no fresh original Scaffold air-preclear vanilla reply")
+    # The fresh air acknowledgment is NOT an enabled placement proof.
+    # Genuine changed-block confirmations here are mandatory:
+    # (0,99,0) stays STONE support; (1,99,0) stays AIR target.
+    send_verified_fill(process, log, window,
+                       "/fill 0 99 0 1 99 0 stone")
+    send_verified_fill(process, log, window,
+                       "/fill 1 99 0 1 99 0 air")
+
+
 def prepare_native_scaffold_context_chamber(process, log, window):
     """Make a real vanilla ground fixture INSIDE loaded chunk (0, 0).
 
@@ -1173,8 +1209,12 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 send_command(process, log, window, "/time set 1000")
                 send_command(process, log, window, "/tp 0.5 120 0.5 0 0")
                 time.sleep(2.0)
-                send_command(process, log, window, "/setblock 0 99 0 stone")
-                send_command(process, log, window, "/setblock 1 99 0 air")
+                # V171: old original V29 fire-and-forget /setblock did
+                # not prove the actual support and air target existed.
+                # This uses two fresh POSITIVE original vanilla /fill
+                # World changes, after a strictly acknowledged air reset.
+                prepare_verified_original_scaffold_survival_edge(
+                    process, log, window)
                 send_command(process, log, window, "/tp 1.05 100 0.5 90 88.6")
                 send_command(process, log, window, "/gamemode 0")
                 stable_start = time.monotonic()
