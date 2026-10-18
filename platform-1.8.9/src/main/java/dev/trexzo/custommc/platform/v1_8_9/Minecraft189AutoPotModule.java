@@ -130,6 +130,28 @@ public final class Minecraft189AutoPotModule implements Module {
         }
     }
 
+    /**
+     * Only the completed genuine native right-click may spend cooldown on
+     * the SAME one-shot original module/InventoryPlayer activation. The
+     * original right-click can consume the ItemStack or move currentItem,
+     * so post-click identity cannot be re-read here; this is a lifetime
+     * and one-shot token, NOT a new native use authorization.
+     */
+    synchronized boolean commitCompletedOriginalUse(
+            final Minecraft189InventoryHotbarControl inventory,
+            final int original) {
+        if (!enabled || inventory == null || inventory != selectedInventory
+                || original != previousSlot || original < 0 || original > 8
+                || selectedSlot < 0 || selectedSlot > 8
+                || capturedLifecycleEpoch != lifecycleEpoch
+                || cooldownCommittedForLease)
+            return false;
+        cooldownCommittedForLease = true; // consume before any source callback
+        remaining = cooldown.get();
+        knownCooldown = cooldown.get();
+        return true;
+    }
+
     // Synchronous native hotbar lease. Persist the ACTUAL slot chosen for
     // this attempt: a UI setting change before finally/restore must not
     // strand the selected rod/potion or overwrite another actor's slot.
@@ -146,6 +168,7 @@ public final class Minecraft189AutoPotModule implements Module {
     private boolean capturedRequireTarget;
     private int capturedCooldown;
     private long capturedLifecycleEpoch;
+    private boolean cooldownCommittedForLease;
     // The actual original source ItemStack that passed native membership
     // and healing-potion checks, not another potion later in its old slot.
     private Minecraft189ItemStackAccess verifiedSelectedItem;
@@ -176,6 +199,7 @@ public final class Minecraft189AutoPotModule implements Module {
         capturedRequireTarget = requireTarget.get().booleanValue();
         capturedCooldown = cooldown.get().intValue();
         capturedLifecycleEpoch = lifecycleEpoch;
+        cooldownCommittedForLease = false;
         verifiedSelectedItem = null;
         try {
             inventory.customMcSetSelectedHotbarSlot(target);
@@ -284,6 +308,7 @@ public final class Minecraft189AutoPotModule implements Module {
             capturedRequireTarget = false;
             capturedCooldown = 0;
             capturedLifecycleEpoch = 0;
+            cooldownCommittedForLease = false;
             verifiedSelectedItem = null;
         }
     }
