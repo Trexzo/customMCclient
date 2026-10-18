@@ -86,4 +86,57 @@ final class Minecraft189M419NativeControllerSourceDiagnosticTest {
                 reason(true, 8, 3, a, b,
                         true, true, true, true, false));
     }
+    @Test void originalV196OutOfRangeBIsRejectedBeforeAnySyntheticClick() {
+        // Original Mojang V196/V197 source telemetry, not invented range.
+        final double a=1.7580159040626773;
+        final double b=3.9382332372799493;
+        final String reason=reason(true,6,1,a,b,
+                false,true,true,false,true);
+        assertEquals("survivor-B-outside-original-[1,3.5]-reach",reason);
+        assertTrue(Minecraft189RejoinTargetAcceptance
+                .m419MustVetoPendingSyntheticClick(true,4,reason,false));
+    }
+
+    @Test void genuinePhaseFourOriginalSourceBLockAndRayCanProceedToStrictController() {
+        // This predicate NEVER grants a click: strict UUID/source World,
+        // real PlayerControllerMP argument and B-only server score still
+        // decide the outcome independently.
+        assertNull(reason(true,6,1,1.5D,2.236D,
+                true,true,true,true,true));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m419MustVetoPendingSyntheticClick(true,4,null,true));
+    }
+
+    @Test void rejoinedAAsOriginalRayTargetMustFailClosedEvenIfOtherSourcesValid() {
+        assertTrue(Minecraft189RejoinTargetAcceptance
+                .m419MustVetoPendingSyntheticClick(true,4,null,false));
+        assertTrue(Minecraft189RejoinTargetAcceptance
+                .m419MustVetoPendingSyntheticClick(true,4,
+                        "survivor-B-not-source-selected",true));
+    }
+
+    @Test void otherOriginalPhasesCannotBeChangedByM419TransientVeto() {
+        for(int phase: new int[]{0,1,2,3,5,6}) {
+            assertFalse(Minecraft189RejoinTargetAcceptance
+                    .m419MustVetoPendingSyntheticClick(true,phase,
+                            "rejoined-A-not-0.12-closer-in-3D",false));
+        }
+    }
+
+    @Test void normalGameplayWithoutOriginalM419AcceptanceUnmodified() {
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m419MustVetoPendingSyntheticClick(false,4,
+                        "survivor-B-outside-original-[1,3.5]-reach",false));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m419MustVetoPendingSyntheticClick(false,4,null,false));
+    }
+
+    @Test void strictM419OriginalThreeDimensionalClosenessNotTurnedIntoPass() {
+        final String reason=reason(true,6,1,2.468526924409685D,
+                2.4281797437686112D,true,true,true,true,true);
+        assertEquals("rejoined-A-not-0.12-closer-in-3D",reason);
+        assertTrue(Minecraft189RejoinTargetAcceptance
+                .m419MustVetoPendingSyntheticClick(true,4,reason,true));
+    }
+
 }

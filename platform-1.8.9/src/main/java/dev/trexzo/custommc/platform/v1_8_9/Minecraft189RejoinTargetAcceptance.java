@@ -23,6 +23,7 @@ final class Minecraft189RejoinTargetAcceptance {
     private static int prelockNativeEvidenceTicks;
     private static int nativeCrosshairEvidenceTicks;
     private static int m419NativeStableSourceTicks;
+    private static int m419TransientWrongOwnerVetoCount;
 
     private Minecraft189RejoinTargetAcceptance() {}
 
@@ -43,6 +44,7 @@ final class Minecraft189RejoinTargetAcceptance {
         prelockNativeEvidenceTicks = 0;
         nativeCrosshairEvidenceTicks = 0;
         m419NativeStableSourceTicks = 0;
+        m419TransientWrongOwnerVetoCount = 0;
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
@@ -633,6 +635,60 @@ final class Minecraft189RejoinTargetAcceptance {
                 + positions.y(e.a) + "," + positions.z(e.a) + ")"
                 + " originalNativeBXYZ=(" + positions.x(e.b) + ","
                 + positions.y(e.b) + "," + positions.z(e.b) + ")";
+    }
+
+    /**
+     * A phase4 server /tp or original World update can temporarily place
+     * true B outside reach while A is genuinely the native selected player.
+     * The correct behavior is to issue NO synthetic melee command to A.
+     * Do NOT turn this veto into a PASS: the original 20 fresh stable
+     * B-locked World snapshots, strict real controller argument B UUID,
+     * ray and dedicated server B-only damage remain mandatory.
+     * Ordinary game/manual attacks are not intercepted here.
+     */
+    static boolean m419MustVetoPendingSyntheticClick(
+            final boolean acceptanceEnabled, final int observedPhase,
+            final String realSourceRejection, final boolean nativeRayHitsB) {
+        return acceptanceEnabled && observedPhase == 4
+                && (realSourceRejection != null || !nativeRayHitsB);
+    }
+
+    static boolean vetoTransientUnownedPhaseFourSyntheticClick(
+            final Minecraft189HostRuntime host,
+            final boolean originalPlayerHit, final int originalHitIndex) {
+        final boolean acceptanceEnabled =
+                Boolean.getBoolean("custommc.acceptance.reportKillAuraRejoin")
+                && Boolean.getBoolean("custommc.acceptance.requireRejoinedControllerB");
+        if (!acceptanceEnabled || phase != 4) return false;
+        final Evidence e = read(host);
+        final Minecraft189KillAuraModule aura =
+                host.featureCatalog().killAura();
+        final String sourceReason = m419SourceRejection(e, aura, true);
+        final boolean originalRayHitsB = e != null && e.b >= 0
+                && originalPlayerHit && originalHitIndex == e.b
+                && survivorUuid.equals(e.ids.at(e.b));
+        if (!m419MustVetoPendingSyntheticClick(
+                acceptanceEnabled, phase, sourceReason, originalRayHitsB))
+            return false;
+        // READ ONLY and tightly bounded diagnostics; no success marker.
+        // A permanently invalid World is still a genuine timed CI FAIL.
+        final int samples = ++m419TransientWrongOwnerVetoCount;
+        if (samples <= 4 || samples % 80 == 0) {
+            System.out.println("CUSTOMMC_189_M419_TRANSIENT_WRONG_UUID_CLICK_VETO"
+                    + " observed=" + samples
+                    + " reason=" + sourceReason
+                    + " sourceRayB=" + originalRayHitsB
+                    + " nativeRayIndex=" + originalHitIndex
+                    + " nativeAIndex=" + (e == null ? -2 : e.a)
+                    + " nativeBIndex=" + (e == null ? -2 : e.b)
+                    + " nativeA3D=" + (e == null ? Double.NaN : e.da)
+                    + " nativeB3D=" + (e == null ? Double.NaN : e.db)
+                    + " nativeSelectedB=" + (e != null && e.selected(e.b))
+                    + " nativeLocked=" + aura.lockedTargetUuid()
+                    + m419NativeCoordinateDiagnostics(host, e));
+            System.out.flush();
+        }
+        return true;
     }
 
     /**
