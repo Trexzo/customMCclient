@@ -45,6 +45,8 @@ public final class Minecraft189StepModule
             value -> value != null && value >= 60 && value <= 250,
             SettingCodecs.INTEGER);
     private boolean enabled;
+    // Real mapped step-height getter can reenter module or GUI setting.
+    private long nativeReadEpoch;
 
     @Override
     public String id() {
@@ -74,11 +76,13 @@ public final class Minecraft189StepModule
     @Override
     public synchronized void onEnable() {
         enabled = true;
+        nativeReadEpoch++;
     }
 
     @Override
     public synchronized void onDisable() {
         enabled = false;
+        nativeReadEpoch++;
     }
 
     synchronized void apply(
@@ -100,8 +104,14 @@ public final class Minecraft189StepModule
             return;
         }
 
+        // Capture the current native-player read owner's full policy
+        // before calling the external mapped source getter.
+        final long ownerEpoch = nativeReadEpoch;
         final boolean groundGate = groundOnly.get().booleanValue();
         final boolean sneakGate = pauseWhileSneaking.get().booleanValue();
+        final boolean airOverride = airborneOverride.get().booleanValue();
+        final int airbornePercent = airborneHeightPercent.get().intValue();
+        final int groundPercent = heightPercent.get().intValue();
         // A boosted step height is persistent native player state. When
         // the original GUI takes focus, restore normal vanilla collision
         // height rather than merely skipping this callback and retaining
@@ -118,15 +128,31 @@ public final class Minecraft189StepModule
         // Select the opt-in airborne height only when the mapped state
         // confirms a real airborne condition. Existing permission gates,
         // particularly Ground Only, retain priority.
-        final boolean airborne = permitted
-                && airborneOverride.get().booleanValue()
+        final boolean airborne = permitted && airOverride
                 && movement != null && movement.available()
                 && !movement.onGround();
         final float target = permitted
-                ? (airborne ? airborneHeightPercent.get().intValue()
-                        : heightPercent.get().intValue()) / 100.0F
+                ? (airborne ? airbornePercent : groundPercent) / 100.0F
                 : VANILLA_STEP_HEIGHT;
         final float current = player.customMcStepHeight();
+        if (ownerEpoch != nativeReadEpoch
+                || groundOnly.get().booleanValue() != groundGate
+                || pauseWhileSneaking.get().booleanValue() != sneakGate
+                || airborneOverride.get().booleanValue() != airOverride
+                || airborneHeightPercent.get().intValue() != airbornePercent
+                || heightPercent.get().intValue() != groundPercent) {
+            // A reentrant disable cannot leave a boosted 1+ original
+            // step height stuck while the module is now OFF. Release
+            // to the vanilla collision height, never the stale boost.
+            // An OFF->ON cycle is a different new owner: leave its
+            // motion unchanged for the next authorized callback.
+            if (!enabled
+                    && (!Float.isFinite(current)
+                    || Math.abs(current - VANILLA_STEP_HEIGHT) > 0.000001F)) {
+                player.customMcSetStepHeight(VANILLA_STEP_HEIGHT);
+            }
+            return;
+        }
         if (!Float.isFinite(current)
                 || Math.abs(current - target) > 0.000001F) {
             player.customMcSetStepHeight(target);
