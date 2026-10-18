@@ -318,6 +318,7 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
                                    "true 0.6-wide original A must miss native B ray")
 
     def test_original_v172_real_ray_hit_a_despite_selected_locked_b_regression(self):
+        import math
         # V172 exact original phase4 observed A index6 under the genuine
         # mapped Mojang objectMouseOver while *selected* B was index1.
         # It must not ever be counted as B controller or server B damage.
