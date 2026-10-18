@@ -179,6 +179,38 @@ def actual_server_spawn_range_negative_fixture(server_log):
     )
 
 
+def actual_server_fov_ground_support_fixture(host_tp, target_tp):
+    """Two real rear-player test feet get a verified vanilla stone floor.
+
+    The V175 original late FOV run measured horizontal=2.0 yet native 3D
+    distance=5.85, invalidating the genuine <3.5 reach prerequisite. This
+    helper derives ONLY actual server commands from that same login-based
+    host/target, never changes source player coordinates or FOV checks.
+    """
+    host = host_tp.split()
+    target = target_tp.split()
+    if (len(host) != 7 or len(target) != 7
+            or host[:2] != ["tp", "CIHost"]
+            or target[:2] != ["tp", "CITarget"]):
+        raise AssertionError("FOV support requires original server teleports")
+    try:
+        hx, hy, hz = (int(v) for v in host[2:5])
+        tx, ty, tz = (int(v) for v in target[2:5])
+    except ValueError as error:
+        raise AssertionError("FOV floor source coordinates invalid") from error
+    if hx != tx or hy != ty or abs(tz-hz) != 2 or not (1 <= hy <= 254):
+        raise AssertionError("FOV original two-player ground geometry unexpected")
+    if hx//16 != tx//16 or hz//16 != tz//16:
+        raise AssertionError("FOV genuine floor crosses original loaded chunk")
+    # Real 3x5 solid floor at player feet y-1, with a 1-block lateral
+    # margin for normal original player movement on either side.
+    x0, x1 = hx-1, hx+1
+    z0, z1 = min(hz, tz)-1, max(hz, tz)+1
+    prefix = "fill {} {} {} {} {} {}".format(
+        x0, hy-1, z0, x1, hy-1, z1)
+    return prefix + " air", prefix + " stone"
+
+
 def actual_server_spawn_fov_fixture(server_log):
     """Position an actual nonlocal server player 2 blocks behind CIHost."""
     import math
@@ -362,6 +394,47 @@ def actual_server_rejoined_a_controller_fixture(host_tp, a_near, b_outer):
         raise AssertionError("M419 source native A/B 3D reach window lost")
     return "tp CITarget {:.2f} {} {:.2f} {} {}".format(
         near_x, ay, near_z, a[5], a[6])
+
+
+def actual_server_rejoined_host_recenter_fixture(host_tp, a_rejoined, b_outer):
+    """Restore the ACTUAL CIHost source center before phase4 native B click.
+
+    In exact V176 native M419 original crash source, host shifted to
+    (-1.20,4,-.09) while A and B stayed at (-.06,4,-2.15) and
+    (-1.50,4,-2.50); this produced da=2.349, db=2.428,
+    violating the intact da+.12<db gate. A server-acknowledged real host
+    /tp after all earlier rejoin assertions reduces accumulated movement
+    from earlier combat, without altering target UUID/ray/damage acceptance.
+    """
+    host = host_tp.split()
+    a = a_rejoined.split()
+    b = b_outer.split()
+    if (len(host) != 7 or len(a) != 7 or len(b) != 7
+            or host[:2] != ["tp", "CIHost"]
+            or a[:2] != ["tp", "CITarget"]
+            or b[:2] != ["tp", "CITargetB"]):
+        raise AssertionError("M419 phase4 original server geometry malformed")
+    try:
+        hx, hy, hz = (int(x) for x in host[2:5])
+        ax, ay, az = (float(x) for x in a[2:5])
+        bx, by, bz = (int(x) for x in b[2:5])
+    except ValueError as error:
+        raise AssertionError("M419 phase4 server coordinates invalid") from error
+    if not all(math.isfinite(v) for v in (ax, ay, az)):
+        raise AssertionError("M419 phase4 nonfinite source player")
+    # Grounded A is 1.35 ahead and 0.45 opposite B, untouched.
+    if (ay != hy or by != hy or abs(bz-hz) != 2
+            or abs(bx-hx) != 1 or abs(az-(hz+0.5)) < 1.34
+            or abs(az-(hz+0.5)) > 1.36
+            or abs(ax-(hx+0.5)) < .44
+            or abs(ax-(hx+0.5)) > .46
+            or (ax-(hx+.5))*(bx-hx) >= 0):
+        raise AssertionError("M419 phase4 recenter changes source A/B geometry")
+    ideal_a = math.hypot(ax-(hx+.5), az-(hz+.5))
+    ideal_b = math.hypot(bx-hx, bz-hz)
+    if not (1.0 < ideal_a < 3.25 and ideal_a+.12 < ideal_b):
+        raise AssertionError("M419 rejoined A/B real host recenter loses margin")
+    return host_tp
 
 
 def actual_server_three_client_rejoin_fixture(server_log):
@@ -2079,6 +2152,18 @@ def run(args):
                                     expected=b"4 blocks filled")
                 send_server_command(server,server_log,"gamemode 0 CITarget")
                 send_server_command(server,server_log,a_rejoined)
+                # V176 actual original crash: CIHost drifted ~0.7 from
+                # server-authored position during earlier live B combat,
+                # reducing strict 3D A/B separation to 0.079 < 0.120.
+                # Recenter ONLY the original host, after rejoined A/floor,
+                # with a fresh genuine dedicated-server teleport reply.
+                # No source/entity snapshots or native gate changes.
+                phase4_host = actual_server_rejoined_host_recenter_fixture(
+                    host_tp, a_rejoined, b_outer)
+                send_server_command(server,server_log,phase4_host,
+                                    expected=b"Teleported CIHost to")
+                print("CUSTOMMC_189_REJOIN_PHASE4_ORIGINAL_HOST_RECENTER_SERVER_PASS=YES",
+                      flush=True)
                 send_server_command(server,server_log,
                                     "scoreboard players set CITargetB taken 0")
                 send_server_command(server,server_log,
@@ -2439,8 +2524,21 @@ def run(args):
             send_server_command(server, server_log,
                                 "gamerule naturalRegeneration false")
             host_tp, target_tp = actual_server_spawn_fov_fixture(server_log)
+            fov_air, fov_stone = actual_server_fov_ground_support_fixture(
+                host_tp, target_tp)
+            # Sacrificial vanilla contrast reset. ONLY the air preclear
+            # allows a fresh "No blocks filled" or positive changed reply.
+            # It is NEVER a gameplay PASS. Require genuine positive
+            # 15-block stone fill after reset, then teleport both REAL
+            # clients onto stable source-grounded positions.
+            send_server_command(server, server_log, fov_air,
+                                expected=b"blocks filled")
+            send_server_command(server, server_log, fov_stone,
+                                expected=b"15 blocks filled")
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, target_tp)
+            print("CUSTOMMC_189_FOV_REAL_SERVER_FIFTEEN_STONE_SUPPORT_PASS=YES",
+                  flush=True)
             print("CUSTOMMC_189_FOV_REAL_SERVER_SPAWN_CHUNK_PASS=YES",
                   flush=True)
             wait_for(host, host_log, FOV_DISABLED, deadline,
