@@ -274,9 +274,9 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
         import math
         for login, expected in (
             (b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at "
-             b"(243.5, 4.0, 444.5)\n", "tp CITarget 243 5 445.85 180 0"),
+             b"(243.5, 4.0, 444.5)\n", "tp CITarget 243.05 5 445.85 180 0"),
             (b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at "
-             b"(-33.5, 4.0, -33.5)\n", "tp CITarget -34 5 -34.85 0 0"),
+             b"(-33.5, 4.0, -33.5)\n", "tp CITarget -33.05 5 -34.85 0 0"),
         ):
             with tempfile.TemporaryDirectory() as root:
                 path = Path(root) / "server.log"
@@ -285,10 +285,16 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
                 chosen = actual_server_rejoined_a_controller_fixture(host, a, b)
                 self.assertEqual(chosen, expected)
                 hx, hy, hz = map(int, host.split()[2:5])
-                ax, ay = map(int, chosen.split()[2:4])
+                ax = float(chosen.split()[2])
+                ay = int(chosen.split()[3])
                 az = float(chosen.split()[4])
                 bx, by, bz = map(int, b.split()[2:5])
-                self.assertEqual((ax, ay), (hx, hy))
+                self.assertEqual(ay, hy)
+                self.assertAlmostEqual(abs(ax-(hx+.5)), .45)
+                self.assertAlmostEqual(
+                    (ax-(hx+.5))*(bx-hx), -.45,
+                    msg="real A must be opposite true B's lateral ray side")
+                self.assertEqual(hx//16, math.floor(ax/16))
                 self.assertTrue(chosen.split()[4].endswith(".85"),
                                 "original fractional vanilla teleport must not re-center")
                 self.assertAlmostEqual(abs(az-(hz+.5)), 1.35,
@@ -298,13 +304,55 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
                 self.assertEqual(abs(bx-hx), 1)
                 self.assertEqual(hz//16, math.floor(az/16))
                 self.assertEqual(math.floor(az/16), bz//16)
-                self.assertGreater(
-                    math.hypot(bx-hx, bz-hz),
-                    math.hypot(1.35, 0.9)+.12,
-                    "actual original 3D A jump must leave B closer margin")
-                self.assertGreaterEqual(1.35-.3, 1.0,
-                                        "native A minimum reach survives drift")
+                real_a = math.hypot(ax-(hx+.5), az-(hz+.5))
+                real_b = math.hypot(bx-hx, bz-hz)
+                self.assertGreater(real_b,
+                                   math.hypot(real_a, .9)+.12,
+                                   "true original A upward hop must leave B closer")
+                self.assertGreaterEqual(real_a-.3, 1.0,
+                                        "native A min reach survives drift")
                 self.assertNotEqual((ax, az), (bx+.5, bz+.5))
+                source_b_ray_x = (bx-hx)*(
+                    (abs(az-(hz+.5))-.3)/abs(bz-hz))
+                self.assertGreater(abs(source_b_ray_x-(ax-(hx+.5))), .3,
+                                   "true 0.6-wide original A must miss native B ray")
+
+    def test_original_v172_real_ray_hit_a_despite_selected_locked_b_regression(self):
+        # V172 exact original phase4 observed A index6 under the genuine
+        # mapped Mojang objectMouseOver while *selected* B was index1.
+        # It must not ever be counted as B controller or server B damage.
+        original_ray_hit_index = 6
+        original_locked_b_index = 1
+        self.assertNotEqual(original_ray_hit_index, original_locked_b_index)
+        self.assertFalse(original_ray_hit_index == original_locked_b_index)
+        # Positive/reverse real 0.6-wide AABB support: the independent
+        # dedicated vanilla coordinate fixture now places A on the
+        # opposite lateral side from the ray toward live B.
+        for source_x, side, z_direction in (
+            (243, 1, 1), (-34, -1, -1)):
+            host_x, host_z = source_x + .5, 444.5
+            a_x = host_x - side*.45
+            a_z = host_z + z_direction*1.35
+            b_x = host_x + side
+            b_z = host_z + z_direction*2
+            # Every sample through the player's Z-hitbox cannot overlap
+            # the actual ray's X with this *intended* static fixture.
+            for dz in (-.3, 0., .3):
+                z_at = a_z + z_direction*dz
+                ray_x = host_x+(b_x-host_x)*(
+                    (z_at-host_z)/(b_z-host_z))
+                self.assertGreater(abs(ray_x-a_x), .3)
+            self.assertGreater(
+                math.hypot(b_x-host_x,b_z-host_z)
+                - math.hypot(a_x-host_x,a_z-host_z), .12)
+
+    def test_real_original_survival_floor_uses_fractional_x_and_z(self):
+        script = (Path(__file__).parent /
+                  "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
+        self.assertIn("ax, ay, az=(float(v) for v in ap[2:5])", script)
+        self.assertIn("fx, fz=math.floor(ax), math.floor(az)", script)
+        self.assertIn("send_server_command(server,server_log,a_rejoined)", script)
+        self.assertIn('expected=b"4 blocks filled"', script)
 
     def test_integer_teleport_centering_was_actual_cause_of_both_bounds(self):
         import math
