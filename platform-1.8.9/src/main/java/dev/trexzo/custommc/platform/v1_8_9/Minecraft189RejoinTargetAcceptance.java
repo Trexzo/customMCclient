@@ -609,6 +609,33 @@ final class Minecraft189RejoinTargetAcceptance {
     }
 
     /**
+     * Original-source READ-ONLY diagnostics for a failed REAL controller
+     * criterion. Logs current native local/A/B XYZ to distinguish genuine
+     * vertical falling from horizontal drift; never changes admission,
+     * player positions, UUID ownership, native objectMouseOver or packets.
+     * These snapshots may be later than the failed Evidence read.
+     */
+    private static String m419NativeCoordinateDiagnostics(
+            final Minecraft189HostRuntime host, final Evidence e) {
+        final Minecraft189PlayerPositionState.Snapshot local =
+                host.playerPositionState().snapshot();
+        final Minecraft189WorldEntityPositionState.Snapshot positions =
+                host.worldEntityPositionState().snapshot();
+        if (e == null || local == null || positions == null
+                || !local.available() || !positions.available()
+                || e.a < 0 || e.b < 0
+                || e.a >= positions.entityCount()
+                || e.b >= positions.entityCount())
+            return " originalNativeXYZ=unavailable";
+        return " originalNativeHostXYZ=(" + local.x() + "," + local.y()
+                + "," + local.z() + ")"
+                + " originalNativeAXYZ=(" + positions.x(e.a) + ","
+                + positions.y(e.a) + "," + positions.z(e.a) + ")"
+                + " originalNativeBXYZ=(" + positions.x(e.b) + ","
+                + positions.y(e.b) + "," + positions.z(e.b) + ")";
+    }
+
+    /**
      * M419: the ORIGINAL mapped Mojang PlayerControllerMP.attackEntity
      * callback was entered in a genuine three-client session. Revalidate
      * both real UUIDs, their current native indices and sticky B ownership
@@ -636,7 +663,8 @@ final class Minecraft189RejoinTargetAcceptance {
                     + " original3DB=" + (e == null ? Double.NaN : e.db)
                     + " nativeSelectedB=" + (e != null && e.selected(e.b))
                     + " locked=" + aura.lockedTargetUuid()
-                    + " expectedB=" + survivorUuid);
+                    + " expectedB=" + survivorUuid
+                    + m419NativeCoordinateDiagnostics(host,e));
         if (Boolean.getBoolean(
                 "custommc.acceptance.requireRejoinedControllerEntityUuid")) {
             if (!(entity instanceof Minecraft189NativeEntityUuidAccess))
