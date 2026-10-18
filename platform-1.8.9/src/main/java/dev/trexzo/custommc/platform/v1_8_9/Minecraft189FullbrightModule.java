@@ -14,6 +14,9 @@ public final class Minecraft189FullbrightModule
 
     private final Minecraft189GuiSettingsAccess settings;
     private boolean active;
+    private boolean enabling;
+    private boolean disabling;
+    private long nativeSettingsEpoch;
     private float originalGamma;
 
     public Minecraft189FullbrightModule(
@@ -31,52 +34,65 @@ public final class Minecraft189FullbrightModule
 
     @Override
     public synchronized void onEnable() {
-        if (active) {
-            throw new IllegalStateException(
-                    "fullbright already active");
+        if (active || enabling || disabling) {
+            throw new IllegalStateException("fullbright already active or transitioning");
         }
-
-        final float current =
-                settings.gammaSetting();
-        requireFinite(
-                current,
-                "current gamma");
-
-        originalGamma = current;
+        enabling = true;
+        final long ownerEpoch = ++nativeSettingsEpoch;
+        float captured = Float.NaN;
+        boolean attemptedOverride = false;
+        RuntimeException failure = null;
         try {
+            // The mapped gamma getter may reenter onDisable. In that case
+            // this cancelled owner must never write a fullbright override.
+            captured = settings.gammaSetting();
+            requireFinite(captured, "current gamma");
+            if (ownerEpoch != nativeSettingsEpoch) return;
+            originalGamma = captured;
+            attemptedOverride = true;
             settings.gammaSetting(FULLBRIGHT_GAMMA);
-        } catch (RuntimeException failure) {
-            // A native settings write may mutate before throwing. Only
-            // roll back if our override is still the current value; do
-            // not destroy a concurrent user's gamma adjustment.
+            // The mapped setter may also reenter onDisable. No previous
+            // activation can become active after that cancellation.
+            if (ownerEpoch == nativeSettingsEpoch) active = true;
+        } catch (RuntimeException originalFailure) {
+            failure = originalFailure;
+            throw originalFailure;
+        } finally {
             try {
-                if (Float.compare(settings.gammaSetting(), FULLBRIGHT_GAMMA) == 0
-                        && Float.compare(current, FULLBRIGHT_GAMMA) != 0)
-                    settings.gammaSetting(current);
+                if (!active && attemptedOverride
+                        && Float.compare(captured, FULLBRIGHT_GAMMA) != 0
+                        && Float.compare(settings.gammaSetting(), FULLBRIGHT_GAMMA) == 0) {
+                    // Original setter may mutate before throw or cancellation.
+                    // Only roll back our own exact injected value; preserve
+                    // any native user Gamma edit made by the callback.
+                    settings.gammaSetting(captured);
+                }
             } catch (RuntimeException rollbackFailure) {
-                failure.addSuppressed(rollbackFailure);
+                if (failure != null) failure.addSuppressed(rollbackFailure);
+                else throw rollbackFailure;
+            } finally {
+                enabling = false;
             }
-            throw failure;
         }
-        active = true;
     }
 
     @Override
     public synchronized void onDisable() {
-        if (!active) {
-            return;
-        }
-
+        if (disabling) return;
+        // Even if enable is only halfway through a mapped getter/setter,
+        // disabling revokes its source owner before it can commit.
+        nativeSettingsEpoch++;
+        if (!active) return;
+        disabling = true;
         try {
-            // The original value belongs to us only while the exact
-            // injected fullbright value remains installed. A user changing
-            // Gamma mid-session retains ownership of that new preference.
             final float current = settings.gammaSetting();
             if (Float.compare(current, FULLBRIGHT_GAMMA) == 0
-                    && Float.compare(originalGamma, FULLBRIGHT_GAMMA) != 0)
+                    && Float.compare(originalGamma, FULLBRIGHT_GAMMA) != 0) {
                 settings.gammaSetting(originalGamma);
+            }
         } finally {
             active = false;
+            disabling = false;
         }
     }
 
