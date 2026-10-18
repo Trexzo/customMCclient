@@ -14,9 +14,11 @@ final class Minecraft189NativeReadbackLeaseTest {
     private static final class Web implements Minecraft189PlayerWebControl {
         boolean inWeb = true;
         int writes;
+        int reads;
         Runnable onRead;
 
         @Override public boolean customMcInWeb() {
+            reads++;
             final boolean original = inWeb;
             final Runnable callback = onRead;
             onRead = null;
@@ -31,10 +33,12 @@ final class Minecraft189NativeReadbackLeaseTest {
 
     private static final class Fall implements Minecraft189PlayerFallDistanceControl {
         float distance = 6.0F;
+        int reads;
         int writes;
         Runnable onRead;
 
         @Override public float customMcFallDistance() {
+            reads++;
             final float original = distance;
             final Runnable callback = onRead;
             onRead = null;
@@ -49,12 +53,14 @@ final class Minecraft189NativeReadbackLeaseTest {
 
     private static final class Motion implements Minecraft189PlayerMotionControl {
         double y = -0.2D;
+        int reads;
         int writes;
         Runnable onRead;
 
         @Override public double customMcMotionX() { return 0; }
         @Override public void customMcSetMotionX(double value) { }
         @Override public double customMcMotionY() {
+            reads++;
             final double original = y;
             final Runnable callback = onRead;
             onRead = null;
@@ -165,6 +171,38 @@ final class Minecraft189NativeReadbackLeaseTest {
         module.onDisable();
     }
 
+
+    @Test void gravityNativeReadEnablingPhysicalSpaceRequirementRevokesOldWrite() {
+        final Minecraft189NoGravityModule module = new Minecraft189NoGravityModule();
+        final Motion motion = new Motion();
+        module.onEnable();
+        motion.onRead = () -> module.requireJumpHeldSetting().set(Boolean.TRUE);
+        module.apply(motion, airborne(), false, false);
+        assertEquals(0, motion.writes);
+        module.apply(motion, airborne(), false, false);
+        assertEquals(0, motion.writes);
+        module.apply(motion, airborne(), false, true);
+        assertEquals(1, motion.writes);
+        assertEquals(0.0D, motion.y, 0.00001D);
+        module.onDisable();
+    }
+
+    @Test void fallSourceGetterDisablingModuleNeverZeroesNativeDistance() {
+        final Minecraft189NoFallModule module = new Minecraft189NoFallModule();
+        final Fall fall = new Fall();
+        module.onEnable();
+        fall.onRead = module::onDisable;
+        module.apply(fall);
+        assertEquals(0, fall.writes);
+        assertEquals(6.0F, fall.distance);
+        module.apply(fall);
+        assertEquals(0, fall.writes);
+        module.onEnable();
+        module.apply(fall);
+        assertEquals(1, fall.writes);
+        module.onDisable();
+    }
+
     @Test void originalUiAndConfiguredMovementVetoPreventGetterEvaluation() {
         final Minecraft189NoWebModule web = new Minecraft189NoWebModule();
         final Minecraft189NoFallModule fall = new Minecraft189NoFallModule();
@@ -181,7 +219,9 @@ final class Minecraft189NativeReadbackLeaseTest {
         assertEquals(0, w.writes);
         assertEquals(0, f.writes);
         assertEquals(0, m.writes);
-        assertNotNull(w.onRead == null ? "not-called" : w.onRead);
+        assertEquals(0, w.reads);
+        assertEquals(0, f.reads);
+        assertEquals(0, m.reads);
         web.onDisable();
         fall.onDisable();
         gravity.onDisable();
