@@ -43,6 +43,19 @@ public final class Minecraft189TriggerBotModule implements Module {
     private UUID confirmedTargetUuid;
     private int phaseCredit;
     private int sampledCps;
+    // Native World.loadedEntity UUID getters may synchronously reenter
+    // feature lifecycle/ClickGUI profile. Old original World evidence
+    // cannot grant confirmation to a new TriggerBot activation.
+    private long nativeWorldEpoch;
+    private long nextNativeUuidTicket;
+    private long pendingNativeUuidTicket;
+    private long pendingNativeUuidEpoch;
+    private int pendingMinCps;
+    private int pendingMaxCps;
+    private int pendingConfirmTicks;
+    private boolean pendingRequireHold;
+    private boolean pendingPauseRight;
+    private boolean pendingPauseSneak;
 
     @Override
     public String id() { return ID; }
@@ -56,18 +69,66 @@ public final class Minecraft189TriggerBotModule implements Module {
 
     @Override
     public synchronized void onEnable() {
+        ++nativeWorldEpoch;
+        pendingNativeUuidTicket = 0;
         enabled = true;
         reset();
     }
 
     @Override
     public synchronized void onDisable() {
+        ++nativeWorldEpoch;
+        pendingNativeUuidTicket = 0;
         enabled = false;
         reset();
     }
 
     // Cancels all scheduler credit while another module or ClickGUI owns input.
-    synchronized void suspend() { reset(); }
+    synchronized void suspend() {
+        ++nativeWorldEpoch;
+        pendingNativeUuidTicket = 0;
+        reset();
+    }
+
+    /**
+     * Capture exactly one active module / persisted click policy lifetime
+     * before querying the genuine mapped World loaded-player UUID array.
+     * Ticket by itself never authorizes an outgoing attack.
+     */
+    synchronized long beginNativeWorldUuidRead() {
+        if (!enabled) return 0;
+        final long token = ++nextNativeUuidTicket;
+        pendingNativeUuidTicket = token;
+        pendingNativeUuidEpoch = nativeWorldEpoch;
+        pendingMinCps = minCps.get();
+        pendingMaxCps = maxCps.get();
+        pendingConfirmTicks = confirmTicks.get();
+        pendingRequireHold = requireHold.get();
+        pendingPauseRight = pauseRight.get();
+        pendingPauseSneak = pauseSneak.get();
+        return token;
+    }
+
+    /**
+     * The current original World UUID read finished. Any OFF->ON,
+     * suspended scheduler or GUI policy edit invalidates its old source
+     * evidence before it can accumulate confirmation or CPS phase credit.
+     * Completion is single-use, including for a rejected source read.
+     */
+    synchronized boolean completeNativeWorldUuidRead(final long token) {
+        final boolean permitted = token != 0
+                && token == pendingNativeUuidTicket && enabled
+                && pendingNativeUuidEpoch == nativeWorldEpoch
+                && pendingMinCps == minCps.get()
+                && pendingMaxCps == maxCps.get()
+                && pendingConfirmTicks == confirmTicks.get()
+                && pendingRequireHold == requireHold.get()
+                && pendingPauseRight == pauseRight.get()
+                && pendingPauseSneak == pauseSneak.get();
+        if (token != 0 && token == pendingNativeUuidTicket)
+            pendingNativeUuidTicket = 0;
+        return permitted;
+    }
 
     // Legacy primitive-only tests/callers have no entity identity. Production
     // MUST use the overload below with the verified current-world UUID.
