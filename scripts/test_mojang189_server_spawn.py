@@ -278,8 +278,8 @@ class OriginalM419GroundedNativeThreePlayerFixtureTest(unittest.TestCase):
     def test_actual_server_ground_floor_covers_all_original_three_positions(self):
         import math
         for login in (
-            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\\n",
-            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (-33.5, 4.0, -33.5)\\n",
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (243.5, 4.0, 444.5)\n",
+            b"CIHost[/127.0.0.1:42110] logged in with entity id 5 at (-33.5, 4.0, -33.5)\n",
         ):
             with tempfile.TemporaryDirectory() as root:
                 log=Path(root)/"server.log"
