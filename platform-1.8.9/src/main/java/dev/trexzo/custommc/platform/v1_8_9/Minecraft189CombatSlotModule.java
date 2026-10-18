@@ -31,10 +31,22 @@ public final class Minecraft189CombatSlotModule implements Module {
     private Minecraft189InventoryHotbarControl ownerInventory;
     private int selectedSlot = -1;
     private int originalSlot = -1;
+    // The original temporary slot is usable only under the exact persisted
+    // policy/lifecycle which originally admitted its synthetic click.
+    private int capturedPreferredSlot = -1;
+    private boolean capturedRequireHit;
+    private long capturedLifecycle;
+    private long lifecycle;
 
     @Override public String id() { return ID; }
-    @Override public synchronized void onEnable() { enabled = true; }
-    @Override public synchronized void onDisable() { enabled = false; }
+    @Override public synchronized void onEnable() {
+        lifecycle++;
+        enabled = true;
+    }
+    @Override public synchronized void onDisable() {
+        lifecycle++;
+        enabled = false;
+    }
     public Setting<Integer> preferredSlotSetting() { return slot; }
     public Setting<Boolean> restoreAfterClickSetting() { return restore; }
     public Setting<Boolean> requirePlayerHitSetting() { return requireHit; }
@@ -53,12 +65,18 @@ public final class Minecraft189CombatSlotModule implements Module {
                 || (requireHit.get() && !verifiedPlayerHit)) return -1;
         final int original = inventory.customMcSelectedHotbarSlot();
         if (original < 0 || original >= 9) return -1;
-        final int preferred = slot.get() - 1;
+        final int configured = slot.get().intValue();
+        final boolean requirePlayer = requireHit.get().booleanValue();
+        final long lifetime = lifecycle;
+        final int preferred = configured - 1;
         if (preferred == original) return -1;
 
         ownerInventory = inventory;
         selectedSlot = preferred;
         originalSlot = original;
+        capturedPreferredSlot = configured;
+        capturedRequireHit = requirePlayer;
+        capturedLifecycle = lifetime;
         try {
             inventory.customMcSetSelectedHotbarSlot(preferred);
             // A native setter can return without selecting the requested
@@ -66,6 +84,18 @@ public final class Minecraft189CombatSlotModule implements Module {
             // Do not report a successful module-owned switch in that case.
             if (inventory.customMcSelectedHotbarSlot() != preferred) {
                 clearLease();
+                return -1;
+            }
+            if (!ownsVerifiedSlotAtDispatch(inventory, original)) {
+                // Source currentItem may have changed, or ClickGUI/module
+                // policy was edited reentrantly by the native setter.
+                // Revert only OUR exact selected slot; the human wins.
+                try {
+                    if (inventory.customMcSelectedHotbarSlot() == preferred)
+                        inventory.customMcSetSelectedHotbarSlot(original);
+                } finally {
+                    clearLease();
+                }
                 return -1;
             }
             return original;
@@ -82,6 +112,34 @@ public final class Minecraft189CombatSlotModule implements Module {
             }
             throw failure;
         }
+    }
+
+    /**
+     * Verify at the genuine original Mojang clickMouse/attackEntity edge.
+     * A correct currentItem index alone is not original user consent:
+     * live policy and enabled lifecycle must still match this one lease.
+     * The matching select() finally may still restore after a rejected
+     * dispatch or disable, but cannot trigger a new synthetic click.
+     */
+    synchronized boolean ownsVerifiedSlotAtDispatch(
+            final Minecraft189InventoryHotbarControl inventory,
+            final int original) {
+        if (!enabled || inventory == null || inventory != ownerInventory
+                || selectedSlot < 0 || selectedSlot > 8
+                || original != originalSlot || original < 0 || original > 8
+                || capturedPreferredSlot != slot.get().intValue()
+                || capturedRequireHit != requireHit.get().booleanValue()
+                || capturedLifecycle != lifecycle
+                || inventory.customMcSelectedHotbarSlot() != selectedSlot)
+            return false;
+        // An original source currentItem getter may reenter GUI/module
+        // changes. Re-evaluate policy AFTER the native read as well.
+        return enabled && inventory == ownerInventory
+                && original == originalSlot && selectedSlot >= 0
+                && capturedPreferredSlot == slot.get().intValue()
+                && capturedRequireHit == requireHit.get().booleanValue()
+                && capturedLifecycle == lifecycle
+                && inventory.customMcSelectedHotbarSlot() == selectedSlot;
     }
 
     synchronized void restore(
@@ -105,5 +163,8 @@ public final class Minecraft189CombatSlotModule implements Module {
         ownerInventory = null;
         selectedSlot = -1;
         originalSlot = -1;
+        capturedPreferredSlot = -1;
+        capturedRequireHit = false;
+        capturedLifecycle = 0;
     }
 }
