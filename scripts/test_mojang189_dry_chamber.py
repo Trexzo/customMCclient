@@ -77,18 +77,28 @@ class DryChamberFillTest(TestCase):
         # that runs only AFTER the throw has already failed.
         within = source.split("            if native_rod_potion_discovery:", 1)[1]
         fixture = within.index("CUSTOMMC_189_DRY_CHAMBER_BEFORE_PHYSICAL_SPLASH_PASS")
-        fill_outer = within.index('"/fill 4 79 4 12 87 12 stone"')
-        fill_inner = within.index('"/fill 5 80 5 11 86 11 air"')
+        preparation = within.index(
+            "prepare_verified_native_dry_chamber(process, log, window)")
         physical = within.index("await_marker(process, log, NATIVE_REAL_SPLASH_READY")
         real_effect = within.index("await_marker(process, log, NATIVE_REAL_SPLASH_EFFECT")
         survival = within.index('"/gamemode survival CIProbe"')
+        # Both mandatory positive fills are now in a single reusable
+        # original-command helper. Check its body AND verify it is called
+        # before any genuine physical splash or survival confirmation.
+        helper = source.split("def prepare_verified_native_dry_chamber(", 1)[1]
+        helper = helper.split("def prepare_native_scaffold_context_chamber(", 1)[0]
+        preclear = helper.index('"/fill 4 79 4 12 87 12 air"')
+        fill_outer = helper.index('"/fill 4 79 4 12 87 12 stone"')
+        fill_inner = helper.index('"/fill 5 80 5 11 86 11 air"')
+        self.assertLess(preclear, fill_outer)
         self.assertLess(fill_outer, fill_inner)
-        self.assertLess(fill_inner, fixture)
+        self.assertEqual(helper.count("send_verified_fill(process, log, window,"), 2)
+        self.assertLess(preparation, fixture)
         self.assertLess(fixture, physical)
         self.assertLess(physical, real_effect)
         self.assertLess(real_effect, survival)
-        self.assertEqual(within.count('"/fill 4 79 4 12 87 12 stone"'), 1)
-        self.assertEqual(within.count('"/fill 5 80 5 11 86 11 air"'), 1)
+        self.assertEqual(within.count(
+            "prepare_verified_native_dry_chamber(process, log, window)"), 1)
 
     def test_dry_chamber_is_single_chunk_and_enclosed(self):
         # 1.8.9 /fill must not depend on unloaded x=-1 or z=-1 chunks.
