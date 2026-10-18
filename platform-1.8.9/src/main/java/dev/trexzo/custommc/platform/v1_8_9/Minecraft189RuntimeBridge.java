@@ -2570,6 +2570,15 @@ public final class Minecraft189RuntimeBridge {
                     ? ((Minecraft189CrosshairHitAccess) minecraft)
                             .customMcCrosshairHitboxBounds()
                     : null;
+            // M419 acceptance only: a real native rejoin/server teleport
+            // can make A temporarily selected while the mandatory B UUID
+            // lock is not yet stable. Fail CLOSED before synthetic melee
+            // scheduling: never send an A click, never fake B damage or
+            // count this veto as a pass. Strict source-native 20 snapshots,
+            // real controller UUID B and server damage remain compulsory.
+            if (Minecraft189RejoinTargetAcceptance
+                    .vetoTransientUnownedPhaseFourSyntheticClick(
+                            host, playerHit, playerIndex)) return;
             if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {
                 if (Boolean.getBoolean(
                         "custommc.acceptance.reportKillAuraRangeVeto")) {
