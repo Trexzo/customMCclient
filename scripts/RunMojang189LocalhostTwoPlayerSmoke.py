@@ -115,6 +115,25 @@ def wait_for(proc, log, phrase, deadline, phase):
     raise AssertionError("missing " + phase + " marker within deadline")
 
 
+def wait_for_new_original_source_marker(proc, log, from_offset,
+                                       marker, deadline, phase):
+    """Read original Minecraft JVM evidence emitted AFTER a server command.
+
+    Earlier native stdout cannot satisfy the current World convergence
+    fence. No player objects or server-only inferred positions are used.
+    """
+    if from_offset < 0 or not isinstance(marker, bytes) or not marker:
+        raise AssertionError("original source observation needs offset/bytes")
+    while time.monotonic() < deadline:
+        check_process(proc, phase)
+        with log.open("rb") as reader:
+            reader.seek(from_offset)
+            if marker in reader.read():
+                return
+        time.sleep(0.2)
+    raise AssertionError("missing fresh original source after real teleport: " + phase)
+
+
 def actual_server_spawn_fixture(server_log):
     """Place both real players within one generated spawn chunk.
 
@@ -2160,9 +2179,20 @@ def run(args):
                 # No source/entity snapshots or native gate changes.
                 phase4_host = actual_server_rejoined_host_recenter_fixture(
                     host_tp, a_rejoined, b_outer)
+                # Source JVM stdout offset is captured before the server
+                # teleport. Its console ACK alone proves no CLIENT World
+                # position, so require 20 fresh, original-source stable
+                # B-locked/selected snapshots with buffered 3D margin.
+                original_source_start = host_log.stat().st_size
                 send_server_command(server,server_log,phase4_host,
                                     expected=b"Teleported CIHost to")
                 print("CUSTOMMC_189_REJOIN_PHASE4_ORIGINAL_HOST_RECENTER_SERVER_PASS=YES",
+                      flush=True)
+                wait_for_new_original_source_marker(
+                    host, host_log, original_source_start,
+                    b"CUSTOMMC_189_M419_NATIVE_PHASE4_SOURCE_STABLE=20",
+                    deadline, "M419 live B lock after genuine phase4 host teleport")
+                print("CUSTOMMC_189_M419_LIVE_SOURCE_STABLE_BEFORE_B_DAMAGE=YES",
                       flush=True)
                 send_server_command(server,server_log,
                                     "scoreboard players set CITargetB taken 0")

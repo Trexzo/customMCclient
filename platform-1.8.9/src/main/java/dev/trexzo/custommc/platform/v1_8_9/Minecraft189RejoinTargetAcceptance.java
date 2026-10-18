@@ -22,6 +22,7 @@ final class Minecraft189RejoinTargetAcceptance {
     private static int nativeOwnerDiagnosticsTicks;
     private static int prelockNativeEvidenceTicks;
     private static int nativeCrosshairEvidenceTicks;
+    private static int m419NativeStableSourceTicks;
 
     private Minecraft189RejoinTargetAcceptance() {}
 
@@ -41,6 +42,7 @@ final class Minecraft189RejoinTargetAcceptance {
         nativeOwnerDiagnosticsTicks = 0;
         prelockNativeEvidenceTicks = 0;
         nativeCrosshairEvidenceTicks = 0;
+        m419NativeStableSourceTicks = 0;
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
@@ -302,20 +304,45 @@ final class Minecraft189RejoinTargetAcceptance {
         }
         if (phase == 4
                 && Boolean.getBoolean(
-                        "custommc.acceptance.requireRejoinedControllerB")
-                && ++nativeOwnerDiagnosticsTicks % 80 == 0) {
-            // A missing attackEntity callback is a failure too. Sample the
-            // identical *real native* source criteria while waiting, rather
-            // than invent a controller call or a server damage marker.
-            System.out.println("CUSTOMMC_189_M419_WAITING_NATIVE_CONTROLLER_SOURCE"
-                    + " reason=" + m419SourceRejection(e, aura, true)
-                    + " Aindex=" + (e == null ? -2 : e.a)
-                    + " Bindex=" + (e == null ? -2 : e.b)
-                    + " original3DA=" + (e == null ? Double.NaN : e.da)
-                    + " original3DB=" + (e == null ? Double.NaN : e.db)
-                    + " nativeSelectedB=" + (e != null && e.selected(e.b))
-                    + " locked=" + aura.lockedTargetUuid());
-            System.out.flush();
+                        "custommc.acceptance.requireRejoinedControllerB")) {
+            // A server-acknowledged /tp cannot prove that the ORIGINAL
+            // client has consumed it. Observe 20 consecutive true native
+            // World snapshots with locked, selected B and a .30 buffer
+            // before the harness makes B damageable. This is telemetry,
+            // NOT an attack authorization. The .12 controller rule is intact.
+            final String reason = m419SourceRejection(e, aura, true);
+            if (m419StableNativeSourceSample(
+                    reason, e == null ? Double.NaN : e.da,
+                    e == null ? Double.NaN : e.db)) {
+                m419NativeStableSourceTicks++;
+                if (m419NativeStableSourceTicks >= 20
+                        && m419NativeStableSourceTicks % 20 == 0) {
+                    System.out.println(
+                            "CUSTOMMC_189_M419_NATIVE_PHASE4_SOURCE_STABLE=20"
+                            + " observed=" + m419NativeStableSourceTicks
+                            + " Aindex=" + e.a
+                            + " Bindex=" + e.b
+                            + " original3DA=" + e.da
+                            + " original3DB=" + e.db
+                            + " margin=" + (e.db - e.da)
+                            + " nativeSelectedB=" + e.selected(e.b)
+                            + " locked=" + aura.lockedTargetUuid());
+                    System.out.flush();
+                }
+            } else {
+                m419NativeStableSourceTicks = 0;
+            }
+            if (++nativeOwnerDiagnosticsTicks % 80 == 0) {
+                System.out.println("CUSTOMMC_189_M419_WAITING_NATIVE_CONTROLLER_SOURCE"
+                        + " reason=" + reason
+                        + " Aindex=" + (e == null ? -2 : e.a)
+                        + " Bindex=" + (e == null ? -2 : e.b)
+                        + " original3DA=" + (e == null ? Double.NaN : e.da)
+                        + " original3DB=" + (e == null ? Double.NaN : e.db)
+                        + " nativeSelectedB=" + (e != null && e.selected(e.b))
+                        + " locked=" + aura.lockedTargetUuid());
+                System.out.flush();
+            }
         }
         if (phase==0) {
             if (aura.active()) throw new IllegalStateException("rejoin Aura preenabled");
@@ -549,6 +576,20 @@ final class Minecraft189RejoinTargetAcceptance {
         if (!lockedB) return "survivor-B-not-locked-by-KillAura";
         if (!controllerReady) return "original-controller-player-entity-null";
         return null;
+    }
+
+    /**
+     * Test-only preflight observation, never native controller permission.
+     * In the ORIGINAL controller path the separate .12 3D rule is enforced
+     * again, regardless of this stricter .30 post-teleport timing buffer.
+     */
+    static boolean m419StableNativeSourceSample(
+            final String rejection, final double da, final double db) {
+        return rejection == null
+                && Double.isFinite(da) && Double.isFinite(db)
+                && da >= 1.0D && da <= 3.25D
+                && db >= 1.0D && db <= 3.5D
+                && db - da >= 0.30D;
     }
 
     private static String m419SourceRejection(
