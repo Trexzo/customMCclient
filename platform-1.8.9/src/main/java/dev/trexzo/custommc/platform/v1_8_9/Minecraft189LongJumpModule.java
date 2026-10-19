@@ -38,6 +38,12 @@ public final class Minecraft189LongJumpModule
     private long nativeJumpEpoch;
     private boolean spaceWasPressed;
     private boolean boostPending;
+    // Mapped EntityPlayer.jump() may reenter before Space is consumed.
+    private boolean nativeJumpDispatching;
+    // Keep native X/Z getters and setters on one genuine player/stack.
+    private boolean nativeMotionDispatching;
+    private Minecraft189PlayerMotionControl nativeMotionPlayer;
+    private boolean nativeMotionRevoked;
 
     Minecraft189LongJumpModule(
             final Minecraft189InputState inputState) {
@@ -90,6 +96,7 @@ public final class Minecraft189LongJumpModule
         Objects.requireNonNull(
                 movement,
                 "movement");
+        if (nativeJumpDispatching || nativeMotionDispatching) return;
         final boolean spacePressed =
                 inputState.keyPressed(
                         LegacyKeyboardCodes.SPACE);
@@ -106,7 +113,13 @@ public final class Minecraft189LongJumpModule
                 return;
             }
 
-            player.customMcJump();
+            nativeJumpDispatching = true;
+            try {
+                player.customMcJump();
+            } finally {
+                // A partial original jump must not be synthetically undone.
+                nativeJumpDispatching = false;
+            }
             if (enabled && ownerEpoch == nativeJumpEpoch) {
                 boostPending = true;
             }
@@ -125,6 +138,13 @@ public final class Minecraft189LongJumpModule
         Objects.requireNonNull(
                 rotation,
                 "rotation");
+        if (nativeMotionDispatching) {
+            if (player != nativeMotionPlayer || suspended
+                    || !enabled || !rotation.available()) {
+                nativeMotionRevoked = true;
+            }
+            return false;
+        }
         if (!boostPending) {
             return false;
         }
@@ -137,72 +157,93 @@ public final class Minecraft189LongJumpModule
             return false;
         }
 
-        final long ownerEpoch = nativeJumpEpoch;
-        final boolean w = inputState.keyPressed(LegacyKeyboardCodes.W);
-        final boolean a = inputState.keyPressed(LegacyKeyboardCodes.A);
-        final boolean backward = inputState.keyPressed(LegacyKeyboardCodes.S);
-        final boolean d = inputState.keyPressed(LegacyKeyboardCodes.D);
-        double forward = (w ? 1.0D : 0.0D)
-                - (backward ? 1.0D : 0.0D);
-        double strafe = (a ? 1.0D : 0.0D)
-                - (d ? 1.0D : 0.0D);
-        final double inputLength = Math.hypot(forward, strafe);
-        if (inputLength <= 0.0D) {
-            return false;
-        }
-        if (inputLength > 1.0D) {
-            forward /= inputLength;
-            strafe /= inputLength;
-        }
-
-        final double configuredSpeed = speed.get().doubleValue();
-        final boolean preserve = preserveHigherMomentum.get().booleanValue();
-        final double yawRadians = Math.toRadians(rotation.yaw());
-        final double sin = Math.sin(yawRadians);
-        final double cos = Math.cos(yawRadians);
-        final double targetMotionX = cleanZero(
-                (-sin * forward + cos * strafe) * configuredSpeed);
-        final double targetMotionZ = cleanZero(
-                (cos * forward + sin * strafe) * configuredSpeed);
-
-        // Read the two actual original player axes only once each; either
-        // source getter may reenter module enable/disable, GUI settings
-        // or mapped input. Revalidate BEFORE touching the second source
-        // and BEFORE producing either horizontal write.
-        final double originalX = player.customMcMotionX();
-        if (!nativeMotionReadOwned(ownerEpoch, configuredSpeed, preserve,
-                w, a, backward, d)) {
-            return false;
-        }
-        final double originalZ = player.customMcMotionZ();
-        if (!nativeMotionReadOwned(ownerEpoch, configuredSpeed, preserve,
-                w, a, backward, d)) {
-            return false;
-        }
-
-        if (preserve) {
-            final double existingMagnitude = Math.hypot(originalX, originalZ);
-            // Original momentum remains authoritative when above the
-            // requested boost; invalid native source still fails closed.
-            if (!Double.isFinite(existingMagnitude)
-                    || existingMagnitude + 0.000000001D >= configuredSpeed) {
-                return true;
-            }
-        }
-
-        if (Double.compare(originalX, targetMotionX) != 0) {
-            player.customMcSetMotionX(targetMotionX);
-            // An original mapped X setter can revoke this entire jump
-            // owner; never issue stale Z after an OFF/ON or key edit.
-            if (!nativeMotionReadOwned(ownerEpoch, configuredSpeed, preserve,
-                    w, a, backward, d)) {
+        nativeMotionDispatching = true;
+        nativeMotionPlayer = player;
+        nativeMotionRevoked = false;
+        try {
+            final long ownerEpoch = nativeJumpEpoch;
+            final boolean w = inputState.keyPressed(LegacyKeyboardCodes.W);
+            final boolean a = inputState.keyPressed(LegacyKeyboardCodes.A);
+            final boolean backward = inputState.keyPressed(LegacyKeyboardCodes.S);
+            final boolean d = inputState.keyPressed(LegacyKeyboardCodes.D);
+            double forward = (w ? 1.0D : 0.0D)
+                    - (backward ? 1.0D : 0.0D);
+            double strafe = (a ? 1.0D : 0.0D)
+                    - (d ? 1.0D : 0.0D);
+            final double inputLength = Math.hypot(forward, strafe);
+            if (inputLength <= 0.0D) {
                 return false;
             }
+            if (inputLength > 1.0D) {
+                forward /= inputLength;
+                strafe /= inputLength;
+            }
+
+            final double configuredSpeed = speed.get().doubleValue();
+            final boolean preserve = preserveHigherMomentum.get().booleanValue();
+            final double yawRadians = Math.toRadians(rotation.yaw());
+            // Malformed original yaw must not inject NaN X/Z.
+            if (!Double.isFinite(yawRadians)) return false;
+            final double sin = Math.sin(yawRadians);
+            final double cos = Math.cos(yawRadians);
+            final double targetMotionX = cleanZero(
+                    (-sin * forward + cos * strafe) * configuredSpeed);
+            final double targetMotionZ = cleanZero(
+                    (cos * forward + sin * strafe) * configuredSpeed);
+
+            if (!Double.isFinite(targetMotionX)
+                    || !Double.isFinite(targetMotionZ)) return false;
+
+            // Read the two actual original player axes only once each; either
+            // source getter may reenter module enable/disable, GUI settings
+            // or mapped input. Revalidate BEFORE touching the second source
+            // and BEFORE producing either horizontal write.
+            final double originalX = player.customMcMotionX();
+            if (nativeMotionRevoked
+                    || !nativeMotionReadOwned(ownerEpoch, configuredSpeed, preserve,
+                            w, a, backward, d)) {
+                return false;
+            }
+            final double originalZ = player.customMcMotionZ();
+            if (nativeMotionRevoked
+                    || !nativeMotionReadOwned(ownerEpoch, configuredSpeed, preserve,
+                            w, a, backward, d)) {
+                return false;
+            }
+
+            if (preserve) {
+                final double existingMagnitude = Math.hypot(originalX, originalZ);
+                // Original momentum remains authoritative when above the
+                // requested boost; invalid native source still fails closed.
+                if (!Double.isFinite(existingMagnitude)
+                        || existingMagnitude + 0.000000001D >= configuredSpeed) {
+                    return true;
+                }
+            }
+
+            if (Double.compare(originalX, targetMotionX) != 0) {
+                player.customMcSetMotionX(targetMotionX);
+                // An original mapped X setter can revoke this entire jump
+                // owner; never issue stale Z after an OFF/ON or key edit.
+                if (nativeMotionRevoked
+                        || !nativeMotionReadOwned(ownerEpoch, configuredSpeed, preserve,
+                                w, a, backward, d)) {
+                    return false;
+                }
+            }
+            if (Double.compare(originalZ, targetMotionZ) != 0) {
+                player.customMcSetMotionZ(targetMotionZ);
+            }
+            return !nativeMotionRevoked
+                    && nativeMotionReadOwned(ownerEpoch, configuredSpeed, preserve,
+                            w, a, backward, d);
+        } finally {
+            // Original X/Z setters can mutate vanilla motion then throw;
+            // clear only our lease, never invent a rollback.
+            nativeMotionPlayer = null;
+            nativeMotionRevoked = false;
+            nativeMotionDispatching = false;
         }
-        if (Double.compare(originalZ, targetMotionZ) != 0) {
-            player.customMcSetMotionZ(targetMotionZ);
-        }
-        return true;
     }
 
     private boolean nativeMotionReadOwned(

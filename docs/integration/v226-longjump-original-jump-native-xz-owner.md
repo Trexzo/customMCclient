@@ -1,0 +1,9 @@
+# V226 — LongJump genuine Space edge and two-axis native X/Z owner
+
+Actual original `EntityPlayer.jump()` can synchronously reenter the host before `spaceWasPressed` is updated in the outer `finally`, allowing two jumps from one physical Space edge. The original horizontal `motionX/motionZ` getters/setters may likewise reenter when the old player/GUI/movement permission is no longer valid.
+
+The production fix applies `nativeJumpDispatching` around the genuine jump() callback, including native throws and module restart. It preserves previously verified parity: Space released *within* an already accepted mapped jump still owns its one boost, and the outer finally records released Space so the next physical press works.
+
+A separate `nativeMotionDispatching` lease pins genuine original X/Z read/write to one player and one stack. Nested calls cannot read/write twice; different player, suspension, disabled owner or unavailable original yaw revokes outer permission. Recheck this lease and existing lifecycle, Speed, Preserve Momentum and four physical WASD inputs after each native getter and original X setter. Never dispatch stale Z after original X revocation; detect Z-setter revocation before reporting success. Reject nonfinite original yaw or computed target axes; preserve opt-in genuine faster original X/Z momentum and normalized diagonal input. No invented vanilla rollback after a partial native write.
+
+Offline source-adapter tests are separate from genuine Mojang verification. Require V226 exact-head Windows + Ubuntu Foundation, full pinned original Minecraft 1.8.9 graphical X11 + vanilla dedicated-server 78-step suite, and unchanged-SHA repeat before certification. Draft child of corrected V225. Historical V219–V225 original passes are not V226 proof, and main must remain unchanged.
