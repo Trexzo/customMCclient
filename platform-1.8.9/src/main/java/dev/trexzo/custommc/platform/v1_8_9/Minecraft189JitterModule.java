@@ -141,6 +141,8 @@ public final class Minecraft189JitterModule
     private float pairedYawDelta;
     private float pairedPitchDelta;
     private int ticksUntilNext;
+    // One actual original player yaw/pitch pair belongs to one activation.
+    private long nativeRotationEpoch;
 
     public Minecraft189JitterModule() {
         this(() -> ThreadLocalRandom.current().nextDouble());
@@ -211,6 +213,7 @@ public final class Minecraft189JitterModule
 
     @Override
     public synchronized void onEnable() {
+        ++nativeRotationEpoch;
         enabled = true;
         resetCadence();
         previousVariableStrength = variableStrength.get().booleanValue();
@@ -221,6 +224,7 @@ public final class Minecraft189JitterModule
 
     @Override
     public synchronized void onDisable() {
+        ++nativeRotationEpoch;
         enabled = false;
         resetCadence();
     }
@@ -331,26 +335,63 @@ public final class Minecraft189JitterModule
             pairedPitchDelta = pitchAxisEnabled ? targetPitch - currentPitch : 0.0F;
         }
 
+        final long originalEpoch = nativeRotationEpoch;
+        final Object[] originalPolicy = nativeRotationPolicy();
         boolean changed = false;
-        if (Float.compare(
-                currentYaw,
-                targetYaw) != 0) {
-            player.customMcSetRotationYaw(
-                    targetYaw);
+        if (Float.compare(currentYaw, targetYaw) != 0) {
+            player.customMcSetRotationYaw(targetYaw);
             changed = true;
+            if (!nativeRotationOwned(originalEpoch, originalPolicy)) {
+                // A real original yaw setter may OFF->ON this module,
+                // change GUI policy, or revoke the original pitch axis.
+                // Never send old pitch nor retain its random paired phase.
+                resetCadence();
+                return false;
+            }
         }
-        if (Float.compare(
-                currentPitch,
-                targetPitch) != 0) {
-            player.customMcSetRotationPitch(
-                    targetPitch);
+        if (Float.compare(currentPitch, targetPitch) != 0) {
+            player.customMcSetRotationPitch(targetPitch);
             changed = true;
+            if (!nativeRotationOwned(originalEpoch, originalPolicy)) {
+                resetCadence();
+                return false;
+            }
         }
         return changed;
     }
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    /**
+     * One immutable source-GUI permission and random cadence profile for
+     * BOTH genuine EntityPlayer rotation setters. A returned native call
+     * must not authorize an old second axis in a new module activation.
+     */
+    private Object[] nativeRotationPolicy() {
+        return new Object[]{
+                yawDegrees.get(),
+                pitchDegrees.get(),
+                yawEnabled.get(),
+                pitchEnabled.get(),
+                intervalTicks.get(),
+                requireHold.get(),
+                pauseWhileRightClicking.get(),
+                groundOnly.get(),
+                pauseWhileSneaking.get(),
+                variableStrength.get(),
+                strengthVariationPercent.get(),
+                randomInterval.get(),
+                intervalVariationTicks.get()
+        };
+    }
+
+    private boolean nativeRotationOwned(final long epoch,
+            final Object[] originalPolicy) {
+        return enabled && nativeRotationEpoch == epoch
+                && java.util.Arrays.equals(originalPolicy,
+                        nativeRotationPolicy());
     }
 
     private void resetCadence() {
