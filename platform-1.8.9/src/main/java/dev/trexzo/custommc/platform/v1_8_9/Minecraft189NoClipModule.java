@@ -187,7 +187,12 @@ public final class Minecraft189NoClipModule
                 // its own original collision lease.
                 if (!sourceFailed && !nativeNoClipChangedPlayer
                         && baselineCaptured && baselineOwner == player
-                        && (nativeNoClipRestoreRequested || !enabled)
+                        // A lifecycle disable alone NEVER restores
+                        // inside its native setter. The existing owner
+                        // must retry on the next genuine source callback.
+                        // Only an explicit nested same-player GUI/sneak
+                        // veto may immediately release the owned boost.
+                        && nativeNoClipRestoreRequested
                         && (dispatchEpoch == nativeReadEpoch || !enabled)) {
                     restoreCaptured(player);
                     if (!enabled && !baselineCaptured) {

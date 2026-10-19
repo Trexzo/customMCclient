@@ -111,11 +111,15 @@ final class Minecraft189NoClipNativeBaselineOwnerTest {
         m.apply(p,movement(true),false);
         assertFalse(p.clip);assertEquals(2,p.writes);
     }
-    @Test void originalDisableDuringForceSetterRestoresCapturedFalse() {
+    @Test void originalDisableDuringForceSetterRestoresOnNextNativeTick() {
         final Minecraft189NoClipModule m=module();final Player p=new Player();
         p.onWrite=m::onDisable;
+        m.apply(p);assertTrue(p.clip);assertEquals(1,p.writes);
+        assertTrue(m.restorePending());assertFalse(m.active());
+        // Retain established genuine host contract: a pure OFF inside
+        // native setter never fabricates an in-stack rollback.
         m.apply(p);assertFalse(p.clip);assertEquals(2,p.writes);
-        assertFalse(m.restorePending());assertFalse(m.active());
+        assertFalse(m.restorePending());
     }
     @Test void originalOffOnInsideFirstGetterCannotBorrowNewActivation() {
         final Minecraft189NoClipModule m=module();final Player p=new Player();
