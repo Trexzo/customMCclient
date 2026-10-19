@@ -94,6 +94,9 @@ public final class Minecraft189SpinModule
     private boolean previousRandomInterval;
     private int previousVariationTicks;
     private int previousIntervalTicks;
+    // Native mapped yaw setter and opt-in random sample may reenter module
+    // activation or its persisted GUI source policy.
+    private long nativeYawEpoch;
 
     public Minecraft189SpinModule() {
         this(() -> ThreadLocalRandom.current().nextDouble());
@@ -142,6 +145,7 @@ public final class Minecraft189SpinModule
 
     @Override
     public synchronized void onEnable() {
+        ++nativeYawEpoch;
         enabled = true;
         resetCadence();
         previousRandomInterval = randomInterval.get().booleanValue();
@@ -151,6 +155,7 @@ public final class Minecraft189SpinModule
 
     @Override
     public synchronized void onDisable() {
+        ++nativeYawEpoch;
         enabled = false;
         resetCadence();
     }
@@ -202,11 +207,18 @@ public final class Minecraft189SpinModule
             return false;
         }
 
-        // Fixed mode stays identical to legacy scheduling: no random
-        // sample is read, and changing the base interval mid-countdown
-        // does not restart it. Variation is opt-in.
+        // The genuine original action and even an injected/randomized
+        // timing callback must belong to the same source module owner.
+        // Fixed mode still never samples random and does not restart a
+        // pre-existing countdown after changing its base interval.
+        final long sourceEpoch = nativeYawEpoch;
+        final Object[] sourcePolicy = nativeYawPolicy();
         ticksUntilNext = sampleInterval(
                 configuredInterval, varying, variation) - 1;
+        if (!nativeYawOwned(sourceEpoch, sourcePolicy)) {
+            resetCadence();
+            return false;
+        }
 
         final float currentYaw =
                 rotation.yaw();
@@ -225,13 +237,35 @@ public final class Minecraft189SpinModule
             return false;
         }
 
-        player.customMcSetRotationYaw(
-                targetYaw);
+        player.customMcSetRotationYaw(targetYaw);
+        if (!nativeYawOwned(sourceEpoch, sourcePolicy)) {
+            // Do not report source success or retain obsolete cadence
+            // after the REAL vanilla yaw setter reenters this module.
+            // Any already-applied native yaw is not faked back.
+            resetCadence();
+            return false;
+        }
         return true;
     }
 
     synchronized boolean active() {
         return enabled;
+    }
+
+    /** Exact eight persisted settings that authorize one genuine yaw. */
+    private Object[] nativeYawPolicy() {
+        return new Object[]{
+                yawSpeed.get(), reverse.get(), requireHold.get(),
+                intervalTicks.get(), groundOnly.get(),
+                pauseWhileSneaking.get(), randomInterval.get(),
+                intervalVariationTicks.get()
+        };
+    }
+
+    private boolean nativeYawOwned(final long epoch,
+            final Object[] originalPolicy) {
+        return enabled && nativeYawEpoch == epoch
+                && java.util.Arrays.equals(originalPolicy, nativeYawPolicy());
     }
 
     private void resetCadence() {
