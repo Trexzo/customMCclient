@@ -298,8 +298,17 @@ public final class Minecraft189JitterModule
             return false;
         }
 
+        // Capture the SAME real source owner and all GUI/random policy
+        // before calling any optionally injected external RNG supplier.
+        // Such callbacks may synchronously OFF->ON or change live policy.
+        final long originalEpoch = nativeRotationEpoch;
+        final Object[] originalPolicy = nativeRotationPolicy();
         ticksUntilNext =
                 sampledInterval(configuredInterval, randomTiming, variationTicks) - 1;
+        if (!nativeRotationOwned(originalEpoch, originalPolicy)) {
+            resetCadence();
+            return false;
+        }
 
         final boolean outwardStroke = positivePhase;
         final double direction = outwardStroke ? 1.0D : -1.0D;
@@ -312,11 +321,22 @@ public final class Minecraft189JitterModule
                 : outwardStroke
                         ? sampledDegrees(yawDegrees.get().doubleValue())
                         : pairedYawDelta;
+        // Sampling original jitter strength can call an external
+        // DoubleSupplier. A stale first sample may not authorize another
+        // sample nor any native rotation setter.
+        if (!nativeRotationOwned(originalEpoch, originalPolicy)) {
+            resetCadence();
+            return false;
+        }
         final double pitchDelta = !varying
                 ? pitchDegrees.get().doubleValue()
                 : outwardStroke
                         ? sampledDegrees(pitchDegrees.get().doubleValue())
                         : pairedPitchDelta;
+        if (!nativeRotationOwned(originalEpoch, originalPolicy)) {
+            resetCadence();
+            return false;
+        }
         final float targetYaw =
                 yawAxisEnabled
                         ? (float) (currentYaw + direction * yawDelta)
@@ -335,8 +355,6 @@ public final class Minecraft189JitterModule
             pairedPitchDelta = pitchAxisEnabled ? targetPitch - currentPitch : 0.0F;
         }
 
-        final long originalEpoch = nativeRotationEpoch;
-        final Object[] originalPolicy = nativeRotationPolicy();
         boolean changed = false;
         if (Float.compare(currentYaw, targetYaw) != 0) {
             player.customMcSetRotationYaw(targetYaw);
