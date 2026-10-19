@@ -1,0 +1,19 @@
+# V210 — original Minecraft Spin yaw setter and random interval native owner
+
+## Previous exact source evidence
+V207 `f466f463821b55ad39ca719e9374cbb1dcd80a84` and V208 `8eb7eae87fa69e5a79c4738cac767663de9e1786` each completed one full genuine pinned Mojang Minecraft 1.8.9 X11+vanilla dedicated-server 78-step PASS (plus Windows/Ubuntu Foundation PASS). V209 Jitter native dual-axis owner was submitted as Draft PR #675 with its exact-head CI ongoing. A green parent does not certify source changed in V210.
+
+## Actual source reentrancy issue
+`Minecraft189SpinModule.apply` schedules a real mapped original player `EntityPlayer.rotationYaw` setter from a valid local-player rotation and current source input/GUI policy, with optional randomized interval. The previous `SpinModule` immediately returned true after native yaw even if the actual setter synchronously disabled/re-enabled the module, changed Reverse/Speed/Require Hold/Ground/Sneaking/timing settings, or otherwise invalidated the source owner. Its already-advanced synthetic interval countdown could survive and be interpreted as belonging to another lifecycle. A second source callback risk occurs in the optional injected random interval `DoubleSupplier.getAsDouble` before the genuine yaw write; a test/custom RNG callback can reenter and disable or edit GUI policy while the previously calculated yaw remains queued. This is a static Java source risk, not a reproduced original-game crash.
+
+## Actual V210 production change
+- Add monotonic `nativeYawEpoch` to `SpinModule`, advancing on every onEnable and onDisable. An original native yaw setter or random interval sample cannot borrow authority from a different activation after an OFF→ON.
+- Before actual randomized interval sampling, capture the source owner epoch and all **eight persisted Spin eligibility, rotation and cadence settings**: Yaw Speed, Reverse, Require Hold, Interval Ticks, Ground Only, Pause While Sneaking, Random Interval and Interval Variation Ticks.
+- After any optional external random sampling, immediately recheck same active epoch and exact GUI policy **before** computing and sending actual native yaw. Mismatch clears ONLY the synthetic countdown and denies an original player rotation write.
+- After actual mapped vanilla `customMcSetRotationYaw` returns, require the same source owner and complete unchanged persisted settings before reporting success and retaining the countdown. Invalid callback cancels synthetic cadence; no fake rollback of real player yaw which may have already been applied.
+- Preserve previously certified fixed interval semantics (no RNG sampling when randomness disabled; editing fixed base interval during an ongoing countdown does not reset legacy timing), bounded variable sample 1–10 ticks, source yaw wrapping, physical hold/sneak/ground restrictions and other modules' original movement/rotation authority. Native exceptions propagate.
+
+## 16 offline Java regression cases
+Normal source Spin yaw step, disabled no write, mapped setter disable, OFF→ON, setter Reverse/Speed/Hold/Ground/Sneak/Base Interval/Random Interval edits, randomized source disable/edit before yaw, unchanged fixed three-tick cadence, sampled interval variation timing, native setter throw after changing real yaw. They use original mapped rotation setter interface Java adapter, **not actual Mojang X11 client runtime**.
+
+Cumulative Draft V210 child of V209 #675 (original Jitter native pair), V208 #674 (original AimAssist yaw/pitch owner), V207 #673 (WTap sprint native owner), V206 #672. Require exact V210 SHA Foundation Windows+Ubuntu, full pinned genuine original Minecraft 1.8.9 graphical X11 + vanilla dedicated-server 78-step suite and independent same-SHA repeat before certification. Previous V196–V199 genuine M419 failures stay failures. No merge, main unchanged.
