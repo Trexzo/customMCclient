@@ -58,6 +58,15 @@ public final class Minecraft189ReverseStepModule
     // zero fires on this callback; positive values count skipped airborne
     // callbacks after the actual departure.
     private int pendingDelay = -1;
+    // A positive delayed original ground->air contact belongs to the
+    // source GUI policy present at THAT departure, not new mid-air edits.
+    private double departureSpeed;
+    private int departureDelay;
+    private boolean departureRequiresSneak;
+    private boolean departureRequiresMovement;
+    // Genuine EntityPlayer.motionY setter can synchronously reenter the
+    // movement host before it returns; never recursively spend an edge.
+    private boolean nativeYWriteDispatching;
 
     @Override
     public String id() {
@@ -117,6 +126,12 @@ public final class Minecraft189ReverseStepModule
             final boolean suspended,
             final boolean movementHeld,
             final boolean actualClickGuiOpen) {
+        if (nativeYWriteDispatching) {
+            // This call is nested inside the real mapped Y setter.
+            // The outer original departure was already spent; do not
+            // update transition history or fabricate another velocity.
+            return false;
+        }
         // A source-native GUI focus change revokes the full historical
         // ground-to-air lease, not merely the pending delayed write. No
         // departure observed before/in GUI may replay on menu close.
@@ -152,8 +167,26 @@ public final class Minecraft189ReverseStepModule
         }
         if (transitionedOffGround) {
             pendingDelay = delayTicks.get().intValue();
+            departureSpeed = speed.get().doubleValue();
+            departureDelay = pendingDelay;
+            departureRequiresSneak = requireSneaking.get().booleanValue();
+            departureRequiresMovement = requireMovement.get().booleanValue();
         }
         if (pendingDelay < 0) {
+            return false;
+        }
+        if (departureDelay > 0
+                && (Double.compare(departureSpeed,
+                        speed.get().doubleValue()) != 0
+                    || departureDelay != delayTicks.get().intValue()
+                    || departureRequiresSneak
+                            != requireSneaking.get().booleanValue()
+                    || departureRequiresMovement
+                            != requireMovement.get().booleanValue())) {
+            // An unspent delayed native departure cannot be reinterpreted
+            // under an edited GUI velocity or input admission policy.
+            // Demand a NEW actual grounded->airborne contact.
+            pendingDelay = -1;
             return false;
         }
         if (pendingDelay > 0) {
@@ -185,8 +218,24 @@ public final class Minecraft189ReverseStepModule
         }
         final double targetMotionY = -configuredSpeed;
         if (currentMotionY > targetMotionY) {
-            player.customMcSetMotionY(targetMotionY);
-            return true;
+            nativeYWriteDispatching = true;
+            try {
+                player.customMcSetMotionY(targetMotionY);
+                // Original setter may disable/re-enable ReverseStep or
+                // edit speed/gates before returning. It already physically
+                // wrote Y, but cannot report success to a NEW owner.
+                return enabled && nativeReadEpoch == epoch
+                        && Double.compare(
+                                speed.get().doubleValue(),
+                                configuredSpeed) == 0
+                        && delayTicks.get().intValue() == configuredDelay
+                        && requireSneaking.get().booleanValue()
+                                == requiresSneak
+                        && requireMovement.get().booleanValue()
+                                == requiresMovement;
+            } finally {
+                nativeYWriteDispatching = false;
+            }
         }
         return false;
     }
