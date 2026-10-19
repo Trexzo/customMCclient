@@ -135,7 +135,7 @@ final class Minecraft189DamageBoostFiniteNativeOwnerTest {
         Rig r=new Rig();
         r.module.verticalMultiplierSetting().set(2D);
         r.player.afterX=r.module::onDisable;
-        assertFalse(r.hit());
+        assertTrue(r.hit(), "an actual prior native setter changed velocity");
         assertEquals(1,r.player.xWrites);
         assertEquals(0,r.player.yWrites+r.player.zWrites);
         assertFalse(r.module.active());
@@ -144,7 +144,7 @@ final class Minecraft189DamageBoostFiniteNativeOwnerTest {
         Rig r=new Rig();
         r.module.verticalMultiplierSetting().set(2D);
         r.player.afterX=()->{r.module.onDisable();r.module.onEnable();};
-        assertFalse(r.hit());
+        assertTrue(r.hit(), "an actual prior native setter changed velocity");
         assertEquals(1,r.player.xWrites);
         assertEquals(0,r.player.yWrites+r.player.zWrites);
         assertFalse(r.tick());
@@ -154,7 +154,7 @@ final class Minecraft189DamageBoostFiniteNativeOwnerTest {
         Rig r=new Rig();
         r.module.verticalMultiplierSetting().set(2D);
         r.player.afterX=()->r.module.multiplierSetting().set(2D);
-        assertFalse(r.hit());
+        assertTrue(r.hit(), "an actual prior native setter changed velocity");
         assertEquals(0,r.player.yWrites+r.player.zWrites);
         assertTrue(r.freshHit());
     }
@@ -162,15 +162,15 @@ final class Minecraft189DamageBoostFiniteNativeOwnerTest {
         Rig r=new Rig();
         r.module.verticalMultiplierSetting().set(2D);
         r.player.afterY=()->r.module.capHorizontalSetting().set(true);
-        assertFalse(r.hit());
+        assertTrue(r.hit(), "an actual prior native setter changed velocity");
         assertEquals(1,r.player.xWrites);
         assertEquals(1,r.player.yWrites);
         assertEquals(0,r.player.zWrites);
     }
-    @Test void originalZSetterDisableDoesNotReportStaleOwnerSuccess() {
+    @Test void originalZSetterDisableReportsActualWriteButDoesNotReplayOwner() {
         Rig r=new Rig();
         r.player.afterZ=r.module::onDisable;
-        assertFalse(r.hit());
+        assertTrue(r.hit(), "an actual prior native setter changed velocity");
         assertEquals(1,r.player.xWrites);
         assertEquals(1,r.player.zWrites);
         assertFalse(r.module.active());
