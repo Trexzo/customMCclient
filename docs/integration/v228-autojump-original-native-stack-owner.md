@@ -1,0 +1,7 @@
+# V228 — AutoJump native jump() stack reentry and landing owner
+
+AutoJump already spends its grounded landing lease BEFORE calling original `EntityPlayer.jump()`. However the native mapped `jump()` can synchronously reenter the movement host, including toggling AutoJump OFF/ON. Re-enabling resets `armed` and cadence, permitting the nested callback to borrow a newly armed landing right during the old original native stack.
+
+V228 wraps the original jump method in `nativeJumpDispatching`, using a dedicated `try/finally` guard which is deliberately not reset by onEnable/onDisable. A nested same/other-player callback never dispatches a second original jump or mutates new-owner landing cadence, even after OFF/ON. The existing pre-dispatch `armed=false` lease consumption remains authoritative; source write-then-throw never causes fake rollback or replay. Normal initial landing, genuine air→ground, countdown, original GUI focus, physical forward/any movement, sprint and sneak options remain unchanged.
+
+14 Java 8/JUnit native-shaped source adapter tests cover accepted jump, recursive same/other original players, OFF→ON in genuine jump, throw and replay protection, GUI contact, delay, forward/sprint/sneak, unavailable source movement and disabled module. Source-adapter PASS is not genuine Mojang binary acceptance. New immutable V228 needs own Windows+Ubuntu Foundation, complete 78 strict original Mojang 1.8.9 X11 graphical + vanilla dedicated-server steps, and unchanged-SHA independent repeat. Draft child of V227; main unchanged.

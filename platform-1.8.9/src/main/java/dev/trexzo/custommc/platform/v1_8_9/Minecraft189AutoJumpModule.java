@@ -67,6 +67,11 @@ public final class Minecraft189AutoJumpModule
     private boolean movementRequiredAtContact;
     private boolean sprintRequiredAtContact;
     private boolean pauseSneakingAtContact;
+    // Actual EntityPlayer.jump() can synchronously reenter the module,
+    // including a nested OFF/ON which re-arms a new landing contact.
+    // Prevent that new activation from borrowing the still-running
+    // source jump's original native stack.
+    private boolean nativeJumpDispatching;
 
     @Override
     public String id() {
@@ -128,6 +133,12 @@ public final class Minecraft189AutoJumpModule
             final boolean anyMovementHeld,
             final boolean actualClickGuiOpen) {
         Objects.requireNonNull(movement, "movement");
+        if (nativeJumpDispatching) {
+            // One genuine original jump stack may dispatch at most once.
+            // Do not mutate a freshly re-enabled owner's cadence from
+            // an older native callback.
+            return;
+        }
         if (actualClickGuiOpen) {
             // Even if W is physically held while opening the menu, a
             // previously eligible grounded click must not fire AFTER
@@ -219,7 +230,14 @@ public final class Minecraft189AutoJumpModule
         // A throwing source bridge cannot replay the same grounded jump.
         armed = false;
         landingDelayAtContact = -1;
-        player.customMcJump();
+        nativeJumpDispatching = true;
+        try {
+            player.customMcJump();
+        } finally {
+            // A mapped original jump can update actual Y and then
+            // throw; release only this lease, never fake a rollback.
+            nativeJumpDispatching = false;
+        }
     }
 
     synchronized boolean active() {
