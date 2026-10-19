@@ -913,7 +913,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # obscure the Survival potion healing assertion.
                 send_command(process, log, window, "/gamerule doMobSpawning false")
                 await_marker(process, log,
-                             b"Game rule doMobSpawning has been updated to false",
+                             b"[CHAT] Game rule has been updated",
                              deadline, "vanilla original game rule stops new mobs")
                 send_command(process, log, window, "/kill @e[type=Creeper]")
                 print("CUSTOMMC_189_V213_ACTUAL_SURVIVAL_CREEPER_GUARD_ACK=YES",
