@@ -42,6 +42,12 @@ on:
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NearestTargetCallbackEpochTest.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MovementSpeedTracker.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MovementSpeedTrackerFiniteTest.java'
+      # V218: CPS uses genuine physical mouse press timestamps from
+      # Java System.nanoTime, but this source is NOT a *Module.java.
+      # A changed one-second click window must exercise the original
+      # Minecraft mouse/controller/X11 + vanilla server acceptance suite.
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClickRateTracker.java'
+      - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClickRateTrackerSignedNanoTimeTest.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189KillAuraNativeFovGate.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189KillAuraNativeFovGateTest.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityVisibilityState.java'
