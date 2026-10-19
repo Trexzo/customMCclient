@@ -138,13 +138,17 @@ final class Minecraft189AutoJumpNativeStackTest {
         assertEquals(0,p.jumps);
         land(m,p);assertEquals(1,p.jumps);
     }
-    @Test void sourceUnavailableCannotSpendOldNativeLanding() {
+    @Test void sourceUnavailableCancelsOldWaitAndAllowsFreshKnownGround() {
         final Minecraft189AutoJumpModule m=new Minecraft189AutoJumpModule();
         final Player p=new Player();m.onEnable();
         m.apply(p,state(false,false,false),true,true,false);
         m.apply(p,new Minecraft189PlayerMovementState().snapshot(),true,true,false);
         m.apply(p,state(true,false,false),true,true,false);
-        assertEquals(0,p.jumps);
+        // Preserve the established AutoJump source contract: after
+        // unknown movement resets cadence, the *new known* grounded
+        // callback may start a fresh contact. The unavailable snapshot
+        // itself never dispatched a native jump.
+        assertEquals(1,p.jumps);
     }
     @Test void disabledModuleNeverDispatchesOriginalPlayerJump() {
         final Minecraft189AutoJumpModule m=new Minecraft189AutoJumpModule();
