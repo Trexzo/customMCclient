@@ -64,9 +64,12 @@ public final class Minecraft189ReverseStepModule
     private int departureDelay;
     private boolean departureRequiresSneak;
     private boolean departureRequiresMovement;
-    // Genuine EntityPlayer.motionY setter can synchronously reenter the
-    // movement host before it returns; never recursively spend an edge.
-    private boolean nativeYWriteDispatching;
+    // Real mapped motionY getter and setter can synchronously reenter
+    // the movement host before the original ground->air transition
+    // has completed. One genuine source player owns the full Y stack.
+    private boolean nativeYDispatching;
+    private Minecraft189PlayerMotionControl nativeYPlayer;
+    private boolean nativeYRevoked;
 
     @Override
     public String id() {
@@ -126,10 +129,19 @@ public final class Minecraft189ReverseStepModule
             final boolean suspended,
             final boolean movementHeld,
             final boolean actualClickGuiOpen) {
-        if (nativeYWriteDispatching) {
-            // This call is nested inside the real mapped Y setter.
-            // The outer original departure was already spent; do not
-            // update transition history or fabricate another velocity.
+        if (nativeYDispatching) {
+            // A nested original getter or setter is never a new tick.
+            // Another original player, suspension or lost movement/GUI
+            // eligibility irrevocably revokes the source that departed.
+            if (!enabled || player != nativeYPlayer || suspended
+                    || actualClickGuiOpen
+                    || movement == null || !movement.available()
+                    || (requireSneaking.get().booleanValue()
+                        && !movement.sneaking())
+                    || (requireMovement.get().booleanValue()
+                        && !movementHeld)) {
+                nativeYRevoked = true;
+            }
             return false;
         }
         // A source-native GUI focus change revokes the full historical
@@ -202,42 +214,51 @@ public final class Minecraft189ReverseStepModule
         final int configuredDelay = delayTicks.get().intValue();
         final boolean requiresSneak = requireSneaking.get().booleanValue();
         final boolean requiresMovement = requireMovement.get().booleanValue();
-        final double currentMotionY = player.customMcMotionY();
-        if (!enabled || nativeReadEpoch != epoch
-                || speed.get().doubleValue() != configuredSpeed
-                || delayTicks.get().intValue() != configuredDelay
-                || requireSneaking.get().booleanValue() != requiresSneak
-                || requireMovement.get().booleanValue() != requiresMovement
-                || (requiresSneak && !movement.sneaking())
-                || (requiresMovement && !movementHeld)) {
-            // No synthetic delayed replay after a reentrant GUI edit.
-            return false;
-        }
-        if (!Double.isFinite(currentMotionY) || currentMotionY > 0.0D) {
-            return false;
-        }
-        final double targetMotionY = -configuredSpeed;
-        if (currentMotionY > targetMotionY) {
-            nativeYWriteDispatching = true;
-            try {
+        nativeYDispatching = true;
+        nativeYPlayer = player;
+        nativeYRevoked = false;
+        try {
+            final double currentMotionY = player.customMcMotionY();
+            if (nativeYRevoked || !enabled || nativeReadEpoch != epoch
+                    || speed.get().doubleValue() != configuredSpeed
+                    || delayTicks.get().intValue() != configuredDelay
+                    || requireSneaking.get().booleanValue() != requiresSneak
+                    || requireMovement.get().booleanValue() != requiresMovement
+                    || (requiresSneak && !movement.sneaking())
+                    || (requiresMovement && !movementHeld)) {
+                // No delayed native departure may be resurrected after
+                // a mapped getter callback changed original ownership.
+                return false;
+            }
+            if (!Double.isFinite(currentMotionY)
+                    || currentMotionY > 0.0D) {
+                return false;
+            }
+            final double targetMotionY = -configuredSpeed;
+            if (currentMotionY > targetMotionY) {
                 player.customMcSetMotionY(targetMotionY);
-                // Original setter may disable/re-enable ReverseStep or
-                // edit speed/gates before returning. It already physically
-                // wrote Y, but cannot report success to a NEW owner.
-                return enabled && nativeReadEpoch == epoch
-                        && Double.compare(
-                                speed.get().doubleValue(),
+                // The native setter may have written real Y before
+                // reentering a different player / GUI / lifecycle.
+                // Never claim CURRENT-owner success for an older source.
+                return !nativeYRevoked && enabled
+                        && nativeReadEpoch == epoch
+                        && Double.compare(speed.get().doubleValue(),
                                 configuredSpeed) == 0
                         && delayTicks.get().intValue() == configuredDelay
                         && requireSneaking.get().booleanValue()
                                 == requiresSneak
                         && requireMovement.get().booleanValue()
                                 == requiresMovement;
-            } finally {
-                nativeYWriteDispatching = false;
             }
+            return false;
+        } finally {
+            // Source setter exceptions do not roll back vanilla motion.
+            // The next actual grounded->airborne edge must earn its
+            // own new native ownership.
+            nativeYPlayer = null;
+            nativeYRevoked = false;
+            nativeYDispatching = false;
         }
-        return false;
     }
 
     synchronized boolean active() {
