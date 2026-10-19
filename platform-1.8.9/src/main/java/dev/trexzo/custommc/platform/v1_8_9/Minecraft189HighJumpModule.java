@@ -132,7 +132,7 @@ public final class Minecraft189HighJumpModule
             // Only the ORIGINAL activation may queue a subsequent motion.
             if (!enabled || ownerEpoch != nativeJumpEpoch
                     || requireMovement.get().booleanValue() != requiresMovement
-                    || !inputState.keyPressed(LegacyKeyboardCodes.SPACE)) {
+) {
                 return false;
             }
             boostPending = true;

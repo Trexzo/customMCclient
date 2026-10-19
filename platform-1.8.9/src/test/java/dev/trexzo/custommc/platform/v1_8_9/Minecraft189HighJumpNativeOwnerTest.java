@@ -85,13 +85,14 @@ final class Minecraft189HighJumpNativeOwnerTest {
         assertFalse(m.applyJump(p,ground(),false));
         assertEquals(1,p.jumps);assertFalse(m.applyMotion(p,false));
     }
-    @Test void releasedSpaceInsideNativeJumpDoesNotQueueBoost() {
+    @Test void releasedSpaceInsideNativeJumpKeepsAcceptedJumpAndFreshEdge() {
         final Minecraft189InputState input = new Minecraft189InputState();
         final Minecraft189HighJumpModule m = new Minecraft189HighJumpModule(input);
         final Player p = new Player();m.onEnable();space(input,true);
         p.onJump=()->space(input,false);
-        assertFalse(m.applyJump(p,ground(),false));
-        assertEquals(1,p.jumps);assertFalse(m.applyMotion(p,false));
+        assertTrue(m.applyJump(p,ground(),false));
+        assertEquals(1,p.jumps);assertTrue(m.applyMotion(p,false));
+        assertEquals(1,p.writes);
         space(input,true);
         assertTrue(m.applyJump(p,ground(),false));
         assertEquals(2,p.jumps);
