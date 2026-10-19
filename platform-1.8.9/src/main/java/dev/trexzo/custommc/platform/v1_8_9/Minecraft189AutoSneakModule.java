@@ -33,6 +33,10 @@ public final class Minecraft189AutoSneakModule
             REQUIRE_FORWARD_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // EntityPlayer.setSneaking(true) can synchronously re-enter the
+    // original movement host before the native sneaking bit updates.
+    // An OFF->ON during that callback must not permit nested writes.
+    private boolean nativeSneakDispatching;
 
     public Setting<Boolean> groundOnlySetting() {
         return groundOnly;
@@ -102,6 +106,7 @@ public final class Minecraft189AutoSneakModule
         // synthetic native player sneak write while menus are active.
         // Existing user/vanilla sneaking remains untouched.
         if (!enabled
+                || nativeSneakDispatching
                 || actualClickGuiOpen
                 || player == null
                 || !movement.available()
@@ -112,8 +117,15 @@ public final class Minecraft189AutoSneakModule
                 || (requireForward.get().booleanValue() && !forwardHeld)) {
             return;
         }
-        player.customMcSetSneaking(
-                true);
+        nativeSneakDispatching = true;
+        try {
+            player.customMcSetSneaking(true);
+        } finally {
+            // A native setter may throw after applying a real state
+            // change. Never invent an unsneak rollback; merely release
+            // the same-stack guard for a future real host callback.
+            nativeSneakDispatching = false;
+        }
     }
 
     synchronized boolean active() {
