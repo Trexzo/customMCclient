@@ -92,7 +92,7 @@ final class Minecraft189DamageBoostFiniteNativeOwnerTest {
         assertTrue(r.hit());
         assertEquals(1e308,r.player.y,0D);
         assertEquals(0,r.player.yWrites);
-        assertEquals(1,r.player.xWrites+r.player.zWrites-1);
+        assertEquals(2,r.player.xWrites+r.player.zWrites);
     }
     @Test void nanNativeHorizontalAxisDoesNotPoisonOtherHorizontalSource() {
         Rig r=new Rig();
