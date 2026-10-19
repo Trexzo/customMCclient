@@ -101,6 +101,56 @@ class DryChamberFillTest(TestCase):
         self.assertEqual(within.count(
             "prepare_verified_native_dry_chamber(process, log, window)"), 1)
 
+    def test_real_original_creeper_guard_uses_vanilla_world_commands(self):
+        source = Path(smoke.__file__).read_text(encoding="utf-8")
+        within = source.split("            if native_rod_potion_discovery:", 1)[1]
+        creative = within.index('"/gamemode creative CIProbe"')
+        guard = within.index('"/gamerule doMobSpawning false"', creative)
+        ack = within.index("Game rule doMobSpawning has been updated to false", guard)
+        early_clear = within.index('"/kill @e[type=Creeper]"', ack)
+        stone = within.index("prepare_verified_native_dry_chamber(", early_clear)
+        physical = within.index("NATIVE_REAL_SPLASH_EFFECT", stone)
+        last_clear = within.index('"/kill @e[type=Creeper]"', physical)
+        survival = within.index('"/gamemode survival CIProbe"', last_clear)
+        damage = within.index('"/effect CIProbe 7 1 0"', survival)
+        cast = within.index("NATIVE_AUTOPOT_HEAL_CAST", damage)
+        positive_heal = within.index("NATIVE_AUTOPOT_HEAL_GAIN", cast)
+        self.assertTrue(creative < guard < ack < early_clear < stone
+                        < physical < last_clear < survival < damage
+                        < cast < positive_heal)
+        self.assertEqual(within.count('"/kill @e[type=Creeper]"'), 2)
+        self.assertEqual(within.count('"/gamerule doMobSpawning false"'), 1)
+
+    def test_creeper_guard_cannot_replace_real_survival_healing(self):
+        source = Path(smoke.__file__).read_text(encoding="utf-8")
+        within = source.split("            if native_rod_potion_discovery:", 1)[1]
+        # No fake health injection, Peaceful regeneration or weakened
+        # source acceptance: actual Survival, actual Instant Damage,
+        # actual synthetic right-click, and actual +4 health mandatory.
+        self.assertNotIn('"/difficulty peaceful"', within)
+        self.assertNotIn('"/difficulty 0"', within)
+        self.assertNotIn('"/effect CIProbe 6 1 1"', within[
+            within.index('"/gamemode survival CIProbe"'):
+            within.index("NATIVE_AUTOPOT_HEAL_GAIN")])
+        self.assertIn('"/gamemode survival CIProbe"', within)
+        self.assertIn('"/effect CIProbe 7 1 0"', within)
+        self.assertIn("NATIVE_AUTOPOT_HEAL_CAST", within)
+        self.assertIn("NATIVE_AUTOPOT_HEAL_GAIN", within)
+        self.assertIn("await_marker(process, log, NATIVE_AUTOPOT_HEAL_GAIN",
+                      within)
+
+    def test_original_game_rule_must_be_acknowledged_before_stone_fixture(self):
+        source = Path(smoke.__file__).read_text(encoding="utf-8")
+        within = source.split("            if native_rod_potion_discovery:", 1)[1]
+        guard = within.index('"/gamerule doMobSpawning false"')
+        ack = within.index("await_marker(process, log,", guard)
+        confirmed = within.index(
+            'b"Game rule doMobSpawning has been updated to false"', ack)
+        stone = within.index("prepare_verified_native_dry_chamber(", guard)
+        self.assertTrue(guard < ack < confirmed < stone)
+        self.assertIn("CUSTOMMC_189_V213_ACTUAL_SURVIVAL_CREEPER_GUARD_ACK=YES",
+                      within)
+
     def test_dry_chamber_is_single_chunk_and_enclosed(self):
         # 1.8.9 /fill must not depend on unloaded x=-1 or z=-1 chunks.
         # Both cuboids are entirely within block-coordinate chunk (0,0).
