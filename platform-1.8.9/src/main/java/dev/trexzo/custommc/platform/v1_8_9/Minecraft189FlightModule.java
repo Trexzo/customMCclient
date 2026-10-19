@@ -107,6 +107,12 @@ public final class Minecraft189FlightModule
     private boolean enabled;
     // Revokes mapped native player reads after an OFF/ON cycle.
     private long nativeReadEpoch;
+    // The real player's mapped motionY/X/Z getters and setters may
+    // synchronously invoke this movement host. A single source callback
+    // owns one pinned original player across all three motion axes.
+    private boolean nativeMotionDispatching;
+    private Minecraft189PlayerMotionControl nativeMotionPlayer;
+    private boolean nativeMotionRevoked;
 
     Minecraft189FlightModule(
             final Minecraft189InputState inputState) {
@@ -184,6 +190,16 @@ public final class Minecraft189FlightModule
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean actualClickGuiOpen) {
         Objects.requireNonNull(rotation, "rotation");
+        if (nativeMotionDispatching) {
+            // A nested original getter/setter callback is not a new
+            // movement tick. Loss of player or GUI focus revokes the
+            // still-open outer transaction before any additional axis.
+            if (!enabled || player != nativeMotionPlayer
+                    || actualClickGuiOpen) {
+                nativeMotionRevoked = true;
+            }
+            return;
+        }
         // The original GUI owns keyboard focus. Neither hover, climb nor
         // directional Flight may rewrite source player motion in that state.
         // Do not synthesize a motion reset: the vanilla player owns its
@@ -192,15 +208,27 @@ public final class Minecraft189FlightModule
             return;
         }
 
-        final long callbackEpoch = nativeReadEpoch;
-        applyVertical(player);
-        // A genuine mapped vertical setter can synchronously disable and
-        // restart the module. No old callback may then write X or Z.
-        if (!enabled || callbackEpoch != nativeReadEpoch) {
-            return;
-        }
-        if (rotation.available()) {
-            applyHorizontal(player, rotation.yaw(), movement);
+        nativeMotionDispatching = true;
+        nativeMotionPlayer = player;
+        nativeMotionRevoked = false;
+        try {
+            final long callbackEpoch = nativeReadEpoch;
+            applyVertical(player);
+            // A genuine mapped Y setter can reenter through a different
+            // original player or GUI; never follow it with stale X/Z.
+            if (!enabled || nativeMotionRevoked
+                    || callbackEpoch != nativeReadEpoch) {
+                return;
+            }
+            if (rotation.available()) {
+                applyHorizontal(player, rotation.yaw(), movement);
+            }
+        } finally {
+            // A mapped original setter can write vanilla velocity and
+            // then throw. Clear only the guard, never fake a rollback.
+            nativeMotionPlayer = null;
+            nativeMotionRevoked = false;
+            nativeMotionDispatching = false;
         }
     }
 
@@ -266,7 +294,8 @@ public final class Minecraft189FlightModule
         final boolean nowDescend =
                 inputState.keyPressed(LegacyKeyboardCodes.LEFT_SHIFT)
                 || inputState.keyPressed(LegacyKeyboardCodes.RIGHT_SHIFT);
-        return enabled && nativeReadEpoch == epoch
+        return enabled && !nativeMotionRevoked
+                && nativeReadEpoch == epoch
                 && nowAscend == ascend && nowDescend == descend
                 && verticalSpeed.get().doubleValue() == speed
                 && smoothVertical.get().booleanValue() == smooth
@@ -381,7 +410,8 @@ public final class Minecraft189FlightModule
             final boolean a, final boolean d, final boolean boost,
             final double sprintScale, final double speed,
             final boolean smooth, final double step) {
-        return enabled && nativeReadEpoch == epoch
+        return enabled && !nativeMotionRevoked
+                && nativeReadEpoch == epoch
                 && inputState.keyPressed(LegacyKeyboardCodes.W) == w
                 && inputState.keyPressed(LegacyKeyboardCodes.S) == s
                 && inputState.keyPressed(LegacyKeyboardCodes.A) == a
