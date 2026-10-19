@@ -66,6 +66,10 @@ public final class Minecraft189FastBreakModule
                     SettingCodecs.INTEGER);
 
     private boolean enabled;
+    // A mapped PlayerControllerMP blockHitDelay setter may reenter this
+    // host synchronously. No second setter can borrow its native stack.
+    // Keep this guard intact across OFF->ON and original setter throws.
+    private boolean nativeDelayDispatching;
 
     @Override
     public String id() {
@@ -123,6 +127,10 @@ public final class Minecraft189FastBreakModule
             final boolean attackHeld,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean actualClickGuiOpen) {
+        // Even another original PlayerControllerMP seen during a mapped
+        // setter cannot spend an additional cooldown write. Let the next
+        // genuine host callback use its own live controller and policy.
+        if (nativeDelayDispatching) return;
         // Never modify the original PlayerControllerMP mining cooldown
         // while the ClickGUI owns mouse/keyboard focus.
         if (actualClickGuiOpen) return;
@@ -146,10 +154,17 @@ public final class Minecraft189FastBreakModule
                 && movement != null
                 && movement.available()
                 && !movement.onGround();
-        controller.customMcSetBlockHitDelay(
-                airborne
-                        ? airborneDelay.get().intValue()
-                        : delay.get().intValue());
+        final int approvedDelay = airborne
+                ? airborneDelay.get().intValue()
+                : delay.get().intValue();
+        nativeDelayDispatching = true;
+        try {
+            controller.customMcSetBlockHitDelay(approvedDelay);
+        } finally {
+            // The mapped native setter can write its real controller
+            // before throwing. Do not pretend the actual delay reverted.
+            nativeDelayDispatching = false;
+        }
     }
 
     synchronized boolean active() {
