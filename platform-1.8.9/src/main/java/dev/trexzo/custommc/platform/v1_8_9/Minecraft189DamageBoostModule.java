@@ -58,6 +58,9 @@ public final class Minecraft189DamageBoostModule
     private long nativeReadEpoch;
     private boolean previousAvailable;
     private int previousHurtTime;
+    // A real mapped motionX/Y/Z setter can reenter the host hurt hook.
+    // One physical hurt edge must never recurse into a second impulse.
+    private boolean nativeImpulseDispatching;
 
     @Override
     public String id() {
@@ -98,6 +101,12 @@ public final class Minecraft189DamageBoostModule
             final Minecraft189PlayerMotionControl player,
             final Minecraft189PlayerHurtTimeState.Snapshot hurtTime,
             final boolean suspended) {
+        if (nativeImpulseDispatching) {
+            // Original native motion is still being changed on this
+            // stack. An inner host callback cannot consume or replay a
+            // second hurt/impulse while the outer owner is in-flight.
+            return false;
+        }
         if (hurtTime == null
                 || !hurtTime.available()) {
             resetObservation();
@@ -138,12 +147,25 @@ public final class Minecraft189DamageBoostModule
         final double currentZ = player.customMcMotionZ();
         if (!nativeReadOwned(epoch, configuredMultiplier,
                 configuredVerticalMultiplier, capped, cap)) return false;
-        double targetX =
-                cleanZero(currentX * configuredMultiplier);
-        final double targetY =
-                cleanZero(currentY * configuredVerticalMultiplier);
-        double targetZ =
-                cleanZero(currentZ * configuredMultiplier);
+        // Real X/Y/Z getter values may be finite yet huge. Scaling a
+        // valid finite velocity can overflow to Infinity (or a malformed
+        // native getter can return NaN). Never write a nonfinite boost
+        // back into genuine EntityPlayer motion. Preserve horizontal
+        // source axes together; vertical safety remains independent.
+        final double candidateX = currentX * configuredMultiplier;
+        final double candidateY = currentY * configuredVerticalMultiplier;
+        final double candidateZ = currentZ * configuredMultiplier;
+        final boolean validHorizontal = Double.isFinite(currentX)
+                && Double.isFinite(currentZ)
+                && Double.isFinite(candidateX)
+                && Double.isFinite(candidateZ);
+        double targetX = validHorizontal
+                ? cleanZero(candidateX) : currentX;
+        final double targetY = Double.isFinite(currentY)
+                && Double.isFinite(candidateY)
+                ? cleanZero(candidateY) : currentY;
+        double targetZ = validHorizontal
+                ? cleanZero(candidateZ) : currentZ;
 
         if (capped) {
             // Cap only the *additional* momentum from this boost.
@@ -165,26 +187,36 @@ public final class Minecraft189DamageBoostModule
         }
 
         boolean changed = false;
-        if (Double.compare(
-                currentX,
-                targetX) != 0) {
-            player.customMcSetMotionX(
-                    targetX);
-            changed = true;
-            if (!nativeReadOwned(epoch, configuredMultiplier,
-                    configuredVerticalMultiplier, capped, cap)) return changed;
+        nativeImpulseDispatching = true;
+        try {
+            if (Double.compare(currentX, targetX) != 0) {
+                player.customMcSetMotionX(targetX);
+                changed = true;
+                if (!nativeReadOwned(epoch, configuredMultiplier,
+                        configuredVerticalMultiplier, capped, cap))
+                    return false;
+            }
+            if (Double.compare(currentY, targetY) != 0) {
+                player.customMcSetMotionY(targetY);
+                changed = true;
+                if (!nativeReadOwned(epoch, configuredMultiplier,
+                        configuredVerticalMultiplier, capped, cap))
+                    return false;
+            }
+            if (Double.compare(currentZ, targetZ) != 0) {
+                player.customMcSetMotionZ(targetZ);
+                changed = true;
+                if (!nativeReadOwned(epoch, configuredMultiplier,
+                        configuredVerticalMultiplier, capped, cap))
+                    return false;
+            }
+            return changed;
+        } finally {
+            // A setter may physically mutate vanilla momentum then throw;
+            // consume the original hurt but always unlock future NEW
+            // real original hurt observations.
+            nativeImpulseDispatching = false;
         }
-        if (Double.compare(currentY, targetY) != 0) {
-            player.customMcSetMotionY(targetY);
-            changed = true;
-            if (!nativeReadOwned(epoch, configuredMultiplier,
-                    configuredVerticalMultiplier, capped, cap)) return changed;
-        }
-        if (Double.compare(currentZ, targetZ) != 0) {
-            player.customMcSetMotionZ(targetZ);
-            changed = true;
-        }
-        return changed;
     }
 
     private boolean nativeReadOwned(
