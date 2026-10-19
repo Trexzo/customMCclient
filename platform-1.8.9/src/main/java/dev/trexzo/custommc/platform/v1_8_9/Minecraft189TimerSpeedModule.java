@@ -87,6 +87,14 @@ public final class Minecraft189TimerSpeedModule
     private boolean enabled;
     // The mapped game Timer getter may reenter module lifecycle/GUI policy.
     private long nativeReadEpoch;
+    // Actual Timer.speed getter and setter may synchronously invoke the
+    // same host. A persistent world clock must never borrow another
+    // Timer instance or a new activation within the original stack.
+    private boolean nativeClockDispatching;
+    private Minecraft189TimerSpeedControl nativeClockOwner;
+    private boolean nativeClockRevoked;
+    private boolean nativeClockDifferentOwner;
+    private boolean nativeClockRestoreVanilla;
 
     @Override
     public String id() {
@@ -151,6 +159,27 @@ public final class Minecraft189TimerSpeedModule
             final Minecraft189TimerSpeedControl timer,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean actualClickGuiOpen) {
+        if (nativeClockDispatching) {
+            if (timer != nativeClockOwner) {
+                nativeClockRevoked = true;
+                nativeClockDifferentOwner = true;
+            } else if (!enabled
+                    || (actualClickGuiOpen
+                        && pauseClickGui.get().booleanValue())
+                    || (sprintOnly.get().booleanValue()
+                        && (movement == null || !movement.available()
+                            || !movement.sprinting()))
+                    || (pauseWhileSneaking.get().booleanValue()
+                        && (movement == null || !movement.available()
+                            || movement.sneaking()))
+                    || (groundOnly.get().booleanValue()
+                        && (movement == null || !movement.available()
+                            || !movement.onGround()))) {
+                nativeClockRevoked = true;
+                nativeClockRestoreVanilla = true;
+            }
+            return;
+        }
         if (timer == null) {
             return;
         }
@@ -185,28 +214,59 @@ public final class Minecraft189TimerSpeedModule
         // A failed mapped movement gate must undo an earlier timer boost
         // immediately, not keep an obsolete accelerated world clock.
         final float target = permitted ? configuredPercent / 100.0F : 1.0F;
-        final float current = timer.customMcTimerSpeed();
-        if (!nativeReadOwned(epoch, configuredSpeed, airOverride, airSpeed,
-                smoothing, transitionStep, configuredGuiPause, requireSprint,
-                pauseSneak, requireGround)) {
-            // A *disabled* Timer must release its persistent native world
-            // clock to exactly 1x, even if the external read disabled it.
-            // OFF->ON is a NEW owner and receives no old callback writes.
-            // A live GUI policy edit also cannot spend the old timer read.
-            if (!enabled && (!Float.isFinite(current)
-                    || Math.abs(current - 1.0F) > 0.000001F)) {
+        nativeClockDispatching = true;
+        nativeClockOwner = timer;
+        nativeClockRevoked = false;
+        nativeClockDifferentOwner = false;
+        nativeClockRestoreVanilla = false;
+        try {
+            final float current = timer.customMcTimerSpeed();
+            final boolean owned = !nativeClockRevoked
+                    && nativeReadOwned(epoch, configuredSpeed, airOverride,
+                            airSpeed, smoothing, transitionStep,
+                            configuredGuiPause, requireSprint,
+                            pauseSneak, requireGround);
+            if (!owned) {
+                // A disabled module still owns restoring this SAME
+                // original Timer to 1x. A changed Timer instance or
+                // fresh OFF->ON activation cannot inherit the old read.
+                if (!nativeClockDifferentOwner
+                        && (!enabled || (nativeClockRestoreVanilla
+                            && epoch == nativeReadEpoch))
+                        && (!Float.isFinite(current)
+                            || Math.abs(current - 1.0F) > 0.000001F)) {
+                    timer.customMcSetTimerSpeed(1.0F);
+                }
+                return;
+            }
+            // Failed movement/GUI policy gates restore 1x immediately;
+            // a permitted source may smooth from actual game Timer.
+            final float next = permitted && smoothing
+                    ? stepToward(current, target, transitionStep)
+                    : target;
+            if (!Float.isFinite(current)
+                    || Math.abs(current - next) > 0.000001F) {
+                timer.customMcSetTimerSpeed(next);
+            }
+            // Genuine original setter can successfully write acceleration
+            // and synchronously open GUI/disable Timer before returning.
+            // Release the SAME original clock to vanilla only for an
+            // actual veto; never overwrite a different Timer or new ON.
+            if (!nativeClockDifferentOwner && nativeClockRestoreVanilla
+                    && (!enabled || epoch == nativeReadEpoch)
+                    && Math.abs(next - 1.0F) > 0.000001F) {
                 timer.customMcSetTimerSpeed(1.0F);
             }
-            return;
-        }
-        // Disabling Timer restores 1x instantly even if smoothing was
-        // active; valid enabled owners use current genuine native state.
-        final float next = permitted && smoothing
-                ? stepToward(current, target, transitionStep)
-                : target;
-        if (!Float.isFinite(current)
-                || Math.abs(current - next) > 0.000001F) {
-            timer.customMcSetTimerSpeed(next);
+        } catch (RuntimeException | Error nativeFailure) {
+            throw nativeFailure;
+        } finally {
+            // If a mapped native setter threw after writing the clock,
+            // preserve the actual error and do not invent a rollback.
+            nativeClockOwner = null;
+            nativeClockRevoked = false;
+            nativeClockDifferentOwner = false;
+            nativeClockRestoreVanilla = false;
+            nativeClockDispatching = false;
         }
     }
 
