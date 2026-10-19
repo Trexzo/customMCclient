@@ -40,6 +40,11 @@ public final class Minecraft189NoWebModule
     private boolean enabled;
     // Invalidates callbacks that read a native source owner before restart.
     private long nativeReadEpoch;
+    // Mapped original inWeb() getter/setter may synchronously reenter
+    // the host. Pin one genuine player until the native stack unwinds.
+    private boolean nativeWebDispatching;
+    private Minecraft189PlayerWebControl nativeWebPlayer;
+    private boolean nativeWebRevoked;
 
     @Override
     public String id() {
@@ -73,6 +78,23 @@ public final class Minecraft189NoWebModule
             final Minecraft189PlayerWebControl player,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean actualClickGuiOpen) {
+        if (nativeWebDispatching) {
+            // Another original player, focus change or newly disallowed
+            // movement gate irrevocably vetoes the outer pending clear.
+            final boolean ground = groundOnly.get().booleanValue();
+            final boolean sneak = requireSneaking.get().booleanValue();
+            final boolean airborne = airborneOnly.get().booleanValue();
+            if (!enabled || actualClickGuiOpen || player != nativeWebPlayer
+                    || (ground && airborne)
+                    || ((ground || sneak || airborne)
+                        && (movement == null || !movement.available()
+                            || (ground && !movement.onGround())
+                            || (airborne && movement.onGround())
+                            || (sneak && !movement.sneaking())))) {
+                nativeWebRevoked = true;
+            }
+            return;
+        }
         // The original player owns its web collision flag while the
         // CustomMC menu has keyboard focus. Never clear a real web hit
         // during a menu callback or manufacture a delayed removal.
@@ -99,14 +121,26 @@ public final class Minecraft189NoWebModule
         // OFF -> ON, or GUI policy mutation while reading it, cannot
         // authorize a write under the previous source lease.
         final long approvedEpoch = nativeReadEpoch;
-        final boolean originalInWeb = player.customMcInWeb();
-        if (originalInWeb
-                && enabled
-                && nativeReadEpoch == approvedEpoch
-                && groundOnly.get().booleanValue() == ground
-                && requireSneaking.get().booleanValue() == sneak
-                && airborneOnly.get().booleanValue() == airborne) {
-            player.customMcSetInWeb(false);
+        nativeWebDispatching = true;
+        nativeWebPlayer = player;
+        nativeWebRevoked = false;
+        try {
+            final boolean originalInWeb = player.customMcInWeb();
+            if (originalInWeb
+                    && !nativeWebRevoked
+                    && enabled
+                    && nativeReadEpoch == approvedEpoch
+                    && groundOnly.get().booleanValue() == ground
+                    && requireSneaking.get().booleanValue() == sneak
+                    && airborneOnly.get().booleanValue() == airborne) {
+                player.customMcSetInWeb(false);
+            }
+        } finally {
+            // Original setter may have changed web collision before
+            // throwing. Never fabricate a web collision rollback.
+            nativeWebPlayer = null;
+            nativeWebRevoked = false;
+            nativeWebDispatching = false;
         }
     }
 
