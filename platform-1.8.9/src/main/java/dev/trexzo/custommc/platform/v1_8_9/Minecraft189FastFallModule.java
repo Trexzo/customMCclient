@@ -66,6 +66,12 @@ public final class Minecraft189FastFallModule
     private long nativeReadEpoch;
     private int eligibleDescentCallbacks;
     private int observedActivationDelay;
+    // Mapped EntityPlayer.motionY access can synchronously reenter the host.
+    // Only one native movement callback may own an active read/write stack,
+    // regardless of OFF->ON or the pending activation countdown.
+    private boolean nativeMotionDispatching;
+    private Minecraft189PlayerMotionControl nativeMotionPlayer;
+    private boolean nativeMotionRevoked;
 
     @Override
     public String id() {
@@ -118,6 +124,21 @@ public final class Minecraft189FastFallModule
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean suspended,
             final boolean actualClickGuiOpen) {
+        // A mapped Y getter or setter can reenter this same movement callback
+        // before the source tick has finished. Nested callbacks must never
+        // spend another descent tick or issue a second original Y write.
+        // A changed player or actual GUI/suspension/grounded permission
+        // additionally revokes the outer pending motion transaction.
+        if (nativeMotionDispatching) {
+            if (!enabled || player != nativeMotionPlayer
+                    || actualClickGuiOpen || suspended || movement == null
+                    || !movement.available() || movement.onGround()
+                    || (pauseWhileSneaking.get().booleanValue()
+                            && movement.sneaking())) {
+                nativeMotionRevoked = true;
+            }
+            return;
+        }
         // An actual original GUI focus change breaks consecutive descent
         // evidence. Discard delayed eligibility rather than releasing a
         // pre-UI fall into an immediate synthetic motion write on close.
@@ -134,58 +155,76 @@ public final class Minecraft189FastFallModule
             return;
         }
 
-        // A real mapped getter can synchronously restart this module or
-        // change persisted GUI policy. Capture permission BEFORE reading it.
-        final long approvedEpoch = nativeReadEpoch;
-        final int approvedDelay = activationDelayTicks.get().intValue();
-        final boolean approvedPauseSneaking =
-                pauseWhileSneaking.get().booleanValue();
-        final double approvedFallSpeed = fallSpeed.get().doubleValue();
-        final boolean approvedProgressive = progressive.get().booleanValue();
-        final double approvedRampStep = rampStep.get().doubleValue();
-        final double currentMotionY = player.customMcMotionY();
-        if (!enabled || nativeReadEpoch != approvedEpoch) {
-            // onEnable/onDisable already reset the new lifetime delay.
-            return;
-        }
-        if (activationDelayTicks.get().intValue() != approvedDelay
-                || pauseWhileSneaking.get().booleanValue()
-                    != approvedPauseSneaking
-                || fallSpeed.get().doubleValue() != approvedFallSpeed
-                || progressive.get().booleanValue() != approvedProgressive
-                || rampStep.get().doubleValue() != approvedRampStep) {
-            // A GUI edit invalidates any previously accumulated descent
-            // callbacks; the next real source call starts a fresh policy.
-            resetActivationDelay();
-            return;
-        }
-        // Unknown vertical motion must not produce a synthetic write.
-        // Preserve the existing no-write behavior for upward and stationary
-        // motion, and for descent already at or faster than the target.
-        if (!Double.isFinite(currentMotionY) || currentMotionY >= 0.0D) {
-            resetActivationDelay();
-            return;
-        }
-
-        final int delay = approvedDelay;
-        if (delay != observedActivationDelay) {
-            eligibleDescentCallbacks = 0;
-            observedActivationDelay = delay;
-        }
-        if (eligibleDescentCallbacks < delay) {
-            eligibleDescentCallbacks++;
-            return;
-        }
-
-        final double targetMotionY = -approvedFallSpeed;
-        if (currentMotionY > targetMotionY) {
-            final double nextMotionY = approvedProgressive
-                    ? Math.max(targetMotionY,
-                            currentMotionY - approvedRampStep)
-                    : targetMotionY;
-            if (nextMotionY < currentMotionY) {
-                player.customMcSetMotionY(nextMotionY);
+        nativeMotionDispatching = true;
+        nativeMotionPlayer = player;
+        nativeMotionRevoked = false;
+        try {
+            // A real mapped getter can synchronously restart this module or
+            // change persisted GUI policy. Capture permission BEFORE reading it.
+            final long approvedEpoch = nativeReadEpoch;
+            final int approvedDelay = activationDelayTicks.get().intValue();
+            final boolean approvedPauseSneaking =
+                    pauseWhileSneaking.get().booleanValue();
+            final double approvedFallSpeed = fallSpeed.get().doubleValue();
+            final boolean approvedProgressive = progressive.get().booleanValue();
+            final double approvedRampStep = rampStep.get().doubleValue();
+            final double currentMotionY = player.customMcMotionY();
+            if (nativeMotionRevoked) {
+                // A nested original host callback has changed source motion
+                // ownership or GUI/physical eligibility. No old read credit.
+                resetActivationDelay();
+                return;
             }
+            if (!enabled || nativeReadEpoch != approvedEpoch) {
+                // onEnable/onDisable already reset the new lifetime delay.
+                return;
+            }
+            if (activationDelayTicks.get().intValue() != approvedDelay
+                    || pauseWhileSneaking.get().booleanValue()
+                        != approvedPauseSneaking
+                    || fallSpeed.get().doubleValue() != approvedFallSpeed
+                    || progressive.get().booleanValue() != approvedProgressive
+                    || rampStep.get().doubleValue() != approvedRampStep) {
+                // A GUI edit invalidates any previously accumulated descent
+                // callbacks; the next real source call starts a fresh policy.
+                resetActivationDelay();
+                return;
+            }
+            // Unknown vertical motion must not produce a synthetic write.
+            // Preserve the existing no-write behavior for upward and stationary
+            // motion, and for descent already at or faster than the target.
+            if (!Double.isFinite(currentMotionY) || currentMotionY >= 0.0D) {
+                resetActivationDelay();
+                return;
+            }
+
+            final int delay = approvedDelay;
+            if (delay != observedActivationDelay) {
+                eligibleDescentCallbacks = 0;
+                observedActivationDelay = delay;
+            }
+            if (eligibleDescentCallbacks < delay) {
+                eligibleDescentCallbacks++;
+                return;
+            }
+
+            final double targetMotionY = -approvedFallSpeed;
+            if (currentMotionY > targetMotionY) {
+                final double nextMotionY = approvedProgressive
+                        ? Math.max(targetMotionY,
+                                currentMotionY - approvedRampStep)
+                        : targetMotionY;
+                if (nextMotionY < currentMotionY) {
+                    player.customMcSetMotionY(nextMotionY);
+                }
+            }
+        } finally {
+            // A genuine mapped getter/setter can mutate native motion and
+            // then throw. Do not fabricate a rollback; release only our
+            // same-stack dispatch guard.
+            nativeMotionPlayer = null;
+            nativeMotionRevoked = false;
+            nativeMotionDispatching = false;
         }
     }
 
