@@ -15,6 +15,11 @@ public final class Minecraft189AirJumpModule
     // Prevent a reentrant original jump() from rewriting the new key-edge owner.
     private long nativeJumpEpoch;
     private boolean spaceWasPressed;
+    // Real mapped EntityPlayer.jump() may reenter this same original
+    // host stack before its outer finally observes the Space edge.
+    // Keep this guard across OFF/ON so a nested new lifetime cannot
+    // borrow a second jump from a still-active original callback.
+    private boolean nativeJumpDispatching;
 
     Minecraft189AirJumpModule(
             final Minecraft189InputState inputState) {
@@ -63,6 +68,11 @@ public final class Minecraft189AirJumpModule
         Objects.requireNonNull(
                 movement,
                 "movement");
+        if (nativeJumpDispatching) {
+            // A reentrant callback is not a new physical input tick;
+            // never overwrite the new owner's sampled source Space.
+            return;
+        }
 
         final boolean spacePressed =
                 inputState.keyPressed(
@@ -82,7 +92,14 @@ public final class Minecraft189AirJumpModule
                 return;
             }
 
-            player.customMcJump();
+            nativeJumpDispatching = true;
+            try {
+                player.customMcJump();
+            } finally {
+                // The native jump may update the original Y before
+                // throwing. Release only reentrant ownership, not Y.
+                nativeJumpDispatching = false;
+            }
         } finally {
             // The original native jump() callback can restart AirJump.
             // onEnable/Disable already re-sample the real Space state for
