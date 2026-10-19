@@ -252,7 +252,8 @@ public final class Minecraft189TimerSpeedModule
             // and synchronously open GUI/disable Timer before returning.
             // Release the SAME original clock to vanilla only for an
             // actual veto; never overwrite a different Timer or new ON.
-            if (!nativeClockDifferentOwner && nativeClockRestoreVanilla
+            if (!nativeClockDifferentOwner
+                    && (nativeClockRestoreVanilla || !enabled)
                     && (!enabled || epoch == nativeReadEpoch)
                     && Math.abs(next - 1.0F) > 0.000001F) {
                 timer.customMcSetTimerSpeed(1.0F);
