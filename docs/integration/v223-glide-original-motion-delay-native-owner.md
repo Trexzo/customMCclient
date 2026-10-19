@@ -1,0 +1,10 @@
+# V223 — Glide mapped original Y getter/setter nonreentrant delay owner
+
+## Original source gap
+The prior `Minecraft189GlideModule` did verify real original `motionY` getter source epoch and five persisted GUI settings. But an original `EntityPlayer.motionY` mapped getter or setter could invoke the host movement callback synchronously, spending several `activationDelayTicks` credits from one original tick or creating a second native Y write before the first setter finished. Nested GUI/suspended/landed/unknown movement or another player could leave the outer read with obsolete permission.
+
+## Production patch
+Guard native `customMcMotionY` read and `customMcSetMotionY` write in one same-stack dispatcher; nested callbacks never read/write another original Y or spend delay credit. A changed original player, GUI focus, suspension, source ground, unknown movement or opted-in sneaking loss cancels the stale outer read and resets its delay. Preserve original epoch validation, live five-setting policy checks, genuine source Y-based deceleration, default direct glide cap, progressive deceleration and suspension priority. Always release guard after real getter/setter exceptions; never artificially roll back source motion.
+
+## Certification
+20 new offline Java 8 JUnit source adapter cases exercise nested getter/setter, one native delay per stack, real different player, GUI/suspension/landing/missing source/sneak veto, OFF→ON/policy edits, source exceptions, finite progressive deceleration, already slow fall and invalid motion, GUI reset and disabled state. They are not genuine Minecraft binary proof. V223 is a cumulative Draft child of V222 and must pass its own exact-head Foundation Windows+Ubuntu, pinned genuine 78-step Mojang 1.8.9 X11 graphical + vanilla dedicated-server suite, then a second unchanged-SHA original run. Keep `main` unchanged.
