@@ -39,6 +39,11 @@ public final class Minecraft189AutoSprintModule
                     SettingCodecs.BOOLEAN);
 
     private boolean enabled;
+    // The real EntityPlayer.setSprinting(true) can synchronously call the
+    // mapped host movement hook again before vanilla state is refreshed.
+    // Do not recursively dispatch another sprint from the same native
+    // stack, even if an OFF->ON occurs inside that original setter.
+    private boolean nativeSprintDispatching;
 
     @Override
     public String id() {
@@ -96,6 +101,7 @@ public final class Minecraft189AutoSprintModule
         // sprint bit rather than forcibly disabling their real movement.
         if (currentNativeClickGuiOpen) return;
         if (!enabled
+                || nativeSprintDispatching
                 || player == null
                 || !movement.available()
                 || (requireForward.get().booleanValue()
@@ -108,8 +114,15 @@ public final class Minecraft189AutoSprintModule
                 || movement.sprinting()) {
             return;
         }
-        player.customMcSetSprinting(
-                true);
+        nativeSprintDispatching = true;
+        try {
+            player.customMcSetSprinting(true);
+        } finally {
+            // A partially applied vanilla sprint write may itself throw:
+            // clear the guard but never fake a rollback of actual player
+            // motion. A future genuine host callback may try again.
+            nativeSprintDispatching = false;
+        }
     }
 
     synchronized boolean active() {
