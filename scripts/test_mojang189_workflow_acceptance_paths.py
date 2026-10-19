@@ -59,6 +59,15 @@ class OriginalWitnessPullRequestPathTests(unittest.TestCase):
         self.assertTrue(triggered(
             TEST + "Minecraft189MovementSpeedTrackerFiniteTest.java"))
 
+    def test_real_mouse_cps_clock_changes_also_trigger_native_binary(self):
+        # V218: Source System.nanoTime CPS logic and its signed clock
+        # regression adapter are not *Module.java, and must not stop at
+        # Foundation when real original mouse events are affected.
+        self.assertTrue(triggered(
+            SRC + "Minecraft189ClickRateTracker.java"))
+        self.assertTrue(triggered(
+            TEST + "Minecraft189ClickRateTrackerSignedNanoTimeTest.java"))
+
     def test_real_two_player_and_rod_proofs_remain_mandatory(self):
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("Verify two SIMULTANEOUS real eligible UUID targets arbitrate and take separate damage", text)
