@@ -64,6 +64,12 @@ public final class Minecraft189GlideModule
     private long nativeReadEpoch;
     private int eligibleDescentCallbacks;
     private int observedActivationDelay;
+    // A mapped original Y getter/setter can reenter this movement host
+    // synchronously. One native stack must spend no more than one genuine
+    // descent callback and may never issue a nested vertical write.
+    private boolean nativeMotionDispatching;
+    private Minecraft189PlayerMotionControl nativeMotionPlayer;
+    private boolean nativeMotionRevoked;
 
     @Override
     public String id() {
@@ -116,6 +122,21 @@ public final class Minecraft189GlideModule
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean suspended,
             final boolean actualClickGuiOpen) {
+        // A native motion getter or setter can synchronously reenter.
+        // Do not spend extra activation-delay credit from the same
+        // source stack. A different player, lost GUI/input eligibility,
+        // or a grounded callback revokes the outer native read.
+        if (nativeMotionDispatching) {
+            if (!enabled || player != nativeMotionPlayer
+                    || actualClickGuiOpen || suspended
+                    || movement == null || !movement.available()
+                    || movement.onGround()
+                    || (requireSneaking.get().booleanValue()
+                            && !movement.sneaking())) {
+                nativeMotionRevoked = true;
+            }
+            return;
+        }
         // A menu-focus callback is a hard eligibility boundary: discard
         // saved airborne descent counts, not just this tick's glide write.
         if (!enabled
@@ -131,61 +152,76 @@ public final class Minecraft189GlideModule
             return;
         }
 
-        // Original vertical source getters can reenter GUI or module
-        // lifecycle. No old descent callback may spend a new policy's
-        // delay or move the current player after source permission changed.
-        final long approvedEpoch = nativeReadEpoch;
-        final int approvedDelay = activationDelayTicks.get().intValue();
-        final boolean approvedRequireSneak =
-                requireSneaking.get().booleanValue();
-        final double approvedFallSpeed = fallSpeed.get().doubleValue();
-        final boolean approvedProgressive =
-                progressiveDeceleration.get().booleanValue();
-        final double approvedStep = decelerationStep.get().doubleValue();
-        final double targetMotionY = -approvedFallSpeed;
-        final double currentMotionY = player.customMcMotionY();
-        if (!enabled || nativeReadEpoch != approvedEpoch) {
-            return;
-        }
-        if (activationDelayTicks.get().intValue() != approvedDelay
-                || requireSneaking.get().booleanValue() != approvedRequireSneak
-                || fallSpeed.get().doubleValue() != approvedFallSpeed
-                || progressiveDeceleration.get().booleanValue()
-                    != approvedProgressive
-                || decelerationStep.get().doubleValue() != approvedStep) {
-            resetActivationDelay();
-            return;
-        }
-        if (!Double.isFinite(currentMotionY)
-                || currentMotionY >= targetMotionY) {
-            // No eligible descent (or invalid mapped motion): accumulated
-            // waiting is never carried into a later drop.
-            resetActivationDelay();
-            return;
-        }
-
-        final int delay = approvedDelay;
-        if (delay != observedActivationDelay) {
-            eligibleDescentCallbacks = 0;
-            observedActivationDelay = delay;
-        }
-        if (eligibleDescentCallbacks < delay) {
-            eligibleDescentCallbacks++;
-            return;
-        }
-
-        {
-            // An optional per-callback deceleration step avoids a
-            // sudden jump from fast descent to the Glide cap. The next
-            // value always derives from current mapped motion, never
-            // from accumulated credit or a hidden scheduler.
-            final double nextMotionY = approvedProgressive
-                    ? Math.min(targetMotionY,
-                            currentMotionY + approvedStep)
-                    : targetMotionY;
-            if (nextMotionY > currentMotionY) {
-                player.customMcSetMotionY(nextMotionY);
+        nativeMotionDispatching = true;
+        nativeMotionPlayer = player;
+        nativeMotionRevoked = false;
+        try {
+            // Original vertical source getters can reenter GUI or module
+            // lifecycle. No old descent callback may spend a new policy's
+            // delay or move the current player after source permission changed.
+            final long approvedEpoch = nativeReadEpoch;
+            final int approvedDelay = activationDelayTicks.get().intValue();
+            final boolean approvedRequireSneak =
+                    requireSneaking.get().booleanValue();
+            final double approvedFallSpeed = fallSpeed.get().doubleValue();
+            final boolean approvedProgressive =
+                    progressiveDeceleration.get().booleanValue();
+            final double approvedStep = decelerationStep.get().doubleValue();
+            final double targetMotionY = -approvedFallSpeed;
+            final double currentMotionY = player.customMcMotionY();
+            if (nativeMotionRevoked) {
+                resetActivationDelay();
+                return;
             }
+            if (!enabled || nativeReadEpoch != approvedEpoch) {
+                return;
+            }
+            if (activationDelayTicks.get().intValue() != approvedDelay
+                    || requireSneaking.get().booleanValue() != approvedRequireSneak
+                    || fallSpeed.get().doubleValue() != approvedFallSpeed
+                    || progressiveDeceleration.get().booleanValue()
+                        != approvedProgressive
+                    || decelerationStep.get().doubleValue() != approvedStep) {
+                resetActivationDelay();
+                return;
+            }
+            if (!Double.isFinite(currentMotionY)
+                    || currentMotionY >= targetMotionY) {
+                // No eligible descent (or invalid mapped motion): accumulated
+                // waiting is never carried into a later drop.
+                resetActivationDelay();
+                return;
+            }
+
+            final int delay = approvedDelay;
+            if (delay != observedActivationDelay) {
+                eligibleDescentCallbacks = 0;
+                observedActivationDelay = delay;
+            }
+            if (eligibleDescentCallbacks < delay) {
+                eligibleDescentCallbacks++;
+                return;
+            }
+
+            {
+                // An optional per-callback deceleration step avoids a
+                // sudden jump from fast descent to the Glide cap. The next
+                // value always derives from current mapped motion, never
+                // from accumulated credit or a hidden scheduler.
+                final double nextMotionY = approvedProgressive
+                        ? Math.min(targetMotionY,
+                                currentMotionY + approvedStep)
+                        : targetMotionY;
+                if (nextMotionY > currentMotionY) {
+                    player.customMcSetMotionY(nextMotionY);
+                }
+            }
+        } finally {
+            // A real Y setter may write the vanilla value then throw.
+            // Never roll back actual player motion on that basis.
+            nativeMotionPlayer = null;
+            nativeMotionRevoked = false;
+            nativeMotionDispatching = false;
         }
     }
 
