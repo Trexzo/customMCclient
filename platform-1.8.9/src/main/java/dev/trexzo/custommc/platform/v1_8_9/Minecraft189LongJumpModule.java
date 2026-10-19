@@ -225,8 +225,9 @@ public final class Minecraft189LongJumpModule
                 player.customMcSetMotionX(targetMotionX);
                 // An original mapped X setter can revoke this entire jump
                 // owner; never issue stale Z after an OFF/ON or key edit.
-                if (!nativeMotionReadOwned(ownerEpoch, configuredSpeed, preserve,
-                        w, a, backward, d)) {
+                if (nativeMotionRevoked
+                        || !nativeMotionReadOwned(ownerEpoch, configuredSpeed, preserve,
+                                w, a, backward, d)) {
                     return false;
                 }
             }
