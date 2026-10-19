@@ -1,0 +1,20 @@
+# V218 — original source CPS rolling one-second window handles valid negative nanoTime
+
+## Actual production error
+`Minecraft189ClickRateTracker` counts actual physical left and right mouse presses from the host using a default `System.nanoTime()` source. Java's monotonic nanosecond source has **an arbitrary signed origin**; a timestamp near `Long.MIN_VALUE` is valid and does not indicate a backwards clock.
+
+Previously `trim` calculated `threshold = now - 1_000_000_000L`, then evicted every click with `clickTimestamp <= threshold`. If `now` is close to `Long.MIN_VALUE`, this signed threshold **overflows to a large positive value**, evicting even immediately registered negative-timestamp clicks. The CPS display can therefore report zero despite valid original mouse clicks. In addition, `lastTimestamp = Long.MIN_VALUE` was used as a sentinel for "not yet sampled", although that value is a legitimate `System.nanoTime()` reading.
+
+## Concrete production correction
+- Track whether there has been a previous genuine source-clock observation with an explicit `lastTimestampAvailable` boolean. No sentinel timestamps. `clear()` resets both physical click deques and this clock admission state.
+- Determine age by subtracting the **two true source timestamps** (`now - recordedPress`) and compare with the immutable one-second window using `Long.compareUnsigned`. This avoids the premature overflow from an absolute negative-origin threshold while retaining the exact existing rule: a click **exactly** 1,000,000,000 nanoseconds old is expired; 999,999,999 ns old is retained. This also expires very large forward clock gaps without accidentally keeping stale historical presses.
+- Keep the existing **signed monotonic-input rejection**, actual per-button left/right isolation, synchronous clock observation, explicitly unsupported non-left/right buttons, same-time multiple physical presses and normal CPS rolling-window behavior. It does not create any synthetic user input, change click cadence/CPS rate permission, change original Minecraft `Mouse` events, native controller calls, packets or sound/game timing.
+- This is a bounded one-second **elapsed-time** calculation, not a promise to support nanoTime wrapping after centuries. The existing signed backwards-clock rejection remains in force. No `nanoTime()` origin is ever interpreted as an epoch or wall time.
+
+## Fourteen JUnit source-clock regressions
+Immediate valid negative-origin click near `Long.MIN_VALUE`; exactly one second expiration; legal first clock timestamp precisely `Long.MIN_VALUE`; independent left/right windows; simultaneous physical left/right clicks; negative-to-positive time transition; huge signed forward jump; backwards snapshot and backwards record fail closed without corrupting CPS; recovery after invalid clock attempt; clear/rebase; unsupported button without reading the clock; two presses straddling expiration boundary; repeated read at zero elapsed time. These tests use a deterministic Java `LongSupplier` adapter **offline** and do NOT certify actual Mojang 1.8.9 X11 physical mouse or native game behavior.
+
+## Certification and ownership
+This is a cumulative **Draft child of V217 PR #683**, whose source changed the speed HUD calculation to finite stable `Math.hypot`. V215's first immutable Foundation build failed on `var` under the project's Java source level; its corrected immutable head `99c165b4693e9d204c378aa15563b2a50862d51d` **passed Foundation on Windows + Ubuntu**, and pinned original genuine Mojang binary testing was in progress when V218 was authored. Historical first V215 failure remains failure; the parent SHA's later success cannot certify this new commit.
+
+Require V218 own exact SHA Foundation on **both Windows and Ubuntu**, full pinned Mojang Minecraft 1.8.9 **78-step graphical X11+vanilla dedicated-server original game suite**, and an independent second original run on the **same source SHA** before release or merge. Preserve all original ray/collision/UUID/positive real potion and server damage checks. All PRs remain Draft and `main` unchanged.
