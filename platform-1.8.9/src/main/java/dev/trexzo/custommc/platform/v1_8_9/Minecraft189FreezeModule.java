@@ -31,6 +31,12 @@ public final class Minecraft189FreezeModule
     private boolean enabled;
     // Real native X/Y/Z getters can reenter module/settings callbacks.
     private long nativeReadEpoch;
+    // Real mapped native X/Y/Z getters and setters can synchronously
+    // reenter this movement host. The entire three-axis callback owns
+    // one original player until the mapped stack fully unwinds.
+    private boolean nativeMotionDispatching;
+    private Minecraft189PlayerMotionControl nativeMotionPlayer;
+    private boolean nativeMotionRevoked;
 
     public Setting<Boolean> freezeHorizontalSetting() {
         return freezeHorizontal;
@@ -69,6 +75,17 @@ public final class Minecraft189FreezeModule
     synchronized void apply(
             final Minecraft189PlayerMotionControl player,
             final boolean actualClickGuiOpen) {
+        // Reentrant source callbacks are not new ticks. A changed
+        // original player or focus veto cancels the outer axis owner.
+        // Pause-in-GUI is opt-in; default hard Freeze remains authoritative.
+        if (nativeMotionDispatching) {
+            if (player != nativeMotionPlayer || !active()
+                    || (actualClickGuiOpen
+                        && pauseWhileClickGui.get().booleanValue())) {
+                nativeMotionRevoked = true;
+            }
+            return;
+        }
         // When paused, keep Freeze's existing high-priority ownership in
         // HostRuntime so lower-priority motion modules cannot write through
         // it. This callback yields only the original native motion fields.
@@ -78,54 +95,67 @@ public final class Minecraft189FreezeModule
             return;
         }
 
-        final long epoch = nativeReadEpoch;
-        final boolean horizontal = freezeHorizontal.get().booleanValue();
-        final boolean vertical = freezeVertical.get().booleanValue();
-        final boolean guiPause = pauseWhileClickGui.get().booleanValue();
-        if (horizontal) {
-            final double x = player.customMcMotionX();
-            if (!nativeReadOwned(epoch, horizontal, vertical, guiPause,
-                    actualClickGuiOpen)) {
-                return;
-            }
-            if (Double.compare(x, 0.0D) != 0) {
-                player.customMcSetMotionX(0.0D);
+        nativeMotionDispatching = true;
+        nativeMotionPlayer = player;
+        nativeMotionRevoked = false;
+        try {
+            final long epoch = nativeReadEpoch;
+            final boolean horizontal = freezeHorizontal.get().booleanValue();
+            final boolean vertical = freezeVertical.get().booleanValue();
+            final boolean guiPause = pauseWhileClickGui.get().booleanValue();
+            if (horizontal) {
+                final double x = player.customMcMotionX();
                 if (!nativeReadOwned(epoch, horizontal, vertical, guiPause,
                         actualClickGuiOpen)) {
                     return;
                 }
+                if (Double.compare(x, 0.0D) != 0) {
+                    player.customMcSetMotionX(0.0D);
+                    if (!nativeReadOwned(epoch, horizontal, vertical, guiPause,
+                            actualClickGuiOpen)) {
+                        return;
+                    }
+                }
             }
-        }
-        if (vertical) {
-            final double y = player.customMcMotionY();
-            if (!nativeReadOwned(epoch, horizontal, vertical, guiPause,
-                    actualClickGuiOpen)) {
-                return;
-            }
-            if (Double.compare(y, 0.0D) != 0) {
-                player.customMcSetMotionY(0.0D);
+            if (vertical) {
+                final double y = player.customMcMotionY();
                 if (!nativeReadOwned(epoch, horizontal, vertical, guiPause,
                         actualClickGuiOpen)) {
                     return;
                 }
+                if (Double.compare(y, 0.0D) != 0) {
+                    player.customMcSetMotionY(0.0D);
+                    if (!nativeReadOwned(epoch, horizontal, vertical, guiPause,
+                            actualClickGuiOpen)) {
+                        return;
+                    }
+                }
             }
-        }
-        if (horizontal) {
-            final double z = player.customMcMotionZ();
-            if (!nativeReadOwned(epoch, horizontal, vertical, guiPause,
-                    actualClickGuiOpen)) {
-                return;
+            if (horizontal) {
+                final double z = player.customMcMotionZ();
+                if (!nativeReadOwned(epoch, horizontal, vertical, guiPause,
+                        actualClickGuiOpen)) {
+                    return;
+                }
+                if (Double.compare(z, 0.0D) != 0) {
+                    player.customMcSetMotionZ(0.0D);
+                }
             }
-            if (Double.compare(z, 0.0D) != 0) {
-                player.customMcSetMotionZ(0.0D);
-            }
+        } finally {
+            // Native setters may write a real velocity component and
+            // subsequently throw. Release the guard without fabricating
+            // a rollback of any original player motion.
+            nativeMotionPlayer = null;
+            nativeMotionRevoked = false;
+            nativeMotionDispatching = false;
         }
     }
 
     private boolean nativeReadOwned(final long epoch,
             final boolean horizontal, final boolean vertical,
             final boolean guiPause, final boolean actualClickGuiOpen) {
-        return enabled && nativeReadEpoch == epoch
+        return enabled && !nativeMotionRevoked
+                && nativeReadEpoch == epoch
                 && (horizontal || vertical)
                 && freezeHorizontal.get().booleanValue() == horizontal
                 && freezeVertical.get().booleanValue() == vertical
