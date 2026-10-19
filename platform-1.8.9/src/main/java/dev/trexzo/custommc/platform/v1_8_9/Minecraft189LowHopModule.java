@@ -38,6 +38,14 @@ public final class Minecraft189LowHopModule
     private long nativeJumpEpoch;
     private boolean spaceWasPressed;
     private boolean adjustmentPending;
+    // A mapped original EntityPlayer.jump() can synchronously reenter
+    // before its physical Space edge is consumed by the outer callback.
+    private boolean nativeJumpDispatching;
+    // A later original Y getter or setter also owns only one native
+    // player and motion callback at a time.
+    private boolean nativeMotionDispatching;
+    private Minecraft189PlayerMotionControl nativeMotionPlayer;
+    private boolean nativeMotionRevoked;
 
     Minecraft189LowHopModule(
             final Minecraft189InputState inputState) {
@@ -90,6 +98,7 @@ public final class Minecraft189LowHopModule
         Objects.requireNonNull(
                 movement,
                 "movement");
+        if (nativeJumpDispatching || nativeMotionDispatching) return false;
         final boolean spacePressed =
                 inputState.keyPressed(
                         LegacyKeyboardCodes.SPACE);
@@ -108,9 +117,17 @@ public final class Minecraft189LowHopModule
                 return false;
             }
 
-            player.customMcJump();
+            nativeJumpDispatching = true;
+            try {
+                player.customMcJump();
+            } finally {
+                // A partially completing genuine jump must not be
+                // undone if the mapped callback throws.
+                nativeJumpDispatching = false;
+            }
             if (!enabled || ownerEpoch != nativeJumpEpoch
-                    || requireMovement.get().booleanValue() != needsMovement) {
+                    || requireMovement.get().booleanValue() != needsMovement
+) {
                 return false;
             }
             adjustmentPending = true;
@@ -128,29 +145,46 @@ public final class Minecraft189LowHopModule
     synchronized boolean applyMotion(
             final Minecraft189PlayerMotionControl player,
             final boolean suspended) {
-        if (!adjustmentPending) {
+        if (nativeMotionDispatching) {
+            if (player != nativeMotionPlayer || suspended || !enabled) {
+                nativeMotionRevoked = true;
+            }
             return false;
         }
+        if (!adjustmentPending) return false;
 
+        // This one source Space edge may lower original Y once only.
         adjustmentPending = false;
-        if (!enabled
-                || suspended
-                || player == null) {
-            return false;
-        }
+        if (!enabled || suspended || player == null) return false;
 
-        final long ownerEpoch = nativeJumpEpoch;
-        final double targetMotionY =
-                verticalSpeed.get().doubleValue();
-        final double originalMotionY = player.customMcMotionY();
-        if (!enabled || ownerEpoch != nativeJumpEpoch
-                || verticalSpeed.get().doubleValue() != targetMotionY) {
-            return false;
+        nativeMotionDispatching = true;
+        nativeMotionPlayer = player;
+        nativeMotionRevoked = false;
+        try {
+            final long ownerEpoch = nativeJumpEpoch;
+            final double targetMotionY = verticalSpeed.get().doubleValue();
+            final double originalMotionY = player.customMcMotionY();
+            if (!enabled || nativeMotionRevoked
+                    || ownerEpoch != nativeJumpEpoch || adjustmentPending
+                    || verticalSpeed.get().doubleValue() != targetMotionY
+                    || !Double.isFinite(originalMotionY)) {
+                // An invalid genuine Y getter cannot justify lowering
+                // the player's vanilla jump with a fabricated value.
+                return false;
+            }
+            if (originalMotionY > targetMotionY) {
+                player.customMcSetMotionY(targetMotionY);
+            }
+            return enabled && !nativeMotionRevoked
+                    && ownerEpoch == nativeJumpEpoch
+                    && verticalSpeed.get().doubleValue() == targetMotionY;
+        } finally {
+            // Never revert a genuine original Y write after its setter
+            // changed vanilla motion and then raised an exception.
+            nativeMotionPlayer = null;
+            nativeMotionRevoked = false;
+            nativeMotionDispatching = false;
         }
-        if (originalMotionY > targetMotionY) {
-            player.customMcSetMotionY(targetMotionY);
-        }
-        return true;
     }
 
     private boolean movementInputHeld() {
