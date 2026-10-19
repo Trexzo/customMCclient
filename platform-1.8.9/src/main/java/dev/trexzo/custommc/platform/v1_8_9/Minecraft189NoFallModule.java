@@ -41,6 +41,11 @@ public final class Minecraft189NoFallModule
     private boolean enabled;
     // Invalidates callbacks that read a native source owner before restart.
     private long nativeReadEpoch;
+    // The original EntityPlayer.fallDistance mapped getter/setter may
+    // synchronously reenter the host before the native float changes.
+    private boolean nativeFallDispatching;
+    private Minecraft189PlayerFallDistanceControl nativeFallPlayer;
+    private boolean nativeFallRevoked;
 
     @Override
     public String id() {
@@ -86,6 +91,24 @@ public final class Minecraft189NoFallModule
             final Minecraft189PlayerFallDistanceControl player,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean actualClickGuiOpen) {
+        // A nested real host callback must never authorize a second zero
+        // from one native getter/setter stack. Changed source authority
+        // (different player, GUI, missing movement, ground/sneak veto)
+        // additionally invalidates the outer original fall read.
+        if (nativeFallDispatching) {
+            final boolean requiresAirborne =
+                    airborneOnly.get().booleanValue();
+            final boolean pauseSneak =
+                    pauseWhileSneaking.get().booleanValue();
+            if (!enabled || player != nativeFallPlayer || actualClickGuiOpen
+                    || ((requiresAirborne || pauseSneak)
+                        && (movement == null || !movement.available()
+                            || (requiresAirborne && movement.onGround())
+                            || (pauseSneak && movement.sneaking())))) {
+                nativeFallRevoked = true;
+            }
+            return;
+        }
         // Preserve the original positive fallDistance while the GUI
         // owns focus. Never overwrite native fall evidence on a menu
         // callback, even though NoFall remains enabled.
@@ -103,26 +126,38 @@ public final class Minecraft189NoFallModule
             return;
         }
 
-        // Snapshot the exact enabled lifetime and policy before invoking
-        // the original player's native getter. It may reenter this module
-        // or change GUI settings, so an old callback must not zero a new
-        // lifetime's real fall-distance source.
-        final long approvedEpoch = nativeReadEpoch;
-        final double configured = threshold.get().doubleValue();
-        final float distance = player.customMcFallDistance();
-        // Only a finite, positive ORIGINAL falling distance is evidence
-        // for a falling-damage reduction. Negative sentinel/transition
-        // values and nonfinite corrupted readbacks are not a valid fall;
-        // never overwrite those native source states with synthetic zero.
-        if (enabled
-                && nativeReadEpoch == approvedEpoch
-                && threshold.get().doubleValue() == configured
-                && airborneOnly.get().booleanValue() == requireAirborne
-                && pauseWhileSneaking.get().booleanValue() == pauseSneak
-                && Float.isFinite(distance)
-                && distance > 0.0F
-                && (double) distance > configured + 0.000001D) {
-            player.customMcSetFallDistance(0.0F);
+        nativeFallDispatching = true;
+        nativeFallPlayer = player;
+        nativeFallRevoked = false;
+        try {
+            // Snapshot the exact enabled lifetime and policy before invoking
+            // the original player's native getter. It may reenter this module
+            // or change GUI settings, so an old callback must not zero a new
+            // lifetime's real fall-distance source.
+            final long approvedEpoch = nativeReadEpoch;
+            final double configured = threshold.get().doubleValue();
+            final float distance = player.customMcFallDistance();
+            if (nativeFallRevoked) return;
+            // Only a finite, positive ORIGINAL falling distance is evidence
+            // for a falling-damage reduction. Negative sentinel/transition
+            // values and nonfinite corrupted readbacks are not a valid fall;
+            // never overwrite those native source states with synthetic zero.
+            if (enabled
+                    && nativeReadEpoch == approvedEpoch
+                    && threshold.get().doubleValue() == configured
+                    && airborneOnly.get().booleanValue() == requireAirborne
+                    && pauseWhileSneaking.get().booleanValue() == pauseSneak
+                    && Float.isFinite(distance)
+                    && distance > 0.0F
+                    && (double) distance > configured + 0.000001D) {
+                player.customMcSetFallDistance(0.0F);
+            }
+        } finally {
+            // A native distance setter may write and then throw. Never
+            // synthesize a restoration of actual vanilla falling evidence.
+            nativeFallPlayer = null;
+            nativeFallRevoked = false;
+            nativeFallDispatching = false;
         }
     }
 

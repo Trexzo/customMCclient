@@ -1,0 +1,10 @@
+# V221 — NoFall original fallDistance getter/setter native source ownership
+
+## Verified source gap
+The cumulative NoFall implementation checked a captured exact native-read lifecycle epoch, GUI, finite positive real fallDistance, threshold, and opt-in airborne/sneak policy before invoking the real zero-distance setter. However the mapped `EntityPlayer.fallDistance` getter or setter itself can synchronously reenter the host callback *before native source state changes*: nested calls could zero twice or target a second original player and continue an obsolete outer original read.
+
+## Product fix
+The module now guards the original float getter and setter under one same-stack `nativeFallDispatching` ownership lease. A nested same-player call cannot issue another native read or setter. Nested changed player, GUI focus, or source-movement policy veto invalidates the outer callback. The final original zero setter is never reached if the owner was revoked. `try/finally` releases the guard on a native exception, without artificial rollback of vanilla falling state. On/off epoch, positive finite threshold, default behavior and existing two persisted settings remain unchanged.
+
+## Proof requirements
+18 offline Java 8 JUnit tests for nested mapped getter/setter, cross-player callbacks, GUI/ground/sneak/unknown movement source loss, mid-read lifecycle and policy changes, exceptions, threshold edge, nonfinite/negative fall states, unchanged user GUI and disabled module. These do not establish real Minecraft binary or dedicated-server success. This cumulative V221 child of V220 requires its **own exact head** Windows/Ubuntu Foundation, full pinned graphical Mojang 1.8.9 + vanilla dedicated-server original 78-step acceptance and independent same-SHA rerun. No inherited parent certification; all PRs Draft, main unchanged.
