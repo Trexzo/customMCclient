@@ -1,0 +1,9 @@
+# V235 — MovementSpeed genuine grounded native X/Z source ownership
+
+The original MovementSpeed module previously read mapped original X and Z back to back and immediately wrote the interpolated native X/Z targets, without rechecking module lifetime, physical input, persisted speed/smoothing settings, or the original source player. A mapped getter or setter can synchronously reenter the host while the former player, WASD or module activation is no longer valid; an original X setter could thereby cause an obsolete Z write.
+
+V235 pins one original grounded player across both `motionX/Z` getters and setters with `nativeMotionDispatching`, `nativeMotionPlayer`, revocation and an activation epoch incremented on OFF/ON. Reentrant callbacks on the same source stack never double spend; different original player, loss of actual grounded snapshot, suspended host or missing rotation revokes outer X/Z. Recheck epoch, all four real keyboard inputs, persisted configured speed, smoothing and acceleration settings after each mapped getter and X setter, and after final Z setter. Never write old Z following an X setter revocation; never undo an actual partial original native velocity write after an exception.
+
+Preserve actual ground-only speed, default 0.45, normalized WASD, original yaw-relative X/Z direction, default direct write, existing source-value interpolation and nonfinite original motion repair. Reject nonfinite native yaw-derived target rather than writing NaN into genuine player motion.
+
+Java 8/JUnit original-shaped regression cases are offline source-adapter evidence only. Exact V235 requires Windows and Ubuntu Foundation PASS, pinned real Mojang Minecraft 1.8.9 X11 GUI and vanilla dedicated-server 78-step original PASS and independent unchanged-SHA second run. Cumulative Draft child of corrected V234, all other lanes and main unchanged.
