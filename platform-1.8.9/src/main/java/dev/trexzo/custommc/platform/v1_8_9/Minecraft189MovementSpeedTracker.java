@@ -25,13 +25,18 @@ public final class Minecraft189MovementSpeedTracker {
                     x - previousX;
             final double deltaZ =
                     z - previousZ;
-            blocksPerSecond =
-                    Math.sqrt(
-                            deltaX * deltaX
-                                    + deltaZ * deltaZ)
-                            * TICKS_PER_SECOND;
-            speedAvailable = true;
-            if (Double.isFinite(blocksPerSecond)) {
+            // Squaring valid real player coordinates first overflows
+            // to Infinity even when the actual horizontal distance is
+            // representable (e.g., deltaX=1e200). Math.hypot preserves
+            // that genuine mapped position delta without bogus Infinity.
+            // Extremely distant, still-finite player coordinates may
+            // overflow subtraction or the final ticks/sec conversion:
+            // expose no speed sample rather than nonfinite HUD text.
+            final double distance = Math.hypot(deltaX, deltaZ);
+            final double candidate = distance * TICKS_PER_SECOND;
+            speedAvailable = Double.isFinite(candidate);
+            blocksPerSecond = speedAvailable ? candidate : 0.0D;
+            if (speedAvailable) {
                 peakBlocksPerSecond = Math.max(
                         peakBlocksPerSecond,
                         blocksPerSecond);
