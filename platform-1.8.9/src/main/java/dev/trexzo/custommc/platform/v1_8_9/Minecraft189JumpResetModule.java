@@ -40,6 +40,10 @@ public final class Minecraft189JumpResetModule implements Module {
     // hurt callback (including when it throws). Never let an in-flight
     // source action dispatch an extra jump or replay its hurt edge.
     private boolean nativeJumpDispatching;
+    // Genuine mapped EntityPlayer.jump() may synchronously reenter module
+    // lifecycle and live ClickGUI eligibility. One original hurt edge
+    // must not report success for a different module activation.
+    private long nativeJumpOwnerEpoch;
 
     @Override
     public String id() { return ID; }
@@ -52,12 +56,14 @@ public final class Minecraft189JumpResetModule implements Module {
 
     @Override
     public synchronized void onEnable() {
+        ++nativeJumpOwnerEpoch;
         enabled = true;
         clear();
     }
 
     @Override
     public synchronized void onDisable() {
+        ++nativeJumpOwnerEpoch;
         enabled = false;
         clear();
     }
@@ -110,13 +116,51 @@ public final class Minecraft189JumpResetModule implements Module {
         // may partially jump and then throw. The same hurt edge cannot
         // immediately spend a second original action on another callback.
         cooldownRemaining = configuredCooldown;
+        final long originalEpoch = nativeJumpOwnerEpoch;
+        final Object[] originalPolicy = nativeJumpPolicy();
         nativeJumpDispatching = true;
         try {
             player.customMcJump();
+            if (!nativeJumpOwned(originalEpoch, originalPolicy)) {
+                // The physical original jump may already have happened.
+                // Never label it a CURRENT-owner success or allow the
+                // original GUI policy to create stale future cooldown.
+                if (nativeJumpOwnerEpoch == originalEpoch)
+                    revokeOldPolicyCooldown();
+                return false;
+            }
             return true;
+        } catch (RuntimeException | Error nativeFailure) {
+            // Preserve existing consume-before-jump semantics when the
+            // real native method mutates player then throws. Only GUI
+            // edits in this SAME activation revoke old synthetic timers.
+            if (nativeJumpOwnerEpoch == originalEpoch
+                    && !java.util.Arrays.equals(
+                            originalPolicy, nativeJumpPolicy()))
+                revokeOldPolicyCooldown();
+            throw nativeFailure;
         } finally {
             nativeJumpDispatching = false;
         }
+    }
+
+    private Object[] nativeJumpPolicy() {
+        return new Object[]{
+                cooldown.get(), forward.get(), pauseSneak.get(),
+                chance.get(), sprint.get()
+        };
+    }
+
+    private boolean nativeJumpOwned(final long epoch,
+            final Object[] originalPolicy) {
+        return enabled && nativeJumpOwnerEpoch == epoch
+                && java.util.Arrays.equals(
+                        originalPolicy, nativeJumpPolicy());
+    }
+
+    private void revokeOldPolicyCooldown() {
+        cooldownRemaining = 0;
+        scheduledCooldown = cooldown.get();
     }
 
     synchronized boolean active() { return enabled; }
