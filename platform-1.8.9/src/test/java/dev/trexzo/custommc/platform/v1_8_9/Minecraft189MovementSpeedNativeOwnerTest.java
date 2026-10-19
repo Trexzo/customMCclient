@@ -215,10 +215,16 @@ final class Minecraft189MovementSpeedNativeOwnerTest {
         i.key(LegacyKeyboardCodes.W,false);
         assertFalse(go(m,p));assertEquals(0,p.rx+p.rz+p.wx+p.wz);
     }
-    @Test void nonfiniteOriginalYawNeverWritesNaNVelocity() {
+    @Test void realRotationSourceRejectsNonfiniteYawBeforeNativeMotion() {
         final Minecraft189InputState i=new Minecraft189InputState();
         final Minecraft189MovementSpeedModule m=module(i);final Player p=new Player();
-        assertFalse(m.apply(p,ground(true),rotation(Float.NaN),false));
+        // Minecraft189PlayerRotationState is the already-verified original
+        // source boundary. It rejects NaN before a Snapshot exists.
+        assertThrows(IllegalArgumentException.class,
+                () -> rotation(Float.NaN));
+        final Minecraft189PlayerRotationState unknown =
+                new Minecraft189PlayerRotationState();
+        assertFalse(m.apply(p,ground(true),unknown.snapshot(),false));
         assertEquals(0,p.rx+p.rz+p.wx+p.wz);
     }
     @Test void diagonalWASDStillNormalizesOriginalSpeed() {
