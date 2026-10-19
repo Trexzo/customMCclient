@@ -46,6 +46,17 @@ public final class Minecraft189TargetStrafeModule implements Module {
     // Genuine mapped motionX/motionZ writes may synchronously reenter
     // the host before the original player movement snapshot advances.
     private boolean nativeOrbitDispatching;
+    // Native mapped motion getters ALSO reenter the host. Pin the
+    // original source player, local position and certified target
+    // throughout X/Z read and write; a changed target cannot spend
+    // stale orbit velocity from another world/player snapshot.
+    private Minecraft189PlayerMotionControl nativeOrbitPlayer;
+    private boolean nativeOrbitRevoked;
+    private int nativeOrbitTargetIndex;
+    private double nativeOrbitTargetX;
+    private double nativeOrbitTargetZ;
+    private double nativeOrbitLocalX;
+    private double nativeOrbitLocalZ;
 
     @Override public String id() { return ID; }
     public Setting<Double> speedSetting() { return speed; }
@@ -72,8 +83,24 @@ public final class Minecraft189TargetStrafeModule implements Module {
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean forwardHeld,
             final boolean suspended) {
-        if (!enabled || nativeOrbitDispatching
-                || suspended || player == null
+        if (nativeOrbitDispatching) {
+            if (!enabled || suspended || player != nativeOrbitPlayer
+                    || local == null || !local.available()
+                    || target == null || !target.available() || !target.found()
+                    || local.x() != nativeOrbitLocalX
+                    || local.z() != nativeOrbitLocalZ
+                    || target.entityIndex() != nativeOrbitTargetIndex
+                    || target.x() != nativeOrbitTargetX
+                    || target.z() != nativeOrbitTargetZ
+                    || (requireForward.get().booleanValue() && !forwardHeld)
+                    || (groundOnly.get().booleanValue()
+                        && (movement == null || !movement.available()
+                            || !movement.onGround()))) {
+                nativeOrbitRevoked = true;
+            }
+            return false;
+        }
+        if (!enabled || suspended || player == null
                 || local == null || !local.available()
                 || target == null || !target.available() || !target.found()
                 || (requireForward.get().booleanValue() && !forwardHeld)
@@ -116,39 +143,50 @@ public final class Minecraft189TargetStrafeModule implements Module {
         final double rawZ = vz / norm * configuredSpeed;
         final double nextX = Math.abs(rawX) < 1.0E-12D ? 0.0D : rawX;
         final double nextZ = Math.abs(rawZ) < 1.0E-12D ? 0.0D : rawZ;
-        final double currentX = player.customMcMotionX();
-        if (!nativeReadOwned(epoch, configuredSpeed, configuredRadius,
-                configuredMaxDistance, configuredClockwise,
-                needsForward, needsGround, movement, forwardHeld)) return false;
-        final double currentZ = player.customMcMotionZ();
-        if (!nativeReadOwned(epoch, configuredSpeed, configuredRadius,
-                configuredMaxDistance, configuredClockwise,
-                needsForward, needsGround, movement, forwardHeld)) return false;
         nativeOrbitDispatching = true;
+        nativeOrbitPlayer = player;
+        nativeOrbitRevoked = false;
+        nativeOrbitTargetIndex = target.entityIndex();
+        nativeOrbitTargetX = target.x();
+        nativeOrbitTargetZ = target.z();
+        nativeOrbitLocalX = local.x();
+        nativeOrbitLocalZ = local.z();
         try {
-            if (Double.compare(currentX, nextX) != 0) {
-                player.customMcSetMotionX(nextX);
-                if (!nativeReadOwned(epoch, configuredSpeed, configuredRadius,
-                        configuredMaxDistance, configuredClockwise,
-                        needsForward, needsGround, movement, forwardHeld))
-                    return false;
-            }
-            if (Double.compare(currentZ, nextZ) != 0) {
-                player.customMcSetMotionZ(nextZ);
-                // The old code verified only AFTER original X: an
-                // actual Z callback could disable/re-enable TargetStrafe
-                // or edit its GUI input/geometry, yet still return true.
-                if (!nativeReadOwned(epoch, configuredSpeed, configuredRadius,
-                        configuredMaxDistance, configuredClockwise,
-                        needsForward, needsGround, movement, forwardHeld))
-                    return false;
-            }
-            // Eligible no-op frames still own horizontal motion,
-            // preventing Strafe from overwriting a real valid orbit.
-            return true;
+            final double currentX = player.customMcMotionX();
+            if (!nativeReadOwned(epoch, configuredSpeed, configuredRadius,
+                    configuredMaxDistance, configuredClockwise,
+                    needsForward, needsGround, movement, forwardHeld)) return false;
+            final double currentZ = player.customMcMotionZ();
+            if (!nativeReadOwned(epoch, configuredSpeed, configuredRadius,
+                    configuredMaxDistance, configuredClockwise,
+                    needsForward, needsGround, movement, forwardHeld)) return false;
+
+                if (Double.compare(currentX, nextX) != 0) {
+                    player.customMcSetMotionX(nextX);
+                    if (!nativeReadOwned(epoch, configuredSpeed, configuredRadius,
+                            configuredMaxDistance, configuredClockwise,
+                            needsForward, needsGround, movement, forwardHeld))
+                        return false;
+                }
+                if (Double.compare(currentZ, nextZ) != 0) {
+                    player.customMcSetMotionZ(nextZ);
+                    // The old code verified only AFTER original X: an
+                    // actual Z callback could disable/re-enable TargetStrafe
+                    // or edit its GUI input/geometry, yet still return true.
+                    if (!nativeReadOwned(epoch, configuredSpeed, configuredRadius,
+                            configuredMaxDistance, configuredClockwise,
+                            needsForward, needsGround, movement, forwardHeld))
+                        return false;
+                }
+                // Eligible no-op frames still own horizontal motion,
+                // preventing Strafe from overwriting a real valid orbit.
+                return true;
+
         } finally {
-            // Preserve original native write exceptions, never pretend
-            // a partially updated actual player velocity was rolled back.
+            // Genuine mapped X or Z setter can change actual player
+            // motion and throw. Clear only this reentrant source lease.
+            nativeOrbitPlayer = null;
+            nativeOrbitRevoked = false;
             nativeOrbitDispatching = false;
         }
     }
@@ -159,7 +197,8 @@ public final class Minecraft189TargetStrafeModule implements Module {
             final boolean needsForward, final boolean needsGround,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean forwardHeld) {
-        return enabled && nativeReadEpoch == epoch
+        return enabled && !nativeOrbitRevoked
+                && nativeReadEpoch == epoch
                 && speed.get().doubleValue() == configuredSpeed
                 && radius.get().doubleValue() == configuredRadius
                 && maxDistance.get().doubleValue() == configuredMaxDistance
