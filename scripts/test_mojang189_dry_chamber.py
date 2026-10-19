@@ -106,7 +106,7 @@ class DryChamberFillTest(TestCase):
         within = source.split("            if native_rod_potion_discovery:", 1)[1]
         creative = within.index('"/gamemode creative CIProbe"')
         guard = within.index('"/gamerule doMobSpawning false"', creative)
-        ack = within.index("Game rule doMobSpawning has been updated to false", guard)
+        ack = within.index("[CHAT] Game rule has been updated", guard)
         early_clear = within.index('"/kill @e[type=Creeper]"', ack)
         stone = within.index("prepare_verified_native_dry_chamber(", early_clear)
         physical = within.index("NATIVE_REAL_SPLASH_EFFECT", stone)
@@ -145,7 +145,7 @@ class DryChamberFillTest(TestCase):
         guard = within.index('"/gamerule doMobSpawning false"')
         ack = within.index("await_marker(process, log,", guard)
         confirmed = within.index(
-            'b"Game rule doMobSpawning has been updated to false"', ack)
+            'b"[CHAT] Game rule has been updated"', ack)
         stone = within.index("prepare_verified_native_dry_chamber(", guard)
         self.assertTrue(guard < ack < confirmed < stone)
         self.assertIn("CUSTOMMC_189_V213_ACTUAL_SURVIVAL_CREEPER_GUARD_ACK=YES",
