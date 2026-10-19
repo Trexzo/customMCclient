@@ -47,6 +47,11 @@ public final class Minecraft189AirSpeedModule
     private boolean enabled;
     // Reject native X/Z reads that outlive the current enabled activation.
     private long nativeReadEpoch;
+    // The original native X/Z getters and setters may invoke the host
+    // synchronously before the first mapped player is finished.
+    private boolean nativeMotionDispatching;
+    private Minecraft189PlayerMotionControl nativeMotionPlayer;
+    private boolean nativeMotionRevoked;
 
     Minecraft189AirSpeedModule(
             final Minecraft189InputState inputState) {
@@ -96,6 +101,17 @@ public final class Minecraft189AirSpeedModule
         Objects.requireNonNull(
                 rotation,
                 "rotation");
+        if (nativeMotionDispatching) {
+            // Nested source callbacks do not constitute a second tick.
+            // An actual changed player, suspension or lost air authority
+            // revokes the outer native X/Z owner instead of borrowing it.
+            if (!enabled || player != nativeMotionPlayer || suspended
+                    || !rotation.available() || !movement.available()
+                    || movement.onGround()) {
+                nativeMotionRevoked = true;
+            }
+            return false;
+        }
         if (!enabled
                 || suspended
                 || player == null
@@ -132,39 +148,53 @@ public final class Minecraft189AirSpeedModule
         final double targetZ = cleanZero(
                 (cos * forward + sin * strafe) * configuredSpeed);
 
-        // Original native getters may synchronously reenter module state,
-        // physical WASD or GUI policy. Stale reads cannot control the
-        // second axis or authorize stale velocity writes.
-        final double currentX = player.customMcMotionX();
-        if (!nativeReadOwned(epoch, w, backward, a, d, configuredSpeed,
-                smoothing, acceleration)) {
-            return false;
-        }
-        final double currentZ = player.customMcMotionZ();
-        if (!nativeReadOwned(epoch, w, backward, a, d, configuredSpeed,
-                smoothing, acceleration)) {
-            return false;
-        }
-        final double nextX = interpolate(currentX, targetX, fraction);
-        final double nextZ = interpolate(currentZ, targetZ, fraction);
-        if (Double.compare(currentX, nextX) != 0) {
-            player.customMcSetMotionX(nextX);
+        nativeMotionDispatching = true;
+        nativeMotionPlayer = player;
+        nativeMotionRevoked = false;
+        try {
+            // Original native getters may synchronously reenter module state,
+            // physical WASD or GUI policy. Stale reads cannot control the
+            // second axis or authorize stale velocity writes.
+            final double currentX = player.customMcMotionX();
             if (!nativeReadOwned(epoch, w, backward, a, d, configuredSpeed,
                     smoothing, acceleration)) {
                 return false;
             }
+            final double currentZ = player.customMcMotionZ();
+            if (!nativeReadOwned(epoch, w, backward, a, d, configuredSpeed,
+                    smoothing, acceleration)) {
+                return false;
+            }
+            final double nextX = interpolate(currentX, targetX, fraction);
+            final double nextZ = interpolate(currentZ, targetZ, fraction);
+            if (Double.compare(currentX, nextX) != 0) {
+                player.customMcSetMotionX(nextX);
+                if (!nativeReadOwned(epoch, w, backward, a, d, configuredSpeed,
+                        smoothing, acceleration)) {
+                    return false;
+                }
+            }
+            if (Double.compare(currentZ, nextZ) != 0) {
+                player.customMcSetMotionZ(nextZ);
+            }
+            return !nativeMotionRevoked
+                    && nativeReadOwned(epoch, w, backward, a, d,
+                            configuredSpeed, smoothing, acceleration);
+        } finally {
+            // Source setters may mutate genuine X/Z then throw.
+            // Release only the lease, never synthesize a rollback.
+            nativeMotionPlayer = null;
+            nativeMotionRevoked = false;
+            nativeMotionDispatching = false;
         }
-        if (Double.compare(currentZ, nextZ) != 0) {
-            player.customMcSetMotionZ(nextZ);
-        }
-        return true;
     }
 
     private boolean nativeReadOwned(final long epoch,
             final boolean w, final boolean backward,
             final boolean a, final boolean d, final double configuredSpeed,
             final boolean smoothing, final int acceleration) {
-        return enabled && nativeReadEpoch == epoch
+        return enabled && !nativeMotionRevoked
+                && nativeReadEpoch == epoch
                 && inputState.keyPressed(LegacyKeyboardCodes.W) == w
                 && inputState.keyPressed(LegacyKeyboardCodes.S) == backward
                 && inputState.keyPressed(LegacyKeyboardCodes.A) == a
