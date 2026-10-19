@@ -63,6 +63,11 @@ public final class Minecraft189StrafeModule
     private boolean enabled;
     // Mapped native motion getter callbacks may reenter module lifecycle.
     private long nativeReadEpoch;
+    // Mapped original X/Z getters and setters can reenter synchronously.
+    // One native source stack owns exactly one original player.
+    private boolean nativeMotionDispatching;
+    private Minecraft189PlayerMotionControl nativeMotionPlayer;
+    private boolean nativeMotionRevoked;
 
     Minecraft189StrafeModule(
             final Minecraft189InputState inputState) {
@@ -124,6 +129,21 @@ public final class Minecraft189StrafeModule
         Objects.requireNonNull(
                 rotation,
                 "rotation");
+        if (nativeMotionDispatching) {
+            // Another player, suspended host or a newly ineligible
+            // grounded/sneaking source revokes the outer X/Z transaction.
+            if (!enabled || player != nativeMotionPlayer || suspended
+                    || !rotation.available()
+                    || (groundOnly.get().booleanValue()
+                        && (movement == null || !movement.available()
+                            || !movement.onGround()))
+                    || (pauseWhileSneaking.get().booleanValue()
+                        && (movement == null || !movement.available()
+                            || movement.sneaking()))) {
+                nativeMotionRevoked = true;
+            }
+            return;
+        }
         if (!enabled
                 || suspended
                 || player == null
@@ -171,34 +191,45 @@ public final class Minecraft189StrafeModule
         final double targetZ = cleanZero(
                 (cos * forward + sin * strafe) * configuredSpeed);
 
-        // Actual mapped player motion getters can synchronously reenter
-        // module activation, edit speed/ground/sneak policy, or change
-        // physical keys. Recheck BEFORE reading Z, before either write,
-        // and after X setter before a dependent Z setter.
-        final double currentX = player.customMcMotionX();
-        if (!nativeMotionOwned(ownerEpoch, w, backward, a, d,
-                configuredSpeed, smooth, acceleration, groundGuard,
-                sneakGuard, movement)) {
-            return;
-        }
-        final double currentZ = player.customMcMotionZ();
-        if (!nativeMotionOwned(ownerEpoch, w, backward, a, d,
-                configuredSpeed, smooth, acceleration, groundGuard,
-                sneakGuard, movement)) {
-            return;
-        }
-        final double nextX = interpolate(currentX, targetX, fraction);
-        final double nextZ = interpolate(currentZ, targetZ, fraction);
-        if (Double.compare(currentX, nextX) != 0) {
-            player.customMcSetMotionX(nextX);
+        nativeMotionDispatching = true;
+        nativeMotionPlayer = player;
+        nativeMotionRevoked = false;
+        try {
+            // Actual mapped player motion getters can synchronously reenter
+            // module activation, edit speed/ground/sneak policy, or change
+            // physical keys. Recheck BEFORE reading Z, before either write,
+            // and after X setter before a dependent Z setter.
+            final double currentX = player.customMcMotionX();
             if (!nativeMotionOwned(ownerEpoch, w, backward, a, d,
                     configuredSpeed, smooth, acceleration, groundGuard,
                     sneakGuard, movement)) {
                 return;
             }
-        }
-        if (Double.compare(currentZ, nextZ) != 0) {
-            player.customMcSetMotionZ(nextZ);
+            final double currentZ = player.customMcMotionZ();
+            if (!nativeMotionOwned(ownerEpoch, w, backward, a, d,
+                    configuredSpeed, smooth, acceleration, groundGuard,
+                    sneakGuard, movement)) {
+                return;
+            }
+            final double nextX = interpolate(currentX, targetX, fraction);
+            final double nextZ = interpolate(currentZ, targetZ, fraction);
+            if (Double.compare(currentX, nextX) != 0) {
+                player.customMcSetMotionX(nextX);
+                if (!nativeMotionOwned(ownerEpoch, w, backward, a, d,
+                        configuredSpeed, smooth, acceleration, groundGuard,
+                        sneakGuard, movement)) {
+                    return;
+                }
+            }
+            if (Double.compare(currentZ, nextZ) != 0) {
+                player.customMcSetMotionZ(nextZ);
+            }
+        } finally {
+            // Original X/Z writes may complete before their mapped
+            // setter throws; never fake a vanilla velocity rollback.
+            nativeMotionPlayer = null;
+            nativeMotionRevoked = false;
+            nativeMotionDispatching = false;
         }
     }
 
@@ -208,7 +239,8 @@ public final class Minecraft189StrafeModule
             final boolean smooth, final int acceleration,
             final boolean groundGuard, final boolean sneakGuard,
             final Minecraft189PlayerMovementState.Snapshot movement) {
-        return enabled && nativeReadEpoch == epoch
+        return enabled && !nativeMotionRevoked
+                && nativeReadEpoch == epoch
                 && inputState.keyPressed(LegacyKeyboardCodes.W) == w
                 && inputState.keyPressed(LegacyKeyboardCodes.S) == backward
                 && inputState.keyPressed(LegacyKeyboardCodes.A) == a
