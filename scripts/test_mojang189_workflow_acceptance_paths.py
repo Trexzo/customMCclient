@@ -51,6 +51,14 @@ class OriginalWitnessPullRequestPathTests(unittest.TestCase):
         self.assertTrue(triggered(SRC + "Minecraft189AutoPotFeature.java"))
         self.assertTrue(triggered(SRC + "Minecraft189HostRuntime.java"))
 
+    def test_original_position_speed_hud_changes_also_trigger_native_binary(self):
+        # The real X/Z tracker is NOT named *Module.java, so an earlier
+        # module-only workflow path filter would run Foundation alone.
+        self.assertTrue(triggered(
+            SRC + "Minecraft189MovementSpeedTracker.java"))
+        self.assertTrue(triggered(
+            TEST + "Minecraft189MovementSpeedTrackerFiniteTest.java"))
+
     def test_real_two_player_and_rod_proofs_remain_mandatory(self):
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("Verify two SIMULTANEOUS real eligible UUID targets arbitrate and take separate damage", text)
