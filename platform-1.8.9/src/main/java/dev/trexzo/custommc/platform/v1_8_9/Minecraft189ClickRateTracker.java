@@ -17,7 +17,10 @@ public final class Minecraft189ClickRateTracker {
             new ArrayDeque<Long>();
     private final Deque<Long> rightClicks =
             new ArrayDeque<Long>();
-    private long lastTimestamp = Long.MIN_VALUE;
+    // System.nanoTime() has an arbitrary signed origin. MIN_VALUE is a
+    // valid real timestamp, never a reliable "not yet sampled" marker.
+    private long lastTimestamp;
+    private boolean lastTimestampAvailable;
 
     public Minecraft189ClickRateTracker() {
         this(System::nanoTime);
@@ -39,6 +42,7 @@ public final class Minecraft189ClickRateTracker {
                 nanoClock.getAsLong();
         requireMonotonic(now);
         lastTimestamp = now;
+        lastTimestampAvailable = true;
         clicks.addLast(now);
         trim(
                 leftClicks,
@@ -67,6 +71,7 @@ public final class Minecraft189ClickRateTracker {
                 nanoClock.getAsLong();
         requireMonotonic(now);
         lastTimestamp = now;
+        lastTimestampAvailable = true;
         trim(
                 leftClicks,
                 now);
@@ -81,16 +86,22 @@ public final class Minecraft189ClickRateTracker {
     public synchronized void clear() {
         leftClicks.clear();
         rightClicks.clear();
-        lastTimestamp = Long.MIN_VALUE;
+        lastTimestamp = 0L;
+        lastTimestampAvailable = false;
     }
 
     private static void trim(
             final Deque<Long> clicks,
             final long now) {
-        final long threshold =
-                now - WINDOW_NANOS;
+        // Subtract the two genuine System.nanoTime values, then compare
+        // unsigned elapsed nanos with 1 second. Calculating a signed
+        // absolute threshold (now - 1_000_000_000L) overflows for an
+        // ordinary negative nanoTime close to Long.MIN_VALUE and silently
+        // expires valid clicks. The caller already verifies that signed
+        // time never moves backwards; large forward jumps also expire.
         while (!clicks.isEmpty()
-                && clicks.peekFirst() <= threshold) {
+                && Long.compareUnsigned(now - clicks.peekFirst(),
+                        WINDOW_NANOS) >= 0) {
             clicks.removeFirst();
         }
     }
@@ -139,8 +150,7 @@ public final class Minecraft189ClickRateTracker {
 
     private void requireMonotonic(
             final long now) {
-        if (lastTimestamp != Long.MIN_VALUE
-                && now < lastTimestamp) {
+        if (lastTimestampAvailable && now < lastTimestamp) {
             throw new IllegalStateException(
                     "click clock moved backwards");
         }
