@@ -1,0 +1,20 @@
+# V218 — original TargetStrafe: exact native X/Z orbit setter ownership and nonrecursive host
+
+## Previous cumulative evidence
+V215 exact `99c165b4693e9d204c378aa15563b2a50862d51d` passed Windows+Ubuntu Foundation and full pinned original Mojang Minecraft 1.8.9 **78/78**, with independent unchanged-SHA rerun in progress. V216 native ReverseStep delayed ground→air ownership passed both Foundation OSes; its original 78-step run was in progress. V217 genuine DamageBoost finite momentum and original hurt X/Y/Z owner had its own CI started. None of those separate SHAs automatically certifies V218.
+
+## Concrete Java source gap
+`Minecraft189TargetStrafeModule.apply` computes a real local player's orbit around the existing validated nearest-player source snapshot, then reads original `player.customMcMotionX/Z` and writes true `EntityPlayer.motionX/Z` using original mapped setters. Source policy (Speed, Radius, Max Distance, Clockwise, Require Forward and Ground Only), actual local position/target distance and movement state are checked before the getters and after X setter. But:
+1. An original X/Z mapped motion setter can synchronously reenter `Minecraft189HostRuntime.playerMotionControl` before the current genuine player movement snapshot advances. Without a same-stack guard, nested TargetStrafe can issue extra X/Z motion writes based on an old World target, potentially recursing when the setter callback repeatedly issues movement.
+2. The original last Z setter lacked a **post-native activation and GUI policy check**. It could call module OFF→ON or edit Speed/Radius/Clockwise/Max Distance/Require Forward/Ground Only, yet the outer old source callback would return `true` and suppress a newer movement owner. The old X setter already checked owner, but only when it actually changed X; reentrant calls could still interleave.
+
+## Actual production change
+- Add a `nativeOrbitDispatching` same-stack guard to the real two-axis orbit write sequence. Nested callbacks while an original mapped X/Z setter is running immediately return false **before** reading player/target/movement or claiming new orbit ownership. The guard intentionally survives module disable→enable reentry during a native setter; it clears in `finally` even when a true original setter throws after changing player velocity.
+- Preserve the existing six-setting / enabled-epoch source getter safety. After **each** actual original X and Z setter, require exact unchanged source module/GUI/input and grounded permission; an invalid setter result returns `false` without issuing more axes. A genuine partial real X or Z change is **not** rolled back or attributed as source success to an unrelated activation.
+- Eligible no-op source frames still return true and reserve the horizontal movement owner, protecting existing Strafe arbitration; genuine physical W and Ground Only requirements, validated actual nearest player source distance, clockwise/radius correction and original 0.28 horizontal speed remain exactly unchanged.
+- No fake Player entity, target, packet, World collision, native position, attack controller, or relaxed original ray/UUID checks. Only synchronous mapped source callback ownership changes.
+
+## Offline adapter regressions
+16 additional JUnit original `Minecraft189PlayerMotionControl` source tests: real nearest-player valid orbit X/Z and same-frame no-op; original X setter disable, OFF→ON, edits to Speed/Radius/Clockwise/Forward; original Z setter disable/Max Distance edit; nested real X or Z callbacks cannot invoke a second orbit; native X setter physically changes actual player then throws and next legitimate host call may finish; true W absence, airborne Ground Only, missing nearest player veto. They assert source policy and adapter writes, **not Mojang binary gameplay**.
+
+Cumulative Draft V218 child V217 #687, V216 #686 and V215 #681. Require V218 exact-head Windows+Ubuntu Foundation, complete genuine pinned Minecraft 1.8.9 X11 GUI + vanilla dedicated-server original **78-step** suite and independent same-SHA repeat prior to promotion. No merge; `main` unchanged.
