@@ -903,6 +903,21 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # chamber construction is NOT a substitute for that proof.
                 # Load target chunk using genuine Creative teleport FIRST.
                 send_command(process, log, window, "/gamemode creative CIProbe")
+                # A previous TRUE original V132 native failure showed
+                # CIProbe killed by an actual Creeper AFTER AutoPot cast
+                # but BEFORE the required same-player +4 health proof.
+                # Disable NEW natural hostile spawns in the genuine
+                # original integrated server and remove already-spawned
+                # Creepers with a vanilla command while still Creative.
+                # Never set Peaceful or grant health: both would fake or
+                # obscure the Survival potion healing assertion.
+                send_command(process, log, window, "/gamerule doMobSpawning false")
+                await_marker(process, log,
+                             b"Game rule doMobSpawning has been updated to false",
+                             deadline, "vanilla original game rule stops new mobs")
+                send_command(process, log, window, "/kill @e[type=Creeper]")
+                print("CUSTOMMC_189_V213_ACTUAL_SURVIVAL_CREEPER_GUARD_ACK=YES",
+                      flush=True)
                 send_verified_chunk_teleport(process, log, window)
                 # V166 original dry-chamber contrast reset: the old
                 # initial solid /fill sometimes returned genuine vanilla
@@ -955,6 +970,10 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 send_command(process, log, window, "/clear CIProbe potion")
                 # Do not reconstruct/replace the chamber or teleport the
                 # source between the real splash and survival health proof.
+                # Genuine splash world remains unchanged, but remove
+                # hostiles which entered the chamber while placing the
+                # original stone fixture. This does not heal CIProbe.
+                send_command(process, log, window, "/kill @e[type=Creeper]")
                 send_command(process, log, window, "/gamemode survival CIProbe")
                 xdotool("windowactivate", "--sync", window)
                 xdotool("key", "--clearmodifiers", "9")
