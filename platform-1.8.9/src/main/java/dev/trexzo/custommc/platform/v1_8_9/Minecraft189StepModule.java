@@ -47,6 +47,15 @@ public final class Minecraft189StepModule
     private boolean enabled;
     // Real mapped step-height getter can reenter module or GUI setting.
     private long nativeReadEpoch;
+    // Real mapped stepHeight getter and setter can synchronously
+    // reenter movement processing. One original player owns this stack.
+    private boolean nativeStepDispatching;
+    private Minecraft189PlayerStepControl nativeStepPlayer;
+    private boolean nativeStepRevoked;
+    private boolean nativeStepChangedPlayer;
+    // Real GUI focus or disallowed grounded/sneak evidence must not
+    // leave a stale elevated native collision height on this player.
+    private boolean nativeStepRestoreVanilla;
 
     @Override
     public String id() {
@@ -100,6 +109,22 @@ public final class Minecraft189StepModule
             final Minecraft189PlayerStepControl player,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean actualClickGuiOpen) {
+        if (nativeStepDispatching) {
+            if (player != nativeStepPlayer) {
+                nativeStepRevoked = true;
+                nativeStepChangedPlayer = true;
+            } else if (!enabled || actualClickGuiOpen
+                    || (groundOnly.get().booleanValue()
+                        && (movement == null || !movement.available()
+                            || !movement.onGround()))
+                    || (pauseWhileSneaking.get().booleanValue()
+                        && (movement == null || !movement.available()
+                            || movement.sneaking()))) {
+                nativeStepRevoked = true;
+                nativeStepRestoreVanilla = true;
+            }
+            return;
+        }
         if (player == null) {
             return;
         }
@@ -134,28 +159,55 @@ public final class Minecraft189StepModule
         final float target = permitted
                 ? (airborne ? airbornePercent : groundPercent) / 100.0F
                 : VANILLA_STEP_HEIGHT;
-        final float current = player.customMcStepHeight();
-        if (ownerEpoch != nativeReadEpoch
-                || groundOnly.get().booleanValue() != groundGate
-                || pauseWhileSneaking.get().booleanValue() != sneakGate
-                || airborneOverride.get().booleanValue() != airOverride
-                || airborneHeightPercent.get().intValue() != airbornePercent
-                || heightPercent.get().intValue() != groundPercent) {
-            // A reentrant disable cannot leave a boosted 1+ original
-            // step height stuck while the module is now OFF. Release
-            // to the vanilla collision height, never the stale boost.
-            // An OFF->ON cycle is a different new owner: leave its
-            // motion unchanged for the next authorized callback.
-            if (!enabled
-                    && (!Float.isFinite(current)
-                    || Math.abs(current - VANILLA_STEP_HEIGHT) > 0.000001F)) {
+        nativeStepDispatching = true;
+        nativeStepPlayer = player;
+        nativeStepRevoked = false;
+        nativeStepChangedPlayer = false;
+        nativeStepRestoreVanilla = false;
+        try {
+            final float current = player.customMcStepHeight();
+            if (ownerEpoch != nativeReadEpoch || nativeStepRevoked
+                    || groundOnly.get().booleanValue() != groundGate
+                    || pauseWhileSneaking.get().booleanValue() != sneakGate
+                    || airborneOverride.get().booleanValue() != airOverride
+                    || airborneHeightPercent.get().intValue() != airbornePercent
+                    || heightPercent.get().intValue() != groundPercent) {
+                // The original source may have disabled Step during the
+                // getter. Restore real vanilla collision only on the
+                // still-pinned player, never after a player swap.
+                // A new ON owner is a fresh lease and is not overwritten.
+                if (!nativeStepChangedPlayer
+                        && (!enabled || (nativeStepRestoreVanilla
+                            && ownerEpoch == nativeReadEpoch))
+                        && (!Float.isFinite(current)
+                            || Math.abs(current - VANILLA_STEP_HEIGHT)
+                                > 0.000001F)) {
+                    player.customMcSetStepHeight(VANILLA_STEP_HEIGHT);
+                }
+                return;
+            }
+            if (!Float.isFinite(current)
+                    || Math.abs(current - target) > 0.000001F) {
+                player.customMcSetStepHeight(target);
+            }
+            // A genuine native setter can reenter the GUI (or disable
+            // Step) AFTER changing the collision height. Restore the
+            // original vanilla height only for this still-pinned player;
+            // a changed-player callback must never alter the old player.
+            if (!nativeStepChangedPlayer
+                    && (nativeStepRestoreVanilla || !enabled)
+                    && (ownerEpoch == nativeReadEpoch || !enabled)
+                    && Math.abs(target - VANILLA_STEP_HEIGHT) > 0.000001F) {
                 player.customMcSetStepHeight(VANILLA_STEP_HEIGHT);
             }
-            return;
-        }
-        if (!Float.isFinite(current)
-                || Math.abs(current - target) > 0.000001F) {
-            player.customMcSetStepHeight(target);
+        } finally {
+            // A mapped setter may mutate vanilla height then throw.
+            // Release the guard; never invent an automatic rollback.
+            nativeStepPlayer = null;
+            nativeStepRevoked = false;
+            nativeStepChangedPlayer = false;
+            nativeStepRestoreVanilla = false;
+            nativeStepDispatching = false;
         }
     }
 
