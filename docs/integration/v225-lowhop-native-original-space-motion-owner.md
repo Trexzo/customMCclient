@@ -1,0 +1,10 @@
+# V225 — LowHop original Space edge and native lower-Y dispatch owner
+
+## Recovered production gap
+Like HighJump before V224, LowHop consumed the source `spaceWasPressed` edge only after its original `EntityPlayer.jump()` returned. That genuine mapped method can synchronously reenter the host and trigger a second jump before the first source edge is marked. Its one-shot `motionY` lowering getter/setter had only epoch+GUI setting checks and could borrow a changed original player or suspended motion owner.
+
+## Code change
+Add a `nativeJumpDispatching` same-stack guard to the mapped original `jump()` callback, preserved through ON/OFF and setter exceptions, and keep the original source's accepted jump plus pending Y adjustment even when its native callback releases Space; the outer finally captures the released key so the next new Space press is legal. Guard the mapped `motionY` getter/setter as `nativeMotionDispatching`, pinned to one actual original player and same epoch/Vertical Speed. Nested different-player or suspended callbacks revoke old motion permission; no nested lowering, no invented rollback after real motion setter throws. Reject nonfinite native Y, preserve genuine already-lower vertical velocity, onGround/Space and opt-in physical WASD behavior.
+
+## Evidence boundary
+20 Java 8/JUnit source-adapter tests cover genuine-shaped jump/lower-Y, same/other player native reentry, restart, Space release during an accepted original jump, throwing mapped jump, live movement policy edit, getter/setter callbacks, changed original player, suspension, midgetter OFF/ON and speed edit, native read/write exceptions, nonfinite Y, actual already-lower motion, held Space and W/A/S/D requirement. This test suite is **offline** and does not certify original Minecraft gameplay. Require V225 exact Windows+Ubuntu Foundation, pinned Mojang 1.8.9 X11 genuine graphical + dedicated vanilla server complete 78-step acceptance and independent unchanged-SHA rerun. Parent V224 remains Draft, main unchanged.
