@@ -38,6 +38,14 @@ public final class Minecraft189HighJumpModule
     private long nativeJumpEpoch;
     private boolean spaceWasPressed;
     private boolean boostPending;
+    // Original EntityPlayer.jump() can reenter the host before the Space
+    // edge is consumed. Only one physical edge owns a native jump stack.
+    private boolean nativeJumpDispatching;
+    // The follow-up original Y getter/setter can also reenter the host.
+    // Pin the native player and prohibit a nested boost from borrowing it.
+    private boolean nativeBoostDispatching;
+    private Minecraft189PlayerMotionControl nativeBoostPlayer;
+    private boolean nativeBoostRevoked;
 
     Minecraft189HighJumpModule(
             final Minecraft189InputState inputState) {
@@ -90,6 +98,9 @@ public final class Minecraft189HighJumpModule
         Objects.requireNonNull(
                 movement,
                 "movement");
+        // The mapped jump or boost setter may synchronously call the
+        // original host while the prior Space edge is still pending.
+        if (nativeJumpDispatching || nativeBoostDispatching) return false;
         final boolean spacePressed =
                 inputState.keyPressed(
                         LegacyKeyboardCodes.SPACE);
@@ -108,12 +119,20 @@ public final class Minecraft189HighJumpModule
                 return false;
             }
 
-            player.customMcJump();
+            nativeJumpDispatching = true;
+            try {
+                player.customMcJump();
+            } finally {
+                // Native jump may have already changed real motion before
+                // throwing. Release only the stack guard, never un-jump.
+                nativeJumpDispatching = false;
+            }
             // Real mapped jump() can synchronously disable/re-enable
             // HighJump, alter its policy, or consume the input edge.
             // Only the ORIGINAL activation may queue a subsequent motion.
             if (!enabled || ownerEpoch != nativeJumpEpoch
-                    || requireMovement.get().booleanValue() != requiresMovement) {
+                    || requireMovement.get().booleanValue() != requiresMovement
+) {
                 return false;
             }
             boostPending = true;
@@ -132,32 +151,51 @@ public final class Minecraft189HighJumpModule
     synchronized boolean applyMotion(
             final Minecraft189PlayerMotionControl player,
             final boolean suspended) {
-        if (!boostPending) {
+        if (nativeBoostDispatching) {
+            // The original mapped getter/setter may reenter movement.
+            // Another player or a suspended/disabled host callback must
+            // revoke the outer, still-active source motion transaction.
+            if (player != nativeBoostPlayer || suspended || !enabled) {
+                nativeBoostRevoked = true;
+            }
             return false;
         }
+        if (!boostPending) return false;
 
+        // Spend this particular jump's boost once. A reentrant native
+        // motion callback must never reuse it as a second source write.
         boostPending = false;
-        if (!enabled
-                || suspended
-                || player == null) {
-            return false;
-        }
+        if (!enabled || suspended || player == null) return false;
 
-        final long ownerEpoch = nativeJumpEpoch;
-        final double targetMotionY =
-                verticalSpeed.get().doubleValue();
-        final double originalMotionY = player.customMcMotionY();
-        // A mapped original getter may restart the module or change the
-        // live boost speed. Do not apply a stale pending jump's velocity
-        // to the new native player/module lifetime.
-        if (!enabled || ownerEpoch != nativeJumpEpoch
-                || verticalSpeed.get().doubleValue() != targetMotionY) {
-            return false;
+        nativeBoostDispatching = true;
+        nativeBoostPlayer = player;
+        nativeBoostRevoked = false;
+        try {
+            final long ownerEpoch = nativeJumpEpoch;
+            final double targetMotionY = verticalSpeed.get().doubleValue();
+            final double originalMotionY = player.customMcMotionY();
+            // Require finite ORIGINAL Y evidence and unchanged source
+            // lifetime/policy after mapped getters have run. A new jump
+            // queued in a getter belongs to the next original callback.
+            if (!enabled || nativeBoostRevoked
+                    || ownerEpoch != nativeJumpEpoch || boostPending
+                    || verticalSpeed.get().doubleValue() != targetMotionY
+                    || !Double.isFinite(originalMotionY)) {
+                return false;
+            }
+            if (originalMotionY < targetMotionY) {
+                player.customMcSetMotionY(targetMotionY);
+            }
+            return enabled && !nativeBoostRevoked
+                    && nativeJumpEpoch == ownerEpoch
+                    && verticalSpeed.get().doubleValue() == targetMotionY;
+        } finally {
+            // A vanilla setter may write motionY and then throw: never
+            // fabricate a rollback of the genuine player's vertical Y.
+            nativeBoostPlayer = null;
+            nativeBoostRevoked = false;
+            nativeBoostDispatching = false;
         }
-        if (originalMotionY < targetMotionY) {
-            player.customMcSetMotionY(targetMotionY);
-        }
-        return true;
     }
 
     private boolean movementInputHeld() {
