@@ -45,6 +45,12 @@ public final class Minecraft189NoGravityModule
     private boolean enabled;
     // Invalidates callbacks that read a native source owner before restart.
     private long nativeReadEpoch;
+    // The genuine EntityPlayer.motionY mapped getter/setter may invoke
+    // the host's movement callback synchronously before vanilla state
+    // advances. One original stack owns at most one native Y transaction.
+    private boolean nativeMotionDispatching;
+    private Minecraft189PlayerMotionControl nativeMotionPlayer;
+    private boolean nativeMotionRevoked;
 
     public Setting<Double> liftSpeedSetting() {
         return liftSpeed;
@@ -101,6 +107,18 @@ public final class Minecraft189NoGravityModule
             final boolean suspended,
             final boolean jumpHeld,
             final boolean actualClickGuiOpen) {
+        // Nested callbacks may not borrow the still-active native Y
+        // getter or setter. A fresh observed player/focus/ground/Space
+        // loss also cancels the outer motion transaction.
+        if (nativeMotionDispatching) {
+            if (player != nativeMotionPlayer || actualClickGuiOpen
+                    || suspended || movement == null
+                    || !movement.available() || movement.onGround()
+                    || !ownsVertical(jumpHeld)) {
+                nativeMotionRevoked = true;
+            }
+            return;
+        }
         // The real GUI owns keyboard focus and mapped player Y-motion.
         // Keep the vertical priority reservation intact so lower-priority
         // FastFall / Glide modules cannot substitute a different synthetic
@@ -115,36 +133,48 @@ public final class Minecraft189NoGravityModule
             return;
         }
 
-        // Capture live settings and lifetime BEFORE the native Y-motion
-        // read. That getter may synchronously restart this module or edit
-        // settings; neither may spend the old permission after it returns.
-        final long approvedEpoch = nativeReadEpoch;
-        final double target = liftSpeed.get().doubleValue();
-        final boolean smooth = smoothLift.get().booleanValue();
-        final double step = liftStep.get().doubleValue();
-        // The original zero-gravity behavior is exactly target=0.
-        // A positive setting is an optional minimum upward speed:
-        // never slow an existing faster upward jump.
-        final double current = player.customMcMotionY();
-        if (!enabled || nativeReadEpoch != approvedEpoch
-                || !ownsVertical(jumpHeld)
-                || liftSpeed.get().doubleValue() != target
-                || smoothLift.get().booleanValue() != smooth
-                || liftStep.get().doubleValue() != step) {
-            return;
-        }
-        if (current < target) {
-            // Optional smoothing reduces the gap at most one step per
-            // eligible callback. Every value derives from current real
-            // vertical motion: no hidden accumulator or catch-up credit.
-            // Invalid mapped speed is safely normalized to finite target.
-            final double next = smooth
-                    && Double.isFinite(current)
-                            ? Math.min(target, current + step)
-                            : target;
-            if (next > current) {
-                player.customMcSetMotionY(next);
+        nativeMotionDispatching = true;
+        nativeMotionPlayer = player;
+        nativeMotionRevoked = false;
+        try {
+            // Capture live settings and lifetime BEFORE the native Y-motion
+            // read. That getter may synchronously restart this module or edit
+            // settings; neither may spend the old permission after it returns.
+            final long approvedEpoch = nativeReadEpoch;
+            final double target = liftSpeed.get().doubleValue();
+            final boolean smooth = smoothLift.get().booleanValue();
+            final double step = liftStep.get().doubleValue();
+            // The original zero-gravity behavior is exactly target=0.
+            // A positive setting is an optional minimum upward speed:
+            // never slow an existing faster upward jump.
+            final double current = player.customMcMotionY();
+            if (nativeMotionRevoked) return;
+            if (!enabled || nativeReadEpoch != approvedEpoch
+                    || !ownsVertical(jumpHeld)
+                    || liftSpeed.get().doubleValue() != target
+                    || smoothLift.get().booleanValue() != smooth
+                    || liftStep.get().doubleValue() != step) {
+                return;
             }
+            if (current < target) {
+                // Optional smoothing reduces the gap at most one step per
+                // eligible callback. Every value derives from current real
+                // vertical motion: no hidden accumulator or catch-up credit.
+                // Invalid mapped speed is safely normalized to finite target.
+                final double next = smooth
+                        && Double.isFinite(current)
+                                ? Math.min(target, current + step)
+                                : target;
+                if (next > current) {
+                    player.customMcSetMotionY(next);
+                }
+            }
+        } finally {
+            // Never create a synthetic rollback of an original Y write
+            // that completed before a mapped setter threw.
+            nativeMotionPlayer = null;
+            nativeMotionRevoked = false;
+            nativeMotionDispatching = false;
         }
     }
 

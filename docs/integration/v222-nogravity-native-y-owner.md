@@ -1,0 +1,10 @@
+# V222 — NoGravity original native motionY getter/setter owner
+
+## Original source gap
+`Minecraft189NoGravityModule.apply` previously checked on/off epoch and three lift/Space policy settings after its mapped Y getter. But the genuine `EntityPlayer.motionY` getter and setter can synchronously call the original movement host while native motion has not yet updated. An older source callback could reenter another NoGravity Y write, including another player, and the old getter could still authorize Y after a nested menu or ground observation.
+
+## Production change
+A single `nativeMotionDispatching` guard surrounds actual mapped `customMcMotionY` and `customMcSetMotionY`. Nested callbacks cannot consume an additional source callback/write. A nested different player, actual ClickGUI focus, suspension, original onGround, missing original movement, module loss or (where configured) release of physical Space revokes the outer read. Existing exact lifecycle epoch and all live lift/smoothing settings remain mandatory after read. `try/finally` releases only the source guard after mapped exceptions, without forging a player motion rollback. The default original hovering policy (minimum Y = 0), smooth step, faster genuine upward motion, and vertical module arbitration are unchanged.
+
+## Verification boundary
+18 Java 8/JUnit adversarial source-adapter tests cover mapped nested getter/setter, same and different original players, GUI/land/suspension/unavailable source, Space loss, OFF→ON, live LiftSpeed edit, source getter/setter throw, smoothing, upward motion, disabled/GUI veto, and genuine-space priority. Offline tests are not real game evidence. Require V222 exact-head Windows+Ubuntu Foundation, genuine pinned Mojang Minecraft 1.8.9 graphical X11+vanilla dedicated server complete 78-step run, and independent same-SHA repeat before certification. Draft only; main unchanged.
