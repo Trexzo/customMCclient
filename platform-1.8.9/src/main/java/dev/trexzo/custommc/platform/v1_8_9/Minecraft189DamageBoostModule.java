@@ -194,21 +194,30 @@ public final class Minecraft189DamageBoostModule
                 changed = true;
                 if (!nativeReadOwned(epoch, configuredMultiplier,
                         configuredVerticalMultiplier, capped, cap))
-                    return false;
+                    // Historical source contract reports whether a real
+                    // original setter ALREADY changed player velocity.
+                    // Do not issue any remaining axis on an old owner.
+                    return changed;
             }
             if (Double.compare(currentY, targetY) != 0) {
                 player.customMcSetMotionY(targetY);
                 changed = true;
                 if (!nativeReadOwned(epoch, configuredMultiplier,
                         configuredVerticalMultiplier, capped, cap))
-                    return false;
+                    // Historical source contract reports whether a real
+                    // original setter ALREADY changed player velocity.
+                    // Do not issue any remaining axis on an old owner.
+                    return changed;
             }
             if (Double.compare(currentZ, targetZ) != 0) {
                 player.customMcSetMotionZ(targetZ);
                 changed = true;
                 if (!nativeReadOwned(epoch, configuredMultiplier,
                         configuredVerticalMultiplier, capped, cap))
-                    return false;
+                    // Historical source contract reports whether a real
+                    // original setter ALREADY changed player velocity.
+                    // Do not issue any remaining axis on an old owner.
+                    return changed;
             }
             return changed;
         } finally {
