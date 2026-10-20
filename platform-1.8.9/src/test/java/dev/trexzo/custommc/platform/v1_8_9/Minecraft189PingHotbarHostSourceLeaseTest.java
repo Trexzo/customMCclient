@@ -180,7 +180,7 @@ final class Minecraft189PingHotbarHostSourceLeaseTest {
         try(Fixture f=new Fixture()) {
             Player a=new Player();a.inventory.slot=8;
             f.runtime.playerHotbarSlot(a);
-            assertTrue(f.slot().available());assertEquals(8,f.slot().slot());
+            assertTrue(f.slot().available());assertEquals(8,f.slot().zeroBasedSlot());
             assertEquals(1,a.reads);assertEquals(1,a.inventory.reads);
         }
     }
