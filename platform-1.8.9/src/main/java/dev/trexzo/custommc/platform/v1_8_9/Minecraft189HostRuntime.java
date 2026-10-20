@@ -70,6 +70,14 @@ public final class Minecraft189HostRuntime
     // native getters. Never publish a mixed or stale player snapshot.
     private final Minecraft189MovementSnapshotSourceLease movementSnapshotLease =
             new Minecraft189MovementSnapshotSourceLease();
+    // Hurt time authorizes local JumpReset and DamageBoost. A native
+    // getter that changes player may not publish old damage evidence.
+    private final Minecraft189HurtTimeHostSourceLease hurtTimeHostLease =
+            new Minecraft189HurtTimeHostSourceLease();
+    // World/dimension transitions must never publish a prior player's
+    // dimension after synchronous native getter source replacement.
+    private final Minecraft189DimensionHostSourceLease dimensionHostLease =
+            new Minecraft189DimensionHostSourceLease();
     // WTap and AutoSprint are separate native setter owners. Their host
     // routing must share one original sprint source and UI focus lease.
     private final Minecraft189SprintHostSourceLease sprintHostLease =
@@ -858,12 +866,28 @@ public final class Minecraft189HostRuntime
     void playerDimension(
             final Minecraft189PlayerDimensionAccess player) {
         requireOpen();
-        if (player == null) {
-            playerDimensionState.clear();
+        if (!dimensionHostLease.enter(player)) {
             return;
         }
-        playerDimensionState.update(
-                player.customMcDimension());
+        try {
+            if (player == null) {
+                playerDimensionState.clear();
+                return;
+            }
+            final int nativeDimension = player.customMcDimension();
+            if (!dimensionHostLease.stillOwned()) {
+                playerDimensionState.clear();
+                return;
+            }
+            // Preserve all actual native dimension IDs, including
+            // negative Nether and modded IDs; do not infer from posY.
+            playerDimensionState.update(nativeDimension);
+        } catch (RuntimeException | Error nativeFailure) {
+            playerDimensionState.clear();
+            throw nativeFailure;
+        } finally {
+            dimensionHostLease.exit();
+        }
     }
 
     void playerMovementState(
@@ -1372,12 +1396,28 @@ public final class Minecraft189HostRuntime
     void playerHurtTime(
             final Minecraft189PlayerHurtTimeAccess player) {
         requireOpen();
-        if (player == null) {
-            playerHurtTimeState.clear();
+        if (!hurtTimeHostLease.enter(player)) {
             return;
         }
-        playerHurtTimeState.update(
-                player.customMcHurtTime());
+        try {
+            if (player == null) {
+                playerHurtTimeState.clear();
+                return;
+            }
+            final int nativeHurtTime = player.customMcHurtTime();
+            if (!hurtTimeHostLease.stillOwned()) {
+                playerHurtTimeState.clear();
+                return;
+            }
+            // Do not allow an invalid native negative tick to retain
+            // an earlier real damage edge for JumpReset or DamageBoost.
+            playerHurtTimeState.update(nativeHurtTime);
+        } catch (RuntimeException | Error nativeFailure) {
+            playerHurtTimeState.clear();
+            throw nativeFailure;
+        } finally {
+            hurtTimeHostLease.exit();
+        }
     }
 
     void playerArmor(
