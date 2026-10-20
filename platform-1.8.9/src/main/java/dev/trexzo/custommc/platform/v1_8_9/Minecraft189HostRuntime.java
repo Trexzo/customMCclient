@@ -1677,62 +1677,23 @@ public final class Minecraft189HostRuntime
                 return;
             }
             final Minecraft189KillAuraModule aura = featureCatalog.killAura();
-            if (identityRequired()) {
-                final Minecraft189WorldEntityUuidState.Snapshot ids =
-                        worldEntityUuidState.snapshot();
-                boolean consistent = false;
-                if (tickUuidWorld != null && tickUuidWorld == world
-                        && ids.available()
-                        && ids.entityCount() == worldEntityPositionState.snapshot().entityCount()
-                        && ids.entityCount() == worldEntityKindState.snapshot().entityCount()) {
-                    try {
-                        consistent = ids.matches(tickUuidWorld.customMcLoadedEntityUuids());
-                    } catch (RuntimeException invalidEvidence) {
-                        consistent = false;
-                    }
-                }
-                if (!worldEntityDownstreamSourceStillOwned(world)) {
-                    clearRevokedWorldEntitySource();
-                    return;
-                }
-                if (!consistent) {
-                    worldEntityCombatState.clear();
-                    nearestPlayerTargetState.clear();
-                    targetRotationState.clear();
-                    aura.rememberSelectedTarget(null);
-                    return;
-                }
-            }
-            if (featureCatalog.wallCheck().active()) {
-                final Minecraft189WorldEntityVisibilityState.Snapshot visibility =
-                        worldEntityVisibilityState.snapshot();
-                boolean consistent = false;
-                if (tickVisibilityWorld != null && tickVisibilityWorld == world
-                        && visibility.available()
-                        && visibility.entityCount() == worldEntityPositionState.snapshot().entityCount()
-                        && visibility.entityCount() == worldEntityKindState.snapshot().entityCount()) {
-                    try {
-                        consistent = visibility.matches(
-                                tickVisibilityWorld.customMcLoadedEntityVisibility());
-                    } catch (RuntimeException invalidEvidence) {
-                        consistent = false;
-                    }
-                }
-                if (!worldEntityDownstreamSourceStillOwned(world)) {
-                    clearRevokedWorldEntitySource();
-                    return;
-                }
-                if (!consistent) {
-                    worldEntityCombatState.clear();
-                    nearestPlayerTargetState.clear();
-                    targetRotationState.clear();
-                    aura.rememberSelectedTarget(null);
-                    return;
-                }
+            // Existing pre-combat identity/LOS gate remains mandatory.
+            // The same World can reorder loadedEntityList inside the
+            // mapped combat getter, so pre-check alone is insufficient.
+            if (!originalWorldCombatEvidenceStillConsistent(world)) {
+                rejectInconsistentOriginalCombatSource(world);
+                return;
             }
             final int[] actualCombat = world.customMcLoadedEntityCombatStates();
             if (!worldEntityDownstreamSourceStillOwned(world)) {
                 clearRevokedWorldEntitySource();
+                return;
+            }
+            // Revalidate the exact ORIGINAL UUID ORDER and LOS after
+            // the genuine combat native getter returns. This is the
+            // final acceptance boundary before any combat publication.
+            if (!originalWorldCombatEvidenceStillConsistent(world)) {
+                rejectInconsistentOriginalCombatSource(world);
                 return;
             }
             if (actualCombat == null
@@ -1781,6 +1742,69 @@ public final class Minecraft189HostRuntime
         } finally {
             worldEntityDownstreamLease.exit();
         }
+    }
+
+    /**
+     * Source-consistent native loadedEntityList evidence. Evaluated both
+     * BEFORE and AFTER the original combat getter, so an unchanged World
+     * object cannot silently swap its UUID order or native LOS during
+     * the mapped combat snapshot.
+     *
+     * No new UUID or LOS getter is invoked when the corresponding
+     * original policy does not require that evidence.
+     */
+    private boolean originalWorldCombatEvidenceStillConsistent(
+            final Minecraft189WorldEntityCombatAccess world) {
+        if (identityRequired()) {
+            final Minecraft189WorldEntityUuidState.Snapshot ids =
+                    worldEntityUuidState.snapshot();
+            boolean consistent = false;
+            if (tickUuidWorld != null && tickUuidWorld == world
+                    && ids.available()
+                    && ids.entityCount() == worldEntityPositionState.snapshot().entityCount()
+                    && ids.entityCount() == worldEntityKindState.snapshot().entityCount()) {
+                try {
+                    consistent = ids.matches(tickUuidWorld.customMcLoadedEntityUuids());
+                } catch (RuntimeException invalidEvidence) {
+                    consistent = false;
+                }
+            }
+            if (!worldEntityDownstreamSourceStillOwned(world) || !consistent) {
+                return false;
+            }
+        }
+        if (featureCatalog.wallCheck().active()) {
+            final Minecraft189WorldEntityVisibilityState.Snapshot visibility =
+                    worldEntityVisibilityState.snapshot();
+            boolean consistent = false;
+            if (tickVisibilityWorld != null && tickVisibilityWorld == world
+                    && visibility.available()
+                    && visibility.entityCount() == worldEntityPositionState.snapshot().entityCount()
+                    && visibility.entityCount() == worldEntityKindState.snapshot().entityCount()) {
+                try {
+                    consistent = visibility.matches(
+                            tickVisibilityWorld.customMcLoadedEntityVisibility());
+                } catch (RuntimeException invalidEvidence) {
+                    consistent = false;
+                }
+            }
+            if (!worldEntityDownstreamSourceStillOwned(world) || !consistent) {
+                return false;
+            }
+        }
+        return worldEntityDownstreamSourceStillOwned(world);
+    }
+
+    private void rejectInconsistentOriginalCombatSource(
+            final Minecraft189WorldEntityCombatAccess world) {
+        if (!worldEntityDownstreamSourceStillOwned(world)) {
+            clearRevokedWorldEntitySource();
+            return;
+        }
+        worldEntityCombatState.clear();
+        nearestPlayerTargetState.clear();
+        targetRotationState.clear();
+        featureCatalog.killAura().rememberSelectedTarget(null);
     }
 
     private boolean worldEntityDownstreamSourceStillOwned(final Object world) {
