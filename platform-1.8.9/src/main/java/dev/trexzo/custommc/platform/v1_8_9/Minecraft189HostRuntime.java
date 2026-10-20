@@ -62,6 +62,10 @@ public final class Minecraft189HostRuntime
     // independently guarded Movement module callbacks.
     private final Minecraft189MotionHostSourceLease motionHostLease =
             new Minecraft189MotionHostSourceLease();
+    // A native EntityPlayer.jump() callback can recursively dispatch
+    // another jump MODULE while the first source jump is in flight.
+    private final Minecraft189JumpHostSourceLease jumpHostLease =
+            new Minecraft189JumpHostSourceLease();
     // Per-host-tick reference only; cleared before every new position sample.
     private Minecraft189PlayerSprintControl tickSprintControl;
     // An original synthetic click may restore Sprint only for its exact
@@ -852,93 +856,119 @@ public final class Minecraft189HostRuntime
                         clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
+    private boolean jumpHostSourceStillOwned() {
+        return jumpHostLease.stillOwned(
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
+    }
+
     void playerJumpControl(
             final Minecraft189PlayerJumpControl player) {
         requireOpen();
-        if (player == null) {
-            featureCatalog.jumpReset().apply(null, null, null, false, true);
-            return;
-        }
-        final Minecraft189PlayerMovementState.Snapshot movement =
-                playerMovementState.snapshot();
-        final boolean longJumpActive =
-                featureCatalog.longJump()
-                        .active();
-        final boolean highJumpActive =
-                featureCatalog.highJump()
-                        .active();
-        final boolean lowHopActive =
-                featureCatalog.lowHop()
-                        .active();
-        final boolean bunnyHopActive =
-                featureCatalog.bunnyHop()
-                        .active();
-        final boolean actualClickGuiOpen =
+        final boolean originalGuiFocus =
                 clickGuiRuntime.coreRuntime().model().snapshot().open();
-        final boolean movementJumpSuspended =
-                actualClickGuiOpen
-                        || featureCatalog.freeze()
-                                .active()
-                        || featureCatalog.flight()
-                                .active();
-        // Combat Jump Reset consumes only a fresh mapped local hurt edge.
-        // Never execute a second synthetic jump in the same callback.
-        // Existing movement jump modules retain priority while active.
-        if (featureCatalog.jumpReset().apply(
-                player, movement, playerHurtTimeState.snapshot(),
-                inputState.keyPressed(LegacyKeyboardCodes.W),
-                movementJumpSuspended || longJumpActive || highJumpActive
-                        || lowHopActive || bunnyHopActive
-                        || featureCatalog.airJump().active())) {
+        if (!jumpHostLease.enter(player, originalGuiFocus)) {
             return;
         }
-        featureCatalog.longJump()
-                .applyJump(
-                        player,
-                        movement,
-                        movementJumpSuspended);
-        featureCatalog.highJump()
-                .applyJump(
-                        player,
-                        movement,
-                        movementJumpSuspended
-                                || longJumpActive);
-        featureCatalog.lowHop()
-                .applyJump(
-                        player,
-                        movement,
-                        movementJumpSuspended
-                                || longJumpActive
-                                || highJumpActive);
-        featureCatalog.bunnyHop()
-                .applyJump(
-                        player,
-                        movement,
-                        movementJumpSuspended
-                                || longJumpActive
-                                || highJumpActive
-                                || lowHopActive,
-                        actualClickGuiOpen);
-        if (!longJumpActive
-                && !highJumpActive
-                && !lowHopActive
-                && !bunnyHopActive) {
-            featureCatalog.autoJump()
-                    .apply(
-                            player,
+        final Minecraft189PlayerJumpControl guardedPlayer =
+                jumpHostLease.guardedPlayer(player,
+                        () -> clickGuiRuntime.coreRuntime()
+                                .model().snapshot().open());
+        try {
+            if (guardedPlayer == null) {
+                featureCatalog.jumpReset().apply(null, null, null, false, true);
+                return;
+            }
+            final Minecraft189PlayerMovementState.Snapshot movement =
+                    playerMovementState.snapshot();
+            final boolean longJumpActive =
+                    featureCatalog.longJump()
+                            .active();
+            final boolean highJumpActive =
+                    featureCatalog.highJump()
+                            .active();
+            final boolean lowHopActive =
+                    featureCatalog.lowHop()
+                            .active();
+            final boolean bunnyHopActive =
+                    featureCatalog.bunnyHop()
+                            .active();
+            final boolean actualClickGuiOpen =
+                    clickGuiRuntime.coreRuntime().model().snapshot().open();
+            final boolean movementJumpSuspended =
+                    actualClickGuiOpen
+                            || featureCatalog.freeze()
+                                    .active()
+                            || featureCatalog.flight()
+                                    .active();
+            // Combat Jump Reset consumes only a fresh mapped local hurt edge.
+            // Never execute a second synthetic jump in the same callback.
+            // Existing movement jump modules retain priority while active.
+            if (featureCatalog.jumpReset().apply(
+                    guardedPlayer, movement, playerHurtTimeState.snapshot(),
+                    inputState.keyPressed(LegacyKeyboardCodes.W),
+                    movementJumpSuspended || longJumpActive || highJumpActive
+                            || lowHopActive || bunnyHopActive
+                            || featureCatalog.airJump().active())) {
+                return;
+            }
+            if (!jumpHostSourceStillOwned()) return;
+            featureCatalog.longJump()
+                    .applyJump(
+                            guardedPlayer,
                             movement,
-                            inputState.keyPressed(LegacyKeyboardCodes.W),
-                            inputState.keyPressed(LegacyKeyboardCodes.W)
-                                    || inputState.keyPressed(LegacyKeyboardCodes.A)
-                                    || inputState.keyPressed(LegacyKeyboardCodes.S)
-                                    || inputState.keyPressed(LegacyKeyboardCodes.D),
+                            movementJumpSuspended);
+            if (!jumpHostSourceStillOwned()) return;
+            featureCatalog.highJump()
+                    .applyJump(
+                            guardedPlayer,
+                            movement,
+                            movementJumpSuspended
+                                    || longJumpActive);
+            if (!jumpHostSourceStillOwned()) return;
+            featureCatalog.lowHop()
+                    .applyJump(
+                            guardedPlayer,
+                            movement,
+                            movementJumpSuspended
+                                    || longJumpActive
+                                    || highJumpActive);
+            if (!jumpHostSourceStillOwned()) return;
+            featureCatalog.bunnyHop()
+                    .applyJump(
+                            guardedPlayer,
+                            movement,
+                            movementJumpSuspended
+                                    || longJumpActive
+                                    || highJumpActive
+                                    || lowHopActive,
                             actualClickGuiOpen);
+            if (!jumpHostSourceStillOwned()) return;
+            if (!longJumpActive
+                    && !highJumpActive
+                    && !lowHopActive
+                    && !bunnyHopActive) {
+                featureCatalog.autoJump()
+                        .apply(
+                                guardedPlayer,
+                                movement,
+                                inputState.keyPressed(LegacyKeyboardCodes.W),
+                                inputState.keyPressed(LegacyKeyboardCodes.W)
+                                        || inputState.keyPressed(LegacyKeyboardCodes.A)
+                                        || inputState.keyPressed(LegacyKeyboardCodes.S)
+                                        || inputState.keyPressed(LegacyKeyboardCodes.D),
+                                actualClickGuiOpen);
+            }
+            if (!jumpHostSourceStillOwned()) return;
+            featureCatalog.airJump()
+                    .apply(
+                            guardedPlayer,
+                            movement,
+                            actualClickGuiOpen);
+        } finally {
+            // Never fake a rollback of vanilla EntityPlayer.jump(),
+            // even when a mapped jump has already updated real Y.
+            jumpHostLease.exit();
         }
-        featureCatalog.airJump()
-                .apply(
-                        player,
-                        movement,
-                        actualClickGuiOpen);
     }
 
     void playerStepControl(
