@@ -94,6 +94,10 @@ public final class Minecraft189HostRuntime
             new Minecraft189WorldTimeHostSourceLease();
     private final Minecraft189WorldWeatherHostSourceLease worldWeatherHostLease =
             new Minecraft189WorldWeatherHostSourceLease();
+    // All five original held-item getter calls belong to one local player.
+    // Keep the downstream item-use owner null until all return successfully.
+    private final Minecraft189HeldItemHostSourceLease heldItemHostLease =
+            new Minecraft189HeldItemHostSourceLease();
     // Hurt time authorizes local JumpReset and DamageBoost. A native
     // getter that changes player may not publish old damage evidence.
     private final Minecraft189HurtTimeHostSourceLease hurtTimeHostLease =
@@ -2127,22 +2131,57 @@ public final class Minecraft189HostRuntime
     void playerHeldItem(
             final Minecraft189PlayerHeldItemAccess player) {
         requireOpen();
-        tickHeldItemAccess = player;
-        if (player == null) {
+        if (!heldItemHostLease.enter(player)) return;
+        try {
+            // This reference authorizes real item-use and sword checks.
+            // It must never point to an unverified original player.
+            tickHeldItemAccess = null;
+            if (player == null) {
+                heldItemState.clear();
+                return;
+            }
+            final Minecraft189ItemStackAccess held =
+                    player.customMcHeldItem();
+            if (!heldItemHostLease.stillOwned() || held == null) {
+                heldItemState.clear();
+                return;
+            }
+            final String name = held.customMcDisplayName();
+            if (!heldItemHostLease.stillOwned()) {
+                heldItemState.clear();
+                return;
+            }
+            final int quantity = held.customMcStackSize();
+            if (!heldItemHostLease.stillOwned()) {
+                heldItemState.clear();
+                return;
+            }
+            final int damage = held.customMcItemDamage();
+            if (!heldItemHostLease.stillOwned()) {
+                heldItemState.clear();
+                return;
+            }
+            final int maximum = held.customMcMaxDamage();
+            if (!heldItemHostLease.stillOwned()) {
+                heldItemState.clear();
+                return;
+            }
+            // Existing state validates genuine name, quantity and damage
+            // before committing one immutable readback. Never publish a
+            // mutable native held-item owner on an invalid original item.
+            heldItemState.update(name, quantity, damage, maximum);
+            if (!heldItemHostLease.stillOwned()) {
+                heldItemState.clear();
+                return;
+            }
+            tickHeldItemAccess = player;
+        } catch (RuntimeException | Error nativeFailure) {
+            tickHeldItemAccess = null;
             heldItemState.clear();
-            return;
+            throw nativeFailure;
+        } finally {
+            heldItemHostLease.exit();
         }
-        final Minecraft189ItemStackAccess held =
-                player.customMcHeldItem();
-        if (held == null) {
-            heldItemState.clear();
-            return;
-        }
-        heldItemState.update(
-                held.customMcDisplayName(),
-                held.customMcStackSize(),
-                held.customMcItemDamage(),
-                held.customMcMaxDamage());
     }
 
     void frameStarted(
