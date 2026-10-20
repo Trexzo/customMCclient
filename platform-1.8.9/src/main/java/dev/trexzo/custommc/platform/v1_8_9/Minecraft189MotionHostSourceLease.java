@@ -37,6 +37,47 @@ final class Minecraft189MotionHostSourceLease {
         return !revoked;
     }
 
+    /**
+     * Native getter values remain genuine original source observations.
+     * Before EACH mapped setter, revalidate the host-wide source lease:
+     * another original player or newly focused GUI may have revoked it
+     * inside the preceding mapped setter. The old module must never
+     * write its remaining axes in that case.
+     */
+    Minecraft189PlayerMotionControl guardedPlayer(
+            final Minecraft189PlayerMotionControl original,
+            final java.util.function.BooleanSupplier guiFocused) {
+        if (original == null) {
+            return null;
+        }
+        return new Minecraft189PlayerMotionControl() {
+            @Override public double customMcMotionX() {
+                return original.customMcMotionX();
+            }
+            @Override public double customMcMotionY() {
+                return original.customMcMotionY();
+            }
+            @Override public double customMcMotionZ() {
+                return original.customMcMotionZ();
+            }
+            @Override public void customMcSetMotionX(final double value) {
+                if (stillOwned(guiFocused.getAsBoolean())) {
+                    original.customMcSetMotionX(value);
+                }
+            }
+            @Override public void customMcSetMotionY(final double value) {
+                if (stillOwned(guiFocused.getAsBoolean())) {
+                    original.customMcSetMotionY(value);
+                }
+            }
+            @Override public void customMcSetMotionZ(final double value) {
+                if (stillOwned(guiFocused.getAsBoolean())) {
+                    original.customMcSetMotionZ(value);
+                }
+            }
+        };
+    }
+
     void exit() {
         player = null;
         guiAtEntry = false;
