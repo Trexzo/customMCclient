@@ -74,6 +74,10 @@ public final class Minecraft189HostRuntime
     // Do not publish values combined across source replacement/reentry.
     private final Minecraft189HealthHostSourceLease healthHostLease =
             new Minecraft189HealthHostSourceLease();
+    // Four native armor flags and four original armor ItemStack references
+    // must belong to ONE source player before any HUD state is published.
+    private final Minecraft189ArmorHostSourceLease armorHostLease =
+            new Minecraft189ArmorHostSourceLease();
     // Hurt time authorizes local JumpReset and DamageBoost. A native
     // getter that changes player may not publish old damage evidence.
     private final Minecraft189HurtTimeHostSourceLease hurtTimeHostLease =
@@ -1486,19 +1490,71 @@ public final class Minecraft189HostRuntime
     void playerArmor(
             final Minecraft189PlayerArmorAccess player) {
         requireOpen();
-        if (player == null) {
+        if (!armorHostLease.enter(player)) return;
+        try {
+            if (player == null) {
+                playerArmorState.clear();
+                return;
+            }
+            // Each of the eight original mapped getter callbacks can
+            // synchronously reenter with a different local player/world.
+            // Never accept a partially mixed exact-reference source tick.
+            final boolean boots = player.customMcArmorBoots();
+            if (!armorHostLease.stillOwned()) {
+                playerArmorState.clear();
+                return;
+            }
+            final boolean leggings = player.customMcArmorLeggings();
+            if (!armorHostLease.stillOwned()) {
+                playerArmorState.clear();
+                return;
+            }
+            final boolean chestplate = player.customMcArmorChestplate();
+            if (!armorHostLease.stillOwned()) {
+                playerArmorState.clear();
+                return;
+            }
+            final boolean helmet = player.customMcArmorHelmet();
+            if (!armorHostLease.stillOwned()) {
+                playerArmorState.clear();
+                return;
+            }
+            final Minecraft189ItemStackAccess bootsItem =
+                    player.customMcArmorBootsItem();
+            if (!armorHostLease.stillOwned()) {
+                playerArmorState.clear();
+                return;
+            }
+            final Minecraft189ItemStackAccess leggingsItem =
+                    player.customMcArmorLeggingsItem();
+            if (!armorHostLease.stillOwned()) {
+                playerArmorState.clear();
+                return;
+            }
+            final Minecraft189ItemStackAccess chestplateItem =
+                    player.customMcArmorChestplateItem();
+            if (!armorHostLease.stillOwned()) {
+                playerArmorState.clear();
+                return;
+            }
+            final Minecraft189ItemStackAccess helmetItem =
+                    player.customMcArmorHelmetItem();
+            if (!armorHostLease.stillOwned()) {
+                playerArmorState.clear();
+                return;
+            }
+            // ItemStack damage/maxDamage getters execute inside update.
+            // Its publication is now transactional. Check the same source
+            // again after every actual durability getter has returned.
+            playerArmorState.update(boots, leggings, chestplate, helmet,
+                    bootsItem, leggingsItem, chestplateItem, helmetItem);
+            if (!armorHostLease.stillOwned()) playerArmorState.clear();
+        } catch (RuntimeException | Error nativeFailure) {
             playerArmorState.clear();
-            return;
+            throw nativeFailure;
+        } finally {
+            armorHostLease.exit();
         }
-        playerArmorState.update(
-                player.customMcArmorBoots(),
-                player.customMcArmorLeggings(),
-                player.customMcArmorChestplate(),
-                player.customMcArmorHelmet(),
-                player.customMcArmorBootsItem(),
-                player.customMcArmorLeggingsItem(),
-                player.customMcArmorChestplateItem(),
-                player.customMcArmorHelmetItem());
     }
 
     void playerHunger(

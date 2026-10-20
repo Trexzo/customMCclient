@@ -60,19 +60,22 @@ public final class Minecraft189PlayerArmorState {
         if (helmet) {
             nextMask |= HELMET_BIT;
         }
+        // Compute all four original ItemStack durability pairs BEFORE
+        // publishing any new armor state. An invalid/throwing native getter
+        // must never expose a new mask with stale durability from prior gear.
+        final SlotDurability nextBoots =
+                SlotDurability.from(bootsItem);
+        final SlotDurability nextLeggings =
+                SlotDurability.from(leggingsItem);
+        final SlotDurability nextChestplate =
+                SlotDurability.from(chestplateItem);
+        final SlotDurability nextHelmet =
+                SlotDurability.from(helmetItem);
         mask = nextMask;
-        bootsDurability =
-                SlotDurability.from(
-                        bootsItem);
-        leggingsDurability =
-                SlotDurability.from(
-                        leggingsItem);
-        chestplateDurability =
-                SlotDurability.from(
-                        chestplateItem);
-        helmetDurability =
-                SlotDurability.from(
-                        helmetItem);
+        bootsDurability = nextBoots;
+        leggingsDurability = nextLeggings;
+        chestplateDurability = nextChestplate;
+        helmetDurability = nextHelmet;
         available = true;
     }
 
