@@ -78,6 +78,10 @@ public final class Minecraft189HostRuntime
     // must belong to ONE source player before any HUD state is published.
     private final Minecraft189ArmorHostSourceLease armorHostLease =
             new Minecraft189ArmorHostSourceLease();
+    // The mapped array getter plus each real potion ID/duration/amplifier
+    // and name callback must share one exact original local-player owner.
+    private final Minecraft189PotionEffectsHostSourceLease potionEffectsHostLease =
+            new Minecraft189PotionEffectsHostSourceLease();
     // Hurt time authorizes local JumpReset and DamageBoost. A native
     // getter that changes player may not publish old damage evidence.
     private final Minecraft189HurtTimeHostSourceLease hurtTimeHostLease =
@@ -1590,12 +1594,33 @@ public final class Minecraft189HostRuntime
     void playerPotionEffects(
             final Minecraft189PlayerPotionEffectsAccess player) {
         requireOpen();
-        if (player == null) {
+        if (!potionEffectsHostLease.enter(player)) return;
+        try {
+            if (player == null) {
+                playerPotionEffectsState.clear();
+                return;
+            }
+            // Native array retrieval can reenter and replace the source.
+            final Minecraft189PotionEffectAccess[] originalEffects =
+                    player.customMcPotionEffects();
+            if (!potionEffectsHostLease.stillOwned()) {
+                playerPotionEffectsState.clear();
+                return;
+            }
+            // Snapshot calls four original getters PER native effect.
+            // State itself computes all immutable effect records before
+            // publication. A changed source mid-iteration is discarded.
+            playerPotionEffectsState.update(originalEffects);
+            if (!potionEffectsHostLease.stillOwned())
+                playerPotionEffectsState.clear();
+        } catch (RuntimeException | Error nativeFailure) {
+            // An inaccessible effect, invalid mapped potion value, null
+            // source array or getter failure cannot retain stale HUD data.
             playerPotionEffectsState.clear();
-            return;
+            throw nativeFailure;
+        } finally {
+            potionEffectsHostLease.exit();
         }
-        playerPotionEffectsState.update(
-                player.customMcPotionEffects());
     }
 
     void playerExperience(
