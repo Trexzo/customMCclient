@@ -78,6 +78,10 @@ public final class Minecraft189HostRuntime
     // dimension after synchronous native getter source replacement.
     private final Minecraft189DimensionHostSourceLease dimensionHostLease =
             new Minecraft189DimensionHostSourceLease();
+    // NoFall and Criticals must share the exact original player's
+    // mapped fallDistance getter/setter native callback stack.
+    private final Minecraft189FallHostSourceLease fallHostLease =
+            new Minecraft189FallHostSourceLease();
     // WTap and AutoSprint are separate native setter owners. Their host
     // routing must share one original sprint source and UI focus lease.
     private final Minecraft189SprintHostSourceLease sprintHostLease =
@@ -1181,11 +1185,42 @@ public final class Minecraft189HostRuntime
     void playerFallDistanceControl(
             final Minecraft189PlayerFallDistanceControl player) {
         requireOpen();
-        featureCatalog.noFall()
-                .apply(player, playerMovementState.snapshot(),
-                        clickGuiRuntime.coreRuntime().model().snapshot().open());
-        if (player != null) {
-            criticalsEvidence.fall(player.customMcFallDistance());
+        if (!fallHostLease.enter(player)) {
+            return;
+        }
+        final Minecraft189PlayerFallDistanceControl guardedPlayer =
+                fallHostLease.guardedPlayer(player,
+                        () -> clickGuiRuntime.coreRuntime()
+                                .model().snapshot().open());
+        try {
+            featureCatalog.noFall()
+                    .apply(guardedPlayer, playerMovementState.snapshot(),
+                            clickGuiRuntime.coreRuntime().model().snapshot().open());
+            if (!fallHostLease.stillOwned()) {
+                // One original getter/setter may have reentered with a
+                // different player. No stale Criticals fall evidence.
+                criticalsEvidence.fall(Float.NaN);
+                return;
+            }
+            if (guardedPlayer == null) {
+                criticalsEvidence.fall(Float.NaN);
+                return;
+            }
+            final float nativeFall = guardedPlayer.customMcFallDistance();
+            if (!fallHostLease.stillOwned()) {
+                criticalsEvidence.fall(Float.NaN);
+                return;
+            }
+            criticalsEvidence.fall(nativeFall);
+        } catch (RuntimeException | Error nativeFailure) {
+            // Never fabricate a rollback for a real NoFall native
+            // setter that has already changed physical fallDistance.
+            // Its partial write remains real, but its Criticals
+            // observation is unavailable on this failed host tick.
+            criticalsEvidence.fall(Float.NaN);
+            throw nativeFailure;
+        } finally {
+            fallHostLease.exit();
         }
     }
 
