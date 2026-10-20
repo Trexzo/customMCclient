@@ -220,10 +220,13 @@ final class Minecraft189JumpHostSourceLeaseTest {
             assertEquals(1,a.jumps);
         }
     }
-    @Test void integratedAlreadyGroundedNeverSynthesizesLandingEdge() {
+    @Test void integratedInitialArmedGroundContactFiresOnlyOnce() {
         try(Fixture f=new Fixture()){
+            // Existing AutoJump starts armed: the first grounded
+            // callback is permitted once without a prior air sample.
             final Jumper a=new Jumper();f.land(a);f.land(a);
-            assertEquals(0,a.jumps);
+            assertEquals(1,a.jumps);
+            f.land(a);assertEquals(1,a.jumps);
         }
     }
     private static final class NoOpHost implements LegacyUiHostCallbacks {
