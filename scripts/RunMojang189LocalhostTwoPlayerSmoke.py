@@ -343,6 +343,53 @@ def actual_server_three_client_simultaneous_fixture(server_log):
     return host, a_near, b_outer, b_near
 
 
+def actual_server_simultaneous_a_knockback_wall_fixture(
+        host_tp, a_near, b_outer, b_near):
+    """Physical vanilla server stone wall behind real A, never fake target proof.
+
+    A's first actual Survival PvP hit can knock A farther away than B before
+    the deliberate B /tp, so B is validly selected/hit prematurely. Keep the
+    original both-eligible real-player phase and strict zero-B scoreboard gate.
+    The wall is behind A, not between the host and either remote player.
+    """
+    parts = [command.split() for command in
+             (host_tp, a_near, b_outer, b_near)]
+    if any(len(v) != 7 or v[0] != "tp" for v in parts):
+        raise AssertionError("simultaneous wall needs four genuine tp commands")
+    if [v[1] for v in parts] != ["CIHost", "CITarget",
+                                 "CITargetB", "CITargetB"]:
+        raise AssertionError("simultaneous wall source player ownership invalid")
+    try:
+        h = tuple(int(v) for v in parts[0][2:5])
+        a = tuple(int(v) for v in parts[1][2:5])
+        b = tuple(int(v) for v in parts[2][2:5])
+        near = tuple(int(v) for v in parts[3][2:5])
+    except ValueError as error:
+        raise AssertionError("simultaneous wall nonintegral server source") from error
+    sign = 1 if a[2] > h[2] else -1
+    if (h[1] != a[1] or a[1] != b[1] or b[1] != near[1]
+            or h[0] != a[0] or abs(a[2] - h[2]) != 2
+            or b[2] != a[2] or abs(b[0] - a[0]) != 2
+            or near[2] != h[2] + sign
+            or abs(near[0] - a[0]) != 1):
+        raise AssertionError("simultaneous original A/B geometry changed")
+    # Minecraft 1.8.9 server /tp integer coordinates locate the player
+    # at x+0.5,z+0.5. The wall is one FULL stone tile beyond A, so
+    # it cannot intersect the genuine initially teleported player box.
+    wall_z = a[2] + sign
+    x0, x1 = a[0] - 1, a[0] + 1
+    y0, y1 = a[1], a[1] + 2
+    if abs(wall_z) >= 29999990 or abs(x0) >= 29999990 or abs(x1) >= 29999990:
+        raise AssertionError("simultaneous original wall out of world")
+    if not (2 <= y0 and y1 <= 253):
+        raise AssertionError("simultaneous original wall outside vanilla height")
+    # Force nine actual server blocks, independent vanilla command replies.
+    return ("fill {} {} {} {} {} {} stone".format(
+                x0, y0, wall_z, x1, y1, wall_z),
+            ((x0, y0, wall_z), (a[0], y0 + 1, wall_z),
+             (x1, y1, wall_z)))
+
+
 def actual_server_original_rejoin_prelock_a_fixture(host_tp, a_near, b_outer):
     """Real original A must beat real B by .12 in initial source World.
 
@@ -2559,6 +2606,23 @@ def run(args):
                                 "gamerule naturalRegeneration false")
             host_tp, a_near, b_outer, b_near = (
                 actual_server_three_client_simultaneous_fixture(server_log))
+            # Real server wall keeps actual original A's PvP knockback from
+            # changing the closest live player during phase A. This is NOT
+            # a target-selector override: A and B remain vulnerable Survival
+            # EntityPlayers and all strict UUID, controller, ray and
+            # scoreboard checks below are unchanged. Server build must work.
+            wall, witness_columns = (
+                actual_server_simultaneous_a_knockback_wall_fixture(
+                    host_tp, a_near, b_outer, b_near))
+            send_server_command(server, server_log, wall,
+                                expected=b"9 blocks filled")
+            for wx, wy, wz in witness_columns:
+                send_server_command(
+                    server, server_log,
+                    "testforblock {} {} {} stone".format(wx, wy, wz),
+                    expected=b"successfully found the block")
+            print("CUSTOMMC_189_SIMULTANEOUS_REAL_A_KNOCKBACK_WALL_PASS=YES",
+                  flush=True)
             send_server_command(server, server_log, b_outer)
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, a_near)
