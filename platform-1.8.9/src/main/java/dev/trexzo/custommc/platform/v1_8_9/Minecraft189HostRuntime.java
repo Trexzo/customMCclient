@@ -58,6 +58,10 @@ public final class Minecraft189HostRuntime
     private long triggerDispatchAdmissionSerial;
     private final Minecraft189CriticalsEvidence criticalsEvidence =
             new Minecraft189CriticalsEvidence();
+    // One original player owns the whole motion host chain, across
+    // independently guarded Movement module callbacks.
+    private final Minecraft189MotionHostSourceLease motionHostLease =
+            new Minecraft189MotionHostSourceLease();
     // Per-host-tick reference only; cleared before every new position sample.
     private Minecraft189PlayerSprintControl tickSprintControl;
     // An original synthetic click may restore Sprint only for its exact
@@ -978,134 +982,166 @@ public final class Minecraft189HostRuntime
                         clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
+    private boolean motionHostSourceStillOwned() {
+        return motionHostLease.stillOwned(
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
+    }
+
     void playerMotionControl(
             final Minecraft189PlayerMotionControl player) {
         requireOpen();
-        final Minecraft189PlayerHurtTimeState.Snapshot hurtTime =
-                playerHurtTimeState.snapshot();
-        final boolean freezeActive =
-                featureCatalog.freeze()
-                        .active();
-        featureCatalog.freeze()
-                .apply(
-                        player,
-                        clickGuiRuntime.coreRuntime().model().snapshot().open());
-        if (freezeActive) {
-            featureCatalog.damageBoost()
-                    .apply(player, hurtTime, true);
+        final boolean originalGuiFocus =
+                clickGuiRuntime.coreRuntime().model().snapshot().open();
+        if (!motionHostLease.enter(player, originalGuiFocus)) {
             return;
         }
+        try {
+            final Minecraft189PlayerHurtTimeState.Snapshot hurtTime =
+                    playerHurtTimeState.snapshot();
+            final boolean freezeActive =
+                    featureCatalog.freeze()
+                            .active();
+            featureCatalog.freeze()
+                    .apply(
+                            player,
+                            clickGuiRuntime.coreRuntime().model().snapshot().open());
+            if (!motionHostSourceStillOwned()) return;
+            if (freezeActive) {
+                featureCatalog.damageBoost()
+                        .apply(player, hurtTime, true);
+                return;
+            }
 
-        final Minecraft189PlayerRotationState.Snapshot rotation =
-                playerRotationState.snapshot();
-        final Minecraft189PlayerMovementState.Snapshot movement =
-                playerMovementState.snapshot();
-        final boolean actualClickGuiOpen =
-                clickGuiRuntime.coreRuntime().model().snapshot().open();
-        final boolean flightActive =
-                featureCatalog.flight()
-                        .active();
-        final boolean fastFallActive =
-                featureCatalog.fastFall()
-                        .active();
-        final boolean jumpHeld =
-                inputState.keyPressed(LegacyKeyboardCodes.SPACE);
-        final boolean noGravityActive =
-                featureCatalog.noGravity()
-                        .ownsVertical(jumpHeld);
-        final boolean longJumpActive =
-                featureCatalog.longJump()
-                        .active();
-        final boolean highJumpActive =
-                featureCatalog.highJump()
-                        .active();
-        final boolean lowHopActive =
-                featureCatalog.lowHop()
-                        .active();
-        // CustomMC GUI focus is a common priority veto for keyboard-driven
-        // movement. Do not only suspend Flight: lower-priority policies
-        // would otherwise overwrite native motion with stale held W/A/S/D.
-        // Feed the existing suspended inputs so one-shot pending impulses
-        // are consumed without a delayed replay when the GUI closes.
-        final boolean longJumpOwnsHorizontal =
-                featureCatalog.longJump().applyMotion(
-                        player, rotation,
-                        flightActive || actualClickGuiOpen);
-        featureCatalog.highJump().applyMotion(
-                player, flightActive || longJumpActive || actualClickGuiOpen);
-        featureCatalog.lowHop().applyMotion(
-                player, flightActive || longJumpActive || highJumpActive
-                        || actualClickGuiOpen);
-        final boolean bunnyHopOwnsHorizontal =
-                featureCatalog.bunnyHop().applyMotion(
-                        player, rotation,
-                        flightActive || longJumpActive || highJumpActive
-                                || lowHopActive || actualClickGuiOpen);
-        final boolean movementSpeedOwnsHorizontal =
-                featureCatalog.movementSpeed().apply(
-                        player, movement, rotation,
-                        flightActive || longJumpOwnsHorizontal
-                                || bunnyHopOwnsHorizontal || actualClickGuiOpen);
-        final boolean airSpeedOwnsHorizontal =
-                featureCatalog.airSpeed().apply(
-                        player, movement, rotation,
-                        flightActive || longJumpOwnsHorizontal
-                                || bunnyHopOwnsHorizontal || actualClickGuiOpen);
-        featureCatalog.flight().apply(
-                player, rotation, movement, actualClickGuiOpen);
-        final boolean horizontalOwnerActive = flightActive
-                || longJumpOwnsHorizontal || bunnyHopOwnsHorizontal
-                || movementSpeedOwnsHorizontal || airSpeedOwnsHorizontal;
-        final boolean targetStrafeOwnsHorizontal = featureCatalog.targetStrafe()
-                .apply(player, playerPositionState.snapshot(),
-                        nearestPlayerTargetState.snapshot(), movement,
-                        inputState.keyPressed(LegacyKeyboardCodes.W),
-                        horizontalOwnerActive || actualClickGuiOpen);
-        featureCatalog.strafe().apply(
-                player, rotation,
-                horizontalOwnerActive || targetStrafeOwnsHorizontal
-                        || actualClickGuiOpen, movement);
-        final boolean reverseStepOwnsVertical =
-                featureCatalog.reverseStep()
-                        .apply(
-                                player,
-                                movement,
-                                flightActive
-                                        || noGravityActive,
-                                inputState.keyPressed(LegacyKeyboardCodes.W)
-                                        || inputState.keyPressed(LegacyKeyboardCodes.A)
-                                        || inputState.keyPressed(LegacyKeyboardCodes.S)
-                                        || inputState.keyPressed(LegacyKeyboardCodes.D),
-                                clickGuiRuntime.coreRuntime().model().snapshot().open());
-        featureCatalog.noGravity()
-                .apply(
-                        player,
-                        movement,
-                        flightActive,
-                        jumpHeld,
-                        clickGuiRuntime.coreRuntime().model().snapshot().open());
-        featureCatalog.fastFall()
-                .apply(
-                        player,
-                        movement,
-                        flightActive
-                                || noGravityActive
-                                || reverseStepOwnsVertical,
-                        clickGuiRuntime.coreRuntime().model().snapshot().open());
-        featureCatalog.glide()
-                .apply(
-                        player,
-                        movement,
-                        flightActive
-                                || noGravityActive
-                                || reverseStepOwnsVertical
-                                || fastFallActive,
-                        clickGuiRuntime.coreRuntime().model().snapshot().open());
-        featureCatalog.damageBoost()
-                .apply(player, hurtTime, flightActive || actualClickGuiOpen);
-        if (player != null) {
-            // Read the final mapped motion after movement policies apply.
-            criticalsEvidence.motion(player.customMcMotionY());
+            final Minecraft189PlayerRotationState.Snapshot rotation =
+                    playerRotationState.snapshot();
+            final Minecraft189PlayerMovementState.Snapshot movement =
+                    playerMovementState.snapshot();
+            final boolean actualClickGuiOpen =
+                    clickGuiRuntime.coreRuntime().model().snapshot().open();
+            final boolean flightActive =
+                    featureCatalog.flight()
+                            .active();
+            final boolean fastFallActive =
+                    featureCatalog.fastFall()
+                            .active();
+            final boolean jumpHeld =
+                    inputState.keyPressed(LegacyKeyboardCodes.SPACE);
+            final boolean noGravityActive =
+                    featureCatalog.noGravity()
+                            .ownsVertical(jumpHeld);
+            final boolean longJumpActive =
+                    featureCatalog.longJump()
+                            .active();
+            final boolean highJumpActive =
+                    featureCatalog.highJump()
+                            .active();
+            final boolean lowHopActive =
+                    featureCatalog.lowHop()
+                            .active();
+            // CustomMC GUI focus is a common priority veto for keyboard-driven
+            // movement. Do not only suspend Flight: lower-priority policies
+            // would otherwise overwrite native motion with stale held W/A/S/D.
+            // Feed the existing suspended inputs so one-shot pending impulses
+            // are consumed without a delayed replay when the GUI closes.
+            final boolean longJumpOwnsHorizontal =
+                    featureCatalog.longJump().applyMotion(
+                            player, rotation,
+                            flightActive || actualClickGuiOpen);
+            if (!motionHostSourceStillOwned()) return;
+            featureCatalog.highJump().applyMotion(
+                    player, flightActive || longJumpActive || actualClickGuiOpen);
+            if (!motionHostSourceStillOwned()) return;
+            featureCatalog.lowHop().applyMotion(
+                    player, flightActive || longJumpActive || highJumpActive
+                            || actualClickGuiOpen);
+            if (!motionHostSourceStillOwned()) return;
+            final boolean bunnyHopOwnsHorizontal =
+                    featureCatalog.bunnyHop().applyMotion(
+                            player, rotation,
+                            flightActive || longJumpActive || highJumpActive
+                                    || lowHopActive || actualClickGuiOpen);
+            if (!motionHostSourceStillOwned()) return;
+            final boolean movementSpeedOwnsHorizontal =
+                    featureCatalog.movementSpeed().apply(
+                            player, movement, rotation,
+                            flightActive || longJumpOwnsHorizontal
+                                    || bunnyHopOwnsHorizontal || actualClickGuiOpen);
+            if (!motionHostSourceStillOwned()) return;
+            final boolean airSpeedOwnsHorizontal =
+                    featureCatalog.airSpeed().apply(
+                            player, movement, rotation,
+                            flightActive || longJumpOwnsHorizontal
+                                    || bunnyHopOwnsHorizontal || actualClickGuiOpen);
+            if (!motionHostSourceStillOwned()) return;
+            featureCatalog.flight().apply(
+                    player, rotation, movement, actualClickGuiOpen);
+            if (!motionHostSourceStillOwned()) return;
+            final boolean horizontalOwnerActive = flightActive
+                    || longJumpOwnsHorizontal || bunnyHopOwnsHorizontal
+                    || movementSpeedOwnsHorizontal || airSpeedOwnsHorizontal;
+            if (!motionHostSourceStillOwned()) return;
+            final boolean targetStrafeOwnsHorizontal = featureCatalog.targetStrafe()
+                    .apply(player, playerPositionState.snapshot(),
+                            nearestPlayerTargetState.snapshot(), movement,
+                            inputState.keyPressed(LegacyKeyboardCodes.W),
+                            horizontalOwnerActive || actualClickGuiOpen);
+            if (!motionHostSourceStillOwned()) return;
+            featureCatalog.strafe().apply(
+                    player, rotation,
+                    horizontalOwnerActive || targetStrafeOwnsHorizontal
+                            || actualClickGuiOpen, movement);
+            if (!motionHostSourceStillOwned()) return;
+            final boolean reverseStepOwnsVertical =
+                    featureCatalog.reverseStep()
+                            .apply(
+                                    player,
+                                    movement,
+                                    flightActive
+                                            || noGravityActive,
+                                    inputState.keyPressed(LegacyKeyboardCodes.W)
+                                            || inputState.keyPressed(LegacyKeyboardCodes.A)
+                                            || inputState.keyPressed(LegacyKeyboardCodes.S)
+                                            || inputState.keyPressed(LegacyKeyboardCodes.D),
+                                    clickGuiRuntime.coreRuntime().model().snapshot().open());
+            if (!motionHostSourceStillOwned()) return;
+            featureCatalog.noGravity()
+                    .apply(
+                            player,
+                            movement,
+                            flightActive,
+                            jumpHeld,
+                            clickGuiRuntime.coreRuntime().model().snapshot().open());
+            if (!motionHostSourceStillOwned()) return;
+            featureCatalog.fastFall()
+                    .apply(
+                            player,
+                            movement,
+                            flightActive
+                                    || noGravityActive
+                                    || reverseStepOwnsVertical,
+                            clickGuiRuntime.coreRuntime().model().snapshot().open());
+            if (!motionHostSourceStillOwned()) return;
+            featureCatalog.glide()
+                    .apply(
+                            player,
+                            movement,
+                            flightActive
+                                    || noGravityActive
+                                    || reverseStepOwnsVertical
+                                    || fastFallActive,
+                            clickGuiRuntime.coreRuntime().model().snapshot().open());
+            if (!motionHostSourceStillOwned()) return;
+            featureCatalog.damageBoost()
+                    .apply(player, hurtTime, flightActive || actualClickGuiOpen);
+            if (!motionHostSourceStillOwned()) return;
+            if (player != null) {
+                // Read the final mapped motion after movement policies apply.
+                criticalsEvidence.motion(player.customMcMotionY());
+            }
+        } finally {
+            // A genuine mapped setter may write velocity and throw.
+            // Release only the host lease, not source player motion.
+            motionHostLease.exit();
         }
     }
 
