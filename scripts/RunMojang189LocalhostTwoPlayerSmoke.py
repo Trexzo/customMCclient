@@ -1003,8 +1003,8 @@ def original_scaffold_native_edge_failure_evidence(
     genuine verified step=4 controller position, not an inferred waypoint.
     """
     expression = re.compile(
-        rb"CUSTOMMC_189_NATIVE_LOCAL_POS=x=(-?\\d+(?:\\.\\d+)?)"
-        rb" y=(-?\\d+(?:\\.\\d+)?) z=(-?\\d+(?:\\.\\d+)?)")
+        rb"CUSTOMMC_189_NATIVE_LOCAL_POS=x=(-?\d+(?:\.\d+)?)"
+        rb" y=(-?\d+(?:\.\d+)?) z=(-?\d+(?:\.\d+)?)")
     recent = log_tail(log, 25000)
     observed = [
         tuple(float(v) for v in row)
