@@ -2142,8 +2142,17 @@ public final class Minecraft189HostRuntime
             }
             final Minecraft189ItemStackAccess held =
                     player.customMcHeldItem();
-            if (!heldItemHostLease.stillOwned() || held == null) {
+            if (!heldItemHostLease.stillOwned()) {
                 heldItemState.clear();
+                return;
+            }
+            if (held == null) {
+                // Vanilla empty hand is a VALID original inventory owner:
+                // AutoRod/AutoPot can select another genuine hotbar item.
+                // The HUD has no held ItemStack, but this verified player
+                // must still authorize downstream native selection.
+                heldItemState.clear();
+                tickHeldItemAccess = player;
                 return;
             }
             final String name = held.customMcDisplayName();
