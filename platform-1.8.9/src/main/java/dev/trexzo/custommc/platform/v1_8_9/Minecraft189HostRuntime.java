@@ -74,6 +74,10 @@ public final class Minecraft189HostRuntime
     // routing must share one original sprint source and UI focus lease.
     private final Minecraft189SprintHostSourceLease sprintHostLease =
             new Minecraft189SprintHostSourceLease();
+    // Three genuine EntityPlayerSP XYZ getter calls must belong to
+    // ONE original local player before publishing position or speed.
+    private final Minecraft189PositionHostSourceLease positionHostLease =
+            new Minecraft189PositionHostSourceLease();
     // Per-host-tick reference only; cleared before every new position sample.
     private Minecraft189PlayerSprintControl tickSprintControl;
     // An original synthetic click may restore Sprint only for its exact
@@ -560,35 +564,59 @@ public final class Minecraft189HostRuntime
     void playerPosition(
             final Minecraft189PlayerPositionAccess player) {
         requireOpen();
-        // Clear both halves on every host tick. No stale fall/motion
-        // evidence can authorize an automatic attack after world changes.
-        criticalsEvidence.reset();
-        tickSprintControl = null;
-        pendingKeepSprintSource = null;
-        keepSprintAdmissionSerial++;
-        tickHotbarControl = null;
-        tickHotbarPlayer = null;
-        tickHeldItemAccess = null;
-        nearestPlayerTargetState.clear();
-        if (player == null) {
-            targetRotationState.clear();
-            playerPositionState.clear();
-            movementSpeedTracker.clear();
+        if (!positionHostLease.enter(player)) {
+            // A native XYZ getter can reenter this host synchronously.
+            // A different original player revokes the outer read; it
+            // must clear the shared source rather than mix coordinates.
             return;
         }
-        final double x =
-                player.customMcPositionX();
-        final double y =
-                player.customMcPositionY();
-        final double z =
-                player.customMcPositionZ();
-        playerPositionState.update(
-                x,
-                y,
-                z);
-        movementSpeedTracker.sample(
-                x,
-                z);
+        try {
+            // Clear both halves on every original host tick. No stale
+            // fall/motion evidence can authorize automatic attacks.
+            criticalsEvidence.reset();
+            tickSprintControl = null;
+            pendingKeepSprintSource = null;
+            keepSprintAdmissionSerial++;
+            tickHotbarControl = null;
+            tickHotbarPlayer = null;
+            tickHeldItemAccess = null;
+            nearestPlayerTargetState.clear();
+            if (player == null) {
+                clearOriginalPositionEvidence();
+                return;
+            }
+            final double x = player.customMcPositionX();
+            if (!positionHostLease.stillOwned()) {
+                clearOriginalPositionEvidence();
+                return;
+            }
+            final double y = player.customMcPositionY();
+            if (!positionHostLease.stillOwned()) {
+                clearOriginalPositionEvidence();
+                return;
+            }
+            final double z = player.customMcPositionZ();
+            if (!positionHostLease.stillOwned()) {
+                clearOriginalPositionEvidence();
+                return;
+            }
+            // Publish a complete, finite original XYZ observation
+            // before sampling the genuine horizontal speed delta.
+            playerPositionState.update(x, y, z);
+            movementSpeedTracker.sample(x, z);
+        } catch (RuntimeException | Error nativeFailure) {
+            // A partially read native position is no usable evidence.
+            clearOriginalPositionEvidence();
+            throw nativeFailure;
+        } finally {
+            positionHostLease.exit();
+        }
+    }
+
+    private void clearOriginalPositionEvidence() {
+        targetRotationState.clear();
+        playerPositionState.clear();
+        movementSpeedTracker.clear();
     }
 
     void playerRotation(
