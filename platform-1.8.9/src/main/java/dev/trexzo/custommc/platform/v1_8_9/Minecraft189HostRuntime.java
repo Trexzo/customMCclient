@@ -78,6 +78,10 @@ public final class Minecraft189HostRuntime
     // ONE original local player before publishing position or speed.
     private final Minecraft189PositionHostSourceLease positionHostLease =
             new Minecraft189PositionHostSourceLease();
+    // One original local-player rotation source across mapped yaw/pitch
+    // reads and all cross-module original yaw/pitch setters.
+    private final Minecraft189RotationHostSourceLease rotationHostLease =
+            new Minecraft189RotationHostSourceLease();
     // Per-host-tick reference only; cleared before every new position sample.
     private Minecraft189PlayerSprintControl tickSprintControl;
     // An original synthetic click may restore Sprint only for its exact
@@ -619,158 +623,227 @@ public final class Minecraft189HostRuntime
         movementSpeedTracker.clear();
     }
 
+    private boolean rotationHostSourceStillOwned() {
+        return rotationHostLease.stillOwned(
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
+    }
+
+    private void discardRotationSourceEvidence() {
+        playerRotationState.clear();
+        playerMovementState.clear();
+        aimAssistRangeTargetState.clear();
+        aimAssistRangeRotationState.clear();
+        aimAssistCandidateRotationState.clear();
+    }
+
     void playerRotation(
             final Minecraft189PlayerRotationAccess player) {
         requireOpen();
-        if (player == null) {
-            playerRotationState.clear();
-            aimAssistRangeTargetState.clear();
-            aimAssistRangeRotationState.clear();
-            aimAssistCandidateRotationState.clear();
-            featureCatalog.spin()
-                    .apply(
-                            null,
-                            null,
-                            false);
-            featureCatalog.jitter()
-                    .apply(null, null, false);
-            featureCatalog.killAura().suspend();
+        final boolean originalGuiFocus =
+                clickGuiRuntime.coreRuntime().model().snapshot().open();
+        if (!rotationHostLease.enter(player, originalGuiFocus)) {
             return;
         }
-
-        playerRotationState.update(
-                player.customMcRotationYaw(),
-                player.customMcRotationPitch());
-        final Minecraft189PlayerRotationControl control =
-                player instanceof Minecraft189PlayerRotationControl
-                        ? (Minecraft189PlayerRotationControl) player
-                        : null;
-        final Minecraft189PlayerRotationState.Snapshot rotation =
-                playerRotationState.snapshot();
-
-        // Refresh ground authority from the exact player being rotated,
-        // not a movement snapshot published later in the host tick.
-        final Minecraft189PlayerMovementState.Snapshot rotationMovement;
-        if (player instanceof Minecraft189PlayerMovementStateAccess) {
-            final Minecraft189PlayerMovementStateAccess movementPlayer =
-                    (Minecraft189PlayerMovementStateAccess) player;
-            playerMovementState.update(
-                    movementPlayer.customMcOnGround(),
-                    movementPlayer.customMcSneaking(),
-                    movementPlayer.customMcSprinting());
-            rotationMovement = playerMovementState.snapshot();
-        } else {
-            rotationMovement = null;
-        }
-
-        final boolean leftButtonHeld =
-                inputState.pointerPressed(
-                        Minecraft189ClickRateTracker.LEFT_BUTTON);
-        // The GUI owns pointer/keyboard focus: rotation automation must
-        // release ownership and discard any pending correction cadence.
-        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
-            featureCatalog.spin().apply(null, null, false);
-            featureCatalog.aimAssist().apply(null, null, null, false, false);
-            featureCatalog.jitter().apply(null, null, false);
-            featureCatalog.killAura().suspend();
-            return;
-        }
-        if (featureCatalog.spin()
-                .apply(
-                        control,
-                        rotation,
-                        leftButtonHeld,
-                        playerMovementState.snapshot())) {
-            featureCatalog.jitter()
-                    .apply(
-                            null,
-                            null,
-                            false);
-            return;
-        }
-        // Aura exclusively owns the rotation lane when enabled.
-        // Spin retains its established, explicit precedence.
-        final Minecraft189KillAuraModule aura = featureCatalog.killAura();
-        if (aura.active()) {
-            aura.aim(control, rotation, targetRotationState.snapshot(),
-                    leftButtonHeld, playerMovementState.snapshot());
-            featureCatalog.jitter().apply(null, null, false);
-            return;
-        }
-        final Minecraft189AimAssistModule assist =
-                featureCatalog.aimAssist();
-        Minecraft189TargetRotationState.Snapshot assistTarget =
-                targetRotationState.snapshot();
-        final boolean limitedFov =
-                (assist.yawEnabledSetting().get().booleanValue()
-                        && assist.maxFovSetting().get().doubleValue() < 180.0D)
-                || (assist.pitchEnabledSetting().get().booleanValue()
-                        && assist.maxPitchFovSetting().get().doubleValue() < 180.0D);
-        final boolean crosshairPriority =
-                assist.prioritizeCrosshairSetting().get().booleanValue();
-        if (assist.active()
-                && (assist.minDistanceSetting().get().doubleValue() > 0.0D
-                        || limitedFov || crosshairPriority)) {
-            final Minecraft189PlayerPositionState.Snapshot local =
-                    playerPositionState.snapshot();
-            final Minecraft189NearestPlayerTargetState.CandidateFilter filter;
-            if (limitedFov) {
-                filter = candidate -> {
-                    aimAssistCandidateRotationState.update(local, candidate);
-                    return assist.targetWithinFov(
-                            rotation,
-                            aimAssistCandidateRotationState.snapshot());
-                };
-            } else {
-                filter = null;
+        try {
+            if (player == null) {
+                playerRotationState.clear();
+                aimAssistRangeTargetState.clear();
+                aimAssistRangeRotationState.clear();
+                aimAssistCandidateRotationState.clear();
+                featureCatalog.spin()
+                        .apply(
+                                null,
+                                null,
+                                false);
+                featureCatalog.jitter()
+                        .apply(null, null, false);
+                featureCatalog.killAura().suspend();
+                return;
             }
-            final Minecraft189NearestPlayerTargetState.CandidateScore score;
-            if (crosshairPriority) {
-                score = candidate -> {
-                    aimAssistCandidateRotationState.update(local, candidate);
-                    return assist.targetAngularErrorSquared(
-                            rotation,
-                            aimAssistCandidateRotationState.snapshot());
-                };
-            } else {
-                score = null;
+
+            final float actualYaw = player.customMcRotationYaw();
+            if (!rotationHostSourceStillOwned()) {
+                discardRotationSourceEvidence();
+                return;
             }
-            aimAssistRangeTargetState.update(
-                    local,
-                    worldEntityPositionState.snapshot(),
-                    worldEntityKindState.snapshot(),
-                    assist.minDistanceSetting().get().doubleValue(),
-                    assist.maxDistanceSetting().get().doubleValue(),
-                    filter,
-                    score);
-            aimAssistRangeRotationState.update(
-                    local,
-                    aimAssistRangeTargetState.snapshot());
-            assistTarget = aimAssistRangeRotationState.snapshot();
-        }
-        if (assist.apply(
-                        control,
-                        rotation,
-                        assistTarget,
-                        leftButtonHeld,
-                        inputState.keyPressed(
-                                LegacyKeyboardCodes.W),
-                        rotationMovement)) {
+            final float actualPitch = player.customMcRotationPitch();
+            if (!rotationHostSourceStillOwned()) {
+                discardRotationSourceEvidence();
+                return;
+            }
+            playerRotationState.update(actualYaw, actualPitch);
+            final Minecraft189PlayerRotationControl control =
+                    rotationHostLease.guardedControl(player,
+                            () -> clickGuiRuntime.coreRuntime()
+                                    .model().snapshot().open());
+            final Minecraft189PlayerRotationState.Snapshot rotation =
+                    playerRotationState.snapshot();
+
+            // Refresh ground authority from the exact player being rotated,
+            // not a movement snapshot published later in the host tick.
+            final Minecraft189PlayerMovementState.Snapshot rotationMovement;
+            if (player instanceof Minecraft189PlayerMovementStateAccess) {
+                final Minecraft189PlayerMovementStateAccess movementPlayer =
+                        (Minecraft189PlayerMovementStateAccess) player;
+                final boolean actualGround = movementPlayer.customMcOnGround();
+                if (!rotationHostSourceStillOwned()) {
+                    discardRotationSourceEvidence();
+                    return;
+                }
+                final boolean actualSneaking = movementPlayer.customMcSneaking();
+                if (!rotationHostSourceStillOwned()) {
+                    discardRotationSourceEvidence();
+                    return;
+                }
+                final boolean actualSprinting = movementPlayer.customMcSprinting();
+                if (!rotationHostSourceStillOwned()) {
+                    discardRotationSourceEvidence();
+                    return;
+                }
+                playerMovementState.update(
+                        actualGround, actualSneaking, actualSprinting);
+                rotationMovement = playerMovementState.snapshot();
+            } else {
+                rotationMovement = null;
+            }
+
+            final boolean leftButtonHeld =
+                    inputState.pointerPressed(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON);
+            // The GUI owns pointer/keyboard focus: rotation automation must
+            // release ownership and discard any pending correction cadence.
+            if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+                featureCatalog.spin().apply(null, null, false);
+                featureCatalog.aimAssist().apply(null, null, null, false, false);
+                featureCatalog.jitter().apply(null, null, false);
+                featureCatalog.killAura().suspend();
+                return;
+            }
+            final boolean spinOwnsRotation = featureCatalog.spin()
+                    .apply(
+                            control,
+                            rotation,
+                            leftButtonHeld,
+                            playerMovementState.snapshot());
+            if (!rotationHostSourceStillOwned()) {
+                discardRotationSourceEvidence();
+                return;
+            }
+            if (spinOwnsRotation) {
+                featureCatalog.jitter()
+                        .apply(
+                                null,
+                                null,
+                                false);
+                return;
+            }
+            // Aura exclusively owns the rotation lane when enabled.
+            // Spin retains its established, explicit precedence.
+            final Minecraft189KillAuraModule aura = featureCatalog.killAura();
+            if (aura.active()) {
+                aura.aim(control, rotation, targetRotationState.snapshot(),
+                        leftButtonHeld, playerMovementState.snapshot());
+                if (!rotationHostSourceStillOwned()) {
+                    discardRotationSourceEvidence();
+                    return;
+                }
+                featureCatalog.jitter().apply(null, null, false);
+                return;
+            }
+            final Minecraft189AimAssistModule assist =
+                    featureCatalog.aimAssist();
+            Minecraft189TargetRotationState.Snapshot assistTarget =
+                    targetRotationState.snapshot();
+            final boolean limitedFov =
+                    (assist.yawEnabledSetting().get().booleanValue()
+                            && assist.maxFovSetting().get().doubleValue() < 180.0D)
+                    || (assist.pitchEnabledSetting().get().booleanValue()
+                            && assist.maxPitchFovSetting().get().doubleValue() < 180.0D);
+            final boolean crosshairPriority =
+                    assist.prioritizeCrosshairSetting().get().booleanValue();
+            if (assist.active()
+                    && (assist.minDistanceSetting().get().doubleValue() > 0.0D
+                            || limitedFov || crosshairPriority)) {
+                final Minecraft189PlayerPositionState.Snapshot local =
+                        playerPositionState.snapshot();
+                final Minecraft189NearestPlayerTargetState.CandidateFilter filter;
+                if (limitedFov) {
+                    filter = candidate -> {
+                        aimAssistCandidateRotationState.update(local, candidate);
+                        return assist.targetWithinFov(
+                                rotation,
+                                aimAssistCandidateRotationState.snapshot());
+                    };
+                } else {
+                    filter = null;
+                }
+                final Minecraft189NearestPlayerTargetState.CandidateScore score;
+                if (crosshairPriority) {
+                    score = candidate -> {
+                        aimAssistCandidateRotationState.update(local, candidate);
+                        return assist.targetAngularErrorSquared(
+                                rotation,
+                                aimAssistCandidateRotationState.snapshot());
+                    };
+                } else {
+                    score = null;
+                }
+                aimAssistRangeTargetState.update(
+                        local,
+                        worldEntityPositionState.snapshot(),
+                        worldEntityKindState.snapshot(),
+                        assist.minDistanceSetting().get().doubleValue(),
+                        assist.maxDistanceSetting().get().doubleValue(),
+                        filter,
+                        score);
+                if (!rotationHostSourceStillOwned()) {
+                    discardRotationSourceEvidence();
+                    return;
+                }
+                aimAssistRangeRotationState.update(
+                        local,
+                        aimAssistRangeTargetState.snapshot());
+                assistTarget = aimAssistRangeRotationState.snapshot();
+            }
+            final boolean assistOwnsRotation = assist.apply(
+                            control,
+                            rotation,
+                            assistTarget,
+                            leftButtonHeld,
+                            inputState.keyPressed(
+                                    LegacyKeyboardCodes.W),
+                            rotationMovement);
+            if (!rotationHostSourceStillOwned()) {
+                discardRotationSourceEvidence();
+                return;
+            }
+            if (assistOwnsRotation) {
+                featureCatalog.jitter()
+                        .apply(
+                                null,
+                                null,
+                                false);
+                return;
+            }
             featureCatalog.jitter()
                     .apply(
-                            null,
-                            null,
-                            false);
-            return;
+                            control,
+                            rotation,
+                            leftButtonHeld,
+                            playerMovementState.snapshot(),
+                            Boolean.valueOf(inputState.pointerPressed(
+                                    Minecraft189ClickRateTracker.RIGHT_BUTTON)));
+            if (!rotationHostSourceStillOwned()) {
+                discardRotationSourceEvidence();
+            }
+        } catch (RuntimeException | Error nativeFailure) {
+            // Invalid/partial original yaw/pitch or ground/sneak/sprint
+            // reads must not leak the previous player's source evidence.
+            discardRotationSourceEvidence();
+            throw nativeFailure;
+        } finally {
+            rotationHostLease.exit();
         }
-        featureCatalog.jitter()
-                .apply(
-                        control,
-                        rotation,
-                        leftButtonHeld,
-                        playerMovementState.snapshot(),
-                        Boolean.valueOf(inputState.pointerPressed(
-                                Minecraft189ClickRateTracker.RIGHT_BUTTON)));
     }
 
     void playerDimension(
