@@ -1699,15 +1699,19 @@ public final class Minecraft189HostRuntime
             if (actualCombat == null
                     || actualCombat.length != worldEntityPositionState.snapshot().entityCount()
                     || actualCombat.length != worldEntityKindState.snapshot().entityCount()) {
-                worldEntityCombatState.clear();
-                aura.rememberSelectedTarget(null);
+                // Kinds previously populated nearest/aim evidence BEFORE
+                // this genuine combat getter. A missing or mismatched
+                // combat list invalidates that positional target too.
+                rejectInconsistentOriginalCombatSource(world);
                 return;
             }
             try {
                 worldEntityCombatState.update(actualCombat);
             } catch (IllegalArgumentException malformed) {
-                worldEntityCombatState.clear();
-                aura.rememberSelectedTarget(null);
+                // A genuine native list can be correctly sized yet
+                // contain invalid hurt/team/network bits. Retaining a
+                // kind-only nearest target would allow stale targeting.
+                rejectInconsistentOriginalCombatSource(world);
                 return;
             }
             // Preserve the original nearest *living* player selection
