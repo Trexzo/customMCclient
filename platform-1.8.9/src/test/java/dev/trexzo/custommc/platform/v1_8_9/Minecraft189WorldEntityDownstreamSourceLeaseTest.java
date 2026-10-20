@@ -34,7 +34,8 @@ final class Minecraft189WorldEntityDownstreamSourceLeaseTest {
         int[] visibilityValues={1};
         int positionsReads,kindReads,combatReads,uuidReads,visibilityReads;
         Runnable onPositions,onKind,onCombat,onUuid,onVisibility;
-        boolean failKind,failCombat;
+        Runnable onThirdUuid,onThirdVisibility;
+        boolean failKind,failCombat,failThirdUuid,failThirdVisibility;
         World(double x){positions=new double[]{x,1D,2D};}
         @Override public double[] customMcLoadedEntityPositions(){
             positionsReads++;
@@ -56,11 +57,21 @@ final class Minecraft189WorldEntityDownstreamSourceLeaseTest {
         @Override public UUID[] customMcLoadedEntityUuids(){
             uuidReads++;
             Runnable r=onUuid;onUuid=null;if(r!=null)r.run();
+            if(uuidReads==3){
+                Runnable late=onThirdUuid;onThirdUuid=null;
+                if(late!=null)late.run();
+                if(failThirdUuid)throw new IllegalStateException("post combat original UUID");
+            }
             return uuidValues;
         }
         @Override public int[] customMcLoadedEntityVisibility(){
             visibilityReads++;
             Runnable r=onVisibility;onVisibility=null;if(r!=null)r.run();
+            if(visibilityReads==3){
+                Runnable late=onThirdVisibility;onThirdVisibility=null;
+                if(late!=null)late.run();
+                if(failThirdVisibility)throw new IllegalStateException("post combat original LOS");
+            }
             return visibilityValues;
         }
     }
@@ -129,5 +140,29 @@ final class Minecraft189WorldEntityDownstreamSourceLeaseTest {
     @Test void uuidRecheckOnChangedWorldDoesNotPublishCombat(){try(Fixture f=new Fixture()){f.aura();World a=new World(1),b=new World(2);f.position(a);f.kind(a);a.onUuid=()->f.combat(b);f.combat(a);assertFalse(f.pos().available());assertFalse(f.combats().available());assertEquals(0,a.combatReads+b.combatReads);}}
     @Test void visibilityRecheckOnChangedWorldDoesNotPublishCombat(){try(Fixture f=new Fixture()){f.wall();World a=new World(1),b=new World(2);f.position(a);f.kind(a);a.onVisibility=()->f.combat(b);f.combat(a);assertFalse(f.pos().available());assertFalse(f.combats().available());assertEquals(0,a.combatReads+b.combatReads);}}
     @Test void invalidUuidRecheckPreservesFailClosedLegacyIdentity(){try(Fixture f=new Fixture()){f.aura();World w=new World(1);f.position(w);f.kind(w);w.uuidValues=new UUID[]{UUID.randomUUID()};f.combat(w);assertFalse(f.combats().available());}}
-    @Test void invalidVisibilityRecheckPreservesFailClosedLegacyWallCheck(){try(Fixture f=new Fixture()){f.wall();World w=new World(1);f.position(w);f.kind(w);w.visibilityValues=new int[]{0};f.combat(w);assertFalse(f.combats().available());}}
+    @Test void invalidVisibilityRecheckPreservesFailClosedLegacyWallCheck(){try(Fixture f=new Fixture()){f.wall();World w=new World(1);f.position(w);f.kind(w);w.visibilityValues=new int[]{0};f.combat(w);assertFalse(f.combats().available());}}    @Test void identityEnabledReadsExactOriginalUuidAfterCombat(){try(Fixture f=new Fixture()){f.aura();World w=new World(1);f.position(w);f.kind(w);f.combat(w);assertTrue(f.combats().available());assertEquals(3,w.uuidReads);assertEquals(1,w.combatReads);}}
+    @Test void wallCheckEnabledReadsOriginalLosAfterCombat(){try(Fixture f=new Fixture()){f.wall();World w=new World(1);f.position(w);f.kind(w);f.combat(w);assertTrue(f.combats().available());assertEquals(3,w.visibilityReads);assertEquals(1,w.combatReads);}}
+    @Test void bothOriginalPoliciesRevalidateAfterCombat(){try(Fixture f=new Fixture()){f.aura();f.wall();World w=new World(1);f.position(w);f.kind(w);f.combat(w);assertTrue(f.combats().available());assertEquals(3,w.uuidReads);assertEquals(3,w.visibilityReads);}}
+    @Test void disabledPoliciesNeverInventUuidOrLosNativeReads(){try(Fixture f=new Fixture()){World w=new World(1);f.position(w);f.kind(w);f.combat(w);assertTrue(f.combats().available());assertEquals(0,w.uuidReads+w.visibilityReads);}}
+    @Test void uuidChangesInsideRealCombatGetterVetoesPublication(){try(Fixture f=new Fixture()){f.aura();World w=new World(1);f.position(w);f.kind(w);w.onCombat=()->w.uuidValues=new UUID[]{UUID.randomUUID()};f.combat(w);assertFalse(f.combats().available());assertEquals(3,w.uuidReads);assertEquals(1,w.combatReads);}}
+    @Test void sameLengthUuidReplacementStillFailsExactIdentity(){try(Fixture f=new Fixture()){f.aura();World w=new World(1);f.position(w);f.kind(w);w.onCombat=()->w.uuidValues=new UUID[]{UUID.fromString("00000000-0000-0000-0000-000000000002")};f.combat(w);assertFalse(f.combats().available());assertEquals(1,w.uuidValues.length);}}
+    @Test void reorderedTwoUuidSourcesFailAfterCombatGetter(){try(Fixture f=new Fixture()){f.aura();World w=new World(1);w.positions=new double[]{1,1,2,2,1,2};w.kinds=new int[]{Minecraft189WorldEntityKindState.LIVING|Minecraft189WorldEntityKindState.PLAYER,Minecraft189WorldEntityKindState.LIVING|Minecraft189WorldEntityKindState.PLAYER};w.combat=new int[]{1,1};UUID first=w.uuidValues[0],second=UUID.fromString("00000000-0000-0000-0000-000000000002");w.uuidValues=new UUID[]{first,second};f.position(w);f.kind(w);w.onCombat=()->w.uuidValues=new UUID[]{second,first};f.combat(w);assertFalse(f.combats().available());assertEquals(2,w.uuidValues.length);}}
+    @Test void nullOriginalUuidAfterCombatFailsClosed(){try(Fixture f=new Fixture()){f.aura();World w=new World(1);f.position(w);f.kind(w);w.onCombat=()->w.uuidValues=null;f.combat(w);assertFalse(f.combats().available());}}
+    @Test void shortenedOriginalUuidAfterCombatFailsClosed(){try(Fixture f=new Fixture()){f.aura();World w=new World(1);f.position(w);f.kind(w);w.onCombat=()->w.uuidValues=new UUID[0];f.combat(w);assertFalse(f.combats().available());}}
+    @Test void losBecomesOccludedInsideCombatGetterVetoesPublication(){try(Fixture f=new Fixture()){f.wall();World w=new World(1);f.position(w);f.kind(w);w.onCombat=()->w.visibilityValues=new int[]{0};f.combat(w);assertFalse(f.combats().available());assertEquals(3,w.visibilityReads);}}
+    @Test void losBecomesUnknownInsideCombatGetterVetoesPublication(){try(Fixture f=new Fixture()){f.wall();World w=new World(1);f.position(w);f.kind(w);w.onCombat=()->w.visibilityValues=new int[]{-1};f.combat(w);assertFalse(f.combats().available());}}
+    @Test void losArrayBecomesNullInsideCombatGetterFailsClosed(){try(Fixture f=new Fixture()){f.wall();World w=new World(1);f.position(w);f.kind(w);w.onCombat=()->w.visibilityValues=null;f.combat(w);assertFalse(f.combats().available());}}
+    @Test void unchangedUuidCloneAfterCombatCountsAsSameOriginalSequence(){try(Fixture f=new Fixture()){f.aura();World w=new World(1);f.position(w);f.kind(w);w.onCombat=()->w.uuidValues=w.uuidValues.clone();f.combat(w);assertTrue(f.combats().available());}}
+    @Test void unchangedLosCloneAfterCombatCountsAsSameOriginalSequence(){try(Fixture f=new Fixture()){f.wall();World w=new World(1);f.position(w);f.kind(w);w.onCombat=()->w.visibilityValues=w.visibilityValues.clone();f.combat(w);assertTrue(f.combats().available());}}
+    @Test void identityDisabledAllowsPhysicalCombatWithoutUuidAuthority(){try(Fixture f=new Fixture()){World w=new World(1);f.position(w);f.kind(w);w.onCombat=()->w.uuidValues=new UUID[]{UUID.randomUUID()};f.combat(w);assertTrue(f.combats().available());assertEquals(0,w.uuidReads);}}
+    @Test void wallCheckDisabledAllowsPhysicalCombatWithoutLosAuthority(){try(Fixture f=new Fixture()){World w=new World(1);f.position(w);f.kind(w);w.onCombat=()->w.visibilityValues=new int[]{0};f.combat(w);assertTrue(f.combats().available());assertEquals(0,w.visibilityReads);}}
+    @Test void postCombatUuidNativeGetterExceptionFailsClosed(){try(Fixture f=new Fixture()){f.aura();World w=new World(1);f.position(w);f.kind(w);w.failThirdUuid=true;f.combat(w);assertFalse(f.combats().available());assertEquals(3,w.uuidReads);}}
+    @Test void postCombatLosNativeGetterExceptionFailsClosed(){try(Fixture f=new Fixture()){f.wall();World w=new World(1);f.position(w);f.kind(w);w.failThirdVisibility=true;f.combat(w);assertFalse(f.combats().available());assertEquals(3,w.visibilityReads);}}
+    @Test void changedWorldNestedInsidePostCombatUuidReadRevokesSource(){try(Fixture f=new Fixture()){f.aura();World a=new World(1),b=new World(2);f.position(a);f.kind(a);a.onThirdUuid=()->f.combat(b);f.combat(a);assertFalse(f.pos().available());assertFalse(f.kinds().available());assertFalse(f.combats().available());assertEquals(0,b.combatReads);}}
+    @Test void changedWorldNestedInsidePostCombatLosReadRevokesSource(){try(Fixture f=new Fixture()){f.wall();World a=new World(1),b=new World(2);f.position(a);f.kind(a);a.onThirdVisibility=()->f.combat(b);f.combat(a);assertFalse(f.pos().available());assertFalse(f.kinds().available());assertFalse(f.combats().available());assertEquals(0,b.combatReads);}}
+    @Test void sameWorldNestedInsidePostUuidReadCannotDuplicateCombat(){try(Fixture f=new Fixture()){f.aura();World w=new World(1);f.position(w);f.kind(w);w.onThirdUuid=()->f.combat(w);f.combat(w);assertTrue(f.combats().available());assertEquals(1,w.combatReads);}}
+    @Test void sameWorldNestedInsidePostLosReadCannotDuplicateCombat(){try(Fixture f=new Fixture()){f.wall();World w=new World(1);f.position(w);f.kind(w);w.onThirdVisibility=()->f.combat(w);f.combat(w);assertTrue(f.combats().available());assertEquals(1,w.combatReads);}}
+    @Test void freshRealWorldAfterLateUuidMismatchCanRecover(){try(Fixture f=new Fixture()){f.aura();World a=new World(1);f.position(a);f.kind(a);a.onCombat=()->a.uuidValues=new UUID[]{UUID.randomUUID()};f.combat(a);assertFalse(f.combats().available());World b=new World(2);f.position(b);f.kind(b);f.combat(b);assertTrue(f.combats().available());assertEquals(3,b.uuidReads);}}
+    @Test void freshRealSampleOnSameWorldAfterLateLosMismatchCanRecover(){try(Fixture f=new Fixture()){f.wall();World w=new World(1);f.position(w);f.kind(w);w.onCombat=()->w.visibilityValues=new int[]{0};f.combat(w);assertFalse(f.combats().available());f.position(w);f.kind(w);f.combat(w);assertTrue(f.combats().available());assertEquals(6,w.visibilityReads);}}
+
 }
