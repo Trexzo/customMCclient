@@ -33,6 +33,11 @@ on:
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189*ModuleTest.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FeatureCatalog.java'
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HostRuntime.java'
+      # V251: source owners execute as original Minecraft host code.
+      # A change to ANY getter source lease or its regression must not
+      # slip through as Foundation-only due to the *Module.java filter.
+      - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189*SourceLease.java'
+      - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189*SourceLease*Test.java'
       # V215: original mapped X/Z source speed-statistics edits must also
       # trigger the pinned Mojang graphical/vanilla-server native suite.
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MovementSpeedTracker.java'

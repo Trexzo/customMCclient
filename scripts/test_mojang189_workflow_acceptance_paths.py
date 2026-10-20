@@ -59,6 +59,33 @@ class OriginalWitnessPullRequestPathTests(unittest.TestCase):
         self.assertTrue(triggered(
             TEST + "Minecraft189MovementSpeedTrackerFiniteTest.java"))
 
+    def test_all_native_source_lease_impl_changes_trigger_original_binary(self):
+        # A previously missing paths filter let a source-only refactor
+        # pass Foundation without even scheduling native Mojang CI.
+        for name in (
+            "Minecraft189ExactSourceLease.java",
+            "Minecraft189MovementSnapshotSourceLease.java",
+            "Minecraft189PositionHostSourceLease.java",
+            "Minecraft189WorldEntityHostSourceLease.java",
+            "Minecraft189WorldEntityDownstreamSourceLease.java",
+            "Minecraft189MotionHostSourceLease.java",
+            "Minecraft189JumpHostSourceLease.java",
+            "Minecraft189SprintHostSourceLease.java",
+            "Minecraft189RotationHostSourceLease.java",
+        ):
+            with self.subTest(name=name):
+                self.assertTrue(triggered(SRC + name))
+
+    def test_native_source_lease_test_edits_also_trigger_original_binary(self):
+        for name in (
+            "Minecraft189ExactSourceLeaseConsolidationTest.java",
+            "Minecraft189MotionHostSourceLeaseTest.java",
+            "Minecraft189JumpHostSourceLeaseTest.java",
+            "Minecraft189WorldEntityDownstreamSourceLeaseTest.java",
+        ):
+            with self.subTest(name=name):
+                self.assertTrue(triggered(TEST + name))
+
     def test_real_two_player_and_rod_proofs_remain_mandatory(self):
         text = WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("Verify two SIMULTANEOUS real eligible UUID targets arbitrate and take separate damage", text)
