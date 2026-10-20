@@ -82,6 +82,10 @@ public final class Minecraft189HostRuntime
     // reads and all cross-module original yaw/pitch setters.
     private final Minecraft189RotationHostSourceLease rotationHostLease =
             new Minecraft189RotationHostSourceLease();
+    // Original loadedEntityList visibility, UUID and XYZ snapshots
+    // must not borrow a different world during a native getter.
+    private final Minecraft189WorldEntityHostSourceLease worldEntityHostLease =
+            new Minecraft189WorldEntityHostSourceLease();
     // Per-host-tick reference only; cleared before every new position sample.
     private Minecraft189PlayerSprintControl tickSprintControl;
     // An original synthetic click may restore Sprint only for its exact
@@ -1498,55 +1502,107 @@ public final class Minecraft189HostRuntime
     void worldEntityPositions(
             final Minecraft189WorldEntityPositionsAccess world) {
         requireOpen();
-        // Begin a new entity-list snapshot; never pair old combat evidence
-        // with positions that may have reordered across world ticks.
+        if (!worldEntityHostLease.enter(world)) {
+            // A nested callback cannot publish positions for a new
+            // world while an older native list getter owns the stack.
+            return;
+        }
+        try {
+            // Native loadedEntityList source evidence belongs to only
+            // one original world per host sample.
+            worldEntityCombatState.clear();
+            nearestPlayerTargetState.clear();
+            targetRotationState.clear();
+            worldEntityUuidState.clear();
+            worldEntityVisibilityState.clear();
+            tickVisibilityWorld = world instanceof Minecraft189WorldEntityVisibilityAccess
+                    ? (Minecraft189WorldEntityVisibilityAccess) world : null;
+
+            if ((featureCatalog.wallCheck().active()
+                    || Boolean.getBoolean("custommc.acceptance.reportKillAuraWallLifecycle"))
+                    && tickVisibilityWorld != null) {
+                try {
+                    final int[] originalVisibility =
+                            tickVisibilityWorld.customMcLoadedEntityVisibility();
+                    if (!worldEntityHostLease.stillOwned()) {
+                        clearRevokedWorldEntitySource();
+                        return;
+                    }
+                    worldEntityVisibilityState.update(originalVisibility);
+                } catch (RuntimeException invalidEvidence) {
+                    if (!worldEntityHostLease.stillOwned()) {
+                        clearRevokedWorldEntitySource();
+                        return;
+                    }
+                    worldEntityVisibilityState.clear();
+                }
+            }
+            final Minecraft189WorldEntityUuidAccess identityWorld =
+                    world instanceof Minecraft189WorldEntityUuidAccess
+                            ? (Minecraft189WorldEntityUuidAccess) world : null;
+            if (tickUuidWorld != identityWorld) {
+                featureCatalog.killAura().rememberSelectedTarget(null);
+            }
+            tickUuidWorld = identityWorld;
+            if (world == null) {
+                clearRevokedWorldEntitySource();
+                return;
+            }
+            if (identityRequired() && identityWorld != null) {
+                try {
+                    final java.util.UUID[] originalIds =
+                            identityWorld.customMcLoadedEntityUuids();
+                    if (!worldEntityHostLease.stillOwned()) {
+                        clearRevokedWorldEntitySource();
+                        return;
+                    }
+                    worldEntityUuidState.update(originalIds);
+                } catch (RuntimeException invalidEvidence) {
+                    if (!worldEntityHostLease.stillOwned()) {
+                        clearRevokedWorldEntitySource();
+                        return;
+                    }
+                    worldEntityUuidState.clear();
+                }
+            }
+            final double[] originalPositions =
+                    world.customMcLoadedEntityPositions();
+            if (!worldEntityHostLease.stillOwned()) {
+                clearRevokedWorldEntitySource();
+                return;
+            }
+            if (originalPositions == null) {
+                worldEntityPositionState.clear();
+                return;
+            }
+            // A malformed original position list cannot preserve
+            // previously published UUID or LOS for another list.
+            try {
+                worldEntityPositionState.update(originalPositions);
+            } catch (RuntimeException invalidPositions) {
+                clearRevokedWorldEntitySource();
+                throw invalidPositions;
+            }
+        } catch (RuntimeException | Error nativeFailure) {
+            // Genuine getter failures must never leave a usable stale
+            // entity position alongside partly sampled UUID/LOS state.
+            clearRevokedWorldEntitySource();
+            throw nativeFailure;
+        } finally {
+            worldEntityHostLease.exit();
+        }
+    }
+
+    private void clearRevokedWorldEntitySource() {
+        worldEntityPositionState.clear();
+        worldEntityUuidState.clear();
+        worldEntityVisibilityState.clear();
         worldEntityCombatState.clear();
         nearestPlayerTargetState.clear();
         targetRotationState.clear();
-        worldEntityUuidState.clear();
-        worldEntityVisibilityState.clear();
-        tickVisibilityWorld = world instanceof Minecraft189WorldEntityVisibilityAccess
-                ? (Minecraft189WorldEntityVisibilityAccess) world : null;
-        // CI-only read-only LOS evidence while Wall Check is disabled.
-        // Normal gameplay still queries native LOS only with Wall Check ON.
-        if ((featureCatalog.wallCheck().active()
-                || Boolean.getBoolean("custommc.acceptance.reportKillAuraWallLifecycle"))
-                && tickVisibilityWorld != null) {
-            try {
-                worldEntityVisibilityState.update(
-                        tickVisibilityWorld.customMcLoadedEntityVisibility());
-            } catch (RuntimeException invalidEvidence) {
-                worldEntityVisibilityState.clear();
-            }
-        }
-        final Minecraft189WorldEntityUuidAccess identityWorld =
-                world instanceof Minecraft189WorldEntityUuidAccess
-                        ? (Minecraft189WorldEntityUuidAccess) world : null;
-        if (tickUuidWorld != identityWorld) {
-            featureCatalog.killAura().rememberSelectedTarget(null);
-        }
-        tickUuidWorld = identityWorld;
-        if (world == null) {
-            worldEntityPositionState.clear();
-            featureCatalog.killAura().rememberSelectedTarget(null);
-            return;
-        }
-        if (identityRequired() && identityWorld != null) {
-            try {
-                worldEntityUuidState.update(
-                        identityWorld.customMcLoadedEntityUuids());
-            } catch (RuntimeException invalidEvidence) {
-                worldEntityUuidState.clear();
-            }
-        }
-        final double[] packedPositions =
-                world.customMcLoadedEntityPositions();
-        if (packedPositions == null) {
-            worldEntityPositionState.clear();
-            return;
-        }
-        worldEntityPositionState.update(
-                packedPositions);
+        tickUuidWorld = null;
+        tickVisibilityWorld = null;
+        featureCatalog.killAura().rememberSelectedTarget(null);
     }
 
     void worldEntityKinds(
