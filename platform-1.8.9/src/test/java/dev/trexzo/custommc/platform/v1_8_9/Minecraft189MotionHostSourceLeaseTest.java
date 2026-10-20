@@ -136,6 +136,71 @@ final class Minecraft189MotionHostSourceLeaseTest {
         assertFalse(lease.stillOwned(false));lease.exit();
     }
 
+    @Test void guardedOriginalPlayerPreventsStaleXThenYAndZWrites() {
+        final Minecraft189MotionHostSourceLease lease=new Minecraft189MotionHostSourceLease();
+        final Player a=new Player(),b=new Player();
+        assertTrue(lease.enter(a,false));
+        final Minecraft189PlayerMotionControl guarded=lease.guardedPlayer(a,()->false);
+        guarded.customMcSetMotionX(0D);assertEquals(1,a.wx);
+        assertFalse(lease.enter(b,false));
+        guarded.customMcSetMotionY(0D);guarded.customMcSetMotionZ(0D);
+        assertEquals(0,a.wy+a.wz);assertEquals(-.2D,a.y,1E-12);
+        assertEquals(1D,a.z,1E-12);lease.exit();
+    }
+    @Test void originalGuiFocusBeforeSetterForbidsNativeVelocityWrites() {
+        final Minecraft189MotionHostSourceLease lease=new Minecraft189MotionHostSourceLease();
+        final Player a=new Player();assertTrue(lease.enter(a,false));
+        final Minecraft189PlayerMotionControl guarded=lease.guardedPlayer(a,()->true);
+        guarded.customMcSetMotionX(0D);guarded.customMcSetMotionZ(0D);
+        assertEquals(0,a.wx+a.wz);assertFalse(lease.stillOwned(false));lease.exit();
+    }
+    @Test void unchangedSourceDelegatesAllGenuineOriginalMotionComponents() {
+        final Minecraft189MotionHostSourceLease lease=new Minecraft189MotionHostSourceLease();
+        final Player a=new Player();assertTrue(lease.enter(a,false));
+        final Minecraft189PlayerMotionControl guarded=lease.guardedPlayer(a,()->false);
+        guarded.customMcSetMotionX(.3D);
+        guarded.customMcSetMotionY(.4D);
+        guarded.customMcSetMotionZ(.5D);
+        assertEquals(.3D,guarded.customMcMotionX(),1E-12);
+        assertEquals(.4D,guarded.customMcMotionY(),1E-12);
+        assertEquals(.5D,guarded.customMcMotionZ(),1E-12);
+        assertEquals(3,a.nativeWrites());lease.exit();
+    }
+    @Test void originalNativeYGetterCanRevokeBeforeSubsequentZSetter() {
+        final Minecraft189MotionHostSourceLease lease=new Minecraft189MotionHostSourceLease();
+        final Player a=new Player(),b=new Player();assertTrue(lease.enter(a,false));
+        a.onReadY=()->assertFalse(lease.enter(b,false));
+        final Minecraft189PlayerMotionControl guarded=lease.guardedPlayer(a,()->false);
+        assertEquals(-.2D,guarded.customMcMotionY(),1E-12);
+        guarded.customMcSetMotionZ(0D);
+        assertEquals(0,a.wz);assertEquals(1D,a.z,1E-12);lease.exit();
+    }
+    @Test void actualMappedXSetterChangeOfSourceRevokesFollowingYZ() {
+        final Minecraft189MotionHostSourceLease lease=new Minecraft189MotionHostSourceLease();
+        final Player a=new Player(),b=new Player();assertTrue(lease.enter(a,false));
+        a.onWriteX=()->assertFalse(lease.enter(b,false));
+        final Minecraft189PlayerMotionControl guarded=lease.guardedPlayer(a,()->false);
+        guarded.customMcSetMotionX(0D);
+        guarded.customMcSetMotionY(0D);
+        guarded.customMcSetMotionZ(0D);
+        assertEquals(1,a.wx);assertEquals(0,a.wy+a.wz);
+        assertEquals(0D,a.x,1E-12);assertEquals(1D,a.z,1E-12);lease.exit();
+    }
+    @Test void guardedNativeSetterThrowIsNotConvertedIntoSyntheticRollback() {
+        final Minecraft189MotionHostSourceLease lease=new Minecraft189MotionHostSourceLease();
+        final Player a=new Player();assertTrue(lease.enter(a,false));
+        a.throwX=true;
+        final Minecraft189PlayerMotionControl guarded=lease.guardedPlayer(a,()->false);
+        assertThrows(IllegalStateException.class,()->guarded.customMcSetMotionX(0D));
+        assertEquals(0D,a.x,1E-12);lease.exit();
+        assertTrue(lease.enter(new Player(),false));lease.exit();
+    }
+    @Test void nullSourceProducesNoArtificialNativePlayerProxy() {
+        final Minecraft189MotionHostSourceLease lease=new Minecraft189MotionHostSourceLease();
+        assertTrue(lease.enter(null,false));
+        assertNull(lease.guardedPlayer(null,()->false));lease.exit();
+    }
+
     private static final class Fixture implements AutoCloseable {
         final ModuleRegistry modules=new ModuleRegistry();
         final ModuleController controller=new ModuleController(modules);
