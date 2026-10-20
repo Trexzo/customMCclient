@@ -86,6 +86,11 @@ public final class Minecraft189HostRuntime
     // must not borrow a different world during a native getter.
     private final Minecraft189WorldEntityHostSourceLease worldEntityHostLease =
             new Minecraft189WorldEntityHostSourceLease();
+    // World kind/combat getters must belong to the SAME original world
+    // that supplied the current loadedEntityList XYZ snapshot.
+    private Object tickOriginalEntityWorld;
+    private final Minecraft189WorldEntityDownstreamSourceLease worldEntityDownstreamLease =
+            new Minecraft189WorldEntityDownstreamSourceLease();
     // Per-host-tick reference only; cleared before every new position sample.
     private Minecraft189PlayerSprintControl tickSprintControl;
     // An original synthetic click may restore Sprint only for its exact
@@ -1511,6 +1516,8 @@ public final class Minecraft189HostRuntime
             // Native loadedEntityList source evidence belongs to only
             // one original world per host sample.
             worldEntityCombatState.clear();
+            worldEntityKindState.clear();
+            tickOriginalEntityWorld = null;
             nearestPlayerTargetState.clear();
             targetRotationState.clear();
             worldEntityUuidState.clear();
@@ -1572,13 +1579,14 @@ public final class Minecraft189HostRuntime
                 return;
             }
             if (originalPositions == null) {
-                worldEntityPositionState.clear();
+                clearRevokedWorldEntitySource();
                 return;
             }
             // A malformed original position list cannot preserve
             // previously published UUID or LOS for another list.
             try {
                 worldEntityPositionState.update(originalPositions);
+                tickOriginalEntityWorld = world;
             } catch (RuntimeException invalidPositions) {
                 clearRevokedWorldEntitySource();
                 throw invalidPositions;
@@ -1594,6 +1602,8 @@ public final class Minecraft189HostRuntime
     }
 
     private void clearRevokedWorldEntitySource() {
+        tickOriginalEntityWorld = null;
+        worldEntityKindState.clear();
         worldEntityPositionState.clear();
         worldEntityUuidState.clear();
         worldEntityVisibilityState.clear();
@@ -1608,118 +1618,176 @@ public final class Minecraft189HostRuntime
     void worldEntityKinds(
             final Minecraft189WorldEntityKindsAccess world) {
         requireOpen();
-        if (world == null) {
-            worldEntityKindState.clear();
-            nearestPlayerTargetState.clear();
-            targetRotationState.clear();
+        if (!worldEntityDownstreamLease.enter(world)) {
+            // A mapped World getter can invoke the whole host recursively.
+            // Nested same source isn't a new tick; nested different/null
+            // source permanently revokes this still-open native sample.
             return;
         }
-        final int[] kinds =
-                world.customMcLoadedEntityKinds();
-        if (kinds == null) {
-            worldEntityKindState.clear();
-            nearestPlayerTargetState.clear();
-            targetRotationState.clear();
-            return;
+        try {
+            if (world == null || world != tickOriginalEntityWorld
+                    || !worldEntityPositionState.snapshot().available()) {
+                clearRevokedWorldEntitySource();
+                return;
+            }
+            final int[] actualKinds = world.customMcLoadedEntityKinds();
+            if (!worldEntityDownstreamSourceStillOwned(world)) {
+                clearRevokedWorldEntitySource();
+                return;
+            }
+            if (actualKinds == null
+                    || actualKinds.length != worldEntityPositionState.snapshot().entityCount()) {
+                clearRevokedWorldEntitySource();
+                return;
+            }
+            worldEntityKindState.update(actualKinds);
+            nearestPlayerTargetState.update(
+                    playerPositionState.snapshot(),
+                    worldEntityPositionState.snapshot(),
+                    worldEntityKindState.snapshot());
+            if (!worldEntityDownstreamSourceStillOwned(world)) {
+                clearRevokedWorldEntitySource();
+                return;
+            }
+            targetRotationState.update(
+                    playerPositionState.snapshot(),
+                    nearestPlayerTargetState.snapshot());
+            if (!worldEntityDownstreamSourceStillOwned(world)) {
+                clearRevokedWorldEntitySource();
+            }
+        } catch (RuntimeException | Error invalidNativeKinds) {
+            clearRevokedWorldEntitySource();
+            throw invalidNativeKinds;
+        } finally {
+            worldEntityDownstreamLease.exit();
         }
-        worldEntityKindState.update(
-                kinds);
-        nearestPlayerTargetState.update(
-                playerPositionState.snapshot(),
-                worldEntityPositionState.snapshot(),
-                worldEntityKindState.snapshot());
-        targetRotationState.update(
-                playerPositionState.snapshot(),
-                nearestPlayerTargetState.snapshot());
     }
 
     void worldEntityCombat(
             final Minecraft189WorldEntityCombatAccess world) {
         requireOpen();
-        if (world == null || !worldEntityPositionState.snapshot().available()
-                || !worldEntityKindState.snapshot().available()) {
-            worldEntityCombatState.clear();
-            featureCatalog.killAura().rememberSelectedTarget(null);
-            return;
-        }
-        final Minecraft189KillAuraModule aura = featureCatalog.killAura();
-        if (identityRequired()) {
-            final Minecraft189WorldEntityUuidState.Snapshot ids =
-                    worldEntityUuidState.snapshot();
-            boolean consistent = false;
-            if (tickUuidWorld != null && tickUuidWorld == world
-                    && ids.available()
-                    && ids.entityCount() == worldEntityPositionState.snapshot().entityCount()
-                    && ids.entityCount() == worldEntityKindState.snapshot().entityCount()) {
-                try {
-                    consistent = ids.matches(tickUuidWorld.customMcLoadedEntityUuids());
-                } catch (RuntimeException invalidEvidence) {
-                    consistent = false;
-                }
-            }
-            if (!consistent) {
-                worldEntityCombatState.clear();
-                nearestPlayerTargetState.clear();
-                targetRotationState.clear();
-                aura.rememberSelectedTarget(null);
-                return;
-            }
-        }
-        if (featureCatalog.wallCheck().active()) {
-            final Minecraft189WorldEntityVisibilityState.Snapshot visibility =
-                    worldEntityVisibilityState.snapshot();
-            boolean consistent = false;
-            if (tickVisibilityWorld != null && tickVisibilityWorld == world
-                    && visibility.available()
-                    && visibility.entityCount() == worldEntityPositionState.snapshot().entityCount()
-                    && visibility.entityCount() == worldEntityKindState.snapshot().entityCount()) {
-                try {
-                    consistent = visibility.matches(
-                            tickVisibilityWorld.customMcLoadedEntityVisibility());
-                } catch (RuntimeException invalidEvidence) {
-                    consistent = false;
-                }
-            }
-            if (!consistent) {
-                worldEntityCombatState.clear();
-                nearestPlayerTargetState.clear();
-                targetRotationState.clear();
-                aura.rememberSelectedTarget(null);
-                return;
-            }
-        }
-        final int[] data = world.customMcLoadedEntityCombatStates();
-        if (data == null || data.length != worldEntityPositionState.snapshot().entityCount()
-                || data.length != worldEntityKindState.snapshot().entityCount()) {
-            worldEntityCombatState.clear();
+        if (!worldEntityDownstreamLease.enter(world)) {
             return;
         }
         try {
-            worldEntityCombatState.update(data);
-        } catch (IllegalArgumentException malformed) {
-            worldEntityCombatState.clear();
-            return;
+            if (world == null || world != tickOriginalEntityWorld
+                    || !worldEntityPositionState.snapshot().available()
+                    || !worldEntityKindState.snapshot().available()) {
+                clearRevokedWorldEntitySource();
+                return;
+            }
+            final Minecraft189KillAuraModule aura = featureCatalog.killAura();
+            if (identityRequired()) {
+                final Minecraft189WorldEntityUuidState.Snapshot ids =
+                        worldEntityUuidState.snapshot();
+                boolean consistent = false;
+                if (tickUuidWorld != null && tickUuidWorld == world
+                        && ids.available()
+                        && ids.entityCount() == worldEntityPositionState.snapshot().entityCount()
+                        && ids.entityCount() == worldEntityKindState.snapshot().entityCount()) {
+                    try {
+                        consistent = ids.matches(tickUuidWorld.customMcLoadedEntityUuids());
+                    } catch (RuntimeException invalidEvidence) {
+                        consistent = false;
+                    }
+                }
+                if (!worldEntityDownstreamSourceStillOwned(world)) {
+                    clearRevokedWorldEntitySource();
+                    return;
+                }
+                if (!consistent) {
+                    worldEntityCombatState.clear();
+                    nearestPlayerTargetState.clear();
+                    targetRotationState.clear();
+                    aura.rememberSelectedTarget(null);
+                    return;
+                }
+            }
+            if (featureCatalog.wallCheck().active()) {
+                final Minecraft189WorldEntityVisibilityState.Snapshot visibility =
+                        worldEntityVisibilityState.snapshot();
+                boolean consistent = false;
+                if (tickVisibilityWorld != null && tickVisibilityWorld == world
+                        && visibility.available()
+                        && visibility.entityCount() == worldEntityPositionState.snapshot().entityCount()
+                        && visibility.entityCount() == worldEntityKindState.snapshot().entityCount()) {
+                    try {
+                        consistent = visibility.matches(
+                                tickVisibilityWorld.customMcLoadedEntityVisibility());
+                    } catch (RuntimeException invalidEvidence) {
+                        consistent = false;
+                    }
+                }
+                if (!worldEntityDownstreamSourceStillOwned(world)) {
+                    clearRevokedWorldEntitySource();
+                    return;
+                }
+                if (!consistent) {
+                    worldEntityCombatState.clear();
+                    nearestPlayerTargetState.clear();
+                    targetRotationState.clear();
+                    aura.rememberSelectedTarget(null);
+                    return;
+                }
+            }
+            final int[] actualCombat = world.customMcLoadedEntityCombatStates();
+            if (!worldEntityDownstreamSourceStillOwned(world)) {
+                clearRevokedWorldEntitySource();
+                return;
+            }
+            if (actualCombat == null
+                    || actualCombat.length != worldEntityPositionState.snapshot().entityCount()
+                    || actualCombat.length != worldEntityKindState.snapshot().entityCount()) {
+                worldEntityCombatState.clear();
+                aura.rememberSelectedTarget(null);
+                return;
+            }
+            try {
+                worldEntityCombatState.update(actualCombat);
+            } catch (IllegalArgumentException malformed) {
+                worldEntityCombatState.clear();
+                aura.rememberSelectedTarget(null);
+                return;
+            }
+            // Preserve the original nearest *living* player selection
+            // without permitting an older World callback to publish it.
+            if (featureCatalog.killAura().active()) {
+                Minecraft189KillAuraTargetSelector.select(
+                        featureCatalog.killAura(),
+                        playerPositionState.snapshot(),
+                        playerRotationState.snapshot(),
+                        worldEntityPositionState.snapshot(),
+                        worldEntityKindState.snapshot(),
+                        worldEntityCombatState.snapshot(),
+                        featureCatalog.antiBot(), featureCatalog.teamGuard(),
+                        featureCatalog.friendGuard(),
+                        worldEntityUuidState.snapshot(),
+                        featureCatalog.wallCheck(), worldEntityVisibilityState.snapshot(),
+                        nearestPlayerTargetState);
+                if (!worldEntityDownstreamSourceStillOwned(world)) {
+                    clearRevokedWorldEntitySource();
+                    return;
+                }
+                targetRotationState.update(
+                        playerPositionState.snapshot(),
+                        nearestPlayerTargetState.snapshot());
+                if (!worldEntityDownstreamSourceStillOwned(world)) {
+                    clearRevokedWorldEntitySource();
+                }
+            }
+        } catch (RuntimeException | Error genuineNativeFailure) {
+            clearRevokedWorldEntitySource();
+            throw genuineNativeFailure;
+        } finally {
+            worldEntityDownstreamLease.exit();
         }
-        // Aura should rotate toward the nearest verified *living* player,
-        // rather than repeatedly selecting a nearer dead player. This does
-        // not change the normal nearest-target semantics for other modules.
-        if (featureCatalog.killAura().active()) {
-            Minecraft189KillAuraTargetSelector.select(
-                    featureCatalog.killAura(),
-                    playerPositionState.snapshot(),
-                    playerRotationState.snapshot(),
-                    worldEntityPositionState.snapshot(),
-                    worldEntityKindState.snapshot(),
-                    worldEntityCombatState.snapshot(),
-                    featureCatalog.antiBot(), featureCatalog.teamGuard(),
-                    featureCatalog.friendGuard(),
-                    worldEntityUuidState.snapshot(),
-                    featureCatalog.wallCheck(), worldEntityVisibilityState.snapshot(),
-                    nearestPlayerTargetState);
-            targetRotationState.update(
-                    playerPositionState.snapshot(),
-                    nearestPlayerTargetState.snapshot());
-        }
+    }
+
+    private boolean worldEntityDownstreamSourceStillOwned(final Object world) {
+        return worldEntityDownstreamLease.stillOwned()
+                && world != null
+                && tickOriginalEntityWorld == world
+                && worldEntityPositionState.snapshot().available();
     }
 
     void serverAddress(
