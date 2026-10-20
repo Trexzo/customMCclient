@@ -88,6 +88,12 @@ public final class Minecraft189HostRuntime
             new Minecraft189PingHostSourceLease();
     private final Minecraft189HotbarHostSourceLease hotbarHostLease =
             new Minecraft189HotbarHostSourceLease();
+    // Original World time and the two original weather getters can
+    // synchronously reenter with another World or a null unload source.
+    private final Minecraft189WorldTimeHostSourceLease worldTimeHostLease =
+            new Minecraft189WorldTimeHostSourceLease();
+    private final Minecraft189WorldWeatherHostSourceLease worldWeatherHostLease =
+            new Minecraft189WorldWeatherHostSourceLease();
     // Hurt time authorizes local JumpReset and DamageBoost. A native
     // getter that changes player may not publish old damage evidence.
     private final Minecraft189HurtTimeHostSourceLease hurtTimeHostLease =
@@ -1737,24 +1743,53 @@ public final class Minecraft189HostRuntime
     void worldTime(
             final Minecraft189WorldTimeAccess world) {
         requireOpen();
-        if (world == null) {
+        if (!worldTimeHostLease.enter(world)) return;
+        try {
+            if (world == null) {
+                worldTimeState.clear();
+                return;
+            }
+            final long originalTime = world.customMcWorldTime();
+            if (!worldTimeHostLease.stillOwned()) {
+                worldTimeState.clear();
+                return;
+            }
+            worldTimeState.update(originalTime);
+        } catch (RuntimeException | Error nativeFailure) {
             worldTimeState.clear();
-            return;
+            throw nativeFailure;
+        } finally {
+            worldTimeHostLease.exit();
         }
-        worldTimeState.update(
-                world.customMcWorldTime());
     }
 
     void worldWeather(
             final Minecraft189WorldWeatherAccess world) {
         requireOpen();
-        if (world == null) {
+        if (!worldWeatherHostLease.enter(world)) return;
+        try {
+            if (world == null) {
+                worldWeatherState.clear();
+                return;
+            }
+            final boolean originalRaining = world.customMcRaining();
+            if (!worldWeatherHostLease.stillOwned()) {
+                worldWeatherState.clear();
+                return;
+            }
+            final boolean originalThundering = world.customMcThundering();
+            if (!worldWeatherHostLease.stillOwned()) {
+                worldWeatherState.clear();
+                return;
+            }
+            // Both real world booleans must belong to the same source.
+            worldWeatherState.update(originalRaining, originalThundering);
+        } catch (RuntimeException | Error nativeFailure) {
             worldWeatherState.clear();
-            return;
+            throw nativeFailure;
+        } finally {
+            worldWeatherHostLease.exit();
         }
-        worldWeatherState.update(
-                world.customMcRaining(),
-                world.customMcThundering());
     }
 
     void worldEntityPositions(
