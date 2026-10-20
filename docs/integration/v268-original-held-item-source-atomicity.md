@@ -1,0 +1,19 @@
+# V268 — genuine held ItemStack owner and atomic native readback
+
+Parent V267 Draft #738, SHA b38c71b596cdcaf52ec8151edef6920fb9a417c5.
+
+## Original source defect
+`Minecraft189HostRuntime.playerHeldItem` previously published `tickHeldItemAccess=player` *before* calling native mapped player held ItemStack getter and 4 original ItemStack getters (displayName, stackSize, itemDamage, maxDamage). Each native callback may synchronously reenter with a different/null original player or throw. The old original caller would still publish a mixed/obsolete held-item HUD snapshot or retain a stale player owner for downstream genuine AutoBlock sword checks and AutoPot/AutoRod ownership. Getter failures or rejected invalid original items preserved previous HUD evidence and could leave a stale mutable item-use source.
+
+## Production change
+Use typed shared `Minecraft189ExactSourceLease<Minecraft189PlayerHeldItemAccess>` around the real player `customMcHeldItem()` getter plus four genuine item getters. On first admitted callback, clear old `tickHeldItemAccess`. Check exact player reference after **each** native getter; nested same player is ignored as a duplicate while nested different/null player irreversibly revokes the outer readback. A null original source clears HUD and player owner. A *valid* original player whose mapped held ItemStack is null (empty hand) clears only the HUD held-item state but retains the now-verified player owner: AutoRod/AutoPot must still be able to select a real item in another slot. Source reentry into a different/null player still revokes this empty-hand owner. Original state update validates genuine original name, positive quantity and non-negative damage+maximum as before, then publishes the one validated immutable readback. Publish `tickHeldItemAccess` for subsequent AutoBlock and AutoPot ownership only after all real getters and validations succeed. Any RuntimeException/Error clears both held-item HUD and downstream item-use owner; original exception propagates; finally releases source lease. Original maxDamage=0 item remains allowed.
+
+No native item modifications, fake sword classification, original mapping, packets, AutoBlock target condition, slot writes, click timing, GUI or acceptance gate changes.
+
+20 source-level Java 8 JUnit regressions cover exact typed owner and recovery, all 5 getter stages (same/different/null source reentries), genuine real item values/zero max, invalid quantity/name/damage, exception/Error per stage and source restoration. These are not real original Minecraft certification.
+
+**Strict gates:** exact-head Windows+Ubuntu Foundation, full pinned official Mojang 1.8.9 GUI X11+vanilla dedicated server 78/78, followed by second independent 78/78 on unchanged SHA. All PRs remain Draft, main untouched, prior native failed runs retained.
+
+## V268 corrective CI evidence
+
+Initial V268 Foundation Ubuntu at [run #39509213815](https://github.com/Trexzo/customMCclient/actions/runs/39509213815) **FAILED**, exposing 13 genuine existing combat item-use boundary regressions. Original legacy empty-hand players had no HeldItem but still needed owner identity to select an AutoRod/AutoPot/AutoWeapon inventory item. V268's original null-ItemStack path incorrectly revoked that owner, making a previously allowed empty-hand selection return -1. The follow-up production change preserves only the **source-verified** original player for the true empty-hand case; it never fabricates a held item or bypasses the same-source guard. Existing `Minecraft189CombatItemUseBoundaryTest` is mandatory CI regression and its original expected outcomes must not be modified. The initial failing run remains historical and does not count as PASS. Re-run both OS Foundation and the full original game gate at the corrected immutable SHA.
