@@ -2213,6 +2213,13 @@ def run(args):
                          b"CUSTOMMC_189_REJOIN_REAL_SENTINEL_NATIVE_OBSERVED_PASS=YES",
                          deadline,
                          "original host observed new native nonplayer before A rejoin")
+            # Pin the host JVM log offset BEFORE launching a brand-new
+            # original Minecraft client. A genuine rejoin UUID witness
+            # must be emitted after this source admission boundary.
+            # Avoid log_tail() dropping a valid marker if ALSA/LWJGL
+            # diagnostics grow beyond its fixed 100 KiB window.
+            rejoin_host_evidence_offset = (
+                host_log.stat().st_size if host_log.exists() else 0)
             cmd_rejoin = client_command(
                 args, root / "target-rejoin-game", "CITarget",
                 "00000000000000000000000000000002", port, remote=False)
@@ -2235,8 +2242,10 @@ def run(args):
             send_server_command(server, server_log, a_rejoined)
             print("CUSTOMMC_189_REJOIN_REAL_A_NEW_JVM_RECONNECTED_PASS=YES",
                   flush=True)
-            wait_for(host, host_log, REJOIN_UUID, deadline,
-                     "actual same original UUID revalidated after new login")
+            wait_for_new_original_source_marker(
+                host, host_log, rejoin_host_evidence_offset,
+                REJOIN_UUID, deadline,
+                "actual same original UUID revalidated after new login")
             wait_for(host, host_log, REJOIN_B_RETAINED, deadline,
                      "20 callbacks current B UUID retained while rejoined A closer")
             if args.require_index_reorder:
