@@ -994,6 +994,41 @@ def latest_original_native_local_player_position(log):
     return latest
 
 
+def original_scaffold_native_edge_failure_evidence(
+        log, fourth_source, expected_marker):
+    """Failure-only evidence from real original source-mapped position logs.
+
+    Never makes a native placement PASS decision and never reads or edits
+    Minecraft World/ItemBlock/controller state. The fourth source is the
+    genuine verified step=4 controller position, not an inferred waypoint.
+    """
+    expression = re.compile(
+        rb"CUSTOMMC_189_NATIVE_LOCAL_POS=x=(-?\d+(?:\.\d+)?)"
+        rb" y=(-?\d+(?:\.\d+)?) z=(-?\d+(?:\.\d+)?)")
+    recent = log_tail(log, 25000)
+    observed = [
+        tuple(float(v) for v in row)
+        for row in expression.findall(recent)[-8:]]
+    if not observed:
+        return (" D=" + repr(fourth_source)
+                + " nativeSamples=0 nativeLast=unavailable"
+                + " step5MarkerInTail=" + str(expected_marker in recent))
+    if not all(math.isfinite(v) for point in observed for v in point):
+        raise AssertionError("nonfinite native Scaffold stall evidence")
+    last = observed[-1]
+    drift = last[0] - fourth_source[0]
+    span = tuple(
+        max(point[axis] for point in observed)
+        - min(point[axis] for point in observed)
+        for axis in range(3))
+    return (" D=" + repr(fourth_source)
+            + " nativeSamples=" + str(len(observed))
+            + " nativeLast=" + repr(last)
+            + " nativeDeltaX=" + repr(drift)
+            + " lastNativeSpanXYZ=" + repr(span)
+            + " step5MarkerInTail=" + str(expected_marker in recent))
+
+
 def set_original_host_backward_key(host, host_window, pressed):
     """Actual X11 S key down/up on uniquely identified Mojang host only.
 
@@ -1830,7 +1865,10 @@ def run(args):
                                 else:
                                     raise AssertionError(
                                         "fifth original controller did not click"
-                                        " during physical D-to-E traversal")
+                                        " during physical D-to-E traversal"
+                                        + original_scaffold_native_edge_failure_evidence(
+                                            host_log, fourth_source,
+                                            fifth_expected))
                             finally:
                                 try:
                                     if fifth_backward:
