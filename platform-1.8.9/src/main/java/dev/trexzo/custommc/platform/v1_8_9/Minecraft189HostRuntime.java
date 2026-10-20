@@ -70,6 +70,10 @@ public final class Minecraft189HostRuntime
     // native getters. Never publish a mixed or stale player snapshot.
     private final Minecraft189MovementSnapshotSourceLease movementSnapshotLease =
             new Minecraft189MovementSnapshotSourceLease();
+    // WTap and AutoSprint are separate native setter owners. Their host
+    // routing must share one original sprint source and UI focus lease.
+    private final Minecraft189SprintHostSourceLease sprintHostLease =
+            new Minecraft189SprintHostSourceLease();
     // Per-host-tick reference only; cleared before every new position sample.
     private Minecraft189PlayerSprintControl tickSprintControl;
     // An original synthetic click may restore Sprint only for its exact
@@ -793,47 +797,74 @@ public final class Minecraft189HostRuntime
         }
     }
 
+    private boolean sprintHostSourceStillOwned() {
+        return sprintHostLease.stillOwned(
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
+    }
+
     void playerSprintControl(
             final Minecraft189PlayerSprintControl player) {
         requireOpen();
-        // A source player replacement (including null/world unload)
-        // cannot inherit the prior automatic-click sprint restoration.
-        if (tickSprintControl != player) {
-            pendingKeepSprintSource = null;
-            keepSprintAdmissionSerial++;
+        final boolean originalGuiFocus =
+                clickGuiRuntime.coreRuntime().model().snapshot().open();
+        if (!sprintHostLease.enter(player, originalGuiFocus)) {
+            return;
         }
-        tickSprintControl = player;
-        if (player == null) {
-            featureCatalog.wTap()
+        final Minecraft189PlayerSprintControl guardedPlayer =
+                sprintHostLease.guardedPlayer(player,
+                        () -> clickGuiRuntime.coreRuntime()
+                                .model().snapshot().open());
+        try {
+            // The identity recorded for a later KeepSprint restore must
+            // remain the ORIGINAL player, never this guarded adapter.
+            // Nested different-player setter callbacks cannot replace it.
+            if (tickSprintControl != player) {
+                pendingKeepSprintSource = null;
+                keepSprintAdmissionSerial++;
+            }
+            tickSprintControl = player;
+            if (guardedPlayer == null) {
+                featureCatalog.wTap()
+                        .apply(
+                                null,
+                                null,
+                                false,
+                                false);
+                return;
+            }
+            final Minecraft189PlayerMovementState.Snapshot movement =
+                    playerMovementState.snapshot();
+            final boolean attackHeld = inputState.pointerPressed(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON);
+            if (originalGuiFocus) {
+                featureCatalog.wTap().suspendForGui(attackHeld);
+            } else if (featureCatalog.wTap().apply(
+                    guardedPlayer, movement, attackHeld,
+                    inputState.keyPressed(LegacyKeyboardCodes.W),
+                    nearestPlayerTargetState.snapshot())) {
+                return;
+            }
+            // A genuine original WTap setter can synchronously reenter
+            // this host. AutoSprint must never consume the old snapshot
+            // after another native player or GUI focus is observed.
+            if (!sprintHostSourceStillOwned()) {
+                return;
+            }
+            featureCatalog.autoSprint()
                     .apply(
-                            null,
-                            null,
-                            false,
-                            false);
-            return;
+                            guardedPlayer,
+                            movement,
+                            inputState.keyPressed(LegacyKeyboardCodes.W),
+                            inputState.keyPressed(LegacyKeyboardCodes.W)
+                                    || inputState.keyPressed(LegacyKeyboardCodes.A)
+                                    || inputState.keyPressed(LegacyKeyboardCodes.S)
+                                    || inputState.keyPressed(LegacyKeyboardCodes.D),
+                            clickGuiRuntime.coreRuntime().model().snapshot().open());
+        } finally {
+            // Native setSprinting may apply real vanilla state then throw.
+            // Never invent a sprint rollback or leave the host guard held.
+            sprintHostLease.exit();
         }
-        final Minecraft189PlayerMovementState.Snapshot movement =
-                playerMovementState.snapshot();
-        final boolean attackHeld = inputState.pointerPressed(
-                Minecraft189ClickRateTracker.LEFT_BUTTON);
-        if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
-            featureCatalog.wTap().suspendForGui(attackHeld);
-        } else if (featureCatalog.wTap().apply(
-                player, movement, attackHeld,
-                inputState.keyPressed(LegacyKeyboardCodes.W),
-                nearestPlayerTargetState.snapshot())) {
-            return;
-        }
-        featureCatalog.autoSprint()
-                .apply(
-                        player,
-                        movement,
-                        inputState.keyPressed(LegacyKeyboardCodes.W),
-                        inputState.keyPressed(LegacyKeyboardCodes.W)
-                                || inputState.keyPressed(LegacyKeyboardCodes.A)
-                                || inputState.keyPressed(LegacyKeyboardCodes.S)
-                                || inputState.keyPressed(LegacyKeyboardCodes.D),
-                        clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
     void playerSneakControl(
