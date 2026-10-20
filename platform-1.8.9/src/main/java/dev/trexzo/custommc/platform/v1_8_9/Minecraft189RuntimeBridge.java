@@ -785,13 +785,17 @@ public final class Minecraft189RuntimeBridge {
                 }
                 if (Boolean.getBoolean(
                         "custommc.acceptance.requireProductionScaffoldKeyboardWalkProof")
-                        && receipts == 1
-                        && scaffold.productionRepeatAttemptedCount() == 1
+                        && Minecraft189ScaffoldKeyboardWalkDiagnosticsGate
+                                .waitingForOriginalNextController(
+                                        receipts,
+                                        scaffold.productionRepeatAttemptedCount(),
+                                        productionSixBlockProof ? 6
+                                        : productionFiveBlockProof ? 5
+                                        : productionFourBlockProof ? 4
+                                        : productionThreeBlockProof ? 3 : 2)
                         && ++scaffoldKeyboardWalkDiagnosticsTicks % 40 == 0) {
-                    // V60: original runTick READ ONLY heartbeat while the
-                    // actual S key is held, even when the original ray has
-                    // NOT yielded a second placement. Never construct a
-                    // synthetic camera/World/player or grant an action.
+                    // V262: native read-only heartbeat before original
+                    // controller #2, #5, and #6; never grant placement.
                     String position = "unavailable";
                     try {
                         if (minecraft instanceof Minecraft189ScaffoldNativeContextAccess) {
@@ -817,6 +821,10 @@ public final class Minecraft189RuntimeBridge {
                             : null;
                     System.out.println(
                             "CUSTOMMC_OFFICIAL_189_SCAFFOLD_KEYBOARD_WALK_NATIVE_DIAG"
+                            + " positiveReceipts=" + receipts
+                            + " originalAttempts="
+                            + scaffold.productionRepeatAttemptedCount()
+                            + " expectedNextStep=" + (receipts + 1)
                             + " nativePosition=" + position
                             + " originalYaw=" + (nativeRotation != null
                                     && nativeRotation.available()
