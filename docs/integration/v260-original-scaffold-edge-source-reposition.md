@@ -1,0 +1,9 @@
+# V260 original V29 Scaffold source fixture momentum correction
+
+Exact cumulative parent V259 `756d5dd9ad66ed3721a2d0f0895badbf6bb417c7`, Draft PR #730.
+
+V257 first original 78/78 PASS. Its independent unchanged-SHA rerun FAILED at V29 native Survival edge grounding. Actual logged vanilla integrated-server chat confirmed teleport to x=1.05, y=100, z=.5, but genuine per-tick source coordinates then moved x=.9499999985 → .6953999884 → .6404239223 and stayed at that wrong edge coordinate. Earlier fixture preparation moved the same original player to x=-.409576085. This is evidence of residual motion after a real teleport, NOT grounds for accepting the wrong x or weakening placement conditions.
+
+After three stable mapped native samples around the real original stone support (x .30–1.30, z .20–.80, y100, all axes variation ≤.02), and at least .75 s from the original witness start, issue **at most one** further actual original Minecraft X11 chat `/tp CIProbe 1.05 100 0.5 90 88.6`. Require a fresh exact integrated-server chat reply. Then re-read and demand the **unchanged three native samples** in the original x1.05±.05, y100±.15, z.5±.05 window before the **unchanged 12 s** time limit. Confirmation of a command is never treated as position proof. No fake entity, native packet, timeout relaxation, extra placement attempt, target/world bypass, or weakening of enabled/disabled original Scaffold click/world/stack acceptance. If source stays wrong, still FAIL.
+
+Five new deterministic source-fixture tests cover single correction, original stable source, no correction for moving or remote samples and failure after a real command without original-source convergence. These cannot substitute for genuine Mojang binary acceptance. Require fresh exact-head Windows+Ubuntu Foundation, strict original Mojang 1.8.9 full 78/78 and independent unchanged-SHA repeat before certification. Retain all earlier failures; all PRs Draft, main untouched.

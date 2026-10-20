@@ -114,3 +114,71 @@ class OriginalScaffoldRealSurvivalEdgeFixtureTest(unittest.TestCase):
         self.assertIn("source WorldClient stone target and one survival stack debit", v29)
         self.assertIn("original World air and unchanged eight-stack while disabled", v29)
         self.assertIn("if any(tag in read_tail(log)", v29)
+    def test_v260_valid_native_edge_requires_no_corrective_teleport(self):
+        with patch.object(smoke, "native_safe_walk_positions",
+                          return_value=[(1.05, 100., .5)] * 5), patch.object(
+                smoke, "send_verified_original_chat_reply") as cmd:
+            smoke.await_original_v29_survival_edge_grounding(
+                object(), Path("unused"), "X11")
+            cmd.assert_not_called()
+
+    def test_v260_real_drift_requires_one_fresh_vanilla_reply(self):
+        class Clock:
+            value = 0.
+            def now(self):
+                self.value += .4
+                return self.value
+        clock = Clock()
+        drift = [(.6404239222828763, 100., .5)] * 5
+        original = [(1.05, 100., .5)] * 5
+        reads = [drift, original]
+        with patch.object(smoke, "native_safe_walk_positions",
+                          side_effect=lambda _: reads.pop(0)), patch.object(
+                smoke.time, "monotonic", side_effect=clock.now), patch.object(
+                smoke.time, "sleep"), patch.object(
+                smoke, "require_running"), patch.object(
+                smoke, "send_verified_original_chat_reply") as cmd:
+            smoke.await_original_v29_survival_edge_grounding(
+                object(), Path("unused"), "X11")
+            cmd.assert_called_once_with(
+                unittest.mock.ANY, Path("unused"), "X11",
+                "/tp CIProbe 1.05 100 0.5 90 88.6",
+                b"[CHAT] Teleported CIProbe to 1.05, 100.0, 0.5")
+
+    def test_v260_native_drift_never_counts_as_position_proof(self):
+        drift = [(.6404239222828763, 100., .5)] * 3
+        self.assertTrue(smoke.original_v29_settled_edge_drift(drift))
+        self.assertFalse(smoke.original_v29_position_accepted(drift))
+        self.assertTrue(smoke.original_v29_position_accepted(
+            [(1.05, 100., .5)] * 3))
+        self.assertFalse(smoke.original_v29_position_accepted(
+            [(1.05, 100., .5)] * 2))
+
+    def test_v260_unrelated_and_moving_positions_cannot_reposition(self):
+        for samples in (
+            [(9., 100., .5)] * 3,
+            [(0.5, 100., .5), (.7, 100., .5), (.9, 100., .5)],
+            [(.64, 98., .5)] * 3,
+            [(.64, 100., 9.)] * 3,
+        ):
+            self.assertFalse(smoke.original_v29_settled_edge_drift(samples))
+
+    def test_v260_one_correction_without_native_source_still_fails(self):
+        class Clock:
+            value = 0.
+            def now(self):
+                self.value += 1.
+                return self.value
+        clock = Clock()
+        drift = [(.6404239222828763, 100., .5)] * 5
+        with patch.object(smoke, "native_safe_walk_positions",
+                          return_value=drift), patch.object(
+                smoke.time, "monotonic", side_effect=clock.now), patch.object(
+                smoke.time, "sleep"), patch.object(
+                smoke, "require_running"), patch.object(
+                smoke, "send_verified_original_chat_reply") as cmd:
+            with self.assertRaisesRegex(
+                    AssertionError, "original Survival player not grounded"):
+                smoke.await_original_v29_survival_edge_grounding(
+                    object(), Path("unused"), "X11")
+            cmd.assert_called_once()

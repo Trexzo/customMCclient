@@ -485,6 +485,57 @@ def original_edge_grounding_stable(readings):
                for axis in range(3))
 
 
+def original_v29_position_accepted(readings):
+    """Unchanged three native per-tick x/y/z samples at the real edge."""
+    return len(readings) >= 3 and all(
+        abs(x - 1.05) < .05 and abs(y - 100.0) < .15
+        and abs(z - .5) < .05 for x, y, z in readings[-3:])
+
+
+def original_v29_settled_edge_drift(readings):
+    """Detect motion loss; this NEVER satisfies original placement proof."""
+    if len(readings) < 3:
+        return False
+    last = readings[-3:]
+    return (all(.30 <= x <= 1.30 and abs(y - 100.0) < .15
+                and .20 <= z <= .80 and abs(x - 1.05) >= .05
+                for x, y, z in last)
+            and all(max(p[axis] for p in last) - min(p[axis] for p in last)
+                    <= .02 for axis in range(3)))
+
+
+def await_original_v29_survival_edge_grounding(process, log, window):
+    """One actual acknowledged corrective /tp for settled native momentum.
+
+    Original V257 rerun confirmed native x after genuine /tp 1.05 moved
+    to .9499999985, .6953999884 and then .6404239223. Preserve the
+    original strict x/y/z requirement and original 12-second deadline.
+    """
+    started = time.monotonic()
+    corrected = False
+    last = []
+    while time.monotonic() - started < 12:
+        last = native_safe_walk_positions(log)[-5:]
+        if original_v29_position_accepted(last):
+            return
+        require_running(process, "source-native survival ledge grounding")
+        if (not corrected and time.monotonic() - started >= .75
+                and original_v29_settled_edge_drift(last)):
+            corrected = True
+            send_verified_original_chat_reply(
+                process, log, window,
+                "/tp CIProbe 1.05 100 0.5 90 88.6",
+                b"[CHAT] Teleported CIProbe to 1.05, 100.0, 0.5")
+            # Original integrated-server chat is not a native position.
+            # Continue demanding three real mapped local-player samples.
+            continue
+        time.sleep(.15)
+    raise AssertionError(
+        "original Survival player not grounded on real support"
+        + " nativeLast=" + repr(last[-3:])
+        + " realCorrection=" + str(corrected))
+
+
 def run(command, game, timeout, attack=False, auto_clicker=False,
         kill_aura_nonplayer=False, timer_speed=False, native_world_camera=False,
         native_safe_walk=False, safe_walk_edge=None, native_scaffold_world=False,
@@ -1267,17 +1318,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                     process, log, window)
                 send_command(process, log, window, "/tp 1.05 100 0.5 90 88.6")
                 send_command(process, log, window, "/gamemode 0")
-                stable_start = time.monotonic()
-                while time.monotonic() - stable_start < 12:
-                    readings = native_safe_walk_positions(log)[-5:]
-                    if len(readings) >= 3 and all(
-                            abs(x - 1.05) < .05 and abs(y - 100.0) < .15
-                            and abs(z - .5) < .05 for x, y, z in readings[-3:]):
-                        break
-                    require_running(process, "source-native survival ledge grounding")
-                    time.sleep(.15)
-                else:
-                    raise AssertionError("original Survival player not grounded on real support")
+                await_original_v29_survival_edge_grounding(process, log, window)
                 module_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_MODULE_OWNER_PASS=YES"
                 attempt_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
                 readback_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK_PASS=YES"
