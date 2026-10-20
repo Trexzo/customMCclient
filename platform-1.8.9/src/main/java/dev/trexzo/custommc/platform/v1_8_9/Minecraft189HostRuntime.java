@@ -70,6 +70,10 @@ public final class Minecraft189HostRuntime
     // native getters. Never publish a mixed or stale player snapshot.
     private final Minecraft189MovementSnapshotSourceLease movementSnapshotLease =
             new Minecraft189MovementSnapshotSourceLease();
+    // Health and maximum health are two original-player native getters.
+    // Do not publish values combined across source replacement/reentry.
+    private final Minecraft189HealthHostSourceLease healthHostLease =
+            new Minecraft189HealthHostSourceLease();
     // Hurt time authorizes local JumpReset and DamageBoost. A native
     // getter that changes player may not publish old damage evidence.
     private final Minecraft189HurtTimeHostSourceLease hurtTimeHostLease =
@@ -1425,13 +1429,31 @@ public final class Minecraft189HostRuntime
     void playerHealth(
             final Minecraft189PlayerHealthAccess player) {
         requireOpen();
-        if (player == null) {
+        if (!healthHostLease.enter(player)) return;
+        try {
+            if (player == null) {
+                playerHealthState.clear();
+                return;
+            }
+            final float originalHealth = player.customMcHealth();
+            if (!healthHostLease.stillOwned()) {
+                playerHealthState.clear();
+                return;
+            }
+            final float originalMaxHealth = player.customMcMaxHealth();
+            if (!healthHostLease.stillOwned()) {
+                playerHealthState.clear();
+                return;
+            }
+            playerHealthState.update(originalHealth, originalMaxHealth);
+        } catch (RuntimeException | Error nativeFailure) {
+            // Getter failure or invalid original value must not retain
+            // previously valid local-player health evidence.
             playerHealthState.clear();
-            return;
+            throw nativeFailure;
+        } finally {
+            healthHostLease.exit();
         }
-        playerHealthState.update(
-                player.customMcHealth(),
-                player.customMcMaxHealth());
     }
 
     void playerHurtTime(
