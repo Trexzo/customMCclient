@@ -93,6 +93,16 @@ final class Minecraft189WorldEntityDownstreamSourceLeaseTest {
         void position(World w){runtime.worldEntityPositions(w);}
         void kind(World w){runtime.worldEntityKinds(w);}
         void combat(World w){runtime.worldEntityCombat(w);}
+        void local(){
+            runtime.playerPositionState().update(0D,1D,0D);
+            runtime.playerRotationState().update(0F,0F);
+        }
+        Minecraft189NearestPlayerTargetState.Snapshot nearest(){
+            return runtime.nearestPlayerTargetState().snapshot();
+        }
+        Minecraft189TargetRotationState.Snapshot aim(){
+            return runtime.targetRotationState().snapshot();
+        }
         void aura(){controller.enable(Minecraft189KillAuraModule.ID);}
         void wall(){controller.enable(Minecraft189WallCheckModule.ID);}
         Minecraft189WorldEntityPositionState.Snapshot pos(){return runtime.worldEntityPositionState().snapshot();}
@@ -164,5 +174,46 @@ final class Minecraft189WorldEntityDownstreamSourceLeaseTest {
     @Test void sameWorldNestedInsidePostLosReadCannotDuplicateCombat(){try(Fixture f=new Fixture()){f.wall();World w=new World(1);f.position(w);f.kind(w);w.onThirdVisibility=()->f.combat(w);f.combat(w);assertTrue(f.combats().available());assertEquals(1,w.combatReads);}}
     @Test void freshRealWorldAfterLateUuidMismatchCanRecover(){try(Fixture f=new Fixture()){f.aura();World a=new World(1);f.position(a);f.kind(a);a.onCombat=()->a.uuidValues=new UUID[]{UUID.randomUUID()};f.combat(a);assertFalse(f.combats().available());World b=new World(2);f.position(b);f.kind(b);f.combat(b);assertTrue(f.combats().available());assertEquals(3,b.uuidReads);}}
     @Test void freshRealSampleOnSameWorldAfterLateLosMismatchCanRecover(){try(Fixture f=new Fixture()){f.wall();World w=new World(1);f.position(w);f.kind(w);w.onCombat=()->w.visibilityValues=new int[]{0};f.combat(w);assertFalse(f.combats().available());f.position(w);f.kind(w);f.combat(w);assertTrue(f.combats().available());assertEquals(6,w.visibilityReads);}}
-
+    private static void assertRejectsMalformedCombat(
+            final World w) {
+        try (Fixture f = new Fixture()) {
+            f.local();
+            f.position(w);
+            f.kind(w);
+            assertTrue(f.nearest().available(), "original kind candidate should be published");
+            assertTrue(f.nearest().found(), "original kind target should exist");
+            assertTrue(f.aim().available(), "original kind aim should exist");
+            f.combat(w);
+            assertFalse(f.combats().available(), "invalid native combat remains unavailable");
+            assertFalse(f.nearest().available(), "no kind-only target may survive bad combat");
+            assertFalse(f.aim().available(), "no stale aim may survive bad combat");
+            assertTrue(f.pos().available(), "the real original XYZ remains intact");
+            assertTrue(f.kinds().available(), "the real original Kind remains intact");
+            assertEquals(1,w.combatReads,"one genuine original combat sample only");
+        }
+    }
+    @Test void nativeNullCombatRejectsOldNearest(){World w=new World(1);w.combat=null;assertRejectsMalformedCombat(w);}
+    @Test void nativeEmptyCombatRejectsOldNearest(){World w=new World(1);w.combat=new int[0];assertRejectsMalformedCombat(w);}
+    @Test void nativeExtraCombatIndexRejectsOldNearest(){World w=new World(1);w.combat=new int[]{1,1};assertRejectsMalformedCombat(w);}
+    @Test void nativeNegativeTwoCombatRejectsOldNearest(){World w=new World(1);w.combat=new int[]{-2};assertRejectsMalformedCombat(w);}
+    @Test void nativeNegativeThreeCombatRejectsOldNearest(){World w=new World(1);w.combat=new int[]{-3};assertRejectsMalformedCombat(w);}
+    @Test void nativeMinimumIntegerCombatRejectsOldNearest(){World w=new World(1);w.combat=new int[]{Integer.MIN_VALUE};assertRejectsMalformedCombat(w);}
+    @Test void nativeMaximumIntegerCombatRejectsOldNearest(){World w=new World(1);w.combat=new int[]{Integer.MAX_VALUE};assertRejectsMalformedCombat(w);}
+    @Test void nativeOrphanedSameTeamBitRejectsOldNearest(){World w=new World(1);w.combat=new int[]{1|Minecraft189WorldEntityCombatState.SAME_TEAM};assertRejectsMalformedCombat(w);}
+    @Test void nativeOrphanedNetworkPresentBitRejectsOldNearest(){World w=new World(1);w.combat=new int[]{1|Minecraft189WorldEntityCombatState.NETWORK_INFO_PRESENT};assertRejectsMalformedCombat(w);}
+    @Test void nativeOversizedHurtEncodingRejectsOldNearest(){World w=new World(1);w.combat=new int[]{1<<14};assertRejectsMalformedCombat(w);}
+    @Test void nativeGiantPositiveCombatRejectsOldNearest(){World w=new World(1);w.combat=new int[]{1000000};assertRejectsMalformedCombat(w);}
+    @Test void nativeGetterBecomesNullDuringReadRejectsOldNearest(){World w=new World(1);w.onCombat=()->w.combat=null;assertRejectsMalformedCombat(w);}
+    @Test void nativeGetterBecomesMalformedDuringReadRejectsOldNearest(){World w=new World(1);w.onCombat=()->w.combat=new int[]{-2};assertRejectsMalformedCombat(w);}
+    @Test void nativeGetterShrinksDuringReadRejectsOldNearest(){World w=new World(1);w.onCombat=()->w.combat=new int[0];assertRejectsMalformedCombat(w);}
+    @Test void nativeGetterExpandsDuringReadRejectsOldNearest(){World w=new World(1);w.onCombat=()->w.combat=new int[]{1,1};assertRejectsMalformedCombat(w);}
+    @Test void genuineValidCombatPreservesOriginalSourceAndNearest(){try(Fixture f=new Fixture()){f.local();World w=new World(1);f.position(w);f.kind(w);f.combat(w);assertTrue(f.combats().available());assertTrue(f.combats().alive(0));assertTrue(f.nearest().found());assertTrue(f.aim().available());}}
+    @Test void validCopiedCombatArrayRetainsActualTargetEvidence(){try(Fixture f=new Fixture()){f.local();World w=new World(1);w.onCombat=()->w.combat=w.combat.clone();f.position(w);f.kind(w);f.combat(w);assertTrue(f.combats().alive(0));assertTrue(f.nearest().found());assertTrue(f.aim().available());}}
+    @Test void validNetworkInfoKnownCombatRetainsSource(){try(Fixture f=new Fixture()){f.local();World w=new World(1);w.combat=new int[]{1|Minecraft189WorldEntityCombatState.NETWORK_INFO_KNOWN|Minecraft189WorldEntityCombatState.NETWORK_INFO_PRESENT};f.position(w);f.kind(w);f.combat(w);assertTrue(f.combats().available());assertTrue(f.nearest().found());}}
+    @Test void validTeamKnownCombatRetainsSource(){try(Fixture f=new Fixture()){f.local();World w=new World(1);w.combat=new int[]{1|Minecraft189WorldEntityCombatState.TEAM_KNOWN|Minecraft189WorldEntityCombatState.SAME_TEAM};f.position(w);f.kind(w);f.combat(w);assertTrue(f.combats().available());assertTrue(f.nearest().found());}}
+    @Test void validMaxHurtEncodingRetainsSource(){try(Fixture f=new Fixture()){f.local();World w=new World(1);w.combat=new int[]{255};f.position(w);f.kind(w);f.combat(w);assertTrue(f.combats().available());assertTrue(f.nearest().found());assertEquals(127,f.combats().hurtTime(0));}}
+    @Test void malformedAfterPreviouslyValidCombatClearsTargetAndAim(){try(Fixture f=new Fixture()){f.local();World w=new World(1);f.position(w);f.kind(w);f.combat(w);assertTrue(f.combats().available());assertTrue(f.nearest().found());w.combat=new int[]{-2};f.combat(w);assertFalse(f.combats().available());assertFalse(f.nearest().available());assertFalse(f.aim().available());}}
+    @Test void freshRealCombatAndKindSampleRecoversAfterInvalid(){try(Fixture f=new Fixture()){f.local();World w=new World(1);f.position(w);f.kind(w);w.combat=null;f.combat(w);assertFalse(f.nearest().available());w.combat=new int[]{1};f.position(w);f.kind(w);f.combat(w);assertTrue(f.combats().alive(0));assertTrue(f.nearest().found());assertTrue(f.aim().available());}}
+    @Test void malformedCombatWithEnabledWallCheckClearsCandidate(){try(Fixture f=new Fixture()){f.local();f.wall();World w=new World(1);w.combat=new int[]{-2};f.position(w);f.kind(w);assertTrue(f.nearest().found());f.combat(w);assertFalse(f.nearest().available());assertFalse(f.aim().available());assertTrue(f.pos().available());}}
+    @Test void malformedCombatWithEnabledAuraClearsCandidate(){try(Fixture f=new Fixture()){f.local();f.aura();World w=new World(1);w.combat=new int[]{-2};f.position(w);f.kind(w);assertTrue(f.nearest().found());f.combat(w);assertFalse(f.combats().available());assertFalse(f.nearest().available());assertFalse(f.aim().available());}}
 }
