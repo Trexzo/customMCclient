@@ -82,6 +82,12 @@ public final class Minecraft189HostRuntime
     // mapped fallDistance getter/setter native callback stack.
     private final Minecraft189FallHostSourceLease fallHostLease =
             new Minecraft189FallHostSourceLease();
+    // Separate original FoodStats and experience getters may synchronously
+    // reenter a different local player during the same host tick.
+    private final Minecraft189HungerHostSourceLease hungerHostLease =
+            new Minecraft189HungerHostSourceLease();
+    private final Minecraft189ExperienceHostSourceLease experienceHostLease =
+            new Minecraft189ExperienceHostSourceLease();
     // WTap and AutoSprint are separate native setter owners. Their host
     // routing must share one original sprint source and UI focus lease.
     private final Minecraft189SprintHostSourceLease sprintHostLease =
@@ -1476,13 +1482,31 @@ public final class Minecraft189HostRuntime
     void playerHunger(
             final Minecraft189PlayerHungerAccess player) {
         requireOpen();
-        if (player == null) {
+        if (!hungerHostLease.enter(player)) return;
+        try {
+            if (player == null) {
+                playerHungerState.clear();
+                return;
+            }
+            final int originalFood = player.customMcFoodLevel();
+            if (!hungerHostLease.stillOwned()) {
+                playerHungerState.clear();
+                return;
+            }
+            final float originalSaturation = player.customMcSaturationLevel();
+            if (!hungerHostLease.stillOwned()) {
+                playerHungerState.clear();
+                return;
+            }
+            playerHungerState.update(originalFood, originalSaturation);
+        } catch (RuntimeException | Error nativeFailure) {
+            // A partial native FoodStats sample must not preserve stale
+            // hunger evidence after a getter or genuine value error.
             playerHungerState.clear();
-            return;
+            throw nativeFailure;
+        } finally {
+            hungerHostLease.exit();
         }
-        playerHungerState.update(
-                player.customMcFoodLevel(),
-                player.customMcSaturationLevel());
     }
 
     void playerPotionEffects(
@@ -1499,15 +1523,39 @@ public final class Minecraft189HostRuntime
     void playerExperience(
             final Minecraft189PlayerExperienceAccess player) {
         requireOpen();
-        if (player == null) {
+        if (!experienceHostLease.enter(player)) return;
+        try {
+            if (player == null) {
+                playerExperienceState.clear();
+                return;
+            }
+            final int level = player.customMcExperienceLevel();
+            if (!experienceHostLease.stillOwned()) {
+                playerExperienceState.clear();
+                return;
+            }
+            final int total = player.customMcExperienceTotal();
+            if (!experienceHostLease.stillOwned()) {
+                playerExperienceState.clear();
+                return;
+            }
+            final float progress = player.customMcExperienceProgress();
+            if (!experienceHostLease.stillOwned()) {
+                playerExperienceState.clear();
+                return;
+            }
+            final int barCap = player.customMcExperienceBarCap();
+            if (!experienceHostLease.stillOwned()) {
+                playerExperienceState.clear();
+                return;
+            }
+            playerExperienceState.update(level, total, progress, barCap);
+        } catch (RuntimeException | Error nativeFailure) {
             playerExperienceState.clear();
-            return;
+            throw nativeFailure;
+        } finally {
+            experienceHostLease.exit();
         }
-        playerExperienceState.update(
-                player.customMcExperienceLevel(),
-                player.customMcExperienceTotal(),
-                player.customMcExperienceProgress(),
-                player.customMcExperienceBarCap());
     }
 
     void playerPing(
