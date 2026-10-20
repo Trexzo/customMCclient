@@ -82,6 +82,12 @@ public final class Minecraft189HostRuntime
     // and name callback must share one exact original local-player owner.
     private final Minecraft189PotionEffectsHostSourceLease potionEffectsHostLease =
             new Minecraft189PotionEffectsHostSourceLease();
+    // Ping and hotbar callbacks may reenter with a different native player.
+    // The local inventory control cannot outlive a revoked original owner.
+    private final Minecraft189PingHostSourceLease pingHostLease =
+            new Minecraft189PingHostSourceLease();
+    private final Minecraft189HotbarHostSourceLease hotbarHostLease =
+            new Minecraft189HotbarHostSourceLease();
     // Hurt time authorizes local JumpReset and DamageBoost. A native
     // getter that changes player may not publish old damage evidence.
     private final Minecraft189HurtTimeHostSourceLease hurtTimeHostLease =
@@ -1664,47 +1670,68 @@ public final class Minecraft189HostRuntime
     void playerPing(
             final Minecraft189PlayerPingAccess player) {
         requireOpen();
-        if (player == null) {
+        if (!pingHostLease.enter(player)) return;
+        try {
+            if (player == null) {
+                playerPingState.clear();
+                return;
+            }
+            final int milliseconds = player.customMcPingMilliseconds();
+            if (!pingHostLease.stillOwned() || milliseconds < 0) {
+                playerPingState.clear();
+                return;
+            }
+            playerPingState.update(milliseconds);
+        } catch (RuntimeException | Error nativeFailure) {
+            // A failing original connection getter cannot preserve an old
+            // HUD ping measured for a different player/session.
             playerPingState.clear();
-            return;
+            throw nativeFailure;
+        } finally {
+            pingHostLease.exit();
         }
-        final int milliseconds =
-                player.customMcPingMilliseconds();
-        if (milliseconds < 0) {
-            playerPingState.clear();
-            return;
-        }
-        playerPingState.update(
-                milliseconds);
     }
 
     void playerHotbarSlot(
             final Minecraft189PlayerInventoryAccess player) {
         requireOpen();
-        tickHotbarControl = null;
-        tickHotbarPlayer = player;
-        if (player == null) {
+        if (!hotbarHostLease.enter(player)) return;
+        try {
+            // Neither the selected HUD slot nor the mutable combat hotbar
+            // control may survive a changed/null original player source.
+            tickHotbarControl = null;
+            tickHotbarPlayer = null;
+            if (player == null) {
+                hotbarSlotState.clear();
+                return;
+            }
+            final Minecraft189InventoryHotbarAccess inventory =
+                    player.customMcInventory();
+            if (!hotbarHostLease.stillOwned() || inventory == null) {
+                hotbarSlotState.clear();
+                return;
+            }
+            final int slot = inventory.customMcSelectedHotbarSlot();
+            if (!hotbarHostLease.stillOwned()
+                    || slot < 0
+                    || slot >= Minecraft189HotbarSlotState.SLOT_COUNT) {
+                hotbarSlotState.clear();
+                return;
+            }
+            // Publish original inventory ownership ONLY after the two
+            // mapped getter calls have completed without source revocation.
+            tickHotbarPlayer = player;
+            if (inventory instanceof Minecraft189InventoryHotbarControl)
+                tickHotbarControl = (Minecraft189InventoryHotbarControl) inventory;
+            hotbarSlotState.update(slot);
+        } catch (RuntimeException | Error nativeFailure) {
+            tickHotbarControl = null;
+            tickHotbarPlayer = null;
             hotbarSlotState.clear();
-            return;
+            throw nativeFailure;
+        } finally {
+            hotbarHostLease.exit();
         }
-        final Minecraft189InventoryHotbarAccess inventory =
-                player.customMcInventory();
-        if (inventory instanceof Minecraft189InventoryHotbarControl) {
-            tickHotbarControl = (Minecraft189InventoryHotbarControl) inventory;
-        }
-        if (inventory == null) {
-            hotbarSlotState.clear();
-            return;
-        }
-        final int slot =
-                inventory.customMcSelectedHotbarSlot();
-        if (slot < 0
-                || slot >= Minecraft189HotbarSlotState.SLOT_COUNT) {
-            hotbarSlotState.clear();
-            return;
-        }
-        hotbarSlotState.update(
-                slot);
     }
 
     void worldTime(
