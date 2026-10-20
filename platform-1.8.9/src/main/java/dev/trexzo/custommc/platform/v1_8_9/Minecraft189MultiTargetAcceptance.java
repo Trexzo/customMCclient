@@ -108,7 +108,32 @@ final class Minecraft189MultiTargetAcceptance {
             }
             chosenIndex = b;
         } else if (stage >= 3 && aCandidate) {
-            throw new IllegalStateException("stale original target became selected");
+            // Preserve this strict failure. The genuine server may have
+            // delivered adjacent teleports while the graphical client's
+            // World snapshots are still converging; the failing source
+            // values must be visible before changing ANY acceptance gate.
+            throw new IllegalStateException(
+                    "stale original target became selected"
+                    + " stage=" + stage
+                    + " firstHit=" + firstHit
+                    + " secondHit=" + secondHit
+                    + " A.uuid=" + ids.at(a)
+                    + " A.index=" + a
+                    + " A.distance=" + aDist
+                    + " A.xyz=" + positions.x(a) + ","
+                    + positions.y(a) + "," + positions.z(a)
+                    + " B.uuid=" + ids.at(b)
+                    + " B.index=" + b
+                    + " B.distance=" + bDist
+                    + " B.xyz=" + positions.x(b) + ","
+                    + positions.y(b) + "," + positions.z(b)
+                    + " local.xyz=" + local.x() + ","
+                    + local.y() + "," + local.z()
+                    + " nearest.found=" + nearest.found()
+                    + " nearest.index=" + nearest.entityIndex()
+                    + " selected.available=" + selected.available()
+                    + " selected.index=" + selected.entityIndex()
+                    + " remoteCount=" + remoteCount);
         }
     }
 
