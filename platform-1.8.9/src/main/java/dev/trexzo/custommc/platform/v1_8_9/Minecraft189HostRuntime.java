@@ -165,6 +165,10 @@ public final class Minecraft189HostRuntime
     // reenter the host before a successful selected-slot lease is published.
     private boolean combatHotbarSelecting;
     private Minecraft189PlayerHeldItemAccess tickHeldItemAccess;
+    // A new original player-position tick, held-item callback or shutdown
+    // changes this generation even if an A-B-A native getter restores the
+    // very same player reference before its caller resumes.
+    private long heldItemOwnerSerial;
     // These leases outlive changes to per-tick player references. A
     // synchronous native callback may replace the local player or
     // inventory while another original item-use action owns its slot.
@@ -639,6 +643,7 @@ public final class Minecraft189HostRuntime
             tickHotbarControl = null;
             tickHotbarPlayer = null;
             tickHeldItemAccess = null;
+            heldItemOwnerSerial++;
             nearestPlayerTargetState.clear();
             if (player == null) {
                 clearOriginalPositionEvidence();
@@ -2134,8 +2139,10 @@ public final class Minecraft189HostRuntime
         if (!heldItemHostLease.enter(player)) return;
         try {
             // This reference authorizes real item-use and sword checks.
-            // It must never point to an unverified original player.
+            // A fresh original callback also revokes any in-flight
+            // AutoBlock sword read, even if the player is later restored.
             tickHeldItemAccess = null;
+            heldItemOwnerSerial++;
             if (player == null) {
                 heldItemState.clear();
                 return;
@@ -2295,9 +2302,57 @@ public final class Minecraft189HostRuntime
     /** Source-mapped held item identity; no display-name matching. */
     private boolean holdingVerifiedSword() {
         final Minecraft189PlayerHeldItemAccess player = tickHeldItemAccess;
-        if (player == null) return false;
-        final Minecraft189ItemStackAccess held = player.customMcHeldItem();
-        return held != null && held.customMcIsSword();
+        if (player == null || !heldItemHostLease.enter(player)) return false;
+        final long sourceSerial = heldItemOwnerSerial;
+        try {
+            // A real sword check reads TWO fresh native mapped values,
+            // either of which may synchronously reenter the original
+            // HeldItem callback or a new local-player position tick.
+            final Minecraft189ItemStackAccess held =
+                    player.customMcHeldItem();
+            if (!swordSourceStillOwned(player, sourceSerial)) {
+                revokeSwordSourceIfCurrent(player, sourceSerial);
+                return false;
+            }
+            if (held == null) {
+                // Legitimate vanilla empty hand keeps original player
+                // inventory ownership for AutoRod/AutoPot.
+                heldItemState.clear();
+                return false;
+            }
+            final boolean actualSword = held.customMcIsSword();
+            if (!swordSourceStillOwned(player, sourceSerial)) {
+                revokeSwordSourceIfCurrent(player, sourceSerial);
+                return false;
+            }
+            return actualSword;
+        } catch (RuntimeException | Error nativeFailure) {
+            revokeSwordSourceIfCurrent(player, sourceSerial);
+            throw nativeFailure;
+        } finally {
+            heldItemHostLease.exit();
+        }
+    }
+
+    private boolean swordSourceStillOwned(
+            final Minecraft189PlayerHeldItemAccess original,
+            final long sourceSerial) {
+        return heldItemHostLease.stillOwned()
+                && tickHeldItemAccess == original
+                && heldItemOwnerSerial == sourceSerial;
+    }
+
+    private void revokeSwordSourceIfCurrent(
+            final Minecraft189PlayerHeldItemAccess original,
+            final long sourceSerial) {
+        // Never destroy a NEW original-player snapshot published during
+        // an older native getter. Only revoke the actual stale owner.
+        if (tickHeldItemAccess == original
+                && heldItemOwnerSerial == sourceSerial) {
+            tickHeldItemAccess = null;
+            heldItemOwnerSerial++;
+            heldItemState.clear();
+        }
     }
 
     boolean shouldReleaseAutoBlock(final boolean playerHit,
@@ -3293,6 +3348,7 @@ public final class Minecraft189HostRuntime
         tickHotbarControl = null;
         tickHotbarPlayer = null;
         tickHeldItemAccess = null;
+        heldItemOwnerSerial++;
         featureCatalog.autoBlock().forgetForShutdown();
         worldEntityKindState.clear();
         worldEntityCombatState.clear();
