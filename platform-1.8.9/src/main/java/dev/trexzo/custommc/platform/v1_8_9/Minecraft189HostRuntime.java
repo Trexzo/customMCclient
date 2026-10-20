@@ -66,6 +66,10 @@ public final class Minecraft189HostRuntime
     // another jump MODULE while the first source jump is in flight.
     private final Minecraft189JumpHostSourceLease jumpHostLease =
             new Minecraft189JumpHostSourceLease();
+    // Genuine EntityPlayerSP ground, sneak, sprint are three separate
+    // native getters. Never publish a mixed or stale player snapshot.
+    private final Minecraft189MovementSnapshotSourceLease movementSnapshotLease =
+            new Minecraft189MovementSnapshotSourceLease();
     // Per-host-tick reference only; cleared before every new position sample.
     private Minecraft189PlayerSprintControl tickSprintControl;
     // An original synthetic click may restore Sprint only for its exact
@@ -751,14 +755,42 @@ public final class Minecraft189HostRuntime
     void playerMovementState(
             final Minecraft189PlayerMovementStateAccess player) {
         requireOpen();
-        if (player == null) {
-            playerMovementState.clear();
+        // A mapped ground/sneak/sprint getter may synchronously reenter
+        // this host with the same or a different original player.
+        if (!movementSnapshotLease.enter(player)) {
             return;
         }
-        playerMovementState.update(
-                player.customMcOnGround(),
-                player.customMcSneaking(),
-                player.customMcSprinting());
+        try {
+            if (player == null) {
+                playerMovementState.clear();
+                return;
+            }
+            final boolean ground = player.customMcOnGround();
+            if (!movementSnapshotLease.stillOwned()) {
+                playerMovementState.clear();
+                return;
+            }
+            final boolean sneaking = player.customMcSneaking();
+            if (!movementSnapshotLease.stillOwned()) {
+                playerMovementState.clear();
+                return;
+            }
+            final boolean sprinting = player.customMcSprinting();
+            if (!movementSnapshotLease.stillOwned()) {
+                playerMovementState.clear();
+                return;
+            }
+            // Publish all THREE actual original-player observations as a
+            // single atomic snapshot, never an old/new-player mixture.
+            playerMovementState.update(ground, sneaking, sprinting);
+        } catch (RuntimeException | Error nativeFailure) {
+            // A partial genuine original getter is not valid evidence.
+            // Do not leave the former grounded/sprint/sneak state visible.
+            playerMovementState.clear();
+            throw nativeFailure;
+        } finally {
+            movementSnapshotLease.exit();
+        }
     }
 
     void playerSprintControl(
