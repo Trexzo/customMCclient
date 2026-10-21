@@ -165,7 +165,7 @@ class V278NativeRegressionPathCoverageTest(unittest.TestCase):
     def test_unrelated_outside_original_platform_tests_not_in_new_glob(self):
         # The new rule is for this native platform package, not a universal wildcard.
         rule = ("platform-1.8.9/src/test/java/dev/trexzo/custommc/"
-                "platform/v1_8_9/Minecraft189*Test.java")
+                "platform/v1_8_9/*Test.java")
         self.assertIn(rule, pr_paths())
         self.assertNotIn("**/*",pr_paths())
 
