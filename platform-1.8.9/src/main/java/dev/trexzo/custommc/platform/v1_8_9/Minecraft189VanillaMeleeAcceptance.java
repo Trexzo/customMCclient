@@ -31,6 +31,9 @@ final class Minecraft189VanillaMeleeAcceptance {
     private static boolean auraControllerReached;
     private static boolean auraPositiveCounterReported;
     private static boolean auraReadyCounterReported;
+    private static final Minecraft189OriginalNonPlayerRaycastTrace
+            nonPlayerRaycastTrace =
+            new Minecraft189OriginalNonPlayerRaycastTrace();
 
     private Minecraft189VanillaMeleeAcceptance() {
     }
@@ -54,6 +57,7 @@ final class Minecraft189VanillaMeleeAcceptance {
         auraControllerReached = false;
         auraPositiveCounterReported = false;
         auraReadyCounterReported = false;
+        nonPlayerRaycastTrace.reset();
     }
 
     static void tick() {
@@ -321,33 +325,79 @@ final class Minecraft189VanillaMeleeAcceptance {
      * CI Kill Aura *nonplayer* veto. This observes a real living nonplayer;
      * it does not create or reclassify entities.
      */
+    static Minecraft189OriginalNonPlayerRaycastTrace.Snapshot
+            originalNonPlayerRaycastDiagnostic() {
+        return nonPlayerRaycastTrace.snapshot();
+    }
+
+    private static Object nonPlayerRejected(final String reason,
+            final int nativeIndex, final int kindBits,
+            final int nativeEntities, final int kindsCount) {
+        nonPlayerRaycastTrace.observe(reason, nativeIndex, kindBits,
+                nativeEntities, kindsCount, false);
+        return null;
+    }
+
     static Object raycastLivingNonPlayer(
             final Object minecraft, final int[] kinds) {
         if (!Boolean.getBoolean(
-                "custommc.acceptance.reportKillAuraNonPlayer")
-                || minecraft == null || kinds == null
-                || observedWorld == null) return null;
+                "custommc.acceptance.reportKillAuraNonPlayer"))
+            return null;
+        final int kindsCount = kinds == null ? -1 : kinds.length;
+        if (minecraft == null || kinds == null)
+            return nonPlayerRejected("native-input-or-kind-source-unavailable",
+                    -1, -1, -1, kindsCount);
+        if (observedWorld == null)
+            return nonPlayerRejected("original-world-source-not-observed",
+                    -1, -1, -1, kindsCount);
         try {
             final Object hit = field(minecraft, "s");
-            if (hit == null) return null;
+            if (hit == null)
+                return nonPlayerRejected("original-crosshair-no-ray",
+                        -1, -1, -1, kindsCount);
             final ClassLoader gameLoader = minecraft.getClass().getClassLoader();
             final Class<?> type = Class.forName("auh$a", false, gameLoader);
-            if (field(hit, "a") != field(type, null, "c")) return null;
+            if (field(hit, "a") != field(type, null, "c"))
+                return nonPlayerRejected("original-crosshair-not-entity-hit",
+                        -1, -1, -1, kindsCount);
             final Object entity = field(hit, "d");
             final Object world = field(minecraft, "f");
-            if (entity == null || world == null || world != observedWorld
-                    || entity == field(minecraft, "h")) return null;
-            final int index = identityIndex(loadedEntities(world), entity);
-            if (index < 0 || index >= kinds.length) return null;
+            if (entity == null)
+                return nonPlayerRejected("original-ray-entity-null",
+                        -1, -1, -1, kindsCount);
+            if (world == null)
+                return nonPlayerRejected("original-world-null",
+                        -1, -1, -1, kindsCount);
+            if (world != observedWorld)
+                return nonPlayerRejected("original-world-identity-changed",
+                        -1, -1, -1, kindsCount);
+            if (entity == field(minecraft, "h"))
+                return nonPlayerRejected("original-ray-is-local-player",
+                        -1, -1, -1, kindsCount);
+            // EXACTLY the same original loadedEntityList reflection read,
+            // identity lookup and kind verification as before this patch.
+            final List<?> loaded = loadedEntities(world);
+            final int index = identityIndex(loaded, entity);
+            if (index < 0)
+                return nonPlayerRejected("original-ray-not-in-loaded-entities",
+                        index, -1, loaded.size(), kindsCount);
+            if (index >= kinds.length)
+                return nonPlayerRejected("original-ray-index-exceeds-kinds",
+                        index, -1, loaded.size(), kindsCount);
             final int flags = kinds[index];
             if ((flags & Minecraft189WorldEntityKindState.LIVING) == 0
                     || (flags & Minecraft189WorldEntityKindState.PLAYER) != 0
                     || (flags & Minecraft189WorldEntityKindState.LOCAL_PLAYER) != 0) {
-                return null;
+                return nonPlayerRejected("original-kind-not-living-nonplayer",
+                        index, flags, loaded.size(), kindsCount);
             }
+            nonPlayerRaycastTrace.observe(
+                    "original-living-nonplayer-ray-accepted",
+                    index, flags, loaded.size(), kindsCount, true);
             return entity;
         } catch (ReflectiveOperationException | SecurityException ignored) {
-            return null;
+            return nonPlayerRejected("original-ray-reflection-unavailable",
+                    -1, -1, -1, kindsCount);
         }
     }
 

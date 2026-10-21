@@ -50,6 +50,7 @@ public final class Minecraft189RuntimeBridge {
     private static Object killAuraNonPlayerTarget;
     private static int killAuraDisabledTargetTicks;
     private static int killAuraEnabledVetoTicks;
+    private static int killAuraNonPlayerSourceDiagCallbacks;
     private static boolean killAuraNonPlayerEnabled;
     private static boolean killAuraNonPlayerReported;
     private static int acceptanceRemotePlayerKindTicks;
@@ -276,6 +277,7 @@ public final class Minecraft189RuntimeBridge {
         killAuraNonPlayerTarget = null;
         killAuraDisabledTargetTicks = 0;
         killAuraEnabledVetoTicks = 0;
+        killAuraNonPlayerSourceDiagCallbacks = 0;
         killAuraNonPlayerEnabled = false;
         killAuraNonPlayerReported = false;
         acceptanceRemotePlayerKindTicks = 0;
@@ -1958,6 +1960,32 @@ public final class Minecraft189RuntimeBridge {
                 final Object nonPlayer = kindState.available()
                         ? Minecraft189VanillaMeleeAcceptance.raycastLivingNonPlayer(
                                 minecraft, kindState.kindBits()) : null;
+                // V288: read-only diagnostic of the *existing* original
+                // raycast evaluation. No second vanilla or World access,
+                // no independent acceptance and no additional target query.
+                final Minecraft189OriginalNonPlayerRaycastTrace.Snapshot
+                        observedRay = Minecraft189VanillaMeleeAcceptance
+                            .originalNonPlayerRaycastDiagnostic();
+                ++killAuraNonPlayerSourceDiagCallbacks;
+                if (killAuraNonPlayerSourceDiagCallbacks == 1
+                        || killAuraNonPlayerSourceDiagCallbacks % 40 == 0) {
+                    System.out.println(
+                            "CUSTOMMC_189_ORIGINAL_NONPLAYER_RAY_DIAGNOSTIC"
+                            + " sourceCallbacks="
+                                + killAuraNonPlayerSourceDiagCallbacks
+                            + " kindSourceAvailable=" + kindState.available()
+                            + " calls=" + observedRay.calls
+                            + " accepted=" + observedRay.validCallbacks
+                            + " decision=" + observedRay.decision
+                            + " nativeIndex=" + observedRay.nativeIndex
+                            + " nativeKindBits=" + observedRay.nativeKindBits
+                            + " nativeLoadedEntities=" + observedRay.nativeEntityCount
+                            + " nativeKindCount=" + observedRay.sourceKindCount
+                            + " consecutiveDisabled=" + killAuraDisabledTargetTicks
+                            + " consecutiveEnabled=" + killAuraEnabledVetoTicks
+                            + " auraEnabled=" + killAuraNonPlayerEnabled);
+                    System.out.flush();
+                }
                 if (nonPlayer == null
                         || (killAuraNonPlayerTarget != null
                                 && nonPlayer != killAuraNonPlayerTarget)) {
