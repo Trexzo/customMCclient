@@ -1624,9 +1624,13 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                          or b"SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT" in line
                          or b"SCAFFOLD_ORIGINAL_CLIENT_SURVIVAL_READBACK" in line
                          or b"SCAFFOLD_DISABLED_SURVIVAL" in line
-                         or b"SCAFFOLD_ORIGINAL_TICK_CONTEXT" in line]
+                         or b"SCAFFOLD_ORIGINAL_TICK_CONTEXT" in line
+                         # Genuine source data already emitted by the original
+                         # client; this is only a bounded failure-log extract.
+                         or b"SCAFFOLD_ARM_WAIT" in line
+                         or b"ORIGINAL_SCAFFOLD_V29_REFUSAL_DIAGNOSTIC" in line]
                 print("V29_ORIGINAL_PLACEMENT_DIAGNOSTICS_START", file=sys.stderr)
-                for line in lines[-24:]:
+                for line in lines[-45:]:
                     print(line.decode("utf-8","replace"), file=sys.stderr)
                 print("V29_ORIGINAL_PLACEMENT_DIAGNOSTICS_END", file=sys.stderr)
             if native_scaffold_candidate:
