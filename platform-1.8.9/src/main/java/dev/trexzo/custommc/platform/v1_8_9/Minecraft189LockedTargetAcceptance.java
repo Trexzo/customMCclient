@@ -6,11 +6,24 @@ final class Minecraft189LockedTargetAcceptance {
     private static UUID aUuid, bUuid;
     private static int phase, initialTicks, armedTicks, heldTicks;
     private static boolean aHit, bHit;
+    // Acceptance-only provenance copied from the SAME existing snapshots.
+    // Never participates in initial eligibility, target selection, or clicks.
+    private static int initialSourceObservations, maxInitialAStreak;
+    private static int phase0SourceUnavailable, phase0CountMismatch;
+    private static int phase0RemoteIdentityMissing, phase0NonfiniteDistance;
+    private static int phase0GeometryRejected, phase0SelectionRejected;
+    private static String lastInitialReason = "not-observed";
+    private static String lastReadReason = "not-observed";
     private Minecraft189LockedTargetAcceptance() {}
     static void reset() {
         aUuid = bUuid = null;
         phase = initialTicks = armedTicks = heldTicks = 0;
         aHit = bHit = false;
+        initialSourceObservations = maxInitialAStreak = 0;
+        phase0SourceUnavailable = phase0CountMismatch = 0;
+        phase0RemoteIdentityMissing = phase0NonfiniteDistance = 0;
+        phase0GeometryRejected = phase0SelectionRejected = 0;
+        lastInitialReason = lastReadReason = "not-observed";
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
@@ -34,10 +47,16 @@ final class Minecraft189LockedTargetAcceptance {
         Minecraft189TargetRotationState.Snapshot aim =
                 host.targetRotationState().snapshot();
         if (!ids.available() || !kinds.available() || !combat.available()
-                || !positions.available() || !local.available()
-                || ids.entityCount() != kinds.entityCount()
+                || !positions.available() || !local.available()) {
+            lastReadReason = "source-snapshot-unavailable";
+            return null;
+        }
+        if (ids.entityCount() != kinds.entityCount()
                 || ids.entityCount() != combat.entityCount()
-                || ids.entityCount() != positions.entityCount()) return null;
+                || ids.entityCount() != positions.entityCount()) {
+            lastReadReason = "native-entity-array-count-mismatch";
+            return null;
+        }
         int a=-1, b=-1, remotes=0;
         for (int i=0; i<kinds.entityCount(); i++) {
             if (!kinds.player(i) || kinds.localPlayer(i)) continue;
@@ -46,14 +65,21 @@ final class Minecraft189LockedTargetAcceptance {
             if (aUuid.equals(ids.at(i))) a=i;
             if (bUuid.equals(ids.at(i))) b=i;
         }
-        if (remotes != 2 || a<0 || b<0 || a==b) return null;
+        if (remotes != 2 || a<0 || b<0 || a==b) {
+            lastReadReason = "two-alive-original-UUIDs-not-found";
+            return null;
+        }
         double adx=positions.x(a)-local.x(), ady=positions.y(a)-local.y(),
                 adz=positions.z(a)-local.z();
         double bdx=positions.x(b)-local.x(), bdy=positions.y(b)-local.y(),
                 bdz=positions.z(b)-local.z();
         double da=Math.sqrt(adx*adx+ady*ady+adz*adz);
         double db=Math.sqrt(bdx*bdx+bdy*bdy+bdz*bdz);
-        if (!Double.isFinite(da) || !Double.isFinite(db)) return null;
+        if (!Double.isFinite(da) || !Double.isFinite(db)) {
+            lastReadReason = "source-distance-nonfinite";
+            return null;
+        }
+        lastReadReason = "two-alive-UUIDs-and-distances-available";
         return new Evidence(ids,kinds,combat,near,aim,a,b,da,db);
     }
 
@@ -63,7 +89,67 @@ final class Minecraft189LockedTargetAcceptance {
         Minecraft189KillAuraModule aura=host.featureCatalog().killAura();
         if (phase==0) {
             if (aura.active()) throw new IllegalStateException("Aura pre-enabled");
-            initialTicks=e!=null && e.initialA() ? initialTicks+1 : 0;
+            final boolean originalInitialA = e!=null && e.initialA();
+            // Keep original 20-consecutive real-source gate unchanged.
+            initialTicks=originalInitialA ? initialTicks+1 : 0;
+            if (++initialSourceObservations == 1
+                    || initialSourceObservations % 40 == 0) {
+                // Read-only same-observation reason diagnostics; never
+                // fabricate target selection or second source getter.
+                lastInitialReason = e==null ? lastReadReason
+                        : m291InitialAReason(e.da, e.db, e.a, e.b,
+                            e.near.found(), e.near.entityIndex(),
+                            e.aim.available(), e.aim.entityIndex());
+                System.out.println(
+                        "CUSTOMMC_189_LOCK_INITIAL_A_SOURCE_DIAGNOSTIC"
+                        + " callbacks=" + initialSourceObservations
+                        + " reason=" + lastInitialReason
+                        + " sourceReason=" + lastReadReason
+                        + " initialConsecutive=" + initialTicks
+                        + " maxInitialConsecutive=" + maxInitialAStreak
+                        + " missingSource=" + phase0SourceUnavailable
+                        + " countMismatch=" + phase0CountMismatch
+                        + " remoteUuidMissing=" + phase0RemoteIdentityMissing
+                        + " nonfiniteDistance=" + phase0NonfiniteDistance
+                        + " geometryRejected=" + phase0GeometryRejected
+                        + " selectionRejected=" + phase0SelectionRejected
+                        + " originalAIndex=" + (e==null ? -1 : e.a)
+                        + " originalBIndex=" + (e==null ? -1 : e.b)
+                        + " originalA3D=" + (e==null ? Double.NaN : e.da)
+                        + " originalB3D=" + (e==null ? Double.NaN : e.db)
+                        + " sourceNearest=" + (e==null ? -1 : e.near.entityIndex())
+                        + " sourceAim=" + (e==null ? -1 : e.aim.entityIndex()));
+                System.out.flush();
+            }
+            if (initialTicks > maxInitialAStreak)
+                maxInitialAStreak = initialTicks;
+            if (!originalInitialA) {
+                if (e == null) {
+                    switch (lastReadReason) {
+                        case "source-snapshot-unavailable":
+                            phase0SourceUnavailable++;
+                            break;
+                        case "native-entity-array-count-mismatch":
+                            phase0CountMismatch++;
+                            break;
+                        case "source-distance-nonfinite":
+                            phase0NonfiniteDistance++;
+                            break;
+                        default:
+                            phase0RemoteIdentityMissing++;
+                            break;
+                    }
+                } else {
+                    final String rejection = m291InitialAReason(
+                            e.da, e.db, e.a, e.b,
+                            e.near.found(), e.near.entityIndex(),
+                            e.aim.available(), e.aim.entityIndex());
+                    if ("original-initial-A-not-selected".equals(rejection))
+                        phase0SelectionRejected++;
+                    else
+                        phase0GeometryRejected++;
+                }
+            }
             if (initialTicks>=20) {
                 host.featureCatalog().enableKillAuraForOfficialLockedTargetAcceptance();
                 phase=1;
@@ -199,6 +285,29 @@ final class Minecraft189LockedTargetAcceptance {
                 + " sameReadB3D=" + nativeB3D
                 + " sameReadNearest=" + nearestIndex
                 + " sameReadRotation=" + rotationIndex;
+    }
+
+    /**
+     * Pure same-source initial witness classifier. The original Evidence
+     * predicate remains authoritative; this method cannot admit a target.
+     */
+    static String m291InitialAReason(final double a3D, final double b3D,
+            final int aIndex, final int bIndex,
+            final boolean nearestFound, final int nearestIndex,
+            final boolean aimAvailable, final int aimIndex) {
+        if (!Double.isFinite(a3D) || !Double.isFinite(b3D))
+            return "original-distance-not-finite";
+        if (aIndex < 0 || bIndex < 0 || aIndex == bIndex)
+            return "original-UUID-source-index-unavailable";
+        if (!(a3D >= 1 && a3D <= 3.25
+                && b3D >= 1 && b3D <= 3.25))
+            return "original-initial-A-or-B-outside-3D-bounds";
+        if (!(a3D + 0.12 < b3D))
+            return "original-A-not-nearer-by-source-margin";
+        if (!nearestFound || nearestIndex != aIndex
+                || !aimAvailable || aimIndex != aIndex)
+            return "original-initial-A-not-selected";
+        return "original-initial-A-witness-eligible";
     }
 
     private static final class Evidence {
