@@ -108,7 +108,8 @@ final class Minecraft189LockedTargetAcceptance {
             boolean playerHit, int index) {
         Evidence e=read(host);
         Minecraft189KillAuraModule aura=host.featureCatalog().killAura();
-        UUID uuid=e==null?null:e.ids.at(index);
+        UUID uuid=e==null || index<0 || index>=e.ids.entityCount()
+                ? null : e.ids.at(index);
         if (!aura.active() || !aura.lockTargetSetting().get()
                 || !playerHit || index<0 || e==null
                 || index>=e.ids.entityCount()
@@ -143,7 +144,61 @@ final class Minecraft189LockedTargetAcceptance {
         } else if (phase==6 && bUuid.equals(uuid)) {
             // Every later B click must still pass exact current native guard.
         } else throw new IllegalStateException("wrong locked target UUID phase="
-                +phase+" uuid="+uuid);
+                +phase+" uuid="+uuid
+                + m280WrongPhaseDiagnostic(
+                        phase, uuid, aUuid, bUuid,
+                        aura.lockedTargetUuid(), index,
+                        e == null ? -1 : e.a,
+                        e == null ? -1 : e.b,
+                        e == null ? Double.NaN : e.da,
+                        e == null ? Double.NaN : e.db,
+                        e == null ? -1 : e.near.entityIndex(),
+                        e == null ? -1 : e.aim.entityIndex(),
+                        e != null));
+    }
+
+    /**
+     * V280 fail-closed diagnostics from the SAME source-native Evidence
+     * read that rejected the current click. No additional getter, second
+     * source snapshot, target selection or native game action is performed.
+     */
+    static String m280WrongPhaseDiagnostic(final int rejectedPhase,
+            final UUID clickedUuid, final UUID expectedA,
+            final UUID expectedB, final UUID sourceLockedUuid,
+            final int clickedIndex, final int aIndex, final int bIndex,
+            final double nativeA3D, final double nativeB3D,
+            final int nearestIndex, final int rotationIndex,
+            final boolean sourceAvailable) {
+        final String reason;
+        if (!sourceAvailable) {
+            reason = "source-unavailable";
+        } else if ((rejectedPhase == 1 || rejectedPhase == 2)
+                && expectedB != null && expectedB.equals(clickedUuid)) {
+            reason = "B-click-before-A-retention";
+        } else if (rejectedPhase == 3
+                && expectedB != null && expectedB.equals(clickedUuid)) {
+            reason = "B-click-before-A-owned-attack";
+        } else if (expectedA != null && expectedA.equals(clickedUuid)) {
+            reason = "A-click-outside-allowed-phase";
+        } else if (expectedB != null && expectedB.equals(clickedUuid)) {
+            reason = "B-click-outside-allowed-phase";
+        } else {
+            reason = "unexpected-clicked-UUID";
+        }
+        return " sameReadReason=" + reason
+                + " sameReadAvailable=" + sourceAvailable
+                + " sameReadPhase=" + rejectedPhase
+                + " sameReadClickedIndex=" + clickedIndex
+                + " sameReadClickedUuid=" + clickedUuid
+                + " sameReadExpectedA=" + expectedA
+                + " sameReadExpectedB=" + expectedB
+                + " sameReadLockedUuid=" + sourceLockedUuid
+                + " sameReadAIndex=" + aIndex
+                + " sameReadBIndex=" + bIndex
+                + " sameReadA3D=" + nativeA3D
+                + " sameReadB3D=" + nativeB3D
+                + " sameReadNearest=" + nearestIndex
+                + " sameReadRotation=" + rotationIndex;
     }
 
     private static final class Evidence {
