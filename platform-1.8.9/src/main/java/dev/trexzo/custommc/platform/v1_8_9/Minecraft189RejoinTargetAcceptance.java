@@ -109,6 +109,32 @@ final class Minecraft189RejoinTargetAcceptance {
         return count;
     }
 
+    /** Read-only explanation of a genuine four-sentinel native World witness. */
+    static String m272SentinelReadinessReason(
+            final int baseline, final int observed,
+            final boolean originalSnapshotValid, final boolean bOnlyLocked) {
+        if (baseline < 0) return "native-baseline-unavailable";
+        if (!originalSnapshotValid) return "original-source-evidence-unavailable";
+        if (!bOnlyLocked) return "original-survivor-B-owner-not-locked";
+        if (observed < baseline) return "native-nonplayer-count-decreased";
+        if ((long)observed - baseline < 4L)
+            return "four-native-nonplayers-not-yet-observed";
+        return "four-native-nonplayers-observed";
+    }
+
+    /** Raw original World kind/UUID readback only: cannot authorize a hit. */
+    static int m272RawNativeNonplayerCount(
+            final Minecraft189WorldEntityUuidState.Snapshot ids,
+            final Minecraft189WorldEntityKindState.Snapshot kinds) {
+        if (ids == null || kinds == null || !ids.available()
+                || !kinds.available() || ids.entityCount() != kinds.entityCount())
+            return -1;
+        int count = 0;
+        for (int i = 0; i < ids.entityCount(); i++)
+            if (!kinds.player(i)) count++;
+        return count;
+    }
+
     /**
      * V51: independent original objectMouseOver/ray witness at the EXACT
      * Mojang automatic-click boundary. A valid sticky B UUID target does
@@ -301,7 +327,24 @@ final class Minecraft189RejoinTargetAcceptance {
                                     host.playerRotationState().snapshot(),
                                     host.playerPositionState().snapshot(),
                                     host.worldEntityPositionState().snapshot(),
-                                    host.worldEntityKindState().snapshot())));
+                                    host.worldEntityKindState().snapshot()))
+                    // Strict acceptance is unchanged; these fields only
+                    // expose why real server-spawned stands were not seen.
+                    + " sentinelBaseline=" + nativeNonPlayerBaseline
+                    + " sentinelStrictCount=" + sourceNonPlayerCount(e)
+                    + " sentinelRawCount=" + m272RawNativeNonplayerCount(
+                            host.worldEntityUuidState().snapshot(),
+                            host.worldEntityKindState().snapshot())
+                    + " nativeUuidCount="
+                            + host.worldEntityUuidState().snapshot().entityCount()
+                    + " nativeKindsCount="
+                            + host.worldEntityKindState().snapshot().entityCount()
+                    + " sentinelObserved=" + nativeSentinelObserved
+                    + " sentinelReason=" + m272SentinelReadinessReason(
+                            nativeNonPlayerBaseline, sourceNonPlayerCount(e),
+                            e != null, e != null && e.a == -1
+                                    && e.bOnlySelected()
+                                    && survivorUuid.equals(aura.lockedTargetUuid())));
             System.out.flush();
         }
         if (phase == 4
