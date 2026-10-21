@@ -25,6 +25,20 @@ on:
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189*Acceptance.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189*AcceptanceTest.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SimultaneousPriorityRevalidationTest.java'
+      # V281: the shipped original runtime includes bootstrap, core,
+      # launcher and platform-api. Edits to these production modules or
+      # runtime build wiring must exercise the genuine Mojang binary.
+      - 'bootstrap/src/main/java/**'
+      - 'core/src/main/java/**'
+      - 'launcher/src/main/java/**'
+      - 'platform-api/src/main/java/**'
+      - 'bootstrap/build.gradle.kts'
+      - 'core/build.gradle.kts'
+      - 'launcher/build.gradle.kts'
+      - 'platform-api/build.gradle.kts'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
       # V279: Every original 1.8.9 platform production source edit must
       # trigger the real pinned binary, including non-Module native helpers.
       # Prior narrow allowlists missed 89/336 root-package Java sources.
