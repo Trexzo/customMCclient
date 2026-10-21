@@ -219,7 +219,81 @@ class V279NativeProductionSourcePathCoverageTest(unittest.TestCase):
     def test_native_production_scope_is_explicit_and_not_global(self):
         self.assertIn("platform-1.8.9/src/main/java/**", pr_paths())
         self.assertFalse(triggered("docs/integration/v279-native-production-source-ci.md"))
-        self.assertFalse(triggered("core/src/main/java/Example.java"))
+        self.assertFalse(triggered("unrelated-module/src/main/java/Example.java"))
+
+
+
+
+class V281NativeSharedRuntimeSourcePathCoverageTest(unittest.TestCase):
+    """The real client links shared launcher, core, API and bootstrap code."""
+
+    def test_every_actual_shared_runtime_java_source_triggers_native(self):
+        for module in ("bootstrap", "core", "launcher", "platform-api"):
+            source_root = ROOT / module / "src" / "main" / "java"
+            sources = sorted(source_root.rglob("*.java"))
+            self.assertTrue(sources, "Missing production Java in " + module)
+            for source in sources:
+                path = source.relative_to(ROOT).as_posix()
+                with self.subTest(module=module, path=path):
+                    self.assertTrue(triggered(path), path)
+
+    def test_bootstrap_source_changes_must_not_be_foundation_only(self):
+        for name in ("TransformingTargetClassLoader",
+                     "BootstrapRuntimeSession",
+                     "BootstrapClassTransformer"):
+            with self.subTest(name=name):
+                self.assertTrue(triggered(
+                    "bootstrap/src/main/java/dev/trexzo/custommc/bootstrap/"
+                    + name + ".java"))
+
+    def test_shared_gui_and_event_runtime_updates_must_trigger_original(self):
+        for path in (
+            "core/src/main/java/dev/trexzo/custommc/core/event/EventBus.java",
+            "core/src/main/java/dev/trexzo/custommc/core/ui/clickgui/"
+                "ClickGuiInputController.java",
+            "core/src/main/java/dev/trexzo/custommc/core/module/"
+                "ModuleController.java",
+            "platform-api/src/main/java/dev/trexzo/custommc/platform/"
+                "GamePlatform.java",
+        ):
+            with self.subTest(path=path):
+                self.assertTrue(triggered(path))
+
+    def test_launcher_java_runtime_and_overlay_changes_trigger_original(self):
+        for path in (
+            "launcher/src/main/java/dev/trexzo/custommc/launcher/"
+                "LauncherMain.java",
+            "launcher/src/main/java/dev/trexzo/custommc/launcher/command/"
+                "LaunchRuntimeOverlayResolver.java",
+            "launcher/src/main/java/dev/trexzo/custommc/launcher/launch/"
+                "Minecraft189Launcher.java",
+            "launcher/src/main/java/dev/trexzo/custommc/launcher/natives/"
+                "NativeStager.java",
+        ):
+            with self.subTest(path=path):
+                self.assertTrue(triggered(path))
+
+    def test_all_existing_runtime_gradle_wiring_triggers_original(self):
+        build_files = sorted(
+            path for path in ROOT.rglob("build.gradle.kts")
+            if path == ROOT / "build.gradle.kts"
+            or path.parent.name in (
+                "bootstrap", "core", "launcher", "platform-api", "platform-1.8.9"
+            )
+        )
+        self.assertEqual(6, len(build_files))
+        for path in build_files:
+            with self.subTest(path=str(path)):
+                self.assertTrue(triggered(path.relative_to(ROOT).as_posix()))
+        for name in ("settings.gradle.kts", "gradle.properties"):
+            self.assertTrue(triggered(name))
+
+    def test_no_global_original_ci_trigger_for_unrelated_files(self):
+        self.assertFalse(triggered("README.md"))
+        self.assertFalse(triggered("docs/integration/v281-native-shared-runtime.md"))
+        self.assertFalse(triggered("launcher/src/test/java/ExampleTest.java"))
+        self.assertFalse(triggered("core/src/test/java/ExampleTest.java"))
+        self.assertFalse(triggered("scripts/unrelated_helper.py"))
 
 
 
