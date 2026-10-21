@@ -1958,6 +1958,29 @@ public final class Minecraft189RuntimeBridge {
                 final Object nonPlayer = kindState.available()
                         ? Minecraft189VanillaMeleeAcceptance.raycastLivingNonPlayer(
                                 minecraft, kindState.kindBits()) : null;
+                // V288: read-only diagnostic of the *existing* original
+                // raycast evaluation. No second vanilla or World access,
+                // no independent acceptance and no additional target query.
+                final Minecraft189OriginalNonPlayerRaycastTrace.Snapshot
+                        observedRay = Minecraft189VanillaMeleeAcceptance
+                            .originalNonPlayerRaycastDiagnostic();
+                if (observedRay.calls > 0
+                        && (observedRay.calls == 1
+                            || observedRay.calls % 40 == 0)) {
+                    System.out.println(
+                            "CUSTOMMC_189_ORIGINAL_NONPLAYER_RAY_DIAGNOSTIC"
+                            + " calls=" + observedRay.calls
+                            + " accepted=" + observedRay.validCallbacks
+                            + " decision=" + observedRay.decision
+                            + " nativeIndex=" + observedRay.nativeIndex
+                            + " nativeKindBits=" + observedRay.nativeKindBits
+                            + " nativeLoadedEntities=" + observedRay.nativeEntityCount
+                            + " nativeKindCount=" + observedRay.sourceKindCount
+                            + " consecutiveDisabled=" + killAuraDisabledTargetTicks
+                            + " consecutiveEnabled=" + killAuraEnabledVetoTicks
+                            + " auraEnabled=" + killAuraNonPlayerEnabled);
+                    System.out.flush();
+                }
                 if (nonPlayer == null
                         || (killAuraNonPlayerTarget != null
                                 && nonPlayer != killAuraNonPlayerTarget)) {
