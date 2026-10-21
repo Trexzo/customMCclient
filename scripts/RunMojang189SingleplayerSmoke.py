@@ -1509,9 +1509,44 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                         b"[CHAT] Object successfully summoned")
                     print("CUSTOMMC_189_MANUAL_MELEE_FIXED_NATIVE_ROOM_PASS=YES",
                           flush=True)
+                elif kill_aura_nonplayer:
+                    # V289: the same actually verified in-chunk original
+                    # vanilla chamber as successful manual melee. Previously
+                    # this scenario relied on unacknowledged relative
+                    # /fill, /tp and /summon around a random spawn. A real
+                    # summon acknowledgment alone never proves a native
+                    # crosshair raycast or any module veto.
+                    # Load chunk (0,0), establish genuine overhead support,
+                    # then build a closed chamber BELOW the grounded host.
+                    send_verified_original_chat_reply(
+                        process, log, window,
+                        "/tp CIProbe 8 200 8",
+                        b"[CHAT] Teleported CIProbe to 8.5, 200.0, 8.5")
+                    send_verified_fill(process, log, window,
+                                       "/fill 8 119 8 8 119 8 stone")
+                    send_verified_original_chat_reply(
+                        process, log, window,
+                        "/tp CIProbe 8 120 8",
+                        b"[CHAT] Teleported CIProbe to 8.5, 120.0, 8.5")
+                    time.sleep(1.0)
+                    send_verified_fill(process, log, window,
+                                       "/fill 4 99 4 12 104 13 stone")
+                    send_verified_fill(process, log, window,
+                                       "/fill 5 100 5 11 103 12 air")
+                    send_verified_original_chat_reply(
+                        process, log, window,
+                        "/tp CIProbe 8 100 8 0 26",
+                        b"[CHAT] Teleported CIProbe to 8.5, 100.0, 8.5")
+                    send_verified_original_chat_reply(
+                        process, log, window,
+                        "/summon Pig 8.5 100 10.5 {NoAI:1b}",
+                        b"[CHAT] Object successfully summoned")
+                    print(
+                        "CUSTOMMC_189_NONPLAYER_NATIVE_CHAMBER_SOURCE_READY=YES",
+                        flush=True)
                 else:
-                    # The separate module-negative/AutoClicker scenarios
-                    # keep their existing geometry and native requirements.
+                    # The separate AutoClicker scenario keeps its prior
+                    # geometry, original source callbacks and hit gates.
                     send_command(process, log, window,
                                  "/fill ~-3 ~-1 ~-3 ~3 ~-1 ~5 stone")
                     send_command(process, log, window,
