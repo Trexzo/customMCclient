@@ -167,8 +167,56 @@ final class Minecraft189SimultaneousTargetAcceptance {
         } else {
             throw new IllegalStateException(
                     "simultaneous attack crossed source-native UUID/phase="
-                    + phase + " uuid=" + current);
+                    + phase + " uuid=" + current
+                    + m280UnexpectedPhaseDiagnostic(phase, firstOwnedClick,
+                            current, firstUuid, secondUuid, playerIndex,
+                            ids.entityCount(), kinds.entityCount(),
+                            combat.entityCount(), nearest.entityIndex(),
+                            rotation.entityIndex(),
+                            kinds.player(playerIndex), combat.alive(playerIndex)));
         }
+    }
+
+    /**
+     * V280 exact first-rejecting UUID/phase and selected target witness.
+     * Consumes only the native snapshots ALREADY read and accepted for
+     * index validity in verifyOwnedClick. No second host/native read, no
+     * mutation of phase, ownership, or acceptance policy.
+     */
+    static String m280UnexpectedPhaseDiagnostic(final int rejectingPhase,
+            final boolean firstOwned,
+            final UUID clickedUuid, final UUID expectedA,
+            final UUID expectedB, final int clickedIndex,
+            final int uuidCount, final int kindCount, final int combatCount,
+            final int nearestIndex, final int rotationIndex,
+            final boolean clickedPlayer, final boolean clickedAlive) {
+        final String reason;
+        if (rejectingPhase == 1 && !firstOwned
+                && expectedB != null && expectedB.equals(clickedUuid)) {
+            reason = "B-click-before-first-A-owned-attack";
+        } else if (rejectingPhase == 2 && !firstOwned) {
+            reason = "phase-two-without-A-owned-attack";
+        } else if (expectedA != null && expectedA.equals(clickedUuid)) {
+            reason = "A-click-outside-allowed-phase";
+        } else if (expectedB != null && expectedB.equals(clickedUuid)) {
+            reason = "B-click-outside-allowed-phase";
+        } else {
+            reason = "non-A-B-native-UUID";
+        }
+        return " sameReadReason=" + reason
+                + " sameReadPhase=" + rejectingPhase
+                + " sameReadFirstOwnedClick=" + firstOwned
+                + " sameReadClickedIndex=" + clickedIndex
+                + " sameReadClickedUuid=" + clickedUuid
+                + " sameReadExpectedA=" + expectedA
+                + " sameReadExpectedB=" + expectedB
+                + " sameReadUuidCount=" + uuidCount
+                + " sameReadKindCount=" + kindCount
+                + " sameReadCombatCount=" + combatCount
+                + " sameReadNearest=" + nearestIndex
+                + " sameReadRotation=" + rotationIndex
+                + " sameReadClickedPlayer=" + clickedPlayer
+                + " sameReadClickedAlive=" + clickedAlive;
     }
 
     /**
