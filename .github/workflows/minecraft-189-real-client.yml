@@ -43,6 +43,11 @@ on:
       # trigger the real pinned binary, including non-Module native helpers.
       # Prior narrow allowlists missed 89/336 root-package Java sources.
       - 'platform-1.8.9/src/main/java/**'
+      # V283: All platform test sources and supporting Java fixtures affect
+      # original acceptance coverage, including the alternate package's
+      # net.minecraft.client.main.Main test-only entrypoint. Any nested
+      # test helper change must schedule the genuine Mojang CI.
+      - 'platform-1.8.9/src/test/java/**'
       # V278: ALL 1.8.9 platform regression test-only edits must also
       # trigger the ACTUAL pinned original Minecraft binary suite.
       # Previous AcceptanceTest / Minecraft189*Test globs excluded eight
