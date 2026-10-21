@@ -273,6 +273,7 @@ public final class Minecraft189RuntimeBridge {
         Minecraft189SimultaneousTargetAcceptance.reset();
         Minecraft189LockedTargetAcceptance.reset();
         Minecraft189RejoinTargetAcceptance.reset();
+        originalScaffoldRayTraceEvidence.reset();
         acceptanceDisabledTargetTicks = 0;
         acceptanceAutoClickerEnabled = false;
         acceptanceTriggerDisabledTargetTicks = 0;
@@ -1535,6 +1536,9 @@ public final class Minecraft189RuntimeBridge {
     // V19 original-game-only authoritative raytrace proof. No clicked block.
     private static boolean scaffoldNativeRayTraceReported;
     private static boolean scaffoldNativeRayTraceNegativeReported;
+    private static final Minecraft189OriginalScaffoldRayTraceProvenance
+            originalScaffoldRayTraceEvidence =
+            new Minecraft189OriginalScaffoldRayTraceProvenance();
 
     public static synchronized void worldEntityPositions(
             final Minecraft189WorldEntityPositionsAccess world) {
@@ -1543,10 +1547,19 @@ public final class Minecraft189RuntimeBridge {
         if (host != null) {
             host.worldEntityPositions(world);
         }
-        if (!scaffoldNativeRayTraceReported
-                && Boolean.getBoolean("custommc.acceptance.requireNativeScaffoldRayTrace")
-                && world instanceof Minecraft189ScaffoldWorldReadAccess
-                && world instanceof Minecraft189ScaffoldWorldRayTraceAccess) {
+        final boolean observeOriginalScaffoldRay =
+                !scaffoldNativeRayTraceReported
+                && Boolean.getBoolean(
+                    "custommc.acceptance.requireNativeScaffoldRayTrace");
+        final boolean originalCellSource =
+                world instanceof Minecraft189ScaffoldWorldReadAccess;
+        final boolean originalRaySource =
+                world instanceof Minecraft189ScaffoldWorldRayTraceAccess;
+        if (observeOriginalScaffoldRay)
+            originalScaffoldRayTraceEvidence.observeInterfaces(
+                    originalCellSource, originalRaySource);
+        if (observeOriginalScaffoldRay
+                && originalCellSource && originalRaySource) {
             final Minecraft189ScaffoldWorldReadAccess cells =
                     (Minecraft189ScaffoldWorldReadAccess)world;
             final Minecraft189ScaffoldWorldRayTraceAccess trace =
@@ -1556,7 +1569,11 @@ public final class Minecraft189RuntimeBridge {
                 // required, then use source World.rayTraceBlocks from above
                 // through its UP face. The ray endpoint is 0.5 inside stone
                 // to avoid an endpoint exactly at an ambiguous voxel border.
-                if (cells.customMcScaffoldCellCode(0, 99, 0)
+                final int originalCell =
+                        cells.customMcScaffoldCellCode(0, 99, 0);
+                originalScaffoldRayTraceEvidence.observeCell(originalCell,
+                        Minecraft189ScaffoldWorldReadAccess.FULL_SOLID);
+                if (originalCell
                         == Minecraft189ScaffoldWorldReadAccess.FULL_SOLID) {
                     final boolean correct=trace.customMcScaffoldRayTraceSupport(
                             0.5D,102.0D,0.5D,0.5D,99.5D,0.5D,
@@ -1567,6 +1584,10 @@ public final class Minecraft189RuntimeBridge {
                     final boolean wrongBlock=trace.customMcScaffoldRayTraceSupport(
                             0.5D,102.0D,0.5D,0.5D,99.5D,0.5D,
                             1,99,0,1);
+                    // Observe results of those SAME three original calls.
+                    // No additional ray or World lookup, ever.
+                    originalScaffoldRayTraceEvidence.observeRayResults(
+                            correct, wrongFace, wrongBlock);
                     if (wrongFace || wrongBlock)
                         throw new IllegalStateException(
                                 "original Scaffold raytrace accepted wrong face/BlockPos");
@@ -1586,6 +1607,30 @@ public final class Minecraft189RuntimeBridge {
                 throw new IllegalStateException(
                         "original Scaffold World raytrace source failure",
                         sourceRayUnavailable);
+            }
+        }
+        if (observeOriginalScaffoldRay) {
+            final Minecraft189OriginalScaffoldRayTraceProvenance.Snapshot
+                    originalRayEvidence =
+                    originalScaffoldRayTraceEvidence.snapshot();
+            if (originalRayEvidence.sourceCallbacks == 1
+                    || originalRayEvidence.sourceCallbacks % 100 == 0
+                    || scaffoldNativeRayTraceReported) {
+                System.out.println(
+                        "CUSTOMMC_189_ORIGINAL_SCAFFOLD_RAY_SOURCE_DIAGNOSTIC"
+                        + " sourceCallbacks=" + originalRayEvidence.sourceCallbacks
+                        + " missingInterfaces=" + originalRayEvidence.missingInterfaces
+                        + " checkedCells=" + originalRayEvidence.worldCellChecks
+                        + " fullSolidCells=" + originalRayEvidence.fullSolidCells
+                        + " otherCells=" + originalRayEvidence.unavailableOrOtherCells
+                        + " rayBatches=" + originalRayEvidence.correctFaceRayCalls
+                        + " correctFaceHits=" + originalRayEvidence.correctFaceHits
+                        + " wrongFaceHits=" + originalRayEvidence.wrongFaceHits
+                        + " wrongBlockHits=" + originalRayEvidence.wrongBlockHits
+                        + " lastCellCode=" + originalRayEvidence.lastCellCode
+                        + " lastDecision=" + originalRayEvidence.lastDecision
+                        + " originalUpFaceReported=" + scaffoldNativeRayTraceReported);
+                System.out.flush();
             }
         }
         if (Boolean.getBoolean(
