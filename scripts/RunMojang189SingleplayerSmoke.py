@@ -398,14 +398,14 @@ def verify_original_v19_stone_after_reseat(process, log, window):
             fresh = handle.read().lower()
         # Source vanilla 1.8.9 testforblock acknowledgement is distinct
         # from the V19 native raytracer. This is ONLY World-cell evidence.
-        if b"[chat] successfully found the block" in fresh:
-            print("CUSTOMMC_189_V19_ORIGINAL_STONE_READBACK=YES", flush=True)
-            return
         if (b"[chat] unknown command" in fresh
                 or b"[chat] the block at" in fresh
                 or b"[chat] cannot" in fresh):
             raise AssertionError(
                 "original V19 post-reseat vanilla stone testforblock rejected")
+        if b"[chat] successfully found the block" in fresh:
+            print("CUSTOMMC_189_V19_ORIGINAL_STONE_READBACK=YES", flush=True)
+            return
         time.sleep(.2)
     raise AssertionError(
         "no fresh original V19 post-reseat vanilla stone readback "
