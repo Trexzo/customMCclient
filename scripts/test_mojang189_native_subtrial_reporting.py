@@ -59,10 +59,12 @@ class OriginalMojangNativeSubtrialReportTest(unittest.TestCase):
         for marker, label in CASES:
             with self.subTest(label=label):
                 block = self.trial_block(marker)
-                self.assertIn('for attempt in 1 2; do', self.source[
-                    self.source.rfind('          for attempt',0,
-                                      self.source.index('echo "'+marker),0)
-                    :self.source.index('echo "'+marker)])
+                marker_at = self.source.index('echo "' + marker + '=$attempt"')
+                step_at = self.source.rfind("      - name:", 0, marker_at)
+                loop_at = self.source.rfind("for attempt in 1 2; do",
+                                            step_at, marker_at)
+                self.assertGreater(loop_at, step_at,
+                                   "native trial must be in this exact step")
                 self.assertIn('test "$accepted" -eq 1', block)
                 self.assertIn('accepted=1', block)
                 self.assertIn('break', block)
