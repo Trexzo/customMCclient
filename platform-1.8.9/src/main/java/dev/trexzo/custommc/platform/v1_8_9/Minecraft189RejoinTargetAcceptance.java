@@ -1,6 +1,9 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
 import java.util.UUID;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Collections;
 
 /**
  * Opt-in test-only witness for real vanilla Minecraft 1.8.9 disconnect
@@ -14,6 +17,10 @@ final class Minecraft189RejoinTargetAcceptance {
     private static int firstOriginalIndex = -1;
     private static int nativeNonPlayerBaseline = -1;
     private static boolean nativeSentinelObserved;
+    // Exact original UUID identities at the 15-tick B-only boundary.
+    // Diagnostic ONLY; does not replace the existing net-count gate.
+    private static Set<UUID> nativeBaselineNonplayerUuids;
+    private static boolean nativeFourNovelUuidDiagnosticReported;
     private static boolean realBControllerReported;
     private static boolean realBControllerEntityUuidReported;
     private static UUID staleControllerIntentUuid;
@@ -35,6 +42,8 @@ final class Minecraft189RejoinTargetAcceptance {
         firstOriginalIndex = -1;
         nativeNonPlayerBaseline = -1;
         nativeSentinelObserved = false;
+        nativeBaselineNonplayerUuids = null;
+        nativeFourNovelUuidDiagnosticReported = false;
         realBControllerReported = false;
         realBControllerEntityUuidReported = false;
         staleControllerIntentUuid = null;
@@ -107,6 +116,50 @@ final class Minecraft189RejoinTargetAcceptance {
         for (int i = 0; i < evidence.ids.entityCount(); i++)
             if (!evidence.kinds.player(i)) count++;
         return count;
+    }
+
+    /**
+     * Frozen original native nonplayer UUID identities. A UUID rather than
+     * an index remains stable if loadedEntityList changes its order.
+     * An invalid original UUID/kinds snapshot must not create evidence.
+     */
+    static Set<UUID> m273BaselineNonplayerUuids(
+            final Minecraft189WorldEntityUuidState.Snapshot ids,
+            final Minecraft189WorldEntityKindState.Snapshot kinds) {
+        if (ids == null || kinds == null || !ids.available()
+                || !kinds.available()
+                || ids.entityCount() != kinds.entityCount())
+            return null;
+        final Set<UUID> result = new HashSet<UUID>();
+        for (int i = 0; i < ids.entityCount(); i++) {
+            final UUID id = ids.at(i);
+            if (id == null) return null;
+            if (!kinds.player(i) && !result.add(id)) return null;
+        }
+        return Collections.unmodifiableSet(result);
+    }
+
+    /**
+     * Counts four distinct NEW original nonplayer UUIDs, not a delta of
+     * total World entity count. Only logging can consume this result.
+     * Baseline source must be captured BEFORE server summons. Absence
+     * returns -1; neither zero nor an invalid source qualifies as proof.
+     */
+    static int m273NovelNativeNonplayerCount(
+            final Set<UUID> baseline,
+            final Minecraft189WorldEntityUuidState.Snapshot ids,
+            final Minecraft189WorldEntityKindState.Snapshot kinds) {
+        if (baseline == null || ids == null || kinds == null
+                || !ids.available() || !kinds.available()
+                || ids.entityCount() != kinds.entityCount()) return -1;
+        final Set<UUID> observed = new HashSet<UUID>();
+        for (int i = 0; i < ids.entityCount(); i++) {
+            if (kinds.player(i)) continue;
+            final UUID id = ids.at(i);
+            if (id == null) return -1;
+            if (!baseline.contains(id) && !observed.add(id)) return -1;
+        }
+        return observed.size();
     }
 
     /** Read-only explanation of a genuine four-sentinel native World witness. */
@@ -332,6 +385,12 @@ final class Minecraft189RejoinTargetAcceptance {
                     // expose why real server-spawned stands were not seen.
                     + " sentinelBaseline=" + nativeNonPlayerBaseline
                     + " sentinelStrictCount=" + sourceNonPlayerCount(e)
+                    + " sentinelNovelUuidCount=" + m273NovelNativeNonplayerCount(
+                            nativeBaselineNonplayerUuids,
+                            host.worldEntityUuidState().snapshot(),
+                            host.worldEntityKindState().snapshot())
+                    + " sentinelNovelFourSeen="
+                            + nativeFourNovelUuidDiagnosticReported
                     + " sentinelRawCount=" + m272RawNativeNonplayerCount(
                             host.worldEntityUuidState().snapshot(),
                             host.worldEntityKindState().snapshot())
@@ -421,11 +480,29 @@ final class Minecraft189RejoinTargetAcceptance {
                 if (++aloneTicks>=15) {
                     phase=3;
                     nativeNonPlayerBaseline = sourceNonPlayerCount(e);
+                    nativeBaselineNonplayerUuids =
+                            m273BaselineNonplayerUuids(e.ids, e.kinds);
+                    nativeFourNovelUuidDiagnosticReported = false;
                     System.out.println("CUSTOMMC_189_REJOIN_OLD_A_UNLOADED_B_LOCKED_PASS=15");
                     System.out.flush();
                 }
             } else aloneTicks=0;
         } else if (phase==3) {
+            // V273 READ-ONLY: genuine current native IDs, not net count.
+            // A positive diagnostic NEVER prints M417's PASS marker.
+            if (!nativeFourNovelUuidDiagnosticReported && e != null) {
+                final int newIds = m273NovelNativeNonplayerCount(
+                        nativeBaselineNonplayerUuids, e.ids, e.kinds);
+                if (newIds >= 4) {
+                    nativeFourNovelUuidDiagnosticReported = true;
+                    System.out.println(
+                            "CUSTOMMC_189_REJOIN_FOUR_NOVEL_NATIVE_UUID_DIAG=YES"
+                            + " newOriginalNonplayerUuids=" + newIds
+                            + " currentNetCount=" + sourceNonPlayerCount(e)
+                            + " baselineNetCount=" + nativeNonPlayerBaseline);
+                    System.out.flush();
+                }
+            }
             // M417: a native nonplayer addition must be OBSERVED by the
             // original host after A has genuinely left, before its fresh
             // JVM returns. Dedicated-server summon output alone is not proof.
