@@ -108,3 +108,101 @@ class OriginalV19ConfirmedWorldRaytraceSupportTest(TestCase):
         self.assertLess(
             v19.index("prepare_verified_original_scaffold_raytrace_support("),
             v19.index("SCAFFOLD_RAYTRACE_WRONG_FACE_BLOCK_VETO_PASS=YES"))
+
+
+class OriginalV271AfterReseatStoneReadbackTest(TestCase):
+    """V19 requires ACTUAL integrated-server cell evidence before raytrace."""
+
+    def readback(self, *, prior=b"", fresh=b"", monotonic=None):
+        with TemporaryDirectory() as root:
+            log=Path(root)/"original-client.log"
+            log.write_bytes(prior)
+            commands=[]
+            def native_command(_proc, filename, _window, command):
+                commands.append(command)
+                if fresh:
+                    with filename.open("ab") as stream:
+                        stream.write(fresh)
+            patches=[
+                patch.object(smoke,"send_command",side_effect=native_command),
+                patch.object(smoke,"require_running"),
+                patch.object(smoke.time,"sleep"),
+            ]
+            if monotonic is not None:
+                patches.append(patch.object(smoke.time,"monotonic",
+                                            side_effect=monotonic))
+            for ctx in patches:ctx.__enter__()
+            try:
+                smoke.verify_original_v19_stone_after_reseat(
+                    object(),log,"original-X11")
+            finally:
+                for ctx in reversed(patches):ctx.__exit__(None,None,None)
+            return commands
+
+    def test_actual_fresh_original_stone_after_reseat_acknowledged(self):
+        self.assertEqual(self.readback(
+            fresh=b"[CHAT] Successfully found the block at 0, 99, 0.\n"),
+            ["/testforblock 0 99 0 stone"])
+
+    def test_stale_previous_chat_confirmation_cannot_authorize_new_stone(self):
+        with self.assertRaisesRegex(AssertionError,
+                                    "no fresh original V19 post-reseat"):
+            self.readback(
+                prior=b"[CHAT] Successfully found the block at 0, 99, 0.\n",
+                fresh=b"",monotonic=[0.,9.])
+
+    def test_missing_success_is_never_interpreted_as_stone(self):
+        with self.assertRaisesRegex(AssertionError,
+                                    "no fresh original V19 post-reseat"):
+            self.readback(fresh=b"[CHAT] Teleported CIProbe to 0.5, 100.0, 0.5\n",
+                          monotonic=[0.,0.1,9.])
+
+    def test_original_wrong_block_readback_fails_closed(self):
+        for rejected in (
+            b"[CHAT] The block at 0, 99, 0 is minecraft:air\n",
+            b"[CHAT] Unknown command. Type /help for help\n",
+            b"[CHAT] Cannot test blocks outside the world\n",
+        ):
+            with self.subTest(rejected=rejected):
+                with self.assertRaisesRegex(AssertionError, "testforblock rejected"):
+                    self.readback(fresh=rejected)
+
+    def test_rejection_even_if_positive_marker_interleaves_never_passes(self):
+        with self.assertRaisesRegex(AssertionError, "testforblock rejected"):
+            self.readback(fresh=(
+                b"[CHAT] The block at 0, 99, 0 is air\n"
+                b"[CHAT] Successfully found the block at 0, 99, 0.\n"
+            ))
+
+    def test_success_marker_cannot_replace_mandatory_native_face_hit(self):
+        source=Path(smoke.__file__).read_text(encoding="utf8")
+        begin=source.index("            if native_scaffold_raytrace:")
+        end=source.index('            require_running(process, "post world checkpoint")',
+                         begin)
+        step=source[begin:end]
+        self.assertIn("verify_original_v19_stone_after_reseat(process, log, window)",
+                      step)
+        self.assertIn("SCAFFOLD_RAYTRACE_WRONG_FACE_BLOCK_VETO_PASS=YES",step)
+        self.assertIn("SCAFFOLD_NATIVE_WORLD_UP_FACE_RAYTRACE_PASS=YES",step)
+        self.assertEqual(step.count("await_marker(process, log,"),2)
+        # Compare real await_marker CALLS, not mention of the same
+        # marker strings in explanatory comments above those calls.
+        first=step.index("await_marker(process, log,")
+        second=step.index("await_marker(process, log,",first+1)
+        self.assertLess(
+            step.index("verify_original_v19_stone_after_reseat("),first)
+        self.assertIn(
+            "SCAFFOLD_RAYTRACE_WRONG_FACE_BLOCK_VETO_PASS=YES",
+            step[first:second])
+        self.assertIn(
+            "SCAFFOLD_NATIVE_WORLD_UP_FACE_RAYTRACE_PASS=YES",
+            step[second:])
+
+    def test_readback_helper_cannot_emit_native_raytrace_pass(self):
+        source=Path(smoke.__file__).read_text(encoding="utf8")
+        start=source.index("def verify_original_v19_stone_after_reseat(")
+        end=source.index("def prepare_verified_original_scaffold_survival_edge(",start)
+        helper=source[start:end]
+        self.assertIn('"/testforblock 0 99 0 stone"',helper)
+        self.assertNotIn("NATIVE_WORLD_UP_FACE_RAYTRACE_PASS=YES",helper)
+        self.assertNotIn("WRONG_FACE_BLOCK_VETO_PASS=YES",helper)

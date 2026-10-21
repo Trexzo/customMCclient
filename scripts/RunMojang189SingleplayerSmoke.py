@@ -381,6 +381,37 @@ def prepare_verified_original_scaffold_raytrace_support(
                        "/fill 0 99 0 0 99 0 stone")
 
 
+def verify_original_v19_stone_after_reseat(process, log, window):
+    """Read genuine vanilla World cell AFTER the final V19 source teleport.
+
+    A successful /fill ACK means stone changed at command time. It does NOT
+    prove the server World still has that stone after returning the original
+    player to y=100. Never replace the real UP-face rayTraceBlocks marker.
+    """
+    cursor = log.stat().st_size if log.exists() else 0
+    send_command(process, log, window, "/testforblock 0 99 0 stone")
+    stop = time.monotonic() + 8
+    while time.monotonic() < stop:
+        require_running(process, "original V19 post-reseat stone readback")
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read().lower()
+        # Source vanilla 1.8.9 testforblock acknowledgement is distinct
+        # from the V19 native raytracer. This is ONLY World-cell evidence.
+        if (b"[chat] unknown command" in fresh
+                or b"[chat] the block at" in fresh
+                or b"[chat] cannot" in fresh):
+            raise AssertionError(
+                "original V19 post-reseat vanilla stone testforblock rejected")
+        if b"[chat] successfully found the block" in fresh:
+            print("CUSTOMMC_189_V19_ORIGINAL_STONE_READBACK=YES", flush=True)
+            return
+        time.sleep(.2)
+    raise AssertionError(
+        "no fresh original V19 post-reseat vanilla stone readback "
+        "before bounded deadline")
+
+
 def prepare_verified_original_scaffold_survival_edge(
         process, log, window):
     """A genuine block-edge fixture with independently changed World cells.
@@ -1392,6 +1423,10 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 prepare_verified_original_scaffold_raytrace_support(
                     process, log, window)
                 send_command(process, log, window, "/tp 0.5 100 0.5 0 0")
+                # Added World evidence is STRICTLY upstream of both
+                # unchanged true native raytrace + wrong-face checkpoints.
+                # It must never act as their success signal.
+                verify_original_v19_stone_after_reseat(process, log, window)
                 await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_RAYTRACE_WRONG_FACE_BLOCK_VETO_PASS=YES",
                              deadline, "original raytrace rejects wrong support and facing")
