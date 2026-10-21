@@ -177,5 +177,51 @@ class V278NativeRegressionPathCoverageTest(unittest.TestCase):
             TEST + "*Test.java", pr_paths())
 
 
+
+class V279NativeProductionSourcePathCoverageTest(unittest.TestCase):
+    """All genuine 1.8.9 platform Java production edits require native CI."""
+
+    def test_all_actual_platform_java_sources_trigger_original_mojang(self):
+        source_root = ROOT / "platform-1.8.9" / "src" / "main" / "java"
+        sources = sorted(source_root.rglob("*.java"))
+        self.assertTrue(sources, "Missing Java platform source tree")
+        for source in sources:
+            path = source.relative_to(ROOT).as_posix()
+            with self.subTest(path=path):
+                self.assertTrue(triggered(path), path)
+
+    def test_previous_unprotected_original_runtime_helpers_trigger(self):
+        # Previously absent from the *Module/*Feature/*SourceLease and
+        # manually enumerated native helper allowlists.
+        for name in (
+            "Minecraft189AutoPotSourceCast.java",
+            "Minecraft189AutoPotRegenerationGuard.java",
+            "Minecraft189KillAuraTargetSelector.java",
+            "Minecraft189ClickGuiRuntime.java",
+            "Minecraft189HotbarSlotState.java",
+            "Minecraft189PlayerHealthAccess.java",
+            "Minecraft189PlayerHeldItemAccess.java",
+            "Minecraft189Hooks.java",
+        ):
+            with self.subTest(name=name):
+                self.assertTrue(triggered(SRC + name))
+
+    def test_native_nested_platform_input_and_ui_sources_trigger(self):
+        source_root = ROOT / SRC
+        for folder in ("input", "ui"):
+            sources = sorted((source_root / folder).rglob("*.java"))
+            self.assertTrue(sources, "No original sources in " + folder)
+            for source in sources:
+                path = source.relative_to(ROOT).as_posix()
+                with self.subTest(path=path):
+                    self.assertTrue(triggered(path), path)
+
+    def test_native_production_scope_is_explicit_and_not_global(self):
+        self.assertIn("platform-1.8.9/src/main/java/**", pr_paths())
+        self.assertFalse(triggered("docs/integration/v279-native-production-source-ci.md"))
+        self.assertFalse(triggered("core/src/main/java/Example.java"))
+
+
+
 if __name__ == "__main__":
     unittest.main()

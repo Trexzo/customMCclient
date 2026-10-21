@@ -25,6 +25,10 @@ on:
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189*Acceptance.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189*AcceptanceTest.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SimultaneousPriorityRevalidationTest.java'
+      # V279: Every original 1.8.9 platform production source edit must
+      # trigger the real pinned binary, including non-Module native helpers.
+      # Prior narrow allowlists missed 89/336 root-package Java sources.
+      - 'platform-1.8.9/src/main/java/**'
       # V278: ALL 1.8.9 platform regression test-only edits must also
       # trigger the ACTUAL pinned original Minecraft binary suite.
       # Previous AcceptanceTest / Minecraft189*Test globs excluded eight
