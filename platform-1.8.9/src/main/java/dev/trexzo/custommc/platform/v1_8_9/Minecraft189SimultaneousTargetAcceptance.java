@@ -103,12 +103,19 @@ final class Minecraft189SimultaneousTargetAcceptance {
             // snapshot callback and the attack callback. Recognize B ONLY
             // when the CURRENT full native world still establishes BOTH
             // eligible living player UUIDs and B is nearer/selected.
-            final Evidence switched = read(host);
+            final StringBuilder sameRead = new StringBuilder();
+            final Evidence switched = read(host, sameRead);
             if (switched == null || !switched.bNearest
                     || playerIndex != switched.bIndex) {
                 throw new IllegalStateException(
                         "simultaneous early B click without both-eligible "
                         + "live native priority evidence"
+                        + " rejectedSameRead=" + m276FailureAtOriginalRead(
+                                sameRead.toString(), playerIndex,
+                                switched == null ? -1 : switched.bIndex)
+                        // This separate late source read can differ from the
+                        // REJECTING same-read witness above. It is diagnostic
+                        // only, not a second chance to authorize the click.
                         + m274EarlyBClickSourceDiagnostics(host, playerIndex));
             }
             phase = 2;
@@ -162,6 +169,28 @@ final class Minecraft189SimultaneousTargetAcceptance {
                     "simultaneous attack crossed source-native UUID/phase="
                     + phase + " uuid=" + current);
         }
+    }
+
+    /**
+     * Same-rejecting-read reason retains its provenance even when the later
+     * V274 diagnostic source reads a different World position/target.
+     */
+    static String m276FailureAtOriginalRead(
+            final String originalReadReason, final int clickedIndex,
+            final int originalReadBIndex) {
+        if (originalReadReason == null || originalReadReason.isEmpty())
+            return "original-rejection-diagnostic-missing";
+        final String accepted =
+                "original-both-eligible-B-priority-present-on-diagnostic-read";
+        if (!originalReadReason.startsWith(accepted))
+            return originalReadReason;
+        if (clickedIndex < 0 || clickedIndex != originalReadBIndex)
+            return "original-B-index-changed-before-click"
+                    + " clicked=" + clickedIndex
+                    + " originalB=" + originalReadBIndex
+                    + " " + originalReadReason;
+        return "original-reject-with-valid-source-needs-investigation"
+                + " " + originalReadReason;
     }
 
     /**
@@ -281,6 +310,16 @@ final class Minecraft189SimultaneousTargetAcceptance {
     }
 
     private static Evidence read(final Minecraft189HostRuntime host) {
+        return read(host, null);
+    }
+
+    /**
+     * When requested, attach the decision reason from EXACTLY the native
+     * snapshots used by the rejecting original two-player read. The same
+     * source values and selection gates still decide the actual attack.
+     */
+    private static Evidence read(final Minecraft189HostRuntime host,
+            final StringBuilder sameReadReason) {
         if (firstUuid == null) {
             firstUuid = UUID.fromString(
                     System.getProperty("custommc.acceptance.targetAUuid"));
@@ -307,17 +346,49 @@ final class Minecraft189SimultaneousTargetAcceptance {
                 || !positions.available() || !local.available()
                 || ids.entityCount() != kinds.entityCount()
                 || ids.entityCount() != combat.entityCount()
-                || ids.entityCount() != positions.entityCount()) return null;
+                || ids.entityCount() != positions.entityCount()) {
+            if (sameReadReason != null) {
+                sameReadReason.append("original-world-snapshots-unavailable-or-misaligned")
+                        .append(" uuidCount=").append(ids.entityCount())
+                        .append(" kindsCount=").append(kinds.entityCount())
+                        .append(" combatCount=").append(combat.entityCount())
+                        .append(" positionsCount=").append(positions.entityCount())
+                        .append(" localAvailable=").append(local.available());
+            }
+            return null;
+        }
         int a = -1, b = -1, remotes = 0;
+        int originalAIndex = -1, originalBIndex = -1;
+        boolean originalAAlive = false, originalBAlive = false;
         for (int index = 0; index < kinds.entityCount(); index++) {
             if (!kinds.player(index) || kinds.localPlayer(index)) continue;
             remotes++;
-            if (kinds.living(index) && combat.alive(index)) {
-                if (firstUuid.equals(ids.at(index))) a = index;
-                if (secondUuid.equals(ids.at(index))) b = index;
+            final boolean alive = kinds.living(index) && combat.alive(index);
+            if (firstUuid.equals(ids.at(index))) {
+                originalAIndex = index;
+                originalAAlive = alive;
+                if (alive) a = index;
+            }
+            if (secondUuid.equals(ids.at(index))) {
+                originalBIndex = index;
+                originalBAlive = alive;
+                if (alive) b = index;
             }
         }
-        if (remotes != 2 || a < 0 || b < 0 || a == b) return null;
+        if (remotes != 2 || a < 0 || b < 0 || a == b) {
+            if (sameReadReason != null) {
+                sameReadReason.append(m274PriorityReason(
+                        true, remotes, originalAIndex, originalBIndex,
+                        originalAAlive, originalBAlive, Double.NaN, Double.NaN,
+                        false, false))
+                        .append(" remoteCount=").append(remotes)
+                        .append(" originalAIndex=").append(originalAIndex)
+                        .append(" originalBIndex=").append(originalBIndex)
+                        .append(" AAlive=").append(originalAAlive)
+                        .append(" BAlive=").append(originalBAlive);
+            }
+            return null;
+        }
         final double adx = positions.x(a) - local.x();
         final double ady = positions.y(a) - local.y();
         final double adz = positions.z(a) - local.z();
@@ -328,7 +399,16 @@ final class Minecraft189SimultaneousTargetAcceptance {
         final double bdist = Math.sqrt(bdx * bdx + bdy * bdy + bdz * bdz);
         if (!Double.isFinite(adist) || !Double.isFinite(bdist)
                 || adist < 1.0D || adist > 3.5D
-                || bdist < 1.0D || bdist > 3.5D) return null;
+                || bdist < 1.0D || bdist > 3.5D) {
+            if (sameReadReason != null) {
+                sameReadReason.append(m274PriorityReason(
+                        true, remotes, a, b, true, true, adist, bdist,
+                        false, false))
+                        .append(" originalA3D=").append(adist)
+                        .append(" originalB3D=").append(bdist);
+            }
+            return null;
+        }
         // Require BOTH living players to remain eligible by actual distance,
         // not one eligible while another is safely far away (M412's scope).
         final boolean aPriority = adist + 0.12D < bdist;
@@ -339,6 +419,17 @@ final class Minecraft189SimultaneousTargetAcceptance {
         final boolean bSelected = bPriority && nearest.found()
                 && nearest.entityIndex() == b && rotation.available()
                 && rotation.entityIndex() == b;
+        if (sameReadReason != null) {
+            sameReadReason.append(m274PriorityReason(
+                    true, remotes, a, b, true, true, adist, bdist,
+                    nearest.found() && nearest.entityIndex() == b,
+                    rotation.available() && rotation.entityIndex() == b))
+                    .append(" originalA3D=").append(adist)
+                    .append(" originalB3D=").append(bdist)
+                    .append(" originalNearest=").append(nearest.entityIndex())
+                    .append(" originalRotation=").append(rotation.entityIndex())
+                    .append(" originalBIndex=").append(b);
+        }
         return new Evidence(a, b, aSelected, bSelected, nearest, rotation,
                 kinds, combat, ids);
     }
