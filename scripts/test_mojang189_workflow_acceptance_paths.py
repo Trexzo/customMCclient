@@ -297,5 +297,42 @@ class V281NativeSharedRuntimeSourcePathCoverageTest(unittest.TestCase):
 
 
 
+
+class V283EntireOriginalPlatformTestFixturePathCoverageTest(unittest.TestCase):
+    """Every actual native-platform test source edit launches original CI."""
+
+    def test_every_existing_native_platform_test_file_triggers(self):
+        test_root = ROOT / "platform-1.8.9" / "src" / "test" / "java"
+        sources = sorted(path for path in test_root.rglob("*")
+                         if path.is_file())
+        self.assertTrue(sources, "Missing original platform test sources")
+        for path in sources:
+            relative = path.relative_to(ROOT).as_posix()
+            with self.subTest(path=relative):
+                self.assertTrue(triggered(relative), relative)
+
+    def test_original_platform_main_stub_outside_main_package_triggers(self):
+        self.assertTrue(triggered(
+            "platform-1.8.9/src/test/java/net/minecraft/client/main/Main.java"))
+
+    def test_future_nested_test_sources_and_non_test_fixture_names_trigger(self):
+        base = "platform-1.8.9/src/test/java/"
+        for suffix in (
+            "net/minecraft/client/main/Main.java",
+            "dev/trexzo/custommc/platform/v1_8_9/ui/NestedAcceptanceTest.java",
+            "dev/trexzo/custommc/platform/v1_8_9/fixture/NativeHelper.java",
+            "another/package/FixtureOwner.java",
+        ):
+            with self.subTest(path=suffix):
+                self.assertTrue(triggered(base + suffix))
+
+    def test_scope_excludes_other_project_tests_and_unrelated_docs(self):
+        self.assertIn("platform-1.8.9/src/test/java/**", pr_paths())
+        self.assertFalse(triggered("core/src/test/java/SomeTest.java"))
+        self.assertFalse(triggered("launcher/src/test/java/SomeTest.java"))
+        self.assertFalse(triggered("docs/integration/v283-test-paths.md"))
+        self.assertFalse(triggered("README.md"))
+
+
 if __name__ == "__main__":
     unittest.main()
