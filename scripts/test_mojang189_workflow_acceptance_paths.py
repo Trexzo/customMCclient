@@ -93,5 +93,72 @@ class OriginalWitnessPullRequestPathTests(unittest.TestCase):
         self.assertIn("--native-rod-potion-discovery", text)
 
 
+class V278NativeRegressionPathCoverageTest(unittest.TestCase):
+    """Every original platform-1.8.9 regression-only edit runs Mojang CI."""
+
+    def test_new_simultaneous_b_rejecting_read_test_always_triggers(self):
+        self.assertTrue(triggered(
+            TEST + "Minecraft189SimultaneousBExactRejectingReadTest.java"))
+
+    def test_new_simultaneous_b_diagnostic_test_always_triggers(self):
+        self.assertTrue(triggered(
+            TEST + "Minecraft189SimultaneousBPriorityDiagnosticsTest.java"))
+
+    def test_native_uuid_entity_churn_test_always_triggers(self):
+        self.assertTrue(triggered(
+            TEST + "Minecraft189RejoinSentinelUuidIdentityAuditTest.java"))
+
+    def test_native_sentinel_readiness_test_always_triggers(self):
+        self.assertTrue(triggered(
+            TEST + "Minecraft189RejoinNativeSentinelReadinessTest.java"))
+
+    def test_serveraddress_original_source_test_always_triggers(self):
+        self.assertTrue(triggered(
+            TEST + "Minecraft189ServerAddressHostSourceLeaseTest.java"))
+
+    def test_future_189_original_platform_regression_suffix_is_covered(self):
+        self.assertTrue(triggered(
+            TEST + "Minecraft189NewStrictWorldSnapshotOwnershipTest.java"))
+
+    def test_future_189_original_scaffold_platform_regression_is_covered(self):
+        self.assertTrue(triggered(
+            TEST + "Minecraft189ScaffoldNewGenuineCollisionTest.java"))
+
+    def test_new_python_native_retry_regression_always_triggers(self):
+        self.assertTrue(triggered(
+            "scripts/test_mojang189_native_subtrial_reporting.py"))
+
+    def test_new_python_original_survival_edge_regression_always_triggers(self):
+        self.assertTrue(triggered(
+            "scripts/test_mojang189_scaffold_survival_edge.py"))
+
+    def test_future_mojang_original_binary_test_always_triggers(self):
+        self.assertTrue(triggered(
+            "scripts/test_mojang189_future_native_gameplay_source.py"))
+
+    def test_native_fixture_scripts_and_workflow_edits_also_trigger(self):
+        self.assertTrue(triggered("scripts/RunMojang189SingleplayerSmoke.py"))
+        self.assertTrue(triggered("scripts/RunMojang189LocalhostTwoPlayerSmoke.py"))
+        self.assertTrue(triggered(".github/workflows/minecraft-189-real-client.yml"))
+
+    def test_unrelated_docs_do_not_turn_into_unbounded_ci_triggers(self):
+        self.assertFalse(triggered("docs/integration/v278-native-paths.md"))
+        self.assertFalse(triggered("README.md"))
+
+    def test_unrelated_outside_original_platform_tests_not_in_new_glob(self):
+        # The new rule is for this platform, not a universal source wildcard.
+        rule = ("platform-1.8.9/src/test/java/dev/trexzo/custommc/"
+                "platform/v1_8_9/Minecraft189*Test.java")
+        self.assertIn(rule, pr_paths())
+        self.assertNotIn("**/*",pr_paths())
+
+    def test_original_test_only_changes_cannot_be_foundation_only(self):
+        # Guard the broad native Python and Java regression globs themselves;
+        # individually whitelisted older tests are NOT sufficient.
+        self.assertIn("scripts/test_mojang189_*.py",pr_paths())
+        self.assertIn(
+            TEST + "Minecraft189*Test.java", pr_paths())
+
+
 if __name__ == "__main__":
     unittest.main()
