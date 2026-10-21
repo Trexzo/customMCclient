@@ -219,7 +219,7 @@ class V279NativeProductionSourcePathCoverageTest(unittest.TestCase):
     def test_native_production_scope_is_explicit_and_not_global(self):
         self.assertIn("platform-1.8.9/src/main/java/**", pr_paths())
         self.assertFalse(triggered("docs/integration/v279-native-production-source-ci.md"))
-        self.assertFalse(triggered("core/src/main/java/Example.java"))
+        self.assertFalse(triggered("unrelated-module/src/main/java/Example.java"))
 
 
 
