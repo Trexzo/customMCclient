@@ -65,8 +65,8 @@ class OriginalNativeNonplayerChamberRegressionTest(unittest.TestCase):
 
     def test_every_required_room_action_uses_fresh_real_server_witness(self):
         _, native, _ = original_combat_fixture_branches()
-        self.assertEqual(5, native.count("send_verified_original_chat_reply("),
-                         "two setup teleports plus final teleport+mob summon")
+        self.assertEqual(4, native.count("send_verified_original_chat_reply("),
+                         "two setup teleports plus final teleport and mob summon")
         self.assertEqual(3, native.count("send_verified_fill("),
                          "genuine support, positive stone, positive air /fill")
         self.assertIn('b"[CHAT] Object successfully summoned"', native)
