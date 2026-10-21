@@ -50,6 +50,7 @@ public final class Minecraft189RuntimeBridge {
     private static Object killAuraNonPlayerTarget;
     private static int killAuraDisabledTargetTicks;
     private static int killAuraEnabledVetoTicks;
+    private static int killAuraNonPlayerSourceDiagCallbacks;
     private static boolean killAuraNonPlayerEnabled;
     private static boolean killAuraNonPlayerReported;
     private static int acceptanceRemotePlayerKindTicks;
@@ -276,6 +277,7 @@ public final class Minecraft189RuntimeBridge {
         killAuraNonPlayerTarget = null;
         killAuraDisabledTargetTicks = 0;
         killAuraEnabledVetoTicks = 0;
+        killAuraNonPlayerSourceDiagCallbacks = 0;
         killAuraNonPlayerEnabled = false;
         killAuraNonPlayerReported = false;
         acceptanceRemotePlayerKindTicks = 0;
@@ -1964,11 +1966,14 @@ public final class Minecraft189RuntimeBridge {
                 final Minecraft189OriginalNonPlayerRaycastTrace.Snapshot
                         observedRay = Minecraft189VanillaMeleeAcceptance
                             .originalNonPlayerRaycastDiagnostic();
-                if (observedRay.calls > 0
-                        && (observedRay.calls == 1
-                            || observedRay.calls % 40 == 0)) {
+                ++killAuraNonPlayerSourceDiagCallbacks;
+                if (killAuraNonPlayerSourceDiagCallbacks == 1
+                        || killAuraNonPlayerSourceDiagCallbacks % 40 == 0) {
                     System.out.println(
                             "CUSTOMMC_189_ORIGINAL_NONPLAYER_RAY_DIAGNOSTIC"
+                            + " sourceCallbacks="
+                                + killAuraNonPlayerSourceDiagCallbacks
+                            + " kindSourceAvailable=" + kindState.available()
                             + " calls=" + observedRay.calls
                             + " accepted=" + observedRay.validCallbacks
                             + " decision=" + observedRay.decision
