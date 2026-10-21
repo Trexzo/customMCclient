@@ -105,7 +105,7 @@ class OriginalV29EightStoneHotbarTests(unittest.TestCase):
         offsets = [scenario.index(v) for v in witnesses]
         self.assertEqual(offsets, sorted(offsets))
         self.assertIn('await_marker(process, log, disabled_tag, deadline', scenario)
-        self.assertIn("no original controller", "no original controller")  # no waiver
+        self.assertIn('raise AssertionError("vanilla native onPlayerRightClick returned false")', scenario)
 
     def test_give_receipt_is_not_an_original_selected_hotbar_or_controller_pass(self):
         src = Path(runner.__file__).read_text(encoding="utf-8")
