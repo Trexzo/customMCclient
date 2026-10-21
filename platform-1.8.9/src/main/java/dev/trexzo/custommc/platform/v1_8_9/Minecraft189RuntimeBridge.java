@@ -82,8 +82,33 @@ public final class Minecraft189RuntimeBridge {
     private static int acceptanceAuraFovDisabledTicks;
     private static int acceptanceAuraFovEnabledTicks;
     private static int acceptanceAuraFovSourceDiagTicks;
+    // Read-only original FOV acceptance provenance. Never used for target,
+    // admission, rotation or any original source/World write.
+    private static float acceptanceAuraFovLastRearYaw = Float.NaN;
+    private static int acceptanceAuraFovLastRearTick = -1;
+    private static int acceptanceAuraFovLastRearIndex = -1;
     private static boolean acceptanceAuraFovEnabled;
     private static boolean acceptanceAuraFovReported;
+
+    /**
+     * V284 diagnostic classification ONLY, never a click gate. Compares
+     * two observed native source yaw values without modifying either.
+     * A large difference demonstrates a rotation happened, NOT why.
+     */
+    static String m284FovYawShiftCause(final float lastRearYaw,
+            final float currentYaw, final boolean hadRearWitness) {
+        if (!hadRearWitness || !Float.isFinite(lastRearYaw)
+                || !Float.isFinite(currentYaw))
+            return "original-native-rear-yaw-provenance-unavailable";
+        double change = (currentYaw - lastRearYaw) % 360.0D;
+        if (change < -180.0D) change += 360.0D;
+        if (change >= 180.0D) change -= 360.0D;
+        if (Math.abs(change) >= 120.0D)
+            return "original-native-yaw-changed-120-plus";
+        if (Math.abs(change) > 0.5D)
+            return "original-native-yaw-changed-under-120";
+        return "original-native-yaw-stable";
+    }
 
     private Minecraft189RuntimeBridge() {
     }
@@ -242,6 +267,9 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraFovDisabledTicks = 0;
         acceptanceAuraFovEnabledTicks = 0;
         acceptanceAuraFovSourceDiagTicks = 0;
+        acceptanceAuraFovLastRearYaw = Float.NaN;
+        acceptanceAuraFovLastRearTick = -1;
+        acceptanceAuraFovLastRearIndex = -1;
         acceptanceAuraFovEnabled = false;
         acceptanceAuraFovReported = false;
         scaffoldOriginalContextReported = false;
@@ -2285,6 +2313,16 @@ public final class Minecraft189RuntimeBridge {
                             + " stableEnabledVetoTicks=" + acceptanceAuraFovEnabledTicks);
                     System.out.flush();
                 }
+                // V284 preserves the last truly original yaw at which this
+                // same remote source was still verified BEHIND the camera
+                // after normal module activation. This observes only the
+                // already-read acceptance snapshots; it cannot permit a click.
+                if (valid && acceptanceAuraFovEnabled) {
+                    acceptanceAuraFovLastRearYaw = rotation.yaw();
+                    acceptanceAuraFovLastRearTick =
+                            acceptanceAuraFovSourceDiagTicks;
+                    acceptanceAuraFovLastRearIndex = remoteIndex;
+                }
                 if (!valid || (acceptanceAuraFovTargetIndex >= 0
                         && remoteIndex != acceptanceAuraFovTargetIndex)) {
                     acceptanceAuraFovTargetIndex = -1;
@@ -2665,6 +2703,17 @@ public final class Minecraft189RuntimeBridge {
                             + " nativeIndexed=" + indexed
                             + " playerYaw=" + angle.yaw()
                             + " playerPitch=" + angle.pitch()
+                            + " lastVerifiedRearYaw="
+                                + acceptanceAuraFovLastRearYaw
+                            + " lastVerifiedRearTick="
+                                + acceptanceAuraFovLastRearTick
+                            + " lastVerifiedRearIndex="
+                                + acceptanceAuraFovLastRearIndex
+                            + " nativeYawShiftCause="
+                                + m284FovYawShiftCause(
+                                    acceptanceAuraFovLastRearYaw,
+                                    angle.yaw(),
+                                    acceptanceAuraFovLastRearTick >= 0)
                             + " localAvailable=" + local.available()
                             + " actualDx=" + dx + " actualDz=" + dz
                             + " actualTargetYaw=" + targetYaw
