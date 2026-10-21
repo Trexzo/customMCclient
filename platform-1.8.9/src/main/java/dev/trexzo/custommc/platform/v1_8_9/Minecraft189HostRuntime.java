@@ -739,7 +739,12 @@ public final class Minecraft189HostRuntime
             final Minecraft189PlayerRotationControl control =
                     rotationHostLease.guardedControl(player,
                             () -> clickGuiRuntime.coreRuntime()
-                                    .model().snapshot().open());
+                                    .model().snapshot().open(),
+                            Boolean.getBoolean(
+                                    "custommc.acceptance.reportKillAuraFovVeto")
+                                ? Minecraft189RuntimeBridge
+                                    ::acceptanceFovOriginalYawSetterSucceeded
+                                : null);
             final Minecraft189PlayerRotationState.Snapshot rotation =
                     playerRotationState.snapshot();
 
@@ -807,6 +812,14 @@ public final class Minecraft189HostRuntime
             if (aura.active()) {
                 final Minecraft189TargetRotationState.Snapshot auraTarget =
                         targetRotationState.snapshot();
+                final boolean recordOriginalFovAim =
+                        Boolean.getBoolean(
+                                "custommc.acceptance.reportKillAuraFovVeto");
+                final int beforeOriginalAuraYawWrites =
+                        recordOriginalFovAim
+                            ? Minecraft189RuntimeBridge
+                                .acceptanceFovOriginalYawWriteCount()
+                            : -1;
                 final boolean originalAuraAimReturnedTrue =
                         aura.aim(control, rotation, auraTarget,
                                 leftButtonHeld, playerMovementState.snapshot());
@@ -817,12 +830,14 @@ public final class Minecraft189HostRuntime
                 // Opt-in FOV *acceptance* provenance only. Record already-
                 // read original player yaw, target and unmodified aim result.
                 // No second native player getter, new setter or target select.
-                if (Boolean.getBoolean(
-                        "custommc.acceptance.reportKillAuraFovVeto")) {
+                if (recordOriginalFovAim) {
                     Minecraft189RuntimeBridge.acceptanceFovObserveAuraAim(
                             rotation.available(), rotation.yaw(),
                             auraTarget.available(), auraTarget.entityIndex(),
                             auraTarget.yaw(), originalAuraAimReturnedTrue);
+                    Minecraft189RuntimeBridge
+                            .acceptanceFovAttributeOriginalYawWritesToAura(
+                                beforeOriginalAuraYawWrites);
                 }
                 featureCatalog.jitter().apply(null, null, false);
                 return;
