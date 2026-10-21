@@ -412,6 +412,68 @@ def verify_original_v19_stone_after_reseat(process, log, window):
         "before bounded deadline")
 
 
+def prepare_verified_original_v29_stone_stack(process, log, window):
+    """V295: normalize the genuine selected original Survival hotbar.
+
+    Independent real V293 original V29 failure reported a READY ray candidate
+    and CLEAR screen but selected native stone stack=1, whereas the unchanged
+    original module's source readiness requires exactly eight. A blind /give
+    stone 8 can leave an older selected one-block stack untouched.
+    This helper uses ONLY actual vanilla chat/X11, never an inventory edit.
+    Both source replies must be new; native runTick still must independently
+    witness the actual eight-block selected ItemBlock before module enable.
+    """
+    cursor = log.stat().st_size if log.exists() else 0
+    send_command(process, log, window, "/clear CIProbe")
+    stop = time.monotonic() + 8
+    cleared = None
+    while time.monotonic() < stop:
+        require_running(process, "real original V29 inventory reset")
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read()
+        if re.search(
+                rb"\[CHAT\] Cleared the inventory of CIProbe, removing [1-9][0-9]* items",
+                fresh):
+            cleared = "prior-items-removed"
+            break
+        if b"[CHAT] Could not clear the inventory of CIProbe, no items to remove" in fresh:
+            # Genuine original empty inventory is already normalized; this
+            # server-side no-items reply is not a success marker.
+            cleared = "already-empty"
+            break
+        if b"[CHAT] Unknown command" in fresh:
+            raise AssertionError("original V29 /clear was not recognized")
+        time.sleep(.2)
+    if cleared is None:
+        raise AssertionError("no fresh original 1.8.9 /clear server inventory reply")
+    print("CUSTOMMC_189_V29_REAL_INVENTORY_RESET_SOURCE=" + cleared,
+          flush=True)
+
+    # The actual user's 1 key selects original hotbar slot zero; do not edit
+    # selectedItemIndex or synthesize an ItemStack through the bridge.
+    resume_if_paused(process, log, window)
+    xdotool("key", "--clearmodifiers", "1")
+
+    cursor = log.stat().st_size if log.exists() else 0
+    send_command(process, log, window, "/give CIProbe stone 8")
+    stop = time.monotonic() + 8
+    while time.monotonic() < stop:
+        require_running(process, "real original V29 eight stone grant")
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read()
+        if re.search(rb"\[CHAT\] Given .+ \* 8 to CIProbe", fresh):
+            print("CUSTOMMC_189_V29_REAL_STONE_EIGHT_GRANT_SOURCE=YES",
+                  flush=True)
+            return
+        if b"[CHAT] Unknown command" in fresh:
+            raise AssertionError("original V29 /give not recognized")
+        time.sleep(.2)
+    raise AssertionError(
+        "no fresh original /give stone eight acknowledgment; cannot arm V29")
+
+
 def prepare_verified_original_scaffold_survival_edge(
         process, log, window):
     """A genuine block-edge fixture with independently changed World cells.
@@ -1380,7 +1442,13 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 disabled_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_DISABLED_SURVIVAL_WORLD_AIR_STACK_UNCHANGED_PASS=YES"
                 if any(tag in read_tail(log) for tag in (module_tag, attempt_tag, readback_tag, disabled_tag)):
                     raise AssertionError("native placement witness appeared before server ItemBlock grant")
-                send_command(process, log, window, "/give CIProbe stone 8")
+                # V295: original V293 second native V29 had a legitimate
+                # candidate and clear screen but selected source stack=1.
+                # Clear prior items, reselect vanilla hotbar slot 0 and
+                # require genuine original eight-stone server grant before
+                # the UNCHANGED native selected-eight/ModuleController gate.
+                prepare_verified_original_v29_stone_stack(
+                    process, log, window)
                 if native_scaffold_placement == "enabled":
                     await_marker(process, log, module_tag, deadline,
                                  "real enabled Scaffold module admitted vanilla click")
