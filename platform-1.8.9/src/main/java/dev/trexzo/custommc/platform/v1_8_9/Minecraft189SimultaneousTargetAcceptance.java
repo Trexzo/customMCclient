@@ -108,7 +108,8 @@ final class Minecraft189SimultaneousTargetAcceptance {
                     || playerIndex != switched.bIndex) {
                 throw new IllegalStateException(
                         "simultaneous early B click without both-eligible "
-                        + "live native priority evidence");
+                        + "live native priority evidence"
+                        + m274EarlyBClickSourceDiagnostics(host, playerIndex));
             }
             phase = 2;
             System.out.println(
@@ -161,6 +162,104 @@ final class Minecraft189SimultaneousTargetAcceptance {
                     "simultaneous attack crossed source-native UUID/phase="
                     + phase + " uuid=" + current);
         }
+    }
+
+    /**
+     * V274 crash-only classification of the actual late native B switch.
+     * The existing BOTH-eligible rule never consumes this output; it only
+     * makes the original fail-closed crash explain which source condition
+     * was absent at an independent read of the actual game World.
+     */
+    static String m274PriorityReason(
+            final boolean aligned, final int remotePlayers,
+            final int aIndex, final int bIndex,
+            final boolean aAlive, final boolean bAlive,
+            final double aDistance, final double bDistance,
+            final boolean bNearest, final boolean bRotation) {
+        if (!aligned) return "original-world-snapshots-unavailable-or-misaligned";
+        if (remotePlayers != 2) return "original-remote-player-count-not-two";
+        if (aIndex < 0) return "original-A-UUID-not-loaded";
+        if (bIndex < 0) return "original-B-UUID-not-loaded";
+        if (!aAlive) return "original-A-not-living-and-alive";
+        if (!bAlive) return "original-B-not-living-and-alive";
+        if (!Double.isFinite(aDistance) || aDistance < 1D
+                || aDistance > 3.5D) return "original-A-outside-native-reach";
+        if (!Double.isFinite(bDistance) || bDistance < 1D
+                || bDistance > 3.5D) return "original-B-outside-native-reach";
+        if (!(bDistance + .12D < aDistance))
+            return "original-B-not-0.12-closer-than-A";
+        if (!bNearest) return "original-nearest-target-not-B";
+        if (!bRotation) return "original-selected-rotation-not-B";
+        return "original-both-eligible-B-priority-present-on-diagnostic-read";
+    }
+
+    private static String m274EarlyBClickSourceDiagnostics(
+            final Minecraft189HostRuntime host, final int clickIndex) {
+        final Minecraft189WorldEntityUuidState.Snapshot ids =
+                host.worldEntityUuidState().snapshot();
+        final Minecraft189WorldEntityKindState.Snapshot kinds =
+                host.worldEntityKindState().snapshot();
+        final Minecraft189WorldEntityCombatState.Snapshot combat =
+                host.worldEntityCombatState().snapshot();
+        final Minecraft189WorldEntityPositionState.Snapshot positions =
+                host.worldEntityPositionState().snapshot();
+        final Minecraft189PlayerPositionState.Snapshot local =
+                host.playerPositionState().snapshot();
+        final Minecraft189NearestPlayerTargetState.Snapshot nearest =
+                host.nearestPlayerTargetState().snapshot();
+        final Minecraft189TargetRotationState.Snapshot rotation =
+                host.targetRotationState().snapshot();
+        final boolean aligned = ids.available() && kinds.available()
+                && combat.available() && positions.available()
+                && local.available()
+                && ids.entityCount() == kinds.entityCount()
+                && ids.entityCount() == combat.entityCount()
+                && ids.entityCount() == positions.entityCount();
+        int ai = -1, bi = -1, remotes = 0;
+        boolean aliveA = false, aliveB = false;
+        double da = Double.NaN, db = Double.NaN;
+        if (aligned) {
+            for (int i = 0; i < ids.entityCount(); i++) {
+                if (!kinds.player(i) || kinds.localPlayer(i)) continue;
+                remotes++;
+                if (firstUuid.equals(ids.at(i))) {
+                    ai = i;
+                    aliveA = kinds.living(i) && combat.alive(i);
+                }
+                if (secondUuid.equals(ids.at(i))) {
+                    bi = i;
+                    aliveB = kinds.living(i) && combat.alive(i);
+                }
+            }
+            if (ai >= 0) {
+                da = Math.sqrt(Math.pow(positions.x(ai)-local.x(),2)
+                        + Math.pow(positions.y(ai)-local.y(),2)
+                        + Math.pow(positions.z(ai)-local.z(),2));
+            }
+            if (bi >= 0) {
+                db = Math.sqrt(Math.pow(positions.x(bi)-local.x(),2)
+                        + Math.pow(positions.y(bi)-local.y(),2)
+                        + Math.pow(positions.z(bi)-local.z(),2));
+            }
+        }
+        final boolean nearestB = bi >= 0 && nearest.found()
+                && nearest.entityIndex() == bi;
+        final boolean rotationB = bi >= 0 && rotation.available()
+                && rotation.entityIndex() == bi;
+        return " secondReadReason=" + m274PriorityReason(
+                    aligned, remotes, ai, bi, aliveA, aliveB,
+                    da, db, nearestB, rotationB)
+                + " secondReadUuidCount=" + ids.entityCount()
+                + " secondReadKindsCount=" + kinds.entityCount()
+                + " secondReadCombatCount=" + combat.entityCount()
+                + " secondReadPositionsCount=" + positions.entityCount()
+                + " secondReadRemotePlayers=" + remotes
+                + " secondReadAIndex=" + ai + " secondReadBIndex=" + bi
+                + " secondReadAAlive=" + aliveA + " secondReadBAlive=" + aliveB
+                + " secondReadA3D=" + da + " secondReadB3D=" + db
+                + " secondReadNearest=" + nearest.entityIndex()
+                + " secondReadRotation=" + rotation.entityIndex()
+                + " clickIndex=" + clickIndex;
     }
 
     /**
