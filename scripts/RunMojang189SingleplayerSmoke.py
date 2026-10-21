@@ -412,6 +412,24 @@ def verify_original_v19_stone_after_reseat(process, log, window):
         "before bounded deadline")
 
 
+def original_v29_inventory_clear_receipt(fresh):
+    """Classify actual 1.8.9 /clear reply from a caller's fresh log cursor."""
+    if re.search(
+            rb"\[CHAT\] Cleared the inventory of CIProbe, removing [1-9][0-9]* items",
+            fresh):
+        return "prior-items-removed"
+    if b"[CHAT] Could not clear the inventory of CIProbe, no items to remove" in fresh:
+        return "already-empty"
+    return None
+
+
+def original_v29_eight_stone_grant_receipt(fresh):
+    """Require exact original named player and *eight* stone items."""
+    return bool(re.search(
+        rb"\[CHAT\] Given (?:\[)?Stone(?:\])? \* 8 to CIProbe(?:\r|\n|$)",
+        fresh))
+
+
 def prepare_verified_original_v29_stone_stack(process, log, window):
     """V295: normalize the genuine selected original Survival hotbar.
 
@@ -432,15 +450,8 @@ def prepare_verified_original_v29_stone_stack(process, log, window):
         with log.open("rb") as handle:
             handle.seek(cursor)
             fresh = handle.read()
-        if re.search(
-                rb"\[CHAT\] Cleared the inventory of CIProbe, removing [1-9][0-9]* items",
-                fresh):
-            cleared = "prior-items-removed"
-            break
-        if b"[CHAT] Could not clear the inventory of CIProbe, no items to remove" in fresh:
-            # Genuine original empty inventory is already normalized; this
-            # server-side no-items reply is not a success marker.
-            cleared = "already-empty"
+        cleared = original_v29_inventory_clear_receipt(fresh)
+        if cleared is not None:
             break
         if b"[CHAT] Unknown command" in fresh:
             raise AssertionError("original V29 /clear was not recognized")
@@ -463,7 +474,7 @@ def prepare_verified_original_v29_stone_stack(process, log, window):
         with log.open("rb") as handle:
             handle.seek(cursor)
             fresh = handle.read()
-        if re.search(rb"\[CHAT\] Given .+ \* 8 to CIProbe", fresh):
+        if original_v29_eight_stone_grant_receipt(fresh):
             print("CUSTOMMC_189_V29_REAL_STONE_EIGHT_GRANT_SOURCE=YES",
                   flush=True)
             return
