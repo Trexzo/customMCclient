@@ -92,35 +92,7 @@ final class Minecraft189LockedTargetAcceptance {
             final boolean originalInitialA = e!=null && e.initialA();
             // Keep original 20-consecutive real-source gate unchanged.
             initialTicks=originalInitialA ? initialTicks+1 : 0;
-            if (++initialSourceObservations == 1
-                    || initialSourceObservations % 40 == 0) {
-                // Read-only same-observation reason diagnostics; never
-                // fabricate target selection or second source getter.
-                lastInitialReason = e==null ? lastReadReason
-                        : m291InitialAReason(e.da, e.db, e.a, e.b,
-                            e.near.found(), e.near.entityIndex(),
-                            e.aim.available(), e.aim.entityIndex());
-                System.out.println(
-                        "CUSTOMMC_189_LOCK_INITIAL_A_SOURCE_DIAGNOSTIC"
-                        + " callbacks=" + initialSourceObservations
-                        + " reason=" + lastInitialReason
-                        + " sourceReason=" + lastReadReason
-                        + " initialConsecutive=" + initialTicks
-                        + " maxInitialConsecutive=" + maxInitialAStreak
-                        + " missingSource=" + phase0SourceUnavailable
-                        + " countMismatch=" + phase0CountMismatch
-                        + " remoteUuidMissing=" + phase0RemoteIdentityMissing
-                        + " nonfiniteDistance=" + phase0NonfiniteDistance
-                        + " geometryRejected=" + phase0GeometryRejected
-                        + " selectionRejected=" + phase0SelectionRejected
-                        + " originalAIndex=" + (e==null ? -1 : e.a)
-                        + " originalBIndex=" + (e==null ? -1 : e.b)
-                        + " originalA3D=" + (e==null ? Double.NaN : e.da)
-                        + " originalB3D=" + (e==null ? Double.NaN : e.db)
-                        + " sourceNearest=" + (e==null ? -1 : e.near.entityIndex())
-                        + " sourceAim=" + (e==null ? -1 : e.aim.entityIndex()));
-                System.out.flush();
-            }
+            initialSourceObservations++;
             if (initialTicks > maxInitialAStreak)
                 maxInitialAStreak = initialTicks;
             if (!originalInitialA) {
@@ -149,6 +121,35 @@ final class Minecraft189LockedTargetAcceptance {
                     else
                         phase0GeometryRejected++;
                 }
+            }
+            if (initialSourceObservations == 1
+                    || initialSourceObservations % 40 == 0) {
+                // Read-only same-observation reason diagnostics; never
+                // fabricate target selection or second source getter.
+                lastInitialReason = e==null ? lastReadReason
+                        : m291InitialAReason(e.da, e.db, e.a, e.b,
+                            e.near.found(), e.near.entityIndex(),
+                            e.aim.available(), e.aim.entityIndex());
+                System.out.println(
+                        "CUSTOMMC_189_LOCK_INITIAL_A_SOURCE_DIAGNOSTIC"
+                        + " callbacks=" + initialSourceObservations
+                        + " reason=" + lastInitialReason
+                        + " sourceReason=" + lastReadReason
+                        + " initialConsecutive=" + initialTicks
+                        + " maxInitialConsecutive=" + maxInitialAStreak
+                        + " missingSource=" + phase0SourceUnavailable
+                        + " countMismatch=" + phase0CountMismatch
+                        + " remoteUuidMissing=" + phase0RemoteIdentityMissing
+                        + " nonfiniteDistance=" + phase0NonfiniteDistance
+                        + " geometryRejected=" + phase0GeometryRejected
+                        + " selectionRejected=" + phase0SelectionRejected
+                        + " originalAIndex=" + (e==null ? -1 : e.a)
+                        + " originalBIndex=" + (e==null ? -1 : e.b)
+                        + " originalA3D=" + (e==null ? Double.NaN : e.da)
+                        + " originalB3D=" + (e==null ? Double.NaN : e.db)
+                        + " sourceNearest=" + (e==null ? -1 : e.near.entityIndex())
+                        + " sourceAim=" + (e==null ? -1 : e.aim.entityIndex()));
+                System.out.flush();
             }
             if (initialTicks>=20) {
                 host.featureCatalog().enableKillAuraForOfficialLockedTargetAcceptance();
