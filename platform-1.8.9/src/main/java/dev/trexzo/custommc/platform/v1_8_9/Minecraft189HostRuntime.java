@@ -805,11 +805,24 @@ public final class Minecraft189HostRuntime
             // Spin retains its established, explicit precedence.
             final Minecraft189KillAuraModule aura = featureCatalog.killAura();
             if (aura.active()) {
-                aura.aim(control, rotation, targetRotationState.snapshot(),
-                        leftButtonHeld, playerMovementState.snapshot());
+                final Minecraft189TargetRotationState.Snapshot auraTarget =
+                        targetRotationState.snapshot();
+                final boolean originalAuraAimReturnedTrue =
+                        aura.aim(control, rotation, auraTarget,
+                                leftButtonHeld, playerMovementState.snapshot());
                 if (!rotationHostSourceStillOwned()) {
                     discardRotationSourceEvidence();
                     return;
+                }
+                // Opt-in FOV *acceptance* provenance only. Record already-
+                // read original player yaw, target and unmodified aim result.
+                // No second native player getter, new setter or target select.
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.reportKillAuraFovVeto")) {
+                    Minecraft189RuntimeBridge.acceptanceFovObserveAuraAim(
+                            rotation.available(), rotation.yaw(),
+                            auraTarget.available(), auraTarget.entityIndex(),
+                            auraTarget.yaw(), originalAuraAimReturnedTrue);
                 }
                 featureCatalog.jitter().apply(null, null, false);
                 return;
