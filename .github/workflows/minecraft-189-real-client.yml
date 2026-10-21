@@ -25,11 +25,11 @@ on:
       - 'platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189*Acceptance.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189*AcceptanceTest.java'
       - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SimultaneousPriorityRevalidationTest.java'
-      # V278: all 1.8.9 platform regression test-only edits must also
+      # V278: ALL 1.8.9 platform regression test-only edits must also
       # trigger the ACTUAL pinned original Minecraft binary suite.
-      # The previous AcceptanceTest suffix and individually enumerated
-      # witnesses omitted newer exact-owner diagnostic/source tests.
-      - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189*Test.java'
+      # Previous AcceptanceTest / Minecraft189*Test globs excluded eight
+      # existing Legacy* / Lwjgl2* original native GUI tests.
+      - 'platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/*Test.java'
       # A changed original-fixture Python test must also run the genuine
       # Mojang runtime; Foundation-only offline Python is insufficient.
       - 'scripts/test_mojang189_*.py'

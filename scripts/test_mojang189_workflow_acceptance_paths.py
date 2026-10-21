@@ -136,6 +136,23 @@ class V278NativeRegressionPathCoverageTest(unittest.TestCase):
         self.assertTrue(triggered(
             "scripts/test_mojang189_future_native_gameplay_source.py"))
 
+
+    def test_existing_legacy_ui_and_lwjgl2_test_only_edits_trigger_native(self):
+        # Original platform source tree has eight non-Minecraft189 tests.
+        # Changed test-only PRs must launch the same genuine Mojang suite.
+        for name in (
+            "LegacyInputTranslatorTest.java",
+            "LegacyScissorMappingTest.java",
+            "LegacyScissorStateControllerTest.java",
+            "LegacyScrollInputTest.java",
+            "LegacyUiGeometryFactoryTest.java",
+            "LegacyUiHostBridgeTest.java",
+            "Lwjgl2LegacyUiHostCallbacksTest.java",
+            "Lwjgl2Minecraft189ViewportSourceTest.java",
+        ):
+            with self.subTest(name=name):
+                self.assertTrue(triggered(TEST + name))
+
     def test_native_fixture_scripts_and_workflow_edits_also_trigger(self):
         self.assertTrue(triggered("scripts/RunMojang189SingleplayerSmoke.py"))
         self.assertTrue(triggered("scripts/RunMojang189LocalhostTwoPlayerSmoke.py"))
@@ -146,7 +163,7 @@ class V278NativeRegressionPathCoverageTest(unittest.TestCase):
         self.assertFalse(triggered("README.md"))
 
     def test_unrelated_outside_original_platform_tests_not_in_new_glob(self):
-        # The new rule is for this platform, not a universal source wildcard.
+        # The new rule is for this native platform package, not a universal wildcard.
         rule = ("platform-1.8.9/src/test/java/dev/trexzo/custommc/"
                 "platform/v1_8_9/Minecraft189*Test.java")
         self.assertIn(rule, pr_paths())
@@ -157,7 +174,7 @@ class V278NativeRegressionPathCoverageTest(unittest.TestCase):
         # individually whitelisted older tests are NOT sufficient.
         self.assertIn("scripts/test_mojang189_*.py",pr_paths())
         self.assertIn(
-            TEST + "Minecraft189*Test.java", pr_paths())
+            TEST + "*Test.java", pr_paths())
 
 
 if __name__ == "__main__":
