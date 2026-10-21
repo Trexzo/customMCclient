@@ -185,12 +185,18 @@ class OriginalV271AfterReseatStoneReadbackTest(TestCase):
         self.assertIn("SCAFFOLD_RAYTRACE_WRONG_FACE_BLOCK_VETO_PASS=YES",step)
         self.assertIn("SCAFFOLD_NATIVE_WORLD_UP_FACE_RAYTRACE_PASS=YES",step)
         self.assertEqual(step.count("await_marker(process, log,"),2)
+        # Compare real await_marker CALLS, not mention of the same
+        # marker strings in explanatory comments above those calls.
+        first=step.index("await_marker(process, log,")
+        second=step.index("await_marker(process, log,",first+1)
         self.assertLess(
-            step.index("verify_original_v19_stone_after_reseat("),
-            step.index("SCAFFOLD_RAYTRACE_WRONG_FACE_BLOCK_VETO_PASS=YES"))
-        self.assertLess(
-            step.index("SCAFFOLD_RAYTRACE_WRONG_FACE_BLOCK_VETO_PASS=YES"),
-            step.index("SCAFFOLD_NATIVE_WORLD_UP_FACE_RAYTRACE_PASS=YES"))
+            step.index("verify_original_v19_stone_after_reseat("),first)
+        self.assertIn(
+            "SCAFFOLD_RAYTRACE_WRONG_FACE_BLOCK_VETO_PASS=YES",
+            step[first:second])
+        self.assertIn(
+            "SCAFFOLD_NATIVE_WORLD_UP_FACE_RAYTRACE_PASS=YES",
+            step[second:])
 
     def test_readback_helper_cannot_emit_native_raytrace_pass(self):
         source=Path(smoke.__file__).read_text(encoding="utf8")
