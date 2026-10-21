@@ -90,6 +90,9 @@ public final class Minecraft189RuntimeBridge {
     private static final Minecraft189OriginalFovAuraAimTrace
             acceptanceAuraFovAimTrace =
             new Minecraft189OriginalFovAuraAimTrace();
+    private static final Minecraft189OriginalFovGuardedYawWriteTrace
+            acceptanceFovNativeYawWrites =
+            new Minecraft189OriginalFovGuardedYawWriteTrace();
     private static boolean acceptanceAuraFovEnabled;
     private static boolean acceptanceAuraFovReported;
 
@@ -114,6 +117,26 @@ public final class Minecraft189RuntimeBridge {
     }
 
     private Minecraft189RuntimeBridge() {
+    }
+
+    /**
+     * Opt-in original setter evidence. Invoked ONLY after the original
+     * native yaw setter returns successfully through its existing lease.
+     * No native getter or setter is invoked from these diagnostics.
+     */
+    static void acceptanceFovOriginalYawSetterSucceeded(final float yaw) {
+        if (Boolean.getBoolean("custommc.acceptance.reportKillAuraFovVeto"))
+            acceptanceFovNativeYawWrites.afterOriginalNativeSetter(yaw);
+    }
+
+    static int acceptanceFovOriginalYawWriteCount() {
+        return acceptanceFovNativeYawWrites.completedWrites();
+    }
+
+    static void acceptanceFovAttributeOriginalYawWritesToAura(
+            final int beforeOriginalAuraAim) {
+        if (Boolean.getBoolean("custommc.acceptance.reportKillAuraFovVeto"))
+            acceptanceFovNativeYawWrites.afterAuraAim(beforeOriginalAuraAim);
     }
 
     /**
@@ -289,6 +312,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraFovLastRearTick = -1;
         acceptanceAuraFovLastRearIndex = -1;
         acceptanceAuraFovAimTrace.reset();
+        acceptanceFovNativeYawWrites.reset();
         acceptanceAuraFovEnabled = false;
         acceptanceAuraFovReported = false;
         scaffoldOriginalContextReported = false;
@@ -2717,6 +2741,8 @@ public final class Minecraft189RuntimeBridge {
                     if (delta >= 180.0D) delta -= 360.0D;
                     final Minecraft189OriginalFovAuraAimTrace.Snapshot
                             originalAim = acceptanceAuraFovAimTrace.snapshot();
+                    final Minecraft189OriginalFovGuardedYawWriteTrace.Snapshot
+                            nativeWrites = acceptanceFovNativeYawWrites.snapshot();
                     System.out.println(
                             "CUSTOMMC_189_NATIVE_FOV_UNEXPECTED_CLICK_EVIDENCE"
                             + " nativePlayerHit=" + playerHit
@@ -2724,6 +2750,14 @@ public final class Minecraft189RuntimeBridge {
                             + " nativeIndexed=" + indexed
                             + " playerYaw=" + angle.yaw()
                             + " playerPitch=" + angle.pitch()
+                            + " completedGuardedNativeYawWrites="
+                                + nativeWrites.completedWrites
+                            + " auraCallbackNativeYawWrites="
+                                + nativeWrites.auraAttributableWrites
+                            + " lastCompletedNativeYawSetter="
+                                + nativeWrites.lastCompletedYaw
+                            + " lastAuraNativeYawSetter="
+                                + nativeWrites.lastAuraCompletedYaw
                             + " originalAimCallbacks=" + originalAim.callbacks
                             + " originalAimEligibleCallbacks="
                                 + originalAim.eligibleCallbacks
