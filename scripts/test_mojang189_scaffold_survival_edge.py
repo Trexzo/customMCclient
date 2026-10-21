@@ -182,3 +182,100 @@ class OriginalScaffoldRealSurvivalEdgeFixtureTest(unittest.TestCase):
                 smoke.await_original_v29_survival_edge_grounding(
                     object(), Path("unused"), "X11")
             cmd.assert_called_once()
+
+
+class V275OriginalEdgeRecoveryTest(unittest.TestCase):
+    """No fake grounding: actual original native three-tick proof is mandatory."""
+
+    def test_stable_real_native_air_cell_fall_can_request_one_real_teleport(self):
+        samples=[(1.699999988,99.,.5)]*3
+        self.assertTrue(smoke.original_v275_native_edge_fall(samples))
+        self.assertFalse(smoke.original_v29_position_accepted(samples))
+        self.assertFalse(smoke.original_v29_settled_edge_drift(samples))
+
+    def test_early_short_or_moving_source_evidence_is_not_recoverable(self):
+        cases=[
+            [(1.7,99.,.5)]*2,
+            [(1.5,99.,.5),(1.6,99.,.5),(1.7,99.,.5)],
+            [(1.7,99.,.5),(1.7,99.2,.5),(1.7,99.,.5)],
+            [(1.7,99.,.5),(1.7,99.,.8),(1.7,99.,.5)],
+        ]
+        for samples in cases:
+            with self.subTest(samples=samples):
+                self.assertFalse(smoke.original_v275_native_edge_fall(samples))
+
+    def test_unrelated_world_coordinates_cannot_trigger_teleport(self):
+        for samples in (
+            [(1.7,100.,.5)]*3,
+            [(1.7,95.,.5)]*3,
+            [(20.,99.,.5)]*3,
+            [(1.7,99.,20.)]*3,
+            [(1.1,99.,.5)]*3,
+            [(2.,99.,.5)]*3,
+        ):
+            with self.subTest(samples=samples):
+                self.assertFalse(smoke.original_v275_native_edge_fall(samples))
+
+    def test_original_air_fall_prompts_one_verified_teleport_then_real_ticks(self):
+        class Clock:
+            n=0.
+            def now(self):
+                self.n+=.4
+                return self.n
+        from_fall=[(1.699999988,99.,.5)]*5
+        recovered=[(1.05,100.,.5)]*5
+        values=[from_fall,recovered]
+        with patch.object(smoke,"native_safe_walk_positions",
+                          side_effect=lambda _: values.pop(0)), patch.object(
+                smoke.time,"monotonic",side_effect=Clock().now), patch.object(
+                smoke.time,"sleep"), patch.object(
+                smoke,"require_running"), patch.object(
+                smoke,"send_verified_original_chat_reply") as command:
+            smoke.await_original_v29_survival_edge_grounding(
+                object(),Path("original-native.log"),"X11")
+            command.assert_called_once_with(
+                unittest.mock.ANY,Path("original-native.log"),"X11",
+                "/tp CIProbe 1.05 100 0.5 90 88.6",
+                b"[CHAT] Teleported CIProbe to 1.05, 100.0, 0.5")
+
+    def test_one_real_teleport_without_three_native_grounding_ticks_still_fails(self):
+        class Clock:
+            n=0.
+            def now(self):
+                self.n+=1.
+                return self.n
+        from_fall=[(1.699999988,99.,.5)]*5
+        with patch.object(smoke,"native_safe_walk_positions",
+                          return_value=from_fall), patch.object(
+                smoke.time,"monotonic",side_effect=Clock().now), patch.object(
+                smoke.time,"sleep"), patch.object(
+                smoke,"require_running"), patch.object(
+                smoke,"send_verified_original_chat_reply") as command:
+            with self.assertRaisesRegex(AssertionError,
+                                        "original Survival player not grounded"):
+                smoke.await_original_v29_survival_edge_grounding(
+                    object(),Path("native-stale.log"),"X11")
+            command.assert_called_once()
+
+    def test_v29_real_survival_and_tp_acknowledgement_precedes_native_grounding(self):
+        code=Path(smoke.__file__).read_text(encoding="utf-8")
+        a=code.index("# V29: actual integrated-server vanilla survival block placement.")
+        b=code.index("                module_tag = ",a)
+        v29=code[a:b]
+        self.assertIn("prepare_verified_original_scaffold_survival_edge(",v29)
+        self.assertIn('"/gamemode 0"',v29)
+        self.assertIn('"/tp CIProbe 1.05 100 0.5 90 88.6"',v29)
+        self.assertLess(v29.index('"/gamemode 0"'),
+                        v29.index('"/tp CIProbe 1.05 100 0.5 90 88.6"'))
+        self.assertLess(v29.index('"/tp CIProbe 1.05 100 0.5 90 88.6"'),
+                        v29.index("await_original_v29_survival_edge_grounding("))
+        self.assertEqual(v29.count("send_verified_original_chat_reply("),2)
+        self.assertNotIn("send_command(process, log, window, \"/gamemode 0\")",v29)
+
+    def test_original_native_position_strictness_not_weakened(self):
+        self.assertFalse(smoke.original_v29_position_accepted(
+            [(1.7,99.,.5)]*3))
+        self.assertFalse(smoke.original_v29_position_accepted(
+            [(1.05,100.,.5)]*2))
+        self.assertTrue(smoke.original_v29_position_accepted(
+            [(1.05,100.,.5)]*3))

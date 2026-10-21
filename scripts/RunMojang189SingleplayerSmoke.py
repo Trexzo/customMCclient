@@ -535,6 +535,20 @@ def original_v29_settled_edge_drift(readings):
                     <= .02 for axis in range(3)))
 
 
+def original_v275_native_edge_fall(readings):
+    """A stable source-native fall into the adjacent air cell is NOT grounding.
+
+    A genuine new vanilla teleport and three original feet ticks must follow.
+    """
+    if len(readings) < 3:
+        return False
+    tail = readings[-3:]
+    return (all(1.30 < x < 2.00 and 98.5 <= y <= 99.5
+                and .20 <= z <= .80 for x, y, z in tail)
+            and all(max(p[axis] for p in tail) - min(p[axis] for p in tail)
+                    <= .03 for axis in range(3)))
+
+
 def await_original_v29_survival_edge_grounding(process, log, window):
     """One actual acknowledged corrective /tp for settled native momentum.
 
@@ -551,7 +565,8 @@ def await_original_v29_survival_edge_grounding(process, log, window):
             return
         require_running(process, "source-native survival ledge grounding")
         if (not corrected and time.monotonic() - started >= .75
-                and original_v29_settled_edge_drift(last)):
+                and (original_v29_settled_edge_drift(last)
+                     or original_v275_native_edge_fall(last))):
             corrected = True
             send_verified_original_chat_reply(
                 process, log, window,
@@ -1347,8 +1362,17 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # World changes, after a strictly acknowledged air reset.
                 prepare_verified_original_scaffold_survival_edge(
                     process, log, window)
-                send_command(process, log, window, "/tp 1.05 100 0.5 90 88.6")
-                send_command(process, log, window, "/gamemode 0")
+                # Require FRESH vanilla integrated-server source replies.
+                # Teleport last, AFTER changing game mode, to minimize
+                # player drift before the strict original native ticks.
+                send_verified_original_chat_reply(
+                    process, log, window, "/gamemode 0",
+                    b"[CHAT] Your game mode has been updated")
+                send_verified_original_chat_reply(
+                    process, log, window,
+                    "/tp CIProbe 1.05 100 0.5 90 88.6",
+                    b"[CHAT] Teleported CIProbe to 1.05, 100.0, 0.5")
+                # Command replies never substitute for player source ticks.
                 await_original_v29_survival_edge_grounding(process, log, window)
                 module_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_MODULE_OWNER_PASS=YES"
                 attempt_tag = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_CONTROLLER_ATTEMPT=YES"
