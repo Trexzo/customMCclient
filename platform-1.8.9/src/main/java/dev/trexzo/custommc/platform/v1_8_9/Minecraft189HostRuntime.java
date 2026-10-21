@@ -98,6 +98,10 @@ public final class Minecraft189HostRuntime
     // Keep the downstream item-use owner null until all return successfully.
     private final Minecraft189HeldItemHostSourceLease heldItemHostLease =
             new Minecraft189HeldItemHostSourceLease();
+    // One original ServerData source for the mapped multiplayer address.
+    // Reentrant logout/server-switch must not publish the old address.
+    private final Minecraft189ServerAddressHostSourceLease serverAddressHostLease =
+            new Minecraft189ServerAddressHostSourceLease();
     // Hurt time authorizes local JumpReset and DamageBoost. A native
     // getter that changes player may not publish old damage evidence.
     private final Minecraft189HurtTimeHostSourceLease hurtTimeHostLease =
@@ -2118,19 +2122,27 @@ public final class Minecraft189HostRuntime
     void serverAddress(
             final Minecraft189ServerDataAccess serverData) {
         requireOpen();
-        if (serverData == null) {
+        if (!serverAddressHostLease.enter(serverData)) return;
+        try {
+            if (serverData == null) {
+                serverAddressState.clear();
+                return;
+            }
+            final String address = serverData.customMcServerAddress();
+            if (!serverAddressHostLease.stillOwned()
+                    || address == null || address.trim().isEmpty()) {
+                serverAddressState.clear();
+                return;
+            }
+            // Preserve the original string normalization and validation;
+            // only an unchanged real ServerData may publish its address.
+            serverAddressState.update(address);
+        } catch (RuntimeException | Error nativeFailure) {
             serverAddressState.clear();
-            return;
+            throw nativeFailure;
+        } finally {
+            serverAddressHostLease.exit();
         }
-        final String address =
-                serverData.customMcServerAddress();
-        if (address == null
-                || address.trim().isEmpty()) {
-            serverAddressState.clear();
-            return;
-        }
-        serverAddressState.update(
-                address);
     }
 
     void playerHeldItem(
