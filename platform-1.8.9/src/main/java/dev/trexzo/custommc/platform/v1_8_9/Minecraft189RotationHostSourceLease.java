@@ -34,9 +34,20 @@ final class Minecraft189RotationHostSourceLease {
         return !revoked;
     }
 
+    interface NativeYawWriteObserver {
+        void succeeded(float yaw);
+    }
+
     Minecraft189PlayerRotationControl guardedControl(
             final Minecraft189PlayerRotationAccess player,
             final BooleanSupplier currentGuiFocused) {
+        return guardedControl(player, currentGuiFocused, null);
+    }
+
+    Minecraft189PlayerRotationControl guardedControl(
+            final Minecraft189PlayerRotationAccess player,
+            final BooleanSupplier currentGuiFocused,
+            final NativeYawWriteObserver originalWriteObserver) {
         if (!(player instanceof Minecraft189PlayerRotationControl)) {
             return null;
         }
@@ -53,6 +64,10 @@ final class Minecraft189RotationHostSourceLease {
             @Override public void customMcSetRotationYaw(final float yaw) {
                 if (stillOwned(currentGuiFocused.getAsBoolean())) {
                     nativeSource.customMcSetRotationYaw(yaw);
+                    // Diagnostic only, after the UNMODIFIED original native
+                    // setter successfully returns. This cannot admit a write.
+                    if (originalWriteObserver != null)
+                        originalWriteObserver.succeeded(yaw);
                 }
             }
             @Override public void customMcSetRotationPitch(final float pitch) {
