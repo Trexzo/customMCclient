@@ -50,6 +50,10 @@ public final class Minecraft189RuntimeBridge {
     private static Object killAuraNonPlayerTarget;
     private static int killAuraDisabledTargetTicks;
     private static int killAuraEnabledVetoTicks;
+    // Strict original player identity continuity is tracked separately
+    // from raw raycast streak, which cannot certify a single native mob.
+    private static int killAuraNonPlayerMaxDisabledIdentityStreak;
+    private static int killAuraNonPlayerMaxEnabledIdentityStreak;
     private static int killAuraNonPlayerSourceDiagCallbacks;
     private static boolean killAuraNonPlayerEnabled;
     private static boolean killAuraNonPlayerReported;
@@ -277,6 +281,8 @@ public final class Minecraft189RuntimeBridge {
         killAuraNonPlayerTarget = null;
         killAuraDisabledTargetTicks = 0;
         killAuraEnabledVetoTicks = 0;
+        killAuraNonPlayerMaxDisabledIdentityStreak = 0;
+        killAuraNonPlayerMaxEnabledIdentityStreak = 0;
         killAuraNonPlayerSourceDiagCallbacks = 0;
         killAuraNonPlayerEnabled = false;
         killAuraNonPlayerReported = false;
@@ -1976,6 +1982,30 @@ public final class Minecraft189RuntimeBridge {
                             + " kindSourceAvailable=" + kindState.available()
                             + " calls=" + observedRay.calls
                             + " accepted=" + observedRay.validCallbacks
+                            + " rawRayStreak="
+                                + observedRay.currentAcceptedRayStreak
+                            + " maxRawRayStreak="
+                                + observedRay.maximumAcceptedRayStreak
+                            + " rejectNoRay=" + observedRay.missRayCount
+                            + " rejectRayType="
+                                + observedRay.wrongRayTypeCount
+                            + " rejectWorldIdentity="
+                                + observedRay.worldMismatchCount
+                            + " rejectNotLoaded="
+                                + observedRay.identityMissingCount
+                            + " rejectKindIndex="
+                                + observedRay.kindIndexMismatchCount
+                            + " rejectInvalidKind="
+                                + observedRay.invalidKindCount
+                            + " rejectReflection="
+                                + observedRay.reflectionUnavailableCount
+                            + " rejectSourceUnavailable="
+                                + observedRay.unavailableSourceCount
+                            + " rejectOther=" + observedRay.otherRejections
+                            + " maxDisabledSameIdentity="
+                                + killAuraNonPlayerMaxDisabledIdentityStreak
+                            + " maxEnabledSameIdentity="
+                                + killAuraNonPlayerMaxEnabledIdentityStreak
                             + " decision=" + observedRay.decision
                             + " nativeIndex=" + observedRay.nativeIndex
                             + " nativeKindBits=" + observedRay.nativeKindBits
@@ -2000,6 +2030,10 @@ public final class Minecraft189RuntimeBridge {
                                     "Kill Aura negative fixture pre-enabled");
                         }
                         killAuraDisabledTargetTicks++;
+                        if (killAuraDisabledTargetTicks
+                                > killAuraNonPlayerMaxDisabledIdentityStreak)
+                            killAuraNonPlayerMaxDisabledIdentityStreak =
+                                    killAuraDisabledTargetTicks;
                         if (killAuraDisabledTargetTicks >= 20) {
                             System.out.println(
                                     "CUSTOMMC_189_KILLAURA_DISABLED_NONPLAYER_TICKS_PASS=20");
@@ -2018,6 +2052,10 @@ public final class Minecraft189RuntimeBridge {
                                     "Kill Aura accepted native nonplayer target");
                         }
                         killAuraEnabledVetoTicks++;
+                        if (killAuraEnabledVetoTicks
+                                > killAuraNonPlayerMaxEnabledIdentityStreak)
+                            killAuraNonPlayerMaxEnabledIdentityStreak =
+                                    killAuraEnabledVetoTicks;
                         if (killAuraEnabledVetoTicks >= 80) {
                             killAuraNonPlayerReported = true;
                             System.out.println(
