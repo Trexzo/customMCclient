@@ -708,6 +708,30 @@ def write_server_properties(path, port, max_players=2):
     path.write_text(content, encoding="ascii")
 
 
+def original_locked_tp_server_reply(command):
+    """Exact FRESH dedicated-server 1.8.9 reply for a real locked-target /tp.
+
+    Three graphical clients use native integer World cells; vanilla /tp to
+    integer X/Z centers at +0.5. Never accept a generic "Teleported" line,
+    a different player, or an unrelated/stale earlier success as evidence.
+    """
+    parts = command.split()
+    if (len(parts) != 7 or parts[0] != "tp"
+            or parts[1] not in ("CIHost", "CITarget", "CITargetB")):
+        raise AssertionError("locked UUID fixture tp source owner invalid")
+    try:
+        x, y, z = (int(value) for value in parts[2:5])
+        yaw, pitch = (int(value) for value in parts[5:7])
+    except ValueError as error:
+        raise AssertionError("locked UUID tp requires integral source cells") from error
+    if abs(x) >= 29999990 or abs(z) >= 29999990 or y < 1 or y > 255:
+        raise AssertionError("locked UUID tp outside original vanilla World")
+    if not -360 <= yaw <= 360 or not -90 <= pitch <= 90:
+        raise AssertionError("locked UUID tp angle invalid")
+    return ("Teleported {} to {:.1f}, {:.1f}, {:.1f}".format(
+        parts[1], x + 0.5, float(y), z + 0.5)).encode("ascii")
+
+
 def send_server_command(server, log, command, expected=None, timeout=6):
     """Run a genuine Mojang dedicated-server console command and check reply.
 
@@ -2549,9 +2573,14 @@ def run(args):
                                 "gamerule naturalRegeneration false")
             host_tp, a_near, b_outer, b_near, a_far = (
                 actual_server_three_client_locked_fixture(server_log))
-            send_server_command(server, server_log, b_outer)
-            send_server_command(server, server_log, host_tp)
-            send_server_command(server, server_log, a_near)
+            # V292: REQUIRE a fresh, coordinate-precise original
+            # dedicated-server teleport receipt for EACH genuine remote
+            # and host, not simply 0.3 seconds of Python command delay.
+            # Actual source-native A selection still must pass 20 ticks.
+            for original_tp in (b_outer, host_tp, a_near):
+                send_server_command(
+                    server, server_log, original_tp,
+                    expected=original_locked_tp_server_reply(original_tp))
             wait_for(host, host_log, LOCK_READY, deadline,
                      "20 disabled callbacks selecting genuine nearer A")
             wait_for(host, host_log, LOCK_ARMED, deadline,
