@@ -87,6 +87,9 @@ public final class Minecraft189RuntimeBridge {
     private static float acceptanceAuraFovLastRearYaw = Float.NaN;
     private static int acceptanceAuraFovLastRearTick = -1;
     private static int acceptanceAuraFovLastRearIndex = -1;
+    private static final Minecraft189OriginalFovAuraAimTrace
+            acceptanceAuraFovAimTrace =
+            new Minecraft189OriginalFovAuraAimTrace();
     private static boolean acceptanceAuraFovEnabled;
     private static boolean acceptanceAuraFovReported;
 
@@ -111,6 +114,21 @@ public final class Minecraft189RuntimeBridge {
     }
 
     private Minecraft189RuntimeBridge() {
+    }
+
+    /**
+     * Called only after the original player rotation lease remains owned,
+     * observing the UNMODIFIED Aura aim return and pre-aim source snapshots.
+     * The caller and recorder never change the original aim decision.
+     */
+    static void acceptanceFovObserveAuraAim(
+            final boolean sourceYawAvailable, final float preAimYaw,
+            final boolean selectedAvailable, final int selectedIndex,
+            final float selectedYaw, final boolean aimReturnedTrue) {
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraFovVeto"))
+            return;
+        acceptanceAuraFovAimTrace.observe(sourceYawAvailable, preAimYaw,
+                selectedAvailable, selectedIndex, selectedYaw, aimReturnedTrue);
     }
 
     /**
@@ -270,6 +288,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceAuraFovLastRearYaw = Float.NaN;
         acceptanceAuraFovLastRearTick = -1;
         acceptanceAuraFovLastRearIndex = -1;
+        acceptanceAuraFovAimTrace.reset();
         acceptanceAuraFovEnabled = false;
         acceptanceAuraFovReported = false;
         scaffoldOriginalContextReported = false;
@@ -2696,6 +2715,8 @@ public final class Minecraft189RuntimeBridge {
                     double delta = (targetYaw - angle.yaw()) % 360.0D;
                     if (delta < -180.0D) delta += 360.0D;
                     if (delta >= 180.0D) delta -= 360.0D;
+                    final Minecraft189OriginalFovAuraAimTrace.Snapshot
+                            originalAim = acceptanceAuraFovAimTrace.snapshot();
                     System.out.println(
                             "CUSTOMMC_189_NATIVE_FOV_UNEXPECTED_CLICK_EVIDENCE"
                             + " nativePlayerHit=" + playerHit
@@ -2703,6 +2724,17 @@ public final class Minecraft189RuntimeBridge {
                             + " nativeIndexed=" + indexed
                             + " playerYaw=" + angle.yaw()
                             + " playerPitch=" + angle.pitch()
+                            + " originalAimCallbacks=" + originalAim.callbacks
+                            + " originalAimEligibleCallbacks="
+                                + originalAim.eligibleCallbacks
+                            + " lastOriginalPreAimYaw="
+                                + originalAim.lastPreAimYaw
+                            + " lastEligibleAimPreYaw="
+                                + originalAim.lastEligiblePreAimYaw
+                            + " lastEligibleAimTargetYaw="
+                                + originalAim.lastEligibleSelectedYaw
+                            + " lastEligibleAimTargetIndex="
+                                + originalAim.lastEligibleSelectedIndex
                             + " lastVerifiedRearYaw="
                                 + acceptanceAuraFovLastRearYaw
                             + " lastVerifiedRearTick="
