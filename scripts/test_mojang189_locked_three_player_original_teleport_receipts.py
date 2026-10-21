@@ -75,8 +75,12 @@ class LockedNativeOriginalTeleportReceiptTests(unittest.TestCase):
             and node.test.attr == "locked_target"
             and isinstance(node.test.value, ast.Name)
             and node.test.value.id == "args"
+            and "for original_tp in (b_outer, host_tp, a_near):"
+                in (ast.get_source_segment(runner, node) or "")
         ]
-        self.assertEqual(1, len(matches))
+        self.assertEqual(1, len(matches),
+                         "select the actual original three-client A/B "
+                         "fixture rather than unrelated locked-target checks")
         native = ast.get_source_segment(runner, matches[0])
         self.assertIn("for original_tp in (b_outer, host_tp, a_near):",
                       native)
