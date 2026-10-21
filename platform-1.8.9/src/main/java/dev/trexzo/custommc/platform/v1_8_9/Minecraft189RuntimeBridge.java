@@ -333,6 +333,8 @@ public final class Minecraft189RuntimeBridge {
         scaffoldOriginalPlacementActivation = 0L;
         scaffoldOriginalSourceEpoch.invalidate();
         scaffoldOriginalPlacementReadbackReported = false;
+        scaffoldOriginalPlacementNativeDiagTicks = 0;
+        Minecraft189ScaffoldNativePlacementAttempt.resetOriginalV29Trace();
         scaffoldAcceptanceEnableIssued = false;
         scaffoldAcceptancePendingDiagTicks = 0;
         scaffoldMenuPrearmHeartbeatTicks = 0;
@@ -452,6 +454,7 @@ public final class Minecraft189RuntimeBridge {
             scaffoldOriginalPlacementReadback;
     private static int scaffoldOriginalPlacementReadbackTicks;
     private static boolean scaffoldOriginalPlacementReadbackReported;
+    private static int scaffoldOriginalPlacementNativeDiagTicks;
     private static int scaffoldDisabledProofTicks;
     private static boolean scaffoldDisabledProofReported;
     private static boolean scaffoldAcceptanceEnableIssued;
@@ -1059,6 +1062,31 @@ public final class Minecraft189RuntimeBridge {
                         + " selectedBefore=" + attempted.originalStackSize);
                 System.out.flush();
             }
+        }
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireOriginalScaffoldPlacement")
+                && (++scaffoldOriginalPlacementNativeDiagTicks == 1
+                    || scaffoldOriginalPlacementNativeDiagTicks % 40 == 0)) {
+            // V294: source-owned frame + exact branch refusals from the
+            // already-executed real attempt. No independent World/cursor/
+            // controller access or additional attempt to place.
+            final Minecraft189OriginalScaffoldPlacementAttemptTrace.Snapshot v294 =
+                    Minecraft189ScaffoldNativePlacementAttempt.originalV29Trace();
+            System.out.println(
+                    "CUSTOMMC_189_ORIGINAL_SCAFFOLD_V29_REFUSAL_DIAGNOSTIC"
+                    + " callbacks=" + scaffoldOriginalPlacementNativeDiagTicks
+                    + " enableIssued=" + scaffoldAcceptanceEnableIssued
+                    + " moduleActivation=" + moduleActivation
+                    + " moduleArmed=" + moduleArmed
+                    + " originalEpoch=" + sourceEpoch
+                    + " receiptPending=" + (scaffoldOriginalPlacementReadback != null)
+                    + " attemptedCalls=" + v294.originalCalls
+                    + " refused=" + v294.refused
+                    + " completedControllerCalls=" + v294.completedControllerCalls
+                    + " controllerAccepted=" + v294.controllerAccepted
+                    + " lastAttemptDecision=" + v294.lastReason
+                    + " refusalCounts=" + v294.reasons);
+            System.out.flush();
         }
         if (activeRuntime != null && !scaffoldOriginalCandidateReported
                 && Boolean.getBoolean(
