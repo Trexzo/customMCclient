@@ -195,14 +195,23 @@ jobs:
         with:
           distribution: temurin
           java-version: '8'
-      - name: Ensure Xvfb and legacy LWJGL2 XRandR display enumeration
+      # V304: the V302/V303 second/first native jobs timed out while apt
+      # fetched recommended Openbox/X11 packages from the Ubuntu mirror.
+      # Package/network setup is NOT a native Mojang gameplay stage.
+      - name: Provision original X11 tools before native gameplay deadlines
+        timeout-minutes: 12
         run: |
-          if ! command -v xvfb-run >/dev/null 2>&1 || ! command -v xrandr >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y xvfb x11-xserver-utils
+          if ! command -v xvfb-run >/dev/null 2>&1 || ! command -v xrandr >/dev/null 2>&1 || \
+             ! command -v xdotool >/dev/null 2>&1 || ! command -v openbox >/dev/null 2>&1; then
+            sudo apt-get -o Acquire::Retries=2 update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=2 install \
+              -y --no-install-recommends --no-upgrade \
+              xvfb x11-xserver-utils xdotool openbox
           fi
           command -v xvfb-run
           command -v xrandr
+          command -v xdotool
+          command -v openbox
           xvfb-run -a -s "-screen 0 1280x720x24" xrandr --query
       - name: Run offline singleplayer with genuine player and world Combat snapshots
         timeout-minutes: 4
@@ -210,10 +219,9 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
           MESA_GL_VERSION_OVERRIDE: '2.1'
         run: |
-          if ! command -v xdotool >/dev/null 2>&1 || ! command -v openbox >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y xdotool openbox
-          fi
+          # All actual GUI tools were checked before this strict native timer.
+          command -v xdotool
+          command -v openbox
           xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189SingleplayerSmoke.py \
             --java "$JAVA_HOME/bin/java" \
             --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
