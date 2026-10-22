@@ -1341,16 +1341,37 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # original client's World via normal world packets.
                 resume_if_paused(process, log, window)
                 send_command(process, log, window, "/time set 1000")
-                # Load destination first; vanilla /setblock rejects unloaded
-                # chunks. A permanent separate stone support prevents the
-                # original player falling out of loaded range while observing.
-                send_command(process, log, window, "/tp 0.5 120 0.5 0 0")
-                time.sleep(2.0)
-                send_command(process, log, window, "/setblock 0 99 0 stone")
-                send_command(process, log, window, "/setblock 1 99 0 air")
-                if b"Cannot place blocks outside of the world" in read_tail(log):
-                    raise AssertionError("vanilla original world setup rejected unloaded chunk")
-                send_command(process, log, window, "/tp 0.5 100 0.5 0 0")
+                # V300: the V297 second *real* original V16 failed
+                # sustained-ground proof after fire-and-forget /setblock
+                # commands. Establish source-acknowledged native support
+                # in the actually loaded destination before reseating.
+                send_verified_original_chat_reply(
+                    process, log, window, "/tp CIProbe 0 120 0 0 0",
+                    b"[CHAT] Teleported CIProbe to 0.5, 120.0, 0.5")
+                # A sacrificial actual original air reset can be a no-op;
+                # the next support STONE command still MUST return a fresh
+                # positive changed-block count from the vanilla server.
+                send_verified_original_air_preclear(
+                    process, log, window, "/fill 0 99 0 0 99 0 air",
+                    "original V16 real support air contrast",
+                    "missing fresh vanilla V16 support air reset")
+                send_verified_fill(process, log, window,
+                                   "/fill 0 99 0 0 99 0 stone")
+                # Also establish genuine source AIR at the adjacent target.
+                # The old unchecked setblock could silently leave stone
+                # or an unloaded state; the original client-native AIR
+                # witness must still independently confirm the World.
+                send_verified_original_air_preclear(
+                    process, log, window, "/fill 1 99 0 1 99 0 air",
+                    "original V16 genuine adjacent AIR setup",
+                    "missing fresh vanilla V16 adjacent air setup")
+                send_verified_original_chat_reply(
+                    process, log, window, "/tp CIProbe 0 100 0 0 0",
+                    b"[CHAT] Teleported CIProbe to 0.5, 100.0, 0.5")
+                send_verified_original_chat_reply(
+                    process, log, window,
+                    "/testforblock 0 99 0 stone",
+                    b"[CHAT] Successfully found the block at 0, 99, 0.")
                 # Actually observe the source-native player's stable support,
                 # not simply successful execution of the /tp command.
                 stable_start = time.monotonic()
@@ -1372,11 +1393,15 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_UNLOADED_CHUNK_VETO_PASS=YES",
                              deadline, "source native remote unloaded chunk rejects false AIR")
-                send_command(process, log, window, "/setblock 1 99 0 stone")
+                # Preserve distinct genuine positive changed-server-block
+                # receipts, not just a command sent or a stale client ray.
+                send_verified_fill(process, log, window,
+                                   "/fill 1 99 0 1 99 0 stone")
                 await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_SOLID_PASS=YES",
                              deadline, "genuine vanilla stone at adjacent (1,99,0)")
-                send_command(process, log, window, "/setblock 1 99 0 air")
+                send_verified_fill(process, log, window,
+                                   "/fill 1 99 0 1 99 0 air")
                 await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_WORLD_REVERTED_AIR_PASS=YES",
                              deadline, "original World observes real stone-to-air server update")
