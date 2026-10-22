@@ -121,12 +121,12 @@ class OriginalV16FreshPositionSourceTests(TestCase):
         with TemporaryDirectory() as td:
             log = Path(td) / "actual-original-client.log"
             log.write_bytes(
-                b"[CHAT] Successfully found the block at 0,99,0.\\n")
+                b"[CHAT] Successfully found the block at 0,99,0.\n")
             actual = b"[CHAT] Successfully found the block at 0,99,0."
             def actual_vanilla_source(_process, path, _window, command):
                 self.assertEqual("/testforblock 0 99 0 stone", command)
                 with path.open("ab") as output:
-                    output.write(actual + b"\\n")
+                    output.write(actual + b"\n")
             with patch.object(smoke, "send_command",
                               side_effect=actual_vanilla_source), patch.object(
                     smoke, "require_running"):
@@ -141,7 +141,7 @@ class OriginalV16FreshPositionSourceTests(TestCase):
             def actual_original(_p, file, _window, _cmd):
                 with file.open("ab") as out:
                     out.write(
-                        b"[CHAT] Successfully found the block at 0,99,0.\\n")
+                        b"[CHAT] Successfully found the block at 0,99,0.\n")
             with patch.object(smoke, "send_command",
                               side_effect=actual_original), patch.object(
                     smoke, "require_running"), patch.object(
