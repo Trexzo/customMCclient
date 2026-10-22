@@ -53,13 +53,16 @@ class OriginalNativeV16WorldTransitionsTest(TestCase):
                          self.source[:self.source.index("while time.monotonic()")])
 
     def test_source_native_grounding_streak_is_still_original_and_strict(self):
-        for token in ("native_safe_walk_positions(log)[-5:]",
+        for token in ("native_safe_walk_positions(",
                       "len(actual) >= 3",
                       "all(", "abs(y - 100.0) < 0.2",
                       "raise AssertionError(\"vanilla player lacks sustained stone support"):
             self.assertIn(token,self.source)
         self.assertLess(self.source.index('"/testforblock 0 99 0 stone"'),
-                        self.source.index("native_safe_walk_positions(log)[-5:]"))
+                        self.source.index("native_safe_walk_positions("))
+        self.assertIn("since=v16_post_teleport_native_cursor",self.source)
+        self.assertLess(self.source.index("v16_post_teleport_native_cursor ="),
+                        self.source.index("native_safe_walk_positions("))
         self.assertIn("CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_SUPPORT_GROUNDED=YES",self.source)
 
     def test_adjacent_native_air_stone_air_all_have_distinct_required_witnesses(self):
