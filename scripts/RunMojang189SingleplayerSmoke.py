@@ -316,6 +316,32 @@ def original_dry_chamber_preclear_reply(fresh):
     return None
 
 
+def send_verified_original_air_preclear(process, log, window, command,
+                                        stage, missing_reply):
+    """Shared fail-closed original vanilla AIR reset used by V19/V23/V29/dry.
+
+    Capture the ACTUAL client log end BEFORE sending the X11 vanilla command.
+    A positive changed-block chat reply or an independently fresh literal
+    'No blocks filled' is legitimate ONLY for this sacrificial preclear;
+    neither proves a later required positive World change or any native ray.
+    """
+    if not command.startswith("/fill ") or not command.endswith(" air"):
+        raise ValueError("original preclear requires actual vanilla air fill")
+    cursor = log.stat().st_size if log.exists() else 0
+    send_command(process, log, window, command)
+    stop = time.monotonic() + 8
+    while time.monotonic() < stop:
+        require_running(process, stage)
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read()
+        observed = original_dry_chamber_preclear_reply(fresh)
+        if observed is not None:
+            return observed
+        time.sleep(.2)
+    raise AssertionError(missing_reply)
+
+
 def prepare_verified_native_dry_chamber(process, log, window):
     """Real World pre-clear, mandatory positive stone fill, positive carve.
 
@@ -325,23 +351,11 @@ def prepare_verified_native_dry_chamber(process, log, window):
     material, air. The preclear can be an acknowledged no-op; BOTH
     subsequent original /fill commands must alter real server blocks.
     """
-    clear = "/fill 4 79 4 12 87 12 air"
-    cursor = log.stat().st_size if log.exists() else 0
-    send_command(process, log, window, clear)
-    stop = time.monotonic() + 8
-    while time.monotonic() < stop:
-        require_running(process, "original dry chamber genuine air preclear")
-        with log.open("rb") as handle:
-            handle.seek(cursor)
-            fresh = handle.read()
-        outcome = original_dry_chamber_preclear_reply(fresh)
-        if outcome is not None:
-            break
-        time.sleep(.2)
-    else:
-        raise AssertionError(
-            "no fresh original vanilla preclear acknowledgment before "
-            "bounded dry chamber deadline")
+    send_verified_original_air_preclear(
+        process, log, window, "/fill 4 79 4 12 87 12 air",
+        "original dry chamber genuine air preclear",
+        "no fresh original vanilla preclear acknowledgment before "
+        "bounded dry chamber deadline")
     # These MUST each return an original, fresh positive changed-block count.
     # Never interpret the preclear (even when changed) as either proof.
     send_verified_fill(process, log, window,
@@ -359,22 +373,10 @@ def prepare_verified_original_scaffold_raytrace_support(
     was stone. Fresh vanilla AIR contrast and a strictly changed STONE
     reply prove World construction ONLY, not source ray-hit acceptance.
     """
-    command = "/fill 0 99 0 0 99 0 air"
-    cursor = log.stat().st_size if log.exists() else 0
-    send_command(process, log, window, command)
-    stop = time.monotonic() + 8
-    while time.monotonic() < stop:
-        require_running(process, "genuine original Scaffold raytrace air reset")
-        with log.open("rb") as handle:
-            handle.seek(cursor)
-            fresh = handle.read()
-        result = original_dry_chamber_preclear_reply(fresh)
-        if result is not None:
-            break
-        time.sleep(.2)
-    else:
-        raise AssertionError(
-            "missing fresh vanilla V19 raytrace support preclear reply")
+    send_verified_original_air_preclear(
+        process, log, window, "/fill 0 99 0 0 99 0 air",
+        "genuine original Scaffold raytrace air reset",
+        "missing fresh vanilla V19 raytrace support preclear reply")
     # The preclear is not a positive raycast or source World certification.
     # Original 1.8.9 must subsequently acknowledge a CHANGED stone cell.
     send_verified_fill(process, log, window,
@@ -496,22 +498,10 @@ def prepare_verified_original_scaffold_survival_edge(
     positive World changes to BOTH support and target with real /fill.
     This is only World preparation, never a synthetic placement PASS.
     """
-    preclear = "/fill 0 99 0 1 99 0 air"
-    cursor = log.stat().st_size if log.exists() else 0
-    send_command(process, log, window, preclear)
-    stop = time.monotonic() + 8
-    while time.monotonic() < stop:
-        require_running(process, "original survival Scaffold real air reset")
-        with log.open("rb") as handle:
-            handle.seek(cursor)
-            fresh = handle.read()
-        result = original_dry_chamber_preclear_reply(fresh)
-        if result is not None:
-            break
-        time.sleep(.2)
-    else:
-        raise AssertionError(
-            "no fresh original Scaffold air-preclear vanilla reply")
+    send_verified_original_air_preclear(
+        process, log, window, "/fill 0 99 0 1 99 0 air",
+        "original survival Scaffold real air reset",
+        "no fresh original Scaffold air-preclear vanilla reply")
     # The fresh air acknowledgment is NOT an enabled placement proof.
     # Genuine changed-block confirmations here are mandatory:
     # (0,99,0) stays STONE support; (1,99,0) stays AIR target.
@@ -529,23 +519,13 @@ def send_verified_original_scaffold_context_preclear(process, log, window):
     reset makes the following two mandatory positive fills independent of
     arbitrary original world terrain. It cannot count as a World or V23 PASS.
     """
-    command = "/fill 0 99 0 4 104 4 air"
-    cursor = log.stat().st_size if log.exists() else 0
-    send_command(process, log, window, command)
-    deadline = time.monotonic() + 8
-    while time.monotonic() < deadline:
-        require_running(process, "original V23 true vanilla context preclear")
-        with log.open("rb") as handle:
-            handle.seek(cursor)
-            fresh = handle.read()
-        observed = original_dry_chamber_preclear_reply(fresh)
-        if observed is not None:
-            print("CUSTOMMC_189_V23_NATIVE_CONTEXT_PRECLEAR_SOURCE="
-                  + observed, flush=True)
-            return observed
-        time.sleep(.2)
-    raise AssertionError(
+    observed = send_verified_original_air_preclear(
+        process, log, window, "/fill 0 99 0 4 104 4 air",
+        "original V23 true vanilla context preclear",
         "no FRESH original vanilla V23 context air-preclear source reply")
+    print("CUSTOMMC_189_V23_NATIVE_CONTEXT_PRECLEAR_SOURCE="
+          + observed, flush=True)
+    return observed
 
 
 def prepare_native_scaffold_context_chamber(process, log, window):
