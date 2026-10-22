@@ -6,6 +6,7 @@ remain the sole native authorities in pinned original 78-stage acceptance.
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
+from unittest.mock import patch
 
 import RunMojang189SingleplayerSmoke as smoke
 
@@ -104,6 +105,52 @@ class OriginalV16FreshPositionSourceTests(TestCase):
         self.assertLess(world, samples)
         self.assertLess(samples, witness)
         self.assertIn("since=v16_post_teleport_native_cursor", body)
+
+    def test_v16_expected_original_testforblock_reply_matches_actual_native_format(self):
+        source = Path(smoke.__file__).read_text(encoding="utf-8")
+        first = source.index("            if native_scaffold_world:")
+        last = source.index("            if native_scaffold_tick:", first)
+        body = source[first:last]
+        self.assertIn(
+            'b"[CHAT] Successfully found the block at 0,99,0."', body)
+        self.assertNotIn(
+            'b"[CHAT] Successfully found the block at 0, 99, 0."', body)
+        self.assertIn('"/testforblock 0 99 0 stone"', body)
+
+    def test_fresh_genuine_original_coordinate_reply_is_required_not_stale_chat(self):
+        with TemporaryDirectory() as td:
+            log = Path(td) / "actual-original-client.log"
+            log.write_bytes(
+                b"[CHAT] Successfully found the block at 0,99,0.\\n")
+            actual = b"[CHAT] Successfully found the block at 0,99,0."
+            def actual_vanilla_source(_process, path, _window, command):
+                self.assertEqual("/testforblock 0 99 0 stone", command)
+                with path.open("ab") as output:
+                    output.write(actual + b"\\n")
+            with patch.object(smoke, "send_command",
+                              side_effect=actual_vanilla_source), patch.object(
+                    smoke, "require_running"):
+                smoke.send_verified_original_chat_reply(
+                    object(), log, "X11",
+                    "/testforblock 0 99 0 stone", actual)
+
+    def test_historical_spaced_coordinate_literal_would_reject_real_reply(self):
+        with TemporaryDirectory() as td:
+            log = Path(td) / "original-native.log"
+            log.write_bytes(b"")
+            def actual_original(_p, file, _window, _cmd):
+                with file.open("ab") as out:
+                    out.write(
+                        b"[CHAT] Successfully found the block at 0,99,0.\\n")
+            with patch.object(smoke, "send_command",
+                              side_effect=actual_original), patch.object(
+                    smoke, "require_running"), patch.object(
+                    smoke.time, "monotonic", side_effect=[0, 9]):
+                with self.assertRaisesRegex(AssertionError,
+                                            "missing new source integrated-server reply"):
+                    smoke.send_verified_original_chat_reply(
+                        object(), log, "X11", "/testforblock 0 99 0 stone",
+                        b"[CHAT] Successfully found the block at 0, 99, 0.")
 
     def test_v16_does_not_weaken_original_native_stability_or_time_bound(self):
         script = Path(smoke.__file__).read_text(encoding="utf-8")
