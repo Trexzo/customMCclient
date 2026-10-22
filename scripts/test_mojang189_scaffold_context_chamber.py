@@ -15,6 +15,9 @@ class OriginalScaffoldContextRoomTests(TestCase):
         with patch.object(smoke, "send_verified_original_chat_reply",
                           side_effect=lambda *args: commands.append(
                               ("tp", args[3], args[4]))), patch.object(
+                smoke, "send_verified_original_scaffold_context_preclear",
+                side_effect=lambda *args: commands.append(
+                    ("preclear", "/fill 0 99 0 4 104 4 air"))), patch.object(
                 smoke, "send_verified_fill",
                 side_effect=lambda *args: commands.append(
                     ("fill", args[3]))):
@@ -23,6 +26,7 @@ class OriginalScaffoldContextRoomTests(TestCase):
         self.assertEqual(commands, [
             ("tp", "/tp CIProbe 2 120 2 0 0",
                    b"[CHAT] Teleported CIProbe to 2.5, 120.0, 2.5"),
+            ("preclear", "/fill 0 99 0 4 104 4 air"),
             ("fill", "/fill 0 99 0 4 104 4 stone"),
             ("fill", "/fill 0 100 0 4 104 4 air"),
             ("tp", "/tp CIProbe 2 100 2 0 0",
