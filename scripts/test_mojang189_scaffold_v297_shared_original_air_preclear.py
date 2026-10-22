@@ -98,22 +98,26 @@ class OriginalVanillaAirPreclearUnificationTest(TestCase):
         src = Path(smoke.__file__).read_text(encoding="utf-8")
         module = ast.parse(src)
         scenarios = (
-            ("prepare_verified_native_dry_chamber", "/fill 4 79 4 12 87 12 air"),
+            ("prepare_verified_native_dry_chamber",
+             ("/fill 4 79 4 12 87 12 air",)),
             ("prepare_verified_original_scaffold_raytrace_support",
-             "/fill 0 99 0 0 99 0 air"),
+             ("/fill 0 99 0 0 99 0 air",
+              "/fill 0 100 0 0 102 0 air")),
             ("prepare_verified_original_scaffold_survival_edge",
-             "/fill 0 99 0 1 99 0 air"),
+             ("/fill 0 99 0 1 99 0 air",)),
             ("send_verified_original_scaffold_context_preclear",
-             "/fill 0 99 0 4 104 4 air"),
+             ("/fill 0 99 0 4 104 4 air",)),
         )
-        for name, command in scenarios:
+        for name, commands in scenarios:
             with self.subTest(name=name):
                 targets = [n for n in module.body
                            if isinstance(n, ast.FunctionDef) and n.name == name]
                 self.assertEqual(1, len(targets))
                 body = ast.get_source_segment(src, targets[0])
-                self.assertEqual(1, body.count("send_verified_original_air_preclear("))
-                self.assertIn(command, body)
+                self.assertEqual(len(commands),
+                                 body.count("send_verified_original_air_preclear("))
+                for command in commands:
+                    self.assertIn(command, body)
                 self.assertNotIn("handle.seek(cursor)", body)
                 self.assertNotIn("send_command(", body)
                 self.assertNotIn("PASS=YES", body)
