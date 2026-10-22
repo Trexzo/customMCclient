@@ -1398,7 +1398,11 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 send_verified_original_chat_reply(
                     process, log, window,
                     "/testforblock 0 99 0 stone",
-                    b"[CHAT] Successfully found the block at 0, 99, 0.")
+                    # V300 authentic original #39754691161 FAILED because
+                    # Mojang 1.8.9 actually emits "0,99,0." (no spaces).
+                    # Match the observed fresh server reply exactly, with
+                    # no generic acceptance of other block coordinates.
+                    b"[CHAT] Successfully found the block at 0,99,0.")
                 # Same original three-native-position x/y/z predicate,
                 # but all three must originate after the final TP reply.
                 # A prior singleplayer moment at y100 cannot fabricate V16.
