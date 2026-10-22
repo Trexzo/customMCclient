@@ -449,6 +449,64 @@ def verify_original_v19_air_column_after_reseat(process, log, window):
     print("CUSTOMMC_189_V19_ORIGINAL_AIR_COLUMN_READBACK=YES", flush=True)
 
 
+def prepare_verified_original_v26_candidate_source_lane(process, log, window):
+    """Prepare ONLY true vanilla World cells before the genuine V26 ray.
+
+    The second original V301 V26 log actually returned a cursor block at
+    (1,101,0), rather than the intended EAST face of (0,99,0), while original
+    selected ItemBlock count was eight and client player was grounded. Earlier
+    V26 only wrote y99 and never verified the three higher air cells.
+
+    All changes below use ordinary original X11 vanilla commands with fresh
+    exact integrated-server source replies. No client World setter, spoofed
+    ray, source cursor rewrite, acceptance shortcut or extra placement.
+    """
+    send_verified_original_chat_reply(
+        process, log, window, "/tp CIProbe 0 120 0 0 0",
+        b"[CHAT] Teleported CIProbe to 0.5, 120.0, 0.5")
+    # Original native V26 source cursor travels near x1 above the target.
+    # An unrelated source stone at (1,101,0) can steal that real cursor
+    # and correctly fail the existing exact-plane native face gate.
+    send_verified_original_air_preclear(
+        process, log, window, "/fill 0 100 0 1 102 0 air",
+        "original V26 real source cursor unobstructed air lane",
+        "missing fresh original V26 air-lane preclear reply")
+    send_verified_original_air_preclear(
+        process, log, window, "/fill 0 99 0 0 99 0 air",
+        "original V26 true support-stone contrast air preclear",
+        "missing fresh original V26 support reset reply")
+    # Unlike the old unacknowledged /setblock, this MUST change real
+    # vanilla blocks; No blocks filled is never allowed for support.
+    send_verified_fill(process, log, window,
+                       "/fill 0 99 0 0 99 0 stone")
+    send_verified_original_air_preclear(
+        process, log, window, "/fill 1 99 0 1 99 0 air",
+        "original V26 true adjacent air target",
+        "missing fresh original V26 adjacent air reply")
+    send_verified_original_chat_reply(
+        process, log, window, "/tp CIProbe 1.05 100 0.5 90 88.6",
+        b"[CHAT] Teleported CIProbe to 1.05, 100.0, 0.5")
+    # A real server teleport receipt is not native x/y/z evidence.
+    # The caller separately requires THREE real post-TP native ticks.
+    post_tp_source_cursor = log.stat().st_size if log.exists() else 0
+    for x, y, block in (
+        (0, 99, "stone"),
+        (1, 99, "air"),
+        (1, 100, "air"),
+        (1, 101, "air"),
+        (1, 102, "air"),
+    ):
+        # Original Mojang 1.8.9 actual /testforblock coordinate formatting
+        # is x,y,z with NO spaces, independently learned from real V300.
+        send_verified_original_chat_reply(
+            process, log, window,
+            "/testforblock {} {} 0 {}".format(x, y, block),
+            ("[CHAT] Successfully found the block at {},{},0."
+             .format(x, y)).encode("ascii"))
+    print("CUSTOMMC_189_V26_ORIGINAL_WORLD_LANE_READBACK=YES",flush=True)
+    return post_tp_source_cursor
+
+
 def original_v29_inventory_clear_receipt(fresh):
     """Classify actual 1.8.9 /clear reply from a caller's fresh log cursor."""
     if re.search(
@@ -1596,15 +1654,16 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # this is NOT a block placement test.
                 resume_if_paused(process, log, window)
                 send_command(process, log, window, "/time set 1000")
-                send_command(process, log, window, "/tp 0.5 120 0.5 0 0")
-                time.sleep(2.0)
-                send_command(process, log, window, "/setblock 0 99 0 stone")
-                send_command(process, log, window, "/setblock 1 99 0 air")
-                # Look steeply down/left toward original support EAST face.
-                send_command(process, log, window, "/tp 1.05 100 0.5 90 88.6")
+                # V303: prepare a verified original vanilla AIR ray lane
+                # above EAST side (x1,y100-102) and unchanged original
+                # support (0,99,0). Original V301 second native V26 failed
+                # at a different real hit block (1,101,0).
+                v26_post_tp_cursor = prepare_verified_original_v26_candidate_source_lane(
+                    process, log, window)
                 stable_start = time.monotonic()
                 while time.monotonic() - stable_start < 12:
-                    readings = native_safe_walk_positions(log)[-5:]
+                    readings = native_safe_walk_positions(
+                        log, since=v26_post_tp_cursor)[-5:]
                     if original_edge_grounding_stable(readings):
                         print("CUSTOMMC_V55_EDGE_NATIVE_STABLE_SOURCE_POSITION=YES "
                               "last={}".format(readings[-1]), flush=True)
