@@ -139,14 +139,20 @@ class OriginalNativeV19UnobstructedRayCorridorTests(TestCase):
         first = source.index("            if native_scaffold_raytrace:")
         last = source.index('            require_running(process, "post world checkpoint")',first)
         scenario = source[first:last]
-        assert_tokens = (
-            "prepare_verified_original_scaffold_raytrace_support(",
-            "verify_original_v19_stone_after_reseat(",
-            "SCAFFOLD_RAYTRACE_WRONG_FACE_BLOCK_VETO_PASS=YES",
-            "SCAFFOLD_NATIVE_WORLD_UP_FACE_RAYTRACE_PASS=YES",
-        )
-        offsets = [scenario.index(token) for token in assert_tokens]
-        self.assertEqual(offsets,sorted(offsets))
+        # Only compare ACTUAL await_marker calls. The existing strict
+        # pre-fixture rejection also mentions the positive ray marker in a
+        # guarded negative check before either native source is created.
+        setup = scenario.index("prepare_verified_original_scaffold_raytrace_support(")
+        stone = scenario.index("verify_original_v19_stone_after_reseat(")
+        first = scenario.index("await_marker(process, log,")
+        second = scenario.index("await_marker(process, log,",first+1)
+        self.assertLess(setup,stone)
+        self.assertLess(stone,first)
+        self.assertLess(first,second)
+        self.assertIn("SCAFFOLD_RAYTRACE_WRONG_FACE_BLOCK_VETO_PASS=YES",
+                      scenario[first:second])
+        self.assertIn("SCAFFOLD_NATIVE_WORLD_UP_FACE_RAYTRACE_PASS=YES",
+                      scenario[second:])
         self.assertEqual(2,scenario.count("await_marker(process, log,"))
 
 
