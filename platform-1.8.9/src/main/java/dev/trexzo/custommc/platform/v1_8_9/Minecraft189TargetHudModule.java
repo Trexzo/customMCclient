@@ -123,6 +123,28 @@ public final class Minecraft189TargetHudModule implements Module {
         return registration != null && registration.active();
     }
 
+    /**
+     * The target card may only combine the SAME original mapped player
+     * index and squared source distance that produced the yaw/pitch.
+     * A newer World player scan can arrive before its rotation update;
+     * displaying two different source snapshots as one target misleads
+     * the user. Neither index nor distance substitutes for a UUID check
+     * in the actual separate combat/controller admission.
+     */
+    static boolean matchingSourceTarget(
+            final Minecraft189NearestPlayerTargetState.Snapshot target,
+            final Minecraft189TargetRotationState.Snapshot angle) {
+        return target != null && angle != null
+                && target.available() && target.found()
+                && angle.available()
+                && target.entityIndex() == angle.entityIndex()
+                && Double.isFinite(target.distanceSquared())
+                && Double.isFinite(angle.distanceSquared())
+                && target.distanceSquared() >= 0.0D
+                && Double.compare(target.distanceSquared(),
+                        angle.distanceSquared()) == 0;
+    }
+
     static String distanceText(final Minecraft189NearestPlayerTargetState.Snapshot target) {
         return String.format(Locale.ROOT, "DIST  %.1fm", target.distance());
     }
@@ -155,7 +177,9 @@ public final class Minecraft189TargetHudModule implements Module {
             Objects.requireNonNull(frame, "frame");
             final Minecraft189NearestPlayerTargetState.Snapshot target = nearest.snapshot();
             final Minecraft189TargetRotationState.Snapshot angle = direction.snapshot();
-            if (!target.available() || !target.found() || !angle.available()) {
+            if (!matchingSourceTarget(target, angle)) {
+                // Never draw a new original player's name/distance with
+                // stale yaw/pitch from a different World selection tick.
                 return;
             }
             final UiViewport viewport = new UiViewport(

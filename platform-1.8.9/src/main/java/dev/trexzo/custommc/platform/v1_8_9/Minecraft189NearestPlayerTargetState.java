@@ -18,6 +18,10 @@ public final class Minecraft189NearestPlayerTargetState {
     private double y;
     private double z;
     private double distanceSquared;
+    // CandidateFilter/CandidateScore are external callbacks and may
+    // synchronously clear or replace this same selection. Never allow
+    // the outer (older) scan to commit over the newer source decision.
+    private long sourceGeneration;
 
     public synchronized void update(
             final Minecraft189PlayerPositionState.Snapshot local,
@@ -54,6 +58,7 @@ public final class Minecraft189NearestPlayerTargetState {
             final double maximumDistance,
             final CandidateFilter filter,
             final CandidateScore candidateScore) {
+        final long generation = ++sourceGeneration;
         if (!Double.isFinite(minimumDistance)
                 || !Double.isFinite(maximumDistance)
                 || minimumDistance < 0.0D
@@ -115,12 +120,24 @@ public final class Minecraft189NearestPlayerTargetState {
                     new Snapshot(true, true, index,
                             candidateX, candidateY, candidateZ,
                             candidateDistanceSquared);
-            if (filter != null && !filter.accepts(candidate)) {
-                continue;
+            if (filter != null) {
+                final boolean accepted = filter.accepts(candidate);
+                if (generation != sourceGeneration) {
+                    // A nested filter callback replaced or revoked the
+                    // original World target authority. Preserve its
+                    // newer selection; never continue an old candidate.
+                    return;
+                }
+                if (!accepted) continue;
             }
             final double score = candidateScore == null
                     ? candidateDistanceSquared
                     : candidateScore.score(candidate);
+            if (generation != sourceGeneration) {
+                // Scoring may also clear or replace the target, including
+                // when a newer real player UUID/position snapshot arrives.
+                return;
+            }
             if (!Double.isFinite(score) || score < 0.0D) {
                 continue;
             }
@@ -137,6 +154,9 @@ public final class Minecraft189NearestPlayerTargetState {
             }
         }
 
+        // Only this generation may publish the scan's result. A nested
+        // callback is always authoritative over its superseded caller.
+        if (generation != sourceGeneration) return;
         available = true;
         found = bestIndex >= 0;
         entityIndex = bestIndex;
@@ -155,6 +175,7 @@ public final class Minecraft189NearestPlayerTargetState {
     }
 
     public synchronized void clear() {
+        ++sourceGeneration;
         available = false;
         found = false;
         entityIndex = -1;
