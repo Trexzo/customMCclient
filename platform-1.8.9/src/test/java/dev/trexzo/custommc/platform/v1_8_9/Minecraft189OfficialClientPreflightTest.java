@@ -973,11 +973,27 @@ final class Minecraft189OfficialClientPreflightTest {
             "auh.a()Lcj;",
             "cj.equals(Ljava/lang/Object;)Z"
         };
-        assertEquals(expectedCalls.length,calls.size(),
-                "exact native-only call set required");
+        // V298: the six original World/MOP/BlockPos calls above MUST
+        // remain exact; permit only the one known read-only return observer
+        // (six static call sites, one for each genuine return branch).
+        final String readOnlyWitness =
+            "dev/trexzo/custommc/platform/v1_8_9/"
+            + "Minecraft189OriginalScaffoldNativeRayReturnTrace."
+            + "recordResult(IIIIIZ)Z";
+        assertEquals(expectedCalls.length+1,calls.size(),
+                "six exact Mojang calls + only bounded known source-return observer");
         for (String key : expectedCalls)
             assertEquals(Integer.valueOf("aui.<init>(DDD)V".equals(key)?2:1),
-                    calls.get(key),"source-native raytrace call " + key);
+                    calls.get(key),"same original Minecraft raytrace call " + key);
+        assertEquals(Integer.valueOf(6),calls.get(readOnlyWitness),
+                "exactly six original return branches must preserve their "
+                + "own original boolean through one read-only observer");
+        assertEquals(Integer.valueOf(1),
+                calls.get("adm.a(Laui;Laui;ZZZ)Lauh;"),
+                "original World.rayTraceBlocks must still run exactly once");
+        assertEquals(Integer.valueOf(1),
+                calls.get("cj.equals(Ljava/lang/Object;)Z"),
+                "original BlockPos identity comparison remains exactly once");
         for (String field : Arrays.asList("auh.a:Lauh$a;",
                 "auh$a.b:Lauh$a;","auh.b:Lcq;"))
             assertEquals(Integer.valueOf(1),fields.get(field),
