@@ -377,8 +377,21 @@ def prepare_verified_original_scaffold_raytrace_support(
         process, log, window, "/fill 0 99 0 0 99 0 air",
         "genuine original Scaffold raytrace air reset",
         "missing fresh vanilla V19 raytrace support preclear reply")
-    # The preclear is not a positive raycast or source World certification.
-    # Original 1.8.9 must subsequently acknowledge a CHANGED stone cell.
+    # V299: the genuine source ray starts at (0.5,102.0,0.5) and
+    # ends INSIDE the 0,99,0 stone (y=99.5). Previous V19 only
+    # verified the destination stone, not the original World cells
+    # at y=100..102 that the same original ray crosses FIRST.
+    # A world-generated obstacle could make the original hit a
+    # different block or face while the destination is FULL_SOLID.
+    # Clear the real ray column using the existing FRESH original
+    # source-reply helper; an already-air no-op is acceptable only
+    # for this sacrificial reset, never for the required stone fill.
+    send_verified_original_air_preclear(
+        process, log, window, "/fill 0 100 0 0 102 0 air",
+        "genuine original V19 unobstructed native ray column",
+        "missing fresh vanilla V19 air-column preclear reply")
+    # Neither air receipt is a positive raycast or source World
+    # certification. The genuine stone change remains mandatory.
     send_verified_fill(process, log, window,
                        "/fill 0 99 0 0 99 0 stone")
 

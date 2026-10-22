@@ -44,6 +44,7 @@ class OriginalV19ConfirmedWorldRaytraceSupportTest(TestCase):
             with self.subTest(acknowledged=acknowledged):
                 self.assertEqual(self.fixture(acknowledged), [
                     ("native_command", "/fill 0 99 0 0 99 0 air"),
+                    ("native_command", "/fill 0 100 0 0 102 0 air"),
                     ("original_changed_fill", "/fill 0 99 0 0 99 0 stone"),
                 ])
 
@@ -54,6 +55,8 @@ class OriginalV19ConfirmedWorldRaytraceSupportTest(TestCase):
         helper = script[start:end]
         self.assertEqual(helper.count("send_verified_fill(process, log, window,"), 1)
         self.assertIn('"/fill 0 99 0 0 99 0 air"', helper)
+        self.assertIn('"/fill 0 100 0 0 102 0 air"', helper)
+        self.assertEqual(2, helper.count("send_verified_original_air_preclear("))
         self.assertIn('"/fill 0 99 0 0 99 0 stone"', helper)
         self.assertNotIn("_RAYTRACE_PASS=YES", helper)
 
