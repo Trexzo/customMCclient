@@ -82,7 +82,7 @@ class OriginalNativeV19UnobstructedRayCorridorTests(TestCase):
             with patch.object(runner, "send_command", side_effect=send), patch.object(
                     runner, "send_verified_fill") as fill, patch.object(
                     runner, "require_running"), patch.object(
-                    runner.time, "monotonic", side_effect=[0,0,10]):
+                    runner.time, "monotonic", side_effect=[0,0,0,9]):
                 with self.assertRaisesRegex(AssertionError,
                         "missing fresh vanilla V19 air-column preclear reply"):
                     runner.prepare_verified_original_scaffold_raytrace_support(
