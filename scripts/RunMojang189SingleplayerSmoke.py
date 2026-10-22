@@ -578,11 +578,33 @@ def native_scaffold_context_grounded(readings):
                <= .03 for axis in range(3))
 
 
-def native_safe_walk_positions(log):
-    """Native per-tick positions from source-mapped local player, never GUI guesses."""
+def native_safe_walk_positions(log, since=None):
+    """Exact native source x/y/z; optionally ONLY complete lines after cursor.
+
+    V301 V16 proves post-teleport native grounding. Earlier V16 read only
+    the last bytes of the full log, so pre-teleport native samples could
+    satisfy its three-position predicate. The optional byte cursor reads
+    only original client lines appended AFTER its genuine TP receipt.
+    """
+    if since is None:
+        source = read_tail(log)
+    else:
+        if not isinstance(since, int) or since < 0:
+            raise AssertionError("invalid original native position log cursor")
+        with log.open("rb") as handle:
+            handle.seek(0, 2)
+            size = handle.tell()
+            if since > size:
+                raise AssertionError("original native position cursor exceeds log")
+            handle.seek(since)
+            source = handle.read()
+        # Never parse the tail of a concurrently written native source line.
+        # A complete newline-terminated original callback is required.
+        newline = source.rfind(b"\n")
+        source = source[:newline + 1] if newline >= 0 else b""
     prefix = b"CUSTOMMC_189_NATIVE_LOCAL_POS="
     samples = []
-    for line in read_tail(log).splitlines():
+    for line in source.splitlines():
         if prefix not in line:
             continue
         parts = line.split(prefix, 1)[1].decode("ascii", "strict").split()
@@ -1368,15 +1390,27 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 send_verified_original_chat_reply(
                     process, log, window, "/tp CIProbe 0 100 0 0 0",
                     b"[CHAT] Teleported CIProbe to 0.5, 100.0, 0.5")
+                # V301: source log boundary strictly AFTER genuine original
+                # low TP acknowledgment, not an arbitrary old world-tick
+                # sample still present in read_tail(log).
+                v16_post_teleport_native_cursor = (
+                    log.stat().st_size if log.exists() else 0)
                 send_verified_original_chat_reply(
                     process, log, window,
                     "/testforblock 0 99 0 stone",
-                    b"[CHAT] Successfully found the block at 0, 99, 0.")
-                # Actually observe the source-native player's stable support,
-                # not simply successful execution of the /tp command.
+                    # V300 authentic original #39754691161 FAILED because
+                    # Mojang 1.8.9 actually emits "0,99,0." (no spaces).
+                    # Match the observed fresh server reply exactly, with
+                    # no generic acceptance of other block coordinates.
+                    b"[CHAT] Successfully found the block at 0,99,0.")
+                # Same original three-native-position x/y/z predicate,
+                # but all three must originate after the final TP reply.
+                # A prior singleplayer moment at y100 cannot fabricate V16.
                 stable_start = time.monotonic()
+                actual = []
                 while time.monotonic() - stable_start < 10:
-                    actual = native_safe_walk_positions(log)[-5:]
+                    actual = native_safe_walk_positions(
+                        log, since=v16_post_teleport_native_cursor)[-5:]
                     if len(actual) >= 3 and all(
                             abs(x - 0.5) < 0.3 and abs(y - 100.0) < 0.2
                             and abs(z - 0.5) < 0.3 for x, y, z in actual[-3:]):
@@ -1384,6 +1418,12 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                     require_running(process, "real native Scaffold fixture grounding")
                     time.sleep(0.15)
                 else:
+                    print("CUSTOMMC_189_V16_FRESH_NATIVE_GROUND_REJECTION"
+                          + " afterTeleportCursor="
+                          + str(v16_post_teleport_native_cursor)
+                          + " freshNativeSamples=" + str(len(actual))
+                          + " lastNativePositions=" + repr(actual[-5:]),
+                          file=sys.stderr)
                     raise AssertionError("vanilla player lacks sustained stone support at (0,99,0)")
                 print("CUSTOMMC_OFFICIAL_189_NATIVE_SCAFFOLD_SUPPORT_GROUNDED=YES",
                       flush=True)
