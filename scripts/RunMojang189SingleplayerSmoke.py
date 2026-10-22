@@ -427,6 +427,28 @@ def verify_original_v19_stone_after_reseat(process, log, window):
         "before bounded deadline")
 
 
+def verify_original_v19_air_column_after_reseat(process, log, window):
+    """Require three FRESH real vanilla AIR World replies after final V19 TP.
+
+    V298 second authentic original V19 yielded 3,048 wrong-face source ray
+    rejections with destination FULL_SOLID, never a null ray or BlockPos
+    rejection. Existing V299 clears the three cells above that stone BEFORE
+    the low teleport. A later obstruction is still possible; require actual
+    original source-server material readback of EACH original crossed cell
+    AFTER teleport. No vanilla chat reply is a client-native ray PASS.
+    """
+    for y in (100, 101, 102):
+        # V300 authentic native source proves 1.8.9 coordinate replies use
+        # 0,99,0 (no spaces). Never match a generic success or another cell.
+        command = "/testforblock 0 {} 0 air".format(y)
+        expected = (
+            "[CHAT] Successfully found the block at 0,{},0.".format(y)
+        ).encode("ascii")
+        send_verified_original_chat_reply(
+            process, log, window, command, expected)
+    print("CUSTOMMC_189_V19_ORIGINAL_AIR_COLUMN_READBACK=YES", flush=True)
+
+
 def original_v29_inventory_clear_receipt(fresh):
     """Classify actual 1.8.9 /clear reply from a caller's fresh log cursor."""
     if re.search(
@@ -1619,6 +1641,12 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # unchanged true native raytrace + wrong-face checkpoints.
                 # It must never act as their success signal.
                 verify_original_v19_stone_after_reseat(process, log, window)
+                # V302: source proof that ALL three traversed above-stone
+                # cells are still AIR AFTER the actual low original TP.
+                # This is separate vanilla World evidence, never the true
+                # original up-face native World.rayTraceBlocks acceptance.
+                verify_original_v19_air_column_after_reseat(
+                    process, log, window)
                 await_marker(process, log,
                              b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_RAYTRACE_WRONG_FACE_BLOCK_VETO_PASS=YES",
                              deadline, "original raytrace rejects wrong support and facing")
