@@ -274,6 +274,7 @@ public final class Minecraft189RuntimeBridge {
         Minecraft189LockedTargetAcceptance.reset();
         Minecraft189RejoinTargetAcceptance.reset();
         originalScaffoldRayTraceEvidence.reset();
+        Minecraft189OriginalScaffoldNativeRayReturnTrace.reset();
         acceptanceDisabledTargetTicks = 0;
         acceptanceAutoClickerEnabled = false;
         acceptanceTriggerDisabledTargetTicks = 0;
@@ -1641,6 +1642,9 @@ public final class Minecraft189RuntimeBridge {
             final Minecraft189OriginalScaffoldRayTraceProvenance.Snapshot
                     originalRayEvidence =
                     originalScaffoldRayTraceEvidence.snapshot();
+            final Minecraft189OriginalScaffoldNativeRayReturnTrace.Snapshot
+                    originalReturn =
+                    Minecraft189OriginalScaffoldNativeRayReturnTrace.snapshot();
             if (originalRayEvidence.sourceCallbacks == 1
                     || originalRayEvidence.sourceCallbacks % 100 == 0
                     || scaffoldNativeRayTraceReported) {
@@ -1653,6 +1657,14 @@ public final class Minecraft189RuntimeBridge {
                         + " otherCells=" + originalRayEvidence.unavailableOrOtherCells
                         + " rayBatches=" + originalRayEvidence.correctFaceRayCalls
                         + " correctFaceHits=" + originalRayEvidence.correctFaceHits
+                        + " originalExpectedRayReturnCalls=" + originalReturn.expectedUpCalls
+                        + " originalRayNullHit=" + originalReturn.miss
+                        + " originalRayNonBlock=" + originalReturn.wrongType
+                        + " originalRayNullFace=" + originalReturn.missingFace
+                        + " originalRayWrongFace=" + originalReturn.wrongFace
+                        + " originalRayWrongBlockPos=" + originalReturn.wrongBlock
+                        + " originalRayExactMatch=" + originalReturn.exactMatch
+                        + " lastNativeReturnReason=" + originalReturn.lastCode
                         + " wrongFaceHits=" + originalRayEvidence.wrongFaceHits
                         + " wrongBlockHits=" + originalRayEvidence.wrongBlockHits
                         + " lastCellCode=" + originalRayEvidence.lastCellCode

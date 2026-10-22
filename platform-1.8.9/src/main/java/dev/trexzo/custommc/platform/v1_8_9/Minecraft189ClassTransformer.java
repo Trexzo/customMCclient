@@ -3875,6 +3875,25 @@ public final class Minecraft189ClassTransformer
      * Return true ONLY for source-original BLOCK hit at the expected
      * BlockPos and original face. Never constructs any C08 or mutates World.
      */
+    /** Preserve each original World.rayTraceBlocks return boolean exactly.
+     * V298 records which existing original return branch was taken, with no
+     * second ray, World getter, object write, altered outcome, or retry.
+     */
+    private static void emitOriginalRayReturn(final MethodVisitor m,
+            final int reason, final boolean originalReturn) {
+        m.visitIntInsn(Opcodes.BIPUSH, reason);
+        m.visitVarInsn(Opcodes.ILOAD, 16);  // requested native face
+        m.visitVarInsn(Opcodes.ILOAD, 13);  // expected native BlockPos x
+        m.visitVarInsn(Opcodes.ILOAD, 14);
+        m.visitVarInsn(Opcodes.ILOAD, 15);
+        m.visitInsn(originalReturn ? Opcodes.ICONST_1 : Opcodes.ICONST_0);
+        m.visitMethodInsn(Opcodes.INVOKESTATIC,
+                "dev/trexzo/custommc/platform/v1_8_9/"
+                + "Minecraft189OriginalScaffoldNativeRayReturnTrace",
+                "recordResult", "(IIIIIZ)Z", false);
+        m.visitInsn(Opcodes.IRETURN);
+    }
+
     private static void addScaffoldNativeRayTraceSupport(final ClassVisitor cv) {
         final MethodVisitor m = cv.visitMethod(Opcodes.ACC_PUBLIC,
                 "customMcScaffoldRayTraceSupport", "(DDDDDDIIII)Z", null, null);
@@ -3916,8 +3935,7 @@ public final class Minecraft189ClassTransformer
         m.visitVarInsn(Opcodes.ASTORE, 17);
         m.visitVarInsn(Opcodes.ALOAD, 17);
         m.visitJumpInsn(Opcodes.IFNONNULL, hitExists);
-        m.visitInsn(Opcodes.ICONST_0);
-        m.visitInsn(Opcodes.IRETURN);
+        emitOriginalRayReturn(m, 1, false);
         m.visitLabel(hitExists);
         m.visitFrame(Opcodes.F_APPEND, 1, new Object[]{hit}, 0, null);
         m.visitVarInsn(Opcodes.ALOAD, 17);
@@ -3928,8 +3946,7 @@ public final class Minecraft189ClassTransformer
                 Minecraft189Mappings.MOVING_OBJECT_TYPE_BLOCK.obfuscatedName(),
                 Minecraft189Mappings.MOVING_OBJECT_TYPE_BLOCK.descriptor());
         m.visitJumpInsn(Opcodes.IF_ACMPEQ, hitIsBlock);
-        m.visitInsn(Opcodes.ICONST_0);
-        m.visitInsn(Opcodes.IRETURN);
+        emitOriginalRayReturn(m, 2, false);
         m.visitLabel(hitIsBlock);
         m.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
         m.visitVarInsn(Opcodes.ALOAD, 17);
@@ -3939,8 +3956,7 @@ public final class Minecraft189ClassTransformer
         m.visitVarInsn(Opcodes.ASTORE, 18);
         m.visitVarInsn(Opcodes.ALOAD, 18);
         m.visitJumpInsn(Opcodes.IFNONNULL, facingExists);
-        m.visitInsn(Opcodes.ICONST_0);
-        m.visitInsn(Opcodes.IRETURN);
+        emitOriginalRayReturn(m, 3, false);
         m.visitLabel(facingExists);
         m.visitFrame(Opcodes.F_APPEND, 1, new Object[]{face}, 0, null);
         m.visitVarInsn(Opcodes.ALOAD, 18);
@@ -3949,8 +3965,7 @@ public final class Minecraft189ClassTransformer
                 Minecraft189Mappings.ENUM_FACING_GET_INDEX.descriptor(), false);
         m.visitVarInsn(Opcodes.ILOAD, 16);
         m.visitJumpInsn(Opcodes.IF_ICMPEQ, rightFace);
-        m.visitInsn(Opcodes.ICONST_0);
-        m.visitInsn(Opcodes.IRETURN);
+        emitOriginalRayReturn(m, 4, false);
         m.visitLabel(rightFace);
         m.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
         m.visitTypeInsn(Opcodes.NEW, pos);
@@ -3966,7 +3981,18 @@ public final class Minecraft189ClassTransformer
                 Minecraft189Mappings.MOVING_OBJECT_GET_BLOCK_POS.descriptor(), false);
         m.visitMethodInsn(Opcodes.INVOKEVIRTUAL, pos,
                 "equals", "(Ljava/lang/Object;)Z", false);
-        m.visitInsn(Opcodes.IRETURN);
+        // This comparison yields exactly the original success boolean.
+        // It is stored only to select the already-authoritative return
+        // branch; the read-only helper returns that exact boolean.
+        m.visitVarInsn(Opcodes.ISTORE, 19);
+        final Label sameOriginalPos = new Label();
+        m.visitVarInsn(Opcodes.ILOAD, 19);
+        m.visitJumpInsn(Opcodes.IFNE, sameOriginalPos);
+        emitOriginalRayReturn(m, 5, false);
+        m.visitLabel(sameOriginalPos);
+        m.visitFrame(Opcodes.F_APPEND, 1, new Object[]{Opcodes.INTEGER},
+                0, null);
+        emitOriginalRayReturn(m, 6, true);
         m.visitMaxs(0,0);
         m.visitEnd();
     }
