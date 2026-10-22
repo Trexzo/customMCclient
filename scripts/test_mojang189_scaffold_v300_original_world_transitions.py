@@ -45,7 +45,7 @@ class OriginalNativeV16WorldTransitionsTest(TestCase):
 
     def test_actual_server_testforblock_after_reseat_not_a_native_marker(self):
         self.assertIn('"/testforblock 0 99 0 stone"',self.source)
-        self.assertIn('b"[CHAT] Successfully found the block at 0, 99, 0."',
+        self.assertIn('b"[CHAT] Successfully found the block at 0,99,0."',
                       self.source)
         self.assertLess(self.source.index('"/tp CIProbe 0 100 0 0 0"'),
                         self.source.index('"/testforblock 0 99 0 stone"'))
