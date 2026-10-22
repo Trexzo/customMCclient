@@ -521,20 +521,51 @@ def prepare_verified_original_scaffold_survival_edge(
                        "/fill 1 99 0 1 99 0 air")
 
 
-def prepare_native_scaffold_context_chamber(process, log, window):
-    """Make a real vanilla ground fixture INSIDE loaded chunk (0, 0).
+def send_verified_original_scaffold_context_preclear(process, log, window):
+    """Require FRESH vanilla air-reset response; no-op is allowed HERE ONLY.
 
-    A single blind /setblock and /tp at x=0.5 can interact with unknown
-    neighboring terrain. The original server must positively acknowledge
-    the two actual /fill commands and exact real player teleports.
+    Real V295 original V23 encountered an already-stone 5x6x5 room:
+    direct stone /fill returned "No blocks filled". This sacrificial air
+    reset makes the following two mandatory positive fills independent of
+    arbitrary original world terrain. It cannot count as a World or V23 PASS.
+    """
+    command = "/fill 0 99 0 4 104 4 air"
+    cursor = log.stat().st_size if log.exists() else 0
+    send_command(process, log, window, command)
+    deadline = time.monotonic() + 8
+    while time.monotonic() < deadline:
+        require_running(process, "original V23 true vanilla context preclear")
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read()
+        observed = original_dry_chamber_preclear_reply(fresh)
+        if observed is not None:
+            print("CUSTOMMC_189_V23_NATIVE_CONTEXT_PRECLEAR_SOURCE="
+                  + observed, flush=True)
+            return observed
+        time.sleep(.2)
+    raise AssertionError(
+        "no FRESH original vanilla V23 context air-preclear source reply")
+
+
+def prepare_native_scaffold_context_chamber(process, log, window):
+    """Make a real, idempotently source-verified chamber in loaded chunk 0.
+
+    Vanilla World terrain may ALREADY be all stone at this location. The
+    sacrificial fresh source-acknowledged air-preclear may be a genuine
+    no-op; both subsequent /fill commands STILL require positive real
+    changed-block receipts before the actual original native player ticks.
     """
     send_verified_original_chat_reply(
         process, log, window, "/tp CIProbe 2 120 2 0 0",
         b"[CHAT] Teleported CIProbe to 2.5, 120.0, 2.5")
-    # The real player stays above the future fill while it is solid.
+    # The actual original player stays above the room while changing cells.
+    send_verified_original_scaffold_context_preclear(
+        process, log, window)
+    # The opposite air material is source-acknowledged. Both real positive
+    # changes are now mandatory independent of the initial terrain.
     send_verified_fill(process, log, window,
                        "/fill 0 99 0 4 104 4 stone")
-    # Positive air fill is guaranteed by the acknowledged solid fill.
     send_verified_fill(process, log, window,
                        "/fill 0 100 0 4 104 4 air")
     send_verified_original_chat_reply(
