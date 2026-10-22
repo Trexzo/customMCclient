@@ -4,6 +4,7 @@ The read-only command fixture never asserts a fake block hit. The original
 mapped World.rayTraceBlocks UP face and wrong block/face negative remain
 mandatory in full binary GUI acceptance.
 """
+import ast
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
@@ -50,9 +51,15 @@ class OriginalV19ConfirmedWorldRaytraceSupportTest(TestCase):
 
     def test_source_air_preclear_does_not_claim_any_ray_pass(self):
         script = Path(smoke.__file__).read_text(encoding="utf8")
-        start = script.index("def prepare_verified_original_scaffold_raytrace_support(")
-        end = script.index("def prepare_verified_original_scaffold_survival_edge(", start)
-        helper = script[start:end]
+        # V303 places an unrelated V26 helper between V19 and V29.
+        # Inspect exactly V19's own function AST, not its neighbors.
+        functions = [
+            node for node in ast.parse(script).body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "prepare_verified_original_scaffold_raytrace_support"
+        ]
+        self.assertEqual(1, len(functions))
+        helper = ast.get_source_segment(script, functions[0])
         self.assertEqual(helper.count("send_verified_fill(process, log, window,"), 1)
         self.assertIn('"/fill 0 99 0 0 99 0 air"', helper)
         self.assertIn('"/fill 0 100 0 0 102 0 air"', helper)
