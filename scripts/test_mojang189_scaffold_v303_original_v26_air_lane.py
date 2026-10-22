@@ -91,7 +91,13 @@ class OriginalV26NativeCursorLaneTests(TestCase):
         for kind,command,expected in (c for c in calls if c[0]=="source"):
             with self.subTest(command=command):
                 self.assertTrue(expected.startswith(b"[CHAT] "))
-                self.assertNotIn(b", ",expected)
+                # Original 1.8.9 /tp replies use comma+space, but the
+                # authentic /testforblock block-coordinate reply does not.
+                if command.startswith("/testforblock "):
+                    self.assertNotIn(b", ",expected)
+                else:
+                    self.assertTrue(command.startswith("/tp CIProbe "))
+                    self.assertIn(b", ",expected)
                 self.assertNotIn(b"PASS=YES",expected)
 
     def test_native_cursor_after_real_low_tp_never_uses_previous_ground_samples(self):
