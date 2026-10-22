@@ -104,9 +104,16 @@ class OriginalV23ContextPreclearTests(TestCase):
         start = src.index("def send_verified_original_scaffold_context_preclear(")
         end = src.index("def prepare_native_scaffold_context_chamber(", start)
         section = src[start:end]
-        self.assertIn('command = "/fill 0 99 0 4 104 4 air"', section)
-        self.assertIn("original_dry_chamber_preclear_reply(fresh)", section)
-        self.assertIn("handle.seek(cursor)", section)
+        self.assertIn('"/fill 0 99 0 4 104 4 air"', section)
+        self.assertIn("send_verified_original_air_preclear(", section)
+        # The sole source-freshness authority is now a shared helper, not
+        # an unverified second V23-specific log reader.
+        shared = src.split("def send_verified_original_air_preclear(", 1)[1]
+        shared = shared.split("def prepare_verified_native_dry_chamber(", 1)[0]
+        self.assertIn("original_dry_chamber_preclear_reply(fresh)", shared)
+        self.assertIn("handle.seek(cursor)", shared)
+        self.assertIn("cursor = log.stat().st_size", shared)
+        self.assertIn("stop = time.monotonic() + 8", shared)
         self.assertNotIn("CUSTOMMC_OFFICIAL_189_SCAFFOLD_ORIGINAL_TICK_CONTEXT_PASS", section)
         self.assertNotIn("PASS=YES", section)
         for unsafe in ("controller", "ItemStack(", "WorldClient(", "no_error_continue"):
