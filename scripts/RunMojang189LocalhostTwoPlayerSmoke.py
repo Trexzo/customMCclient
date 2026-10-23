@@ -638,6 +638,41 @@ def wait_for_log_occurrences(proc, log, phrase, minimum, deadline, context):
     raise AssertionError("missing repeated native event: " + context)
 
 
+def actual_server_rejoin_three_player_floor_fixture(host_tp, a_near, b_outer):
+    """Build a genuine vanilla stone floor supporting ALL three live players.
+
+    V306 second original V47 observed A native 1.83D but B 11.22D after
+    teleport, failing the original strict B-in-reach source requirement.
+    All three players teleport at actual server login-derived Y, but an
+    original remote may drift downwards while another remains high.
+    Server-fill 35 physical stone blocks directly BELOW their target feet.
+    This never supplies entity positions, UUIDs, a synthetic selector,
+    camera ray, controller attack, or a native acceptance PASS.
+    """
+    parsed = [command.split() for command in (host_tp, a_near, b_outer)]
+    if any(len(parts) != 7 or parts[0] != "tp" for parts in parsed):
+        raise AssertionError("rejoin floor needs three complete real server tp commands")
+    if [parts[1] for parts in parsed] != ["CIHost", "CITarget", "CITargetB"]:
+        raise AssertionError("rejoin floor requires original source player owners")
+    try:
+        (hx, hy, hz), (ax, ay, az), (bx, by, bz) = [
+            tuple(int(n) for n in parts[2:5]) for parts in parsed]
+    except ValueError as error:
+        raise AssertionError("rejoin floor nonintegral source coordinates") from error
+    if not (hy == ay == by and hx == ax and abs(az-hz) == 2
+            and bz == az and abs(bx-hx) == 1):
+        raise AssertionError("rejoin floor source geometry mismatch")
+    if hy < 3 or hy > 252 or abs(hx) >= 997 or abs(hz) >= 997:
+        raise AssertionError("rejoin floor outside bounded flat vanilla world")
+    y = hy - 1
+    fill = "fill {} {} {} {} {} {} stone".format(
+        hx-2, y, hz-3, hx+2, y, hz+3)
+    witness = ((hx, y, hz), (ax, y, az), (bx, y, bz))
+    if len(set(witness)) != 3:
+        raise AssertionError("rejoin floor real player support overlaps")
+    return fill, witness
+
+
 def actual_server_three_client_locked_fixture(server_log):
     """Native M413 simultaneous geometry plus real A range-expiration command."""
     host, a_near, b_outer, b_near = (
@@ -646,7 +681,14 @@ def actual_server_three_client_locked_fixture(server_log):
     if len(coords) != 7 or coords[:2] != ["tp", "CITarget"]:
         raise AssertionError("invalid genuine A target teleport")
     x, y, z = (int(v) for v in coords[2:5])
-    a_far = "tp CITarget {} {} {} 180 0".format(x + 5, y, z)
+    # V307: a five-cell original teleport did not immediately establish
+    # the mandatory >4.5D native A distance. The real B click could be
+    # selected at A=4.273D and the strict acceptance correctly crashed.
+    # Use a 12-cell server displacement, still in the 3-chunk view radius;
+    # do NOT change the native >4.5D guard or the actual B/UUID checks.
+    if abs(x + 12) >= 999 or y < 2 or y > 252:
+        raise AssertionError("original locked A far fixture outside server world")
+    a_far = "tp CITarget {} {} {} 180 0".format(x + 12, y, z)
     return host, a_near, b_outer, b_near, a_far
 
 
@@ -2237,6 +2279,24 @@ def run(args):
                                 "gamerule naturalRegeneration false")
             host_tp, a_near, b_outer = (
                 actual_server_three_client_rejoin_fixture(server_log))
+            # V307: the real server must prove a single 35-block physical
+            # platform under original A, B and host BEFORE their teleports.
+            # In the V306 red original job B's measured 3D distance was
+            # 11.22 even after the intended server TP. Floor/position
+            # convergence is never inferred from this block receipt alone:
+            # the unchanged original 20-tick A/B source gate decides it.
+            support_fill, support_cells = (
+                actual_server_rejoin_three_player_floor_fixture(
+                    host_tp, a_near, b_outer))
+            send_server_command(
+                server, server_log, support_fill,
+                expected=b"35 blocks filled")
+            for support_x, support_y, support_z in support_cells:
+                send_server_command(
+                    server, server_log,
+                    "testforblock {} {} {} stone".format(
+                        support_x, support_y, support_z),
+                    expected=b"successfully found the block")
             # V52: move HOST into the genuine server-owned combat chunk
             # BEFORE moving B. Sending B's teleport first could leave the
             # remote original loadedEntityList with a stale B spawn/position
@@ -2261,7 +2321,8 @@ def run(args):
                 host_tp,a_near,b_outer)
             send_server_command(server, server_log, prelock_a,
                                 expected=b"Teleported CITarget to")
-            send_server_command(server, server_log, b_outer)
+            send_server_command(server, server_log, b_outer,
+                                expected=original_locked_tp_server_reply(b_outer))
             print("CUSTOMMC_189_REJOIN_INITIAL_A_REAL_SOURCE_BUFFER_TELEPORT_PASS=YES",
                   flush=True)
             print("CUSTOMMC_189_REJOIN_FINAL_B_SERVER_TELEPORT_AFTER_HOST_A=YES",
@@ -2606,7 +2667,9 @@ def run(args):
                                 expected=b"score 0 is in range 0 to 0")
             print("CUSTOMMC_189_LOCK_A_DAMAGE_B_ZERO_PASS=YES", flush=True)
             # One server teleport makes previous locked A out of Aura range.
-            send_server_command(server, server_log, a_far)
+            send_server_command(
+                server, server_log, a_far,
+                expected=original_locked_tp_server_reply(a_far))
             wait_for(host, host_log, LOCK_RELEASE, deadline,
                      "A out-of-range; actual locked UUID and production target become B")
             wait_for(host, host_log, LOCK_HIT_B, deadline,
