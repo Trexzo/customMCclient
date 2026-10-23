@@ -69,23 +69,24 @@ class OriginalMojangNativeSubtrialReportTest(unittest.TestCase):
                 self.assertIn('accepted=1', block)
                 self.assertIn('break', block)
 
-    def test_exactly_one_reviewed_v308_original_step_added(self):
-        # Certified V307 contains 67 named workflow steps. V308 is explicitly
-        # expanding genuine native coverage, not replacing/muting those steps.
+    def test_reviewed_v308_and_v309_native_steps_are_both_required(self):
+        # Certifed V307 had 67 named steps. The two new independently
+        # verified original-game NEGATIVE stages must remain distinct.
         names = re.findall(r"^      - name: (.*)$", self.source,
                            flags=re.MULTILINE)
-        new = [name for name in names if name.startswith("V308 ")]
-        self.assertEqual(68, len(names))
-        self.assertEqual(67, len(names) - len(new))
-        self.assertEqual(
-            ["V308 original E after first three-mode Scaffold stone permanently revokes live quota"],
-            new)
+        reviewed = [n for n in names if n.startswith(("V308 ", "V309 "))]
+        self.assertEqual(69, len(names))
+        self.assertEqual(67, len(names) - len(reviewed))
+        self.assertEqual([
+            "V308 original E after first three-mode Scaffold stone permanently revokes live quota",
+            "V309 original hotbar 2 to 1 after first Scaffold stone revokes live quota",
+        ], reviewed)
         self.assertEqual(1, self.source.count(
             "--scaffold-placement production-repeat-three-menu-after-first"))
+        self.assertEqual(1, self.source.count(
+            "--scaffold-placement production-repeat-three-hotbar-after-first"))
         self.assertIn("V54 certify production opt-in three original Scaffold", self.source)
         self.assertIn("V59 certify four genuine production Scaffold", self.source)
-        self.assertIn("production-repeat-three-menu-after-first", self.source)
-
 
     def test_each_true_trial_emits_one_of_two_machine_readable_outcomes(self):
         for marker, label in CASES:
