@@ -347,6 +347,9 @@ public final class Minecraft189RuntimeBridge {
         scaffoldProductionCompletionReported = false;
         scaffoldThreeGuiAbortObserved = false;
         scaffoldThreeGuiResumeClearTicks = 0;
+        scaffoldThreeHotbarAbortObserved = false;
+        scaffoldThreeHotbarAbortActivation = 0L;
+        scaffoldThreeHotbarResumeTicks = 0;
         scaffoldKeyboardWalkDiagnosticsTicks = 0;
         scaffoldMenuNegativeClearStability.reset();
         scaffoldDisabledProofTicks = 0;
@@ -477,6 +480,11 @@ public final class Minecraft189RuntimeBridge {
     // original controller placement. No persistent native game references.
     private static boolean scaffoldThreeGuiAbortObserved;
     private static int scaffoldThreeGuiResumeClearTicks;
+    // V309: original-game acceptance-only hotbar switch witness. No native
+    // objects survive callbacks and no inventory/controller write is made.
+    private static boolean scaffoldThreeHotbarAbortObserved;
+    private static long scaffoldThreeHotbarAbortActivation;
+    private static int scaffoldThreeHotbarResumeTicks;
     private static final Minecraft189ScaffoldGuiClearStability
             scaffoldMenuNegativeClearStability = new Minecraft189ScaffoldGuiClearStability();
 
@@ -605,6 +613,53 @@ public final class Minecraft189RuntimeBridge {
                 }
             } else {
                 scaffoldThreeGuiResumeClearTicks = 0;
+            }
+        }
+        // V309: after a physical 2->1 hotbar selection revoked the live
+        // three-step sequence, its original activation must stay STOPPED.
+        // Require 120 original GUI-clear runTicks with exactly seven native
+        // selected ItemBlocks and real player Y=100. Server checks remain
+        // independent of this non-authorizing read-only witness.
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireProductionScaffoldThreeHotbarAbort")
+                && scaffoldThreeHotbarAbortObserved) {
+            if (scaffold == null || !scaffold.active()
+                    || !scaffold.productionRepeatEnabledForActivation()
+                    || !scaffold.repeatProofStopped()
+                    || scaffold.activation() != scaffoldThreeHotbarAbortActivation)
+                throw new IllegalStateException(
+                        "V309 original hotbar veto resumed or changed activation");
+            boolean actualSource = false;
+            if (minecraft instanceof Minecraft189ScaffoldNativeContextAccess
+                    && Minecraft189ScaffoldScreenGate.inspect(minecraft)
+                            == Minecraft189ScaffoldScreenGate.Verdict.CLEAR) {
+                try {
+                    final Object[] nativeSource =
+                            ((Minecraft189ScaffoldNativeContextAccess)minecraft)
+                                    .customMcScaffoldNativeContext();
+                    actualSource = nativeSource != null
+                            && nativeSource.length == 3
+                            && nativeSource[0] instanceof Minecraft189PlayerPositionAccess
+                            && nativeSource[1] != null
+                            && Math.abs(((Minecraft189PlayerPositionAccess)
+                                    nativeSource[0]).customMcPositionY() - 100.0D)
+                                    < 0.15D
+                            && Minecraft189ScaffoldSelectedHotbar
+                                    .hasGenuineSelectedBlockCount(nativeSource[0], 7);
+                } catch (RuntimeException unavailableOriginalSource) {
+                    actualSource = false;
+                }
+            }
+            if (actualSource) {
+                if (scaffoldThreeHotbarResumeTicks < 120
+                        && ++scaffoldThreeHotbarResumeTicks % 60 == 0) {
+                    System.out.println(
+                            "CUSTOMMC_189_SCAFFOLD_THREE_HOTBAR_RESUMED_VETO_TICKS="
+                            + scaffoldThreeHotbarResumeTicks);
+                    System.out.flush();
+                }
+            } else {
+                scaffoldThreeHotbarResumeTicks = 0;
             }
         }
         // V48 CI-only: record that the original Mojang runTick hook really
@@ -861,6 +916,37 @@ public final class Minecraft189RuntimeBridge {
             final Minecraft189ScaffoldNativePlacementAttempt.Result step =
                     scaffold.productionRepeatAtOriginalTick(minecraft, true);
             if (productionRepeatProof) {
+                // V309: exact original selected slot AFTER production code
+                // rejected its own originally pinned ItemBlock slot lease.
+                // Physical X11 key '2' is sent only by the CI host, never
+                // through a test inventory setter or injected click.
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.requireProductionScaffoldThreeHotbarAbort")
+                        && !scaffoldThreeHotbarAbortObserved
+                        && scaffold.productionRepeatCountForActivation() == 3
+                        && scaffold.productionPositiveReceipts() == 1
+                        && scaffold.repeatProofStopped()
+                        && scaffold.productionRepeatStarted()
+                        && minecraft instanceof Minecraft189ScaffoldNativeContextAccess) {
+                    final Object[] nativeSource =
+                            ((Minecraft189ScaffoldNativeContextAccess)minecraft)
+                                    .customMcScaffoldNativeContext();
+                    if (nativeSource != null && nativeSource.length == 3
+                            && nativeSource[0] instanceof Minecraft189PlayerInventoryAccess) {
+                        final Minecraft189InventoryHotbarAccess inventory =
+                                ((Minecraft189PlayerInventoryAccess)nativeSource[0])
+                                        .customMcInventory();
+                        if (inventory != null
+                                && inventory.customMcSelectedHotbarSlot() == 1) {
+                            scaffoldThreeHotbarAbortObserved = true;
+                            scaffoldThreeHotbarAbortActivation = scaffold.activation();
+                            scaffoldThreeHotbarResumeTicks = 0;
+                            System.out.println(
+                                "CUSTOMMC_189_SCAFFOLD_THREE_REAL_HOTBAR_ABORT_AFTER_ONE_PASS=YES slot=1");
+                            System.out.flush();
+                        }
+                    }
+                }
                 // V58: independent CI-only observation of a native candidate
                 // rejected SPECIFICALLY because this module activation
                 // already receipted its coordinates. No source is fabricated.

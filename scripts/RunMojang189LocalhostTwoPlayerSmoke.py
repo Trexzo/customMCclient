@@ -959,6 +959,11 @@ def client_command(args, game, username, uuid, port, remote):
             raise ValueError("V308 E abort needs original three-placement fixture")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireProductionScaffoldThreeGuiAbort=true")
+    if remote and getattr(args, "scaffold_hotbar_abort", False):
+        if args.scaffold_placement != "production-repeat-three":
+            raise ValueError("V309 hotbar abort requires genuine three-block production")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireProductionScaffoldThreeHotbarAbort=true")
     if remote and args.esp_visual:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.enableRealRemotePlayerBoxEsp=true")
@@ -1080,7 +1085,9 @@ def identify_original_host_window_before_target(host):
 
 def send_real_host_key(host, host_window, key):
     """Send whitelisted vanilla key to previously identified original host."""
-    if key not in ("e", "1", "Escape"):
+    # Physically switch from selected slot 0 to slot 1 in V309 only.
+    # Every other unreviewed key remains blocked from xdotool.
+    if key not in ("e", "1", "2", "Escape"):
         raise ValueError("invalid original host Minecraft key")
     check_process(host, "host X11 key")
     if not host_window:
@@ -1636,6 +1643,58 @@ def run(args):
                                         expected=b"has 7 items that match the criteria")
                     print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_THREE_REAL_E_ABORT_"
                           "RESUME_SERVER_ONE_STONE_SEVEN_PASS=YES", flush=True)
+                    return
+
+                if getattr(args, "scaffold_hotbar_abort", False):
+                    # Original click A, original WorldClient 8->7 receipt and
+                    # independent vanilla dedicated-server stone/7 items are
+                    # already confirmed. Press REAL host hotbar '2', not a
+                    # native inventory setter or synthetic Minecraft click.
+                    if repeat_attempt + b" step=2" in log_tail(host_log):
+                        raise AssertionError("second original click before real hotbar 2")
+                    send_real_host_key(host, host_window, "2")
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_REAL_HOTBAR_ABORT_AFTER_ONE_PASS=YES slot=1",
+                             deadline, "native slot 1 invalidated live repeat lease")
+                    for target in (second_target_xyz, third_target_xyz):
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*target),
+                                            expected=b"successfully found the block")
+                    send_server_command(server, server_log, "clear CIHost stone 0 0",
+                                        expected=b"has 7 items that match the criteria")
+                    # Re-select original stone with REAL X11 key 1; same module
+                    # activation must stay stopped during two different
+                    # genuine server-owned placements' opportunities.
+                    send_real_host_key(host, host_window, "1")
+                    send_server_command(server, server_log,
+                                        "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                            x+2.05, y, z+.5))
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_HOTBAR_RESUMED_VETO_TICKS=60",
+                             deadline, "60 original GUI-clear veto ticks at B")
+                    send_server_command(server, server_log,
+                                        "testforblock {} {} {} air".format(*second_target_xyz),
+                                        expected=b"successfully found the block")
+                    send_server_command(server, server_log,
+                                        "setblock {} {} {} stone".format(x+4, y-1, z))
+                    send_server_command(server, server_log,
+                                        "tp CIHost {:.2f} {} {:.2f} 270 85".format(
+                                            x+3.85, y, z+.5))
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_HOTBAR_RESUMED_VETO_TICKS=120",
+                             deadline, "120 original GUI-clear veto ticks at C")
+                    if log_tail(host_log, 200000).count(repeat_attempt) != 1:
+                        raise AssertionError("reselected hotbar issued extra original clicks")
+                    if log_tail(host_log, 200000).count(repeat_receipt) != 1:
+                        raise AssertionError("reselected hotbar issued extra readbacks")
+                    for target in (second_target_xyz, third_target_xyz):
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*target),
+                                            expected=b"successfully found the block")
+                    send_server_command(server, server_log, "clear CIHost stone 0 0",
+                                        expected=b"has 7 items that match the criteria")
+                    print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_THREE_REAL_HOTBAR_"
+                          "RESELECT_SERVER_ONE_STONE_SEVEN_PASS=YES", flush=True)
                     return
 
                 if keyboard_walk:
@@ -3349,6 +3408,15 @@ def configure_original_scaffold_gui_negative(args):
     return args
 
 
+def configure_original_scaffold_hotbar_negative(args):
+    """Map isolated V309 real hotbar veto to original verified three-stone setup."""
+    args.scaffold_hotbar_abort = (
+        args.scaffold_placement == "production-repeat-three-hotbar-after-first")
+    if args.scaffold_hotbar_abort:
+        args.scaffold_placement = "production-repeat-three"
+    return args
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("java", "server", "client", "libraries", "assets",
@@ -3356,7 +3424,8 @@ def main():
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
     parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two","production-repeat-two","production-repeat-three","production-repeat-three-history","production-repeat-four","production-repeat-two-keyboard-walk","production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk", "production-repeat-six-keyboard-walk",
-                         "production-repeat-three-menu-after-first"),
+                         "production-repeat-three-menu-after-first",
+                         "production-repeat-three-hotbar-after-first"),
                         help="dedicated Mojang server-authoritative Scaffold placement/disabled proof")
     parser.add_argument("--require-index-reorder", action="store_true",
                         help="fail-closed actual native entity-index change on fresh A rejoin")
@@ -3404,6 +3473,7 @@ def main():
                        help="require exact remote Mojang UUID actual Box ESP HUD draw")
     args = parser.parse_args()
     configure_original_scaffold_gui_negative(args)
+    configure_original_scaffold_hotbar_negative(args)
     if args.triggerbot_pvp:
         if args.unlocked_scoped_veto or args.unlocked_remote_owner_veto:
             parser.error("TriggerBot must remain isolated from Aura owner fixtures")
