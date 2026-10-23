@@ -954,6 +954,11 @@ def client_command(args, game, username, uuid, port, remote):
         else:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldDisabledControl=true")
+    if remote and getattr(args, "scaffold_gui_abort", False):
+        if args.scaffold_placement != "production-repeat-three":
+            raise ValueError("V308 E abort needs original three-placement fixture")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.requireProductionScaffoldThreeGuiAbort=true")
     if remote and args.esp_visual:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.enableRealRemotePlayerBoxEsp=true")
@@ -1581,6 +1586,57 @@ def run(args):
                       + repeat_marker.decode("ascii")
                       + "_SERVER_FIRST_STONE_SEVEN_PASS=YES",
                       flush=True)
+
+                if getattr(args, "scaffold_gui_abort", False):
+                    # Genuine first original controller click, WorldClient receipt,
+                    # dedicated server stone and 7 Survival items already proven.
+                    # Before another click, physically press E in the owned X11 game.
+                    if repeat_attempt + b" step=2" in log_tail(host_log):
+                        raise AssertionError("second Scaffold click before real E")
+                    send_real_host_key(host, host_window, "e")
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_REAL_GUI_ABORT_AFTER_ONE_PASS=YES state=OPEN",
+                             deadline, "genuine post-receipt inventory E veto")
+                    for target in (second_target_xyz, third_target_xyz):
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*target),
+                                            expected=b"successfully found the block")
+                    send_server_command(server, server_log, "clear CIHost stone 0 0",
+                                        expected=b"has 7 items that match the criteria")
+                    # Resume with physical Escape, verify 60+120 actual GUI-clear
+                    # native ticks in two genuine server-owned player positions.
+                    send_real_host_key(host, host_window, "Escape")
+                    send_server_command(server, server_log,
+                                        "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                            x+2.05, y, z+.5))
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_GUI_RESUMED_DISABLED_TICKS=60",
+                             deadline, "60 native disabled GUI-clear ticks at B")
+                    send_server_command(server, server_log,
+                                        "testforblock {} {} {} air".format(*second_target_xyz),
+                                        expected=b"successfully found the block")
+                    # Separate genuine support stone to the east of target C.
+                    send_server_command(server, server_log,
+                                        "setblock {} {} {} stone".format(x+4, y-1, z))
+                    send_server_command(server, server_log,
+                                        "tp CIHost {:.2f} {} {:.2f} 270 85".format(
+                                            x+3.85, y, z+.5))
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_GUI_RESUMED_DISABLED_TICKS=120",
+                             deadline, "120 native disabled GUI-clear ticks at C")
+                    if log_tail(host_log, 200000).count(repeat_attempt) != 1:
+                        raise AssertionError("GUI veto allowed extra original controller")
+                    if log_tail(host_log, 200000).count(repeat_receipt) != 1:
+                        raise AssertionError("GUI veto allowed extra original receipt")
+                    for target in (second_target_xyz, third_target_xyz):
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*target),
+                                            expected=b"successfully found the block")
+                    send_server_command(server, server_log, "clear CIHost stone 0 0",
+                                        expected=b"has 7 items that match the criteria")
+                    print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_THREE_REAL_E_ABORT_"
+                          "RESUME_SERVER_ONE_STONE_SEVEN_PASS=YES", flush=True)
+                    return
 
                 if keyboard_walk:
                     # Immutable server command boundary. V64 must not hide
@@ -3290,7 +3346,8 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
-    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two","production-repeat-two","production-repeat-three","production-repeat-three-history","production-repeat-four","production-repeat-two-keyboard-walk","production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk", "production-repeat-six-keyboard-walk"),
+    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two","production-repeat-two","production-repeat-three","production-repeat-three-history","production-repeat-four","production-repeat-two-keyboard-walk","production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk", "production-repeat-six-keyboard-walk",
+                         "production-repeat-three-menu-after-first"),
                         help="dedicated Mojang server-authoritative Scaffold placement/disabled proof")
     parser.add_argument("--require-index-reorder", action="store_true",
                         help="fail-closed actual native entity-index change on fresh A rejoin")
@@ -3337,6 +3394,12 @@ def main():
     group.add_argument("--esp-visual", action="store_true",
                        help="require exact remote Mojang UUID actual Box ESP HUD draw")
     args = parser.parse_args()
+    # Route the *distinct* negative to existing validated production V54
+    # geometry. Preserve the extra original-game E-abort property separately.
+    args.scaffold_gui_abort = (
+        args.scaffold_placement == "production-repeat-three-menu-after-first")
+    if args.scaffold_gui_abort:
+        args.scaffold_placement = "production-repeat-three"
     if args.triggerbot_pvp:
         if args.unlocked_scoped_veto or args.unlocked_remote_owner_veto:
             parser.error("TriggerBot must remain isolated from Aura owner fixtures")
