@@ -876,9 +876,12 @@ class OriginalM419InitialPrelockRealSourceMarginTest(unittest.TestCase):
                 "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
         start=source.find("prelock_a=actual_server_original_rejoin_prelock_a_fixture(")
         a_tp=source.find("send_server_command(server, server_log, prelock_a,",start)
-        b_tp=source.find("send_server_command(server, server_log, b_outer)",a_tp)
-        ready=source.find("wait_for(host, host_log, REJOIN_READY,",b_tp)
-        self.assertTrue(0<=start<a_tp<b_tp<ready)
+        b_tp=source.find("send_server_command(server, server_log, b_outer,",a_tp)
+        # V307 strengthens the original fixture: the actual vanilla
+        # B server teleport response MUST precede native UUID admission.
+        b_ack=source.find('expected=b"Teleported CITargetB to"',b_tp)
+        ready=source.find("wait_for(host, host_log, REJOIN_READY,",b_ack)
+        self.assertTrue(0<=start<a_tp<b_tp<b_ack<ready)
         self.assertIn("actual_server_rejoined_a_controller_fixture(",source[ready:])
 
 if __name__ == "__main__":
