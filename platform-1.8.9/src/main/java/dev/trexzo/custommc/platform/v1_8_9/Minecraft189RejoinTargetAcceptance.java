@@ -140,10 +140,11 @@ final class Minecraft189RejoinTargetAcceptance {
     }
 
     /**
-     * Counts four distinct NEW original nonplayer UUIDs, not a delta of
-     * total World entity count. Only logging can consume this result.
-     * Baseline source must be captured BEFORE server summons. Absence
-     * returns -1; neither zero nor an invalid source qualifies as proof.
+     * Counts distinct NEW original nonplayer UUIDs, not a delta of
+     * total World entity count. V308 also requires this native identity
+     * evidence at the existing M417 rejoin acceptance gate; source logging
+     * alone never qualifies. Baseline is captured BEFORE server summons.
+     * Missing, stale or inconsistent source returns -1.
      */
     static int m273NovelNativeNonplayerCount(
             final Set<UUID> baseline,
@@ -160,6 +161,33 @@ final class Minecraft189RejoinTargetAcceptance {
             if (!baseline.contains(id) && !observed.add(id)) return -1;
         }
         return observed.size();
+    }
+
+    /**
+     * V308: retain the original M417 net +4 World nonplayer requirement
+     * AND require at least four distinct newly visible genuine UUIDs.
+     * Neither server command acknowledgements nor repeated Entity indices
+     * may substitute for source UUID identities. All B-lock/rejoin owner
+     * and player-index checks remain separate unchanged native gates.
+     */
+    static boolean m308StrictOriginalNovelSentinelGate(
+            final int baselineCount, final Set<UUID> baselineUuids,
+            final Minecraft189WorldEntityUuidState.Snapshot ids,
+            final Minecraft189WorldEntityKindState.Snapshot kinds) {
+        if (baselineCount < 0 || baselineUuids == null
+                || ids == null || kinds == null || !ids.available()
+                || !kinds.available()
+                || ids.entityCount() != kinds.entityCount()) {
+            return false;
+        }
+        int currentNonplayers = 0;
+        for (int i = 0; i < ids.entityCount(); i++) {
+            if (!kinds.player(i)) currentNonplayers++;
+        }
+        // Long arithmetic cannot overflow if baselineCount approaches MAX.
+        return (long) currentNonplayers >= (long) baselineCount + 4L
+                && m273NovelNativeNonplayerCount(
+                        baselineUuids, ids, kinds) >= 4;
     }
 
     /** Read-only explanation of a genuine four-sentinel native World witness. */
@@ -510,12 +538,17 @@ final class Minecraft189RejoinTargetAcceptance {
                     && !nativeSentinelObserved && nativeNonPlayerBaseline >= 0
                     && e!=null && e.a==-1 && e.bOnlySelected()
                     && survivorUuid.equals(aura.lockedTargetUuid())
-                    && sourceNonPlayerCount(e)>=nativeNonPlayerBaseline+4) {
+                    && m308StrictOriginalNovelSentinelGate(
+                            nativeNonPlayerBaseline,
+                            nativeBaselineNonplayerUuids, e.ids, e.kinds)) {
                 nativeSentinelObserved = true;
                 System.out.println(
                     "CUSTOMMC_189_REJOIN_REAL_SENTINEL_NATIVE_OBSERVED_PASS=YES"
                     + " nonplayersBefore=" + nativeNonPlayerBaseline
-                    + " nonplayersAfter=" + sourceNonPlayerCount(e));
+                    + " nonplayersAfter=" + sourceNonPlayerCount(e)
+                    + " novelNativeNonplayerUuids="
+                    + m273NovelNativeNonplayerCount(
+                            nativeBaselineNonplayerUuids, e.ids, e.kinds));
                 System.out.flush();
             }
             // Original A has a new real EntityPlayer instance and source-native
