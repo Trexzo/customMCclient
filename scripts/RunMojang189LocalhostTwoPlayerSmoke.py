@@ -677,14 +677,23 @@ def wait_for_log_occurrences(proc, log, phrase, minimum, deadline, context):
 
 
 def actual_server_three_client_locked_fixture(server_log):
-    """Native M413 simultaneous geometry plus real A range-expiration command."""
+    """Native M413 simultaneous geometry plus real A range-expiration command.
+
+    V305 second genuine original sticky-lock V56 saw a legitimate native B
+    click with A=4.2732 and B=1.4142 while acceptance requires A>4.5.
+    Preserve the exact original rule, but give REAL A an extra source
+    block of distance beyond the previous +5 command. The final original
+    /tp must still be acknowledged and native World must independently
+    prove target ownership; these source coordinates are never synthetic
+    combat evidence.
+    """
     host, a_near, b_outer, b_near = (
         actual_server_three_client_simultaneous_fixture(server_log))
     coords = a_near.split()
     if len(coords) != 7 or coords[:2] != ["tp", "CITarget"]:
         raise AssertionError("invalid genuine A target teleport")
     x, y, z = (int(v) for v in coords[2:5])
-    a_far = "tp CITarget {} {} {} 180 0".format(x + 5, y, z)
+    a_far = "tp CITarget {} {} {} 180 0".format(x + 6, y, z)
     return host, a_near, b_outer, b_near, a_far
 
 
@@ -2666,8 +2675,15 @@ def run(args):
                                 "scoreboard players test CITargetB taken 0 0",
                                 expected=b"score 0 is in range 0 to 0")
             print("CUSTOMMC_189_LOCK_A_DAMAGE_B_ZERO_PASS=YES", flush=True)
-            # One server teleport makes previous locked A out of Aura range.
-            send_server_command(server, server_log, a_far)
+            # One genuine server teleport must move A beyond the strict
+            # native 4.5 distance, not merely beyond Aura's 3.5 range.
+            # Require the actual coordinate-specific vanilla reply before
+            # observing the unchanged original World UUID/3D source gate.
+            send_server_command(
+                server, server_log, a_far,
+                expected=original_locked_tp_server_reply(a_far))
+            print("CUSTOMMC_189_LOCK_A_FAR_REAL_SERVER_TELEPORT_ACK=YES",
+                  flush=True)
             wait_for(host, host_log, LOCK_RELEASE, deadline,
                      "A out-of-range; actual locked UUID and production target become B")
             wait_for(host, host_log, LOCK_HIT_B, deadline,

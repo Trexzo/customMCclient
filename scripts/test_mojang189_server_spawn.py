@@ -253,7 +253,7 @@ class RealLockedTargetFixtureTest(unittest.TestCase):
              "tp CITarget 243 5 446 180 0",
              "tp CITargetB 245 5 446 180 0",
              "tp CITargetB 244 5 445 180 0",
-             "tp CITarget 248 5 446 180 0"),
+             "tp CITarget 249 5 446 180 0"),
         )
 
     def test_native_reverse_spawn_sticky_then_range_release(self):
@@ -263,7 +263,7 @@ class RealLockedTargetFixtureTest(unittest.TestCase):
              "tp CITarget -34 5 -36 0 0",
              "tp CITargetB -36 5 -36 180 0",
              "tp CITargetB -35 5 -35 180 0",
-             "tp CITarget -29 5 -36 180 0"),
+             "tp CITarget -28 5 -36 180 0"),
         )
 
     def test_real_login_missing_is_rejected(self):
