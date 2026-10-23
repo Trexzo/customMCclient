@@ -626,6 +626,44 @@ def actual_server_three_client_rejoin_fixture(server_log):
     return host, a_near, b_outer
 
 
+def actual_server_initial_rejoin_grounded_floor_fixture(host_tp, a_near, b_outer):
+    """A real same-Y stone floor for the THREE initial original rejoin players.
+
+    V306 second genuine V47 failed before UUID locking. Original host
+    World reported A=1.828859... in range, but B=11.224972... out of
+    the unchanged 3.5-block limit, even after the B /tp command was sent.
+    Protect real source Y continuity with actual dedicated-server stone
+    and independent positive /testforblock receipts; no mocked positions.
+    """
+    commands = [tp.split() for tp in (host_tp, a_near, b_outer)]
+    if any(len(parts) != 7 or parts[0] != "tp" for parts in commands):
+        raise AssertionError("initial rejoin stone requires real /tp commands")
+    if [parts[1] for parts in commands] != [
+            "CIHost", "CITarget", "CITargetB"]:
+        raise AssertionError("initial rejoin floor player identities invalid")
+    try:
+        positions = [tuple(int(v) for v in parts[2:5]) for parts in commands]
+    except ValueError as error:
+        raise AssertionError("initial rejoin floor source coordinates invalid") from error
+    (hx, hy, hz), (ax, ay, az), (bx, by, bz) = positions
+    if not (2 <= hy <= 254 and hy == ay == by
+            and ax == hx and abs(az - hz) == 2
+            and bz == az and abs(bx - ax) == 1
+            and hx // 16 == ax // 16 == bx // 16
+            and hz // 16 == az // 16 == bz // 16
+            and math.hypot(ax - hx, az - hz)
+                < math.hypot(bx - hx, bz - hz) < 3.0):
+        raise AssertionError("initial rejoin original 3-player geometry invalid")
+    y = hy - 1
+    pad = 3
+    lo_x, hi_x = min(hx, ax, bx) - pad, max(hx, ax, bx) + pad
+    lo_z, hi_z = min(hz, az, bz) - pad, max(hz, az, bz) + pad
+    # Only the real block plane BELOW the three original player feet.
+    return ("fill {} {} {} {} {} {} stone".format(
+                lo_x, y, lo_z, hi_x, y, hi_z),
+            tuple((x, y, z) for x, _, z in positions))
+
+
 def wait_for_log_occurrences(proc, log, phrase, minimum, deadline, context):
     """Require an additional actual native server event, not a stale first join."""
     if minimum < 1 or not phrase:
@@ -2250,6 +2288,24 @@ def run(args):
             # host (A stays nearer at 2 blocks), preserving real client
             # raycast, UUID ownership, native controller and server damage.
             # No synthetic positions or weakened original acceptance.
+            # Ground all THREE genuine vanilla players at their planned
+            # original server feet Y BEFORE the teleports. The V306
+            # second original V47 measured real B=11.224972... from host,
+            # outside unchanged 3.5 reach despite an intended sqrt(5)
+            # server-only horizontal fixture. Never fake source player
+            # Y or accept a UUID lock before real Mojang World agrees.
+            initial_floor, initial_columns = (
+                actual_server_initial_rejoin_grounded_floor_fixture(
+                    host_tp, a_near, b_outer))
+            send_server_command(server, server_log, initial_floor,
+                                expected=b"blocks filled")
+            for fx, fy, fz in sorted(set(initial_columns)):
+                send_server_command(server, server_log,
+                                    "testforblock {} {} {} stone".format(
+                                        fx, fy, fz),
+                                    expected=b"successfully found the block")
+            print("CUSTOMMC_189_REJOIN_INITIAL_THREE_PLAYER_STONE_PASS=YES",
+                  flush=True)
             send_server_command(server, server_log, host_tp)
             send_server_command(server, server_log, a_near)
             # The genuine late V177 source had only 0.014 initial A/B
@@ -2261,7 +2317,12 @@ def run(args):
                 host_tp,a_near,b_outer)
             send_server_command(server, server_log, prelock_a,
                                 expected=b"Teleported CITarget to")
-            send_server_command(server, server_log, b_outer)
+            # A queued server console write is not a server teleport
+            # receipt. Require the actual 1.8.9 command reply for B.
+            send_server_command(server, server_log, b_outer,
+                                expected=b"Teleported CITargetB to")
+            print("CUSTOMMC_189_REJOIN_INITIAL_B_TELEPORT_ACK_PASS=YES",
+                  flush=True)
             print("CUSTOMMC_189_REJOIN_INITIAL_A_REAL_SOURCE_BUFFER_TELEPORT_PASS=YES",
                   flush=True)
             print("CUSTOMMC_189_REJOIN_FINAL_B_SERVER_TELEPORT_AFTER_HOST_A=YES",
