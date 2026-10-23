@@ -83,11 +83,15 @@ final class Minecraft189RejoinNativeNovelSentinelGateTest {
                 kinds(LOCAL,NONPLAYER,NONPLAYER,NONPLAYER,PLAYER,PLAYER)));
     }
 
-    @Test void duplicatedNativeUuidWithPositiveCountCannotQualify() {
-        final Set<UUID> old=baseline(ids(1,2),kinds(LOCAL,NONPLAYER));
-        assertFalse(qualifies(1,old,ids(1,2,3,4,5,5),
-                kinds(LOCAL,NONPLAYER,NONPLAYER,NONPLAYER,
-                        NONPLAYER,NONPLAYER)));
+    @Test void duplicatedNativeUuidIsRejectedAtOriginalSourceBoundary() {
+        // The real UUID snapshot refuses duplicate IDs before the M417
+        // admission predicate receives an available source snapshot.
+        final Minecraft189WorldEntityUuidState source =
+                new Minecraft189WorldEntityUuidState();
+        assertFalse(source.update(new UUID[] {
+                new UUID(0L,1L),new UUID(0L,2L),new UUID(0L,3L),
+                new UUID(0L,4L),new UUID(0L,5L),new UUID(0L,5L)
+        }));
     }
 
     @Test void reorderedBaselineUuidsCannotAppearNovel() {
