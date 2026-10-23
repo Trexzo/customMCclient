@@ -6,8 +6,9 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Diagnostic only: four *source-visible new UUIDs* must not become a
- * synthetic acceptance. Original M417 real net-count gate is untouched.
+/** V273 UUID diagnostics and V309 additional original source gate tests.
+ * No synthetic snapshot or diagnostic substitutes for genuine original
+ * server+native World confirmation; M417's real net-count gate stays intact.
  */
 final class Minecraft189RejoinSentinelUuidIdentityAuditTest {
     private static UUID uuid(long n) { return new UUID(0L,n); }
@@ -135,6 +136,61 @@ final class Minecraft189RejoinSentinelUuidIdentityAuditTest {
     @Test void originalNonplayerCountCanShrinkWhileNovelUuidExists() {
         Set<UUID> before=baseline(ids(1,2,3,4),kinds(LOCAL,OTHER,OTHER,OTHER));
         assertEquals(1,novel(before,ids(1,5),kinds(LOCAL,OTHER)));
+    }
+
+    @Test void m309OriginalNativeFourDistinctPlusNetFourIsNecessary() {
+        assertTrue(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(2, 6, 4));
+        assertTrue(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(10, 18, 5));
+        // Net +4 WITHOUT four novel UUIDs is not four new sentinels.
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(2, 6, 3));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(2, 6, 0));
+        // Four novel UUIDs cannot bypass the existing net +4 gate.
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(2, 5, 4));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(2, 2, 4));
+    }
+
+    @Test void m309InvalidOriginalSnapshotCountsFailClosed() {
+        for (int baseline : new int[]{-1, -2}) {
+            assertFalse(Minecraft189RejoinTargetAcceptance
+                    .m309FourSourceNativeSentinelsAdmitted(baseline, 5, 4));
+        }
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(0, -1, 4));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(0, 4, -1));
+        // No signed 32-bit baseline+4 overflow may forge a four-count PASS.
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(
+                        Integer.MAX_VALUE - 2, Integer.MAX_VALUE, 4));
+        assertTrue(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(
+                        Integer.MAX_VALUE - 4, Integer.MAX_VALUE, 4));
+    }
+
+    @Test void m309OnlyActualNewOriginalNonplayerUuidsQualify() {
+        final Set<UUID> before = baseline(
+                ids(1,2,3), kinds(LOCAL, OTHER, PLAYER));
+        final int legitimate = novel(before,
+                ids(1,2,3,11,12,13,14),
+                kinds(LOCAL,OTHER,PLAYER,OTHER,OTHER,OTHER,OTHER));
+        assertTrue(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(1,5,legitimate));
+        final int reshuffle = novel(before,
+                ids(3,2,1), kinds(PLAYER,OTHER,LOCAL));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(1,5,reshuffle));
+        final int playerInsteadOfSentinel = novel(before,
+                ids(1,2,3,11,12,13,14),
+                kinds(LOCAL,OTHER,PLAYER,OTHER,OTHER,OTHER,PLAYER));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(
+                        1,5,playerInsteadOfSentinel));
     }
 
     @Test void emptyWorldAtBaselineStillRequiresActualNativeUuidArrivals() {
