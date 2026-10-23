@@ -141,7 +141,9 @@ final class Minecraft189RejoinTargetAcceptance {
 
     /**
      * Counts four distinct NEW original nonplayer UUIDs, not a delta of
-     * total World entity count. Only logging can consume this result.
+     * total World entity count. This was diagnostic-only in V273 and
+     * becomes an ADDITIONAL mandatory original M309 witness; the existing
+     * four-net-entity gate remains mandatory as well.
      * Baseline source must be captured BEFORE server summons. Absence
      * returns -1; neither zero nor an invalid source qualifies as proof.
      */
@@ -160,6 +162,22 @@ final class Minecraft189RejoinTargetAcceptance {
             if (!baseline.contains(id) && !observed.add(id)) return -1;
         }
         return observed.size();
+    }
+
+    /**
+     * M309: preserve the original M417 +4 NET nonplayer gate AND require
+     * four distinct NEW UUIDs in the same genuine original World snapshot.
+     * No diagnostic, server summon acknowledgement or entity index can
+     * substitute for either real source fact. Widen subtraction to long
+     * so invalid large baselines cannot wrap into apparent authorization.
+     */
+    static boolean m309FourSourceNativeSentinelsAdmitted(
+            final int baselineNonplayers,
+            final int currentNonplayers,
+            final int distinctNewNativeNonplayerUuids) {
+        return baselineNonplayers >= 0 && currentNonplayers >= 0
+                && distinctNewNativeNonplayerUuids >= 4
+                && ((long) currentNonplayers - (long) baselineNonplayers) >= 4L;
     }
 
     /** Read-only explanation of a genuine four-sentinel native World witness. */
@@ -488,8 +506,8 @@ final class Minecraft189RejoinTargetAcceptance {
                 }
             } else aloneTicks=0;
         } else if (phase==3) {
-            // V273 READ-ONLY: genuine current native IDs, not net count.
-            // A positive diagnostic NEVER prints M417's PASS marker.
+            // V273 diagnostic is separate from M309's strict real gate.
+            // A diagnostic NEVER prints the original M417 PASS marker.
             if (!nativeFourNovelUuidDiagnosticReported && e != null) {
                 final int newIds = m273NovelNativeNonplayerCount(
                         nativeBaselineNonplayerUuids, e.ids, e.kinds);
@@ -510,12 +528,19 @@ final class Minecraft189RejoinTargetAcceptance {
                     && !nativeSentinelObserved && nativeNonPlayerBaseline >= 0
                     && e!=null && e.a==-1 && e.bOnlySelected()
                     && survivorUuid.equals(aura.lockedTargetUuid())
-                    && sourceNonPlayerCount(e)>=nativeNonPlayerBaseline+4) {
+                    && m309FourSourceNativeSentinelsAdmitted(
+                            nativeNonPlayerBaseline, sourceNonPlayerCount(e),
+                            m273NovelNativeNonplayerCount(
+                                    nativeBaselineNonplayerUuids,
+                                    e.ids, e.kinds))) {
                 nativeSentinelObserved = true;
                 System.out.println(
                     "CUSTOMMC_189_REJOIN_REAL_SENTINEL_NATIVE_OBSERVED_PASS=YES"
                     + " nonplayersBefore=" + nativeNonPlayerBaseline
-                    + " nonplayersAfter=" + sourceNonPlayerCount(e));
+                    + " nonplayersAfter=" + sourceNonPlayerCount(e)
+                    + " distinctNewNonplayerUuids="
+                    + m273NovelNativeNonplayerCount(
+                            nativeBaselineNonplayerUuids, e.ids, e.kinds));
                 System.out.flush();
             }
             // Original A has a new real EntityPlayer instance and source-native
