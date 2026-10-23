@@ -38,7 +38,7 @@ class V308RealLockedFarReceiptTests(unittest.TestCase):
 
     def test_strict_b_source_and_original_native_locked_acceptance_retained(self):
         src=(HERE/"RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
-        stage=src.split("if args.locked_target:",2)[-1].split("if args.simultaneous:",1)[0]
+        stage=src.split("if args.locked_target:",1)[1].split("if args.simultaneous:",1)[0]
         marker="CUSTOMMC_189_LOCK_A_FAR_REAL_SERVER_TELEPORT_ACK=YES"
         self.assertIn("expected=original_locked_tp_server_reply(a_far)",stage)
         self.assertIn(marker,stage)
