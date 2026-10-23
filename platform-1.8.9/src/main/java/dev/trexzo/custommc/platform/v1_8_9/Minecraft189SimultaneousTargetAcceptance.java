@@ -47,6 +47,9 @@ final class Minecraft189SimultaneousTargetAcceptance {
             }
         } else if (phase == 1 && firstOwnedClick
                 && evidence != null && evidence.bNearest) {
+            // Reuse this EXACT original-world read. Diagnostic only: never
+            // recompute ownership, move the player or alter attack authority.
+            reportV310OriginalSource("observe", evidence);
             phase = 2;
             System.out.println(
                     "CUSTOMMC_189_SIMULTANEOUS_NATIVE_UUID_B_PRIORITY_SWITCH_PASS=YES");
@@ -118,6 +121,7 @@ final class Minecraft189SimultaneousTargetAcceptance {
                         // only, not a second chance to authorize the click.
                         + m274EarlyBClickSourceDiagnostics(host, playerIndex));
             }
+            reportV310OriginalSource("original-click", switched);
             phase = 2;
             System.out.println(
                     "CUSTOMMC_189_SIMULTANEOUS_NATIVE_UUID_B_PRIORITY_SWITCH_PASS=YES");
@@ -357,6 +361,29 @@ final class Minecraft189SimultaneousTargetAcceptance {
                 && freshBothEligibleANearest;
     }
 
+    /**
+     * V310: read-only first B reprioritization source distances. Emitted
+     * only AFTER the original BOTH-alive, in-range, 0.12 margin and native
+     * nearest/rotation selection passed. No extra original World read.
+     */
+    static String v310OriginalPriorityDiagnostic(final String path,
+            final int aIndex, final int bIndex,
+            final double aDistance, final double bDistance) {
+        return "CUSTOMMC_189_SIMULTANEOUS_B_PRIORITY_NATIVE_SOURCE_DIAG"
+                + " path=" + path
+                + " aIndex=" + aIndex + " bIndex=" + bIndex
+                + " aDistance=" + aDistance + " bDistance=" + bDistance
+                + " gapBCloser=" + (aDistance - bDistance);
+    }
+
+    private static void reportV310OriginalSource(
+            final String path, final Evidence evidence) {
+        System.out.println(v310OriginalPriorityDiagnostic(
+                path, evidence.aIndex, evidence.bIndex,
+                evidence.aDistance, evidence.bDistance));
+        System.out.flush();
+    }
+
     private static Evidence read(final Minecraft189HostRuntime host) {
         return read(host, null);
     }
@@ -478,13 +505,14 @@ final class Minecraft189SimultaneousTargetAcceptance {
                     .append(" originalRotation=").append(rotation.entityIndex())
                     .append(" originalBIndex=").append(b);
         }
-        return new Evidence(a, b, aSelected, bSelected, nearest, rotation,
-                kinds, combat, ids);
+        return new Evidence(a, b, aSelected, bSelected, adist, bdist,
+                nearest, rotation, kinds, combat, ids);
     }
 
     private static final class Evidence {
         private final int aIndex, bIndex;
         private final boolean aNearest, bNearest;
+        private final double aDistance, bDistance;
         private final Minecraft189NearestPlayerTargetState.Snapshot nearest;
         private final Minecraft189TargetRotationState.Snapshot rotation;
         private final Minecraft189WorldEntityKindState.Snapshot kinds;
@@ -492,7 +520,8 @@ final class Minecraft189SimultaneousTargetAcceptance {
         private final Minecraft189WorldEntityUuidState.Snapshot ids;
 
         private Evidence(final int a, final int b, final boolean aNearest,
-                final boolean bNearest,
+                final boolean bNearest, final double aDistance,
+                final double bDistance,
                 final Minecraft189NearestPlayerTargetState.Snapshot nearest,
                 final Minecraft189TargetRotationState.Snapshot rotation,
                 final Minecraft189WorldEntityKindState.Snapshot kinds,
@@ -502,6 +531,8 @@ final class Minecraft189SimultaneousTargetAcceptance {
             this.bIndex = b;
             this.aNearest = aNearest;
             this.bNearest = bNearest;
+            this.aDistance = aDistance;
+            this.bDistance = bDistance;
             this.nearest = nearest;
             this.rotation = rotation;
             this.kinds = kinds;
