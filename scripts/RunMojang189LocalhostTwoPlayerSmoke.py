@@ -673,6 +673,21 @@ def actual_server_rejoin_three_player_floor_fixture(host_tp, a_near, b_outer):
     return fill, witness
 
 
+def actual_server_rejoin_floor_fill_receipt(fresh_log):
+    """Accept ONLY exact fresh vanilla server INFO acknowledgement for this floor.
+
+    Vanilla can say 'No blocks filled' when the physical stone already exists.
+    That reply is not a fixture PASS: genuine testforblock witnesses for all
+    three real players must still follow, and original native V47 gates remain.
+    """
+    marker = b"[server thread/info]: "
+    valid = (b"35 blocks filled", b"no blocks filled")
+    for line in fresh_log.lower().splitlines():
+        if marker in line and line.split(marker, 1)[1].strip() in valid:
+            return True
+    return False
+
+
 def actual_server_three_client_locked_fixture(server_log):
     """Native M413 simultaneous geometry plus real A range-expiration command."""
     host, a_near, b_outer, b_near = (
@@ -2288,9 +2303,21 @@ def run(args):
             support_fill, support_cells = (
                 actual_server_rejoin_three_player_floor_fixture(
                     host_tp, a_near, b_outer))
+            # A repeated vanilla fill of already-stone terrain legitimately
+            # returns "No blocks filled". Read ONLY fresh log bytes; accept
+            # precisely the successful 35-block or idempotent no-change
+            # server reply, then require independent REAL stone witnesses.
+            before_floor_log = server_log.stat().st_size
             send_server_command(
                 server, server_log, support_fill,
-                expected=b"35 blocks filled")
+                expected=b"blocks filled")
+            with server_log.open("rb") as floor_reader:
+                floor_reader.seek(before_floor_log)
+                fill_reply = floor_reader.read()
+            if not actual_server_rejoin_floor_fill_receipt(fill_reply):
+                raise AssertionError(
+                    "original vanilla floor fill lacks a valid fresh receipt: "
+                    + fill_reply[-800:].decode("ascii", "replace"))
             for support_x, support_y, support_z in support_cells:
                 send_server_command(
                     server, server_log,
