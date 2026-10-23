@@ -3340,6 +3340,15 @@ def run(args):
         close_process(wm)
 
 
+def configure_original_scaffold_gui_negative(args):
+    """Only select the verified V54 fixture geometry for V308's E veto."""
+    args.scaffold_gui_abort = (
+        args.scaffold_placement == "production-repeat-three-menu-after-first")
+    if args.scaffold_gui_abort:
+        args.scaffold_placement = "production-repeat-three"
+    return args
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("java", "server", "client", "libraries", "assets",
@@ -3394,12 +3403,7 @@ def main():
     group.add_argument("--esp-visual", action="store_true",
                        help="require exact remote Mojang UUID actual Box ESP HUD draw")
     args = parser.parse_args()
-    # Route the *distinct* negative to existing validated production V54
-    # geometry. Preserve the extra original-game E-abort property separately.
-    args.scaffold_gui_abort = (
-        args.scaffold_placement == "production-repeat-three-menu-after-first")
-    if args.scaffold_gui_abort:
-        args.scaffold_placement = "production-repeat-three"
+    configure_original_scaffold_gui_negative(args)
     if args.triggerbot_pvp:
         if args.unlocked_scoped_veto or args.unlocked_remote_owner_veto:
             parser.error("TriggerBot must remain isolated from Aura owner fixtures")
