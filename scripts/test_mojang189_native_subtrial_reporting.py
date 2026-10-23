@@ -69,11 +69,23 @@ class OriginalMojangNativeSubtrialReportTest(unittest.TestCase):
                 self.assertIn('accepted=1', block)
                 self.assertIn('break', block)
 
-    def test_no_extra_original_github_actions_named_step(self):
-        # Previously certified workflow had exactly 67 explicit named
-        # steps; source proof-only V277 must not increase the 78-step job.
-        self.assertEqual(67, len(re.findall(r"^      - name:",self.source,
-                                            flags=re.MULTILINE)))
+    def test_exactly_one_reviewed_v308_original_step_added(self):
+        # Certified V307 contains 67 named workflow steps. V308 is explicitly
+        # expanding genuine native coverage, not replacing/muting those steps.
+        names = re.findall(r"^      - name: (.*)$", self.source,
+                           flags=re.MULTILINE)
+        new = [name for name in names if name.startswith("V308 ")]
+        self.assertEqual(68, len(names))
+        self.assertEqual(67, len(names) - len(new))
+        self.assertEqual(
+            ["V308 original E after first three-mode Scaffold stone permanently revokes live quota"],
+            new)
+        self.assertEqual(1, self.source.count(
+            "--scaffold-placement production-repeat-three-menu-after-first"))
+        self.assertIn("V54 certify production opt-in three original Scaffold", self.source)
+        self.assertIn("V59 certify four genuine production Scaffold", self.source)
+        self.assertIn("production-repeat-three-menu-after-first", self.source)
+
 
     def test_each_true_trial_emits_one_of_two_machine_readable_outcomes(self):
         for marker, label in CASES:
