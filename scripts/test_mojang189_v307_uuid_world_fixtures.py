@@ -79,6 +79,27 @@ class GenuineUuidWorldFixtureV307Tests(unittest.TestCase):
             with self.assertRaisesRegex(AssertionError,"outside server world"):
                 smoke.actual_server_three_client_locked_fixture(path)
 
+    def test_fresh_vanilla_fill_receipts_include_idempotent_existing_stone(self):
+        valid = (
+            b"[16:07:40] [Server thread/INFO]: 35 blocks filled\\n",
+            b"[16:07:40] [Server thread/INFO]: No blocks filled\\n")
+        for receipt in valid:
+            with self.subTest(receipt=receipt):
+                self.assertTrue(
+                    smoke.actual_server_rejoin_floor_fill_receipt(receipt))
+
+    def test_invalid_floor_receipts_fail_closed(self):
+        invalid = (
+            b"", b"no blocks filled",
+            b"[16:07:40] [Server thread/INFO]: 34 blocks filled\\n",
+            b"[16:07:40] [Server thread/INFO]: No blocks filled malicious\\n",
+            b"[16:07:40] [Server thread/INFO]: Unknown or incomplete command\\n",
+            b"[16:07:40] [Server thread/WARN]: No blocks filled\\n")
+        for receipt in invalid:
+            with self.subTest(receipt=receipt):
+                self.assertFalse(
+                    smoke.actual_server_rejoin_floor_fill_receipt(receipt))
+
     def test_runner_has_positive_support_receipts_before_actual_tp(self):
         text=Path(smoke.__file__).read_text(encoding="utf-8")
         node=ast.parse(text)
@@ -94,7 +115,8 @@ class GenuineUuidWorldFixtureV307Tests(unittest.TestCase):
         block=max(blocks,key=len)
         for token in (
                 "actual_server_rejoin_three_player_floor_fixture(",
-                'expected=b"35 blocks filled"',
+                'expected=b"blocks filled"',
+                "actual_server_rejoin_floor_fill_receipt(fill_reply)",
                 'expected=b"successfully found the block"',
                 "expected=original_locked_tp_server_reply(b_outer)",
                 "wait_for(host, host_log, REJOIN_READY, deadline,"):
