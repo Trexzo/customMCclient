@@ -465,7 +465,7 @@ def client_command(args, game, username, uuid, port, remote):
                 "-Dcustommc.acceptance.requireOriginalScaffoldReach=true",
                 "-Dcustommc.acceptance.reportNativeSafeWalkPosition=true"):
             command.insert(command.index("-cp"), value)
-        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-menu-after-first"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-menu-after-first", "production-repeat-three-hotbar-after-first"):
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldPlacement=true")
             if args.scaffold_placement == "menu-open":
@@ -477,12 +477,15 @@ def client_command(args, game, username, uuid, port, remote):
             if args.scaffold_placement == "production-repeat-two":
                 command.insert(command.index("-cp"),
                                "-Dcustommc.acceptance.requireProductionScaffoldTwoBlockProof=true")
-            if args.scaffold_placement in ("production-repeat-three", "production-repeat-three-menu-after-first"):
+            if args.scaffold_placement in ("production-repeat-three", "production-repeat-three-menu-after-first", "production-repeat-three-hotbar-after-first"):
                 command.insert(command.index("-cp"),
                                "-Dcustommc.acceptance.requireProductionScaffoldThreeBlockProof=true")
                 if args.scaffold_placement == "production-repeat-three-menu-after-first":
                     command.insert(command.index("-cp"),
                                    "-Dcustommc.acceptance.requireProductionScaffoldThreeGuiAbort=true")
+                if args.scaffold_placement == "production-repeat-three-hotbar-after-first":
+                    command.insert(command.index("-cp"),
+                                   "-Dcustommc.acceptance.requireProductionScaffoldThreeHotbarAbort=true")
         else:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireOriginalScaffoldDisabledControl=true")
@@ -605,7 +608,9 @@ def identify_original_host_window_before_target(host):
 
 def send_real_host_key(host, host_window, key):
     """Send whitelisted vanilla key to previously identified original host."""
-    if key not in ("e", "1", "Escape"):
+    # V57: the real hotbar-abort proof must physically press slot 2
+    # before returning to slot 1; reject every other unreviewed key.
+    if key not in ("e", "1", "2", "Escape"):
         raise ValueError("invalid original host Minecraft key")
     check_process(host, "host X11 key")
     if not host_window:
@@ -713,7 +718,7 @@ def run(args):
                  min(deadline, time.monotonic() + 65),
                  "host graphical client")
         host_window = None
-        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-menu-after-first"):
+        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-menu-after-first", "production-repeat-three-hotbar-after-first"):
             # Unique real Minecraft client on this freshly allocated Xvfb
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
@@ -766,10 +771,10 @@ def run(args):
                                 "setblock {} {} {} stone".format(*support))
             send_server_command(server, server_log,
                                 "setblock {} {} {} air".format(*target_xyz))
-            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-menu-after-first"):
+            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-menu-after-first", "production-repeat-three-hotbar-after-first"):
                 send_server_command(server, server_log,
                                     "setblock {} {} {} air".format(*second_target_xyz))
-                if args.scaffold_placement in ("production-repeat-three", "production-repeat-three-menu-after-first"):
+                if args.scaffold_placement in ("production-repeat-three", "production-repeat-three-menu-after-first", "production-repeat-three-hotbar-after-first"):
                     send_server_command(server, server_log,
                                         "setblock {} {} {} air".format(*third_target_xyz))
             # Capture a byte-precise diagnostic boundary for menu-negative
@@ -868,11 +873,13 @@ def run(args):
             # CI-only repeat and production opt-in must have DIFFERENT markers.
             # A V37 marker never certifies a V43 production controller call.
             is_production_repeat = args.scaffold_placement in (
-                "production-repeat-two", "production-repeat-three", "production-repeat-three-menu-after-first")
+                "production-repeat-two", "production-repeat-three", "production-repeat-three-menu-after-first", "production-repeat-three-hotbar-after-first")
             three_production = args.scaffold_placement in (
-                "production-repeat-three", "production-repeat-three-menu-after-first")
+                "production-repeat-three", "production-repeat-three-menu-after-first", "production-repeat-three-hotbar-after-first")
             three_gui_abort = (
                 args.scaffold_placement == "production-repeat-three-menu-after-first")
+            three_hotbar_abort = (
+                args.scaffold_placement == "production-repeat-three-hotbar-after-first")
             repeat_marker = (b"PRODUCTION" if is_production_repeat else b"REPEAT")
             repeat_attempt = (b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_" + repeat_marker
                               + b"_ORIGINAL_CONTROLLER_ATTEMPT=YES")
@@ -884,7 +891,7 @@ def run(args):
                    for tag in (module,attempt,receipt,repeat_attempt,repeat_receipt,repeat_arm)):
                 raise AssertionError("native placement or repeat arm before accepted placement fixture")
             if args.scaffold_placement in ("enabled", "repeat-two", "production-repeat-two",
-                                           "production-repeat-three", "production-repeat-three-menu-after-first"):
+                                           "production-repeat-three", "production-repeat-three-menu-after-first", "production-repeat-three-hotbar-after-first"):
                 # Genuine host keyboard selects hotbar slot 0. This is not
                 # a spoofed inventory setter or a fabricated ItemStack.
                 # Server sends the real eight-block Survival grant afterward.
@@ -897,7 +904,7 @@ def run(args):
             # after grant in the enabled mode races the intended 8 -> 7
             # survival decrement. Only the disabled control may retain
             # an eight-item post-grant baseline.
-            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-menu-after-first"):
+            if args.scaffold_placement in ("repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-menu-after-first", "production-repeat-three-hotbar-after-first"):
                 # V37 proves the isolated sequence; V43 independently runs
                 # the real default-off setting explicitly enabled for CI.
                 # V37 is an isolated opt-in new original-client JVM and
@@ -945,6 +952,62 @@ def run(args):
                       + repeat_marker.decode("ascii")
                       + "_SERVER_FIRST_STONE_SEVEN_PASS=YES",
                       flush=True)
+
+                if three_hotbar_abort:
+                    # V57: one authentic original stone and 8->7 receipt
+                    # exist already. Physically switch the real host hotbar
+                    # AWAY from its pinned ItemBlock via keyboard '2'.
+                    if repeat_attempt + b" step=2" in log_tail(host_log):
+                        raise AssertionError("second original click before real hotbar change")
+                    send_real_host_key(host, host_window, "2")
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_REAL_HOTBAR_ABORT_AFTER_ONE_PASS=YES slot=1",
+                             deadline, "native selected-slot change permanently invalidates repeat lease")
+                    for target in (second_target_xyz, third_target_xyz):
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*target),
+                                            expected=b"successfully found the block")
+                    send_server_command(server, server_log,
+                                        "clear CIHost stone 0 0",
+                                        expected=b"has 7 items that match the criteria")
+                    # Restore original slot with a real '1' key, not an
+                    # inventory setter. The old generation must NOT rearm.
+                    send_real_host_key(host, host_window, "1")
+                    send_server_command(server, server_log,
+                                        "tp CIHost {:.2f} {} {:.2f} 90 88.6".format(
+                                            x+2.05, y, z+.5))
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_HOTBAR_RESUMED_VETO_TICKS=60",
+                             deadline, "60 genuine native slot-restored veto callbacks at second edge")
+                    send_server_command(server, server_log,
+                                        "testforblock {} {} {} air".format(*second_target_xyz),
+                                        expected=b"successfully found the block")
+                    # Keep target x+3 AIR yet physically support its real
+                    # vanilla player with x+4 stone; do not let a void fall
+                    # masquerade as a safe hotbar cancellation.
+                    send_server_command(server, server_log,
+                                        "setblock {} {} {} stone".format(x+4, y-1, z))
+                    send_server_command(server, server_log,
+                                        "tp CIHost {:.2f} {} {:.2f} 270 85".format(
+                                            x+3.85, y, z+.5))
+                    wait_for(host, host_log,
+                             b"CUSTOMMC_189_SCAFFOLD_THREE_HOTBAR_RESUMED_VETO_TICKS=120",
+                             deadline, "120 original source veto callbacks at third edge")
+                    if log_tail(host_log).count(repeat_attempt) != 1:
+                        raise AssertionError("reselected hotbar restarted original controller")
+                    if log_tail(host_log).count(repeat_receipt) != 1:
+                        raise AssertionError("reselected hotbar fabricated additional receipts")
+                    for target in (second_target_xyz, third_target_xyz):
+                        send_server_command(server, server_log,
+                                            "testforblock {} {} {} air".format(*target),
+                                            expected=b"successfully found the block")
+                    send_server_command(server, server_log,
+                                        "clear CIHost stone 0 0",
+                                        expected=b"has 7 items that match the criteria")
+                    print("CUSTOMMC_OFFICIAL_189_SCAFFOLD_THREE_REAL_HOTBAR_"
+                          "RESELECT_SERVER_ONE_STONE_SEVEN_PASS=YES",
+                          flush=True)
+                    return
 
                 if three_gui_abort:
                     # V55 negative: the FIRST genuine stone and native
@@ -1968,7 +2031,7 @@ def main():
                  "natives", "overlay", "root"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--timeout", type=int, default=150)
-    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two","production-repeat-two","production-repeat-three", "production-repeat-three-menu-after-first"),
+    parser.add_argument("--scaffold-placement", choices=("enabled","disabled","menu-open","repeat-two","production-repeat-two","production-repeat-three", "production-repeat-three-menu-after-first", "production-repeat-three-hotbar-after-first"),
                         help="dedicated Mojang server-authoritative Scaffold placement/disabled proof")
     parser.add_argument("--require-index-reorder", action="store_true",
                         help="fail-closed actual native entity-index change on fresh A rejoin")
