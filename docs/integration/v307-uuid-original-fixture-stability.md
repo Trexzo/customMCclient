@@ -17,3 +17,25 @@ Exact Draft parent V306 `9d4f8ba6f19cb5c04a6348075a8c419968478270`, [PR #778](ht
 ## Certification
 
 V307 requires Foundation Windows and Ubuntu 10/10 plus **two separate full real pinned Mojang 1.8.9 GUI/X11 + vanilla-server 78/78 PASS** on the exact same final V307 SHA. V305 and V306 second original failures remain red. V304 retains its own two verified original 78/78 PASS jobs. All PRs Draft, `main` unchanged; no merge or release. Audit in [issue #777](https://github.com/Trexzo/customMCclient/issues/777), original failure log in [issue #503](https://github.com/Trexzo/customMCclient/issues/503).
+
+
+## Corrective verification of idempotent vanilla fill response (2026-10-23)
+
+[Original #39982461933](https://github.com/Trexzo/customMCclient/actions/runs/39982461933)
+**COMPLETED FAILURE** at real V47 after successful earlier native stages.
+The dedicated original server logged `No blocks filled` for the exact 35-cell
+stone support fill, whereas the fixture insisted on `35 blocks filled`.
+That disagreement does **not** prove missing stone, and the historical job
+stays FAIL.
+
+The corrected runner snapshots the dedicated-server log before the actual
+original fill command and checks the fresh vanilla INFO reply for **only**
+`35 blocks filled` or `No blocks filled`. In either case, each of the three
+distinct genuine underfoot cells MUST still receive its own successful original
+`testforblock ... stone` reply before teleport. An empty, malformed, unknown
+or partial-fill reply is not accepted. This is an idempotent command receipt,
+**not a substitute** for World entity positions, V47 A/B preference, native
+UUID lock, vanilla controller or server damage. No native criteria/timeouts,
+game Java or production code change. Source-only parser tests cover both
+allowed responses and invalid alternatives. Two independent full original
+78/78 runs on one exact corrected SHA remain mandatory for certification.
