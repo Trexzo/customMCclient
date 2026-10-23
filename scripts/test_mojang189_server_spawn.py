@@ -520,7 +520,12 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
         self.assertIn("fx, fz=math.floor(ax), math.floor(az)", script)
         self.assertIn("send_server_command(server,server_log,a_rejoined,", script)
         self.assertIn('expected=b"Teleported CITarget to"', script)
-        self.assertIn('expected=b"4 blocks filled"', script)
+        # An original idempotent no-change receipt is never enough: the
+        # four physically present vanilla stone cells must each be confirmed.
+        self.assertIn('phase4_floor_reply, expected_count=4', script)
+        self.assertIn("for dx in (0, 1):", script)
+        self.assertIn("for dz in (0, 1):", script)
+        self.assertIn('"testforblock {} {} {} stone"', script)
 
     def test_integer_teleport_centering_was_actual_cause_of_both_bounds(self):
         import math

@@ -673,7 +673,7 @@ def actual_server_rejoin_three_player_floor_fixture(host_tp, a_near, b_outer):
     return fill, witness
 
 
-def actual_server_rejoin_floor_fill_receipt(fresh_log):
+def actual_server_rejoin_floor_fill_receipt(fresh_log, expected_count=35):
     """Accept ONLY exact fresh vanilla server INFO acknowledgement for this floor.
 
     Vanilla can say 'No blocks filled' when the physical stone already exists.
@@ -681,7 +681,10 @@ def actual_server_rejoin_floor_fill_receipt(fresh_log):
     three real players must still follow, and original native V47 gates remain.
     """
     marker = b"[server thread/info]: "
-    valid = (b"35 blocks filled", b"no blocks filled")
+    if expected_count not in (4, 35):
+        raise AssertionError("unsupported original floor fill count")
+    valid = (str(expected_count).encode("ascii") + b" blocks filled",
+             b"no blocks filled")
     for line in fresh_log.lower().splitlines():
         if marker in line and line.split(marker, 1)[1].strip() in valid:
             return True
@@ -2468,8 +2471,29 @@ def run(args):
                 fx, fz=math.floor(ax), math.floor(az)
                 floor="fill {} {} {} {} {} {} stone".format(
                     fx,int(ay)-1,fz,fx+1,int(ay)-1,fz+1)
+                # First stone fill may be idempotent because the earlier
+                # 35-cell genuine original floor overlaps this 2x2 region.
+                # Require the FRESH exact vanilla INFO response, and then
+                # four independent REAL testforblock receipts. Neither
+                # response alone proves native player/UUID/controller state.
+                before_phase4_floor = server_log.stat().st_size
                 send_server_command(server,server_log,floor,
-                                    expected=b"4 blocks filled")
+                                    expected=b"blocks filled")
+                with server_log.open("rb") as phase4_reader:
+                    phase4_reader.seek(before_phase4_floor)
+                    phase4_floor_reply = phase4_reader.read()
+                if not actual_server_rejoin_floor_fill_receipt(
+                        phase4_floor_reply, expected_count=4):
+                    raise AssertionError(
+                        "original 2x2 survival floor lacks a valid fresh receipt: "
+                        + phase4_floor_reply[-800:].decode("ascii", "replace"))
+                for dx in (0, 1):
+                    for dz in (0, 1):
+                        send_server_command(
+                            server, server_log,
+                            "testforblock {} {} {} stone".format(
+                                fx + dx, int(ay) - 1, fz + dz),
+                            expected=b"successfully found the block")
                 # V193 exact native original runtime later exposed REAL
                 # phase4 player-height divergence (A3D=2.469, B3D=2.428).
                 # A's 2x2 stone floor alone does not ground host and B:

@@ -39,3 +39,26 @@ UUID lock, vanilla controller or server damage. No native criteria/timeouts,
 game Java or production code change. Source-only parser tests cover both
 allowed responses and invalid alternatives. Two independent full original
 78/78 runs on one exact corrected SHA remain mandatory for certification.
+
+
+## Genuine second V47 failure and independently verified 2x2 phase-4 support (2026-10-23)
+
+On immutable `fac31b561b654619be1974fee6e568d31125f421`,
+[original Mojang #39985969482](https://github.com/Trexzo/customMCclient/actions/runs/39985969482)
+**COMPLETED FAILURE** at V47 after the genuine three-player original first
+floor returned `35 blocks filled`, original rejoin, actual native B UUID owner,
+and actual native controller/crosshair checks progressed. The original vanilla
+second `fill 1 4 477 2 4 478 stone` reported `No blocks filled`, but the
+script demanded `4 blocks filled`. That reply is consistent with prior stone,
+yet alone cannot prove stone remains.
+
+Corrected source-only fixture (still Draft): the second fill must produce its
+own fresh exact vanilla INFO `4 blocks filled` or `No blocks filled`
+receipt, followed by **four** independent genuine `testforblock ... stone`
+receipts for all 2x2 cells. A different positive count, empty log, forged WARN,
+or error fails closed. The prior **three** original host/A/B floor witnesses
+also remain strict. This does not change Java, native V47 original entity/range,
+UUID ownership, camera, controller or PvP damage acceptance, timeout, server
+processes, or expected full 78 stages. Prior immutable FAIL is retained.
+Both Foundation gates and two FULL independent genuine original 78/78
+on one corrected exact SHA are still mandatory before double certification.

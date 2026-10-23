@@ -100,6 +100,46 @@ class GenuineUuidWorldFixtureV307Tests(unittest.TestCase):
                 self.assertFalse(
                     smoke.actual_server_rejoin_floor_fill_receipt(receipt))
 
+    def test_fresh_real_2x2_floor_receipt_requires_four_or_idempotent(self):
+        for receipt in (
+                b"[16:25:17] [Server thread/INFO]: 4 blocks filled\n",
+                b"[16:25:17] [Server thread/INFO]: No blocks filled\n"):
+            with self.subTest(receipt=receipt):
+                self.assertTrue(
+                    smoke.actual_server_rejoin_floor_fill_receipt(
+                        receipt, expected_count=4))
+
+    def test_real_2x2_floor_wrong_count_and_untrusted_reply_fail(self):
+        for receipt in (
+                b"", b"No blocks filled",
+                b"[16:25:17] [Server thread/INFO]: 35 blocks filled\n",
+                b"[16:25:17] [Server thread/INFO]: 3 blocks filled\n",
+                b"[16:25:17] [Server thread/WARN]: No blocks filled\n",
+                b"[16:25:17] [Server thread/INFO]: no blocks filled garbage\n"):
+            with self.subTest(receipt=receipt):
+                self.assertFalse(
+                    smoke.actual_server_rejoin_floor_fill_receipt(
+                        receipt, expected_count=4))
+        with self.assertRaisesRegex(AssertionError, "unsupported"):
+            smoke.actual_server_rejoin_floor_fill_receipt(
+                b"[Server thread/INFO]: 5 blocks filled\n", expected_count=5)
+
+    def test_real_2x2_four_genuine_block_receipts_precede_native_phase4(self):
+        src=Path(smoke.__file__).read_text(encoding="utf-8")
+        a=src.index("before_phase4_floor = server_log.stat().st_size")
+        b=src.index("grounded_floor = actual_server_rejoined_phase4_grounded_floor_fixture",a)
+        segment=src[a:b]
+        for required in (
+                'expected=b"blocks filled"',
+                "actual_server_rejoin_floor_fill_receipt(",
+                "phase4_floor_reply, expected_count=4",
+                "for dx in (0, 1):", "for dz in (0, 1):",
+                '"testforblock {} {} {} stone"',
+                'expected=b"successfully found the block"'):
+            self.assertIn(required,segment)
+        self.assertLess(segment.index("actual_server_rejoin_floor_fill_receipt("),
+                        segment.index("for dx in (0, 1):"))
+
     def test_runner_has_positive_support_receipts_before_actual_tp(self):
         text=Path(smoke.__file__).read_text(encoding="utf-8")
         node=ast.parse(text)
