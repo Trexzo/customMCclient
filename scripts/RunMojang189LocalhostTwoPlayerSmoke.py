@@ -608,7 +608,9 @@ def identify_original_host_window_before_target(host):
 
 def send_real_host_key(host, host_window, key):
     """Send whitelisted vanilla key to previously identified original host."""
-    if key not in ("e", "1", "Escape"):
+    # V57: the real hotbar-abort proof must physically press slot 2
+    # before returning to slot 1; reject every other unreviewed key.
+    if key not in ("e", "1", "2", "Escape"):
         raise ValueError("invalid original host Minecraft key")
     check_process(host, "host X11 key")
     if not host_window:
