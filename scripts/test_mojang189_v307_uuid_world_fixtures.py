@@ -84,10 +84,12 @@ class GenuineUuidWorldFixtureV307Tests(unittest.TestCase):
         node=ast.parse(text)
         blocks=[
             ast.get_source_segment(text,n) or "" for n in ast.walk(node)
-            if isinstance(n,ast.If) and isinstance(n.test,ast.BinOp)
+            if isinstance(n,ast.If) and isinstance(n.test,ast.BoolOp)
             and isinstance(n.test.op,ast.Or)
             and "if args.rejoin_target or args.rejoin_release:"
-                in (ast.get_source_segment(text,n) or "")[:70]]
+                in (ast.get_source_segment(text,n) or "")[:70]
+            and "actual_server_rejoin_three_player_floor_fixture("
+                in (ast.get_source_segment(text,n) or "")]
         self.assertTrue(blocks)
         block=max(blocks,key=len)
         for token in (

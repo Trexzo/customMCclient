@@ -876,9 +876,10 @@ class OriginalM419InitialPrelockRealSourceMarginTest(unittest.TestCase):
                 "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
         start=source.find("prelock_a=actual_server_original_rejoin_prelock_a_fixture(")
         a_tp=source.find("send_server_command(server, server_log, prelock_a,",start)
-        b_tp=source.find("send_server_command(server, server_log, b_outer)",a_tp)
-        ready=source.find("wait_for(host, host_log, REJOIN_READY,",b_tp)
-        self.assertTrue(0<=start<a_tp<b_tp<ready)
+        b_tp=source.find("send_server_command(server, server_log, b_outer,",a_tp)
+        b_ack=source.find("expected=original_locked_tp_server_reply(b_outer)",b_tp)
+        ready=source.find("wait_for(host, host_log, REJOIN_READY,",b_ack)
+        self.assertTrue(0<=start<a_tp<b_tp<b_ack<ready)
         self.assertIn("actual_server_rejoined_a_controller_fixture(",source[ready:])
 
 if __name__ == "__main__":
