@@ -6,8 +6,9 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Diagnostic only: four *source-visible new UUIDs* must not become a
- * synthetic acceptance. Original M417 real net-count gate is untouched.
+/** Genuine source UUID identity checks. V308 gates M417 using BOTH
+ * the original native net-count threshold and four novel native UUIDs.
+ * Source-only unit tests cannot substitute for original gameplay.
  */
 final class Minecraft189RejoinSentinelUuidIdentityAuditTest {
     private static UUID uuid(long n) { return new UUID(0L,n); }
