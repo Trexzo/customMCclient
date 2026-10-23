@@ -253,7 +253,7 @@ class RealLockedTargetFixtureTest(unittest.TestCase):
              "tp CITarget 243 5 446 180 0",
              "tp CITargetB 245 5 446 180 0",
              "tp CITargetB 244 5 445 180 0",
-             "tp CITarget 248 5 446 180 0"),
+             "tp CITarget 255 5 446 180 0"),
         )
 
     def test_native_reverse_spawn_sticky_then_range_release(self):
@@ -263,7 +263,7 @@ class RealLockedTargetFixtureTest(unittest.TestCase):
              "tp CITarget -34 5 -36 0 0",
              "tp CITargetB -36 5 -36 180 0",
              "tp CITargetB -35 5 -35 180 0",
-             "tp CITarget -29 5 -36 180 0"),
+             "tp CITarget -22 5 -36 180 0"),
         )
 
     def test_real_login_missing_is_rejected(self):
@@ -520,7 +520,12 @@ class OriginalM419RejoinedNativeDistanceFixtureTest(unittest.TestCase):
         self.assertIn("fx, fz=math.floor(ax), math.floor(az)", script)
         self.assertIn("send_server_command(server,server_log,a_rejoined,", script)
         self.assertIn('expected=b"Teleported CITarget to"', script)
-        self.assertIn('expected=b"4 blocks filled"', script)
+        # An original idempotent no-change receipt is never enough: the
+        # four physically present vanilla stone cells must each be confirmed.
+        self.assertIn('phase4_floor_reply, expected_count=4', script)
+        self.assertIn("for dx in (0, 1):", script)
+        self.assertIn("for dz in (0, 1):", script)
+        self.assertIn('"testforblock {} {} {} stone"', script)
 
     def test_integer_teleport_centering_was_actual_cause_of_both_bounds(self):
         import math
@@ -876,9 +881,10 @@ class OriginalM419InitialPrelockRealSourceMarginTest(unittest.TestCase):
                 "RunMojang189LocalhostTwoPlayerSmoke.py").read_text()
         start=source.find("prelock_a=actual_server_original_rejoin_prelock_a_fixture(")
         a_tp=source.find("send_server_command(server, server_log, prelock_a,",start)
-        b_tp=source.find("send_server_command(server, server_log, b_outer)",a_tp)
-        ready=source.find("wait_for(host, host_log, REJOIN_READY,",b_tp)
-        self.assertTrue(0<=start<a_tp<b_tp<ready)
+        b_tp=source.find("send_server_command(server, server_log, b_outer,",a_tp)
+        b_ack=source.find("expected=original_locked_tp_server_reply(b_outer)",b_tp)
+        ready=source.find("wait_for(host, host_log, REJOIN_READY,",b_ack)
+        self.assertTrue(0<=start<a_tp<b_tp<b_ack<ready)
         self.assertIn("actual_server_rejoined_a_controller_fixture(",source[ready:])
 
 if __name__ == "__main__":
