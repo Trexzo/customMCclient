@@ -31,8 +31,7 @@ def commands(x, z, y=4.0):
 class OriginalBorderInwardRejoin(unittest.TestCase):
     def test_exact_real_original_failed_negative_1022_point5_source(self):
         host, a, b = commands(-1023, -877)
-        self.assertEqual(host, "tp CIHost -1020 5 -877 180 0" if False
-                         else "tp CIHost -1020 5 -877 0 0")
+        self.assertEqual(host, "tp CIHost -1020 5 -877 0 0")
         self.assertEqual(a, "tp CITarget -1020 5 -875 180 0")
         self.assertEqual(b, "tp CITargetB -1019 5 -875 180 0")
         floor, witnesses = actual_server_rejoin_three_player_floor_fixture(
