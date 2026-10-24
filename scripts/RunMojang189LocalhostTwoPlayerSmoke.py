@@ -667,7 +667,9 @@ def actual_server_rejoin_three_player_floor_fixture(host_tp, a_near, b_outer):
     # makes host x=-1000. The old arbitrary <997 source guard rejected this
     # valid genuine login before a single floor block could be checked.
     # Bound the source anchor to the native spawn region [-1000, 1000];
-    # the 5x7 floor still lies far inside the vanilla 30M world boundary.
+    # the 5x7 floor extends at most 3 cells beyond the anchor. The local
+    # server's max-world-size=1024 leaves a 21-cell border margin; the old
+    # max-world-size=1000 could not support a native x=-1000 floor.
     # Retain Y, source owners, signed geometry and the independent server
     # fill and per-player testforblock witnesses unchanged.
     if hy < 3 or hy > 252 or abs(hx) > 1000 or abs(hz) > 1000:
@@ -712,7 +714,10 @@ def actual_server_three_client_locked_fixture(server_log):
     # selected at A=4.273D and the strict acceptance correctly crashed.
     # Use a 12-cell server displacement, still in the 3-chunk view radius;
     # do NOT change the native >4.5D guard or the actual B/UUID checks.
-    if abs(x + 12) >= 999 or y < 2 or y > 252:
+    # M413's genuinely teleported A may move 12 cells beyond a valid native
+    # login x=+1000. The local-only server world size is 1024, so retain
+    # a four-block border buffer without falsely rejecting x=1000+12.
+    if abs(x + 12) >= 1020 or y < 2 or y > 252:
         raise AssertionError("original locked A far fixture outside server world")
     a_far = "tp CITarget {} {} {} 180 0".format(x + 12, y, z)
     return host, a_near, b_outer, b_near, a_far
@@ -824,7 +829,10 @@ def write_server_properties(path, port, max_players=2):
         "allow-flight=true\n"
         "spawn-protection=0\n"
         "view-distance=3\n"
-        "max-world-size=1000\n"
+        # V312 genuine spawn at -999.5 floors to -1000, and the real
+        # 5x7 vanilla server floor extends to x=-1002. Keep this loopback
+        # test world bounded while allowing its physical source witnesses.
+        "max-world-size=1024\n"
         "enable-command-block=false\n"
     )
     path.write_text(content, encoding="ascii")
