@@ -66,10 +66,15 @@ class V317GenuineEarlyBFailureSourceTests(unittest.TestCase):
         handler = gate.handlers[0]
         inner_tries = [n for n in ast.walk(handler)
                        if isinstance(n, ast.Try)]
-        self.assertEqual(len(inner_tries), 1)
-        self.assertEqual(
-            ast.get_source_segment(source, inner_tries[0].handlers[0].type),
-            "(AssertionError, OSError, UnicodeError)")
+        # V317 first source probe, V320 supplementary native hurt probe:
+        # both are diagnostic only, and both must catch their read errors
+        # before the enclosing original B=0 AssertionError bare-raise.
+        self.assertEqual(len(inner_tries), 2)
+        for diagnostic_try in inner_tries:
+            self.assertEqual(
+                ast.get_source_segment(
+                    source, diagnostic_try.handlers[0].type),
+                "(AssertionError, OSError, UnicodeError)")
         block = ast.get_source_segment(source, handler)
         self.assertIn("EARLY_B_SOURCE_UNAVAILABLE_DIAG", block)
         self.assertIn("type(error).__name__", block)
