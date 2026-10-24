@@ -58,9 +58,9 @@ class V312GenuineOriginalSpawnFloorTests(unittest.TestCase):
             *source_triplet(-40, 1000))
         self.assertEqual(floor, "fill -42 4 997 -38 4 1003 stone")
 
-    def test_host_anchor_beyond_natual_spawn_bounds_fails_closed(self):
-        for x, z in ((1001, 440), (-1001, 440),
-                     (40, 1001), (40, -1001)):
+    def test_host_anchor_beyond_physical_1024_floor_bounds_fails_closed(self):
+        for x, z in ((1021, 440), (-1021, 440),
+                     (40, 1021), (40, -1021)):
             with self.subTest(x=x, z=z):
                 with self.assertRaisesRegex(AssertionError, "bounded"):
                     actual_server_rejoin_three_player_floor_fixture(
@@ -92,15 +92,16 @@ class V312GenuineOriginalSpawnFloorTests(unittest.TestCase):
                 server)
             self.assertEqual(far.split()[2], "1006")
 
-    def test_server_border_still_vetoes_far_teleport_beyond_1020(self):
+    def test_server_border_keeps_real_far_teleport_inward(self):
         with tempfile.TemporaryDirectory() as root:
             server = Path(root) / "dedicated.log"
             server.write_bytes(
                 b"CIHost[/127.0.0.1:42300] logged in with entity id 5 "
                 b"at (1008.5, 4.0, 444.5)\n")
-            with self.assertRaisesRegex(AssertionError,
-                                        "outside server world"):
-                actual_server_three_client_locked_fixture(server)
+            _, near, _, _, far = actual_server_three_client_locked_fixture(
+                server)
+            self.assertEqual(int(far.split()[2]) - int(near.split()[2]), -12)
+            self.assertEqual(far, "tp CITarget 996 5 446 180 0")
 
     def test_invalid_y_still_hard_fails(self):
         for height in (2, 253):
