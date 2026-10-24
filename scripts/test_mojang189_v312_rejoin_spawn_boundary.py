@@ -11,6 +11,8 @@ import unittest
 from RunMojang189LocalhostTwoPlayerSmoke import (
     actual_server_rejoin_three_player_floor_fixture,
     actual_server_spawn_fixture,
+    actual_server_three_client_locked_fixture,
+    write_server_properties,
 )
 
 
@@ -63,6 +65,42 @@ class V312GenuineOriginalSpawnFloorTests(unittest.TestCase):
                 with self.assertRaisesRegex(AssertionError, "bounded"):
                     actual_server_rejoin_three_player_floor_fixture(
                         *source_triplet(x, z))
+
+    def test_local_only_real_server_border_contains_source_floor(self):
+        with tempfile.TemporaryDirectory() as root:
+            properties = Path(root) / "server.properties"
+            write_server_properties(properties, 33171, max_players=3)
+            text = properties.read_text("ascii")
+            self.assertIn("server-ip=127.0.0.1\n", text)
+            self.assertIn("online-mode=false\n", text)
+            self.assertIn("enable-rcon=false\n", text)
+            self.assertIn("max-world-size=1024\n", text)
+            self.assertNotIn("max-world-size=1000\n", text)
+            # Source anchor=1000; the full 5x7 stone floor extends only
+            # to x=1002 / z=1003, safely inside this real test border.
+            floor, _ = actual_server_rejoin_three_player_floor_fixture(
+                *source_triplet(1000, 1000))
+            self.assertIn("1002 4 1003 stone", floor)
+
+    def test_real_positive_spawn_994_allows_original_far_1006(self):
+        with tempfile.TemporaryDirectory() as root:
+            server = Path(root) / "dedicated.log"
+            server.write_bytes(
+                b"CIHost[/127.0.0.1:42300] logged in with entity id 5 "
+                b"at (994.5, 4.0, 444.5)\n")
+            _, _, _, _, far = actual_server_three_client_locked_fixture(
+                server)
+            self.assertEqual(far.split()[2], "1006")
+
+    def test_server_border_still_vetoes_far_teleport_beyond_1020(self):
+        with tempfile.TemporaryDirectory() as root:
+            server = Path(root) / "dedicated.log"
+            server.write_bytes(
+                b"CIHost[/127.0.0.1:42300] logged in with entity id 5 "
+                b"at (1008.5, 4.0, 444.5)\n")
+            with self.assertRaisesRegex(AssertionError,
+                                        "outside server world"):
+                actual_server_three_client_locked_fixture(server)
 
     def test_invalid_y_still_hard_fails(self):
         for height in (2, 253):
