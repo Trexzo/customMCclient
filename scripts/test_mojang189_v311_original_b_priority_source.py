@@ -3,7 +3,10 @@ import tempfile
 from pathlib import Path
 import unittest
 
-from RunMojang189LocalhostTwoPlayerSmoke import v311_original_b_priority_source
+from RunMojang189LocalhostTwoPlayerSmoke import (
+    v311_original_b_priority_source,
+    v311_original_b_failure_evidence,
+)
 
 
 PREFIX = b"CUSTOMMC_189_SIMULTANEOUS_B_PRIORITY_NATIVE_SOURCE_DIAG "
@@ -84,6 +87,33 @@ class OriginalNativeBSourceAuditTests(unittest.TestCase):
         self.assertTrue(source.endswith("gapBCloser=1.125"))
         self.assertNotIn("PASS=YES", source)
         self.assertNotIn("SERVER_DAMAGE", source)
+
+    def test_actual_original_early_b_source_surfaces_at_hard_server_failure(self):
+        # This helper is used only inside an except: server B=0 still raises.
+        with tempfile.TemporaryDirectory() as root:
+            logfile = Path(root) / "original-host.log"
+            source = original(a=b"3.1", b=b"2.3", gap=b"0.8")
+            logfile.write_bytes(b"original A owned click\\n" + source)
+            seen = v311_original_b_failure_evidence(logfile, 0)
+            self.assertEqual(seen, source.decode("ascii").strip())
+            self.assertNotIn("PASS=YES", seen)
+
+    def test_no_original_source_never_converts_early_server_failure_to_pass(self):
+        with tempfile.TemporaryDirectory() as root:
+            logfile = Path(root) / "original-host.log"
+            logfile.write_bytes(b"original stdout has no priority record\\n")
+            seen = v311_original_b_failure_evidence(logfile, 0)
+            self.assertIn("_SOURCE_UNAVAILABLE_DIAG", seen)
+            self.assertNotIn("PASS=YES", seen)
+
+    def test_invalid_source_in_early_failure_is_reported_without_authority(self):
+        with tempfile.TemporaryDirectory() as root:
+            logfile = Path(root) / "original-host.log"
+            logfile.write_bytes(original(gap=b"12345"))
+            seen = v311_original_b_failure_evidence(logfile, 0)
+            self.assertIn("source", seen.lower())
+            self.assertIn("_SOURCE_UNAVAILABLE_DIAG", seen)
+            self.assertNotIn("_PASS", seen)
 
     def test_invalid_offset_type_rejected(self):
         with tempfile.TemporaryDirectory() as root:
