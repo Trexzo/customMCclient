@@ -14,6 +14,9 @@ final class Minecraft189SimultaneousTargetAcceptance {
     private static int disabledTicks;
     private static boolean firstOwnedClick;
     private static boolean secondOwnedClick;
+    // V320: one read-only original B hurt-time observation per test run.
+    // Never contributes to attack admission, phase, or PASS counters.
+    private static boolean bHurtSourceReported;
 
     private Minecraft189SimultaneousTargetAcceptance() {}
 
@@ -24,12 +27,34 @@ final class Minecraft189SimultaneousTargetAcceptance {
         disabledTicks = 0;
         firstOwnedClick = false;
         secondOwnedClick = false;
+        bHurtSourceReported = false;
     }
 
     static void observe(final Minecraft189HostRuntime host) {
         if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraSimultaneous"))
             return;
         final Evidence evidence = read(host);
+        // V320: if the ORIGINAL loaded B EntityPlayer has already entered
+        // hurt-time before any certified B-priority switch, emit his live
+        // combat and BOTH real World distance snapshots exactly once. The
+        // vanilla damageTaken scoreboard remains independent authority.
+        // Hurt-time alone does NOT prove cause (PvP vs environmental).
+        if (!bHurtSourceReported && phase < 2 && evidence != null
+                && evidence.combat.hurtTime(evidence.bIndex) > 0) {
+            bHurtSourceReported = true;
+            System.out.println(
+                    "CUSTOMMC_189_SIMULTANEOUS_B_HURT_NATIVE_SOURCE_DIAG"
+                    + " phase=" + phase
+                    + " aIndex=" + evidence.aIndex
+                    + " bIndex=" + evidence.bIndex
+                    + " aDistance=" + evidence.aDistance
+                    + " bDistance=" + evidence.bDistance
+                    + " aHurtTime=" + evidence.combat.hurtTime(evidence.aIndex)
+                    + " bHurtTime=" + evidence.combat.hurtTime(evidence.bIndex)
+                    + " aSelected=" + evidence.aNearest
+                    + " bSelected=" + evidence.bNearest);
+            System.out.flush();
+        }
         if (phase == 0) {
             if (host.featureCatalog().killAura().active())
                 throw new IllegalStateException("simultaneous Aura pre-enabled");
@@ -130,6 +155,24 @@ final class Minecraft189SimultaneousTargetAcceptance {
         if (phase == 1 && firstUuid.equals(current)) {
             if (!firstOwnedClick) {
                 firstOwnedClick = true;
+                // V320 separate supplementary original-world read at
+                // FIRST verified native A-owned click. Never reused to
+                // authorize selection, actual controller attack or B hit.
+                // Source may move between the original click validation and
+                // this diagnostic, so label as POST-CALLBACK SOURCE ONLY.
+                final Evidence source = read(host);
+                System.out.println(
+                        "CUSTOMMC_189_SIMULTANEOUS_FIRST_A_CLICK_SOURCE_DIAG"
+                        + " nativeWorldComplete=" + (source != null)
+                        + (source == null ? "" :
+                          " aIndex=" + source.aIndex
+                          + " bIndex=" + source.bIndex
+                          + " aDistance=" + source.aDistance
+                          + " bDistance=" + source.bDistance
+                          + " aHurtTime=" + source.combat.hurtTime(source.aIndex)
+                          + " bHurtTime=" + source.combat.hurtTime(source.bIndex)
+                          + " aSelected=" + source.aNearest
+                          + " bSelected=" + source.bNearest));
                 System.out.println(
                         "CUSTOMMC_189_SIMULTANEOUS_UUID_A_OWNED_ATTACK_PASS=YES");
                 System.out.flush();
