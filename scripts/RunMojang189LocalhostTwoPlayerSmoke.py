@@ -763,6 +763,17 @@ def v311_original_b_priority_source(log, source_offset):
     return candidates[0].decode("ascii")
 
 
+def v311_original_b_failure_evidence(log, source_offset):
+    """A failed strict B=0 gate must remain failed while source is visible."""
+    try:
+        return v311_original_b_priority_source(log, source_offset)
+    except (AssertionError, UnicodeError, OSError) as error:
+        # This is negative diagnostic context ONLY. Never mark a bad source
+        # as PASS or hide the independent server's original B-damage failure.
+        return ("CUSTOMMC_189_SIMULTANEOUS_B_PRIORITY_SOURCE_UNAVAILABLE_DIAG "
+                + str(error))
+
+
 def wait_for_real_score(server, server_log, player, deadline):
     if player not in ("CITarget", "CITargetB"):
         raise AssertionError("unknown server-owned target")
@@ -2935,9 +2946,16 @@ def run(args):
             wait_for(host, host_log, SIM_HIT_A, deadline,
                      "UUID A native-owned attack among two eligible players")
             wait_for_real_score(server, server_log, "CITarget", deadline)
-            send_server_command(server, server_log,
-                                "scoreboard players test CITargetB taken 0 0",
-                                expected=b"score 0 is in range 0 to 0")
+            try:
+                send_server_command(server, server_log,
+                                    "scoreboard players test CITargetB taken 0 0",
+                                    expected=b"score 0 is in range 0 to 0")
+            except AssertionError:
+                # Emit read-only original game source evidence at the exact
+                # adverse server gate. Bare re-raise preserves the failure.
+                print(v311_original_b_failure_evidence(
+                    host_log, v311_original_b_source_start), flush=True)
+                raise
             print("CUSTOMMC_189_SIMULTANEOUS_A_DAMAGED_B_STILL_ZERO_PASS=YES",
                   flush=True)
             # One server teleport, no movement of already-hurt A: B goes
