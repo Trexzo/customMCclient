@@ -16,6 +16,32 @@ import time
 
 from RunMojang189GraphicalSmoke import build_command
 
+def v313_original_crash_report_header(game_dir, max_bytes=6000):
+    """Read one genuine local Minecraft crash report, diagnosis only.
+
+    Original vanilla can produce thousands of repetitive obfuscated frames.
+    Last-12KB stdout then contains only stack-tail noise, suppressing the
+    first real Throwable and Description. Only inspect the local game's
+    crash-reports directory, bounded to its FIRST 6000 report bytes.
+    The return value never proves success, and all failures still re-raise.
+    """
+    if not isinstance(max_bytes, int) or not 128 <= max_bytes <= 6000:
+        raise ValueError("V313 original crash header limit invalid")
+    root = Path(game_dir) / "crash-reports"
+    if not root.is_dir():
+        return None
+    reports = [p for p in root.glob("crash-*.txt")
+               if p.is_file() and not p.is_symlink()]
+    if not reports:
+        return None
+    reports.sort(key=lambda p: (p.stat().st_mtime_ns, p.name), reverse=True)
+    report = reports[0]
+    raw = report.read_bytes()[:max_bytes]
+    if not raw:
+        return None
+    return "file=" + report.name + "\n" + raw.decode("utf-8", "replace")
+
+
 FRAME = b"CUSTOMMC_OFFICIAL_189_OPENGL_FRAME_PASS=YES"
 WORLD = b"CUSTOMMC_OFFICIAL_189_LIVE_WORLD_TICKS_PASS=YES"
 MELEE_ARMED = b"CUSTOMMC_189_VANILLA_MELEE_TARGET_ARMED=YES"
@@ -1908,6 +1934,15 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 for line in tagged[-45:]:
                     print(line.decode("utf-8", "replace"), file=sys.stderr)
                 print("SCAFFOLD_SOURCE_WORLD_DIAGNOSTICS_END", file=sys.stderr)
+            # V313: the first frames of the original server crash report
+            # identify the actual Throwable. The existing 12KB stdout tail
+            # can be entirely recursive StackOverflowError frames.
+            # Failure-only, bounded; neither log nor report grants a PASS.
+            v313_report = v313_original_crash_report_header(args.game)
+            if v313_report is not None:
+                print("V313_ORIGINAL_MOJANG_CRASH_HEADER_START", file=sys.stderr)
+                print(v313_report, file=sys.stderr)
+                print("V313_ORIGINAL_MOJANG_CRASH_HEADER_END", file=sys.stderr)
             print("SINGLEPLAYER_SMOKE_OUTPUT_TAIL_START", file=sys.stderr)
             print(read_tail(log)[-12000:].decode("utf-8", "replace"), file=sys.stderr)
             print("SINGLEPLAYER_SMOKE_OUTPUT_TAIL_END", file=sys.stderr)
