@@ -22,9 +22,12 @@ def strict_original_gate():
     # another historical offline source or a generated PASS fixture.
     candidates = [node for node in ast.walk(tree)
                   if isinstance(node, ast.Try) and any(
-                      isinstance(sub, ast.Constant)
-                      and sub.value == "scoreboard players test CITargetB taken 0 0"
-                      for body in node.body for sub in ast.walk(body))]
+                      isinstance(statement, ast.Expr)
+                      and isinstance(statement.value, ast.Call)
+                      and any(isinstance(sub, ast.Constant)
+                              and sub.value == "scoreboard players test CITargetB taken 0 0"
+                              for sub in ast.walk(statement))
+                      for statement in node.body)]
     if len(candidates) != 1:
         raise AssertionError("not exactly one original native B=0 server gate")
     return source, candidates[0]
