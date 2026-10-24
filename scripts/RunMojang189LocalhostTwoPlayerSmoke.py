@@ -662,17 +662,16 @@ def actual_server_rejoin_three_player_floor_fixture(host_tp, a_near, b_outer):
     if not (hy == ay == by and hx == ax and abs(az-hz) == 2
             and bz == az and abs(bx-hx) == 1):
         raise AssertionError("rejoin floor source geometry mismatch")
-    # V312: the ORIGINAL vanilla server really spawned CIHost at
-    # (-999.5, 4, 702.5) in original CI #40040751254 attempt 2. floor()
-    # makes host x=-1000. The old arbitrary <997 source guard rejected this
-    # valid genuine login before a single floor block could be checked.
-    # Bound the source anchor to the native spawn region [-1000, 1000];
-    # the 5x7 floor extends at most 3 cells beyond the anchor. The local
-    # server's max-world-size=1024 leaves a 21-cell border margin; the old
-    # max-world-size=1000 could not support a native x=-1000 floor.
-    # Retain Y, source owners, signed geometry and the independent server
-    # fill and per-player testforblock witnesses unchanged.
-    if hy < 3 or hy > 252 or abs(hx) > 1000 or abs(hz) > 1000:
+    # V315: real Mojang dedicated-server run 40086218858 attempt 2
+    # spawned CIHost at (-349.5,4,1013.5) under the actual loopback
+    # max-world-size=1024. V312's arbitrary +/-1000 anchor rejected Z=1013
+    # BEFORE any original stone/world or UUID/controller check. Compute a
+    # conservative geometric guard from that ORIGINAL test-server border:
+    # the 5x7 physical stone floor extends +/-2 X and +/-3 Z; at 1020
+    # every floor/witness cell still lies inside +/-1023 (< 1024).
+    # Owners, heights, signed native layout and real server fill+3 witness
+    # checks remain strictly required with no fake game-world positions.
+    if hy < 3 or hy > 252 or abs(hx) > 1020 or abs(hz) > 1020:
         raise AssertionError("rejoin floor outside bounded flat vanilla world")
     y = hy - 1
     fill = "fill {} {} {} {} {} {} stone".format(
@@ -714,12 +713,17 @@ def actual_server_three_client_locked_fixture(server_log):
     # selected at A=4.273D and the strict acceptance correctly crashed.
     # Use a 12-cell server displacement, still in the 3-chunk view radius;
     # do NOT change the native >4.5D guard or the actual B/UUID checks.
-    # M413's genuinely teleported A may move 12 cells beyond a valid native
-    # login x=+1000. The local-only server world size is 1024, so retain
-    # a four-block border buffer without falsely rejecting x=1000+12.
-    if abs(x + 12) >= 1020 or y < 2 or y > 252:
+    # V315: genuine 1024-border spawns may occur at x=1013; moving A
+    # +12 would leave this original server. Keep EXACTLY 12 cells and
+    # unchanged native >4.5D / UUID controller checks, choosing the inward
+    # direction only when the positive side cannot fit with a 4-cell margin.
+    # Reject invalid original source positions; do not clamp or invent a tp.
+    if abs(x) > 1020 or abs(z) > 1020 or y < 2 or y > 252:
         raise AssertionError("original locked A far fixture outside server world")
-    a_far = "tp CITarget {} {} {} 180 0".format(x + 12, y, z)
+    far_x = x + 12 if abs(x + 12) < 1020 else x - 12
+    if abs(far_x) >= 1020 or abs(far_x - x) != 12:
+        raise AssertionError("original locked A far fixture outside server world")
+    a_far = "tp CITarget {} {} {} 180 0".format(far_x, y, z)
     return host, a_near, b_outer, b_near, a_far
 
 
