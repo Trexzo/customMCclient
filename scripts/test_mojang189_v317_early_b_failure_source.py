@@ -66,10 +66,24 @@ class V317GenuineEarlyBFailureSourceTests(unittest.TestCase):
         handler = gate.handlers[0]
         inner_tries = [n for n in ast.walk(handler)
                        if isinstance(n, ast.Try)]
-        self.assertEqual(len(inner_tries), 1)
-        self.assertEqual(
-            ast.get_source_segment(source, inner_tries[0].handlers[0].type),
-            "(AssertionError, OSError, UnicodeError)")
+        # V320 adds a SECOND failure-only vanilla server score query; it
+        # must not replace or conceal V317's original bounded JVM read.
+        # Both nested diagnostics catch their own errors and the enclosing
+        # original B=0 AssertionError must still bare-raise.
+        self.assertEqual(len(inner_tries), 2)
+        source_tries = [
+            (ast.get_source_segment(source, n),
+             ast.get_source_segment(source, n.handlers[0].type))
+            for n in inner_tries
+        ]
+        original = [type_ for code, type_ in source_tries
+                    if "v316_preteleport_original_b_priority_marker" in code]
+        server = [type_ for code, type_ in source_tries
+                  if "v320_original_server_score_query" in code]
+        self.assertEqual(original,
+                         ["(AssertionError, OSError, UnicodeError)"])
+        self.assertEqual(server,
+                         ["(AssertionError, OSError, ValueError, UnicodeError)"])
         block = ast.get_source_segment(source, handler)
         self.assertIn("EARLY_B_SOURCE_UNAVAILABLE_DIAG", block)
         self.assertIn("type(error).__name__", block)
