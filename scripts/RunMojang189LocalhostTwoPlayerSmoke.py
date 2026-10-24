@@ -780,6 +780,57 @@ def v311_original_b_priority_source(log, source_offset):
     return candidates[0].decode("ascii")
 
 
+def v316_preteleport_original_b_priority_marker(
+        original_log, source_start, source_end):
+    """Observe only ALREADY EMITTED original B priority before the B /tp.
+
+    A true V308 game run registered B=10 BEFORE the intended server B-nearer
+    teleport. V310's same-native-read B priority witness was introduced only
+    later, so that historical failure cannot supply its distances. This
+    bounded, read-only time slice of a current original client log can.
+    Neither missing nor present markers grant an attack or PASS.
+    """
+    marker = b"CUSTOMMC_189_SIMULTANEOUS_B_PRIORITY_NATIVE_SOURCE_DIAG "
+    if (any(isinstance(n, bool) or not isinstance(n, int)
+            for n in (source_start, source_end))
+            or source_start < 0 or source_end < source_start
+            or source_end - source_start > 2_097_152):
+        raise AssertionError("V316 native pre-teleport cursor invalid")
+    with Path(original_log).open("rb") as stream:
+        if source_end > stream.seek(0, 2):
+            raise AssertionError("V316 native pre-teleport cursor past log EOF")
+        stream.seek(source_start)
+        source = stream.read(source_end - source_start)
+    # A concurrent JVM may be writing the last source line. Only inspect
+    # newline-terminated complete original lines BEFORE our captured cursor.
+    last_newline = source.rfind(b"\\n")
+    complete = source[:last_newline + 1] if last_newline >= 0 else b""
+    witnesses = [line.rstrip(b"\\r") for line in complete.splitlines()
+                 if marker in line]
+    prefix = "CUSTOMMC_189_SIMULTANEOUS_B_PRETELEPORT_SOURCE_DIAG "
+    if not witnesses:
+        return prefix + "completeMarker=ABSENT"
+    if len(witnesses) != 1:
+        raise AssertionError("V316 duplicate original pre-teleport marker")
+    pattern = (rb"^CUSTOMMC_189_SIMULTANEOUS_B_PRIORITY_NATIVE_SOURCE_DIAG "
+               rb"path=(observe|original-click) aIndex=(\\d+) bIndex=(\\d+) "
+               rb"aDistance=(\\d+(?:\\.\\d+)?) bDistance=(\\d+(?:\\.\\d+)?) "
+               rb"gapBCloser=(\\d+(?:\\.\\d+)?)$")
+    match = re.fullmatch(pattern, witnesses[0])
+    if match is None:
+        raise AssertionError("V316 malformed original pre-teleport source")
+    ai, bi = (int(match.group(i)) for i in (2, 3))
+    da, db, gap = (float(match.group(i)) for i in (4, 5, 6))
+    if (ai == bi or min(ai, bi) < 0
+            or not all(math.isfinite(v) for v in (da, db, gap))
+            or not (1.0 <= da <= 3.5 and 1.0 <= db <= 3.5)
+            or gap <= 0.12
+            or not math.isclose(gap, da - db, rel_tol=0.0,
+                                abs_tol=1e-12)):
+        raise AssertionError("V316 invalid original pre-teleport distances")
+    return prefix + "completeMarker=PRESENT " + witnesses[0].decode("ascii")
+
+
 def v311_original_b_failure_evidence(log, source_offset):
     """A failed strict B=0 gate must remain failed while source is visible."""
     try:
@@ -2978,6 +3029,18 @@ def run(args):
                 raise
             print("CUSTOMMC_189_SIMULTANEOUS_A_DAMAGED_B_STILL_ZERO_PASS=YES",
                   flush=True)
+            # V316 read-only timeline: capture the original JVM stdout byte
+            # cursor BEFORE the deliberate real-server B-nearer teleport.
+            # Do not query, advance, or override a live World target. Missing
+            # diagnostics must never authorize or veto gameplay by itself.
+            try:
+                v316_before_b_tp_end = host_log.stat().st_size
+                print(v316_preteleport_original_b_priority_marker(
+                    host_log, v311_original_b_source_start,
+                    v316_before_b_tp_end), flush=True)
+            except (AssertionError, OSError, UnicodeError) as error:
+                print("CUSTOMMC_189_SIMULTANEOUS_B_PRETELEPORT_SOURCE_UNAVAILABLE_DIAG "
+                      + type(error).__name__, flush=True)
             # One server teleport, no movement of already-hurt A: B goes
             # from sqrt(8) to sqrt(2) blocks, at a DIFFERENT diagonal tile.
             # Both live native players are in reach before and after.
