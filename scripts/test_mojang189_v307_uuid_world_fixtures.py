@@ -53,9 +53,9 @@ class GenuineUuidWorldFixtureV307Tests(unittest.TestCase):
             smoke.actual_server_rejoin_three_player_floor_fixture(h,a,b)
         with self.assertRaisesRegex(AssertionError,"bounded"):
             smoke.actual_server_rejoin_three_player_floor_fixture(
-                HOST.replace("243","998"),
-                A.replace("243","998"),
-                B.replace("244","999"))
+                HOST.replace("243","1001"),
+                A.replace("243","1001"),
+                B.replace("244","1002"))
 
     def test_real_locked_a_far_is_12_server_cells(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -75,7 +75,7 @@ class GenuineUuidWorldFixtureV307Tests(unittest.TestCase):
             path=Path(directory)/"dedicated.log"
             path.write_bytes(
                 b"CIHost[/127.0.0.1:42110] logged in with entity id 5 "
-                b"at (994.5, 4.0, 444.5)\\n")
+                b"at (1008.5, 4.0, 444.5)\\n")
             with self.assertRaisesRegex(AssertionError,"outside server world"):
                 smoke.actual_server_three_client_locked_fixture(path)
 
