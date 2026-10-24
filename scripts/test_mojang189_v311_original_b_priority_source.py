@@ -93,7 +93,7 @@ class OriginalNativeBSourceAuditTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             logfile = Path(root) / "original-host.log"
             source = original(a=b"3.1", b=b"2.3", gap=b"0.8")
-            logfile.write_bytes(b"original A owned click\\n" + source)
+            logfile.write_bytes(b"original A owned click\n" + source)
             seen = v311_original_b_failure_evidence(logfile, 0)
             self.assertEqual(seen, source.decode("ascii").strip())
             self.assertNotIn("PASS=YES", seen)
@@ -101,7 +101,7 @@ class OriginalNativeBSourceAuditTests(unittest.TestCase):
     def test_no_original_source_never_converts_early_server_failure_to_pass(self):
         with tempfile.TemporaryDirectory() as root:
             logfile = Path(root) / "original-host.log"
-            logfile.write_bytes(b"original stdout has no priority record\\n")
+            logfile.write_bytes(b"original stdout has no priority record\n")
             seen = v311_original_b_failure_evidence(logfile, 0)
             self.assertIn("_SOURCE_UNAVAILABLE_DIAG", seen)
             self.assertNotIn("PASS=YES", seen)
