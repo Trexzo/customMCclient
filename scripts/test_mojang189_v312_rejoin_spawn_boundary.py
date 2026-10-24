@@ -31,7 +31,7 @@ class V312GenuineOriginalSpawnFloorTests(unittest.TestCase):
                 b"[server thread/INFO]: CIHost[/127.0.0.1:44736] "
                 b"logged in with entity id 33 at (-999.5, 4.0, 702.5)\n")
             host, _target = actual_server_spawn_fixture(server)
-            self.assertEqual(host, "tp CIHost -1000 5 702 0 0")
+            self.assertEqual(host, "tp CIHost -1000 5 702 180 0")
             floor, witnesses = actual_server_rejoin_three_player_floor_fixture(
                 *source_triplet(-1000, 702))
             self.assertEqual(floor, "fill -1002 4 699 -998 4 705 stone")
