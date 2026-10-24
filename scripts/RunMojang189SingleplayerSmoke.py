@@ -16,7 +16,8 @@ import time
 
 from RunMojang189GraphicalSmoke import build_command
 
-def v313_original_crash_report_header(game_dir, max_bytes=6000):
+def v313_original_crash_report_header(game_dir, max_bytes=6000,
+                                      started_after_ns=None):
     """Read one genuine local Minecraft crash report, diagnosis only.
 
     Original vanilla can produce thousands of repetitive obfuscated frames.
@@ -27,16 +28,33 @@ def v313_original_crash_report_header(game_dir, max_bytes=6000):
     """
     if not isinstance(max_bytes, int) or not 128 <= max_bytes <= 6000:
         raise ValueError("V313 original crash header limit invalid")
+    if started_after_ns is not None and (
+            not isinstance(started_after_ns, int)
+            or isinstance(started_after_ns, bool)
+            or started_after_ns < 0):
+        raise ValueError("V314 current original crash run clock invalid")
     root = Path(game_dir) / "crash-reports"
-    if not root.is_dir():
+    if root.is_symlink() or not root.is_dir():
         return None
-    reports = [p for p in root.glob("crash-*.txt")
-               if p.is_file() and not p.is_symlink()]
+    # V314: select ONLY a genuine current-run local report. A previous
+    # singleplayer stage can leave stale crash-*.txt in the same game root.
+    # The existing latest-file heuristic could misattribute that stale crash
+    # to an entirely different game's timeout. This is diagnostics, not PASS.
+    reports = []
+    for p in root.glob("crash-*.txt"):
+        if p.is_symlink() or not p.is_file():
+            continue
+        stamp = p.stat().st_mtime_ns
+        if started_after_ns is None or stamp >= started_after_ns:
+            reports.append((stamp, p.name, p))
     if not reports:
         return None
-    reports.sort(key=lambda p: (p.stat().st_mtime_ns, p.name), reverse=True)
-    report = reports[0]
-    raw = report.read_bytes()[:max_bytes]
+    reports.sort(reverse=True)
+    report = reports[0][2]
+    # Actually bound I/O to max_bytes, not read_bytes() of a potentially
+    # enormous recursive 1.8.9 vanilla StackOverflowError crash report.
+    with report.open("rb") as reader:
+        raw = reader.read(max_bytes)
     if not raw:
         return None
     return "file=" + report.name + "\n" + raw.decode("utf-8", "replace")
@@ -979,6 +997,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 if window_manager.poll() is not None:
                     raise AssertionError("Openbox failed to initialize X11 focus")
                 print("CUSTOMMC_189_X11_WINDOW_MANAGER_ACTIVE=YES", flush=True)
+            # Capture this run's wall-clock before starting the actual game.
+            # This is only for crash-file provenance, never timeout authority.
+            v314_native_process_started_ns = time.time_ns()
             with log.open("wb") as output:
                 process = subprocess.Popen(
                     command, env=env, stdout=output,
@@ -1938,11 +1959,25 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
             # identify the actual Throwable. The existing 12KB stdout tail
             # can be entirely recursive StackOverflowError frames.
             # Failure-only, bounded; neither log nor report grants a PASS.
-            v313_report = v313_original_crash_report_header(args.game)
-            if v313_report is not None:
-                print("V313_ORIGINAL_MOJANG_CRASH_HEADER_START", file=sys.stderr)
-                print(v313_report, file=sys.stderr)
-                print("V313_ORIGINAL_MOJANG_CRASH_HEADER_END", file=sys.stderr)
+            # V314 fixes a real V313 exception-handler scope defect:
+            # run() has 'game', not 'args.game'. It also rejects crash
+            # files predating this original process, including leftovers
+            # from another original singleplayer acceptance stage.
+            try:
+                v313_report = v313_original_crash_report_header(
+                    game, started_after_ns=(
+                        v314_native_process_started_ns
+                        if process is not None else time.time_ns()))
+            except (OSError, ValueError) as diagnostic_error:
+                # Diagnostic extraction must NEVER mask the real underlying
+                # original-game failure or synthesize a PASS.
+                print("V314_ORIGINAL_MOJANG_CRASH_DIAG_UNAVAILABLE "
+                      + type(diagnostic_error).__name__, file=sys.stderr)
+            else:
+                if v313_report is not None:
+                    print("V313_ORIGINAL_MOJANG_CRASH_HEADER_START", file=sys.stderr)
+                    print(v313_report, file=sys.stderr)
+                    print("V313_ORIGINAL_MOJANG_CRASH_HEADER_END", file=sys.stderr)
             print("SINGLEPLAYER_SMOKE_OUTPUT_TAIL_START", file=sys.stderr)
             print(read_tail(log)[-12000:].decode("utf-8", "replace"), file=sys.stderr)
             print("SINGLEPLAYER_SMOKE_OUTPUT_TAIL_END", file=sys.stderr)
