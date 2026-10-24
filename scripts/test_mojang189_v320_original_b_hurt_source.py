@@ -151,7 +151,10 @@ class V320OriginalNativeBSource(unittest.TestCase):
         s=SCRIPT.read_text("utf-8")
         section=s[s.index("def v320_original_b_damage_source_window("):
                   s.index("def v311_original_b_failure_evidence(")]
-        self.assertNotIn("PASS=YES",section)
+        # A literal PASS=YES here is a REJECTION guard for fabricated
+        # native evidence, not an emitted pass or acceptance shortcut.
+        self.assertIn('b"PASS=YES" in line',section)
+        self.assertNotIn('print("CUSTOMMC_OFFICIAL_',section)
         self.assertNotIn("send_server_command(",section)
         self.assertNotIn("attackEntity",section)
         self.assertIn("return tuple(found)",section)
