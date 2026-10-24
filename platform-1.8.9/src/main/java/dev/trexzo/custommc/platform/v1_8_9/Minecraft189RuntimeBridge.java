@@ -3599,6 +3599,15 @@ public final class Minecraft189RuntimeBridge {
     public static synchronized void acceptanceControllerAttackEntity(
             final Object controller, final Object player,
             final Object entity) {
+        // V320: the EXACT original vanilla controller's third (Entity)
+        // argument before native attack packet effects. Opt-in for the
+        // simultaneous localhost acceptance only, read-only provenance.
+        // The existing controller veto and attack gates remain unchanged.
+        if (Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraSimultaneous")) {
+            Minecraft189SimultaneousTargetAcceptance
+                    .observeOriginalControllerArgument(entity);
+        }
         if (Boolean.getBoolean(
                 "custommc.acceptance.reportKillAuraRangeVeto")) {
             throw new IllegalStateException(

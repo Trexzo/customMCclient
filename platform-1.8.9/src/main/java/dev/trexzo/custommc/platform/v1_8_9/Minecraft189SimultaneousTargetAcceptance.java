@@ -14,6 +14,7 @@ final class Minecraft189SimultaneousTargetAcceptance {
     private static int disabledTicks;
     private static boolean firstOwnedClick;
     private static boolean secondOwnedClick;
+    private static int originalControllerArgumentsObserved;
 
     private Minecraft189SimultaneousTargetAcceptance() {}
 
@@ -24,6 +25,51 @@ final class Minecraft189SimultaneousTargetAcceptance {
         disabledTicks = 0;
         firstOwnedClick = false;
         secondOwnedClick = false;
+        originalControllerArgumentsObserved = 0;
+    }
+
+    /**
+     * V320: read the EXACT original Mojang PlayerControllerMP.attackEntity
+     * Entity argument at the existing pre-send vanilla controller callback.
+     *
+     * V319 original attempt 1 registered real server B=10 BEFORE B's /tp,
+     * yet the strict same-native-read B-priority marker was ABSENT. Only this
+     * argument observer can distinguish a real native controller call with
+     * B's UUID from damage caused by an unrelated native game/server path.
+     *
+     * Read-only opt-in diagnostics, at most 32 complete records per JVM.
+     * Never authorizes, suppresses, or causes an attack. No fabricated UUID
+     * is accepted if the mapped native Entity interface is unavailable.
+     */
+    static String nativeControllerOwner(final UUID nativeUuid,
+            final UUID expectedA, final UUID expectedB) {
+        if (nativeUuid == null) return "UNAVAILABLE";
+        if (nativeUuid.equals(expectedA)) return "A";
+        if (nativeUuid.equals(expectedB)) return "B";
+        return "OTHER";
+    }
+
+    static void observeOriginalControllerArgument(final Object nativeEntity) {
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraSimultaneous")
+                || originalControllerArgumentsObserved >= 32)
+            return;
+        originalControllerArgumentsObserved++;
+        final boolean uuidAccess =
+                nativeEntity instanceof Minecraft189NativeEntityUuidAccess;
+        final UUID nativeUuid = uuidAccess
+                ? ((Minecraft189NativeEntityUuidAccess) nativeEntity)
+                        .customMcNativeEntityUuid() : null;
+        final String owner = nativeControllerOwner(nativeUuid, firstUuid,
+                secondUuid);
+        System.out.println(
+                "CUSTOMMC_189_SIMULTANEOUS_ORIGINAL_CONTROLLER_ARGUMENT_DIAG"
+                + " event=" + originalControllerArgumentsObserved
+                + " phase=" + phase
+                + " firstOwnedClick=" + firstOwnedClick
+                + " nativeUuidAccess=" + uuidAccess
+                + " nativeUuid=" + nativeUuid
+                + " owner=" + owner);
+        System.out.flush();
     }
 
     static void observe(final Minecraft189HostRuntime host) {
