@@ -894,6 +894,51 @@ def v316_preteleport_original_b_priority_marker(
     return prefix + "completeMarker=PRESENT " + witnesses[0].decode("ascii")
 
 
+def v320_original_b_damage_source_window(log, source_start, source_end):
+    """Only genuine, complete current-scenario JVM A-click/B-hurt evidence.
+
+    Neither this original diagnostic nor absence of evidence can authorize
+    an attack, change UUIDs, excuse early B damage or supply a test PASS.
+    """
+    prefixes = (
+        b"CUSTOMMC_189_SIMULTANEOUS_FIRST_A_CLICK_SOURCE_DIAG ",
+        b"CUSTOMMC_189_SIMULTANEOUS_B_HURT_NATIVE_SOURCE_DIAG ",
+    )
+    if (any(isinstance(n, bool) or not isinstance(n, int)
+            for n in (source_start, source_end))
+            or source_start < 0 or source_end < source_start
+            or source_end - source_start > 2_097_152):
+        raise AssertionError("V320 invalid original source window")
+    original = Path(log)
+    if original.is_symlink() or not original.is_file():
+        raise AssertionError("V320 original JVM log unavailable")
+    with original.open("rb") as stream:
+        if source_end > stream.seek(0, 2):
+            raise AssertionError("V320 original source end after EOF")
+        stream.seek(source_start)
+        raw = stream.read(source_end - source_start)
+    # The log is written concurrently. Ignore incomplete final line and
+    # any first line whose prefix began before this scenario's byte cursor.
+    if source_start:
+        with original.open("rb") as stream:
+            stream.seek(source_start - 1)
+            preceding = stream.read(1)
+        if preceding != b"\n":
+            raw = raw[raw.find(b"\n") + 1:] if b"\n" in raw else b""
+    final = raw.rfind(b"\n")
+    raw = raw[:final + 1] if final >= 0 else b""
+    found = []
+    for line in raw.splitlines():
+        line = line.rstrip(b"\r")
+        if any(line.startswith(prefix) for prefix in prefixes):
+            if len(line) > 900 or b"PASS=YES" in line:
+                raise AssertionError("V320 malformed original JVM source")
+            found.append(line.decode("ascii"))
+    if len(found) > 2 or len(set(x.split(" ", 1)[0] for x in found)) != len(found):
+        raise AssertionError("V320 duplicate original JVM source marker")
+    return tuple(found)
+
+
 def v311_original_b_failure_evidence(log, source_offset):
     """A failed strict B=0 gate must remain failed while source is visible."""
     try:
@@ -3099,6 +3144,22 @@ def run(args):
                               v317_bad_b_end), flush=True)
                 except (AssertionError, OSError, UnicodeError) as error:
                     print("CUSTOMMC_189_SIMULTANEOUS_EARLY_B_SOURCE_UNAVAILABLE_DIAG "
+                          + type(error).__name__, flush=True)
+                # V320: report original native A-click and B hurt-time
+                # source lines from this SAME failing phase, without giving
+                # them any authority over original server B=0.
+                try:
+                    v320_bad_b_end = host_log.stat().st_size
+                    samples = v320_original_b_damage_source_window(
+                        host_log, v311_original_b_source_start,
+                        v320_bad_b_end)
+                    print("CUSTOMMC_189_SIMULTANEOUS_EARLY_B_NATIVE_HURT_DIAG "
+                          + ("completeMarkers=" + str(len(samples))),
+                          flush=True)
+                    for sample in samples:
+                        print(sample, flush=True)
+                except (AssertionError, OSError, UnicodeError) as error:
+                    print("CUSTOMMC_189_SIMULTANEOUS_EARLY_B_NATIVE_HURT_UNAVAILABLE "
                           + type(error).__name__, flush=True)
                 # Preserve V311 negative context and bare rethrow. No
                 # source marker ever converts B>0 into a passing test.
