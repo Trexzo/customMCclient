@@ -720,6 +720,60 @@ def official_offline_uuid(name):
     return str(uuid.UUID(bytes=bytes(raw)))
 
 
+def v311_original_b_priority_source(log, source_offset):
+    """Audit ONE genuine B-priority event from the original game's stdout.
+
+    The V310 Java witness uses the very same native position/UUID/nearest
+    read that authorized the B priority transition, not a later World read.
+    Accept no fabricated fallback, stale run output or external source.
+    """
+    marker = b"CUSTOMMC_189_SIMULTANEOUS_B_PRIORITY_NATIVE_SOURCE_DIAG "
+    if not isinstance(source_offset, int) or source_offset < 0:
+        raise AssertionError("V311 native source offset invalid")
+    with Path(log).open("rb") as original_log:
+        if source_offset > original_log.seek(0, 2):
+            raise AssertionError("V311 native source cursor outside original log")
+        original_log.seek(source_offset)
+        candidates = [line.rstrip(b"\r")
+                      for line in original_log.read().splitlines()
+                      if marker in line]
+    if len(candidates) != 1:
+        raise AssertionError(
+            "V311 requires exactly one fresh original B-priority source "
+            "witness, observed {}".format(len(candidates)))
+    pattern = (rb"^CUSTOMMC_189_SIMULTANEOUS_B_PRIORITY_NATIVE_SOURCE_DIAG "
+               rb"path=(observe|original-click) aIndex=(\d+) bIndex=(\d+) "
+               rb"aDistance=(\d+(?:\.\d+)?) bDistance=(\d+(?:\.\d+)?) "
+               rb"gapBCloser=(\d+(?:\.\d+)?)$")
+    match = re.fullmatch(pattern, candidates[0])
+    if match is None:
+        raise AssertionError("V311 malformed or prefixed original source")
+    a_index, b_index = int(match.group(2)), int(match.group(3))
+    a_distance, b_distance, native_gap = (
+        float(match.group(i)) for i in (4, 5, 6))
+    if (a_index == b_index or a_index < 0 or b_index < 0
+            or not all(math.isfinite(x)
+                       for x in (a_distance, b_distance, native_gap))
+            or not (1.0 <= a_distance <= 3.5)
+            or not (1.0 <= b_distance <= 3.5)
+            or native_gap <= 0.12
+            or not math.isclose(native_gap, a_distance - b_distance,
+                                rel_tol=0.0, abs_tol=1e-12)):
+        raise AssertionError("V311 original native B-priority values invalid")
+    return candidates[0].decode("ascii")
+
+
+def v311_original_b_failure_evidence(log, source_offset):
+    """A failed strict B=0 gate must remain failed while source is visible."""
+    try:
+        return v311_original_b_priority_source(log, source_offset)
+    except (AssertionError, UnicodeError, OSError) as error:
+        # This is negative diagnostic context ONLY. Never mark a bad source
+        # as PASS or hide the independent server's original B-damage failure.
+        return ("CUSTOMMC_189_SIMULTANEOUS_B_PRIORITY_SOURCE_UNAVAILABLE_DIAG "
+                + str(error))
+
+
 def wait_for_real_score(server, server_log, player, deadline):
     if player not in ("CITarget", "CITargetB"):
         raise AssertionError("unknown server-owned target")
@@ -2848,6 +2902,7 @@ def run(args):
                   flush=True)
 
         if args.simultaneous:
+            v311_original_b_source_start = host_log.stat().st_size
             # BOTH actual remote EntityPlayers stay inside default 3.5 range.
             # Movement uses the real server, not fabricated entity snapshots.
             send_server_command(server, server_log,
@@ -2891,9 +2946,16 @@ def run(args):
             wait_for(host, host_log, SIM_HIT_A, deadline,
                      "UUID A native-owned attack among two eligible players")
             wait_for_real_score(server, server_log, "CITarget", deadline)
-            send_server_command(server, server_log,
-                                "scoreboard players test CITargetB taken 0 0",
-                                expected=b"score 0 is in range 0 to 0")
+            try:
+                send_server_command(server, server_log,
+                                    "scoreboard players test CITargetB taken 0 0",
+                                    expected=b"score 0 is in range 0 to 0")
+            except AssertionError:
+                # Emit read-only original game source evidence at the exact
+                # adverse server gate. Bare re-raise preserves the failure.
+                print(v311_original_b_failure_evidence(
+                    host_log, v311_original_b_source_start), flush=True)
+                raise
             print("CUSTOMMC_189_SIMULTANEOUS_A_DAMAGED_B_STILL_ZERO_PASS=YES",
                   flush=True)
             # One server teleport, no movement of already-hurt A: B goes
@@ -2908,6 +2970,11 @@ def run(args):
             send_server_command(server, server_log,
                                 "scoreboard players test CITarget taken 1 999999",
                                 expected=b"is in range 1 to 999999")
+            # After independent positive A/B server damage, expose the exact
+            # original-client B priority transition from this test's cursor.
+            # No server message, cached stdout or synthetic location can pass.
+            print(v311_original_b_priority_source(
+                host_log, v311_original_b_source_start), flush=True)
             print("CUSTOMMC_OFFICIAL_189_SIMULTANEOUS_BOTH_SERVER_DAMAGE_PASS=YES",
                   flush=True)
 
