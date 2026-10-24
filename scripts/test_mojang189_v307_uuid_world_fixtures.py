@@ -53,9 +53,9 @@ class GenuineUuidWorldFixtureV307Tests(unittest.TestCase):
             smoke.actual_server_rejoin_three_player_floor_fixture(h,a,b)
         with self.assertRaisesRegex(AssertionError,"bounded"):
             smoke.actual_server_rejoin_three_player_floor_fixture(
-                HOST.replace("243","998"),
-                A.replace("243","998"),
-                B.replace("244","999"))
+                HOST.replace("243","1001"),
+                A.replace("243","1001"),
+                B.replace("244","1002"))
 
     def test_real_locked_a_far_is_12_server_cells(self):
         with tempfile.TemporaryDirectory() as directory:
