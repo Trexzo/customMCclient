@@ -662,7 +662,15 @@ def actual_server_rejoin_three_player_floor_fixture(host_tp, a_near, b_outer):
     if not (hy == ay == by and hx == ax and abs(az-hz) == 2
             and bz == az and abs(bx-hx) == 1):
         raise AssertionError("rejoin floor source geometry mismatch")
-    if hy < 3 or hy > 252 or abs(hx) >= 997 or abs(hz) >= 997:
+    # V312: the ORIGINAL vanilla server really spawned CIHost at
+    # (-999.5, 4, 702.5) in original CI #40040751254 attempt 2. floor()
+    # makes host x=-1000. The old arbitrary <997 source guard rejected this
+    # valid genuine login before a single floor block could be checked.
+    # Bound the source anchor to the native spawn region [-1000, 1000];
+    # the 5x7 floor still lies far inside the vanilla 30M world boundary.
+    # Retain Y, source owners, signed geometry and the independent server
+    # fill and per-player testforblock witnesses unchanged.
+    if hy < 3 or hy > 252 or abs(hx) > 1000 or abs(hz) > 1000:
         raise AssertionError("rejoin floor outside bounded flat vanilla world")
     y = hy - 1
     fill = "fill {} {} {} {} {} {} stone".format(
