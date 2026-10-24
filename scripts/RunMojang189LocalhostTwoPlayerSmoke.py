@@ -921,6 +921,34 @@ def wait_for_real_score(server, server_log, player, deadline):
     raise AssertionError("server did not record positive damage for " + player)
 
 
+def v320_original_server_score_query(server, server_log, owner):
+    """Read genuine server-owned damage scores after a FAILED original B=0.
+
+    This only uses vanilla scoreboard players list. It neither edits scores
+    nor provides permission for a player attack or a native test PASS.
+    The independent earlier failed B=0 AssertionError is always re-raised.
+    """
+    if owner not in ("CIHost", "CITarget", "CITargetB"):
+        raise ValueError("invalid V320 original server-score owner")
+    source = Path(server_log)
+    if source.is_symlink() or not source.is_file():
+        raise OSError("V320 original server log unavailable")
+    start = source.stat().st_size
+    send_server_command(server, source, "scoreboard players list " + owner)
+    with source.open("rb") as reader:
+        end = reader.seek(0, 2)
+        if end < start or end - start > 8192:
+            raise AssertionError("V320 original server score query bounded source invalid")
+        reader.seek(start)
+        raw = reader.read(end - start)
+    # A vanilla dedicated server writes its own INFO lines. No substring
+    # can elevate this forensic material to an acceptance decision.
+    lines = [line.strip() for line in raw.splitlines()
+             if b"[server thread/info]:" in line.lower()]
+    return " | ".join(line.decode("utf-8", "replace")
+                      for line in lines[-8:])
+
+
 def write_server_properties(path, port, max_players=2):
     if not (1024 < port < 65536):
         raise ValueError("invalid loopback fixture port")
@@ -3041,6 +3069,16 @@ def run(args):
             # Movement uses the real server, not fabricated entity snapshots.
             send_server_command(server, server_log,
                                 "scoreboard objectives add taken stat.damageTaken")
+            # V320: a second genuine vanilla-server stat distinguishes HOST
+            # damage dealt from B's total damage taken. Neither implies an
+            # authorized B click; B=0 negative remains entirely unchanged.
+            send_server_command(server, server_log,
+                                "scoreboard objectives add dealt stat.damageDealt")
+            send_server_command(server, server_log,
+                                "scoreboard players set CIHost dealt 0")
+            send_server_command(server, server_log,
+                                "scoreboard players test CIHost dealt 0 0",
+                                expected=b"score 0 is in range 0 to 0")
             for player in ("CITarget", "CITargetB"):
                 send_server_command(server, server_log,
                                     "scoreboard players set {} taken 0".format(player))
@@ -3104,6 +3142,18 @@ def run(args):
                 # source marker ever converts B>0 into a passing test.
                 print(v311_original_b_failure_evidence(
                     host_log, v311_original_b_source_start), flush=True)
+                # V320: query genuine vanilla dedicated-server scoreboards
+                # ONLY after strict B=0 has already failed. Never infer the
+                # owner/cause of damage from a damageTaken score alone.
+                for owner in ("CIHost", "CITarget", "CITargetB"):
+                    try:
+                        print("V320_ORIGINAL_SERVER_DAMAGE_SOURCE owner=" + owner
+                              + " " + v320_original_server_score_query(
+                                  server, server_log, owner), flush=True)
+                    except (AssertionError, OSError, ValueError, UnicodeError) as error:
+                        print("V320_ORIGINAL_SERVER_DAMAGE_SOURCE_UNAVAILABLE owner="
+                              + owner + " reason=" + type(error).__name__,
+                              flush=True)
                 raise
             print("CUSTOMMC_189_SIMULTANEOUS_A_DAMAGED_B_STILL_ZERO_PASS=YES",
                   flush=True)
