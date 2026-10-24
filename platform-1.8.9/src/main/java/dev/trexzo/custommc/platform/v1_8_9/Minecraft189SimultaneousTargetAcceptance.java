@@ -160,7 +160,17 @@ final class Minecraft189SimultaneousTargetAcceptance {
                 // authorize selection, actual controller attack or B hit.
                 // Source may move between the original click validation and
                 // this diagnostic, so label as POST-CALLBACK SOURCE ONLY.
-                final Evidence source = read(host);
+                Evidence source = null;
+                try {
+                    source = read(host);
+                } catch (RuntimeException diagnosticUnavailable) {
+                    // A second DIAGNOSTIC world read is never entitled to
+                    // mask a previously valid original A click. The actual
+                    // owner/range/UUID/controller admission above still rules.
+                    System.out.println(
+                            "CUSTOMMC_189_SIMULTANEOUS_FIRST_A_SOURCE_UNAVAILABLE_DIAG "
+                            + diagnosticUnavailable.getClass().getSimpleName());
+                }
                 System.out.println(
                         "CUSTOMMC_189_SIMULTANEOUS_FIRST_A_CLICK_SOURCE_DIAG"
                         + " nativeWorldComplete=" + (source != null)
