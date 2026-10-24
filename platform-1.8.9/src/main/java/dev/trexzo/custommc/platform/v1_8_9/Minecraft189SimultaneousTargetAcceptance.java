@@ -41,6 +41,14 @@ final class Minecraft189SimultaneousTargetAcceptance {
      * Never authorizes, suppresses, or causes an attack. No fabricated UUID
      * is accepted if the mapped native Entity interface is unavailable.
      */
+    static String nativeControllerOwner(final UUID nativeUuid,
+            final UUID expectedA, final UUID expectedB) {
+        if (nativeUuid == null) return "UNAVAILABLE";
+        if (nativeUuid.equals(expectedA)) return "A";
+        if (nativeUuid.equals(expectedB)) return "B";
+        return "OTHER";
+    }
+
     static void observeOriginalControllerArgument(final Object nativeEntity) {
         if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraSimultaneous")
                 || originalControllerArgumentsObserved >= 32)
@@ -51,9 +59,8 @@ final class Minecraft189SimultaneousTargetAcceptance {
         final UUID nativeUuid = uuidAccess
                 ? ((Minecraft189NativeEntityUuidAccess) nativeEntity)
                         .customMcNativeEntityUuid() : null;
-        final String owner = nativeUuid == null ? "UNAVAILABLE"
-                : nativeUuid.equals(firstUuid) ? "A"
-                : nativeUuid.equals(secondUuid) ? "B" : "OTHER";
+        final String owner = nativeControllerOwner(nativeUuid, firstUuid,
+                secondUuid);
         System.out.println(
                 "CUSTOMMC_189_SIMULTANEOUS_ORIGINAL_CONTROLLER_ARGUMENT_DIAG"
                 + " event=" + originalControllerArgumentsObserved
