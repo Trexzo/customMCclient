@@ -14,6 +14,7 @@ final class Minecraft189SimultaneousTargetAcceptance {
     private static int disabledTicks;
     private static boolean firstOwnedClick;
     private static boolean secondOwnedClick;
+    private static int v320OriginalTicksAfterA;
 
     private Minecraft189SimultaneousTargetAcceptance() {}
 
@@ -24,12 +25,41 @@ final class Minecraft189SimultaneousTargetAcceptance {
         disabledTicks = 0;
         firstOwnedClick = false;
         secondOwnedClick = false;
+        v320OriginalTicksAfterA = 0;
     }
 
     static void observe(final Minecraft189HostRuntime host) {
         if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraSimultaneous"))
             return;
-        final Evidence evidence = read(host);
+        // V320 only observes ORIGINAL World ticks AFTER the first genuine
+        // UUID-A owned callback, BEFORE any certified B reprioritization.
+        // The previous single read already decides the exact same phase
+        // transition; a sample attaches diagnostics to THAT same read.
+        final boolean v320Due = phase == 1 && firstOwnedClick
+                && v320OriginalTicksAfterA < 100
+                && ++v320OriginalTicksAfterA % 5 == 0;
+        final StringBuilder v320NativeReason =
+                v320Due ? new StringBuilder() : null;
+        final Evidence evidence = read(host, v320NativeReason);
+        if (v320Due) {
+            System.out.println(
+                    "CUSTOMMC_189_SIMULTANEOUS_POST_A_ORIGINAL_TICK_SOURCE_DIAG"
+                    + " phase=" + phase
+                    + " ticksAfterA=" + v320OriginalTicksAfterA
+                    + " bothEligible=" + (evidence != null)
+                    + " Aindex=" + (evidence == null ? -1 : evidence.aIndex)
+                    + " Bindex=" + (evidence == null ? -1 : evidence.bIndex)
+                    + " A3D=" + (evidence == null
+                            ? Double.NaN : evidence.aDistance)
+                    + " B3D=" + (evidence == null
+                            ? Double.NaN : evidence.bDistance)
+                    + " sourceANearest=" + (evidence != null
+                            && evidence.aNearest)
+                    + " sourceBNearest=" + (evidence != null
+                            && evidence.bNearest)
+                    + " sameNativeReadReason=" + v320NativeReason);
+            System.out.flush();
+        }
         if (phase == 0) {
             if (host.featureCatalog().killAura().active())
                 throw new IllegalStateException("simultaneous Aura pre-enabled");

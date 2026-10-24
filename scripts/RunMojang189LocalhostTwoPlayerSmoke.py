@@ -843,6 +843,56 @@ def v311_original_b_priority_source(log, source_offset):
     return candidates[0].decode("ascii")
 
 
+def v320_original_after_a_b_timeline(original_log, source_start, source_end):
+    """Read actual post-A tick samples before original failed B=0 scoreboard.
+
+    The only values reported were written by the genuine Mojang graphical JVM
+    from its OWN source snapshots, not generated from server /tp coordinates.
+    This never authorizes native B selection or server damage. A missing
+    sample is negative diagnostic evidence, not a pass or a crash bypass.
+    """
+    marker = b"CUSTOMMC_189_SIMULTANEOUS_POST_A_ORIGINAL_TICK_SOURCE_DIAG "
+    if (any(isinstance(v, bool) or not isinstance(v, int)
+            for v in (source_start, source_end))
+            or source_start < 0 or source_end < source_start
+            or source_end - source_start > 2097152):
+        raise AssertionError("V320 original post-A cursor invalid")
+    with Path(original_log).open("rb") as source:
+        size = source.seek(0, 2)
+        if source_end > size:
+            raise AssertionError("V320 original post-A cursor past source EOF")
+        source.seek(source_start)
+        raw = source.read(source_end - source_start)
+    # A truncated first or last line cannot manufacture a native sample.
+    if source_start:
+        with Path(original_log).open("rb") as source:
+            source.seek(source_start - 1)
+            prior = source.read(1)
+        if prior != b"\n":
+            first = raw.find(b"\n")
+            raw = raw[first + 1:] if first >= 0 else b""
+    tail = raw.rfind(b"\n")
+    raw = raw[:tail + 1] if tail >= 0 else b""
+    matches = [line.rstrip(b"\r")
+               for line in raw.splitlines() if line.startswith(marker)]
+    if len(matches) > 20:
+        raise AssertionError("V320 original post-A tick sample count invalid")
+    for ordinal, line in enumerate(matches, 1):
+        # Verify the exact native tick cadence and phase before printing.
+        m = re.fullmatch(
+            rb"CUSTOMMC_189_SIMULTANEOUS_POST_A_ORIGINAL_TICK_SOURCE_DIAG "
+            rb"phase=1 ticksAfterA=(\d+) bothEligible=(true|false) "
+            rb"Aindex=(-?\d+) Bindex=(-?\d+) "
+            rb"A3D=(NaN|\d+(?:\.\d+)?) B3D=(NaN|\d+(?:\.\d+)?) "
+            rb"sourceANearest=(true|false) sourceBNearest=(true|false) "
+            rb"sameNativeReadReason=(.*)", line)
+        if m is None or int(m.group(1)) != ordinal * 5:
+            raise AssertionError("V320 invalid original source-phase tick")
+    result = "CUSTOMMC_189_SIMULTANEOUS_POST_A_SOURCE_TIMELINE_DIAG count=" + str(len(matches))
+    return result + (("\n" + "\n".join(m.decode("ascii") for m in matches))
+                     if matches else "")
+
+
 def v316_preteleport_original_b_priority_marker(
         original_log, source_start, source_end):
     """Observe only ALREADY EMITTED original B priority before the B /tp.
@@ -3097,6 +3147,9 @@ def run(args):
                           + v316_preteleport_original_b_priority_marker(
                               host_log, v311_original_b_source_start,
                               v317_bad_b_end), flush=True)
+                    print(v320_original_after_a_b_timeline(
+                        host_log, v311_original_b_source_start,
+                        v317_bad_b_end), flush=True)
                 except (AssertionError, OSError, UnicodeError) as error:
                     print("CUSTOMMC_189_SIMULTANEOUS_EARLY_B_SOURCE_UNAVAILABLE_DIAG "
                           + type(error).__name__, flush=True)
