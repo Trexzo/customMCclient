@@ -2441,10 +2441,14 @@ public final class Minecraft189RuntimeBridge {
                         && !kinds.localPlayer(idx) && combat.alive(idx)
                         && los.occluded(idx)
                         && host.featureCatalog().killAura().active();
-                if (acceptanceWallLifecyclePhase == 2
+                if ((acceptanceWallLifecyclePhase == 1
+                        || acceptanceWallLifecyclePhase == 2)
                         && ++acceptanceWallLifecycleSourceEvidenceTicks % 80 == 0) {
-                    // V164: genuine original tick source-only heartbeat.
-                    // The 30 unbroken occluded/no-target ticks remain strict.
+                    // V318 extends the read-only V164 source heartbeat to
+                    // PHASE 1, where original #40095144475 attempt 1 never
+                    // reached 20 genuine occluded selections before timeout.
+                    // Both 20-off-selection and 30-on-clear gates stay strict.
+                    // No target/world mutation and no acceptance shortcut.
                     System.out.println(
                             "CUSTOMMC_189_WALL_LIFECYCLE_NATIVE_SOURCE_DIAG"
                             + " reason=" + originalWallLifecycleReason(
@@ -2460,7 +2464,11 @@ public final class Minecraft189RuntimeBridge {
                             + " rotationAvailable=" + target.available()
                             + " rotationIndex=" + target.entityIndex()
                             + " validConsecutiveSourceClearTicks="
-                                    + acceptanceWallLifecycleReenabledVetoTicks);
+                                    + acceptanceWallLifecycleReenabledVetoTicks
+                            + " selectedConsecutiveSourceTicks="
+                                    + acceptanceWallLifecycleDisabledSelectionTicks
+                            + " wallCheckNativeActive="
+                                    + host.featureCatalog().wallCheck().active());
                     System.out.flush();
                 }
                 if (!stableOccluded) {
