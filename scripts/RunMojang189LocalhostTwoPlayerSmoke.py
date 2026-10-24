@@ -100,6 +100,40 @@ def log_tail(path, length=100000):
         return handle.read()
 
 
+def v318_original_negative_native_source(log, scene, limit=1048576):
+    """Bounded original JVM source lines on a FAILED native acceptance only.
+
+    Never use these read-only lines as attack, FOV, Wall Check or server
+    scoreboard authorization. The game process writes its own real evidence.
+    """
+    tags = {
+        "fov": b"CUSTOMMC_189_FOV_ORIGINAL_SOURCE_OBSERVATION ",
+        "wall": b"CUSTOMMC_189_WALL_LIFECYCLE_NATIVE_SOURCE_DIAG ",
+    }
+    if scene not in tags or not isinstance(limit, int) or isinstance(limit, bool) or not 128 <= limit <= 1048576:
+        raise ValueError("V318 invalid native source diagnostic request")
+    original = Path(log)
+    if original.is_symlink() or not original.is_file():
+        return []
+    with original.open("rb") as stream:
+        size = stream.seek(0, 2)
+        start = max(0, size - limit)
+        stream.seek(start)
+        raw = stream.read(limit)
+    # Do not accept a partial original Java log line from the bounded tail.
+    if start:
+        newline = raw.find(b"\n")
+        raw = raw[newline + 1:] if newline >= 0 else b""
+    newline = raw.rfind(b"\n")
+    raw = raw[:newline + 1] if newline >= 0 else b""
+    result = []
+    for line in raw.splitlines():
+        if line.startswith(tags[scene]):
+            # Original Minecraft numeric callback, not an invented PASS.
+            result.append(line.decode("utf-8", "replace"))
+    return result[-24:]
+
+
 def check_process(proc, phase):
     code = proc.poll()
     if code is not None:
@@ -3165,8 +3199,25 @@ def run(args):
                 # raycast/controller must never actually attack through stone.
                 wait_for(host, host_log, WALL_LIFECYCLE_DISABLED, deadline,
                          "Wall Check disabled with active Kill Aura")
-                wait_for(host, host_log, WALL_LIFECYCLE_SELECTED, deadline,
-                         "20 real hidden-player selections while Wall Check off")
+                try:
+                    wait_for(host, host_log, WALL_LIFECYCLE_SELECTED, deadline,
+                             "20 real hidden-player selections while Wall Check off")
+                except AssertionError:
+                    # V318: preserve original failure; report ONLY the real
+                    # source-native phase-1 heartbeat, bounded and read-only.
+                    try:
+                        samples = v318_original_negative_native_source(
+                            host_log, "wall")
+                        print("V318_WALL_ORIGINAL_FAILURE_SOURCE_START",
+                              file=sys.stderr)
+                        for sample in samples:
+                            print(sample, file=sys.stderr)
+                        print("V318_WALL_ORIGINAL_FAILURE_SOURCE_END",
+                              file=sys.stderr)
+                    except (OSError, ValueError) as diag:
+                        print("V318_WALL_ORIGINAL_SOURCE_UNAVAILABLE "
+                              + type(diag).__name__, file=sys.stderr)
+                    raise
                 wait_for(host, host_log, WALL_LIFECYCLE_REENABLED, deadline,
                          "normal Wall Check reenable while Aura stays active")
                 wait_for(host, host_log, WALL_LIFECYCLE_VETO, deadline,
@@ -3251,9 +3302,27 @@ def run(args):
                      "ordinary Kill Aura module enable")
             wait_for(host, host_log, FOV_VETO, deadline,
                      "80 real rear-player FOV veto callbacks")
-            send_server_command(server, server_log,
-                                "scoreboard players test CITarget taken 0 0",
-                                expected=b"score 0 is in range 0 to 0")
+            try:
+                send_server_command(server, server_log,
+                                    "scoreboard players test CITarget taken 0 0",
+                                    expected=b"score 0 is in range 0 to 0")
+            except AssertionError:
+                # V318: an original FOV veto does not certify server B=0.
+                # V316 attempt 2 genuinely registered 10 server damage
+                # despite the original FOV veto marker. Keep that failure.
+                try:
+                    samples = v318_original_negative_native_source(
+                        host_log, "fov")
+                    print("V318_FOV_ORIGINAL_FAILURE_SOURCE_START",
+                          file=sys.stderr)
+                    for sample in samples:
+                        print(sample, file=sys.stderr)
+                    print("V318_FOV_ORIGINAL_FAILURE_SOURCE_END",
+                          file=sys.stderr)
+                except (OSError, ValueError) as diag:
+                    print("V318_FOV_ORIGINAL_SOURCE_UNAVAILABLE "
+                          + type(diag).__name__, file=sys.stderr)
+                raise
             print("CUSTOMMC_OFFICIAL_189_REAL_PLAYER_FOV_SERVER_NO_DAMAGE_PASS=YES",
                   flush=True)
 
