@@ -3022,8 +3022,23 @@ def run(args):
                                     "scoreboard players test CITargetB taken 0 0",
                                     expected=b"score 0 is in range 0 to 0")
             except AssertionError:
-                # Emit read-only original game source evidence at the exact
-                # adverse server gate. Bare re-raise preserves the failure.
+                # V317: V316's pre-teleport timeline was only emitted AFTER
+                # B=0 succeeded, so the genuine V308 B=10 failure (precisely
+                # what this source timeline investigates) could never emit
+                # V316 evidence. Sample ONLY the current original host JVM
+                # stdout before any deliberate B-nearer server teleport.
+                # Diagnostic failures cannot mask the real negative B-score.
+                try:
+                    v317_bad_b_end = host_log.stat().st_size
+                    print("CUSTOMMC_189_SIMULTANEOUS_EARLY_B_DAMAGE_SOURCE_DIAG "
+                          + v316_preteleport_original_b_priority_marker(
+                              host_log, v311_original_b_source_start,
+                              v317_bad_b_end), flush=True)
+                except (AssertionError, OSError, UnicodeError) as error:
+                    print("CUSTOMMC_189_SIMULTANEOUS_EARLY_B_SOURCE_UNAVAILABLE_DIAG "
+                          + type(error).__name__, flush=True)
+                # Preserve V311 negative context and bare rethrow. No
+                # source marker ever converts B>0 into a passing test.
                 print(v311_original_b_failure_evidence(
                     host_log, v311_original_b_source_start), flush=True)
                 raise
