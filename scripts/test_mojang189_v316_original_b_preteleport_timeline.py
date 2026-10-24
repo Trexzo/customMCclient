@@ -129,7 +129,11 @@ class V316OriginalBPreteleportTimeline(unittest.TestCase):
         positions = [
             body.index('"scoreboard players test CITargetB taken 0 0"'),
             body.index("CUSTOMMC_189_SIMULTANEOUS_A_DAMAGED_B_STILL_ZERO_PASS"),
-            body.index("v316_preteleport_original_b_priority_marker("),
+            # V317 adds an earlier diagnostic ONLY on genuine B>0 failure.
+            # This pre-teleport source read is the positive B=0 path, after
+            # the original score PASS; both still occur before the real B /tp.
+            body.index("v316_preteleport_original_b_priority_marker(",
+                       body.index("CUSTOMMC_189_SIMULTANEOUS_A_DAMAGED_B_STILL_ZERO_PASS")),
             body.index("send_server_command(server, server_log, b_near)"),
             body.index("wait_for(host, host_log, SIM_HIT_B"),
         ]
