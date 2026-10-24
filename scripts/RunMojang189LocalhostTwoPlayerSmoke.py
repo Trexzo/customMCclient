@@ -644,6 +644,35 @@ def actual_server_three_client_rejoin_fixture(server_log):
     hx, hy, hz = (int(value) for value in hparts[2:5])
     if x != hx or y != hy or abs(z - hz) != 2:
         raise AssertionError("unexpected original A/host rejoin geometry")
+    # V319: real ORIGINAL Mojang dedicated-server login #40098773646
+    # reported host (-1022.5,4,-876.5): floor() gives x=-1023.
+    # Under the unchanged loopback max-world-size=1024 the original
+    # 5x7 physical floor would reach x=-1025, so the STRICT V315 floor
+    # boundary correctly vetoed that source before any native rejoin proof.
+    # Re-anchor ONLY THIS REJOIN SCENARIO using REAL /tp commands derived
+    # from that genuine login, inward by at most 3 native source cells.
+    # All three original player commands are actually sent to the vanilla
+    # server; the 35 actual stone blocks, three testforblock witnesses,
+    # original World/UUID/controller/ray and no-wrong-target assertions remain.
+    if abs(hx) >= 1024 or abs(hz) >= 1024:
+        raise AssertionError("original rejoin login outside 1024 server world")
+    safe_x = max(-1020, min(1020, hx))
+    safe_z = max(-1020, min(1020, hz))
+    if (safe_x, safe_z) != (hx, hz):
+        dx, dz = safe_x - hx, safe_z - hz
+        if (abs(dx) > 3 or abs(dz) > 3
+                or hx // 16 != safe_x // 16
+                or hz // 16 != safe_z // 16
+                or z // 16 != (z + dz) // 16
+                or safe_z // 16 != (safe_z + (z - hz)) // 16):
+            raise AssertionError("original rejoin inward source left loaded spawn chunk")
+        source_host = hparts[:]
+        source_a = parts[:]
+        source_host[2], source_host[4] = str(safe_x), str(safe_z)
+        source_a[2], source_a[4] = str(safe_x), str(z + dz)
+        host = " ".join(source_host)
+        a_near = " ".join(source_a)
+        hx, hz, x, z = safe_x, safe_z, safe_x, z + dz
     direction = 1 if x % 16 <= 13 else -1
     bx = x + direction
     if x // 16 != bx // 16:
