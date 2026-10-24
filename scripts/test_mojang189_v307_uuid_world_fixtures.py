@@ -75,7 +75,7 @@ class GenuineUuidWorldFixtureV307Tests(unittest.TestCase):
             path=Path(directory)/"dedicated.log"
             path.write_bytes(
                 b"CIHost[/127.0.0.1:42110] logged in with entity id 5 "
-                b"at (994.5, 4.0, 444.5)\\n")
+                b"at (1008.5, 4.0, 444.5)\\n")
             with self.assertRaisesRegex(AssertionError,"outside server world"):
                 smoke.actual_server_three_client_locked_fixture(path)
 
