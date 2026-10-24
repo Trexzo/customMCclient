@@ -67,7 +67,14 @@ class Original1024BorderTests(unittest.TestCase):
             with self.subTest(x=x):
                 fill, witnesses = actual_server_rejoin_three_player_floor_fixture(
                     *commands(x, 40))
-                self.assertIn(str(x), fill)
+                # This original fill command records the two BOUNDARY
+                # corners, not the central host coordinate as a substring.
+                # Prove the exact three real player witness positions and
+                # the physical X interval within the 1024-block border.
+                self.assertEqual(witnesses[0][0], x)
+                corners = fill.split()
+                self.assertEqual((int(corners[1]), int(corners[4])),
+                                 (x - 2, x + 2))
                 self.assertTrue(all(abs(point[0]) < 1024
                                     for point in witnesses))
 
