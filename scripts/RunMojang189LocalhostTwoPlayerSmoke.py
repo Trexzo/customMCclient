@@ -803,9 +803,9 @@ def v316_preteleport_original_b_priority_marker(
         source = stream.read(source_end - source_start)
     # A concurrent JVM may be writing the last source line. Only inspect
     # newline-terminated complete original lines BEFORE our captured cursor.
-    last_newline = source.rfind(b"\\n")
+    last_newline = source.rfind(b"\n")
     complete = source[:last_newline + 1] if last_newline >= 0 else b""
-    witnesses = [line.rstrip(b"\\r") for line in complete.splitlines()
+    witnesses = [line.rstrip(b"\r") for line in complete.splitlines()
                  if marker in line]
     prefix = "CUSTOMMC_189_SIMULTANEOUS_B_PRETELEPORT_SOURCE_DIAG "
     if not witnesses:
@@ -813,9 +813,9 @@ def v316_preteleport_original_b_priority_marker(
     if len(witnesses) != 1:
         raise AssertionError("V316 duplicate original pre-teleport marker")
     pattern = (rb"^CUSTOMMC_189_SIMULTANEOUS_B_PRIORITY_NATIVE_SOURCE_DIAG "
-               rb"path=(observe|original-click) aIndex=(\\d+) bIndex=(\\d+) "
-               rb"aDistance=(\\d+(?:\\.\\d+)?) bDistance=(\\d+(?:\\.\\d+)?) "
-               rb"gapBCloser=(\\d+(?:\\.\\d+)?)$")
+               rb"path=(observe|original-click) aIndex=(\d+) bIndex=(\d+) "
+               rb"aDistance=(\d+(?:\.\d+)?) bDistance=(\d+(?:\.\d+)?) "
+               rb"gapBCloser=(\d+(?:\.\d+)?)$")
     match = re.fullmatch(pattern, witnesses[0])
     if match is None:
         raise AssertionError("V316 malformed original pre-teleport source")
