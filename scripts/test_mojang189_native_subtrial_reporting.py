@@ -12,6 +12,7 @@ WORKFLOW = (Path(__file__).resolve().parent.parent
 
 CASES = (
     ("AUTOCLICKER_REAL_GAME_TRIAL", "autoclicker"),
+    ("V326_ORIGINAL_AUTOCLICKER_EXACT_REMOTE_TRIAL", "autoclicker-exact-remote"),
     ("M424_REMOTE_PAIR_SCOPE_REAL_PVP_TRIAL", "m424-remote-pair"),
     ("M423_UNLOCKED_SCOPE_REAL_PVP_TRIAL", "m423-unlocked-scope"),
     ("M407_UPSTREAM_REAL_PVP_FULL_TRIAL", "m407-upstream-pvp"),
@@ -55,7 +56,7 @@ class OriginalMojangNativeSubtrialReportTest(unittest.TestCase):
         end = self.source.index('\n      - name:', finish)
         return self.source[start:end]
 
-    def test_four_genuine_trial_loops_still_bounded_and_strict(self):
+    def test_five_genuine_trial_loops_still_bounded_and_strict(self):
         for marker, label in CASES:
             with self.subTest(label=label):
                 block = self.trial_block(marker)
@@ -75,8 +76,11 @@ class OriginalMojangNativeSubtrialReportTest(unittest.TestCase):
         names = re.findall(r"^      - name: (.*)$", self.source,
                            flags=re.MULTILINE)
         reviewed = [n for n in names if n.startswith(("V308 ", "V309 "))]
-        self.assertEqual(69, len(names))
-        self.assertEqual(67, len(names) - len(reviewed))
+        strict_remote = [n for n in names if n.startswith("V326 ")]
+        self.assertEqual(70, len(names))
+        self.assertEqual(67, len(names) - len(reviewed) - len(strict_remote))
+        self.assertEqual(1, len(strict_remote),
+                         "V326 remote-player UUID must have one new independent real stage")
         self.assertEqual([
             "V308 original E after first three-mode Scaffold stone permanently revokes live quota",
             "V309 original hotbar 2 to 1 after first Scaffold stone revokes live quota",
@@ -106,9 +110,9 @@ class OriginalMojangNativeSubtrialReportTest(unittest.TestCase):
     def test_success_reports_not_used_as_synthetic_native_game_witness(self):
         self.assertNotIn("CUSTOMMC_OFFICIAL_189_NATIVE_SUBTRIAL_PASS=YES",
                          self.source)
-        self.assertEqual(8,self.source.count(
+        self.assertEqual(2 * len(CASES), self.source.count(
             "CUSTOMMC_189_NATIVE_SUBTRIAL_REPORT="))
-        self.assertEqual(4,self.source.count('test "$accepted" -eq 1'))
+        self.assertEqual(len(CASES), self.source.count('test "$accepted" -eq 1'))
 
     def test_only_actual_emitted_lines_are_parsed_from_original_log(self):
         log=('2026-10-21T13:12:00Z echo "CUSTOMMC_189_NATIVE_SUBTRIAL_REPORT=autoclicker:first"\n'
