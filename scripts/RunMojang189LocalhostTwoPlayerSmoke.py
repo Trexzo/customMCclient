@@ -616,6 +616,49 @@ def actual_server_rejoined_host_recenter_fixture(host_tp, a_rejoined, b_outer):
     return host_tp
 
 
+def actual_server_rejoined_b_margin_anchor_fixture(host_tp, a_rejoined, b_outer):
+    """Re-seat genuine survivor B 0.50 block outward on the REAL server.
+
+    V320 immutable original rerun #40196757559 attempt 2 had actual native
+    A=1.335000585 and B=1.481988213, both native UUIDs correct, but a
+    B-A gap of only 0.146988 failed the unchanged 0.30 stable-source
+    fence despite satisfying the 0.12 native controller-selection gate.
+    Move ONLY actual vanilla B after its first supported reseat; neither
+    fabricate host World data nor weaken 20 fresh native samples, ray,
+    correct UUID or independent server B-only damage.
+    """
+    actual_server_rejoined_host_recenter_fixture(
+        host_tp, a_rejoined, b_outer)
+    h, a, b = host_tp.split(), a_rejoined.split(), b_outer.split()
+    hx, hy, hz = (int(v) for v in h[2:5])
+    ax, ay, az = (float(v) for v in a[2:5])
+    bx, by, bz = (int(v) for v in b[2:5])
+    dx, dz = bx - hx, bz - hz
+    distance = math.hypot(dx, dz)
+    if not (abs(dx) == 1 and abs(dz) == 2 and hy == by
+            and ay == hy and distance > 0):
+        raise AssertionError("V322 genuine B original source geometry invalid")
+    b_x = bx + .5 + .5 * dx / distance
+    b_z = bz + .5 + .5 * dz / distance
+    a_distance = math.hypot(ax-(hx+.5), az-(hz+.5))
+    b_distance = math.hypot(b_x-(hx+.5), b_z-(hz+.5))
+    if not (2.7 < b_distance < 3.5 and
+            b_distance-a_distance > .75 and
+            abs(b_x) < 1024 and abs(b_z) < 1024):
+        raise AssertionError("V322 physical B buffer outside native 3D bounds")
+    # Must stand on the SAME actual server stone floor already verified
+    # beneath all 3 vanilla players. An unsupported /tp cannot pass.
+    floor = actual_server_rejoined_phase4_grounded_floor_fixture(
+        host_tp, a_rejoined, b_outer).split()
+    x0, y0, z0, x1, y1, z1 = (int(v) for v in floor[1:])
+    if not (x0 <= math.floor(b_x) <= x1
+            and z0 <= math.floor(b_z) <= z1
+            and y0 == y1 == by-1):
+        raise AssertionError("V322 genuine B anchor lacks server stone")
+    return "tp CITargetB {:.2f} {} {:.2f} {} {}".format(
+        b_x, by, b_z, b[5], b[6])
+
+
 def actual_server_rejoined_phase4_grounded_floor_fixture(host_tp, a_rejoined, b_outer):
     """Return a real dedicated-server stone floor under ALL 3 phase4 players.
 
@@ -2945,6 +2988,22 @@ def run(args):
                 send_server_command(server,server_log,b_outer,
                                     expected=b"Teleported CITargetB to")
                 print("CUSTOMMC_189_M419_NATIVE_B_WIDE_PLATFORM_RESEAT_PASS=YES",
+                      flush=True)
+                # V322 genuine original runner: after the real supported B
+                # reseat, increase only B's planned native 3D gap from A.
+                # The original client still must observe 20 consecutive
+                # eligible B-locked World snapshots after the host /tp.
+                b_anchor = actual_server_rejoined_b_margin_anchor_fixture(
+                    host_tp, a_rejoined, b_outer)
+                send_server_command(server,server_log,b_anchor,
+                                    expected=b"Teleported CITargetB to")
+                bp_anchor = b_anchor.split()
+                send_server_command(server,server_log,
+                    "testforblock {} {} {} stone".format(
+                        math.floor(float(bp_anchor[2])), floor_y,
+                        math.floor(float(bp_anchor[4]))),
+                    expected=b"successfully found the block")
+                print("CUSTOMMC_189_V322_REAL_B_BUFFER_STONE_VERIFIED=YES",
                       flush=True)
                 send_server_command(server,server_log,"gamemode 0 CITarget")
                 send_server_command(server,server_log,a_rejoined,
