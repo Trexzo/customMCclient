@@ -1017,7 +1017,7 @@ jobs:
           if [ "$attempt" -eq 1 ]; then
             echo "CUSTOMMC_189_NATIVE_SUBTRIAL_REPORT=autoclicker-exact-remote:first"
           else
-            echo "::warning::Exact remote Auto Clicker required native trial $attempt"
+            echo "::warning::Original Mojang exact remote Auto Clicker required native trial $attempt"
             echo "CUSTOMMC_189_NATIVE_SUBTRIAL_REPORT=autoclicker-exact-remote:retried"
           fi
       - name: V72 original TriggerBot real player UUID ray, Mojang controller and dedicated server damage
