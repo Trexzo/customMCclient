@@ -134,8 +134,9 @@ class V322GenuineOriginalBMarginBuffer(unittest.TestCase):
             # valid but the new B anchor must be rejected at the border.
             def move(command):
                 t=command.split()
-                t[2]=str(float(t[2])+shift)
-                t[4]=str(float(t[4])+shift)
+                for col in (2,4):
+                    value = float(t[col]) + shift
+                    t[col] = str(int(value)) if "." not in t[col] else str(value)
                 return " ".join(t)
             with self.assertRaises(AssertionError):
                 anchor(move(h),move(a),move(b))
