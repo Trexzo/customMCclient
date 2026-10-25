@@ -100,6 +100,40 @@ def log_tail(path, length=100000):
         return handle.read()
 
 
+def v320_original_enabled_scaffold_escape_evidence(native_phase_bytes,
+                                                   escape_already_sent=False):
+    """Prove the original client has a persistent OPEN GUI before one real Esc.
+
+    V319 original run #40105144305 attempt 3 showed repeated REAL original
+    "screen=OPEN source=missing_player_world_cursor_or_selected_item".
+    The old positive-candidate-only Escape rule deadlocked: an open GUI
+    itself can suppress a positive World/cursor/item candidate. Use two
+    consecutive complete original ARM_WAIT observations, scoped to the
+    enabled-placement phase. A newer CLEAR observation vetoes recovery.
+    Neither this decision nor Esc grants module/placement/server PASS.
+    """
+    if not isinstance(native_phase_bytes, bytes) or not isinstance(
+            escape_already_sent, bool):
+        raise ValueError("V320 needs original bytes and one-shot Escape flag")
+    if escape_already_sent:
+        return False
+    marker = b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ARM_WAIT "
+    lines = native_phase_bytes.split(b"\n")
+    # The final (possibly partially written) line is never authoritative.
+    complete = lines[:-1]
+    reports = [line.rstrip(b"\r") for line in complete
+               if line.startswith(marker)]
+    if not reports:
+        return False
+    current = reports[-1]
+    if not current.startswith(marker + b"screen=OPEN source="):
+        return False
+    if current == marker + b"screen=OPEN source=positive_candidate_already_available":
+        return True
+    return (len(reports) >= 2
+            and reports[-2].startswith(marker + b"screen=OPEN source="))
+
+
 def v318_original_negative_native_source(log, scene, limit=1048576):
     """Bounded original JVM source lines on a FAILED native acceptance only.
 
@@ -2500,17 +2534,25 @@ def run(args):
                 # genuine Escape in the uniquely captured host X11 window.
                 # Do not send Escape blindly: on a CLEAR screen that would
                 # create the pause menu and invalidate legitimate placement.
-                menu_blocked = (
-                    b"CUSTOMMC_OFFICIAL_189_SCAFFOLD_ARM_WAIT"
-                    b" screen=OPEN source=positive_candidate_already_available"
-                )
+                # Original run 40105144305 attempt 3 persisted at
+                # screen=OPEN source=missing_player_world_cursor_or_selected_item;
+                # requiring positive_candidate_already_available prevented
+                # any real Escape and moduleActivation remained zero. Only
+                # accept actual current-phase complete native ARM_WAIT lines.
+                enabled_gui_source_start = host_log.stat().st_size
+                dismissed_enabled_gui = False
                 while time.monotonic() < deadline:
                     check_process(host, "enabled Scaffold source GUI readiness")
                     host_data = log_tail(host_log)
                     if module in host_data:
                         break
-                    if menu_blocked in host_data:
+                    with host_log.open("rb") as native_reader:
+                        native_reader.seek(enabled_gui_source_start)
+                        enabled_source_bytes = native_reader.read(131072)
+                    if v320_original_enabled_scaffold_escape_evidence(
+                            enabled_source_bytes, dismissed_enabled_gui):
                         send_real_host_key(host, host_window, "Escape")
+                        dismissed_enabled_gui = True
                         print(
                             "CUSTOMMC_189_SCAFFOLD_ORIGINAL_GUI_CLOSED_BY_REAL_ESCAPE=YES",
                             flush=True)
