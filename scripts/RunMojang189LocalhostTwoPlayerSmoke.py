@@ -877,6 +877,69 @@ def v311_original_b_priority_source(log, source_offset):
     return candidates[0].decode("ascii")
 
 
+def v320_original_controller_argument_source(
+        original_log, source_start, source_end):
+    """Bounded genuine vanilla controller Entity-UUID provenance, no PASS.
+
+    Correlates the current original host JVM before B's planned teleport.
+    Absence means no observed native controller callback, NEVER proof
+    that the server damage was / wasn't caused by a specific player.
+    """
+    if (any(isinstance(v, bool) or not isinstance(v, int)
+            for v in (source_start, source_end))
+            or source_start < 0 or source_end < source_start
+            or source_end - source_start > 2_097_152):
+        raise AssertionError("V320 original controller source cursor invalid")
+    prefix = b"CUSTOMMC_189_SIMULTANEOUS_ORIGINAL_CONTROLLER_ARGUMENT_DIAG "
+    with Path(original_log).open("rb") as stream:
+        if source_end > stream.seek(0, 2):
+            raise AssertionError("V320 original controller source past EOF")
+        stream.seek(source_start)
+        data = stream.read(source_end - source_start)
+    # JVM stdout writes can be in progress: a nonterminated final line
+    # provides no accepted original provenance.
+    eol = data.rfind(b"\n")
+    complete = data[:eol + 1] if eol >= 0 else b""
+    lines = [line.rstrip(b"\r") for line in complete.splitlines()
+             if line.startswith(prefix)]
+    if len(lines) > 32:
+        raise AssertionError("V320 original controller source exceeds native cap")
+    evidence = []
+    pattern = (rb"^CUSTOMMC_189_SIMULTANEOUS_ORIGINAL_CONTROLLER_ARGUMENT_DIAG "
+               rb"event=([1-9]\d?) phase=([0-3]) "
+               rb"firstOwnedClick=(true|false) nativeUuidAccess=(true|false) "
+               rb"nativeUuid=(null|[a-f0-9-]{36}) "
+               rb"owner=(A|B|OTHER|UNAVAILABLE)$")
+    previous = 0
+    a_uuid = official_offline_uuid("CITarget")
+    b_uuid = official_offline_uuid("CITargetB")
+    for line in lines:
+        match = re.fullmatch(pattern, line)
+        if match is None:
+            raise AssertionError("V320 malformed original controller argument")
+        number, phase, owned, has_uuid, raw_uuid, owner = match.groups()
+        number = int(number)
+        if number <= previous or number > 32:
+            raise AssertionError("V320 original controller event order invalid")
+        previous = number
+        native = raw_uuid.decode("ascii")
+        owner = owner.decode("ascii")
+        access = has_uuid == b"true"
+        if (not access and native != "null"
+                or native == "null" and owner != "UNAVAILABLE"
+                or native == a_uuid and owner != "A"
+                or native == b_uuid and owner != "B"
+                or native not in ("null", a_uuid, b_uuid)
+                    and owner != "OTHER"
+                or native != "null"
+                    and not re.fullmatch(
+                        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-"
+                        r"[0-9a-f]{4}-[0-9a-f]{12}", native)):
+            raise AssertionError("V320 original controller UUID owner mismatch")
+        evidence.append(line.decode("ascii"))
+    return evidence
+
+
 def v316_preteleport_original_b_priority_marker(
         original_log, source_start, source_end):
     """Observe only ALREADY EMITTED original B priority before the B /tp.
@@ -3142,6 +3205,19 @@ def run(args):
                 except (AssertionError, OSError, UnicodeError) as error:
                     print("CUSTOMMC_189_SIMULTANEOUS_EARLY_B_SOURCE_UNAVAILABLE_DIAG "
                           + type(error).__name__, flush=True)
+                # V320: correlate the ACTUAL Mojang attackEntity Entity
+                # argument UUID with the server's adverse B damage. No
+                # controller event => source unknown, NOT proof of harmless
+                # damage or permission to relax the original B=0 veto.
+                try:
+                    for line in v320_original_controller_argument_source(
+                            host_log, v311_original_b_source_start,
+                            host_log.stat().st_size):
+                        print("CUSTOMMC_189_SIMULTANEOUS_EARLY_B_CONTROLLER_SOURCE_DIAG "
+                              + line, flush=True)
+                except (AssertionError, OSError, UnicodeError) as error:
+                    print("CUSTOMMC_189_SIMULTANEOUS_CONTROLLER_SOURCE_UNAVAILABLE_DIAG "
+                          + type(error).__name__, flush=True)
                 # Preserve V311 negative context and bare rethrow. No
                 # source marker ever converts B>0 into a passing test.
                 print(v311_original_b_failure_evidence(
@@ -3160,6 +3236,18 @@ def run(args):
                     v316_before_b_tp_end), flush=True)
             except (AssertionError, OSError, UnicodeError) as error:
                 print("CUSTOMMC_189_SIMULTANEOUS_B_PRETELEPORT_SOURCE_UNAVAILABLE_DIAG "
+                      + type(error).__name__, flush=True)
+            # V320: expose only exact current original vanilla controller
+            # Entity arguments before any B-nearer server teleport.
+            # Neither absence nor presence confers a game/scoreboard PASS.
+            try:
+                for line in v320_original_controller_argument_source(
+                        host_log, v311_original_b_source_start,
+                        host_log.stat().st_size):
+                    print("CUSTOMMC_189_SIMULTANEOUS_PRETELEPORT_CONTROLLER_SOURCE_DIAG "
+                          + line, flush=True)
+            except (AssertionError, OSError, UnicodeError) as error:
+                print("CUSTOMMC_189_SIMULTANEOUS_CONTROLLER_SOURCE_UNAVAILABLE_DIAG "
                       + type(error).__name__, flush=True)
             # One server teleport, no movement of already-hurt A: B goes
             # from sqrt(8) to sqrt(2) blocks, at a DIFFERENT diagonal tile.
