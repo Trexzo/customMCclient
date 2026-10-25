@@ -2456,6 +2456,10 @@ public final class Minecraft189HostRuntime
                 // No ordinary client runtime enables this property.
                 || Boolean.getBoolean(
                         "custommc.acceptance.reportTriggerBotRealPvp")
+                // V326 original Auto Clicker real remote-player UUID witness
+                // is opt-in; normal gameplay must not add identity reads.
+                || Boolean.getBoolean(
+                        "custommc.acceptance.requireAutoClickerExactRemoteUuid")
                 || featureCatalog.friendGuard().requiresIdentity()
                 || featureCatalog.wallCheck().active();
     }
