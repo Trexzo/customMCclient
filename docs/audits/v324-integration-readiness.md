@@ -15,7 +15,7 @@
 - Uncapped GitHub REST `/pulls?state=open&per_page=50&page=1..9`, verified an empty page 10: **426 open PRs**, **321 Draft**, **105 non-Draft**.
 - Walking current head/base branch names from #804 to `main` yields **316 directly stacked PRs** and **110 off-stack PRs**. The 316 figure is PR-base-chain membership, **not** a count of commits.
 - [All 426 open PR heads](v324-open-pull-requests.tsv) includes PR number, Draft/ready status, exact head/base ref/SHA, update time and direct-stack/off-stack grouping.
-- The **31 particular historically divergent PRs** identified in issue #777's 2026-10-23 audit were each re-fetched at their current exact head and re-compared to V324; **all 31 still diverge in Git ancestry**. Do **not** infer 31 missing features. The remaining 79 off-stack PRs **have not been reclassified for actual Git ancestry/behavior equivalence in this snapshot**; neither `off-stack` nor `ready` is a merge decision.
+- Every one of the **110 off-stack PRs** was individually compared by exact saved head SHA against V324 using GitHub's commit comparison: **73 heads are Git ancestors of V324 (status=behind, ahead=0)**; **37 heads are diverged (unique commits in both directions)**. The 37 comprise all 31 historically divergent PRs from the 2026-10-23 issue #777 audit plus **six newer alternatives: #782, #783 and #796–#799**. [Full per-head ancestry results](v324-off-stack-ancestry.tsv). Git divergence does **not** prove that implementation is absent or that any PR needs cherry-picking; 37 source/behavior parity decisions remain separate.
 - This is an explicit current snapshot, not a continuing PR count. Creating this audit PR adds another open PR after the snapshot.
 
 ## CI evidence, precise limits
@@ -44,7 +44,7 @@
 
 ## Decisions required before merge or release
 
-1. Complete targeted source-and-test parity for historical unresolved alternatives, especially #467's World-cell ownership lifecycle and the remaining off-stack branches. Preserve historical negative CI evidence.
+1. Complete targeted source-and-test parity for the **37 diverged off-stack PR heads**, especially #467's World-cell ownership lifecycle. The other 73 off-stack heads are already Git ancestors and need no cherry-pick merely to obtain their commits. Preserve historical negative CI evidence.
 2. Review build dependency graph, license notices, third-party redistributed binaries, artifact provenance, credentials/data handling and generated package contents.
 3. Reproduce `assembleLauncherDistribution` on a clean Windows machine, inspect all artifacts/hashes, run interactive GUI/login startup and negative/failure cases, and explicitly verify rollback and packaging.
 4. Re-review the final exact integration head, branch protection and release policy. **No automatic cherry-picks, ready-for-review promotions, merges, closes, rebases, retargets, binary distribution or release.** `main` remains at the exact original SHA above.
