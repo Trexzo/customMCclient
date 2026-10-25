@@ -66,16 +66,31 @@ class V317GenuineEarlyBFailureSourceTests(unittest.TestCase):
         handler = gate.handlers[0]
         inner_tries = [n for n in ast.walk(handler)
                        if isinstance(n, ast.Try)]
-        # V320 adds a SECOND read-only diagnostic in this same original
-        # B=0 rejection branch. Both exception handlers must remain bounded
-        # and MUST NOT turn the server scoreboard failure into a success.
-        self.assertEqual(len(inner_tries), 2)
+        # V323 retains BOTH original-JVM bounded diagnostics and adds a
+        # third failure-only genuine vanilla server-score query. No
+        # exception from a diagnostic may mask the original B=0 failure.
+        self.assertEqual(len(inner_tries), 3)
+        score_queries = 0
+        original_queries = 0
+        controller_queries = 0
         for diagnostic in inner_tries:
             self.assertEqual(len(diagnostic.handlers), 1)
-            self.assertEqual(
-                ast.get_source_segment(
-                    source, diagnostic.handlers[0].type),
-                "(AssertionError, OSError, UnicodeError)")
+            segment = ast.get_source_segment(source, diagnostic)
+            exception_type = ast.get_source_segment(
+                source, diagnostic.handlers[0].type)
+            if "v320_original_server_score_query(" in segment:
+                score_queries += 1
+                self.assertEqual(exception_type,
+                    "(AssertionError, OSError, ValueError, UnicodeError)")
+            else:
+                self.assertEqual(exception_type,
+                    "(AssertionError, OSError, UnicodeError)")
+            if "v316_preteleport_original_b_priority_marker(" in segment:
+                original_queries += 1
+            if "v320_original_controller_argument_source(" in segment:
+                controller_queries += 1
+        self.assertEqual((score_queries, original_queries,
+                          controller_queries), (1, 1, 1))
         self.assertTrue(any(
             isinstance(node, ast.Raise) and node.exc is None
             for node in handler.body))
