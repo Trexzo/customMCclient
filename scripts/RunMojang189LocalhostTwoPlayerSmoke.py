@@ -650,7 +650,7 @@ def actual_server_rejoined_b_margin_anchor_fixture(host_tp, a_rejoined, b_outer)
     # beneath all 3 vanilla players. An unsupported /tp cannot pass.
     floor = actual_server_rejoined_phase4_grounded_floor_fixture(
         host_tp, a_rejoined, b_outer).split()
-    x0, y0, z0, x1, y1, z1 = (int(v) for v in floor[1:])
+    x0, y0, z0, x1, y1, z1 = (int(v) for v in floor[1:7])
     if not (x0 <= math.floor(b_x) <= x1
             and z0 <= math.floor(b_z) <= z1
             and y0 == y1 == by-1):
