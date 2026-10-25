@@ -28,6 +28,12 @@ AURA_ENABLED = b"CUSTOMMC_189_KILLAURA_PLAYER_MODULE_ENABLE_PASS=YES"
 AURA_ATTACK = b"CUSTOMMC_189_KILLAURA_SYNTHETIC_PLAYER_ATTACK_PASS=YES"
 CONTROLLER_ATTACK = b"CUSTOMMC_189_MOJANG_PLAYER_CONTROLLER_ATTACK_ENTITY_ENTERED=YES"
 AURA_HURT = b"CUSTOMMC_OFFICIAL_189_KILLAURA_PLAYER_HURT_PASS=YES"
+AUTO_DISABLED = b"CUSTOMMC_189_AUTOCLICKER_DISABLED_TARGET_TICKS_PASS=20"
+AUTO_ENABLED = b"CUSTOMMC_189_AUTOCLICKER_NORMAL_MODULE_ENABLE_PASS=YES"
+AUTO_ARMED = b"CUSTOMMC_189_AUTOCLICKER_REAL_TARGET_ARMED=YES"
+AUTO_NATIVE_UNSCOPED = b"CUSTOMMC_189_AUTOCLICKER_NATIVE_CONTROLLER_UNSCOPED_UUID_PASS=YES"
+AUTO_NATIVE_EXACT_REMOTE = b"CUSTOMMC_189_AUTOCLICKER_NATIVE_EXACT_REMOTE_PLAYER_UUID_PASS=YES"
+AUTO_HURT = b"CUSTOMMC_OFFICIAL_189_AUTOCLICKER_SAME_ENTITY_HURT_PASS=YES"
 TRIGGER_DISABLED = b"CUSTOMMC_189_TRIGGERBOT_DISABLED_REAL_PLAYER_TICKS_PASS=20"
 TRIGGER_ENABLED = b"CUSTOMMC_189_TRIGGERBOT_NORMAL_MODULE_ENABLE_PASS=YES"
 TRIGGER_CLICK = b"CUSTOMMC_189_TRIGGERBOT_NATIVE_RAY_UUID_OWNED_CLICK_PASS=YES"
@@ -1271,7 +1277,8 @@ def send_server_command(server, log, command, expected=None, timeout=6):
                          + " log=" + after[-800:].decode("ascii", "replace"))
 
 
-def restore_real_attacker_focus(host, target, deadline):
+def restore_real_attacker_focus(host, target, deadline,
+                                keep_host_active=False):
     """Reclaim real X11 active-window ownership after the second JVM starts.
 
     Minecraft 1.8.9 suppresses clickMouse while leftClickCounter > 0.
@@ -1312,6 +1319,15 @@ def restore_real_attacker_focus(host, target, deadline):
     print("CUSTOMMC_189_REAL_ATTACKER_X11_FOCUS_RESTORED=YES", flush=True)
     time.sleep(2.0)
     check_process(host, "CIHost refocused Minecraft game")
+    if keep_host_active:
+        # Native Auto Clicker requires real original X11 game focus.
+        # Only the PRE-ARM physical grab above is allowed; no later injected hit.
+        actual = subprocess.check_output(["xdotool", "getactivewindow"],
+                                         timeout=4).decode("ascii", "strict").strip()
+        if int(actual) != int(window):
+            raise AssertionError("V326 Auto Clicker original host lost X11 focus")
+        print("CUSTOMMC_189_AUTOCLICKER_REAL_HOST_X11_FOCUS_PASS=YES", flush=True)
+        return
     # Put the target window back in the foreground BEFORE server teleport
     # reorients CIHost. Otherwise the captured host mouse's X11 relative
     # motion can continuously steer the crosshair off its actual target.
@@ -1487,7 +1503,7 @@ def client_command(args, game, username, uuid, port, remote):
                        "-Dcustommc.acceptance.targetAUuid=" + official_offline_uuid("CITarget"))
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.targetBUuid=" + official_offline_uuid("CITargetB"))
-    if remote and args.pvp:
+    if remote and (args.pvp or args.autoclicker_pvp):
         if args.unlocked_scoped_veto:
             command.insert(command.index("-cp"),
                            "-Dcustommc.acceptance.requireUnlockedAuraOwnerVeto=true")
@@ -1496,10 +1512,19 @@ def client_command(args, game, username, uuid, port, remote):
                            "-Dcustommc.acceptance.requireRemotePairAuraOwnerVeto=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.reportVanillaMelee=true")
-        command.insert(command.index("-cp"),
-                       "-Dcustommc.acceptance.reportTriggerBotRealPvp=true"
-                       if args.triggerbot_pvp else
-                       "-Dcustommc.acceptance.reportKillAuraLocalPvp=true")
+        if args.autoclicker_pvp:
+            for prop in (
+                "-Dcustommc.acceptance.reportAutoClicker=true",
+                "-Dcustommc.acceptance.requireAutoClickerUnscopedNativeController=true",
+                "-Dcustommc.acceptance.requireAutoClickerExactRemoteUuid=true",
+                "-Dcustommc.acceptance.expectedAutoClickerRemoteUuid="
+                    + official_offline_uuid("CITarget")):
+                command.insert(command.index("-cp"), prop)
+        else:
+            command.insert(command.index("-cp"),
+                           "-Dcustommc.acceptance.reportTriggerBotRealPvp=true"
+                           if args.triggerbot_pvp else
+                           "-Dcustommc.acceptance.reportKillAuraLocalPvp=true")
     command += ["--server", "127.0.0.1", "--port", str(port)]
     # Limit GUI/test process heap so both instances and server fit CI RAM.
     command[command.index("-Xmx1536m")] = "-Xmx1024m"
@@ -4075,6 +4100,8 @@ def main():
     group.add_argument("--triggerbot-pvp", action="store_true",
                        help="isolated source-native TriggerBot original controller "
                             "attack against real UUID player plus server damage")
+    group.add_argument("--autoclicker-pvp", action="store_true",
+                       help="exact original Auto Clicker remote UUID and dedicated-server damage")
     group.add_argument("--range-veto", action="store_true",
                        help="prove real out-of-range player cannot be attacked")
     group.add_argument("--wall-veto", action="store_true",
@@ -4090,6 +4117,9 @@ def main():
     args = parser.parse_args()
     configure_original_scaffold_gui_negative(args)
     configure_original_scaffold_hotbar_negative(args)
+    if args.autoclicker_pvp and (args.unlocked_scoped_veto
+                                or args.unlocked_remote_owner_veto):
+        parser.error("V326 Auto Clicker PvP excludes Aura owner-veto fixtures")
     if args.triggerbot_pvp:
         if args.unlocked_scoped_veto or args.unlocked_remote_owner_veto:
             parser.error("TriggerBot must remain isolated from Aura owner fixtures")
