@@ -152,7 +152,8 @@ class V316OriginalBPreteleportTimeline(unittest.TestCase):
         ).read_text("utf-8")
         start = code.index(
             "def v316_preteleport_original_b_priority_marker(")
-        end = code.index("def v311_original_b_failure_evidence(", start)
+        # V324 source audit stops before the next unrelated native helper.
+        end = code.index("def v320_original_b_damage_source_window(", start)
         helper = code[start:end]
         self.assertNotIn("PASS=YES", helper)
         self.assertNotIn("send_server_command(", helper)

@@ -69,10 +69,11 @@ class V317GenuineEarlyBFailureSourceTests(unittest.TestCase):
         # V323 retains BOTH original-JVM bounded diagnostics and adds a
         # third failure-only genuine vanilla server-score query. No
         # exception from a diagnostic may mask the original B=0 failure.
-        self.assertEqual(len(inner_tries), 3)
+        self.assertEqual(len(inner_tries), 4)
         score_queries = 0
         original_queries = 0
         controller_queries = 0
+        hurt_queries = 0
         for diagnostic in inner_tries:
             self.assertEqual(len(diagnostic.handlers), 1)
             segment = ast.get_source_segment(source, diagnostic)
@@ -89,8 +90,10 @@ class V317GenuineEarlyBFailureSourceTests(unittest.TestCase):
                 original_queries += 1
             if "v320_original_controller_argument_source(" in segment:
                 controller_queries += 1
+            if "v320_original_b_damage_source_window(" in segment:
+                hurt_queries += 1
         self.assertEqual((score_queries, original_queries,
-                          controller_queries), (1, 1, 1))
+                          controller_queries, hurt_queries), (1, 1, 1, 1))
         self.assertTrue(any(
             isinstance(node, ast.Raise) and node.exc is None
             for node in handler.body))
