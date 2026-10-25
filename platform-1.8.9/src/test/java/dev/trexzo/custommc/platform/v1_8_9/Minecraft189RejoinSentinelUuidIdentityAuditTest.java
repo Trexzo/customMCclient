@@ -6,8 +6,9 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Diagnostic only: four *source-visible new UUIDs* must not become a
- * synthetic acceptance. Original M417 real net-count gate is untouched.
+/** Source-native identity audit: M417 requires both original World
+ * net +4 nonplayers AND four distinct novel nonplayer UUIDs. Diagnostics,
+ * server commands and reordering alone never authorize native acceptance.
  */
 final class Minecraft189RejoinSentinelUuidIdentityAuditTest {
     private static UUID uuid(long n) { return new UUID(0L,n); }
@@ -135,6 +136,64 @@ final class Minecraft189RejoinSentinelUuidIdentityAuditTest {
     @Test void originalNonplayerCountCanShrinkWhileNovelUuidExists() {
         Set<UUID> before=baseline(ids(1,2,3,4),kinds(LOCAL,OTHER,OTHER,OTHER));
         assertEquals(1,novel(before,ids(1,5),kinds(LOCAL,OTHER)));
+    }
+
+    @Test void originalM417RequiresBothNetFourAndFourDistinctNewUuids() {
+        assertTrue(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(2, 6, 4));
+        assertTrue(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(10, 18, 5));
+        // A net increase without distinct original source IDs is no proof.
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(2, 6, 3));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(2, 6, 0));
+        // Four distinct births cannot excuse a missing original net gain.
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(2, 5, 4));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(2, 2, 4));
+    }
+
+    @Test void originalM417MissingOrOverflowedSourceFailsClosed() {
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(-1, 4, 4));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(0, -1, 4));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(0, 4, -1));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(
+                        Integer.MAX_VALUE - 2, Integer.MAX_VALUE, 4));
+        assertTrue(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(
+                        Integer.MAX_VALUE - 4, Integer.MAX_VALUE, 4));
+    }
+
+    @Test void originalM417ReorderAndPlayerArrivalsCannotForgeSentinels() {
+        final Set<UUID> before = baseline(
+                ids(1,2,3), kinds(LOCAL,OTHER,PLAYER));
+        final int realFour = novel(before,
+                ids(1,2,3,11,12,13,14),
+                kinds(LOCAL,OTHER,PLAYER,OTHER,OTHER,OTHER,OTHER));
+        assertTrue(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(1,5,realFour));
+        final int reordered = novel(before,
+                ids(3,2,1), kinds(PLAYER,OTHER,LOCAL));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(1,5,reordered));
+        final int oneIsPlayer = novel(before,
+                ids(1,2,3,11,12,13,14),
+                kinds(LOCAL,OTHER,PLAYER,OTHER,OTHER,OTHER,PLAYER));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(1,5,oneIsPlayer));
+        final int oldUnloads = novel(
+                baseline(ids(1,2,3,4,5,6),
+                        kinds(LOCAL,OTHER,OTHER,OTHER,OTHER,PLAYER)),
+                ids(1,6,7,8,9,10),
+                kinds(LOCAL,PLAYER,OTHER,OTHER,OTHER,OTHER));
+        assertFalse(Minecraft189RejoinTargetAcceptance
+                .m309FourSourceNativeSentinelsAdmitted(4,4,oldUnloads));
     }
 
     @Test void emptyWorldAtBaselineStillRequiresActualNativeUuidArrivals() {

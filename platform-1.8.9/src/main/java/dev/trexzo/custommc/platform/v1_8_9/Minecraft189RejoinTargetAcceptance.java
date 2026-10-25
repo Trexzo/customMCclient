@@ -141,7 +141,8 @@ final class Minecraft189RejoinTargetAcceptance {
 
     /**
      * Counts four distinct NEW original nonplayer UUIDs, not a delta of
-     * total World entity count. Only logging can consume this result.
+     * total World entity count. Its source UUID witness is an additional
+     * mandatory M417 admission gate alongside the original net-count gate.
      * Baseline source must be captured BEFORE server summons. Absence
      * returns -1; neither zero nor an invalid source qualifies as proof.
      */
@@ -160,6 +161,21 @@ final class Minecraft189RejoinTargetAcceptance {
             if (!baseline.contains(id) && !observed.add(id)) return -1;
         }
         return observed.size();
+    }
+
+    /**
+     * M309/V325: two independent SAME original World snapshot predicates.
+     * Net +4 cannot substitute for four new nonplayer UUID identities;
+     * likewise UUID births cannot substitute for net +4. Invalid/absent
+     * source fails shut. Long difference prevents 32-bit overflow.
+     */
+    static boolean m309FourSourceNativeSentinelsAdmitted(
+            final int baselineNonplayers,
+            final int currentNonplayers,
+            final int distinctNewNativeNonplayerUuids) {
+        return baselineNonplayers >= 0 && currentNonplayers >= 0
+                && distinctNewNativeNonplayerUuids >= 4
+                && ((long) currentNonplayers - (long) baselineNonplayers) >= 4L;
     }
 
     /** Read-only explanation of a genuine four-sentinel native World witness. */
@@ -488,34 +504,40 @@ final class Minecraft189RejoinTargetAcceptance {
                 }
             } else aloneTicks=0;
         } else if (phase==3) {
-            // V273 READ-ONLY: genuine current native IDs, not net count.
-            // A positive diagnostic NEVER prints M417's PASS marker.
-            if (!nativeFourNovelUuidDiagnosticReported && e != null) {
-                final int newIds = m273NovelNativeNonplayerCount(
-                        nativeBaselineNonplayerUuids, e.ids, e.kinds);
-                if (newIds >= 4) {
-                    nativeFourNovelUuidDiagnosticReported = true;
-                    System.out.println(
-                            "CUSTOMMC_189_REJOIN_FOUR_NOVEL_NATIVE_UUID_DIAG=YES"
-                            + " newOriginalNonplayerUuids=" + newIds
-                            + " currentNetCount=" + sourceNonPlayerCount(e)
-                            + " baselineNetCount=" + nativeNonPlayerBaseline);
-                    System.out.flush();
-                }
+            // Freeze exactly THIS native UUID/kind snapshot for both the
+            // read-only diagnostic and M417's strict additional admission.
+            final int currentNativeNonplayers = e == null
+                    ? -1 : sourceNonPlayerCount(e);
+            final int distinctNovelNativeUuids = e == null ? -1
+                    : m273NovelNativeNonplayerCount(
+                            nativeBaselineNonplayerUuids, e.ids, e.kinds);
+            // The diagnostic is not permission and can never print PASS.
+            if (!nativeFourNovelUuidDiagnosticReported
+                    && distinctNovelNativeUuids >= 4) {
+                nativeFourNovelUuidDiagnosticReported = true;
+                System.out.println(
+                        "CUSTOMMC_189_REJOIN_FOUR_NOVEL_NATIVE_UUID_DIAG=YES"
+                        + " newOriginalNonplayerUuids=" + distinctNovelNativeUuids
+                        + " currentNetCount=" + currentNativeNonplayers
+                        + " baselineNetCount=" + nativeNonPlayerBaseline);
+                System.out.flush();
             }
-            // M417: a native nonplayer addition must be OBSERVED by the
-            // original host after A has genuinely left, before its fresh
-            // JVM returns. Dedicated-server summon output alone is not proof.
+            // M417 requires BOTH actual original World NET +4 and four
+            // DISTINCT new nonplayer UUIDs; never a server /summon receipt,
+            // client entity index or a previously printed diagnostic.
             if (Boolean.getBoolean("custommc.acceptance.requireRejoinIndexReorder")
                     && !nativeSentinelObserved && nativeNonPlayerBaseline >= 0
                     && e!=null && e.a==-1 && e.bOnlySelected()
                     && survivorUuid.equals(aura.lockedTargetUuid())
-                    && sourceNonPlayerCount(e)>=nativeNonPlayerBaseline+4) {
+                    && m309FourSourceNativeSentinelsAdmitted(
+                            nativeNonPlayerBaseline, currentNativeNonplayers,
+                            distinctNovelNativeUuids)) {
                 nativeSentinelObserved = true;
                 System.out.println(
                     "CUSTOMMC_189_REJOIN_REAL_SENTINEL_NATIVE_OBSERVED_PASS=YES"
                     + " nonplayersBefore=" + nativeNonPlayerBaseline
-                    + " nonplayersAfter=" + sourceNonPlayerCount(e));
+                    + " nonplayersAfter=" + currentNativeNonplayers
+                    + " distinctNewNonplayerUuids=" + distinctNovelNativeUuids);
                 System.out.flush();
             }
             // Original A has a new real EntityPlayer instance and source-native
