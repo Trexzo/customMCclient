@@ -65,7 +65,7 @@ class V322GenuineOriginalBMarginBuffer(unittest.TestCase):
 
     def test_anchor_position_stays_on_real_server_stone(self):
         for host, a, b in CASES:
-            extents = [int(n) for n in floor(host, a, b).split()[1:]]
+            extents = [int(n) for n in floor(host, a, b).split()[1:7]]
             t = anchor(host, a, b).split()
             x, z = math.floor(float(t[2])), math.floor(float(t[4]))
             self.assertLessEqual(extents[0],x)
