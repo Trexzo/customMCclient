@@ -31,6 +31,8 @@ public final class Minecraft189RuntimeBridge {
     private static boolean acceptanceManualUnscopedNativeReported;
     // M426 isolated Auto Clicker controller proof; no production behavior.
     private static boolean acceptanceAutoClickerUnscopedNativeReported;
+    // V326: original dedicated-server remote player exact-UUID witness only.
+    private static boolean acceptanceAutoClickerExactRemoteReported;
     private static int nativeTimerOriginalBaselineCallbacks;
     private static int nativeTimerOriginalBoostCallbacks;
     private static boolean nativeTimerOriginalEnabled;
@@ -257,6 +259,7 @@ public final class Minecraft189RuntimeBridge {
         acceptanceRemotePairOtherUuid = null;
         acceptanceManualUnscopedNativeReported = false;
         acceptanceAutoClickerUnscopedNativeReported = false;
+        acceptanceAutoClickerExactRemoteReported = false;
         nativeTimerOriginalBaselineCallbacks = 0;
         nativeTimerOriginalBoostCallbacks = 0;
         nativeTimerOriginalEnabled = false;
@@ -3508,6 +3511,52 @@ public final class Minecraft189RuntimeBridge {
                 acceptanceAutoClickerUnscopedNativeReported = true;
                 System.out.println(
                         "CUSTOMMC_189_AUTOCLICKER_NATIVE_CONTROLLER_UNSCOPED_UUID_PASS=YES");
+                System.out.flush();
+            }
+        }
+        // V326: optional stronger genuine remote-player AUTO CLICKER
+        // witness at the original vanilla attackEntity controller boundary.
+        // Ordinary gameplay has no property set, no changed packet/target.
+        // Test-only conditions are checked BEFORE vanilla attack side effects.
+        if (Boolean.getBoolean(
+                "custommc.acceptance.requireAutoClickerExactRemoteUuid")) {
+            if (expected != null || expectedTrigger != null
+                    || activeRuntime == null || !activeRuntime.hostInstalled()
+                    || !activeRuntime.requireHostRuntime()
+                            .featureCatalog().autoClicker().active()
+                    || activeRuntime.requireHostRuntime()
+                            .featureCatalog().killAura().active()
+                    || activeRuntime.requireHostRuntime()
+                            .featureCatalog().triggerBot().active()
+                    || !(entity instanceof Minecraft189NativeEntityUuidAccess))
+                throw new IllegalStateException(
+                        "V326 original Auto Clicker controller ownership invalid");
+            final String expectedText = System.getProperty(
+                    "custommc.acceptance.expectedAutoClickerRemoteUuid");
+            final UUID exactExpected;
+            try {
+                exactExpected = expectedText == null ? null
+                        : UUID.fromString(expectedText);
+            } catch (IllegalArgumentException malformedUuid) {
+                throw new IllegalStateException(
+                        "V326 original server remote UUID is malformed",
+                        malformedUuid);
+            }
+            final Minecraft189HostRuntime sourceHost =
+                    activeRuntime.requireHostRuntime();
+            final UUID exactArgument =
+                    ((Minecraft189NativeEntityUuidAccess)entity)
+                            .customMcNativeEntityUuid();
+            if (!Minecraft189AutoClickerRemoteUuidAcceptance.admits(
+                    exactExpected, exactArgument,
+                    sourceHost.worldEntityUuidState().snapshot(),
+                    sourceHost.worldEntityKindState().snapshot()))
+                throw new IllegalStateException(
+                        "V326 native controller Entity UUID is not exact source-unique remote player");
+            if (!acceptanceAutoClickerExactRemoteReported) {
+                acceptanceAutoClickerExactRemoteReported = true;
+                System.out.println(
+                        "CUSTOMMC_189_AUTOCLICKER_NATIVE_EXACT_REMOTE_PLAYER_UUID_PASS=YES");
                 System.out.flush();
             }
         }
