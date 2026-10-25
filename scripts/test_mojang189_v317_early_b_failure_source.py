@@ -66,10 +66,19 @@ class V317GenuineEarlyBFailureSourceTests(unittest.TestCase):
         handler = gate.handlers[0]
         inner_tries = [n for n in ast.walk(handler)
                        if isinstance(n, ast.Try)]
-        self.assertEqual(len(inner_tries), 1)
-        self.assertEqual(
-            ast.get_source_segment(source, inner_tries[0].handlers[0].type),
-            "(AssertionError, OSError, UnicodeError)")
+        # V320 adds a SECOND read-only diagnostic in this same original
+        # B=0 rejection branch. Both exception handlers must remain bounded
+        # and MUST NOT turn the server scoreboard failure into a success.
+        self.assertEqual(len(inner_tries), 2)
+        for diagnostic in inner_tries:
+            self.assertEqual(len(diagnostic.handlers), 1)
+            self.assertEqual(
+                ast.get_source_segment(
+                    source, diagnostic.handlers[0].type),
+                "(AssertionError, OSError, UnicodeError)")
+        self.assertTrue(any(
+            isinstance(node, ast.Raise) and node.exc is None
+            for node in handler.body))
         block = ast.get_source_segment(source, handler)
         self.assertIn("EARLY_B_SOURCE_UNAVAILABLE_DIAG", block)
         self.assertIn("type(error).__name__", block)
