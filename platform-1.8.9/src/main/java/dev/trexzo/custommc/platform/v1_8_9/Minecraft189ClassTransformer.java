@@ -763,39 +763,35 @@ public final class Minecraft189ClassTransformer
                                 @Override
                                 public void visitCode() {
                                     super.visitCode();
+                                    // Observe only the genuine mapped Mojang
+                                    // clickMouse entry; this never impersonates
+                                    // user input or changes vanilla branches.
                                     super.visitVarInsn(Opcodes.ALOAD, 0);
                                     super.visitMethodInsn(Opcodes.INVOKESTATIC,
                                             RUNTIME_BRIDGE_INTERNAL_NAME,
                                             "acceptanceVanillaClick",
                                             "(Ljava/lang/Object;)V", false);
-                                }
 
-                                private boolean firstNativeClickCounter;
-
-                                @Override
-                                public void visitFieldInsn(
-                                        final int opcode, final String owner,
-                                        final String fieldName,
-                                        final String fieldDescriptor) {
-                                    super.visitFieldInsn(opcode, owner,
-                                            fieldName, fieldDescriptor);
-                                    // Exact vanilla clickMouse begins by
-                                    // reading Minecraft.leftClickCounter.
-                                    // Observe its real value on the operand
-                                    // stack; DUP preserves verifier semantics.
-                                    if (!firstNativeClickCounter
-                                            && opcode == Opcodes.GETFIELD
-                                            && Minecraft189Mappings.MINECRAFT
-                                                    .obfuscatedInternalName().equals(owner)
-                                            && "I".equals(fieldDescriptor)) {
-                                        firstNativeClickCounter = true;
-                                        super.visitInsn(Opcodes.DUP);
-                                        super.visitMethodInsn(
-                                                Opcodes.INVOKESTATIC,
-                                                RUNTIME_BRIDGE_INTERNAL_NAME,
-                                                "acceptanceVanillaClickGuard",
-                                                "(I)V", false);
-                                    }
+                                    // V328: V327's first arbitrary int GETFIELD
+                                    // could not certify which native field it
+                                    // read, and produced no guard witness in
+                                    // two original-player trials. Read the
+                                    // EXACT pinned leftClickCounter field at
+                                    // clickMouse entry, without writing it or
+                                    // modifying the later original GETFIELD.
+                                    final Minecraft189Mappings.MappedField counter =
+                                            Minecraft189Mappings
+                                                    .MINECRAFT_LEFT_CLICK_COUNTER;
+                                    super.visitVarInsn(Opcodes.ALOAD, 0);
+                                    super.visitFieldInsn(Opcodes.GETFIELD,
+                                            Minecraft189Mappings.MINECRAFT
+                                                    .obfuscatedInternalName(),
+                                            counter.obfuscatedName(),
+                                            counter.descriptor());
+                                    super.visitMethodInsn(Opcodes.INVOKESTATIC,
+                                            RUNTIME_BRIDGE_INTERNAL_NAME,
+                                            "acceptanceVanillaClickGuard",
+                                            "(I)V", false);
                                 }
                             };
                         }
