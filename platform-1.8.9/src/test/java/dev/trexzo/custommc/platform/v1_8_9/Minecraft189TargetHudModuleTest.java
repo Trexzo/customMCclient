@@ -11,6 +11,7 @@ import dev.trexzo.custommc.core.render.RenderPipeline;
 import dev.trexzo.custommc.core.service.ServiceRegistry;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
+import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiFontHandle;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.platform.PlatformContext;
@@ -201,6 +202,22 @@ final class Minecraft189TargetHudModuleTest {
             assertEquals(56.0F, host.lastCardHeight, 0.001F);
             assertTrue(host.bars.isEmpty()); // Full legacy geometry returns.
 
+            // Offscreen stored coordinates must recover at actual native
+            // rendering without silently rewriting the user's settings.
+            hud.xSetting().set(4096);
+            hud.ySetting().set(4096);
+            final int beforeRecoveredFrame = host.texts.size();
+            runtime.renderHud(29L, 0.0F);
+            assertEquals(beforeRecoveredFrame + 3, host.texts.size());
+            assertEquals(1128.0F, host.lastX, 0.001F);
+            assertEquals(703.0F, host.lastY, 0.001F);
+            assertEquals("4096", settings.snapshotEncoded().get(
+                    Minecraft189TargetHudModule.X_SETTING_ID));
+            assertEquals("4096", settings.snapshotEncoded().get(
+                    Minecraft189TargetHudModule.Y_SETTING_ID));
+            hud.xSetting().set(24);
+            hud.ySetting().set(202);
+
             final int renderedTextsBeforeClear = host.texts.size();
             final int renderedBarsBeforeClear = host.bars.size();
             runtime.nearestPlayerTargetState().clear();
@@ -387,6 +404,47 @@ final class Minecraft189TargetHudModuleTest {
         assertNull(settings.find(
                 Minecraft189TargetHudModule.ADAPTIVE_ACCENT_SETTING_ID));
         assertNull(modules.find(Minecraft189TargetHudModule.ID));
+    }
+
+    @Test
+    void targetCardStaysWithinLogicalScreenAcrossUiScaleChanges() {
+        final UiViewport desktop = new UiViewport(1280, 720, 1.0F);
+        UiBounds normal = Minecraft189TargetHudModule.visibleCardBounds(
+                desktop, 24.0F, 202.0F, 164.0F, 56.0F);
+        assertEquals(24.0F, normal.x());
+        assertEquals(202.0F, normal.y());
+
+        UiBounds rightBottom = Minecraft189TargetHudModule.visibleCardBounds(
+                desktop, 4096.0F, 4096.0F, 224.0F, 72.0F);
+        assertEquals(1056.0F, rightBottom.x());
+        assertEquals(648.0F, rightBottom.y());
+
+        final UiViewport scaled = new UiViewport(1280, 720, 2.0F);
+        UiBounds scaledCard = Minecraft189TargetHudModule.visibleCardBounds(
+                scaled, 4096.0F, 4096.0F, 224.0F, 72.0F);
+        assertEquals(416.0F, scaledCard.x());
+        assertEquals(288.0F, scaledCard.y());
+        // The render-only projection has no reference to mutable settings.
+    }
+
+    @Test
+    void targetCardRecoversOnSmallViewportAndRejectsInvalidDimensions() {
+        final UiViewport tiny = new UiViewport(120, 80, 1.0F);
+        final UiBounds oversized = Minecraft189TargetHudModule.visibleCardBounds(
+                tiny, 4096.0F, 4096.0F, 224.0F, 72.0F);
+        assertEquals(0.0F, oversized.x());
+        assertEquals(8.0F, oversized.y());
+        final UiBounds tooTall = Minecraft189TargetHudModule.visibleCardBounds(
+                new UiViewport(100, 60, 2.0F),
+                -100.0F, 999.0F, 224.0F, 72.0F);
+        assertEquals(0.0F, tooTall.x());
+        assertEquals(0.0F, tooTall.y());
+        assertThrows(IllegalArgumentException.class,
+                () -> Minecraft189TargetHudModule.visibleCardBounds(
+                        tiny, Float.NaN, 0.0F, 100.0F, 50.0F));
+        assertThrows(IllegalArgumentException.class,
+                () -> Minecraft189TargetHudModule.visibleCardBounds(
+                        tiny, 0.0F, 0.0F, -1.0F, 50.0F));
     }
 
     private static final class RecordingHost
