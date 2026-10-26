@@ -195,6 +195,7 @@ def v329_original_autoclicker_failure_evidence(log, max_bytes=16777216):
         b"CUSTOMMC_189_V330_AUTOCLICKER_ORIGINAL_GUI_SCREEN=OPEN",
         b"CUSTOMMC_189_V330_AUTOCLICKER_ORIGINAL_GUI_SCREEN=CLEAR",
         b"CUSTOMMC_189_V330_AUTOCLICKER_ORIGINAL_GUI_SCREEN=UNAVAILABLE",
+        b"CUSTOMMC_189_V335_NATIVE_GUI_VETO_SOURCE ",
         b"CUSTOMMC_189_AUTOCLICKER_MOJANG_LEFT_CLICK_COUNTER_BLOCKED=",
         b"CUSTOMMC_189_AUTOCLICKER_MOJANG_LEFT_CLICK_COUNTER_READY=YES",
     )
@@ -4123,7 +4124,10 @@ def run(args):
                   flush=True)
     except BaseException:
         for name, log in logs:
-            if args.autoclicker_pvp and name == "host":
+            if (args.autoclicker_pvp or args.rejoin_release) and name == "host":
+                # V335: original rejoin UUID acceptance also needs the
+                # actual source GuiScreen class when a native GUI veto
+                # prevents B combat. Failure-only, never a success gate.
                 # V328 original run lost its one-shot early counter
                 # diagnostics behind 100+ repetitive armed-target lines
                 # because only the final 6000 log bytes were printed.
