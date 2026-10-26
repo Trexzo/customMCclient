@@ -39,6 +39,10 @@ final class Minecraft189VanillaMeleeAcceptance {
     private static boolean autoclickerSyntheticEntryProvenanceReported;
     private static boolean autoclickerFirstGuardCallReported;
     private static boolean autoclickerSyntheticGuardCallReported;
+    // V330: distinct first original screen verdicts, never a click grant.
+    private static boolean autoclickerNativeScreenOpenReported;
+    private static boolean autoclickerNativeScreenClearReported;
+    private static boolean autoclickerNativeScreenUnavailableReported;
     private static final Minecraft189OriginalNonPlayerRaycastTrace
             nonPlayerRaycastTrace =
             new Minecraft189OriginalNonPlayerRaycastTrace();
@@ -70,6 +74,9 @@ final class Minecraft189VanillaMeleeAcceptance {
         autoclickerSyntheticEntryProvenanceReported = false;
         autoclickerFirstGuardCallReported = false;
         autoclickerSyntheticGuardCallReported = false;
+        autoclickerNativeScreenOpenReported = false;
+        autoclickerNativeScreenClearReported = false;
+        autoclickerNativeScreenUnavailableReported = false;
         nonPlayerRaycastTrace.reset();
     }
 
@@ -95,6 +102,38 @@ final class Minecraft189VanillaMeleeAcceptance {
                     + " vanillaMeleeProperty=" + Boolean.getBoolean(PROPERTY)
                     + " nativeInputPresent=" + (minecraft != null));
             System.out.flush();
+        }
+        // V330 genuine game-object screen evidence, before all ray/hurt
+        // acceptance checks. The original screen can keep Mojang's counter
+        // at 10000 even when the separate CustomMC ClickGUI is closed.
+        // Observe each screen state at most once during this acceptance.
+        // This never reads an inferred screen from X11 or rewrites vanilla.
+        if (syntheticCall && Boolean.getBoolean(
+                "custommc.acceptance.requireAutoClickerExactRemoteUuid")
+                && Boolean.getBoolean("custommc.acceptance.reportAutoClicker")) {
+            final Minecraft189ScaffoldScreenGate.Verdict originalGui =
+                    Minecraft189ScaffoldScreenGate.inspect(minecraft);
+            final boolean report;
+            switch (originalGui) {
+                case OPEN:
+                    report = !autoclickerNativeScreenOpenReported;
+                    autoclickerNativeScreenOpenReported = true;
+                    break;
+                case CLEAR:
+                    report = !autoclickerNativeScreenClearReported;
+                    autoclickerNativeScreenClearReported = true;
+                    break;
+                default:
+                    report = !autoclickerNativeScreenUnavailableReported;
+                    autoclickerNativeScreenUnavailableReported = true;
+                    break;
+            }
+            if (report) {
+                System.out.println(
+                        "CUSTOMMC_189_V330_AUTOCLICKER_ORIGINAL_GUI_SCREEN="
+                                + originalGui.name());
+                System.out.flush();
+            }
         }
         if (!Boolean.getBoolean(PROPERTY) || reported
                 || minecraft == null || observedCombat == null) {
