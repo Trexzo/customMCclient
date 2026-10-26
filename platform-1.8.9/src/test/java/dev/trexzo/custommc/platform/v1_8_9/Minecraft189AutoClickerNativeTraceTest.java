@@ -80,8 +80,13 @@ final class Minecraft189AutoClickerNativeTraceTest {
             Minecraft189VanillaMeleeAcceptance.syntheticClickStarted();
             Minecraft189VanillaMeleeAcceptance.onNativeClick(null);
             Minecraft189VanillaMeleeAcceptance.onNativeClickGuard(42);
-            assertEquals("", new String(
-                    bytes.toByteArray(), StandardCharsets.UTF_8));
+            final String logged = new String(
+                    bytes.toByteArray(), StandardCharsets.UTF_8);
+            // Preserve V327's separate strict-remote counter observer.
+            // Only V329's added provenance is gated by reportAutoClicker.
+            assertTrue(logged.contains(
+                    "CUSTOMMC_189_AUTOCLICKER_MOJANG_LEFT_CLICK_COUNTER_BLOCKED=42"));
+            assertFalse(logged.contains("CUSTOMMC_189_V329_"));
         } finally {
             Minecraft189VanillaMeleeAcceptance.syntheticClickFinished();
             Minecraft189VanillaMeleeAcceptance.reset();
