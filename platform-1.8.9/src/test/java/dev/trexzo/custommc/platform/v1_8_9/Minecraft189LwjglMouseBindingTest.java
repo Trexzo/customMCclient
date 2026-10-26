@@ -3,6 +3,9 @@ package dev.trexzo.custommc.platform.v1_8_9;
 import dev.trexzo.custommc.bootstrap.BootstrapContext;
 import dev.trexzo.custommc.core.ui.UiFontHandle;
 import dev.trexzo.custommc.core.ui.UiViewport;
+import dev.trexzo.custommc.core.ui.UiBounds;
+import dev.trexzo.custommc.core.ui.clickgui.ClickGuiRuntime;
+import dev.trexzo.custommc.core.ui.clickgui.HudPositionPageContent;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiLayout;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiLayoutEngine;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiModel;
@@ -167,6 +170,89 @@ final class Minecraft189LwjglMouseBindingTest {
         assertEquals(
                 0,
                 source.reads);
+    }
+
+    @Test
+    void heldFrameMotionRepositionsOnlyWhenUiOpenAndPhysicalButtonDown() {
+        final Minecraft189BootstrapRuntime runtime =
+                Minecraft189BootstrapRuntime.create(
+                        new BootstrapContext(
+                                Minecraft189ClassTransformer
+                                        .TARGET_MAIN_CLASS,
+                                new String[0]));
+        try {
+            final Minecraft189HostRuntime host =
+                    runtime.installHost(new NoOpHostCallbacks());
+            final ClickGuiModel model =
+                    runtime.services().require(ClickGuiModel.class);
+            model.open();
+            assertTrue(model.select(ClickGuiRuntime.HUD_PAGE_ID));
+
+            final UiViewport viewport = new UiViewport(1200, 800, 1.0F);
+            final UiBounds content = new ClickGuiLayoutEngine()
+                    .layout(viewport).content();
+            final UiBounds preview =
+                    HudPositionPageContent.previewBounds(content, viewport);
+            assertTrue(preview != null);
+            final int pixelX = Math.round(
+                    preview.x() + preview.width() * 0.5F);
+            final int fromBottom = viewport.pixelHeight() - 1
+                    - Math.round(preview.y() + preview.height() * 0.5F);
+            final FixedHeldPointer src = new FixedHeldPointer(
+                    pixelX, fromBottom);
+
+            src.available = false;
+            assertFalse(Minecraft189LwjglMouseBinding
+                    .forwardHeldPointerPosition(src));
+            assertEquals(0, src.coordinatesRead);
+
+            src.available = true;
+            src.held = false;
+            assertFalse(Minecraft189LwjglMouseBinding
+                    .forwardHeldPointerPosition(src));
+            assertEquals(0, src.coordinatesRead);
+
+            src.held = true;
+            assertTrue(Minecraft189LwjglMouseBinding
+                    .forwardHeldPointerPosition(src));
+            assertEquals(2, src.coordinatesRead);
+            final int editedX = host.featureCatalog().targetHud()
+                    .xSetting().get().intValue();
+            assertTrue(editedX > 18);
+
+            model.close();
+            assertFalse(Minecraft189LwjglMouseBinding
+                    .forwardHeldPointerPosition(src));
+            assertEquals(editedX, host.featureCatalog().targetHud()
+                    .xSetting().get().intValue());
+        } finally {
+            runtime.close();
+        }
+    }
+
+    private static final class FixedHeldPointer
+            implements Minecraft189LwjglMouseBinding.HeldPointerSource {
+        private final int pixelX;
+        private final int bottomY;
+        private boolean available;
+        private boolean held;
+        private int coordinatesRead;
+
+        FixedHeldPointer(final int x, final int y) {
+            pixelX = x;
+            bottomY = y;
+        }
+
+        @Override public boolean available() { return available; }
+        @Override public boolean leftHeld() { return held; }
+        @Override public int x() {
+            coordinatesRead++;
+            return pixelX;
+        }
+        @Override public int yFromBottom() {
+            coordinatesRead++;
+            return bottomY;
+        }
     }
 
     private static final class FixedMousePosition
