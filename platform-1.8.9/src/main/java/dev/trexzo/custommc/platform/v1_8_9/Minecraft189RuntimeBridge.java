@@ -2127,16 +2127,6 @@ public final class Minecraft189RuntimeBridge {
         final Minecraft189HostRuntime host =
                 activeHost();
         if (host != null && minecraft != null) {
-            // V333: X11 window focus and the CustomMC ClickGUI are not
-            // authoritative for vanilla's independent currentScreen.
-            // On the actual source Minecraft 'ave' instance, an OPEN
-            // or UNAVAILABLE native screen must revoke synthetic combat
-            // scheduling before any attack owner can be admitted.
-            // This cannot alter physical mouse input or vanilla clickMouse.
-            if (Minecraft189NativeGuiCombatVeto.blocks(minecraft)) {
-                host.suspendSyntheticCombatForOriginalGui();
-                return;
-            }
             if (Boolean.getBoolean(
                     "custommc.acceptance.reportTriggerBotRealPvp")
                     && !acceptanceTriggerEnabled) {
@@ -2898,6 +2888,17 @@ public final class Minecraft189RuntimeBridge {
                         System.out.flush();
                     }
                 }
+            }
+            // V333.1: preserve genuine read-only disabled-module,
+            // native target and negative-control callbacks above. Those
+            // callbacks neither issue attacks nor authorize future input.
+            // Stop here BEFORE AutoBlock, AutoPot, AutoRod or any synthetic
+            // click/attack. A vanilla GUI is independent of CustomMC's GUI.
+            // This requires a source-verified CLEAR on actual Mojang 'ave';
+            // an inaccessible or OPEN screen fails shut and revokes leases.
+            if (Minecraft189NativeGuiCombatVeto.blocks(minecraft)) {
+                host.suspendSyntheticCombatForOriginalGui();
+                return;
             }
             final Minecraft189SwordBlockControl swordBlock =
                     minecraft instanceof Minecraft189SwordBlockControl
