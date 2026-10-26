@@ -29,7 +29,8 @@ class V331RealNativePrearmReleaseTests(unittest.TestCase):
         self.assertLess(wait, return_focus)
         self.assertEqual(1, focus.count('"xdotool", "mouseup", "1"'))
         self.assertNotIn('"xdotool", "mousedown"', focus)
-        self.assertNotIn('"xdotool", "key"', focus)
+        self.assertEqual(1, focus.count('["xdotool", "key", "--clearmodifiers", "Escape"]'))
+        self.assertLess(focus.index('"key", "--clearmodifiers", "Escape"'), grab)
 
     def test_native_controller_and_authoritative_damage_remain_mandatory(self):
         segment = HARNESS.split("if args.autoclicker_pvp:", 1)[1]
@@ -46,7 +47,7 @@ class V331RealNativePrearmReleaseTests(unittest.TestCase):
         focus = HARNESS.split(
             "def restore_real_attacker_focus(", 1
         )[1].split("\ndef ", 1)[0]
-        self.assertEqual(2, focus.count("if keep_host_active:"))
+        self.assertEqual(3, focus.count("if keep_host_active:"))
         self.assertIn('["xdotool", "windowactivate", "--sync", window]', focus)
         self.assertIn("CUSTOMMC_189_AUTOCLICKER_REAL_HOST_X11_FOCUS_PASS=YES", focus)
 
