@@ -202,3 +202,14 @@ The remaining major UI/platform work is now concentrated at the actual host boun
 - evaluate additional text/font batching only after measuring the real host path.
 
 Those layers should extend the existing ownership seams rather than bypassing them.
+
+## Viewport-bounded HUD editing (UX lane)
+
+`HudDragController.beginWithinViewport(..., UiViewport)` opts into bounds-aware
+HUD dragging using logical (scaled) viewport coordinates. Dragging clamps the
+widget's upper-left location so the measured widget stays within the viewport;
+if a widget is larger than the viewport, its leading edge remains accessible.
+Cancel restores the previous override (or default), while commit keeps the
+bounded placement. The older `begin(...)` remains unrestricted and unchanged
+for existing callers. This is a core API capability, **not yet a claim that a
+complete in-game HUD edit screen is wired or visually certified**.
