@@ -55,7 +55,14 @@ class V328ExactCounterEntryRead(unittest.TestCase):
         self.assertIn("AUTO_NATIVE_EXACT_REMOTE, deadline", self.harness)
         self.assertIn("AUTO_HURT if args.autoclicker_pvp", self.harness)
         self.assertIn("scoreboard players test CITarget taken 1 999999", self.harness)
-        self.assertNotIn("AUTOCLICKER_MOJANG_LEFT_CLICK_COUNTER_READY=YES", self.harness)
+        # Source-only diagnostics may now be echoed after a failing trial,
+        # but they cannot be consulted to authorize any original-game pass.
+        run_body = self.harness.split("def run(", 1)[1].split(
+            "    except BaseException:", 1)[0]
+        self.assertNotIn("AUTOCLICKER_MOJANG_LEFT_CLICK_COUNTER_READY=YES", run_body)
+        self.assertNotIn("V329_SYNTHETIC_GUARD_CALLBACK", run_body)
+        self.assertIn("AUTO_NATIVE_UNSCOPED, deadline", run_body)
+        self.assertIn("AUTO_NATIVE_EXACT_REMOTE, deadline", run_body)
 
 
 if __name__ == "__main__":
