@@ -117,6 +117,45 @@ final class HudPositionPageContentTest {
     }
 
     @Test
+    void heldPointerMotionRepositionsButReleaseOrOutsideMotionDoesNot() {
+        final SettingRegistry settings = targetSettings();
+        final HudPositionPageContent page = new HudPositionPageContent(settings);
+        final UiBounds preview = HudPositionPageContent.previewBounds(
+                CONTENT, VIEWPORT);
+        assertTrue(page.pointer(input(VIEWPORT),
+                press(preview.x() + preview.width() * 0.5F,
+                        preview.y() + preview.height() * 0.5F)));
+        assertEquals("518", settings.snapshotEncoded().get(
+                HudPositionPageContent.X_ID));
+        assertEquals("372", settings.snapshotEncoded().get(
+                HudPositionPageContent.Y_ID));
+        assertTrue(page.pointer(input(VIEWPORT),
+                new UiPointerEvent(
+                        preview.x() + preview.width() * 0.75F,
+                        preview.y() + preview.height() * 0.25F,
+                        UiPointerButton.LEFT, UiPointerAction.MOVE)));
+        assertEquals("818", settings.snapshotEncoded().get(
+                HudPositionPageContent.X_ID));
+        assertEquals("172", settings.snapshotEncoded().get(
+                HudPositionPageContent.Y_ID));
+
+        assertFalse(page.pointer(input(VIEWPORT),
+                new UiPointerEvent(preview.x() + 4.0F,
+                        preview.y() + 4.0F, UiPointerButton.RIGHT,
+                        UiPointerAction.MOVE)));
+        assertFalse(page.pointer(input(VIEWPORT),
+                new UiPointerEvent(preview.x() + 4.0F,
+                        preview.y() + 4.0F, UiPointerButton.LEFT,
+                        UiPointerAction.RELEASE)));
+        assertFalse(page.pointer(input(VIEWPORT),
+                new UiPointerEvent(CONTENT.x() + 1.0F,
+                        CONTENT.y() + 1.0F, UiPointerButton.LEFT,
+                        UiPointerAction.MOVE)));
+        assertEquals("818", settings.snapshotEncoded().get(
+                HudPositionPageContent.X_ID));
+    }
+
+    @Test
     void missingTargetHudSettingsShowUnavailableAndDoNotCreateOrWriteThem() {
         final SettingRegistry settings = new SettingRegistry();
         settings.register(new Setting<Integer>(

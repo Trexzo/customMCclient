@@ -244,12 +244,25 @@ final class Minecraft189TargetHudModuleTest {
                     Minecraft189TargetHudModule.X_SETTING_ID));
             assertEquals("332", settings.snapshotEncoded().get(
                     Minecraft189TargetHudModule.Y_SETTING_ID));
+
+            // Real platform input adapter: continuous held mouse positions
+            // use exactly the same native persistent settings as a press.
+            final int moveX = Math.round(
+                    preview.x() + preview.width() * 0.75F);
+            final int moveBottomY = editorViewport.pixelHeight() - 1
+                    - Math.round(preview.y() + preview.height() * 0.6F);
+            assertTrue(runtime.pointerMove(moveX, moveBottomY));
+            final int draggedX = hud.xSetting().get().intValue();
+            final int draggedY = hud.ySetting().get().intValue();
+            assertTrue(draggedX > 558);
+            assertTrue(draggedY > 332);
             gui.model().close();
+            assertFalse(runtime.pointerMove(moveX, moveBottomY));
             final int beforeEditorRender = host.texts.size();
             runtime.renderHud(29L, 0.0F);
             assertEquals(beforeEditorRender + 3, host.texts.size());
-            assertEquals(570.0F, host.lastX, 0.001F);
-            assertEquals(371.0F, host.lastY, 0.001F);
+            assertEquals(draggedX + 12.0F, host.lastX, 0.001F);
+            assertEquals(draggedY + 39.0F, host.lastY, 0.001F);
 
             gui.model().open();
             final UiBounds reset = HudPositionPageContent.resetBounds(preview);

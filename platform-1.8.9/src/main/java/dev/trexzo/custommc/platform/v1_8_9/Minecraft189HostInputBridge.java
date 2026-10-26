@@ -52,6 +52,17 @@ public final class Minecraft189HostInputBridge {
                 pressed);
     }
 
+    public boolean pointerMove(
+            final int pixelX,
+            final int pixelYFromBottom) {
+        return hooks.pointerMove(
+                viewportSource.framebufferWidth(),
+                viewportSource.framebufferHeight(),
+                viewportSource.uiScale(),
+                pixelX,
+                pixelYFromBottom);
+    }
+
     public boolean scroll(
             final int pixelX,
             final int pixelYFromBottom,

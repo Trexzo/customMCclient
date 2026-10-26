@@ -97,6 +97,16 @@ public final class ClickGuiInputController
             return false;
         }
 
+        if (event.action() == UiPointerAction.MOVE) {
+            // Motion is routed only to the currently visible content.
+            // No focus changes, nav selection or module toggle on motion.
+            final ClickGuiLayout layout = layoutEngine.layout(viewport);
+            if (!layout.content().contains(event.x(), event.y())) {
+                return false;
+            }
+            return dispatchContentPointer(
+                    snapshot, layout, event, viewport);
+        }
         if (event.action() != UiPointerAction.PRESS) {
             return false;
         }
@@ -278,7 +288,7 @@ public final class ClickGuiInputController
         return model.select(pages.get(next).id());
     }
 
-    private void dispatchContentPointer(
+    private boolean dispatchContentPointer(
             final ClickGuiSnapshot snapshot,
             final ClickGuiLayout layout,
             final UiPointerEvent event,
@@ -286,17 +296,17 @@ public final class ClickGuiInputController
         final ClickGuiPage selected =
                 selectedPage(snapshot);
         if (selected == null) {
-            return;
+            return false;
         }
 
         final ClickGuiPageContent content =
                 contentRegistry.find(
                         selected.id());
         if (content == null) {
-            return;
+            return false;
         }
 
-        content.pointer(
+        return content.pointer(
                 new ClickGuiContentInputContext(
                         snapshot,
                         selected,

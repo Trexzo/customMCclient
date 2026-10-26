@@ -70,6 +70,56 @@ public final class Minecraft189LwjglMouseBinding {
                         pressed);
     }
 
+    /**
+     * Polled during the native HUD frame, but only when ClickGUI is open.
+     * Never consumes vanilla Mouse.next() events, changes button state or
+     * injects a synthetic click. Grabbed-gameplay mouse is excluded.
+     */
+    public static boolean forwardHeldPointerPosition() {
+        return forwardHeldPointerPosition(LwjglHeldPointerSource.INSTANCE);
+    }
+
+    static boolean forwardHeldPointerPosition(final HeldPointerSource source) {
+        final HeldPointerSource pointer = Objects.requireNonNull(
+                source, "source");
+        if (!pointer.available() || !pointer.leftHeld()) {
+            return false;
+        }
+        return Minecraft189RuntimeBridge.pointerMove(
+                pointer.x(), pointer.yFromBottom());
+    }
+
+    interface HeldPointerSource extends MousePositionSource {
+        boolean available();
+
+        boolean leftHeld();
+    }
+
+    private enum LwjglHeldPointerSource implements HeldPointerSource {
+        INSTANCE;
+
+        @Override
+        public boolean available() {
+            return Mouse.isCreated() && !Mouse.isGrabbed()
+                    && Mouse.isInsideWindow();
+        }
+
+        @Override
+        public boolean leftHeld() {
+            return Mouse.isButtonDown(0);
+        }
+
+        @Override
+        public int x() {
+            return Mouse.getX();
+        }
+
+        @Override
+        public int yFromBottom() {
+            return Mouse.getY();
+        }
+    }
+
     interface MousePositionSource {
         int x();
 

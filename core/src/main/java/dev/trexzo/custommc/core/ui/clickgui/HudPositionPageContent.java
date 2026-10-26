@@ -23,9 +23,9 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Real ClickGUI click-to-place page backed by native TargetHUD settings.
- * It does not claim continuous drag support: the present native input path
- * supplies mouse press/release, not continuous pointer motion.
+ * Real ClickGUI click-to-place/held-pointer page backed by native TargetHUD
+ * settings. MOVE is forwarded only by the 1.8.9 bridge when the GUI is open
+ * and the physical left button is held. This is not a standalone HUD drag.
  */
 public final class HudPositionPageContent implements ClickGuiPageContent {
     public static final String X_ID = "render.targetHud.x";
@@ -83,7 +83,7 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
 
         commands.add(new UiTextCommand(0, outer.x() + INSET,
                 outer.y() + 48.0F, UiFonts.DEFAULT,
-                "Click preview to place TargetHUD",
+                "Click or hold + move to position TargetHUD",
                 theme.color(UiColorRole.TEXT_MUTED)));
         commands.add(new UiRoundedRectCommand(0,
                 canvas.x(), canvas.y(), canvas.width(), canvas.height(),
@@ -118,7 +118,8 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
             final UiPointerEvent event) {
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(event, "event");
-        if (event.action() != UiPointerAction.PRESS
+        if ((event.action() != UiPointerAction.PRESS
+                && event.action() != UiPointerAction.MOVE)
                 || event.button() != UiPointerButton.LEFT
                 || position() == null || context.viewport() == null) {
             return false;
@@ -128,7 +129,8 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
         if (canvas == null) {
             return false;
         }
-        if (resetBounds(canvas).contains(event.x(), event.y())) {
+        if (event.action() == UiPointerAction.PRESS
+                && resetBounds(canvas).contains(event.x(), event.y())) {
             final Setting<?> x = settings.find(X_ID);
             final Setting<?> y = settings.find(Y_ID);
             return writePosition((Integer) x.defaultValue(),
