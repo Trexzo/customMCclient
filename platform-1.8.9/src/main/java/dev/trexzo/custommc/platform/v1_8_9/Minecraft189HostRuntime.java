@@ -3017,6 +3017,21 @@ public final class Minecraft189HostRuntime
         owner.customMcSetSprinting(true);
     }
 
+    /**
+     * A genuine Mojang screen (inventory, pause menu, chat, etc.) owns the
+     * pointer lane independently of CustomMC's ClickGUI. Revoke scheduled
+     * automatic attacks and stale TriggerBot UUID intent until a later
+     * original runTick reports a clear game screen.
+     */
+    void suspendSyntheticCombatForOriginalGui() {
+        requireOpen();
+        ++triggerDispatchAdmissionSerial;
+        triggerDispatchLease.clear();
+        featureCatalog.autoClicker().suspendForGui();
+        featureCatalog.triggerBot().suspend();
+        featureCatalog.killAura().suspend();
+    }
+
     boolean shouldAutoClick() {
         return shouldAutoClick(false, -1);
     }
