@@ -1,0 +1,641 @@
+# Exact independent Git tree comparison main ea65d456ab4cb0150c0b7fa2ebb7d732925ab051 → V324 060445b541f7b83b975d3311683e7778a431bf0e
+# Both recursive Git trees verified untruncated
+# ADDED=546 MODIFIED=91 DELETED=0; do not rely on 300-file compare endpoint cap
+path	status	main_git_sha	main_size_bytes	v324_git_sha	v324_size_bytes
+.github/workflows/minecraft-189-real-client.yml	ADDED			ae79961834abf67fd6102ba5fce31b1845ba108a	81946
+bootstrap/src/main/java/dev/trexzo/custommc/bootstrap/TransformingTargetClassLoader.java	MODIFIED	1df59ac84cb6b9717a197c9a241098899c09ecc2	6235	30e23353e2fce77ed82daea076aa93dc1e1aa351	10792
+core/src/main/java/dev/trexzo/custommc/core/ui/clickgui/SettingEditorController.java	MODIFIED	00dbf463df523bd7e00f90d9df22f64b0a299b8a	10464	360eeedb9a5786c48c4377e69c81b5de715d17ee	10834
+docs/integration/v102-cumulative-original-gui-native-ownership.md	ADDED			1fa9ffd291fc294ae4a9a310baa9af0f51fec159	6158
+docs/integration/v107-original-hotbar-ownership.md	ADDED			6666bbd188292aaf6d3fbf796c50992e3dc1d45a	4752
+docs/integration/v110-native-currentitem-and-final-use-ownership.md	ADDED			39626828c88be8e29c51e3c9a50950d02fca9808	4730
+docs/integration/v113-original-player-combat-lease-ownership.md	ADDED			72043633e7cfb55282eda67da5ece26d6a6c0f3b	5432
+docs/integration/v115-exclusive-original-combat-hotbar-ownership.md	ADDED			f37a13f61f6a5ad4e287e5d0a428192330dd86b4	7457
+docs/integration/v118-source-native-hotbar-finally-token-authority.md	ADDED			a97565bec34535a77f9becbe8db4a005e2cb4f1c	6996
+docs/integration/v121-genuine-original-melee-dispatch-ownership.md	ADDED			ec4ed47f3cafd0e6ae943d14eb5064f5b2c02bdd	7133
+docs/integration/v124-original-itemsword-selection-dispatch-identity.md	ADDED			46d2b930648068aa501e24bc04b7fdd85a929063	7698
+docs/integration/v126-original-itemsword-native-transaction-authority.md	ADDED			1ecc843b08ce1bd9c8818b7476e875e85514889e	7645
+docs/integration/v129-original-rod-potion-stack-stability.md	ADDED			24887a17269ef42e3578852f450fdb64d4f36703	8749
+docs/integration/v131-source-native-combat-item-discovery.md	ADDED			92dd91812f16c4fda65d801a05985feac90ce262	2010
+docs/integration/v132-original-rod-potion-native-discovery-acceptance.md	ADDED			54b2a7c241b0e2e91a14d124e8fc4f4293314d07	2683
+docs/integration/v133-native-splash-healing-potion-semantics.md	ADDED			eff87ce3cf45aa22c53520c0d392bc150923abe7	3441
+docs/integration/v134-opt-in-native-instant-healing-priority.md	ADDED			7c9b0829980a97dee8ec96bb10aa07538f93eab8	4300
+docs/integration/v135-source-native-auto-rod-durability-priority.md	ADDED			b3d2258d4445e240b71bece75c299a982e8a7a5b	4011
+docs/integration/v136-original-fishing-hook-reel-guard.md	ADDED			2785061866d0dfab5344222d0efa65a963496cea	4565
+docs/integration/v137-real-original-fishing-cast-active-hook-guard.md	ADDED			78c60d370fab2cad36a540bc5f14456761b3dbd5	3693
+docs/integration/v138-source-native-simultaneous-uuid-reprioritization.md	ADDED			a93df0fe0500cc7061d63f550cbc7c848f90b635	5206
+docs/integration/v139-source-auto-pot-duplicate-regeneration-veto.md	ADDED			bd75b0b36a2178c40b655fc06f19e45df2189e85	4797
+docs/integration/v140-original-regen-effect-x11-acceptance.md	ADDED			c524f6febc6170ac74dfbaf72a3dd7babf88e353	4612
+docs/integration/v141-source-native-regeneration-amplifier-upgrade.md	ADDED			ecfb9737459271aec9f880246befe2c977cc14b0	4999
+docs/integration/v142-source-regeneration-aware-autopot-auto-discovery.md	ADDED			d3a549586b0c7c026c325c97e1345314e8cd0313	5536
+docs/integration/v143-real-splash-downward-native-pitch-lease.md	ADDED			ea24405bdcd9a20c182e393fa4f806a2713949f0	6328
+docs/integration/v144-original-physical-splash-impact-native-effect.md	ADDED			5e75b7b4928244f9e857433abe8bfdcac5a777b1	5137
+docs/integration/v145-real-survival-autopot-synthetic-heal.md	ADDED			6a32bb67ba1b27ce2262f418f6434caf301114ea	6027
+docs/integration/v146-health-aware-instant-potion-conservation.md	ADDED			479dcf5dc7ec6ace0f19e2479f625a9d56c2aedb	5266
+docs/integration/v147-original-health-tier-and-final-use-lease.md	ADDED			e7bf11699f9f3da89406429873ed564a83f2089e	6853
+docs/integration/v148-original-sword-durability-selection.md	ADDED			817d776d4d4e7669c5eb2d74d347164b528236df	7840
+docs/integration/v149-original-rod-durability-protection.md	ADDED			c725072f664bebe9a717640ad3e24739abd28a32	5774
+docs/integration/v150-original-survival-dry-chamber-acceptance.md	ADDED			35bca5043d1c860bfdc0e457aeb1fd081b5f2462	7237
+docs/integration/v151-native-combat-item-lease-policy-and-identity.md	ADDED			705817c586b3d74fcc994353da29f45d12b6f8ce	4008
+docs/integration/v152-m425-original-manual-melee-loaded-fixture.md	ADDED			4c1b577838292e0ca467e0bc0f338908c7f48aa6	4127
+docs/integration/v153-m405-source-survivor-raycast-geometry.md	ADDED			cf56b8de701a94ca0160252d05f12fa0a7bb1402	3855
+docs/integration/v154-native-autojump-landing-delay-policy-lease.md	ADDED			08ed29b4ff4d9380c12ce7928abfa3a34c295429	3419
+docs/integration/v155-original-hurt-jumpreset-dispatch-cooldown.md	ADDED			084716bd51acfaef22ed67e8481d6d776da417e2	3242
+docs/integration/v156-original-keepsprint-source-click-ownership.md	ADDED			b26ae8a4a544a46869c468bc4503aef1746ad3cb	4411
+docs/integration/v157-keepsprint-lifecycle-epoch-and-reentrant-source-admission.md	ADDED			1406569ba1f354c226d45a135ff378316bae17b0	4146
+docs/integration/v158-original-scaffold-context-grounding.md	ADDED			9cd374f51c38371214f0dea100e1a53cd5b2f45a	4146
+docs/integration/v159-m419-real-source-a-closer-three-dimensional-margin.md	ADDED			a2e5a7f3e79690e5436f2b3207e6b04ec4e1e87d	5554
+docs/integration/v160-original-combatslot-native-click-policy-lease.md	ADDED			79fe80bd53d42508fb7cb765557dd720800ca11b	5045
+docs/integration/v161-original-m419-native-a-inner-reach-window.md	ADDED			e52dfcafa4c983c8f36ef4f7f481879040ac9c56	4795
+docs/integration/v162-m419-native-controller-source-rejection-diagnostics.md	ADDED			e220711bee5a52b13e257ce21a3a9d58b12e8b75	4546
+docs/integration/v163-original-autoweapon-lifecycle-and-player-hit-policy.md	ADDED			e55982f691392dc68494902b2ba80febc9372f74	4576
+docs/integration/v164-original-wall-check-native-hidden-lifecycle-observation.md	ADDED			273f9d191a821ed23f7169cb9089b8238dcc4d53	4612
+docs/integration/v165-original-negative-reach-real-seven-block-fixture.md	ADDED			622113b0c4351c9b227209cde52cf77b08301f30	4211
+docs/integration/v166-original-vanilla-dry-chamber-contrast-reset.md	ADDED			0bd76b3fa0ac7efb5515fd61dce3256d4b7542b3	4374
+docs/integration/v167-original-native-rod-pot-module-lifetime-and-source-getters.md	ADDED			d0d47959b5fc9de883265e498c47bb1b21fc9259	4890
+docs/integration/v168-original-rod-pot-native-cooldown-commit-ownership.md	ADDED			91ab846116359b7a326499d64d55aa7934d5ca76	5339
+docs/integration/v169-original-native-item-use-postclick-policy-cooldown.md	ADDED			336a97dcfc82bfabb2b2ab723dc7170f99d36f7d	4815
+docs/integration/v170-m419-vanilla-objectmouse-over-phase4-readback.md	ADDED			93bd35913907a589ff26fdc6be4daea25b6ceacc	4962
+docs/integration/v171-original-scaffold-survival-edge-confirmed-world-cells.md	ADDED			8f6867431c0c54e6adcb5bcf0cab50bf82f49ca8	5306
+docs/integration/v172-original-native-raytrace-positive-stone-world-preflight.md	ADDED			cc220ab6c3cd7069f19426505933262cf3ab761d	5318
+docs/integration/v173-original-m419-actual-a-b-closer-3d-margin.md	ADDED			db72f7c01b32d65df9741e33bf65e94046e013b8	5916
+docs/integration/v174-original-aura-seven-block-native-observation-consistency.md	ADDED			53a0c6d288a54d3de33bc0e8663865b9bb24488c	5835
+docs/integration/v175-m419-original-crosshair-a-not-b-occlusion.md	ADDED			ff482e6bbd840a33d7bb78ace045f210bd7a61d2	7559
+docs/integration/v176-native-player-readback-lifetime-policy.md	ADDED			3fb13734dbe70590f485908307d9824532c4f2ce	2635
+docs/integration/v177-original-fov-floor-m419-host-recenter.md	ADDED			36165e03ed982ffccada243df3de4fd29af10bde	3378
+docs/integration/v178-fastfall-glide-native-readback-epoch.md	ADDED			bc99b22b397a4108b4556e72e9c38c2d965d27a0	2062
+docs/integration/v179-original-m419-posttp-native-readback.md	ADDED			becdc3769fbfe0fd9e16509949103f316ee6d90c	3179
+docs/integration/v180-original-a-uuid-prelock-source-margin.md	ADDED			6204ee23d9d5e183e9db3e41d840b811e4125281	3060
+docs/integration/v181-original-fov-post-teleport-native-world-alignment.md	ADDED			f54f8f7d4dd5cfb72eafa340b9163de46c8a1c4c	3411
+docs/integration/v182-flight-native-axis-readback-lifetime.md	ADDED			210bfa26b10e0c0950b7bd6c998ce056a6eca810	3188
+docs/integration/v183-original-step-height-native-readback.md	ADDED			054106f8abf84e82639e4417129dc96abbf5d1ec	2958
+docs/integration/v184-noclip-original-collision-owner-native-epoch.md	ADDED			b7dd9cb7a441b19f34506a35580eb1dd907fe848	3721
+docs/integration/v185-original-highjump-airjump-native-event-epochs.md	ADDED			9ae25227417e402c144b1b7ca1bcdbec33ddc6b9	3749
+docs/integration/v186-original-lowhop-longjump-source-epoch.md	ADDED			79c26b821786b053f127eaf2d912f229bef9f069	3822
+docs/integration/v187-bunnyhop-original-jump-source-motion-lease.md	ADDED			d05e6b0ce874b093a4280c78338b89e6ae7fcf49	3490
+docs/integration/v188-strafe-freeze-original-native-read-epoch.md	ADDED			261320ec87dcdf42d44d9af9f257da089d219148	3280
+docs/integration/v189-airspeed-reversestep-original-native-readback.md	ADDED			fb1baf838aabe2658397f33835930f49f730083c	2666
+docs/integration/v190-damageboost-targetstrafe-native-owner.md	ADDED			c38cc095e96f4f92b66f79ff71bb01818dd0a3b2	3222
+docs/integration/v191-original-timer-native-readback-epoch.md	ADDED			e64d96ee8a4d7c02f0669d7f499c488733edfc20	2938
+docs/integration/v192-original-gamma-viewbobbing-native-transactions.md	ADDED			9b946711dcf8655e2dc3423cd37e9bdb26b8ce76	3735
+docs/integration/v193-original-boxesp-independent-native-pixel-retries.md	ADDED			336717f9c23bf4346528622d637d00ab0c0a02a5	3966
+docs/integration/v194-original-fov-native-settings-owner.md	ADDED			e7942e3669e41d475e550a881329dac6e72d9c93	3644
+docs/integration/v195-original-boxesp-visible-clipped-gl-stroke-samples.md	ADDED			48f9656380dad782eaec8d30fd6c5f3b87e53825	3755
+docs/integration/v196-original-m419-native-three-player-grounded-stone.md	ADDED			c24d791e9aa15476d65d9e57b0665bc2a8ecf935	4482
+docs/integration/v197-original-m419-no-transient-locked-b-reteleport.md	ADDED			319be4677bbff4d0f067bb325571d8caa7e7f684	3642
+docs/integration/v198-original-minecraft-playercontroller-speedmine-native-read-epoch.md	ADDED			a9ee9609527c6d87a3ff3a12105913757ee44a1c	3887
+docs/integration/v199-original-m419-phase4-source-native-uuid-failclosed-veto.md	ADDED			cfe22daf925b52fcac5783852d59abdea59f884b	4560
+docs/integration/v200-original-m419-v199-native-b-wide-ground-reseat.md	ADDED			786531111419818cd82edcec8ebd9a16bb36b319	4703
+docs/integration/v201-original-sword-autoblock-native-use-owner.md	ADDED			14da96f3a5d79a175d83fb7b778f0b00416de263	4228
+docs/integration/v202-original-autojump-native-landing-profile-ownership.md	ADDED			fd44e5df50debebe8c2795d65a2eafefa1e1a32e	4253
+docs/integration/v203-original-triggerbot-native-uuid-read-epoch.md	ADDED			ebb9e63bb6051af5e787c128dd1549d00d2a6f8b	3823
+docs/integration/v204-original-triggerbot-world-uuid-to-controller-dispatch.md	ADDED			5e12b0b45c3566af3ea5ef43465641f218b6360d	4569
+docs/integration/v205-native-autoblock-held-sword-owner-policy.md	ADDED			773bc3e26a0c8b2e20ab257b03b072158f07741e	3880
+docs/integration/v206-native-rod-pot-suspend-lease-revocation.md	ADDED			52a7b7cc8719c15199694642a6a02fa6e7de0ff6	3558
+docs/integration/v207-wtap-original-sprint-setter-policy-lifetime.md	ADDED			7ffdbbf8f83805373cd1e3e265e8f7b4fd985528	3970
+docs/integration/v208-original-aimassist-dual-axis-setting-owner.md	ADDED			d85be358ed99f8d42c9e13eb0f0c142ea025d2ab	3727
+docs/integration/v209-original-jitter-native-dual-axis-lifetime.md	ADDED			52c2dd63f5e26df07a947bb31d21732e003fcd53	3545
+docs/integration/v210-original-spin-yaw-native-rng-and-policy-epoch.md	ADDED			b2185bb6d85b7e091ec47223afa0259f0d9e5e49	3845
+docs/integration/v211-original-jumpreset-hurt-edge-native-epoch.md	ADDED			bbd2727e87fe6c146df19a311557aae0b8a35ceb	4845
+docs/integration/v212-jitter-original-rng-pre-native-owner-recheck.md	ADDED			c75c07c71d02c4febdf215be764c81ecd99fc173	3629
+docs/integration/v213-original-survival-autopot-creeper-fixture-safety.md	ADDED			cfbc926077b9a5507d721a64545982e032cc82a4	4591
+docs/integration/v214-original-autosprint-nested-native-setter-dispatch.md	ADDED			cbdcd9188db34227e913a70bce3ef7e328c1eb21	3399
+docs/integration/v215-speed-hud-original-finite-position-hypot.md	ADDED			1af46e9c213e0a25052010480a3ee02a9314e0ac	4243
+docs/integration/v216-reversestep-genuine-departure-and-y-setter-owner.md	ADDED			0c7ca74471d182e63821f0adf5781b4e9185781c	4238
+docs/integration/v217-damageboost-original-finite-hurt-impulse-owner.md	ADDED			7d3172ed92b13920259d660dacae5c38925fef8f	5886
+docs/integration/v218-original-targetstrafe-native-horizontal-owner.md	ADDED			5fdf640d7a9ee2b5be2084af113258c310f90a34	4108
+docs/integration/v219-original-autosneak-nested-native-dispatch.md	ADDED			f9bb2aefcef773b00570762c12e5fa6ced71b866	2053
+docs/integration/v220-original-fastfall-native-reentry-delay-owner.md	ADDED			688d434309c1655ee2442edc8d453a483af84016	2406
+docs/integration/v221-original-nofall-native-distance-owner.md	ADDED			228653cc6cf6f79abb39e0bcde783883438a42b6	1839
+docs/integration/v222-nogravity-native-y-owner.md	ADDED			cb34e6c4c75877387582bcfd0b969aea8d8aaa8a	1896
+docs/integration/v223-glide-original-motion-delay-native-owner.md	ADDED			a23c08bca3d86dff99e884a5fdee22a49f04e8aa	1870
+docs/integration/v224-highjump-original-native-jump-boost-owner.md	ADDED			904f630d9b2dc349d7180cdad67f7480912553d7	2783
+docs/integration/v225-lowhop-native-original-space-motion-owner.md	ADDED			a81693b3084c723b8569208ea6bb4ec098f0161c	2022
+docs/integration/v226-longjump-original-jump-native-xz-owner.md	ADDED			f5193fe598608c3a3459b2a31a06a64effc55168	1817
+docs/integration/v227-airjump-original-native-stack-owner.md	ADDED			59b4daec60ef9ac4433ae24b8574eaa1dc2219ee	1644
+docs/integration/v228-autojump-original-native-stack-owner.md	ADDED			45b9f27f9805d0993414bab056464546af042f84	1551
+docs/integration/v229-bunnyhop-original-native-jump-xz-owner.md	ADDED			19305314f09e3a4c5bd6ad0357a0fb7103081356	2019
+docs/integration/v230-flight-original-yxz-native-owner.md	ADDED			4c6529092d95e62d461ff0e16b1c0f1a7f69996f	2089
+docs/integration/v231-strafe-original-native-xz-stack-owner.md	ADDED			956b8e8326979a6b7287f545e77c65191b14862a	2042
+docs/integration/v232-airspeed-native-original-xz-owner.md	ADDED			60b29769807650c29c826cd4aaa87be398398193	1994
+docs/integration/v233-noweb-original-native-flag-owner.md	ADDED			665b9d0a397f66f3399b31b04abcf8c442b505ec	1691
+docs/integration/v234-step-original-native-collision-owner.md	ADDED			c345b5dbe976de93fc609972dd9ec0a2a8a1bfa9	2114
+docs/integration/v235-speed-original-native-ground-xz-owner.md	ADDED			a6ada125eb18badc68df224c0b8e8c2f234d01b7	1866
+docs/integration/v236-noclip-original-native-baseline-owner.md	ADDED			507ca2a79c73f27c5845da5bfcf068c000a2587b	2396
+docs/integration/v237-reversestep-original-native-y-owner.md	ADDED			f2b85fdfc6b27e98751955f018f0d0661b6e29bb	2195
+docs/integration/v238-freeze-original-native-xyz-stack-owner.md	ADDED			00977d842c3081e4a9c9d438f1470409fa840241	2318
+docs/integration/v239-targetstrafe-original-native-orbit-owner.md	ADDED			751e53e99e97be808a6c3689312844dc51108469	2352
+docs/integration/v240-timer-original-native-clock-owner.md	ADDED			747770410d1074782ddbbfbcc0609205e7d27a30	1966
+docs/integration/v241-speedmine-original-controller-stack-owner.md	ADDED			68501751fc28a523157baeba701321846d1084c2	1816
+docs/integration/v242-fastbreak-original-native-single-flight-owner.md	ADDED			7911330d3ff4dafab25c07a48866360614f9787d	1928
+docs/integration/v243-motion-host-original-cross-module-source-lease.md	ADDED			55aed06d4a069e96fb6ec704b0424bb86359000c	4028
+docs/integration/v244-jump-host-original-cross-module-source-lease.md	ADDED			dbcd4018f86ba78ecab426aaacbfda3c9a1bb36b	2072
+docs/integration/v245-original-ground-sneak-sprint-source-lease.md	ADDED			daacd1c4b268ed7d4064883217662014442536d4	1984
+docs/integration/v246-sprint-host-original-cross-module-source-lease.md	ADDED			d491a5079249fc2f70378714f5a16f2a2d4ec151	2224
+docs/integration/v247-original-position-xyz-source-lease.md	ADDED			3a7b852b79fa9a71ada02dfa2cf0cd936476ef15	2170
+docs/integration/v248-original-rotation-host-source-lease.md	ADDED			c5007f8c6b795f6bcf64c1adfc83f240f18aad5c	2071
+docs/integration/v249-original-world-entity-source-lease.md	ADDED			976650e8709558ed6cc5ab6c8542d99a6d861aa9	2029
+docs/integration/v250-world-entity-kinds-combat-original-source-owner.md	ADDED			1a7f399fb60d7bbfd1731f64aa34035c59528d56	2370
+docs/integration/v251-exact-original-source-lease-consolidation.md	ADDED			2bbdaf6a6caa69ddf48af4b4a5e5785bafe96269	3534
+docs/integration/v252-original-world-post-combat-identity-los-recheck.md	ADDED			89c610a95f409882fdb6d71631b488c47482f754	2530
+docs/integration/v253-rejoin-original-uuid-bounded-source-log-evidence.md	ADDED			25ee44afe365c305e526ce28f4530d203085db58	2621
+docs/integration/v254-invalid-combat-clears-original-target-evidence.md	ADDED			cd7b495bca488c400c22dad048e9e1ce7cf29dc0	2465
+docs/integration/v255-original-hurt-dimension-source-evidence.md	ADDED			b6b0580a879b92629aab9016766b1ae15c33a7f9	2091
+docs/integration/v256-original-fall-criticals-host-source-owner.md	ADDED			f93f6b8d873688cf5d9b5f6f4c376c21bc138c9b	2297
+docs/integration/v256-original-hunger-xp-native-source-ownership.md	ADDED			3b4605399cbc439ae8c678622181d80077b76982	2227
+docs/integration/v257-reconcile-hunger-xp-and-fall-owners.md	ADDED			d680a4f3cc1b0640aec65248d770a30f3498d95d	1339
+docs/integration/v258-original-health-native-source-owner.md	ADDED			308524c0e582b7a0bf3e1b1407a5856f170b3794	2161
+docs/integration/v259-original-multi-target-uuid-failure-evidence.md	ADDED			bbb3ea34cd3531836c367405d834ea7b80a46d01	1775
+docs/integration/v260-original-scaffold-edge-source-reposition.md	ADDED			13895d692df474f1e102673e86e7775197a3e768	1967
+docs/integration/v261-original-scaffold-native-stall-evidence.md	ADDED			462b83dbe597375e8cd4a5f6fad6bb75b37fef6e	2122
+docs/integration/v262-original-scaffold-fifth-sixth-native-diagnostics.md	ADDED			41076af59009a2fd05e06c29b1808fc3fad5f076	1713
+docs/integration/v263-original-armor-source-atomicity.md	ADDED			fc109cee9ef8069c3c90b0963cdb905db32f8301	2951
+docs/integration/v264-original-potion-effects-source.md	ADDED			47116e79cf6e5e10db902a82328a79a801682d26	2328
+docs/integration/v265-original-simultaneous-knockback-fixture.md	ADDED			f8c29efe4c699ec25c355bfd98c9708d408eca42	2289
+docs/integration/v266-original-ping-hotbar-source.md	ADDED			4670cd5677e5a9f6983d9ce0b857f708dadaec56	2654
+docs/integration/v267-original-world-time-weather-native-source.md	ADDED			d03385638df131982cb8e0f07529a4eb5c43976e	2615
+docs/integration/v268-original-held-item-source-atomicity.md	ADDED			951340b3f2c5ff7643aa0cf4a968773e50a90608	3807
+docs/integration/v269-original-autoblock-sword-source.md	ADDED			5d3388d274eecdb29bd24adb61705bf6a7ce1201	2516
+docs/integration/v270-original-serverdata-address-source.md	ADDED			0df9a9ec9152392ed618ea584cb6de284a404997	2810
+docs/integration/v271-original-v19-post-reseat-world-readback.md	ADDED			93eb4b49c8a1d1e8bff07fd8df9dd0a63e51a0f0	2897
+docs/integration/v272-original-rejoin-sentinel-source-diagnostics.md	ADDED			e909d92218997f2eab2109f9000dc86ba8cdf011	3100
+docs/integration/v273-original-sentinel-uuid-identity-audit.md	ADDED			afb20523db0fce74a89a2a72257e9dca2f0ec16b	3161
+docs/integration/v274-original-simultaneous-b-priority-diagnostics.md	ADDED			ffc6295846a2358f516c38e46520575783f8f905	3285
+docs/integration/v275-original-v29-survival-edge-source-recovery.md	ADDED			afa861969639338fc8e2adbd2d5e8c6c34b724ba	3292
+docs/integration/v276-simultaneous-b-exact-source-rejection.md	ADDED			bde58791d767ac7e4945c13e939b8a79a30a9aa2	3316
+docs/integration/v277-original-native-subtrial-retry-report.md	ADDED			1bd0545db214edb90bb360d67a332b11fdfca22e	2537
+docs/integration/v278-mojang-native-regression-pr-path-coverage.md	ADDED			05b18da94a8cea9ef93d3f7912172380b9a48c1c	2990
+docs/integration/v279-original-production-source-native-ci-trigger.md	ADDED			ccfadd13c4fd3415c2c5e21f9df8ff32761d0d66	2534
+docs/integration/v280-native-rejected-uuid-phase-source-provenance.md	ADDED			e88838875865588db2541069f9faa670eec5a7e7	3704
+docs/integration/v281-shared-runtime-original-ci-path-coverage.md	ADDED			de00c507d458e896d79bfd394bedd174dffe49e5	3169
+docs/integration/v282-real-selector-sticky-uuid-transition-invariants.md	ADDED			4c6b9b63001f84f1bbc6705df3453c1b825b817e	3543
+docs/integration/v283-full-original-platform-test-source-trigger.md	ADDED			9f50f20d12d1996a6d7d18b9b36c98981e06d903	2222
+docs/integration/v284-original-native-fov-rear-yaw-transition.md	ADDED			c60c9e9968c019b9770f250ece625669e3d37fb7	3380
+docs/integration/v285-original-fov-aura-aim-source-provenance.md	ADDED			847bbdf849e5931d4dbd837555e1abef6a864faf	4393
+docs/integration/v286-real-aura-fov-angular-budget.md	ADDED			676c0735d0e592cab82522bf376dd1411b51e38c	3639
+docs/integration/v287-original-guarded-native-yaw-write-evidence.md	ADDED			7cd8fc096892cf0a13188fc6f5f9a55383a8fe26	5038
+docs/integration/v288-original-nonplayer-raycast-rejection-provenance.md	ADDED			5b624360c92d52bc328f53eefe52e4511946683f	4811
+docs/integration/v289-native-nonplayer-source-room-stabilization.md	ADDED			d926cbf3742fc611a3413f0f10e54d67b3dc3283	4379
+docs/integration/v290-original-nonplayer-observation-streak-histogram.md	ADDED			6a017577f220cafb4a71dac1057728669f3cb055	4569
+docs/integration/v291-original-sticky-lock-A-phase0-source-rejection.md	ADDED			cd9b2f03889a63e608652ee88c876fb1c0a4b2ab	4863
+docs/integration/v292-original-sticky-three-player-teleport-server-receipts.md	ADDED			e315a3f24967b7ed4d2957b7136eeb6aa567035a	4356
+docs/integration/v293-original-native-scaffold-raytrace-source-provenance.md	ADDED			7085a11c7c4def9af5bad025f967642328ed8e2c	5210
+docs/integration/v294-original-scaffold-V29-native-attempt-refusal-provenance.md	ADDED			7ab71d1591b9fa97be0f3aa5e3c66f1bb48a7e32	6002
+docs/integration/v295-original-v29-selected-eight-stone-inventory-fixture.md	ADDED			94b3c5acd3fc23b50032bd1b3d93c830f5c1d095	5599
+docs/integration/v296-original-v23-scaffold-context-idempotent-positive-chamber.md	ADDED			58a4514bcdbd068d1925df01f943ee8b12fc4c93	5719
+docs/integration/v297-original-vanilla-source-air-preclear-consolidation.md	ADDED			187efc67601b38ad00408a2a10cf1c13c59a443e	5677
+docs/integration/v298-original-mojang-world-ray-return-reason-provenance.md	ADDED			ad81e66af718c13ad7e58822105b5bfecd48b149	5975
+docs/integration/v299-original-v19-native-ray-air-column.md	ADDED			95ab8cc11c58da6df1f9594ce177c9214e6d502e	5437
+docs/integration/v300-original-v16-sustained-scaffold-stone-support.md	ADDED			ee62357478d6b470ef947355ca4e28491a8c1342	5550
+docs/integration/v301-original-v16-fresh-native-post-teleport-position-source.md	ADDED			9da0591361ee1e1647d5e7e25dfa3e27d80e968a	7363
+docs/integration/v302-original-v19-post-reseat-air-material-proof.md	ADDED			83a1be13b9c973e2d8ef1605aa02423c16a72c25	6842
+docs/integration/v303-original-v26-cursor-air-lane-native-fixture.md	ADDED			20ec3e20c1da4ab17496d4372fe688ac4e179505	6576
+docs/integration/v304-original-x11-provisioning.md	ADDED			1fde8237e71c65563e92e86089c50724a3c1e9ff	3135
+docs/integration/v305-reconcile-v218-cps-signed-clock.md	ADDED			dc44b2492bb1281c1b3d9a1f02f20e8d1d92358b	3714
+docs/integration/v306-reconcile-v216-v217-target-source-epochs.md	ADDED			3e25f21b10cb1abf446dd27ec80f1e3a50463b04	3915
+docs/integration/v307-uuid-original-fixture-stability.md	ADDED			59a7910aeb0b0f15c1b23c014ca12a249ae298ea	6610
+docs/integration/v93-native-clickgui-movement-ownership.md	ADDED			f022d3d764867c120fa67e7b34302416fb14ba9d	4731
+docs/integration/v95-native-gui-movement-priority-closure.md	ADDED			3d0dd5f2ca884b11596ccee637d47fa833fe511b	4192
+platform-1.8.9/build.gradle.kts	MODIFIED	735f99ddad6afefe38b27096385c382e7d88566b	530	ebd533dad87d9d01ee5e2677ea24c89f62bec293	1101
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AimAssistModule.java	MODIFIED	84ede199bb1e2009cd36d9bc8f722eb23d4f622c	28672	8d0a607b27095de0af9a94d7e679be0e8da86dc6	31103
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AirJumpModule.java	MODIFIED	6963276d69c273f988d613c73f554b5425479724	2118	3f900e79ec235728379694047ee4467705ee7e02	4001
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AirSpeedModule.java	MODIFIED	80ec9013c30ee897697a3dfe641c025d33419c79	7269	a7537b8cddc454326b152b44f85660673ab9d2be	9606
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AntiBotFeature.java	ADDED			8d0c75f675016ae9342882ca88e5b10a74c91af9	4098
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AntiBotModule.java	ADDED			07e9bdcdf004371bd7a01a36ea893f7e9dc2756a	2039
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ArmorHostSourceLease.java	ADDED			f8f5950914fb499d80c1a945b51973d1c52f47ed	321
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AttackRangeFeature.java	ADDED			9bad4e02ee3f343746beccc5bcae108eb9602d02	3032
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AttackRangeModule.java	ADDED			015bbd1d148e815027e92c450c73a4d652cb9aa2	3395
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoBlockFeature.java	ADDED			04e4efa30b58d61c882eb32ac544d15c091116a0	4378
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoBlockModule.java	ADDED			dc93bed4a6064719bcc8a8c46ffcd34848fe9abc	5927
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoClickerModule.java	MODIFIED	698ec32696a14de4360ffbddc229d4b63187120f	20745	787095dc9bf9417a7acc9730ad620058cc27d46d	21070
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoJumpFeature.java	MODIFIED	9cb1d0c9a4e7120afdc5b3bff3f4c4843e022f0b	14316	fa30bed4f30d1be123c7d873eaeb83f62bb75867	16366
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoJumpModule.java	MODIFIED	dfa3198144c147ec0d6ee4214d86175041c40e92	5423	0c901786cec8ace722e51b856e99dd5d2d14d189	9902
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoPotFeature.java	ADDED			bb6119b272a19a17bcf3564a53b861e05e28d3d4	5953
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoPotModule.java	ADDED			4f8253da20743881d97c2d820236f8160e59b485	15582
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoPotPitchLease.java	ADDED			7f724443a268a2c7ea59858347b069c199a42353	3101
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoPotRegenerationGuard.java	ADDED			a92a591d62a7b41cf692774448a9725a016fc5fa	7306
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoPotSourceCast.java	ADDED			146500b212c5cd1495a7d5c8f3093a7c8260d309	1819
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoRodFeature.java	ADDED			9238919f96739a26c12a3b11b7a90e4ef744822a	5867
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoRodModule.java	ADDED			ea973399239e6fa563e5ee5c423f0cb1ac428d8f	15076
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoSneakModule.java	MODIFIED	e6810a6c574e8b795af2a4484e0d5c60046018d7	3802	6ccd8ab4fa9d2e3729d9b7b141f030e3a23519ba	5025
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoSprintModule.java	MODIFIED	7839942a1c684998358946d9a61e26758bc71d2a	3384	989162459274ce84552eaafc727af54057ce007a	4693
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoWeaponFeature.java	ADDED			557073e50cbfb16d0aedb210f41d4fb68dfdb271	5724
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoWeaponModule.java	ADDED			b1343e3c7f619d49f660a92540842ed78fd5c82b	14315
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189BootstrapRuntime.java	MODIFIED	000a14e2a96fb9d50dacf2747ab27cdcd2722875	16308	c5739bc0339bce9ce0088bba547a84fe4045f16f	29027
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189BunnyHopModule.java	MODIFIED	e37b41ab13b4ed8b602a861be9421e65754ca1b4	9811	20a4d23b9efa3a80623c97d7596c022b9806fef1	13943
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClassShapeVerifier.java	MODIFIED	b1f8434bcaa17242d47284d949208c181723eda5	19487	4e70667effbf2dff97e672cbdf538ff0541d8020	25140
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClassTransformer.java	MODIFIED	ac96fc50fb90d953dca1e5145589a14595cda448	196568	e3bc2afa6d1aeab242743ea177a06b14ad7868c6	305646
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClickMouseControl.java	MODIFIED	429b66ac548bb3f95a37da930a3ed3aadbdaac77	128	591ab6deb196b47c4136ed4134d1a0a15b7c20f7	373
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClickRateTracker.java	MODIFIED	2a6484d1077312869c070789944108ed2cbb6d4a	3934	2b57e1441c528970f584fa592a6d25f3e4baa988	4610
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189CombatSlotFeature.java	ADDED			a9453a6778c53e0a97d648dce51e714cd5a9293b	4579
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189CombatSlotModule.java	ADDED			bcace1c1eea8684ad886ca8080f5efd258ba9189	7773
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189CriticalsEvidence.java	ADDED			cb16fa7c8cb0f8194eb4b3e5fd468caf6bcb59bf	1630
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189CriticalsFeature.java	ADDED			9788590475b53d7d9e4bee106027c1e7989b0567	4140
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189CriticalsModule.java	ADDED			c5653ba85be2d1b765f76b2218b86bbeb3eb7cfd	2325
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189CrosshairHitAccess.java	MODIFIED	b1fffb70f067e2146d826f2348fc729b7094bce9	204	690871ab42f4ad04a12bd08a438874618de97855	492
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189DamageBoostModule.java	MODIFIED	1f63b72707057afa6681ebe2725fc5090d686041	7143	69ebe9ac7eb90a8fc63db61a6b797a6cee570fab	11174
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189DimensionHostSourceLease.java	ADDED			dc6d4b0c3d05e39e47435cb710b04d15e078302d	256
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189EntityHitboxBoundsAccess.java	ADDED			368c1d29687cbdd2ec1fe7b78d993cc5d5923fd8	284
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ExactSourceLease.java	ADDED			715519005ba31c65cf92b0fb46363077da64d6b9	1065
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ExperienceHostSourceLease.java	ADDED			766af53f26210b01bd3efcefc2f5ba396ffbfceb	257
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FallHostSourceLease.java	ADDED			87e4b2715dadbd77ec25d7bee6fcffdd7558ce43	1384
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FastBreakModule.java	MODIFIED	78eca918240ef1af8c67b5d92264128b77f30562	5150	eff6bcfd6e294b0ac1913801d9088af280448e72	6447
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FastFallModule.java	MODIFIED	042857d7d306f08f7d77ee1b69ebdd2e4f96b645	6211	8ced0110dd207ff4e44343d358a88b2b842a57e7	10343
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FastPlaceFeature.java	MODIFIED	b98ff0890d0f16dd471765061025238f4069bf92	18055	88d881ec40647c4beed20d0ada8fd7289d04854e	19922
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FastPlaceModule.java	MODIFIED	38e4ee495f15d8f7b7520a487f9e3ec109c684ca	4685	7462553c1011ef79b1b07eeff2de123a85707a57	5792
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FeatureCatalog.java	MODIFIED	d440baf28cdeae7770c8c2f2bc729ddfb45ce009	86384	2cf41157fa1080ab41409b91f6bf880141b22ff2	126466
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FlightModule.java	MODIFIED	dc0e2bf398152a9d56d867072dfb847fe91f1acd	13491	2f3f5375c5c4afeeaf12988635e5bd503d52ba23	18576
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FovModule.java	MODIFIED	d74797dd54e8f7ed9daf6e25d56169bf8caf591a	4094	71bf8407f1bd91bbd5bbf8bde4f557379640e176	6849
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FreezeFeature.java	MODIFIED	66d6d54408d7869bff82bd9a5eba719a18bfb037	9081	404afb82e30604be0b0490ada87fdc4cd3556c9d	10921
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FreezeModule.java	MODIFIED	802f1d385880d6b476087b4c937358f993f42502	2519	da33f2c58b71411ec3c85ba1bea067b7f4687de2	6960
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FriendGuardFeature.java	ADDED			7668506fca51fa0ed960d7fcca1ed23f6eda9335	3909
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FriendGuardModule.java	ADDED			f742996dca6488a05f6d5b812502a463f01b2193	3264
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FullbrightModule.java	MODIFIED	11caa9816edb500429c9a74a731fb7041f16a8fe	2239	6ad5695dec4baf734798ed0780aeb3bcc1a56f28	4317
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189GlideModule.java	MODIFIED	1f33c6c1ff784be06a93b7249ebe340a6562642d	6394	0fc0a15fa8773917b0ad9f713095d3bac70c4175	10056
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HealthHostSourceLease.java	ADDED			6f1fa9d7e33857bc597703c8021ce051173aff80	237
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HeldItemHostSourceLease.java	ADDED			f55a4a0408d0ac30216df3049c08fb6df02e4107	322
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HighJumpModule.java	MODIFIED	21cfcff96ed457a8d2b807e795234fd449666511	4993	1c8639bf0e1af0675bf57e16073fb1df47010c82	8656
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HitboxFeature.java	ADDED			92bc6330c5620e3e5b8a7ba9faa0b48e45c8a9b3	3926
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HitboxModule.java	ADDED			d94205dbe532beec9ca01ce978096f4839455efe	1841
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HitSelectFeature.java	ADDED			5874a583bc671d75fbdd4eafb9e2148db6f4edd6	4189
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HitSelectModule.java	ADDED			5cea9b5f03ef168777717a7d43b6dd7b18e49218	1931
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HostRuntime.java	MODIFIED	307efcdc7049ff4db767d981b2db49cbbda8193c	56107	c05c761faa9109aecce98ac95005f986fce06309	155042
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HotbarHostSourceLease.java	ADDED			fe873cc5e3f4ba50eeb946c42b505ce2f5d74426	257
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HungerHostSourceLease.java	ADDED			8de08382e95c8eea138e89942bab4f792ab0d198	254
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HurtTimeHostSourceLease.java	ADDED			63c948f3b340f48f93bc7224db63a1992f723b4a	326
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189InventoryHotbarControl.java	ADDED			c57c2630826a3e2fadf52b73cfc5bafa6de8bc82	287
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189InventoryHotbarItemsAccess.java	ADDED			2fe40e27911513d0ad1945f13872bf10e936db84	366
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ItemStackAccess.java	MODIFIED	28fc307cf59f4261c78936aff3dd8e417b2681df	220	0da1ecefc9996b1e7e377105d68eae289ffc3083	1058
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189JitterModule.java	MODIFIED	32a295add5646c23d2bc453150f332a8cc09cfcb	16184	7c622a305513c42a15161a4face79d8af0c3c70f	18798
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189JumpHostSourceLease.java	ADDED			bad4545a407275b4a0a01590f2a577fff38bf1ac	1947
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189JumpResetFeature.java	ADDED			13312559577f46cac29e68f7f32f3dfced400738	5853
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189JumpResetModule.java	ADDED			e2772a89078d0bc031656f3b83316a650532e864	7357
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189KeepSprintFeature.java	ADDED			b95a2a82902e7d51e2b0f3c228c89caf90e5ec8e	4311
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189KeepSprintModule.java	ADDED			e04e2e526a5862ce5bae1db122abdff9359e205d	2674
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189KillAuraFeature.java	ADDED			9af42dce7c34a675c6ef6620adb50755cefcf410	6566
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189KillAuraModule.java	ADDED			165a8b0bf810a714d1d421751da8f854bceac058	10183
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189KillAuraNativeFovGate.java	ADDED			a333b346146bcfb371b38b8384738dbebb16fbdc	2306
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189KillAuraTargetSelector.java	ADDED			abedd1568bb7c6dadcee42b73c9a11fb1c3c3979	9584
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189LegacySplashHealingPotion.java	ADDED			bde1aec7a766a9f166cab808dc61466709ed12a8	2412
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189LocalPlayerSafeWalkMarker.java	ADDED			65d3858c80580026939623e6f05769a1095c4f62	262
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189LockedTargetAcceptance.java	ADDED			79bb2db6b68b75f3b0be59b90472988e6996237f	17421
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189LongJumpModule.java	MODIFIED	9c284fda3474663af522a0398c25445675f3d97c	8048	18482a97e7844aebc7e03df776e8fd148172cf64	11210
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189LowHopModule.java	MODIFIED	ac915dbeaca1df432b11b1246d8d56991382d791	5011	f6adb2a3157971372df060722b1b8ca22766fa0e	7825
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189Mappings.java	MODIFIED	525ca29888e3dc78773ff4fe5332537a5f023966	32049	99af98abd68712c97a631b762cb786f32141614a	46662
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MotionHostSourceLease.java	ADDED			d588af08ae3bafbcb2de5a9cd41bf2354a695d18	3008
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MovementSnapshotSourceLease.java	ADDED			ff58a107d4c9b0263e86a74dac9d1a9effec0059	409
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MovementSpeedModule.java	MODIFIED	439172a3ac5daa7cf2b0a766f33c0d8cf351e8b3	7085	1289910df471706f8db04df5e65f868ee203f744	9392
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MovementSpeedTracker.java	MODIFIED	5c7bf9c6b494b17eba0a8fbda3cfe473b18728f1	2888	d985e7b0ed1eee46fcf2c2ec2f48454c8eae2c45	3377
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MultiTargetAcceptance.java	ADDED			6a92877fdf10aa12ad2930844c06c5f87ec842da	10033
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NativeEntityUuidAccess.java	ADDED			22ed2f2fb3dbd1061d6ce163101455fda013e2f0	349
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NearestPlayerTargetState.java	MODIFIED	f66362bb74ae3531aa4090a71806281b3f167f7b	7542	39b3a00e0258cf5c3f12d77f93f81e406ad836ac	8671
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoBobbingModule.java	MODIFIED	99ce6f9c50c51129a3d58f6a91505253c1af3364	1680	c8a3305addc193c11a72fc3aeac14627a53d757d	3171
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoClipModule.java	MODIFIED	11d0546f9e567fc5e697b497c57d76efa135c9aa	2916	0ef00253eadee3797e3fe8e9a11c1ff8a584b3cf	11464
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoFallModule.java	MODIFIED	c8924e875bbcbc5ea5df264acdd60919f2d61739	3603	1c6c8ea035e0ca1bf876ebb828a43026a47ec088	6989
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoGravityModule.java	MODIFIED	cc4b7932b2dda2829d943ffe8586a5f0ac57dece	4987	8ea9b7f2fe832145bb2b42c6827587d56a9a5216	7990
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoSlowModule.java	MODIFIED	59f42dab8e459d5b8928e2c3323b88c0167901be	4286	25dd82bdabe034d566aa2421f3cf5b4bf3070f43	5216
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoWebModule.java	MODIFIED	05ef547f01e40db681c7e82b13b6cd3fd5d7b4e4	3159	f96b46d9a7dc11ad10bf3575a4450f6d21d5930f	6059
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalClickGuiNoClipAcceptance.java	ADDED			b29e710bd07c104e26581b38f4746e61144964f8	4172
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalClickGuiReachAcceptance.java	ADDED			5fc126dbe6e1ba65e41b23af6dfdbef854846d51	4560
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalClickGuiStepAcceptance.java	ADDED			ed48e9def733607fa19451dfd88cb38d20831385	4512
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalCombatItemDiscoveryAcceptance.java	ADDED			99f00ce510714d353ebf0e887632d8624f63260f	71337
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalCombatSlotAcceptance.java	ADDED			1acb7bc301c17e14c53d49e6a20b0756f172d74e	8817
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalFovAuraAimTrace.java	ADDED			c04631747f2839e461fd25a82538441166973a1d	2826
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalFovGuardedYawWriteTrace.java	ADDED			af7b19c69312a69819ca74e01f69648dc993fbce	2276
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalNonPlayerRaycastTrace.java	ADDED			d2688256d05c8d04bd043dbddc764fb1d5e66659	6814
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalScaffoldNativeRayReturnTrace.java	ADDED			63b22beb2c0e245ac7032d0c4025fc0b345f6017	3794
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalScaffoldPlacementAttemptTrace.java	ADDED			5ac7b3b83e3c44ebbf1224f60e56445b04332b04	2499
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalScaffoldRayTraceProvenance.java	ADDED			c1e6d7a3b91f61182f544f66b08586ce8bb31e9b	3890
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PingHostSourceLease.java	ADDED			e4a5932ea5416d03318d775114914c960caea1cc	236
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerArmorState.java	MODIFIED	917ee8737510b0eb7affe902faf57df8ec716096	7672	eb30106f06406bfaa899c11b9e51a00babeb9bc0	8025
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxEspFeature.java	ADDED			22bdc1ecdf6900cbcdbbc678d9609e6bdde80ce4	3770
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxEspModule.java	ADDED			1b64863e7d37bc6f7d1a3b4109648884664c8443	12569
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxPixelProbe.java	ADDED			a6785ac19a51109e58ca2ff1cb2b9429b697003c	6335
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerFishingHookAccess.java	ADDED			f155f558d9cbec550ac9f8fa7de61355f3d3aa18	355
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerIndicatorsFeature.java	ADDED			0a180c5ccac3115e364edd5ca7a0621147a6837a	4515
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerIndicatorsModule.java	ADDED			1eb0b49ec69cdef66255760fa1b0af21317aaa07	8556
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerPositionAccess.java	MODIFIED	e2392c644b72cf0dafc46085c53079d26917d947	198	17610901ea0367d4de91dad9447432a952371150	581
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerTabInfoAccess.java	ADDED			00fdbff3bd79dd2e856e8d652e5d868a2b15edca	295
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PositionHostSourceLease.java	ADDED			94e43a5861a43ed679bf6420aee0c1dc64bfe063	376
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PotionEffectsHostSourceLease.java	ADDED			68d389e20aec0577621a2e53c1b2b6363595af08	341
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ProjectedPlayerFrame.java	ADDED			7b53daae0704369d7aefbd48b4aafbbe6a0a1ad1	5291
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ReachFeature.java	ADDED			edd2f7011fc89748cb05d08a9ed1f0823b9b9cdd	3883
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ReachModule.java	ADDED			630e04ff3bbe005f911446c3508cf3ffe416f68e	2209
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RejoinTargetAcceptance.java	ADDED			ed226b3643922878b5f40e4cf3098805277adca4	55261
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ReverseStepModule.java	MODIFIED	fb5429cc2611ca8059226f3d93042fad19b1cfdc	6178	6ca773ff7a4d86f0a0ed8a867ea7c77c8618a904	11635
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RotationHostSourceLease.java	ADDED			649dadbfc9aaefd85f53e787597236d912ba114f	3151
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RuntimeBridge.java	MODIFIED	6a0d906946d7207f3a0ec07531619c9f80b533c1	17409	6cb15918baa28c56b3a84fa3f782f63096fc196f	209540
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SafeWalkFeature.java	ADDED			4fdc509bf3affbec52728f49c9a5407fefdc5ee0	2740
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SafeWalkModule.java	ADDED			5f8ba14a00c40bccbc9b9d3fdcf5bd51d64ef4ff	1046
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldActivationSource.java	ADDED			09885b759643c033dc194d82cc8ee9035deb26e1	3150
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldConfirmedTargets.java	ADDED			9f0d488d4b5530dd6ace9f6bf92e6bf330d827d4	1757
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldFeature.java	ADDED			05b1c88c719c14b39123d65970b1df82c8d86030	6661
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldGuiClearStability.java	ADDED			5b06de8de7834c962db04b4847e61ee2008a991c	2160
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldKeyboardWalkDiagnosticsGate.java	ADDED			825624c8ec1a779a3ef1fad62873aec7e367d571	632
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldModule.java	ADDED			46cf2492b055d74ab36c25529bfa107a2dd96e8a	14627
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeBlockHitAccess.java	ADDED			c4cb21d49e1a5c66587863115be478e49cb1d19e	607
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeContext.java	ADDED			c25162ccb89fd3a2d514ac72b9bccc972744f11d	3248
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeContextAccess.java	ADDED			b84a6491022c23f9acc8a7c0b2814c5c8db40941	466
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeControllerAccess.java	ADDED			a5c580505c4d4ab9a1e695c8d9af3b24f87d176d	318
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeEyeAccess.java	ADDED			a263b71d082fbcb9e643c51605c7eddc931affe1	377
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeFaceGate.java	ADDED			12c9bb099d050778a5870da6b13814353a8394d3	3309
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativePlacementAttempt.java	ADDED			c8281ae057db110b4b23926583ea33f5ab256252	7599
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeTickParity.java	ADDED			771f54d99f664e79a51dfd64b6e530f1cea849e2	5392
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeWorldEvidence.java	ADDED			a435777122f3680dde0b086daf83597c10b4ec8a	2140
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldOriginalCandidateProbe.java	ADDED			375eceb8905df857c45bb90b55f4369155c527ff	7509
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldPlacementCadence.java	ADDED			eaa820a16416ae257d5dc8ef199a8738436eb786	4364
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldPlacementReadback.java	ADDED			e8f21ff6f7833916efa3fd62666ae46945491ff0	2278
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldRayCandidateGate.java	ADDED			cab8b77587cde09d52fbfdd19859059234b2b172	9426
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldRepeatSequence.java	ADDED			82b9002b6cb33ee94d668694d5a7e4de54ebeb69	16550
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldScreenGate.java	ADDED			f09831f42114c474789d15db3ac9f4a28750e497	1952
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldSelectedHotbar.java	ADDED			6a63b61c52b49980247bf8d21a05d7c9a3502d96	3049
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldSourceEpoch.java	ADDED			ab333c13c89cd81224feea36ca2eaa2214cc26a1	2961
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldSourceEye.java	ADDED			f5570cdb143c811f2bb12afcb855e557cc503d2f	1573
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldSourceReach.java	ADDED			34f7482e43c9335d7ad3ce60a14cccf9714399f9	1757
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldSupportPlanner.java	ADDED			193b90da0d85e194dcb368386c81366700b92d72	9535
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldVanillaPlaceAccess.java	ADDED			cd1e2fbed1cb36fc61d1160bd2d2b3e2ff1ed023	795
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldWorldLease.java	ADDED			11b71caa645e5a1dc11463079446994e1ad71039	3440
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldWorldRayTraceAccess.java	ADDED			e83d1f6f7dfdb07ed63bb8a2a873f38c62c815cc	759
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldWorldReadAccess.java	ADDED			8dab470d533e8e9c10a0cadc643ac148547ff1c2	896
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ServerAddressHostSourceLease.java	ADDED			3c29f4d68ef5a8f5ded0e607b534c460bbe781d6	259
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SimultaneousTargetAcceptance.java	ADDED			35f08d5c85ce4629225b7c902beaf48dff12ccdd	35700
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SpeedMineModule.java	MODIFIED	d45b39053336c7aeb27b79524f8b50788c0f5f58	6592	cb5302fc4ebcd9a67f23fbbd1552788ffd46da9d	11046
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SpinModule.java	MODIFIED	ab5c224632ba1d17fac370bc3c93d5598d2cd24c	10084	5ab46a23dc5eea3dc4b80f27a4cf8989832eba43	11553
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SprintHostSourceLease.java	ADDED			77fc110511a7ec983876f22e13b7a095d59d02c1	1646
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189StepModule.java	MODIFIED	bdf9ac91b5977b60d9f6591e500d91beda50898e	4775	20f9193fee26656ea7c998512ac045ad6c06debf	9453
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189StrafeModule.java	MODIFIED	2420d4405f290b1b7f24c46c1e5a1f40db8737ed	8787	bd11a811a3f44a88cb57a998baa1eb63d0655143	12123
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SwordBlockControl.java	ADDED			8a63664a65c482f03e516c4219c01103b971c59f	427
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TargetHudModule.java	MODIFIED	dae275a9c5f06a9b737b664fcaded871e564b8fc	10883	96cf031a8d07dbda551e27faabc21544c1b12d7f	12119
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TargetStrafeModule.java	MODIFIED	08ec1f391efbd3adfd3fe508528e5bb787be7504	5938	e7817d7e36637d90d31a9630e10b40ab2fd4ae7d	11103
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TeamGuardFeature.java	ADDED			d31ee62acdb3704a5c8396f6e98204e4a911e747	2853
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TeamGuardModule.java	ADDED			3ed83cdc0ca068ef1a5b3cdcde06f5d7527ca104	1059
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TimerSpeedFeature.java	MODIFIED	baa9e324629ffd45570f1d05422fc4bf3eaf7173	19880	523212e46be6117735f4192d2d98900cf765dc85	23571
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TimerSpeedModule.java	MODIFIED	c6069fcb5d3f12dce1e339697638472fb057b752	7149	8116b19a2bfa59f86c3d6e3e6209f3c3723ff284	14009
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TriggerBotFeature.java	ADDED			8ae13413c5e17aa6e90efbbdcf8d72b3db923a9f	5402
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TriggerBotModule.java	ADDED			f24ba0c7d2f7707140a1dc32b0240f868b4dd992	8599
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TriggerDispatchUuidLease.java	ADDED			b6f40d36180dc3f7e71a84336253432dc5fea20a	1496
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189VanillaMeleeAcceptance.java	ADDED			5504683503cdb10b09f4a579f8a03675c9eef696	20339
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189VanillaReachAccess.java	ADDED			9e1160162bf02959d2544f6deab70a59a216e880	381
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189VelocityModule.java	MODIFIED	fe18f144669c56edcead498dcc26b66eabf96947	11205	a2e76a85c63995c7d67752f91b84c0e398bd1e49	12101
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189VerifiedCombatItemSlot.java	ADDED			4b5475cb49d5fc27d91cff949599ca66ef4ad120	30401
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WallCheckFeature.java	ADDED			245f52bf38ee353d5b406187caa09eccbff5d511	2834
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WallCheckModule.java	ADDED			df01983f5c0f80d47406ee9c012d1bceed2b5abb	844
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldCameraFrameState.java	ADDED			3a453eb71aff4d17b7b4dfada65644f7a3031c00	9097
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityCombatAccess.java	ADDED			0e3cbaf6f187975325aa408aa4462bcfa2232ef3	336
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityCombatState.java	ADDED			3f9e1a212dfc276fbbe0c4881c6fdf816f80cff7	3489
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityDownstreamSourceLease.java	ADDED			e7b7a709b6f1477d78fdc99d15e96788e0bf98f6	401
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityHostSourceLease.java	ADDED			45d9178d2fa90826be452c8e3ff1769be252cdcc	397
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityUuidAccess.java	ADDED			df2775a5c9f33adca4b08be6ab3bb36c17b42e12	293
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityUuidState.java	ADDED			a350ee6f48483a375b42352b4a21c79352135e6e	1898
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityVisibilityAccess.java	ADDED			813a36fee3e0d87effb8c387335080b79ce45632	319
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityVisibilityState.java	ADDED			aa118e99452a0ac07f1f933f9010f98d26c60d70	1886
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldLoadedEntityObjectsAccess.java	ADDED			6fbccdf3dacdbf1b05243175a7544fa1259c25f3	308
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldTimeHostSourceLease.java	ADDED			987072e34e7d4525eb39e295e269822efccdf617	248
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldToScreenProjection.java	ADDED			43c5385929602f3303d2cc09bd4d9b49c0412c7d	6524
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldWeatherHostSourceLease.java	ADDED			949fe059a491c8c168572e5608220d90bb2472eb	253
+platform-1.8.9/src/main/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WTapModule.java	MODIFIED	b2fe8ba4d9084104a79d0c66f815935f54dcdaff	11387	b0cbdf82d4df5d371dd8f67a95a124d75ae9522f	15262
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AimAssistNativeAxisEpochTest.java	ADDED			a6c64d7e1132c754ee836193940292485acd235c	7021
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AirJumpModuleTest.java	MODIFIED	97cd1bfcc84ba1ffe2f08765ea0cd0670ae2ab4b	9401	73c5c82489782dd30e5f51a71f8eb02a6708c3eb	12964
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AirJumpNativeReentryTest.java	ADDED			a23c38578f79bd286c8539f3c94a32e24a13522a	7720
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AirSpeedNativeSourceOwnerTest.java	ADDED			27278b9080503dcd17e5a955c912a4f6574e75e5	11099
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AirSpeedReverseStepEpochTest.java	ADDED			459a0816f4a267aa3863460161e2e122ebdb4bc2	8272
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AntiBotModuleTest.java	ADDED			0878c99ebe325986f035ec3eccc90bc57153cbb8	4197
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ArmorHostSourceLeaseTest.java	ADDED			b72e43be32d26e7629f0241aab54ffd255572d45	14236
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AttackRangeModuleTest.java	ADDED			b6fd85b09377260cb3fb81d907dc91e3d4c779db	4868
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AuraRealRangeSourceWindowTest.java	ADDED			f90ce7c81e5499e23bac87c4a1cd5832bfe9fd69	2230
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoBlockHeldUsePolicyTest.java	ADDED			ac8d06a194511a17e9bfbf042ff236b4606e6a11	4987
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoBlockModuleTest.java	ADDED			0c9c6e130eda3530add0429b3c139336b9755480	4400
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoBlockNativeUseLeaseTest.java	ADDED			f7d53c36e764d9a2c8f8a21e57abca05b2e0b082	6042
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoClickerModuleTest.java	MODIFIED	dfd4edbe97ae0a50e62793afa415d18d21f3f79f	59276	7285ccf5380be3c03c841224556d4c0a107cfcc1	60050
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoJumpLandingPolicyOwnerTest.java	ADDED			f8d7c2aa7c985b54017a595522c1f873daf83937	7101
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoJumpModuleTest.java	MODIFIED	d0afb6407b06839412b7de9ccde99a2a89ae6391	28549	740d017b8dc92f79918fc2c384be02c1ff11268b	36417
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoJumpNativeStackTest.java	ADDED			ecead81f7e766f5880baee62f5a85f65cadc906e	7864
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoPotModuleTest.java	ADDED			31c7796585aab37bc7754325f9a14316b78e7597	21288
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoPotPitchLeaseTest.java	ADDED			b6c1ee35ddcd528d3606bd4ddd470163a2bf34f2	3979
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoPotRegenerationGuardTest.java	ADDED			5f100ba03f009ed73b8a48dbdd40eeb1938752de	12327
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoRodModuleTest.java	ADDED			69a2e1632af3d972addfa5cb6f286c06b7b6249b	21264
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoSneakModuleTest.java	MODIFIED	3442c52561e2fd97b55a7e9c93b9ef77029720b3	24684	346fd46d60453e60493b896b74a165443405227b	27823
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoSneakNativeDispatchTest.java	ADDED			5d63abca012e2722730195262c36fa4da0d76c8d	10150
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoSprintModuleTest.java	MODIFIED	3e19eff21ec8a1f0fd415321ded873a0808f407e	20430	4919cbcfa9c08c21dbbf0a3d4aaee1e47616695a	22492
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoSprintNestedNativeSetterTest.java	ADDED			13be850c2af2b6c4f28e8180cea52941a9f21b0f	5798
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189AutoWeaponModuleTest.java	ADDED			f294c1612287edfc04930980fa3b09d625d3afb5	27809
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189BunnyHopModuleTest.java	MODIFIED	6e4602ac4b404fff6e10c5a2b496110f7bf265ad	25289	8f5c420a9a74bdceac324ba41dd6d3150527ef05	27727
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189BunnyHopNativeLeaseTest.java	ADDED			b41c192ac22cee9a7cf49bb5a5c9ca9ae90d6d79	9040
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189BunnyHopNativeStackTest.java	ADDED			877f932489852d76ef8116efa1ddad716e3eeed8	13209
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ClickRateTrackerSignedNanoTimeTest.java	ADDED			479be35060d6f5df3978774488de38028ffe2673	7042
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189CombatItemUseBoundaryTest.java	ADDED			50a09e033a8836ba6a428d7edae1730257ef7d2e	65842
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189CombatSlotHostLeaseTest.java	ADDED			6c79399e3e38e78fbc0c41b347275d81fefd7456	16273
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189CombatSlotModuleTest.java	ADDED			53c1aa291c763a8dcdea7bc55f79bfb6e12d7744	13704
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189CriticalsModuleTest.java	ADDED			e4abfd28ef272a409b5762119d15960c2fc65584	3992
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189DamageBoostFiniteNativeOwnerTest.java	ADDED			50f520ff8a34d32c12e3741ba03c5a8a05ebc260	8619
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189DamageBoostModuleTest.java	MODIFIED	f431ce6e3e3e5e23cbe4510eb621413f2a0e5293	18947	3fb348d90ca8800cda4f4110c3011cc5a5f1b4c8	21469
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189DamageOrbitNativeReadEpochTest.java	ADDED			d6b381956ec3e8139599bd2579e98afc04c1747b	9415
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ExactSourceLeaseConsolidationTest.java	ADDED			9266e1addb0394126007329d73e97bdadb3c33e5	9703
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FallHostSourceLeaseTest.java	ADDED			39eb962bde0e6101aed86ea4eb8058014377e89e	13333
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FastBreakModuleTest.java	MODIFIED	514024dab85ce1253f2b54f465a3bf3207ef4412	23124	feede091f6da89655307484cffcb078b055cbbdb	24502
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FastBreakNativeSetterOwnerTest.java	ADDED			644d65479c6bc6ff4f3c355e41d50a69a23e30ab	8353
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FastFallModuleTest.java	MODIFIED	0e98e2b1aadddc5c530a510ddb80185b98c1bda9	31362	3614fa17b5462a890762fcd06e4f1412a6c6020e	34624
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FastFallNativeReentryTest.java	ADDED			ee2f3f30cc18780ae771e3bead6550413020a234	12580
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FastPlaceModuleTest.java	MODIFIED	3a6f6bc868229ecc042e41e92dccb93919873b1e	21796	d76807cc3349a523260173fe2f7f994ef0154527	24641
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FlightModuleTest.java	MODIFIED	be29b822549fc763f7425ca47caeac0915a5f327	33947	fedd22294188760a80cf2e3077d6ac768ad7261f	37831
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FlightNativeAxisReadbackLeaseTest.java	ADDED			0df3499c6be3a88900f819c63645b2f09e024ad8	8782
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FlightNativeThreeAxisTest.java	ADDED			735434a653e1ee6988e89e70f1518ffa6419ed23	12842
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FovNativeSettingsEpochTest.java	ADDED			e9efdd0787033b84089ee32dfbe9c0c23e611c92	7710
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FreezeModuleTest.java	MODIFIED	37e58f4d6a2e1991854b1d2735d0c738fea2869a	15037	16ff5b9059c3311b6ee682c7a0436b5b6c6c79fc	19272
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FreezeNativeThreeAxisOwnerTest.java	ADDED			fa295fb86f0adcb5c71664475d24ede896fd4d60	10197
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FriendGuardModuleTest.java	ADDED			43940d187857d2ca3084a0377fcd737698460449	4565
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189FullbrightModuleTest.java	MODIFIED	1d93f72e5f84e04b64d82ed1c5b84745d48617bf	4139	449bdc70124e924fbde4064d88cb3b3212731217	5806
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189GlideModuleTest.java	MODIFIED	ea992a3c3b1ebd9bd7cd405f360d29a35dde6a5b	26638	e74bbbb5eed28fbe39d7168a54490c751c6e3b94	30165
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189GlideNativeReentryTest.java	ADDED			249ef90919ee8ddecbe7d5ed0160bde8924d082d	10730
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HealthAwareSplashRankTest.java	ADDED			272093784701195c8d19febbadc048b22649f9b0	2432
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HealthHostSourceLeaseTest.java	ADDED			f631a55a1e01c55134277ea130fd6e23c8204ae7	14268
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HeldItemHostSourceLeaseTest.java	ADDED			f589dc9f25634faee662745839209179a3288cc9	12496
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HighJumpModuleTest.java	MODIFIED	67c669e065d518f48bce83d8043e0394e1050721	16708	c73cf12725b9a1d0052705a2eacbc6bf99833405	19592
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HighJumpNativeOwnerTest.java	ADDED			616712e1fe6d6c1f0202b72da46abcda6e7f1684	13144
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HitboxModuleTest.java	ADDED			020e447d969c5bc1a73013e9920856f967bf7cb8	3177
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HitSelectModuleTest.java	ADDED			a72b5210911d66ac427ca698fb5a4c1f3e8420c1	3475
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HungerExperienceHostSourceLeaseTest.java	ADDED			63868a39f802525e0d471102d433def8dd4c3d6c	15761
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189HurtDimensionHostSourceLeaseTest.java	ADDED			ee66eede85396c4ad625ead6aa04bab1f4e21baf	10239
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189JitterNativeAxisEpochTest.java	ADDED			4a2f90d77c9060f4725d368bbc8f6452da1e9739	6707
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189JitterNativeRandomOwnerTest.java	ADDED			50d1df58f961416bdccb93a080f8619486e7511a	6910
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189JumpHostSourceLeaseTest.java	ADDED			3dae0b17db593e55823cd0b0f01e9740cda27bdd	12345
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189JumpResetModuleTest.java	ADDED			77c84c0165f6f30e342bbcfb598ac5c2db3ff69d	12724
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189JumpResetNativeOwnerEpochTest.java	ADDED			b5f1c3a56c5386e87820b68be2848147055086b2	7142
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189KeepSprintModuleTest.java	ADDED			b168ff508d250e5ab286a7794c877182f747065f	3310
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189KeepSprintRuntimeLeaseTest.java	ADDED			c16697974f86d1fdc1652ce3b528213d8cb836f7	13994
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189KillAuraModuleTest.java	ADDED			84e162f7f0f32e1ef263601cb313a272834c3fbc	11159
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189KillAuraNativeFovGateTest.java	ADDED			cb3d8357d0431854c985e33bf52135b39fc98a71	4183
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189KillAuraTargetSelectorTest.java	ADDED			fdd03d2acfac99c8485b14ac080abc1a6fbe24d6	22699
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189LegacySplashHealingPotionTest.java	ADDED			28e3be29ef24e0f5602a71e13d2190b0c6307405	1776
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189LockedTargetInitialSourceDiagnosticTest.java	ADDED			fcfd39a04ff94a855cbd57a764ae52749ebb6a88	3517
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189LongJumpModuleTest.java	MODIFIED	f929d0af466099110a1760928aba26acfd01323e	18471	14eff796eb6ac992321c470e30a564f9b83bc7ff	21479
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189LongJumpNativeOwnerTest.java	ADDED			3ff733eeabaf4055fbc6da470d054cdb92aabc4d	16570
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189LowHopNativeOwnerTest.java	ADDED			3331102b018b60eb8b4a9c1765827691d3242554	12166
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189LowLongJumpNativeLeaseTest.java	ADDED			4bedcbdf72801122e17133ac082042b651dcb8f4	10033
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189M419CrosshairSourcePhaseTest.java	ADDED			f59dfcb8be1e1d0cf1f900e69f8577b0a4a95db9	1855
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189M419NativeControllerSourceDiagnosticTest.java	ADDED			a0b1cd48b037e25ad32b130d87c167beaeaf3cf4	6714
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189M419NativeReadbackStabilityTest.java	ADDED			bac83ee0d3c2edeba923883904b40a866e2c820d	2264
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MappedHostTransformationTest.java	MODIFIED	4daea6dc825c01a0ff2e5e59ad624c9253ea82d4	292455	3ac19c2b6351d169c21e4bf1417fef1969ac69bf	326693
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MappingsTest.java	MODIFIED	acbf6eb6ce958613d5e7e9c30f16bb5502e80c0d	109274	4e9f73aa588866667fe7e935e5d11b43ee7071bc	120187
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MotionHostSourceLeaseTest.java	ADDED			8422702c1c85c4f6a7a834fba6d69e9908b215df	16316
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MovementSnapshotSourceLeaseTest.java	ADDED			55b4e41b5bad78b87684add67ea474b7a2309db3	16019
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MovementSpeedModuleTest.java	MODIFIED	55852a9f36ca8440768a97fed7f788877f4ba3a7	18465	ce4d5ce65c0d6e8e3a600b9c50aa33b2342128e3	22416
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MovementSpeedNativeOwnerTest.java	ADDED			87cc2b1101aa077992d1562655a92ac6d027c4bb	12950
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189MovementSpeedTrackerFiniteTest.java	ADDED			30949f092dd740cfe6db78b3b5804f0b9ee15c4b	6565
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NativeDescentReadbackEpochTest.java	ADDED			b883b486c32ca6ca0a5da8b45f90985dd8be286e	6965
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NativeDisplaySettingsTransactionTest.java	ADDED			18b556dbe8722c27b3ddba4cdbf159ceb0aa99f7	7488
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NativeJumpEpochTest.java	ADDED			1b0c34fdbda9bbcb5b890028267c4066e608baef	10139
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NativeReadbackLeaseTest.java	ADDED			c75616f2788335a534e4d410203c6bcb156fdde2	8556
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NativeUuidPhaseFailureProvenanceTest.java	ADDED			7f072830d82ea4ffc764b37fb25a2fb3d5366eba	5434
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NearestTargetCallbackEpochTest.java	ADDED			182b18d54ccfa17efad7e29aafe88b525dc86fd2	6596
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoBobbingModuleTest.java	MODIFIED	f517e8ac00fb9cdf7ecf54b663d9a66d70ad22dd	3618	b08ba6aec615f4791351e02806b51772de5eb443	5059
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoClipModuleTest.java	MODIFIED	184d903d62324037e58433ead8e921277cb969f1	12328	f816fbb49fcbac93be278e172bf98cfe1d15d1de	18567
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoClipNativeBaselineOwnerTest.java	ADDED			9c58cea55e8ec6a9513557c373478dbbf410e9ca	10546
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoClipNativeReadbackLeaseTest.java	ADDED			b47edae9ba3f92a63a98e7a8970d92af36c6673a	6992
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoFallModuleTest.java	MODIFIED	3b74342f008d6d5c6440f4aec8540bbf4916ae3e	13893	8d6c1df268a2679c8608438b917d6148886c6b6c	17469
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoFallNativeReentryTest.java	ADDED			ece3d0470f23558eb29ae27317ddff1bb53101d3	9830
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoGravityModuleTest.java	MODIFIED	d4ffcf3a1d800465729f04d6b5074720363d7df0	24962	6d78e18b8ae3255ac000208b99a3bbb93f83e2e3	28247
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoGravityNativeReentryTest.java	ADDED			3b04e8ea09127b3251b8aa82b3d557c15bb39a66	9688
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoSlowModuleTest.java	MODIFIED	349436376a752376680c020252c91295cf92451e	15741	10a8201860d7da58c0ce86aff530b3f8ec0736d5	20030
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoWebModuleTest.java	MODIFIED	325d1dd73b617d428dfd34143e0fd793415c7eb1	15092	b357163a0ce2715c5f48df45751ac6fa02c375b5	17319
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189NoWebNativeFlagOwnerTest.java	ADDED			1f680fc23f4c0fc82866a0b9d380111e3dbf1991	7266
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OfficialClientPreflightTest.java	ADDED			edd5d6d1d7247c6e5dbf28c06c1dafdef104c31d	105069
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalAutoBlockSwordSourceTest.java	ADDED			dbea42363f7f96100a2760a7709db5290ffadeb9	10592
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalFovAuraAimTraceTest.java	ADDED			97cec8fd84b49f382cdbfb3dba2013e5fc92bb7b	5948
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalFovAuraRotationBudgetTest.java	ADDED			3192f78e961abffc09d72a4ac20460a7642b228c	7844
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalFovGuardedYawWriteTraceTest.java	ADDED			b72d17bd494092245cb8bf6aa60f3fbe3ef857cb	8224
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalFovWorldConvergenceTest.java	ADDED			6fa07fb68139c7a9231f76c8e10f4a8a4ebae52e	2371
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalFovYawTransitionProvenanceTest.java	ADDED			f4da3de3d717dd9d0c392aa93fa01e4d29f5da63	2238
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalNonPlayerRaycastDistributionTest.java	ADDED			67df9de7088e9d8f86c87713e8e250276e32d7b1	7626
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalNonPlayerRaycastTraceTest.java	ADDED			0fc09a1225aeb99d8a381eb3af3ca4bc6e9bc26c	6873
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalScaffoldNativeRayReturnTraceTest.java	ADDED			851b7c80e7e65b14760951dd08877a7416b67a0e	6985
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalScaffoldPlacementAttemptTraceTest.java	ADDED			d085e9b98803a3325635951e5c8927724a29b097	8771
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189OriginalScaffoldRayTraceProvenanceTest.java	ADDED			77850fffc83b03ffc9bea36ab2b5012af8301482	7126
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PingHotbarHostSourceLeaseTest.java	ADDED			b12426ee337426120e45ebfed6d8dafaa103e6e7	12459
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxEspModuleTest.java	ADDED			032b55d37034ffd6610af10bebce99868375164d	2224
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerBoxPixelProbeTest.java	ADDED			3c5068ce05c72fade0ffe458ec3049d47abcb14b	7839
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PlayerIndicatorsModuleTest.java	ADDED			1e3eab8a6d6e382ebb1256c244f6f8f42b18449d	3178
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PositionHostSourceLeaseTest.java	ADDED			b35b38f6deca866d990ac01bc97a681a2629d600	11773
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189PotionEffectsHostSourceLeaseTest.java	ADDED			df45279c97156854543f9002b061d627e916372e	14784
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ProjectedPlayerFrameTest.java	ADDED			2b28f2f86eab83efc020b143355e04d8efaf335c	4484
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RaycastGuiFocusTest.java	ADDED			fda8a4926c96ecf183007c7283e0f97f0edf6c86	6510
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ReachModuleTest.java	ADDED			b223602e90f4c2618ceacea4904ef5044ef81492	3369
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RejoinNativeSentinelReadinessTest.java	ADDED			7c9629eaeee22233dc82c9ede599b89645adba09	3255
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RejoinNativeUnloadTransitionTest.java	ADDED			4b3d350681eb5ff030b7d477cd0e48887b6e57a5	2195
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RejoinSentinelUuidIdentityAuditTest.java	ADDED			ca1a9de1a722f0bdfd109f60a972654bb55d6921	6151
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ReverseStepModuleTest.java	MODIFIED	0f1a0990c5f6bb3411560166e3a4f2e8f5621d3b	28167	90fbb247bf6cf821c261417eacfdc2591c34a1de	31507
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ReverseStepNativeDepartureLeaseTest.java	ADDED			c0cd667d8aa0047948b6d4b5b15dd03d54f86de0	8390
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ReverseStepNativeYOwnerTest.java	ADDED			a903eea8caa78ca4c404f094d4ee3fefc6327dfa	9965
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RodPotSuspendedNativeUseTest.java	ADDED			b2efd569786889859604feafc4a2894e6550dfb4	6538
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189RotationHostSourceLeaseTest.java	ADDED			1ecaba6581c00f13605ca9c76febf31f81dd255b	15667
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SafeWalkModuleTest.java	ADDED			ff8ffb81f480e95109f60a49f085c1ef41af2895	1460
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldConfirmedTargetsTest.java	ADDED			d8d3c312e32284c1cd81c2aa0c8400c59e3dce1a	5406
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldFeatureTest.java	ADDED			fff31e44f1cbaf2bd3178cfe2e5f4cf7f951ab32	17519
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldGuiClearStabilityTest.java	ADDED			8192ad94807a843e80b4a05ab73b926bf9abe907	3339
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldKeyboardWalkDiagnosticsGateTest.java	ADDED			d635af43631d22a993e94b08baffc39d4088fb2e	1944
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeAdjacentEdgeTest.java	ADDED			2dc9b26fc769a7480a2e685835586f5858004f92	5302
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeContextTest.java	ADDED			396ea3b97a321c911d00221627a4d40574d97853	5572
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeFaceGateTest.java	ADDED			a5a57ed87652d21441ac5c04e0f9c2026cef28ec	3977
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeTickParityTest.java	ADDED			33188776121b642b2434ddf91d6f98d4c695f27b	7644
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldNativeWorldEvidenceTest.java	ADDED			95c250d9ffd9880476653638dd4884788acfa650	3622
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldOriginalCandidateProbeTest.java	ADDED			7bed3f7c3651d95998e73e3442fdf7be062b1336	39589
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldPlacementCadenceTest.java	ADDED			ed530e6fce5aa9f0d80e780a22703373250a4228	13124
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldRayCandidateGateTest.java	ADDED			b4616bc7c15699117f5a71c84c9ce375bc80b6df	7236
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldScreenGateTest.java	ADDED			ba9f76094858d68aebdb5af311bc5667f00451ae	2681
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldSelectedHotbarTest.java	ADDED			c85c19af47d5924ea3d0b46c74e840f23b6a5367	8170
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldSourceEyeTest.java	ADDED			19ec41e86d4c7d7f974172a92eb42bafb875cf20	2902
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldSourceReachTest.java	ADDED			c46f20ee10cfc0145fc8535203c55141df908fce	3276
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldSupportPlannerTest.java	ADDED			7b5a940720bccebae81d04ccefaee6b8925d3d89	6867
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ScaffoldWorldLeaseTest.java	ADDED			9f2c7ef8e54bcbf1e4cd3a9ec41c624a4caf9fdf	3898
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189ServerAddressHostSourceLeaseTest.java	ADDED			c2346a13262edb9e90761fc30ebe03d74bd1c2af	10422
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SimultaneousBExactRejectingReadTest.java	ADDED			7e845dc3ecf89db2246f1992c2d11d1844644ba4	4894
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SimultaneousBPriorityDiagnosticsTest.java	ADDED			d128c52795473bb2ef71f98c1e903e63965e1ba0	4184
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SimultaneousControllerProvenanceTest.java	ADDED			b4c5544a6af72d1bc8379ba891a6618a1fc6dad7	5143
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SimultaneousOriginalPrioritySourceDiagnosticsTest.java	ADDED			ffeb461f5e89f1b56a7be203a757bcd175903972	2166
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SimultaneousPriorityRevalidationTest.java	ADDED			f0231413bca9caadc1044929c166df6cca1b5603	3030
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SpeedMineModuleTest.java	MODIFIED	ee5abf067cf264c01ec1b8fa6c209e1eefd53034	33020	24b8e7d699a7e6441bfba8848adc024d65696e35	34696
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SpeedMineNativeControllerOwnerTest.java	ADDED			0d4ce05f5b4053340f72055c28570be163051840	10139
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SpeedMineNativeReadEpochTest.java	ADDED			bac6de45f072e6ce459b9a4ae18f4329e9438f41	6452
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SpinNativeYawEpochTest.java	ADDED			e987ec9a3fccc7c5bcc2b88fcc77a4b40490d937	6853
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189SprintHostSourceLeaseTest.java	ADDED			f4fcb01e9206fa68ebb13a980a6b2c36fa112687	12302
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189StepModuleTest.java	MODIFIED	f4787eb7220ec5f0335925fca294499d6c97c179	16038	621848836660d0ed0a050df731a0860e1a50c4a0	19378
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189StepNativeCollisionOwnerTest.java	ADDED			d335c0e38f03cd6a31c6c4e71803280715f7e7ac	9192
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189StepNativeReadbackEpochTest.java	ADDED			dac99dabff756074c6ef6566a637d362e8378409	6474
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189StickyUuidSourceTransitionTest.java	ADDED			cf5c848eb5096b50e9bd1bc2698a9baebf7bab0d	6685
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189StrafeFreezeNativeEpochTest.java	ADDED			4153ae8fff92e9e970ba17926eb5065a4662fbb5	10197
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189StrafeNativeSourceOwnerTest.java	ADDED			83b10014a627296640f61f8cd1888f3f24951df4	11027
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TargetHudSnapshotParityTest.java	ADDED			b8275e8708fb37c1d1710c4805ded49d8e2cf196	6630
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TargetStrafeNativeOrbitOwnerTest.java	ADDED			68628d7ccd15cb16ded71676e7293a11c02d010a	12284
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TargetStrafeNativeOrbitWriteTest.java	ADDED			f78d4f3bd1320b95ccfe53345c80269a99db2703	7452
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TeamGuardModuleTest.java	ADDED			700e255ad484a39ea6e4b38d8d203dd15e0f6dc3	2283
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TimerNativeReadbackEpochTest.java	ADDED			05d0a4c346235129fa9b3d7f67ff4b25bff27c6b	5805
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TimerSpeedModuleTest.java	MODIFIED	d874f73a22b306c89a22e840c1c2d0eeb0171cf4	26185	10630de1e081c732cd6fc31bdf86a7aaa1d6ecb5	30119
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TimerSpeedNativeClockOwnerTest.java	ADDED			550fe7c47e39013c29d1b392fff0e1527c1df51c	10806
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TriggerBotModuleTest.java	ADDED			ae22d4f8610cf05d83cfa8c70201c9820888bb8c	7767
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TriggerBotNativeUuidReadLeaseTest.java	ADDED			7a613e7b0e9c3e37b81badcaa85423ad54ec2b4c	6456
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189TriggerDispatchUuidLeaseTest.java	ADDED			7414c320541ad870a8658e701cc4751cb06c2965	4963
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189VelocityModuleTest.java	MODIFIED	1c4e9a79f6024ea2ef11d02d5ee2ffbb48229516	38101	0013c4d42bfaf7fa980a69d1c102ee80ec22d66c	41699
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189VerifiedCombatItemSlotTest.java	ADDED			34809186173414c3967f01de219e1a7bce8b0826	57431
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WallCheckModuleTest.java	ADDED			c85a699e94ae7919aa4ce2577f1230e209a003e2	2701
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WallLifecycleSourceDiagnosticTest.java	ADDED			4f344b669f20ff05358d241231de8df07a15f9bb	5087
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldCameraFrameStateTest.java	ADDED			736ceea4b493a6e7bf97773943871cd6b394f174	5032
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityCombatStateTest.java	ADDED			82e04eb0d92c83758ea9a457e12403721c6de30f	2968
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityDownstreamSourceLeaseTest.java	ADDED			757b92521b31413e1230cb1b9f3a0a9deca0d5bb	27835
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityHostSourceLeaseTest.java	ADDED			4e6475cadd5803fa306fd7e29e84cdccb11fd9d5	12257
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldEntityUuidStateTest.java	ADDED			5c12c82e50859cb6f07a855fd92b109d881250cc	1590
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldTimeWeatherHostSourceLeaseTest.java	ADDED			720253823d6770390523f536f5f450d75f0f4e25	14236
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WorldToScreenProjectionTest.java	ADDED			aac644aa42dd9737e40b855d1cd32dfd0f4656ad	3933
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WTapModuleTest.java	MODIFIED	bf4fd7e06273981ae64242626972d60bb383d1c5	40084	23e201c234c3347d1adc7e7d00278bed7dbf00b3	44098
+platform-1.8.9/src/test/java/dev/trexzo/custommc/platform/v1_8_9/Minecraft189WTapNativeSprintEpochTest.java	ADDED			11bdc4e9f65697bb4e46b1039c2a5c88ff59deb7	7037
+scripts/FetchMojang189Client.py	ADDED			95c1a0da97f3eca181e04e393e469a6e1e390a29	2312
+scripts/FetchMojang189Libraries.py	ADDED			ae080e79998ade04172d3ae06f5d2af67fb553ab	8143
+scripts/FetchMojang189NativeAssets.py	ADDED			22a1ff48df60c0c7bdd983c8fbf1590cc0d02dd5	17383
+scripts/FetchMojang189Server.py	ADDED			3f98e64d32e723206ba55884451f641bca700be5	3861
+scripts/RunMojang189GraphicalSmoke.py	ADDED			5f68ea27e2ea30e1f119b4c9c135d478b253fba2	7122
+scripts/RunMojang189LocalhostTwoPlayerSmoke.py	ADDED			dc342fdbc0d4a32e34db4279eac9b8887313e050	247850
+scripts/RunMojang189SingleplayerSmoke.py	ADDED			9382e021e60a13e5cb264379793c78a01b0d4e84	123669
+scripts/test_mojang189_complete_assets.py	ADDED			7fd822b109ae470ecb1993c93080be5241877454	10734
+scripts/test_mojang189_dry_chamber_contrast.py	ADDED			d096b0d68a191235e00ad5c130e0fdbeaa7574b6	5770
+scripts/test_mojang189_dry_chamber.py	ADDED			7d3ce0f8c629d5e0673c9bd8789fe402c63f6482	9140
+scripts/test_mojang189_far_range_source.py	ADDED			c683e8c1b8d351ff23bb37ef99be532661848d45	3861
+scripts/test_mojang189_locked_three_player_original_teleport_receipts.py	ADDED			bf5baec2ff6b90708ea8d7253204866606b7613c	5480
+scripts/test_mojang189_manual_melee_room.py	ADDED			2c25489ea423c205a464739a3e6c734eca6dc556	5984
+scripts/test_mojang189_native_subtrial_reporting.py	ADDED			715d6f6bf3a3820b678026459140f3e0584eab4f	6968
+scripts/test_mojang189_nonplayer_original_chamber.py	ADDED			a11d5d6c7830e0105f3deeeeb375c6ba86f5f553	5758
+scripts/test_mojang189_rejoin_scoped_uuid_evidence.py	ADDED			f14986900024ebc52028b757993a26f11bc2b4e5	7752
+scripts/test_mojang189_scaffold_context_chamber.py	ADDED			dc0d1a156fc6120fcf45dc7184a83b6e67cad226	4586
+scripts/test_mojang189_scaffold_native_stall.py	ADDED			0ea3661a4be2fff22c6d2634189b355c74bef29c	3025
+scripts/test_mojang189_scaffold_raytrace_support.py	ADDED			a7a847e812ed52dbfecf7eef758a96c6d9113c6c	10872
+scripts/test_mojang189_scaffold_survival_edge.py	ADDED			7d7e93a121d727417723f6dc00c38416087f087c	13755
+scripts/test_mojang189_scaffold_v295_original_eight_hotbar.py	ADDED			8df54460f66343d72e87879dfabe83ee6332c3ea	7016
+scripts/test_mojang189_scaffold_v296_original_context_preclear.py	ADDED			4dbecf90fe49f181b0f2165a708beda7a6c5cd1d	6299
+scripts/test_mojang189_scaffold_v297_shared_original_air_preclear.py	ADDED			db3c0b92f99b5543a8066fd3f5e5d9ce7b77ac26	8374
+scripts/test_mojang189_scaffold_v299_original_ray_corridor.py	ADDED			8f45ca4af18c0f2649181fa223731753c8170e58	8185
+scripts/test_mojang189_scaffold_v300_original_world_transitions.py	ADDED			91c51d2007979f2c616953247bcb02db95e8503b	5589
+scripts/test_mojang189_scaffold_v301_native_position_freshness.py	ADDED			bfaba0e70e92adf492de556bff24a3a4cabd8565	8815
+scripts/test_mojang189_scaffold_v302_original_air_readback.py	ADDED			925af411a437646770a7a1b73d6ee0e45f478138	8400
+scripts/test_mojang189_scaffold_v303_original_v26_air_lane.py	ADDED			483eb1b82e32ca557362af2efd7b252a54bdd54a	9697
+scripts/test_mojang189_server_spawn.py	ADDED			698e9050fa720ee372b4d764a01b3593dbb0a7e3	44801
+scripts/test_mojang189_simultaneous_knockback_wall.py	ADDED			0f74f186042ee9e741e0e68d7cbd3fda1cb51214	3273
+scripts/test_mojang189_v304_x11_preprovision.py	ADDED			dd4e7f6b9309e32961ed87635cd10ad08414d228	3685
+scripts/test_mojang189_v307_uuid_world_fixtures.py	ADDED			e68d60be3d1a427aab1ac4d1560d84e43de27556	9528
+scripts/test_mojang189_v308_gui_abort_mode.py	ADDED			a0086402da8bb45627edf6dcb3d81d310b7cd126	2082
+scripts/test_mojang189_v309_hotbar_abort_mode.py	ADDED			100c2aadd32b2850628fa185eee368a2218b0b47	3282
+scripts/test_mojang189_v311_original_b_priority_source.py	ADDED			e3c0e10374d7d985d4404de1b60c09592caa1a28	5561
+scripts/test_mojang189_v312_rejoin_spawn_boundary.py	ADDED			f2e545a1762d14a0d3ef3134cbd93ee2861d76e7	6159
+scripts/test_mojang189_v313_original_crash_header.py	ADDED			62b58642a96811d1cca92e272d540c4377f1ceeb	4693
+scripts/test_mojang189_v314_original_crash_run_provenance.py	ADDED			d5d1a1ed40bd43bdae912360fba925d9d64f28e7	6062
+scripts/test_mojang189_v315_original_1024_border.py	ADDED			26c8e75f18cf317475780bc4b92c552dbecf6a86	6389
+scripts/test_mojang189_v316_original_b_preteleport_timeline.py	ADDED			ccb36c1f202ee7f078580ce3c2cf084a014eea72	7808
+scripts/test_mojang189_v317_early_b_failure_source.py	ADDED			08ca14e3d0ca3c5428ec3eae637b3c42c2e11c13	7955
+scripts/test_mojang189_v318_native_negative_source.py	ADDED			5442decc2353ade74edd85ae6057af2f7c24ba45	7851
+scripts/test_mojang189_v319_original_inward_spawn_floor.py	ADDED			60d31d52c9b64e070964478209f657539cecd289	7561
+scripts/test_mojang189_v320_controller_argument_provenance.py	ADDED			72c3a6a97beed556f32b87b540427b7020a82105	8326
+scripts/test_mojang189_v320_enabled_gui_escape.py	ADDED			971ae92e461fcdd30db3d00cf68f9bdb47e65c28	6171
+scripts/test_mojang189_v320_original_after_a_timeline.py	ADDED			7985ce7b01ec9f8caa43310af6f12f0f431690ff	7848
+scripts/test_mojang189_v320_original_b_hurt_source.py	ADDED			53fceb2832eb684fa9c529dc132d669f4ed61f41	7729
+scripts/test_mojang189_v320_server_damage_origin.py	ADDED			16755acf9398408404919fca9ba5e9b407934b82	8715
+scripts/test_mojang189_v322_original_rejoin_b_margin.py	ADDED			627a20c4d70d16094a70c9f46c4f1bcc38cf05ed	6526
+scripts/test_mojang189_v55_native_edge.py	ADDED			717a98cad53220d2c37c0d7a10b47004620963ea	1422
+scripts/test_mojang189_v60_keyboard_source.py	ADDED			8ea643cab6b659e992e2cf989c9cb933215003a1	5355
+scripts/test_mojang189_workflow_acceptance_paths.py	ADDED			173bab902917c79781382b2cdce86fa0d78c8d68	16029
+scripts/test_mojang189_x11_host_keys.py	ADDED			669cb7110c06781dffeced318f9d321f4b366fd5	4430
