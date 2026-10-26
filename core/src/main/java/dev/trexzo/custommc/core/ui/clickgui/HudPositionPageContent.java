@@ -7,6 +7,9 @@ import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiFonts;
+import dev.trexzo.custommc.core.ui.UiKeyAction;
+import dev.trexzo.custommc.core.ui.UiKeyEvent;
+import dev.trexzo.custommc.core.ui.UiKeys;
 import dev.trexzo.custommc.core.ui.UiOutlineCommand;
 import dev.trexzo.custommc.core.ui.UiPointerAction;
 import dev.trexzo.custommc.core.ui.UiPointerButton;
@@ -83,7 +86,7 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
 
         commands.add(new UiTextCommand(0, outer.x() + INSET,
                 outer.y() + 48.0F, UiFonts.DEFAULT,
-                "Click or hold + move to position TargetHUD",
+                "Click/hold to place  |  Shift + arrows to nudge",
                 theme.color(UiColorRole.TEXT_MUTED)));
         commands.add(new UiRoundedRectCommand(0,
                 canvas.x(), canvas.y(), canvas.width(), canvas.height(),
@@ -155,7 +158,49 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
         return writePosition(x, y);
     }
 
+    /**
+     * Accessible mouse-free positioning even if native vanilla currently
+     * owns the grabbed cursor. Ctrl+Shift uses one logical pixel.
+     */
+    @Override
+    public boolean key(final UiKeyEvent event) {
+        Objects.requireNonNull(event, "event");
+        if (event.action() != UiKeyAction.PRESS
+                || !event.shift() || event.alt()) {
+            return false;
+        }
+        final Position current = position();
+        if (current == null) {
+            return false;
+        }
+        final int step = event.control() ? 1 : 4;
+        final int dx;
+        final int dy;
+        if (UiKeys.LEFT.equals(event.key())) {
+            dx = -step;
+            dy = 0;
+        } else if (UiKeys.RIGHT.equals(event.key())) {
+            dx = step;
+            dy = 0;
+        } else if (UiKeys.UP.equals(event.key())) {
+            dx = 0;
+            dy = -step;
+        } else if (UiKeys.DOWN.equals(event.key())) {
+            dx = 0;
+            dy = step;
+        } else {
+            return false;
+        }
+        final int x = Math.max(0, Math.min(MAX_COORDINATE, current.x + dx));
+        final int y = Math.max(0, Math.min(MAX_COORDINATE, current.y + dy));
+        return writePosition(x, y);
+    }
+
     private boolean writePosition(final int x, final int y) {
+        final Position current = position();
+        if (current != null && current.x == x && current.y == y) {
+            return true;
+        }
         final Map<String, String> patch = new LinkedHashMap<String, String>();
         patch.put(X_ID, Integer.toString(x));
         patch.put(Y_ID, Integer.toString(y));

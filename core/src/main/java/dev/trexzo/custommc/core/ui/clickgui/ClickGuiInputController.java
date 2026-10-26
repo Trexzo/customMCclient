@@ -224,6 +224,14 @@ public final class ClickGuiInputController
             return true;
         }
 
+        // Focused search and setting editors always keep their keyboard
+        // ownership. Unfocused page shortcuts precede global page nav.
+        if (focusManager.focusedId() == null
+                && event.action() == UiKeyAction.PRESS
+                && dispatchPageKey(event)) {
+            return true;
+        }
+
         if (event.action() == UiKeyAction.PRESS
                 && navigatePages(event)) {
             return true;
@@ -243,6 +251,17 @@ public final class ClickGuiInputController
     public void close() {
         focusManager.clearFocus();
         searchRegistration.close();
+    }
+
+    private boolean dispatchPageKey(final UiKeyEvent event) {
+        final ClickGuiSnapshot snapshot = model.snapshot();
+        final ClickGuiPage selected = selectedPage(snapshot);
+        if (selected == null) {
+            return false;
+        }
+        final ClickGuiPageContent content = contentRegistry.find(
+                selected.id());
+        return content != null && content.key(event);
     }
 
     /**
