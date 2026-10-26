@@ -224,6 +224,15 @@ public final class ClickGuiInputController
             return true;
         }
 
+        // Ctrl+F opens search without a mouse (vanilla often captures
+        // its cursor). Never steal text/keybind/editor focus.
+        if (event.action() == UiKeyAction.PRESS
+                && event.control() && !event.alt()
+                && focusManager.focusedId() == null
+                && "legacy-key-33".equals(event.key().id())) {
+            return focusManager.requestFocus(SEARCH_FOCUS_ID);
+        }
+
         // Focused search and setting editors always keep their keyboard
         // ownership. Unfocused page shortcuts precede global page nav.
         if (focusManager.focusedId() == null
