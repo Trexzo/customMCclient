@@ -2,6 +2,7 @@ package dev.trexzo.custommc.core.ui.clickgui;
 
 import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiFocusManager;
+import dev.trexzo.custommc.core.ui.UiViewport;
 
 import java.util.Objects;
 
@@ -11,6 +12,7 @@ public final class ClickGuiContentInputContext {
     private final UiBounds bounds;
     private final UiFocusManager focusManager;
     private final ClickGuiNavigator navigator;
+    private final UiViewport viewport;
 
     public ClickGuiContentInputContext(
             final ClickGuiSnapshot snapshot,
@@ -43,6 +45,17 @@ public final class ClickGuiContentInputContext {
             final UiBounds bounds,
             final UiFocusManager focusManager,
             final ClickGuiNavigator navigator) {
+        this(snapshot, page, bounds, focusManager, navigator, null);
+    }
+
+    public ClickGuiContentInputContext(
+            final ClickGuiSnapshot snapshot,
+            final ClickGuiPage page,
+            final UiBounds bounds,
+            final UiFocusManager focusManager,
+            final ClickGuiNavigator navigator,
+            final UiViewport viewport) {
+        this.viewport = viewport;
         this.snapshot =
                 Objects.requireNonNull(
                         snapshot,
@@ -77,5 +90,9 @@ public final class ClickGuiContentInputContext {
 
     public ClickGuiNavigator navigator() {
         return navigator;
+    }
+
+    public UiViewport viewport() {
+        return viewport;
     }
 }
