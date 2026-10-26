@@ -1355,6 +1355,17 @@ def restore_real_attacker_focus(host, target, deadline,
                            "427", "240"], timeout=4)
     subprocess.check_call(["xdotool", "click", "--window", window, "1"],
                           timeout=4)
+    if keep_host_active:
+        # V331: Mojang's first ingameFocus grab initializes the real
+        # leftClickCounter to 10000. The original clickMouse trace on
+        # V329 then remained blocked at 10000 on two remote PvP trials.
+        # Deliver ONLY an XTEST left-button release to the already active
+        # genuine host window, BEFORE any PvP baseline or target arm.
+        # No attack-down, synthetic click, source-counter write, or bypass.
+        # The unmodified Mojang runTick must itself release the counter.
+        subprocess.check_call(["xdotool", "mouseup", "1"], timeout=4)
+        print("CUSTOMMC_189_AUTOCLICKER_PREARM_REAL_MOUSE_RELEASE=YES",
+              flush=True)
     print("CUSTOMMC_189_REAL_ATTACKER_PREARM_MOUSE_GRAB=YES", flush=True)
     print("CUSTOMMC_189_REAL_ATTACKER_X11_FOCUS_RESTORED=YES", flush=True)
     time.sleep(2.0)
