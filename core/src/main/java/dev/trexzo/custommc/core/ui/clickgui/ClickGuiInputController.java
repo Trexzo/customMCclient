@@ -97,6 +97,12 @@ public final class ClickGuiInputController
             return false;
         }
 
+        if (event.action() == UiPointerAction.RELEASE) {
+            // End a held drag even if the pointer left the content region.
+            // No focus or page navigation side effects.
+            return dispatchContentPointer(snapshot,
+                    layoutEngine.layout(viewport), event, viewport);
+        }
         if (event.action() == UiPointerAction.MOVE) {
             // Motion is routed only to the currently visible content.
             // No focus changes, nav selection or module toggle on motion.
