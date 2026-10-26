@@ -1349,8 +1349,25 @@ def restore_real_attacker_focus(host, target, deadline,
         raise AssertionError("host window not active after EWMH activation")
     # Before any server damage baseline is armed and before the players are
     # placed for PvP, physically grab the actual client mouse through X11.
-    # This invokes vanilla setIngameFocus; a later released-button tick
-    # clears its leftClickCounter using Mojang's own runTick logic.
+    # V330 and V331 observed original screen=OPEN and a native
+    # leftClickCounter=10000 on BOTH genuine Auto Clicker PvP trials.
+    # An X11 active-window match alone does not close a vanilla GUI.
+    if keep_host_active:
+        # Genuine keyboard Escape to the confirmed foreground CIHost.
+        # This may close an actual pause/inventory screen through Mojang's
+        # existing input handling; if it does not, V330 remains RED.
+        # Never inject Escape after the PvP baseline / target arming.
+        subprocess.check_call(
+            ["xdotool", "key", "--clearmodifiers", "Escape"], timeout=4)
+        print("CUSTOMMC_189_AUTOCLICKER_PREARM_REAL_GUI_ESCAPE=YES",
+              flush=True)
+        time.sleep(0.35)
+        if int(subprocess.check_output(
+                ["xdotool", "getactivewindow"], timeout=4
+        ).decode("ascii", "strict").strip()) != int(window):
+            raise AssertionError("V332 prearm Escape lost original CIHost window")
+    # This invokes vanilla setIngameFocus; the following left-button release
+    # permits Mojang's own runTick to clear its original focus counter.
     subprocess.check_call(["xdotool", "mousemove", "--window", window,
                            "427", "240"], timeout=4)
     subprocess.check_call(["xdotool", "click", "--window", window, "1"],
