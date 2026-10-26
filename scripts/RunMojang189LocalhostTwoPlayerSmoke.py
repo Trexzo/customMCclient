@@ -180,6 +180,39 @@ def check_process(proc, phase):
         raise AssertionError(phase + " process exited early: " + str(code))
 
 
+def v336_original_source_screen_timeline(log, max_bytes=16777216):
+    """First and last REAL Mojang gameTick screen transitions, fail-only.
+
+    A GUI class name does not authorize native mouse/controller dispatch.
+    Bounded source bytes and bounded output; never inspect GUI contents.
+    """
+    source = Path(log)
+    if (not isinstance(max_bytes, int) or isinstance(max_bytes, bool)
+            or not 1 <= max_bytes <= 16777216):
+        raise ValueError("V336 original screen forensic read limit invalid")
+    if source.is_symlink() or not source.is_file():
+        return []
+    marker = b"CUSTOMMC_189_ACCEPTANCE_SCREEN="
+    early = []
+    recent = []
+    scanned = 0
+    with source.open("rb") as stream:
+        for raw in stream:
+            scanned += len(raw)
+            if scanned > max_bytes:
+                break
+            if not raw.startswith(marker):
+                continue
+            witness = raw.rstrip(b"\r\n")[:384].decode("utf-8", "replace")
+            if len(early) < 5:
+                early.append(witness)
+            else:
+                recent.append(witness)
+                if len(recent) > 5:
+                    recent.pop(0)
+    return early + recent
+
+
 def v329_original_autoclicker_failure_evidence(log, max_bytes=16777216):
     """Select first real JVM diagnostics even if a 6KB failure tail loses them.
 
@@ -4137,6 +4170,12 @@ def run(args):
                 for diagnostic in v329_original_autoclicker_failure_evidence(log):
                     print(diagnostic, file=sys.stderr)
                 print("CUSTOMMC_189_V329_AUTOC_DIAGNOSTIC_SOURCE_END",
+                      file=sys.stderr)
+                print("CUSTOMMC_189_V336_ORIGINAL_SCREEN_TIMELINE_START",
+                      file=sys.stderr)
+                for screen in v336_original_source_screen_timeline(log):
+                    print(screen, file=sys.stderr)
+                print("CUSTOMMC_189_V336_ORIGINAL_SCREEN_TIMELINE_END",
                       file=sys.stderr)
             print("M405_" + name.upper() + "_TAIL_START",
                   file=sys.stderr)

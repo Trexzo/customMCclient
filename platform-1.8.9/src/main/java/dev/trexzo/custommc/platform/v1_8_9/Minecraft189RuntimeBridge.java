@@ -1346,6 +1346,20 @@ public final class Minecraft189RuntimeBridge {
                     && activeRuntime.hostInstalled()) {
                 reportAcceptanceScreen();
             }
+            // V336: preserve an ORIGINAL GUI transition timeline for the
+            // two strict real combat acceptance modes. V335 observed the
+            // genuine ConnectScreen 'awz' still open after World/UUID ticks.
+            // Record only actual source display-screen class transitions on
+            // vanilla gameTick; do not call displayGuiScreen, force focus,
+            // rewrite leftClickCounter, or certify a controller attack.
+            if (!Boolean.getBoolean("custommc.acceptance.reportLiveWorld")
+                    && (Boolean.getBoolean(
+                            "custommc.acceptance.requireAutoClickerExactRemoteUuid")
+                        || Boolean.getBoolean(
+                            "custommc.acceptance.reportKillAuraRejoin"))
+                    && activeRuntime.hostInstalled()) {
+                reportAcceptanceScreen();
+            }
             if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")
                     && !acceptanceWorldReported
                     && activeRuntime.hostInstalled()) {
