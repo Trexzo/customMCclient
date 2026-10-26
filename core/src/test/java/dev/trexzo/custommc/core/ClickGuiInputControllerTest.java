@@ -598,4 +598,63 @@ final class ClickGuiInputControllerTest {
         }
     }
 
+    @Test
+    void keyboardNavigationCyclesPagesWithoutStealingFocusedSearch() {
+        final ClickGuiModel model = model();
+        final UiFocusManager focus = new UiFocusManager();
+        final UiViewport viewport = new UiViewport(1200, 800, 1.0F);
+        final ClickGuiLayout layout = new ClickGuiLayoutEngine().layout(viewport);
+        try (ClickGuiInputController input =
+                     new ClickGuiInputController(model, focus)) {
+            assertEquals("combat", model.snapshot().selectedPageId());
+            assertTrue(input.key(key(UiKeys.UP)));
+            assertEquals("render", model.snapshot().selectedPageId());
+            assertTrue(input.key(key(UiKeys.DOWN)));
+            assertEquals("combat", model.snapshot().selectedPageId());
+            assertTrue(input.key(key(UiKeys.END)));
+            assertEquals("render", model.snapshot().selectedPageId());
+            assertTrue(input.key(key(UiKeys.HOME)));
+            assertEquals("combat", model.snapshot().selectedPageId());
+            assertNull(focus.focusedId());
+
+            assertTrue(input.pointer(press(layout.search().x() + 3.0F,
+                    layout.search().y() + 3.0F), viewport));
+            assertEquals(ClickGuiInputController.SEARCH_FOCUS_ID,
+                    focus.focusedId());
+            assertFalse(input.key(key(UiKeys.DOWN)));
+            assertEquals("combat", model.snapshot().selectedPageId());
+            assertTrue(input.key(key(UiKeys.ESCAPE)));
+            assertNull(focus.focusedId());
+            assertTrue(input.key(key(UiKeys.DOWN)));
+            assertEquals("render", model.snapshot().selectedPageId());
+            assertTrue(model.snapshot().open());
+        }
+    }
+
+    @Test
+    void navigationRejectsModifiersRepeatAndEmptyOrClosedModels() {
+        final ClickGuiModel model = model();
+        try (ClickGuiInputController input =
+                     new ClickGuiInputController(model, new UiFocusManager())) {
+            assertFalse(input.key(new UiKeyEvent(
+                    UiKeys.DOWN, UiKeyAction.REPEAT, '\0',
+                    false, false, false)));
+            assertFalse(input.key(new UiKeyEvent(
+                    UiKeys.DOWN, UiKeyAction.PRESS, '\0',
+                    false, true, false)));
+            assertFalse(input.key(new UiKeyEvent(
+                    UiKeys.DOWN, UiKeyAction.PRESS, '\0',
+                    false, false, true)));
+            assertEquals("combat", model.snapshot().selectedPageId());
+            model.close();
+            assertFalse(input.key(key(UiKeys.DOWN)));
+        }
+        final ClickGuiModel empty = new ClickGuiModel();
+        empty.open();
+        try (ClickGuiInputController input =
+                     new ClickGuiInputController(empty, new UiFocusManager())) {
+            assertFalse(input.key(key(UiKeys.UP)));
+            assertNull(empty.snapshot().selectedPageId());
+        }
+    }
 }

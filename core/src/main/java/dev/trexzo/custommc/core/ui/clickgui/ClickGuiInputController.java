@@ -1,6 +1,7 @@
 package dev.trexzo.custommc.core.ui.clickgui;
 
 import dev.trexzo.custommc.core.ui.UiFocusManager;
+import dev.trexzo.custommc.core.ui.UiKey;
 import dev.trexzo.custommc.core.ui.UiFocusTarget;
 import dev.trexzo.custommc.core.ui.UiKeyAction;
 import dev.trexzo.custommc.core.ui.UiKeyEvent;
@@ -11,6 +12,7 @@ import dev.trexzo.custommc.core.ui.UiPointerEvent;
 import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiViewport;
 
+import java.util.List;
 import java.util.Objects;
 
 public final class ClickGuiInputController
@@ -211,6 +213,11 @@ public final class ClickGuiInputController
         }
 
         if (event.action() == UiKeyAction.PRESS
+                && navigatePages(event)) {
+            return true;
+        }
+
+        if (event.action() == UiKeyAction.PRESS
                 && UiKeys.ESCAPE.equals(event.key())) {
             focusManager.clearFocus();
             model.close();
@@ -224,6 +231,49 @@ public final class ClickGuiInputController
     public void close() {
         focusManager.clearFocus();
         searchRegistration.close();
+    }
+
+    /**
+     * Navigation is owned by the GUI only when no search/text/keybind
+     * editor currently owns focus. Never steals modifier shortcuts.
+     */
+    private boolean navigatePages(final UiKeyEvent event) {
+        if (focusManager.focusedId() != null
+                || event.control() || event.alt()) {
+            return false;
+        }
+        final UiKey key = event.key();
+        if (!UiKeys.UP.equals(key) && !UiKeys.DOWN.equals(key)
+                && !UiKeys.HOME.equals(key) && !UiKeys.END.equals(key)) {
+            return false;
+        }
+        final ClickGuiSnapshot snapshot = model.snapshot();
+        final List<ClickGuiPage> pages = snapshot.pages();
+        if (pages.isEmpty()) {
+            return false;
+        }
+
+        int current = -1;
+        for (int i = 0; i < pages.size(); i++) {
+            if (pages.get(i).id().equals(snapshot.selectedPageId())) {
+                current = i;
+                break;
+            }
+        }
+
+        final int next;
+        if (UiKeys.HOME.equals(key)) {
+            next = 0;
+        } else if (UiKeys.END.equals(key)) {
+            next = pages.size() - 1;
+        } else if (UiKeys.DOWN.equals(key)) {
+            next = (current + 1) % pages.size();
+        } else {
+            next = current < 0
+                    ? pages.size() - 1
+                    : (current + pages.size() - 1) % pages.size();
+        }
+        return model.select(pages.get(next).id());
     }
 
     private void dispatchContentPointer(
