@@ -93,6 +93,13 @@ final class ClickGuiComposerTest {
         for (UiDrawCommand command : commands) {
             if (command instanceof UiClipCommand) {
                 sawClip = true;
+                for (UiDrawCommand child :
+                        ((UiClipCommand) command).commands()) {
+                    if (child instanceof UiTextCommand) {
+                        sawSearch |= "esp".equals(
+                                ((UiTextCommand) child).text());
+                    }
+                }
             }
             if (command instanceof UiTextCommand) {
                 final String text =
@@ -107,4 +114,52 @@ final class ClickGuiComposerTest {
         assertTrue(sawSearch);
         assertTrue(sawSelectedTitle);
     }
+    @Test
+    void searchTextIsClippedAndClearAffordanceIsConditional() {
+        final UiViewport viewport = new UiViewport(1200, 800, 1.0F);
+        final ClickGuiLayout layout = new ClickGuiLayoutEngine()
+                .layout(viewport);
+        final ClickGuiComposer composer = new ClickGuiComposer();
+        final ClickGuiPage page = new ClickGuiPage("modules", "Modules", 0);
+        final String longQuery = String.join("",
+                Collections.nCopies(64, "z"));
+        final List<UiDrawCommand> filtered = composer.compose(
+                new ClickGuiSnapshot(true, "modules", longQuery,
+                        Arrays.asList(page)),
+                viewport, UiThemes.darkDefault());
+
+        boolean sawClippedQuery = false;
+        boolean sawClear = false;
+        for (UiDrawCommand command : filtered) {
+            if (command instanceof UiClipCommand) {
+                final UiClipCommand clip = (UiClipCommand) command;
+                for (UiDrawCommand child : clip.commands()) {
+                    if (child instanceof UiTextCommand
+                            && longQuery.equals(((UiTextCommand) child).text())) {
+                        sawClippedQuery = true;
+                        assertTrue(clip.bounds().x() >= layout.search().x());
+                        assertTrue(clip.bounds().x() + clip.bounds().width()
+                                < layout.search().x() + layout.search().width());
+                    }
+                }
+            }
+            if (command instanceof UiTextCommand
+                    && "x".equals(((UiTextCommand) command).text())) {
+                sawClear = true;
+            }
+        }
+        assertTrue(sawClippedQuery);
+        assertTrue(sawClear);
+
+        final List<UiDrawCommand> empty = composer.compose(
+                new ClickGuiSnapshot(true, "modules", "",
+                        Arrays.asList(page)),
+                viewport, UiThemes.darkDefault());
+        for (UiDrawCommand command : empty) {
+            if (command instanceof UiTextCommand) {
+                assertFalse("x".equals(((UiTextCommand) command).text()));
+            }
+        }
+    }
+
 }

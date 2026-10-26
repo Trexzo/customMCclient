@@ -7,6 +7,11 @@ import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.module.ModuleState;
 import dev.trexzo.custommc.core.ui.UiFocusManager;
+import dev.trexzo.custommc.core.ui.UiBounds;
+import dev.trexzo.custommc.core.ui.UiDrawCommand;
+import dev.trexzo.custommc.core.ui.UiTextCommand;
+import dev.trexzo.custommc.core.ui.UiThemes;
+import dev.trexzo.custommc.core.ui.clickgui.ClickGuiContentContext;
 import dev.trexzo.custommc.core.ui.UiPointerAction;
 import dev.trexzo.custommc.core.ui.UiPointerButton;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
@@ -20,7 +25,10 @@ import dev.trexzo.custommc.core.ui.clickgui.ClickGuiPage;
 import dev.trexzo.custommc.core.ui.clickgui.ModuleListPageContent;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class ModuleListPageInteractionTest {
@@ -124,4 +132,51 @@ final class ModuleListPageInteractionTest {
             }
         };
     }
+    @Test
+    void unmatchedSearchShowsEmptyStateWithoutMutatingModules() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        modules.register(module("combat.autoClicker"));
+        final ModuleController controller = new ModuleController(modules);
+        final ModuleListPageContent content =
+                new ModuleListPageContent(modules, controller);
+        final ClickGuiModel model = new ClickGuiModel();
+        model.register(new ClickGuiPage("modules", "Modules", 0));
+        model.setSearchQuery("impossible-query");
+        model.open();
+        final List<UiDrawCommand> commands = content.compose(
+                new ClickGuiContentContext(
+                        model.snapshot(),
+                        model.snapshot().pages().get(0),
+                        new UiBounds(0, 0, 500, 350),
+                        UiThemes.darkDefault()));
+
+        boolean sawEmpty = false;
+        boolean sawCount = false;
+        for (UiDrawCommand command : commands) {
+            if (command instanceof UiTextCommand) {
+                final String text = ((UiTextCommand) command).text();
+                sawEmpty |= "No modules match your search".equals(text);
+                sawCount |= "0 modules".equals(text);
+            }
+        }
+        assertTrue(sawEmpty);
+        assertTrue(sawCount);
+        assertEquals(ModuleState.DISABLED,
+                controller.stateOf("combat.autoClicker"));
+
+        model.setSearchQuery("");
+        final List<UiDrawCommand> unfiltered = content.compose(
+                new ClickGuiContentContext(
+                        model.snapshot(),
+                        model.snapshot().pages().get(0),
+                        new UiBounds(0, 0, 500, 350),
+                        UiThemes.darkDefault()));
+        for (UiDrawCommand command : unfiltered) {
+            if (command instanceof UiTextCommand) {
+                assertFalse("No modules match your search".equals(
+                        ((UiTextCommand) command).text()));
+            }
+        }
+    }
+
 }

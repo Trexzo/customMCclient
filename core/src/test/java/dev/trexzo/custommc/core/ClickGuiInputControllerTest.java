@@ -571,4 +571,31 @@ final class ClickGuiInputControllerTest {
                 false,
                 false);
     }
+    @Test
+    void clearButtonRemovesOnlySearchQueryAndPreservesSearchFocus() {
+        final ClickGuiModel model = model();
+        model.setSearchQuery("render");
+        final UiFocusManager focus = new UiFocusManager();
+        final UiViewport viewport = new UiViewport(1200, 800, 1.0F);
+        final ClickGuiLayout layout = new ClickGuiLayoutEngine().layout(viewport);
+        final float x = layout.search().x() + layout.search().width() - 8.0F;
+        final float y = layout.search().y() + 8.0F;
+
+        try (ClickGuiInputController input =
+                     new ClickGuiInputController(model, focus)) {
+            assertTrue(input.pointer(
+                    press(x, y, UiPointerButton.RIGHT), viewport));
+            assertEquals("render", model.snapshot().searchQuery());
+            assertNull(focus.focusedId());
+
+            assertTrue(input.pointer(
+                    press(x, y, UiPointerButton.LEFT), viewport));
+            assertEquals("", model.snapshot().searchQuery());
+            assertEquals(ClickGuiInputController.SEARCH_FOCUS_ID,
+                    focus.focusedId());
+            assertTrue(model.snapshot().open());
+            assertEquals("combat", model.snapshot().selectedPageId());
+        }
+    }
+
 }

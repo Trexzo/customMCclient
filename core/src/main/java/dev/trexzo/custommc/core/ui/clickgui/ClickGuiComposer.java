@@ -129,21 +129,44 @@ public final class ClickGuiComposer {
                         theme.color(
                                 UiColorRole.SURFACE_RAISED)));
 
+        final boolean hasQuery = !snapshot.searchQuery().isEmpty();
         final String searchText =
-                snapshot.searchQuery().isEmpty()
-                        ? "Search modules"
-                        : snapshot.searchQuery();
+                hasQuery
+                        ? snapshot.searchQuery()
+                        : "Search modules";
+        // Never let long search input overdraw the navigation or clear affordance.
+        final float clearSpace = hasQuery ? 34.0F : 16.0F;
         commands.add(
-                new UiTextCommand(
+                new UiClipCommand(
                         5,
-                        search.x() + 10.0F,
-                        search.y() + 9.0F,
-                        UiFonts.DEFAULT,
-                        searchText,
-                        theme.color(
-                                snapshot.searchQuery().isEmpty()
-                                        ? UiColorRole.TEXT_MUTED
-                                        : UiColorRole.TEXT_PRIMARY)));
+                        new UiBounds(
+                                search.x() + 8.0F,
+                                search.y(),
+                                Math.max(
+                                        0.0F,
+                                        search.width() - clearSpace),
+                                search.height()),
+                        Collections.<UiDrawCommand>singletonList(
+                                new UiTextCommand(
+                                        0,
+                                        search.x() + 10.0F,
+                                        search.y() + 9.0F,
+                                        UiFonts.DEFAULT,
+                                        searchText,
+                                        theme.color(
+                                                hasQuery
+                                                        ? UiColorRole.TEXT_PRIMARY
+                                                        : UiColorRole.TEXT_MUTED)))));
+        if (hasQuery) {
+            commands.add(
+                    new UiTextCommand(
+                            5,
+                            search.x() + search.width() - 20.0F,
+                            search.y() + 9.0F,
+                            UiFonts.DEFAULT,
+                            "x",
+                            theme.color(UiColorRole.TEXT_MUTED)));
+        }
 
         commands.add(
                 new UiClipCommand(
