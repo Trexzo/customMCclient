@@ -203,7 +203,7 @@ def v336_original_source_screen_timeline(log, max_bytes=16777216):
                 break
             if not raw.startswith(marker):
                 continue
-            witness = raw.rstrip(b"\\r\\n")[:384].decode("utf-8", "replace")
+            witness = raw.rstrip(b"\r\n")[:384].decode("utf-8", "replace")
             if len(early) < 5:
                 early.append(witness)
             else:
