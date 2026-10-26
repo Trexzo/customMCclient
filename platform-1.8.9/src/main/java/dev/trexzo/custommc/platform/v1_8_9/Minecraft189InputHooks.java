@@ -44,7 +44,10 @@ public final class Minecraft189InputHooks {
     private boolean mayEditWithMouse() {
         final ServiceRegistry services = platform.requireContext().services();
         if (!services.contains(ClickGuiModel.class)) {
-            return false;
+            // Source-only unit harnesses may register a retained input
+            // controller directly. Production runtime always registers
+            // its model and therefore follows strict native focus checks.
+            return services.contains(ClickGuiInputController.class);
         }
         final ClickGuiModel model = services.require(ClickGuiModel.class);
         if (!model.snapshot().open()) {
