@@ -13,6 +13,12 @@ import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiFontHandle;
+import dev.trexzo.custommc.core.ui.UiPointerAction;
+import dev.trexzo.custommc.core.ui.UiPointerButton;
+import dev.trexzo.custommc.core.ui.UiPointerEvent;
+import dev.trexzo.custommc.core.ui.clickgui.ClickGuiLayoutEngine;
+import dev.trexzo.custommc.core.ui.clickgui.ClickGuiRuntime;
+import dev.trexzo.custommc.core.ui.clickgui.HudPositionPageContent;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.platform.PlatformContext;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
@@ -217,6 +223,45 @@ final class Minecraft189TargetHudModuleTest {
                     Minecraft189TargetHudModule.Y_SETTING_ID));
             hud.xSetting().set(24);
             hud.ySetting().set(202);
+
+            // S5: the actual installed ClickGUI path edits the very same
+            // TargetHUD settings used by this native-platform render pass.
+            final ClickGuiRuntime gui = runtime.clickGuiRuntime().coreRuntime();
+            gui.model().open();
+            assertTrue(gui.model().select(ClickGuiRuntime.HUD_PAGE_ID));
+            final UiViewport editorViewport = new UiViewport(1280, 720, 1.0F);
+            final UiBounds editorArea = new ClickGuiLayoutEngine()
+                    .layout(editorViewport).content();
+            final UiBounds preview = HudPositionPageContent.previewBounds(
+                    editorArea, editorViewport);
+            assertTrue(preview != null);
+            assertTrue(gui.input().pointer(new UiPointerEvent(
+                    preview.x() + preview.width() * 0.5F,
+                    preview.y() + preview.height() * 0.5F,
+                    UiPointerButton.LEFT, UiPointerAction.PRESS),
+                    editorViewport));
+            assertEquals("558", settings.snapshotEncoded().get(
+                    Minecraft189TargetHudModule.X_SETTING_ID));
+            assertEquals("332", settings.snapshotEncoded().get(
+                    Minecraft189TargetHudModule.Y_SETTING_ID));
+            gui.model().close();
+            final int beforeEditorRender = host.texts.size();
+            runtime.renderHud(29L, 0.0F);
+            assertEquals(beforeEditorRender + 3, host.texts.size());
+            assertEquals(570.0F, host.lastX, 0.001F);
+            assertEquals(371.0F, host.lastY, 0.001F);
+
+            gui.model().open();
+            final UiBounds reset = HudPositionPageContent.resetBounds(preview);
+            assertTrue(gui.input().pointer(new UiPointerEvent(
+                    reset.x() + 5.0F, reset.y() + 5.0F,
+                    UiPointerButton.LEFT, UiPointerAction.PRESS),
+                    editorViewport));
+            gui.model().close();
+            assertEquals("18", settings.snapshotEncoded().get(
+                    Minecraft189TargetHudModule.X_SETTING_ID));
+            assertEquals("210", settings.snapshotEncoded().get(
+                    Minecraft189TargetHudModule.Y_SETTING_ID));
 
             final int renderedTextsBeforeClear = host.texts.size();
             final int renderedBarsBeforeClear = host.bars.size();
