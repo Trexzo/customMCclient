@@ -20,8 +20,37 @@ final class Minecraft189NativeGuiCombatVeto {
                 || !"ave".equals(minecraft.getClass().getName())) {
             return false;
         }
-        return blocksOriginalVerdict(
-                Minecraft189ScaffoldScreenGate.inspect(minecraft));
+        final Minecraft189ScaffoldScreenGate.Verdict verdict =
+                Minecraft189ScaffoldScreenGate.inspect(minecraft);
+        if (verdict != Minecraft189ScaffoldScreenGate.Verdict.CLEAR
+                && (Boolean.getBoolean(
+                        "custommc.acceptance.requireAutoClickerExactRemoteUuid")
+                    || Boolean.getBoolean(
+                        "custommc.acceptance.reportKillAuraRejoin"))) {
+            final String nativeClass =
+                    Minecraft189OriginalGuiClassProbe.inspect(minecraft);
+            reportSourceGuiOnce(verdict, nativeClass);
+        }
+        return blocksOriginalVerdict(verdict);
+    }
+
+    // Read-only original-client log, never input, UUID or attack authority.
+    private static final java.util.Set<String> reportedClasses =
+            new java.util.LinkedHashSet<String>();
+
+    private static void reportSourceGuiOnce(
+            final Minecraft189ScaffoldScreenGate.Verdict verdict,
+            final String nativeClass) {
+        final String safe = nativeClass == null ? "UNAVAILABLE"
+                : nativeClass.substring(0, Math.min(128, nativeClass.length()));
+        final String observation = verdict.name() + " class=" + safe;
+        synchronized (reportedClasses) {
+            if (reportedClasses.size() >= 4
+                    || !reportedClasses.add(observation)) return;
+        }
+        System.out.println("CUSTOMMC_189_V335_NATIVE_GUI_VETO_SOURCE "
+                + observation);
+        System.out.flush();
     }
 
     static boolean blocksOriginalVerdict(
