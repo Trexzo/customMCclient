@@ -34,6 +34,11 @@ final class Minecraft189VanillaMeleeAcceptance {
     // V327 opt-in diagnostic only: never grants a click or an acceptance.
     private static boolean autoclickerBlockedCounterReported;
     private static boolean autoclickerReadyCounterReported;
+    // V329 opt-in bounded provenance: differentiate missing native hook,
+    // unsatisfied test property, and lost synthetic-click ownership.
+    private static boolean autoclickerSyntheticEntryProvenanceReported;
+    private static boolean autoclickerFirstGuardCallReported;
+    private static boolean autoclickerSyntheticGuardCallReported;
     private static final Minecraft189OriginalNonPlayerRaycastTrace
             nonPlayerRaycastTrace =
             new Minecraft189OriginalNonPlayerRaycastTrace();
@@ -62,6 +67,9 @@ final class Minecraft189VanillaMeleeAcceptance {
         auraReadyCounterReported = false;
         autoclickerBlockedCounterReported = false;
         autoclickerReadyCounterReported = false;
+        autoclickerSyntheticEntryProvenanceReported = false;
+        autoclickerFirstGuardCallReported = false;
+        autoclickerSyntheticGuardCallReported = false;
         nonPlayerRaycastTrace.reset();
     }
 
@@ -77,6 +85,17 @@ final class Minecraft189VanillaMeleeAcceptance {
     }
 
     static void onNativeClick(final Object minecraft) {
+        if (syntheticCall
+                && Boolean.getBoolean("custommc.acceptance.reportAutoClicker")
+                && !autoclickerSyntheticEntryProvenanceReported) {
+            autoclickerSyntheticEntryProvenanceReported = true;
+            System.out.println("CUSTOMMC_189_V329_SYNTHETIC_CLICK_ENTRY"
+                    + " exactRemoteProperty=" + Boolean.getBoolean(
+                            "custommc.acceptance.requireAutoClickerExactRemoteUuid")
+                    + " vanillaMeleeProperty=" + Boolean.getBoolean(PROPERTY)
+                    + " nativeInputPresent=" + (minecraft != null));
+            System.out.flush();
+        }
         if (!Boolean.getBoolean(PROPERTY) || reported
                 || minecraft == null || observedCombat == null) {
             return;
@@ -199,6 +218,28 @@ final class Minecraft189VanillaMeleeAcceptance {
     }
 
     static void onNativeClickGuard(final int nativeCounter) {
+        // V329: report call-site reachability even when the separate exact
+        // remote-property prerequisite is absent. Both outcomes are bounded
+        // by reset and never certify original attack/controller/server damage.
+        if (Boolean.getBoolean("custommc.acceptance.reportAutoClicker")) {
+            if (!autoclickerFirstGuardCallReported) {
+                autoclickerFirstGuardCallReported = true;
+                System.out.println("CUSTOMMC_189_V329_FIRST_GUARD_CALLBACK"
+                        + " synthetic=" + syntheticCall
+                        + " exactRemoteProperty=" + Boolean.getBoolean(
+                                "custommc.acceptance.requireAutoClickerExactRemoteUuid")
+                        + " sourceCounter=" + nativeCounter);
+                System.out.flush();
+            }
+            if (syntheticCall && !autoclickerSyntheticGuardCallReported) {
+                autoclickerSyntheticGuardCallReported = true;
+                System.out.println("CUSTOMMC_189_V329_SYNTHETIC_GUARD_CALLBACK"
+                        + " exactRemoteProperty=" + Boolean.getBoolean(
+                                "custommc.acceptance.requireAutoClickerExactRemoteUuid")
+                        + " sourceCounter=" + nativeCounter);
+                System.out.flush();
+            }
+        }
         // Observational V327 native Mojang clickMouse guard evidence.
         // V326's original remote-player attack must still reach the real
         // controller and damage the server player to pass. Logging can
