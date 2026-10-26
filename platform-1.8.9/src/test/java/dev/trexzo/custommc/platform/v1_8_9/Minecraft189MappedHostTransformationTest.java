@@ -338,6 +338,10 @@ final class Minecraft189MappedHostTransformationTest {
         loader.put("cj", scaffoldBlockPosShape());
         loader.put("cq", scaffoldFacingShape());
         loader.put("aui", scaffoldVec3Shape());
+        // V333: this transformed original-host test must have the actual
+        // sole declared vanilla GuiScreen field, rather than an ambiguous
+        // absent source. The default null value is a genuinely CLEAR GUI.
+        loader.put("axu", emptyClass("axu"));
         loader.put(
                 "auh",
                 transformer.transform("auh", movingObjectShape()));
@@ -4142,6 +4146,22 @@ final class Minecraft189MappedHostTransformationTest {
                             .getInt(
                                     minecraft));
 
+            // The genuine mapped native GUI is independently OPEN even
+            // though CustomMC ClickGUI remains closed. No synthetic
+            // click may fire or bank credit across this native screen.
+            minecraftClass.getField("m").set(
+                    minecraft,
+                    loader.loadClass("axu").getDeclaredConstructor()
+                            .newInstance());
+            for (int i = 0; i < 4; i++) {
+                runTick.invoke(minecraft);
+            }
+            assertEquals(
+                    2,
+                    minecraftClass.getField("clickMouseCalls")
+                            .getInt(minecraft));
+            minecraftClass.getField("m").set(minecraft, null);
+
             runtime.requireHostRuntime()
                     .featureCatalog()
                     .autoClicker()
@@ -7169,6 +7189,9 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "o", "Lbfk;");
         field(writer, "q", "Lavo;");
         field(writer, "t", "Lavh;");
+        // Native Minecraft 1.8.9 currentScreen type is axu; the
+        // source-pinned inspector requires exactly one declared field.
+        field(writer, "m", "Laxu;");
         field(writer, "Q", "Lbde;");
         field(writer, "ap", "I");
         field(writer, "ag", "I");

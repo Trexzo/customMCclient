@@ -2889,6 +2889,17 @@ public final class Minecraft189RuntimeBridge {
                     }
                 }
             }
+            // V333.1: preserve genuine read-only disabled-module,
+            // native target and negative-control callbacks above. Those
+            // callbacks neither issue attacks nor authorize future input.
+            // Stop here BEFORE AutoBlock, AutoPot, AutoRod or any synthetic
+            // click/attack. A vanilla GUI is independent of CustomMC's GUI.
+            // This requires a source-verified CLEAR on actual Mojang 'ave';
+            // an inaccessible or OPEN screen fails shut and revokes leases.
+            if (Minecraft189NativeGuiCombatVeto.blocks(minecraft)) {
+                host.suspendSyntheticCombatForOriginalGui();
+                return;
+            }
             final Minecraft189SwordBlockControl swordBlock =
                     minecraft instanceof Minecraft189SwordBlockControl
                     ? (Minecraft189SwordBlockControl) minecraft : null;
