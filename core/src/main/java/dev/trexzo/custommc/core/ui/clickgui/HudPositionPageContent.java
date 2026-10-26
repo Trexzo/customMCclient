@@ -19,6 +19,7 @@ import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiTheme;
 import dev.trexzo.custommc.core.ui.UiViewport;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,8 +42,15 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
     private static final float PREVIEW_BOTTOM_SPACE = 98.0F;
     private static final float RESET_WIDTH = 116.0F;
     private static final float RESET_HEIGHT = 28.0F;
+    private static final float HISTORY_WIDTH = 82.0F;
+    private static final int MAX_HISTORY = 64;
 
     private final SettingRegistry settings;
+    private final ArrayDeque<Position> undo = new ArrayDeque<Position>();
+    private final ArrayDeque<Position> redo = new ArrayDeque<Position>();
+    private Position lastApplied;
+    private boolean pointerStroke;
+    private boolean strokeRecorded;
 
     public HudPositionPageContent(final SettingRegistry settings) {
         this.settings = Objects.requireNonNull(settings, "settings");
@@ -113,6 +121,12 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
         commands.add(new UiTextCommand(1, reset.x() + 8.0F,
                 reset.y() + 8.0F, UiFonts.DEFAULT,
                 "Reset Position", theme.color(UiColorRole.TEXT_PRIMARY)));
+        if (historyControlsFit(canvas)) {
+            appendHistoryButton(commands, undoBounds(canvas), "Undo",
+                    canUndo(position), theme);
+            appendHistoryButton(commands, redoBounds(canvas), "Redo",
+                    canRedo(position), theme);
+        }
         commands.add(new UiTextCommand(1,
                 outer.x() + INSET,
                 canvas.y() + canvas.height() + 77.0F,
@@ -127,6 +141,11 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
             final UiPointerEvent event) {
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(event, "event");
+        if (event.action() == UiPointerAction.RELEASE) {
+            pointerStroke = false;
+            strokeRecorded = false;
+            return false;
+        }
         if ((event.action() != UiPointerAction.PRESS
                 && event.action() != UiPointerAction.MOVE)
                 || event.button() != UiPointerButton.LEFT
@@ -138,12 +157,23 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
         if (canvas == null) {
             return false;
         }
-        if (event.action() == UiPointerAction.PRESS
-                && resetBounds(canvas).contains(event.x(), event.y())) {
-            final Setting<?> x = settings.find(X_ID);
-            final Setting<?> y = settings.find(Y_ID);
-            return writePosition((Integer) x.defaultValue(),
-                    (Integer) y.defaultValue());
+        if (event.action() == UiPointerAction.PRESS) {
+            pointerStroke = false;
+            strokeRecorded = false;
+            if (resetBounds(canvas).contains(event.x(), event.y())) {
+                final Setting<?> x = settings.find(X_ID);
+                final Setting<?> y = settings.find(Y_ID);
+                return changePosition((Integer) x.defaultValue(),
+                        (Integer) y.defaultValue(), false);
+            }
+            if (historyControlsFit(canvas)) {
+                if (undoBounds(canvas).contains(event.x(), event.y())) {
+                    return restore(undo, redo);
+                }
+                if (redoBounds(canvas).contains(event.x(), event.y())) {
+                    return restore(redo, undo);
+                }
+            }
         }
         if (!canvas.contains(event.x(), event.y())) {
             return false;
@@ -161,7 +191,12 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
                 Math.min(limitX, pointerX - cardWidth() * 0.5D)));
         final int y = (int) Math.round(Math.max(0.0D,
                 Math.min(limitY, pointerY - cardHeight() * 0.5D)));
-        return writePosition(x, y);
+        final boolean applied = changePosition(
+                x, y, event.action() == UiPointerAction.MOVE);
+        if (applied) {
+            pointerStroke = true;
+        }
+        return applied;
     }
 
     /**
@@ -171,10 +206,22 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
     @Override
     public boolean key(final UiKeyEvent event) {
         Objects.requireNonNull(event, "event");
-        if (event.action() != UiKeyAction.PRESS
-                || !event.shift() || event.alt()) {
+        if (event.action() != UiKeyAction.PRESS || event.alt()) {
             return false;
         }
+        if (event.control() && "legacy-key-44".equals(event.key().id())) {
+            pointerStroke = false;
+            return event.shift() ? restore(redo, undo) : restore(undo, redo);
+        }
+        if (event.control() && !event.shift()
+                && "legacy-key-21".equals(event.key().id())) {
+            pointerStroke = false;
+            return restore(redo, undo);
+        }
+        if (!event.shift()) {
+            return false;
+        }
+        pointerStroke = false;
         final Position current = position();
         if (current == null) {
             return false;
@@ -199,7 +246,117 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
         }
         final int x = Math.max(0, Math.min(MAX_COORDINATE, current.x + dx));
         final int y = Math.max(0, Math.min(MAX_COORDINATE, current.y + dy));
-        return writePosition(x, y);
+        return changePosition(x, y, false);
+    }
+
+    private boolean changePosition(
+            final int x, final int y, final boolean fromMove) {
+        final Position before = position();
+        if (before == null) {
+            return false;
+        }
+        reconcileExternalChange(before);
+        if (before.x == x && before.y == y) {
+            return true;
+        }
+        if (!writePosition(x, y)) {
+            return false;
+        }
+        if (!fromMove || !pointerStroke || !strokeRecorded) {
+            remember(undo, before);
+        }
+        strokeRecorded = true;
+        redo.clear();
+        lastApplied = new Position(x, y);
+        return true;
+    }
+
+    private boolean restore(final ArrayDeque<Position> source,
+            final ArrayDeque<Position> destination) {
+        pointerStroke = false;
+        final Position before = position();
+        if (before == null) {
+            return false;
+        }
+        reconcileExternalChange(before);
+        if (source.isEmpty()) {
+            return false;
+        }
+        final Position next = source.peekLast();
+        if (!writePosition(next.x, next.y)) {
+            return false;
+        }
+        source.removeLast();
+        remember(destination, before);
+        lastApplied = next;
+        return true;
+    }
+
+    private boolean canUndo(final Position current) {
+        return historyValid(current) && !undo.isEmpty();
+    }
+
+    private boolean canRedo(final Position current) {
+        return historyValid(current) && !redo.isEmpty();
+    }
+
+    private boolean historyValid(final Position current) {
+        return current != null
+                && (lastApplied == null || same(current, lastApplied));
+    }
+
+    private void reconcileExternalChange(final Position current) {
+        if (lastApplied != null && !same(current, lastApplied)) {
+            undo.clear();
+            redo.clear();
+            pointerStroke = false;
+            strokeRecorded = false;
+        }
+        lastApplied = current;
+    }
+
+    private static boolean same(final Position first,
+            final Position second) {
+        return first.x == second.x && first.y == second.y;
+    }
+
+    private static void remember(final ArrayDeque<Position> history,
+            final Position prior) {
+        if (history.size() >= MAX_HISTORY) {
+            history.removeFirst();
+        }
+        history.addLast(prior);
+    }
+
+    private static boolean historyControlsFit(final UiBounds canvas) {
+        return canvas.width() >= 330.0F;
+    }
+
+    public static UiBounds undoBounds(final UiBounds canvas) {
+        final UiBounds reset = resetBounds(canvas);
+        return new UiBounds(reset.x() - HISTORY_WIDTH - 11.0F,
+                reset.y(), HISTORY_WIDTH, RESET_HEIGHT);
+    }
+
+    public static UiBounds redoBounds(final UiBounds canvas) {
+        final UiBounds reset = resetBounds(canvas);
+        return new UiBounds(reset.x() + reset.width() + 11.0F,
+                reset.y(), HISTORY_WIDTH, RESET_HEIGHT);
+    }
+
+    private static void appendHistoryButton(
+            final List<UiDrawCommand> commands,
+            final UiBounds bounds,
+            final String text,
+            final boolean available,
+            final UiTheme theme) {
+        commands.add(new UiRoundedRectCommand(0,
+                bounds.x(), bounds.y(), bounds.width(), bounds.height(),
+                5.0F, theme.color(UiColorRole.SURFACE_RAISED)));
+        commands.add(new UiTextCommand(1,
+                bounds.x() + 24.0F, bounds.y() + 8.0F, UiFonts.DEFAULT,
+                text, theme.color(available
+                        ? UiColorRole.TEXT_PRIMARY : UiColorRole.TEXT_MUTED)));
     }
 
     private boolean writePosition(final int x, final int y) {
