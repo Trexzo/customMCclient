@@ -31,6 +31,9 @@ final class Minecraft189VanillaMeleeAcceptance {
     private static boolean auraControllerReached;
     private static boolean auraPositiveCounterReported;
     private static boolean auraReadyCounterReported;
+    // V327 opt-in diagnostic only: never grants a click or an acceptance.
+    private static boolean autoclickerBlockedCounterReported;
+    private static boolean autoclickerReadyCounterReported;
     private static final Minecraft189OriginalNonPlayerRaycastTrace
             nonPlayerRaycastTrace =
             new Minecraft189OriginalNonPlayerRaycastTrace();
@@ -57,6 +60,8 @@ final class Minecraft189VanillaMeleeAcceptance {
         auraControllerReached = false;
         auraPositiveCounterReported = false;
         auraReadyCounterReported = false;
+        autoclickerBlockedCounterReported = false;
+        autoclickerReadyCounterReported = false;
         nonPlayerRaycastTrace.reset();
     }
 
@@ -194,6 +199,26 @@ final class Minecraft189VanillaMeleeAcceptance {
     }
 
     static void onNativeClickGuard(final int nativeCounter) {
+        // Observational V327 native Mojang clickMouse guard evidence.
+        // V326's original remote-player attack must still reach the real
+        // controller and damage the server player to pass. Logging can
+        // neither clear leftClickCounter nor supply a success marker.
+        if (syntheticCall && Boolean.getBoolean(
+                "custommc.acceptance.requireAutoClickerExactRemoteUuid")) {
+            if (nativeCounter > 0 && !autoclickerBlockedCounterReported) {
+                autoclickerBlockedCounterReported = true;
+                System.out.println(
+                        "CUSTOMMC_189_AUTOCLICKER_MOJANG_LEFT_CLICK_COUNTER_BLOCKED="
+                                + nativeCounter);
+                System.out.flush();
+            } else if (nativeCounter <= 0
+                    && !autoclickerReadyCounterReported) {
+                autoclickerReadyCounterReported = true;
+                System.out.println(
+                        "CUSTOMMC_189_AUTOCLICKER_MOJANG_LEFT_CLICK_COUNTER_READY=YES");
+                System.out.flush();
+            }
+        }
         if (!Boolean.getBoolean(
                 "custommc.acceptance.reportKillAuraLocalPvp")
                 || !syntheticAura) return;
