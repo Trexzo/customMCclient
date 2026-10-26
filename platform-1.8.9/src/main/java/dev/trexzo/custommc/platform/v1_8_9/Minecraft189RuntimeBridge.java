@@ -2127,6 +2127,16 @@ public final class Minecraft189RuntimeBridge {
         final Minecraft189HostRuntime host =
                 activeHost();
         if (host != null && minecraft != null) {
+            // V333: X11 window focus and the CustomMC ClickGUI are not
+            // authoritative for vanilla's independent currentScreen.
+            // On the actual source Minecraft 'ave' instance, an OPEN
+            // or UNAVAILABLE native screen must revoke synthetic combat
+            // scheduling before any attack owner can be admitted.
+            // This cannot alter physical mouse input or vanilla clickMouse.
+            if (Minecraft189NativeGuiCombatVeto.blocks(minecraft)) {
+                host.suspendSyntheticCombatForOriginalGui();
+                return;
+            }
             if (Boolean.getBoolean(
                     "custommc.acceptance.reportTriggerBotRealPvp")
                     && !acceptanceTriggerEnabled) {
