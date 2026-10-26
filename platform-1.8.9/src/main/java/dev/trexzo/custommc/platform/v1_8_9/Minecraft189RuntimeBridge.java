@@ -3723,8 +3723,15 @@ public final class Minecraft189RuntimeBridge {
     public static synchronized void renderHudFrame(
             final float partialTicks) {
         if (activeRuntime != null) {
-            activeRuntime.renderHudFrame(
-                    partialTicks);
+            // Native render thread is an already-proven HUD callback.
+            // Poll only the visible UI, never alter gameplay input state.
+            final Minecraft189HostRuntime host = activeHost();
+            if (host != null
+                    && host.clickGuiRuntime().coreRuntime()
+                            .model().snapshot().open()) {
+                Minecraft189LwjglMouseBinding.forwardHeldPointerPosition();
+            }
+            activeRuntime.renderHudFrame(partialTicks);
         }
     }
 
@@ -3797,6 +3804,14 @@ public final class Minecraft189RuntimeBridge {
                         pixelYFromBottom,
                         legacyButton,
                         pressed);
+    }
+
+    public static synchronized boolean pointerMove(
+            final int pixelX,
+            final int pixelYFromBottom) {
+        final Minecraft189HostRuntime host = activeHost();
+        return host != null
+                && host.pointerMove(pixelX, pixelYFromBottom);
     }
 
     public static synchronized boolean scroll(

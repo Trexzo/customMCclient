@@ -45,6 +45,18 @@ public final class LegacyInputTranslator {
                                 : UiPointerAction.RELEASE));
     }
 
+    public UiPointerEvent pointerMoveEvent(
+            final UiViewport viewport,
+            final int pixelX,
+            final int pixelYFromBottom) {
+        Objects.requireNonNull(viewport, "viewport");
+        return new UiPointerEvent(
+                logicalX(viewport, pixelX),
+                logicalY(viewport, pixelYFromBottom),
+                UiPointerButton.LEFT,
+                UiPointerAction.MOVE);
+    }
+
     public Optional<UiScrollEvent> scrollEvent(
             final UiViewport viewport,
             final int pixelX,

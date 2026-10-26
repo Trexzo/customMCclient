@@ -69,6 +69,29 @@ public final class Minecraft189InputHooks {
                 viewport);
     }
 
+    /**
+     * Noncombat GUI-only motion; never changes click rate or input state.
+     */
+    public boolean pointerMove(
+            final int framebufferWidth,
+            final int framebufferHeight,
+            final float uiScale,
+            final int pixelX,
+            final int pixelYFromBottom) {
+        final ServiceRegistry services = platform.requireContext().services();
+        if (!services.contains(ClickGuiModel.class)
+                || !services.require(ClickGuiModel.class).snapshot().open()
+                || !services.contains(ClickGuiInputController.class)) {
+            return false;
+        }
+        final UiViewport viewport =
+                new UiViewport(framebufferWidth, framebufferHeight, uiScale);
+        return services.require(ClickGuiInputController.class).pointer(
+                translator.pointerMoveEvent(
+                        viewport, pixelX, pixelYFromBottom),
+                viewport);
+    }
+
     public boolean scroll(
             final int framebufferWidth,
             final int framebufferHeight,

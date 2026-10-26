@@ -3313,6 +3313,16 @@ public final class Minecraft189HostRuntime
                 pressed);
     }
 
+    /**
+     * UI-only pointer movement. Does not alter physical attack input or CPS.
+     */
+    public boolean pointerMove(
+            final int pixelX,
+            final int pixelYFromBottom) {
+        requireOpen();
+        return inputBridge.pointerMove(pixelX, pixelYFromBottom);
+    }
+
     public boolean scroll(
             final int pixelX,
             final int pixelYFromBottom,
