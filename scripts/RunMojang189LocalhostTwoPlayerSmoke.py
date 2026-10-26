@@ -180,6 +180,43 @@ def check_process(proc, phase):
         raise AssertionError(phase + " process exited early: " + str(code))
 
 
+def v329_original_autoclicker_failure_evidence(log, max_bytes=16777216):
+    """Select first real JVM diagnostics even if a 6KB failure tail loses them.
+
+    Read-only, bounded, and for FAILED --autoclicker-pvp only. These source
+    lines NEVER satisfy any controller, UUID, hurt or server-damage assertion.
+    Do not infer a missing marker from the truncated tail.
+    """
+    markers = (
+        b"CUSTOMMC_189_AUTOCLICKER_NORMAL_MODULE_ENABLE_PASS=YES",
+        b"CUSTOMMC_189_V329_SYNTHETIC_CLICK_ENTRY ",
+        b"CUSTOMMC_189_V329_FIRST_GUARD_CALLBACK ",
+        b"CUSTOMMC_189_V329_SYNTHETIC_GUARD_CALLBACK ",
+        b"CUSTOMMC_189_AUTOCLICKER_MOJANG_LEFT_CLICK_COUNTER_BLOCKED=",
+        b"CUSTOMMC_189_AUTOCLICKER_MOJANG_LEFT_CLICK_COUNTER_READY=YES",
+    )
+    if not isinstance(max_bytes, int) or isinstance(max_bytes, bool) or not (
+            1 <= max_bytes <= 16777216):
+        raise ValueError("V329 forensic read limit invalid")
+    source = Path(log)
+    if source.is_symlink() or not source.is_file():
+        return []
+    observed = {}
+    scanned = 0
+    with source.open("rb") as stream:
+        for raw in stream:
+            scanned += len(raw)
+            if scanned > max_bytes:
+                break
+            for marker in markers:
+                if marker not in observed and raw.startswith(marker):
+                    observed[marker] = raw.rstrip(b"\\r\\n")[:384].decode(
+                        "utf-8", "replace")
+            if len(observed) == len(markers):
+                break
+    return [observed[marker] for marker in markers if marker in observed]
+
+
 def wait_for(proc, log, phrase, deadline, phase):
     while time.monotonic() < deadline:
         check_process(proc, phase)
@@ -4055,6 +4092,17 @@ def run(args):
                   flush=True)
     except BaseException:
         for name, log in logs:
+            if args.autoclicker_pvp and name == "host":
+                # V328 original run lost its one-shot early counter
+                # diagnostics behind 100+ repetitive armed-target lines
+                # because only the final 6000 log bytes were printed.
+                # Surface exact JVM evidence without altering any gate.
+                print("CUSTOMMC_189_V329_AUTOC_DIAGNOSTIC_SOURCE_START",
+                      file=sys.stderr)
+                for diagnostic in v329_original_autoclicker_failure_evidence(log):
+                    print(diagnostic, file=sys.stderr)
+                print("CUSTOMMC_189_V329_AUTOC_DIAGNOSTIC_SOURCE_END",
+                      file=sys.stderr)
             print("M405_" + name.upper() + "_TAIL_START",
                   file=sys.stderr)
             print(log_tail(log, 6000).decode("utf-8", "replace"),
