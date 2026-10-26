@@ -210,7 +210,7 @@ def v329_original_autoclicker_failure_evidence(log, max_bytes=16777216):
                 break
             for marker in markers:
                 if marker not in observed and raw.startswith(marker):
-                    observed[marker] = raw.rstrip(b"\\r\\n")[:384].decode(
+                    observed[marker] = raw.rstrip(b"\r\n")[:384].decode(
                         "utf-8", "replace")
             if len(observed) == len(markers):
                 break
