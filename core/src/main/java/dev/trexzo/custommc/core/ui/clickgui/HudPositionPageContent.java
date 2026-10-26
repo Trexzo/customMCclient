@@ -50,6 +50,7 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
     private final ArrayDeque<Position> redo = new ArrayDeque<Position>();
     private Position lastApplied;
     private boolean pointerStroke;
+    private boolean strokeRecorded;
 
     public HudPositionPageContent(final SettingRegistry settings) {
         this.settings = Objects.requireNonNull(settings, "settings");
@@ -142,6 +143,7 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
         Objects.requireNonNull(event, "event");
         if (event.action() == UiPointerAction.RELEASE) {
             pointerStroke = false;
+            strokeRecorded = false;
             return false;
         }
         if ((event.action() != UiPointerAction.PRESS
@@ -157,6 +159,7 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
         }
         if (event.action() == UiPointerAction.PRESS) {
             pointerStroke = false;
+            strokeRecorded = false;
             if (resetBounds(canvas).contains(event.x(), event.y())) {
                 final Setting<?> x = settings.find(X_ID);
                 final Setting<?> y = settings.find(Y_ID);
@@ -259,9 +262,10 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
         if (!writePosition(x, y)) {
             return false;
         }
-        if (!fromMove || !pointerStroke) {
+        if (!fromMove || !pointerStroke || !strokeRecorded) {
             remember(undo, before);
         }
+        strokeRecorded = true;
         redo.clear();
         lastApplied = new Position(x, y);
         return true;
@@ -306,6 +310,7 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
             undo.clear();
             redo.clear();
             pointerStroke = false;
+            strokeRecorded = false;
         }
         lastApplied = current;
     }
