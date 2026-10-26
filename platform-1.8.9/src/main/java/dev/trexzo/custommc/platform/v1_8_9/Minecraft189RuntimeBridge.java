@@ -2122,6 +2122,26 @@ public final class Minecraft189RuntimeBridge {
                 : host.raycastHitboxBorder(playerCandidate, nativeBorder);
     }
 
+    /**
+     * Final, read-only original Minecraft source GUI check immediately before
+     * issuing a synthetic native melee call. External original World/slot
+     * getters between the initial V333 screen check and controller dispatch
+     * may reenter and open a vanilla menu. Such an action must be cancelled,
+     * not replayed when the GUI later closes.
+     *
+     * True means DENIED. This never modifies vanilla focus, counter, manual
+     * input, player identity or packets.
+     */
+    private static boolean vetoOriginalScreenAtMeleeDispatch(
+            final Minecraft189HostRuntime host,
+            final Minecraft189ClickMouseControl minecraft) {
+        if (Minecraft189NativeGuiCombatVeto.blocks(minecraft)) {
+            host.suspendSyntheticCombatForOriginalGui();
+            return true;
+        }
+        return false;
+    }
+
     public static synchronized void autoClick(
             final Minecraft189ClickMouseControl minecraft) {
         final Minecraft189HostRuntime host =
@@ -3276,6 +3296,12 @@ public final class Minecraft189RuntimeBridge {
                                 Minecraft189VanillaMeleeAcceptance.onNativeClick(
                                         minecraft);
                             }
+                            // Read original GUI again AFTER native UUID
+                            // lookup and dispatch-lease consumption. Neither
+                            // a stale player identity nor a newly opened
+                            // vanilla screen can authorize this controller.
+                            if (vetoOriginalScreenAtMeleeDispatch(host, minecraft))
+                                return;
                             triggerDispatchUuid.set(sourceUuid);
                             try {
                                 minecraft.customMcAttackCrosshairEntity();
@@ -3310,6 +3336,11 @@ public final class Minecraft189RuntimeBridge {
                                 ownerUuid = acceptanceRemotePairOwnerForNativeProof(
                                         host, ownerUuid);
                             if (ownerUuid != null) {
+                                // Scoped original World evidence may itself
+                                // reenter the game GUI while the combat
+                                // selector still appears eligible.
+                                if (vetoOriginalScreenAtMeleeDispatch(host, minecraft))
+                                    return;
                                 auraDispatchUuid.set(ownerUuid);
                                 try {
                                     minecraft.customMcAttackCrosshairEntity();
@@ -3318,8 +3349,12 @@ public final class Minecraft189RuntimeBridge {
                                 }
                             }
                         } else {
-                            // Manual mouse and Auto Clicker preserve vanilla
-                            // clickMouse semantics and their previous CI.
+                            // Auto Clicker uses genuine vanilla clickMouse;
+                            // this callback never substitutes manual input.
+                            // Recheck the real GUI AFTER slot changes and
+                            // any source getter that might open a menu.
+                            if (vetoOriginalScreenAtMeleeDispatch(host, minecraft))
+                                return;
                             minecraft.customMcClickMouse();
                         }
                     } finally {
