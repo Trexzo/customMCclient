@@ -39,6 +39,27 @@ public final class Minecraft189InputHooks {
                         "translator");
     }
 
+    /** UI-only input guard; physical button/CPS accounting stays
+     *  unchanged in HostRuntime even when a GUI edit is denied. */
+    private boolean mayEditWithMouse() {
+        final ServiceRegistry services = platform.requireContext().services();
+        if (!services.contains(ClickGuiModel.class)) {
+            // Source-only unit harnesses may register a retained input
+            // controller directly. Production runtime always registers
+            // its model and therefore follows strict native focus checks.
+            return services.contains(ClickGuiInputController.class);
+        }
+        final ClickGuiModel model = services.require(ClickGuiModel.class);
+        if (!model.snapshot().open()) {
+            return false;
+        }
+        final Minecraft189OverlayFocusGuardian.Snapshot nativeState =
+                Minecraft189OverlayFocusGuardian.observeNative();
+        return Minecraft189OverlayFocusGuardian.reconcile(model, nativeState)
+                && Minecraft189OverlayFocusGuardian.permitsProductionMouseInput(
+                        nativeState);
+    }
+
     public boolean pointerButton(
             final int framebufferWidth,
             final int framebufferHeight,
@@ -47,6 +68,9 @@ public final class Minecraft189InputHooks {
             final int pixelYFromBottom,
             final int legacyButton,
             final boolean pressed) {
+        if (!mayEditWithMouse()) {
+            return false;
+        }
         final UiViewport viewport =
                 new UiViewport(
                         framebufferWidth,
@@ -79,9 +103,8 @@ public final class Minecraft189InputHooks {
             final int pixelX,
             final int pixelYFromBottom) {
         final ServiceRegistry services = platform.requireContext().services();
-        if (!services.contains(ClickGuiModel.class)
-                || !services.require(ClickGuiModel.class).snapshot().open()
-                || !services.contains(ClickGuiInputController.class)) {
+        if (!services.contains(ClickGuiInputController.class)
+                || !mayEditWithMouse()) {
             return false;
         }
         final UiViewport viewport =
@@ -99,6 +122,9 @@ public final class Minecraft189InputHooks {
             final int pixelX,
             final int pixelYFromBottom,
             final int legacyWheelDelta) {
+        if (!mayEditWithMouse()) {
+            return false;
+        }
         final UiViewport viewport =
                 new UiViewport(
                         framebufferWidth,
@@ -140,6 +166,16 @@ public final class Minecraft189InputHooks {
         final ServiceRegistry services =
                 platform.requireContext()
                         .services();
+
+        if (services.contains(ClickGuiModel.class)) {
+            final ClickGuiModel model = services.require(ClickGuiModel.class);
+            if (model.snapshot().open()
+                    && !Minecraft189OverlayFocusGuardian.reconcile(
+                            model,
+                            Minecraft189OverlayFocusGuardian.observeNative())) {
+                return false; // A genuine vanilla GuiScreen owns keyboard now.
+            }
+        }
 
         if (services.contains(
                 Minecraft189ClickGuiToggleController.class)

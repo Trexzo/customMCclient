@@ -6,9 +6,14 @@ import dev.trexzo.custommc.core.module.ModuleKeybindAssignments;
 import dev.trexzo.custommc.core.module.ModuleKeybindRegistry;
 import dev.trexzo.custommc.core.module.ModuleSettingRegistry;
 import dev.trexzo.custommc.core.render.RenderPipeline;
+import dev.trexzo.custommc.core.render.RenderFrame;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.ui.UiThemeProvider;
+import dev.trexzo.custommc.core.ui.UiRenderer;
+import dev.trexzo.custommc.core.ui.UiDrawCommand;
+import dev.trexzo.custommc.core.ui.UiViewport;
+import dev.trexzo.custommc.core.ui.clickgui.ClickGuiModel;
 import dev.trexzo.custommc.core.ui.UiThemes;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiRuntime;
 import dev.trexzo.custommc.platform.PlatformContext;
@@ -20,6 +25,8 @@ import dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189UiRenderer;
 import dev.trexzo.custommc.platform.v1_8_9.ui.Minecraft189UiViewportProvider;
 
 import java.util.Objects;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 public final class Minecraft189ClickGuiRuntime
         implements AutoCloseable {
@@ -243,6 +250,24 @@ public final class Minecraft189ClickGuiRuntime
         final Minecraft189UiRenderer renderer =
                 new Minecraft189UiRenderer(
                         graphics);
+        // Focus guard in the native UI presentation path: no changes to
+        // RuntimeBridge/HostRuntime, which are owned by combat acceptance.
+        final AtomicReference<ClickGuiModel> installedModel =
+                new AtomicReference<ClickGuiModel>();
+        final UiRenderer guardedRenderer = new UiRenderer() {
+            @Override
+            public void render(final RenderFrame frame,
+                    final UiViewport viewport,
+                    final List<UiDrawCommand> commands) {
+                final ClickGuiModel model = installedModel.get();
+                if (model == null
+                        || Minecraft189OverlayFocusGuardian.reconcile(
+                                model,
+                                Minecraft189OverlayFocusGuardian.observeNative())) {
+                    renderer.render(frame, viewport, commands);
+                }
+            }
+        };
         final ClickGuiRuntime coreRuntime =
                 ClickGuiRuntime.install(
                         context.modules(),
@@ -258,7 +283,8 @@ public final class Minecraft189ClickGuiRuntime
                         context.services(),
                         viewportProvider,
                         themeProvider,
-                        renderer);
+                        guardedRenderer);
+        installedModel.set(coreRuntime.model());
 
         return new Minecraft189ClickGuiRuntime(
                 coreRuntime,
