@@ -7,6 +7,7 @@ import dev.trexzo.custommc.core.render.RenderPipeline;
 import dev.trexzo.custommc.core.render.RenderStage;
 import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
+import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiFonts;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
@@ -161,6 +162,38 @@ public final class Minecraft189TargetHudModule implements Module {
                 target.x(), target.y(), target.z());
     }
 
+    /**
+     * Resolves a saved absolute HUD position inside the current logical screen.
+     * Recomputed per rendered frame so resolution/UI-scale changes cannot
+     * leave an otherwise valid card entirely outside the display.
+     * The saved X/Y settings are never rewritten.
+     */
+    static UiBounds visibleCardBounds(
+            final UiViewport viewport,
+            final float configuredX,
+            final float configuredY,
+            final float cardWidth,
+            final float cardHeight) {
+        Objects.requireNonNull(viewport, "viewport");
+        if (!Float.isFinite(configuredX) || !Float.isFinite(configuredY)
+                || !Float.isFinite(cardWidth) || !Float.isFinite(cardHeight)
+                || cardWidth < 0.0F || cardHeight < 0.0F) {
+            throw new IllegalArgumentException(
+                    "HUD bounds require finite positions and nonnegative size");
+        }
+        // If the card cannot fit, pin it to the viewport's origin; its
+        // original dimensions remain intact rather than shrinking text.
+        final double maximumLeft = Math.max(0.0D,
+                (double) viewport.logicalWidth() - cardWidth);
+        final double maximumTop = Math.max(0.0D,
+                (double) viewport.logicalHeight() - cardHeight);
+        final float left = (float) Math.max(0.0D,
+                Math.min((double) configuredX, maximumLeft));
+        final float top = (float) Math.max(0.0D,
+                Math.min((double) configuredY, maximumTop));
+        return new UiBounds(left, top, cardWidth, cardHeight);
+    }
+
     static String directionText(final Minecraft189TargetRotationState.Snapshot rotation) {
         // Avoid displaying -0 degrees when the exact target angles
         // carry IEEE-754 negative zero from atan2.
@@ -184,8 +217,6 @@ public final class Minecraft189TargetHudModule implements Module {
             }
             final UiViewport viewport = new UiViewport(
                     graphics.framebufferWidth(), graphics.framebufferHeight(), graphics.uiScale());
-            final float left = x.get().floatValue();
-            final float top = y.get().floatValue();
             final boolean small = compact.get().booleanValue();
             final String coordinates = showCoordinates.get().booleanValue()
                     ? coordinateText(target) : null;
@@ -196,6 +227,12 @@ public final class Minecraft189TargetHudModule implements Module {
             final float height = expanded
                     ? (small ? 54.0F : 72.0F)
                     : (small ? 38.0F : 56.0F);
+            final UiBounds cardBounds = visibleCardBounds(
+                    viewport,
+                    x.get().floatValue(), y.get().floatValue(),
+                    width, height);
+            final float left = cardBounds.x();
+            final float top = cardBounds.y();
             graphics.beginUi(viewport);
             RuntimeException failure = null;
             try {
