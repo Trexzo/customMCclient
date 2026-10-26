@@ -16,17 +16,25 @@ class V333NativeGuiCombatSourceTest(unittest.TestCase):
             encoding="utf-8"
         )
 
-    def test_native_screen_veto_is_before_any_original_auto_clicker_arm(self):
+    def test_native_screen_veto_keeps_negative_controls_but_stops_actions(self):
         method = self.bridge.split(
             "public static synchronized void autoClick(", 1
         )[1].split("public static synchronized void publishTick(", 1)[0]
+        negative_control = method.index("custommc.acceptance.reportAutoClicker")
+        fov_disabled_control = method.index("custommc.acceptance.reportKillAuraFovVeto")
         guard = method.index("Minecraft189NativeGuiCombatVeto.blocks(minecraft)")
         revoke = method.index("host.suspendSyntheticCombatForOriginalGui()", guard)
-        negative_control = method.index("custommc.acceptance.reportAutoClicker", revoke)
-        melee = method.index("host.shouldAutoClick(", negative_control)
+        auto_pot = method.index("host.shouldAutoPot(", revoke)
+        auto_rod = method.index("host.shouldAutoRod(", auto_pot)
+        melee = method.index("host.shouldAutoClick(", auto_rod)
+        native_click = method.index("minecraft.customMcClickMouse();", melee)
+        self.assertLess(negative_control, guard)
+        self.assertLess(fov_disabled_control, guard)
         self.assertLess(guard, revoke)
-        self.assertLess(revoke, negative_control)
-        self.assertLess(negative_control, melee)
+        self.assertLess(revoke, auto_pot)
+        self.assertLess(auto_pot, auto_rod)
+        self.assertLess(auto_rod, melee)
+        self.assertLess(melee, native_click)
 
     def test_open_native_screen_revokes_three_combat_owners_and_trigger_token(self):
         body = self.host.split(
