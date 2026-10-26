@@ -2,6 +2,7 @@ package dev.trexzo.custommc.core.ui.clickgui;
 
 import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiTheme;
+import dev.trexzo.custommc.core.ui.UiViewport;
 
 import java.util.Objects;
 
@@ -10,12 +11,23 @@ public final class ClickGuiContentContext {
     private final ClickGuiPage page;
     private final UiBounds bounds;
     private final UiTheme theme;
+    private final UiViewport viewport;
 
     public ClickGuiContentContext(
             final ClickGuiSnapshot snapshot,
             final ClickGuiPage page,
             final UiBounds bounds,
             final UiTheme theme) {
+        this(snapshot, page, bounds, theme, null);
+    }
+
+    public ClickGuiContentContext(
+            final ClickGuiSnapshot snapshot,
+            final ClickGuiPage page,
+            final UiBounds bounds,
+            final UiTheme theme,
+            final UiViewport viewport) {
+        this.viewport = viewport;
         this.snapshot =
                 Objects.requireNonNull(
                         snapshot,
@@ -48,5 +60,9 @@ public final class ClickGuiContentContext {
 
     public UiTheme theme() {
         return theme;
+    }
+
+    public UiViewport viewport() {
+        return viewport;
     }
 }

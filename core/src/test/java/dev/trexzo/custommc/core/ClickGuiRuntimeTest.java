@@ -124,6 +124,7 @@ final class ClickGuiRuntimeTest {
                 Arrays.asList(
                         ClickGuiRuntime.MODULES_PAGE_ID,
                         ClickGuiRuntime.SETTINGS_PAGE_ID,
+                        ClickGuiRuntime.HUD_PAGE_ID,
                         ClickGuiRuntime.MODULE_DETAIL_PAGE_ID),
                 Arrays.asList(
                         runtime.model().snapshot()
@@ -131,7 +132,9 @@ final class ClickGuiRuntimeTest {
                         runtime.model().snapshot()
                                 .pages().get(1).id(),
                         runtime.model().snapshot()
-                                .pages().get(2).id()));
+                                .pages().get(2).id(),
+                        runtime.model().snapshot()
+                                .pages().get(3).id()));
         assertNotNull(
                 runtime.contents().find(
                         ClickGuiRuntime.MODULES_PAGE_ID));
@@ -141,6 +144,9 @@ final class ClickGuiRuntimeTest {
         assertNotNull(
                 runtime.contents().find(
                         ClickGuiRuntime.MODULE_DETAIL_PAGE_ID));
+        assertNotNull(
+                runtime.contents().find(
+                        ClickGuiRuntime.HUD_PAGE_ID));
         assertEquals(
                 1,
                 pipeline.snapshotFor(

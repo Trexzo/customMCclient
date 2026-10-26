@@ -28,12 +28,14 @@ public final class ClickGuiRuntime
             "settings";
     public static final String MODULE_DETAIL_PAGE_ID =
             "module-detail";
+    public static final String HUD_PAGE_ID = "hud-layout";
     public static final String RENDER_PASS_ID =
             "click-gui";
 
     private static final int MODULES_PAGE_PRIORITY = 0;
     private static final int SETTINGS_PAGE_PRIORITY = 10;
     private static final int MODULE_DETAIL_PAGE_PRIORITY = 20;
+    private static final int HUD_PAGE_PRIORITY = 15;
     private static final int RENDER_PASS_PRIORITY = 500;
 
     private final ClickGuiModel model;
@@ -46,9 +48,11 @@ public final class ClickGuiRuntime
     private final ClickGuiModel.Registration modulesPage;
     private final ClickGuiModel.Registration settingsPage;
     private final ClickGuiModel.Registration detailPage;
+    private final ClickGuiModel.Registration hudPage;
     private final ClickGuiContentRegistry.Registration modulesContent;
     private final ClickGuiContentRegistry.Registration settingsContent;
     private final ClickGuiContentRegistry.Registration detailContent;
+    private final ClickGuiContentRegistry.Registration hudContent;
     private final RenderPipeline.Registration renderRegistration;
     private final ServiceRegistry.Registration modelService;
     private final ServiceRegistry.Registration inputService;
@@ -65,9 +69,11 @@ public final class ClickGuiRuntime
             final ClickGuiModel.Registration modulesPage,
             final ClickGuiModel.Registration settingsPage,
             final ClickGuiModel.Registration detailPage,
+            final ClickGuiModel.Registration hudPage,
             final ClickGuiContentRegistry.Registration modulesContent,
             final ClickGuiContentRegistry.Registration settingsContent,
             final ClickGuiContentRegistry.Registration detailContent,
+            final ClickGuiContentRegistry.Registration hudContent,
             final RenderPipeline.Registration renderRegistration,
             final ServiceRegistry.Registration modelService,
             final ServiceRegistry.Registration inputService) {
@@ -80,9 +86,11 @@ public final class ClickGuiRuntime
         this.modulesPage = modulesPage;
         this.settingsPage = settingsPage;
         this.detailPage = detailPage;
+        this.hudPage = hudPage;
         this.modulesContent = modulesContent;
         this.settingsContent = settingsContent;
         this.detailContent = detailContent;
+        this.hudContent = hudContent;
         this.renderRegistration = renderRegistration;
         this.modelService = modelService;
         this.inputService = inputService;
@@ -210,6 +218,8 @@ public final class ClickGuiRuntime
                         moduleKeybindAssignments,
                         settings,
                         settingPresentations);
+        final HudPositionPageContent hudContentValue =
+                new HudPositionPageContent(settings);
         final ClickGuiInputController input =
                 new ClickGuiInputController(
                         model,
@@ -228,9 +238,11 @@ public final class ClickGuiRuntime
         ClickGuiModel.Registration modulesPage = null;
         ClickGuiModel.Registration settingsPage = null;
         ClickGuiModel.Registration detailPage = null;
+        ClickGuiModel.Registration hudPage = null;
         ClickGuiContentRegistry.Registration modulesContent = null;
         ClickGuiContentRegistry.Registration settingsContent = null;
         ClickGuiContentRegistry.Registration detailContent = null;
+        ClickGuiContentRegistry.Registration hudContent = null;
         RenderPipeline.Registration renderRegistration = null;
         ServiceRegistry.Registration modelService = null;
         ServiceRegistry.Registration inputService = null;
@@ -255,6 +267,13 @@ public final class ClickGuiRuntime
                                     "Module Details",
                                     MODULE_DETAIL_PAGE_PRIORITY));
 
+            hudPage =
+                    model.register(
+                            new ClickGuiPage(
+                                    HUD_PAGE_ID,
+                                    "HUD Layout",
+                                    HUD_PAGE_PRIORITY));
+
             modulesContent =
                     contents.register(
                             MODULES_PAGE_ID,
@@ -267,6 +286,11 @@ public final class ClickGuiRuntime
                     contents.register(
                             MODULE_DETAIL_PAGE_ID,
                             detailContentValue);
+
+            hudContent =
+                    contents.register(
+                            HUD_PAGE_ID,
+                            hudContentValue);
 
             renderRegistration =
                     renderPipeline.register(
@@ -290,9 +314,11 @@ public final class ClickGuiRuntime
                     modulesPage,
                     settingsPage,
                     detailPage,
+                    hudPage,
                     modulesContent,
                     settingsContent,
                     detailContent,
+                    hudContent,
                     renderRegistration,
                     modelService,
                     inputService);
@@ -307,6 +333,9 @@ public final class ClickGuiRuntime
             if (renderRegistration != null) {
                 renderRegistration.close();
             }
+            if (hudContent != null) {
+                hudContent.close();
+            }
             if (detailContent != null) {
                 detailContent.close();
             }
@@ -315,6 +344,9 @@ public final class ClickGuiRuntime
             }
             if (modulesContent != null) {
                 modulesContent.close();
+            }
+            if (hudPage != null) {
+                hudPage.close();
             }
             if (detailPage != null) {
                 detailPage.close();
@@ -371,9 +403,11 @@ public final class ClickGuiRuntime
         modelService.close();
         input.close();
         renderRegistration.close();
+        hudContent.close();
         detailContent.close();
         settingsContent.close();
         modulesContent.close();
+        hudPage.close();
         detailPage.close();
         settingsPage.close();
         modulesPage.close();

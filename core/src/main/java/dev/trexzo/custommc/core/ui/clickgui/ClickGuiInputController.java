@@ -140,7 +140,8 @@ public final class ClickGuiInputController
             dispatchContentPointer(
                     snapshot,
                     layout,
-                    event);
+                    event,
+                    viewport);
             return true;
         }
 
@@ -195,7 +196,8 @@ public final class ClickGuiInputController
             return dispatchContentScroll(
                     snapshot,
                     layout,
-                    event);
+                    event,
+                    viewport);
         }
 
         return false;
@@ -279,7 +281,8 @@ public final class ClickGuiInputController
     private void dispatchContentPointer(
             final ClickGuiSnapshot snapshot,
             final ClickGuiLayout layout,
-            final UiPointerEvent event) {
+            final UiPointerEvent event,
+            final UiViewport viewport) {
         final ClickGuiPage selected =
                 selectedPage(snapshot);
         if (selected == null) {
@@ -299,14 +302,16 @@ public final class ClickGuiInputController
                         selected,
                         layout.content(),
                         focusManager,
-                        navigator),
+                        navigator,
+                        viewport),
                 event);
     }
 
     private boolean dispatchContentScroll(
             final ClickGuiSnapshot snapshot,
             final ClickGuiLayout layout,
-            final UiScrollEvent event) {
+            final UiScrollEvent event,
+            final UiViewport viewport) {
         final ClickGuiPage selected =
                 selectedPage(snapshot);
         if (selected == null) {
@@ -326,7 +331,8 @@ public final class ClickGuiInputController
                         selected,
                         layout.content(),
                         focusManager,
-                        navigator),
+                        navigator,
+                        viewport),
                 event);
     }
 

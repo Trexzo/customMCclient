@@ -197,7 +197,8 @@ public final class ClickGuiComposer {
                                             snapshot,
                                             selected,
                                             content,
-                                            theme)),
+                                            theme,
+                                            viewport)),
                             "pageContent.compose");
             commands.add(
                     new UiClipCommand(
