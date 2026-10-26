@@ -106,6 +106,12 @@ public final class ClickGuiInputController
                 event.x(),
                 event.y())) {
             if (event.button() == UiPointerButton.LEFT) {
+                // The rightmost 28 logical pixels are an explicit clear action.
+                if (event.x() >= layout.search().x()
+                        + layout.search().width() - 28.0F
+                        && !snapshot.searchQuery().isEmpty()) {
+                    model.setSearchQuery("");
+                }
                 focusManager.requestFocus(
                         SEARCH_FOCUS_ID);
             }

@@ -165,6 +165,27 @@ public final class ModuleListPageContent
                         theme.color(
                                 UiColorRole.TEXT_PRIMARY)));
 
+        commands.add(
+                new UiTextCommand(
+                        0,
+                        bounds.x() + Math.max(0.0F, bounds.width() - 110.0F),
+                        bounds.y() + PADDING - scrollOffset,
+                        UiFonts.DEFAULT,
+                        visible.size() + " modules",
+                        theme.color(UiColorRole.TEXT_MUTED)));
+        if (visible.isEmpty()) {
+            commands.add(
+                    new UiTextCommand(
+                            0,
+                            bounds.x() + PADDING,
+                            firstRowY(bounds, scrollOffset) + 10.0F,
+                            UiFonts.DEFAULT,
+                            context.snapshot().searchQuery().trim().isEmpty()
+                                    ? "No modules registered"
+                                    : "No modules match your search",
+                            theme.color(UiColorRole.TEXT_MUTED)));
+        }
+
         float y =
                 firstRowY(
                         bounds,

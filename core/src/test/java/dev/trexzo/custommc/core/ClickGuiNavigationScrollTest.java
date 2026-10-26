@@ -154,9 +154,16 @@ final class ClickGuiNavigationScrollTest {
         UiClipCommand navigationClip = null;
         for (UiDrawCommand command : commands) {
             if (command instanceof UiClipCommand) {
-                navigationClip =
-                        (UiClipCommand) command;
-                break;
+                final UiClipCommand clip = (UiClipCommand) command;
+                // Search also has an independent clip: select navigation
+                // by its actual viewport instead of incidental list order.
+                if (clip.bounds().x() == layout.navigation().x()
+                        && clip.bounds().y() == layout.navigation().y()
+                        && clip.bounds().width() == layout.navigation().width()
+                        && clip.bounds().height() == layout.navigation().height()) {
+                    navigationClip = clip;
+                    break;
+                }
             }
         }
 
