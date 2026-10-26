@@ -113,6 +113,12 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
         commands.add(new UiTextCommand(1, reset.x() + 8.0F,
                 reset.y() + 8.0F, UiFonts.DEFAULT,
                 "Reset Position", theme.color(UiColorRole.TEXT_PRIMARY)));
+        commands.add(new UiTextCommand(1,
+                outer.x() + INSET,
+                canvas.y() + canvas.height() + 77.0F,
+                UiFonts.DEFAULT,
+                "Mouse captured? Use Shift + arrows instead",
+                theme.color(UiColorRole.TEXT_MUTED)));
         return commands;
     }
 

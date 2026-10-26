@@ -175,6 +175,16 @@ public final class Minecraft189Mappings {
     public static final MappedField AABB_MAX_Z =
             new MappedField(AXIS_ALIGNED_BB, "f", "D", "field_72334_f", "maxZ");
 
+    // 1.8.9 pinned fields.csv (BigBroadBean/mappings-extracted,
+    // 2265da88e93c20411ec70f0b892f4fbc84ebc3c9).
+    // This probe is read-only; no gameplay/world/GuiScreen mutation.
+    public static final MappedField MINECRAFT_CURRENT_SCREEN =
+            new MappedField(MINECRAFT, "m", "Laxu;",
+                    "field_71462_r", "currentScreen");
+    public static final MappedField MINECRAFT_INGAME_HAS_FOCUS =
+            new MappedField(MINECRAFT, "w", "Z",
+                    "field_71415_G", "inGameHasFocus");
+
     public static final MappedField MINECRAFT_OBJECT_MOUSE_OVER =
             new MappedField(
                     MINECRAFT,
