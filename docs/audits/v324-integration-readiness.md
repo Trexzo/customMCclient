@@ -52,6 +52,12 @@ A second targeted patch-to-current-source audit confirms that the **five Git-div
 
 **Policy distinction in old #526:** its distinct UUID births **despite unrelated nonplayer despawns** did not require the original net +4. Current double-certified V325 intentionally requires **both** >=4 novel original nonplayer UUIDs and native net +4 at the *same* M417 witness; copying the old weaker birth-only positive gate would regress actual acceptance integrity. Original #526 class/test name is not retained 1:1, but the novel source-UUID helper and strict combined gate have their own modern tests. No production change or old branch cherry-pick is supported on present evidence.
 
+## Ten historical combat / original-rejoin / Scaffold alternatives (#538, #527, #526, #520–#515, #513)
+
+[Focused V325 sibling source audit](v325-combat-scaffold-sibling-parity.md) compares exactly these **ten** Git-diverged PR patches to the latest independently 2 × 80/80-original-certified V325 head. Current source/real CI visibly incorporates the TriggerBot original ray/controller/server-damage proof (#538), source B ray/head diagnostics (#527), and the four distinct novel nonplayer UUID proof (#526), which V325 **intentionally strengthens** with an additional mandatory native net +4 M417 gate. Native simultaneous A/B controller and FOV negative cases remain strict.
+
+Scaffold target-history A→B→A rejection (#515) is present in the newer `Minecraft189ScaffoldConfirmedTargets` with more bounded-history tests; four-block production and real physical keyboard-walking variants (#516/#518) have extended 4/5/6 target CI paths; hotbar-abort behavior (#513) remains covered by V309. Older #517/#519/#520 standalone FOV/slowness/backwalk samples and exact marker names are **not textually or temporally proven equivalent** to their replacement fixtures. No change, cherry-pick or test waiver is justified by the current audit; explicit gaps/limitations are in the referenced report.
+
 ## Packaging, dependency, privacy and licensing preliminary triage
 
 - `README.md` and root `build.gradle.kts` define `assembleLauncherDistribution`, `verifyLauncherDistribution`, `build/custommc-distribution`, Windows `bin/launcher.bat`, launcher `lib/` and an overlay of **exactly five stable JAR filenames**. `verifyFoundation` depends on distribution-shape verification. This is a **verified CI distribution shape**, not an audited user-installable Windows package.
