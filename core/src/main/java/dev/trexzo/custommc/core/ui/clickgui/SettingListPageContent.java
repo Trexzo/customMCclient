@@ -144,6 +144,9 @@ public final class SettingListPageContent
                             theme.color(
                                     UiColorRole.TEXT_PRIMARY)));
 
+            commands.addAll(UiSettingDecorations.compose(
+                    row, entry.setting, entry.descriptor, theme));
+
             final boolean editing =
                     editor.isEditing(entry.setting);
             commands.add(
