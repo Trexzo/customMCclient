@@ -160,8 +160,10 @@ public final class SettingListPageContent
                                             - 130.0F),
                             row.y() + 10.0F,
                             UiFonts.DEFAULT,
-                            editor.displayValue(
-                                    entry.setting),
+                            UiThemeSettings.ID.equals(entry.setting.id())
+                                    ? UiThemeSettings.displayName(
+                                            String.valueOf(entry.setting.get()))
+                                    : editor.displayValue(entry.setting),
                             theme.color(
                                     editing
                                             ? UiColorRole.ACCENT
