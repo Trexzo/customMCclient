@@ -98,7 +98,11 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
                 theme.color(UiColorRole.TEXT_MUTED)));
         commands.add(new UiRoundedRectCommand(0,
                 canvas.x(), canvas.y(), canvas.width(), canvas.height(),
-                5.0F, theme.color(UiColorRole.BACKGROUND)));
+                7.0F, theme.color(UiColorRole.BACKGROUND)));
+        commands.add(new UiRoundedRectCommand(0,
+                canvas.x() + 8.0F, canvas.y() + 8.0F,
+                Math.max(0.0F, canvas.width() - 16.0F), 2.0F,
+                1.0F, theme.color(UiColorRole.ACCENT)));
         commands.add(new UiOutlineCommand(1,
                 canvas.x(), canvas.y(), canvas.width(), canvas.height(),
                 1.0F, theme.color(UiColorRole.BORDER)));
@@ -131,7 +135,7 @@ public final class HudPositionPageContent implements ClickGuiPageContent {
                 outer.x() + INSET,
                 canvas.y() + canvas.height() + 77.0F,
                 UiFonts.DEFAULT,
-                "Mouse captured? Use Shift + arrows instead",
+                "Ctrl+Z Undo   /   Ctrl+Y Redo   /   Shift+Arrows",
                 theme.color(UiColorRole.TEXT_MUTED)));
         return commands;
     }
