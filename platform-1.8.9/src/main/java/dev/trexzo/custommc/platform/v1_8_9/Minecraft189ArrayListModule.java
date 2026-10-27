@@ -48,6 +48,8 @@ public final class Minecraft189ArrayListModule
     public static final int DEFAULT_MAX_VISIBLE = 128;
     public static final String RIGHT_ALIGNED_SETTING_ID =
             "render.array-list.rightAligned";
+    public static final String SHOW_BACKGROUND_SETTING_ID =
+            "render.array-list.showBackground";
     // Intrinsic-size chips replace S12's identical 184px rectangles.
     // Glyph widths are conservative approximations of the native 1.8.9 font:
     // the host currently exposes drawString but not getStringWidth.
@@ -89,6 +91,11 @@ public final class Minecraft189ArrayListModule
             SettingCodecs.INTEGER);
     private final Setting<Boolean> rightAligned = new Setting<Boolean>(
             RIGHT_ALIGNED_SETTING_ID, Boolean.TRUE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    // Slinky-style unobtrusive text stack by default; enable optional
+    // compact backplates without restoring identical full-width cards.
+    private final Setting<Boolean> showBackground = new Setting<Boolean>(
+            SHOW_BACKGROUND_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> showOverflow = new Setting<Boolean>(
             SHOW_OVERFLOW_SETTING_ID, Boolean.FALSE,
@@ -148,6 +155,7 @@ public final class Minecraft189ArrayListModule
     public Setting<Integer> maxVisibleSetting() { return maxVisible; }
     public Setting<Boolean> showOverflowSetting() { return showOverflow; }
     public Setting<Boolean> rightAlignedSetting() { return rightAligned; }
+    public Setting<Boolean> showBackgroundSetting() { return showBackground; }
 
     static int categoryOrder(final ModuleDescriptor descriptor) {
         final String id = descriptor == null
@@ -218,7 +226,7 @@ public final class Minecraft189ArrayListModule
                 : UiThemeSettings.resolve(themeSettings, UiThemes.graphite());
         // Restraint matters: a translucent chip hugs the measured-length
         // estimate instead of filling a huge equal-width rectangle.
-        if (chipWidth >= 2.0F) {
+        if (showBackground.get().booleanValue() && chipWidth >= 2.0F) {
             hostCallbacks.fillRoundedRect(chipX, currentY - 1.0F,
                     chipWidth, CHIP_HEIGHT, Math.min(2.0F, chipWidth * .5F),
                     0x50000000 | (theme.color(UiColorRole.SURFACE) & 0xFFFFFF));
