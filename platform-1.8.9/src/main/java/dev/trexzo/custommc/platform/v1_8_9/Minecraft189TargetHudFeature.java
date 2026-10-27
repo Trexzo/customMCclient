@@ -112,7 +112,7 @@ final class Minecraft189TargetHudFeature
                 new Minecraft189TargetHudModule(
                         nearest, rotationState,
                         renderPipeline,
-                        hostCallbacks);
+                        hostCallbacks, settings);
 
         ModuleRegistry.Registration moduleRegistration = null;
         ModulePresentationRegistry.Registration presentation = null;

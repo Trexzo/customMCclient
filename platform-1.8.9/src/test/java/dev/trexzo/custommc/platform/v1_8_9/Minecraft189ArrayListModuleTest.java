@@ -12,6 +12,7 @@ import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.ui.UiFontHandle;
 import dev.trexzo.custommc.core.ui.UiViewport;
+import dev.trexzo.custommc.core.ui.UiThemeSettings;
 import dev.trexzo.custommc.platform.PlatformContext;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189ArrayListModuleTest {
     @Test
@@ -97,6 +99,17 @@ final class Minecraft189ArrayListModuleTest {
                             "1064.0,50.0",
                             "1064.0,62.0"),
                     host.positions);
+
+            assertEquals(0xFF59A7FF, host.lastAccentColor);
+            assertTrue(UiThemeSettings.cycle(
+                    settings.find(UiThemeSettings.ID), true));
+            host.clear();
+            runtime.renderHud(4L, 0.0F);
+            assertEquals(0xFF48D5DE, host.lastAccentColor);
+            assertEquals("frost", settings.snapshotEncoded()
+                    .get(UiThemeSettings.ID));
+            assertTrue(UiThemeSettings.cycle(
+                    settings.find(UiThemeSettings.ID), false));
 
             host.clear();
             controller.disable(
@@ -344,6 +357,7 @@ final class Minecraft189ArrayListModuleTest {
                 new ArrayList<String>();
         private final List<String> positions =
                 new ArrayList<String>();
+        private int lastAccentColor;
 
         private void clear() {
             text.clear();
@@ -377,6 +391,9 @@ final class Minecraft189ArrayListModuleTest {
                 final float width,
                 final float height,
                 final int argb) {
+            if (width == 2.0F && height == 10.0F) {
+                lastAccentColor = argb;
+            }
         }
 
         @Override
