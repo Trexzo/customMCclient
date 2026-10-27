@@ -41,6 +41,12 @@ public final class Minecraft189ArrayListModule
     public static final String SHOW_OVERFLOW_SETTING_ID =
             "render.array-list.showOverflow";
     public static final int DEFAULT_MAX_VISIBLE = 128;
+    public static final String RIGHT_ALIGNED_SETTING_ID =
+            "render.array-list.rightAligned";
+    private static final float CARD_WIDTH = 184.0F;
+    private static final float CARD_HEIGHT = 12.0F;
+    private static final int CARD_ARGB = 0xD911161F;
+    private static final int ACCENT_ARGB = 0xFF59A7FF;
 
     private static final int PRIORITY = 110;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
@@ -75,6 +81,9 @@ public final class Minecraft189ArrayListModule
             MAX_VISIBLE_SETTING_ID, DEFAULT_MAX_VISIBLE,
             value -> value != null && value >= 1 && value <= 128,
             SettingCodecs.INTEGER);
+    private final Setting<Boolean> rightAligned = new Setting<Boolean>(
+            RIGHT_ALIGNED_SETTING_ID, Boolean.TRUE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> showOverflow = new Setting<Boolean>(
             SHOW_OVERFLOW_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
@@ -120,6 +129,7 @@ public final class Minecraft189ArrayListModule
     public Setting<Boolean> groupCategoriesSetting() { return groupCategories; }
     public Setting<Integer> maxVisibleSetting() { return maxVisible; }
     public Setting<Boolean> showOverflowSetting() { return showOverflow; }
+    public Setting<Boolean> rightAlignedSetting() { return rightAligned; }
 
     static int categoryOrder(final ModuleDescriptor descriptor) {
         final String id = descriptor == null
@@ -162,6 +172,31 @@ public final class Minecraft189ArrayListModule
     synchronized boolean renderPassInstalled() {
         return renderRegistration != null
                 && renderRegistration.active();
+    }
+
+    private void drawModuleCard(final UiViewport viewport,
+            final float currentY, final String label) {
+        // Preserve pre-existing left-coordinate semantics when Right Align
+        // is disabled. Right Align treats X as screen-edge inset.
+        final boolean right = rightAligned.get().booleanValue();
+        final float left = right ? Math.max(0.0F,
+                viewport.logicalWidth() - x.get().floatValue() - CARD_WIDTH)
+                : x.get().floatValue();
+        if (right) {
+            hostCallbacks.fillRoundedRect(left, currentY - 1.0F,
+                    CARD_WIDTH, CARD_HEIGHT, 3.0F, CARD_ARGB);
+            hostCallbacks.fillRect(left + CARD_WIDTH - 2.0F,
+                    currentY, 2.0F, CARD_HEIGHT - 2.0F, ACCENT_ARGB);
+            hostCallbacks.pushClip(left + 8.0F, currentY - 1.0F,
+                    CARD_WIDTH - 17.0F, CARD_HEIGHT);
+        }
+        try {
+            hostCallbacks.drawText(UiFonts.DEFAULT,
+                    right ? left + 8.0F : left,
+                    currentY, label, right ? 0xFFE7EDF8 : TEXT_ARGB);
+        } finally {
+            if (right) hostCallbacks.popClip();
+        }
     }
 
     private final class ArrayListRenderPass
@@ -221,17 +256,15 @@ public final class Minecraft189ArrayListModule
                 for (int index = 0; index < displayed; index++) {
                     final Module module = enabled.get(index);
                     final ModuleDescriptor descriptor = presentations.find(module.id());
-                    hostCallbacks.drawText(UiFonts.DEFAULT, x.get().floatValue(),
-                            currentY, moduleLabel(module.id(), descriptor, withCategory),
-                            TEXT_ARGB);
+                    drawModuleCard(viewport, currentY,
+                            moduleLabel(module.id(), descriptor, withCategory));
                     currentY += LINE_HEIGHT;
                 }
                 // No fabricated modules: the overflow count is computed
                 // solely from the enabled module registry snapshot.
                 if (showOverflow.get().booleanValue() && enabled.size() > displayed) {
-                    hostCallbacks.drawText(UiFonts.DEFAULT, x.get().floatValue(),
-                            currentY, "+ " + (enabled.size() - displayed) + " more",
-                            TEXT_ARGB);
+                    drawModuleCard(viewport, currentY,
+                            "+ " + (enabled.size() - displayed) + " more");
                 }
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
