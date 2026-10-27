@@ -32,7 +32,7 @@ final class Minecraft189CombatModulesTandemTest {
         world.update(new int[]{
                 Minecraft189WorldEntityKindState.LIVING
                         | Minecraft189WorldEntityKindState.PLAYER
-                        | Minecraft189WorldEntityKindState.LOCAL,
+                        | Minecraft189WorldEntityKindState.LOCAL_PLAYER,
                 Minecraft189WorldEntityKindState.LIVING
                         | Minecraft189WorldEntityKindState.PLAYER
         });
