@@ -57,10 +57,17 @@ class V338NativeHitSelectOwnerTest(unittest.TestCase):
         self.assertIn("currentKinds.localPlayer(verifiedCrosshairIndex)", HIT)
 
     def test_exact_original_controller_hurt_and_server_damage_never_weakened(self):
-        for gate in ("AUTO_NATIVE_UNSCOPED, deadline",
-                     "AUTO_NATIVE_EXACT_REMOTE, deadline",
-                     "AUTO_HURT if args.autoclicker_pvp",
-                     "scoreboard players test CITarget taken 1 999999"):
+        # V338 is stacked on V325, *before* V326 introduced the optional
+        # Auto Clicker remote-UUID acceptance names. Assert the actual V325
+        # dedicated-server controller, native hurt and genuine-score gates.
+        for gate in (
+            "wait_for(host, host_log, CONTROLLER_ATTACK,",
+            "TRIGGER_HURT if args.triggerbot_pvp else AURA_HURT,",
+            "wait_for(host, host_log, REJOIN_B_HIT, deadline,",
+            "wait_for_real_score(server, server_log, \"CITargetB\", deadline)",
+            "scoreboard players test CITarget taken 1 999999",
+            "wait_for(host,host_log,REJOIN_CONTROLLER_ARGUMENT_UUID_B,deadline,"
+        ):
             self.assertIn(gate, HARNESS)
         self.assertNotIn("V338_HITSELECT_PASS", HARNESS)
 
