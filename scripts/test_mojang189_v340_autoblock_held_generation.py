@@ -12,12 +12,16 @@ HARNESS = (ROOT / "scripts" / "RunMojang189LocalhostTwoPlayerSmoke.py").read_tex
 
 
 class V340AutoBlockOriginalHeldGeneration(unittest.TestCase):
-    def test_native_admission_uses_fresh_sword_and_original_callback_serial(self):
+    def test_native_admission_preserves_getter_order_and_captures_original_serial(self):
         body = HOST.split("long beginAutoBlockNativeUse() {", 1)[1].split(
             "\n    }", 1)[0]
-        self.assertIn("if (!holdingVerifiedSword()) return 0L;", body)
+        self.assertNotIn("holdingVerifiedSword()", body)
         self.assertIn("heldItemOwnerSerial", body)
         self.assertIn("featureCatalog.autoBlock().beginNativeUse(", body)
+        # Existing exact-source sword check remains in mayStart; reservation
+        # must not add a second original native HeldItem getter.
+        self.assertIn("boolean mayStartAutoBlock(", HOST)
+        self.assertIn("holdingVerifiedSword(),", HOST)
 
     def test_native_completion_cannot_use_new_sword_of_same_kind(self):
         body = HOST.split("void recordAutoBlockStart(final long useToken) {", 1)[1].split(
