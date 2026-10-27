@@ -114,6 +114,14 @@ final class Minecraft189ArrayListModuleTest {
                     Arrays.asList(
                             "1064.0,50.0"),
                     host.positions);
+            host.clear();
+            // Persisted opt-out keeps exact legacy left-X behavior.
+            runtime.featureCatalog().arrayList().rightAlignedSetting()
+                    .set(Boolean.FALSE);
+            runtime.renderHud(2L, 0.0F);
+            assertEquals(Arrays.asList("40.0,50.0"), host.positions);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.RIGHT_ALIGNED_SETTING_ID));
         } finally {
             runtime.close();
         }
