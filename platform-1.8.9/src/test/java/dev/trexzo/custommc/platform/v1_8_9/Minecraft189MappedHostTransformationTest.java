@@ -4945,6 +4945,35 @@ final class Minecraft189MappedHostTransformationTest {
                             .velocity()
                             .active());
 
+            // V339: the overridden native method belongs to pr, shared
+            // by a remote player and every mob. No Velocity setting can
+            // change those entities' original vanilla X/Y/Z knockback.
+            // Use the same transformed source method invoked on the real
+            // local mock bew below, with an actual pr receiver and a
+            // remote-player bet receiver from this bytecode classloader.
+            for (String nonlocalClass : new String[]{"pr", "bet"}) {
+                final Object nonlocal =
+                        loader.loadClass(nonlocalClass)
+                                .getDeclaredConstructor().newInstance();
+                entityClass.getField("v").setDouble(nonlocal, 2.0D);
+                entityClass.getField("w").setDouble(nonlocal, 3.0D);
+                entityClass.getField("x").setDouble(nonlocal, 4.0D);
+                knockBack.invoke(
+                        nonlocal, player,
+                        Float.valueOf(0.4F),
+                        Double.valueOf(1.0D),
+                        Double.valueOf(-2.0D));
+                assertEquals(3.0D,
+                        entityClass.getField("v").getDouble(nonlocal), 0.0D,
+                        "nonlocal " + nonlocalClass + " X is vanilla");
+                assertEquals(3.4D,
+                        entityClass.getField("w").getDouble(nonlocal), 0.000001D,
+                        "nonlocal " + nonlocalClass + " Y is vanilla");
+                assertEquals(2.0D,
+                        entityClass.getField("x").getDouble(nonlocal), 0.0D,
+                        "nonlocal " + nonlocalClass + " Z is vanilla");
+            }
+
             playerClass.getField("v")
                     .setDouble(
                             player,
