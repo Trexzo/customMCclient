@@ -34,9 +34,17 @@ class V338NativeHitSelectOwnerTest(unittest.TestCase):
             dispatched = body.index(call)
             check = body.rfind("if (!permitsHitSelectAtNativeDispatch(", 0, dispatched)
             self.assertGreater(check, scheduling)
-            self.assertLess(dispatched - check, 260)
-            self.assertIn("hitSelectInitialUuid", body[check:dispatched])
-            self.assertIn("return;", body[check:dispatched])
+            # V344 inserts the separate original-GuiScreen veto between
+            # the exact HitSelect UUID/hurt gate and native dispatch. Assert
+            # the authoritative order, not a brittle character distance.
+            between = body[check:dispatched]
+            self.assertIn("hitSelectInitialUuid", between)
+            gui = between.index("if (vetoOriginalScreenBeforeNativeCombat(")
+            self.assertGreater(gui, between.index("hitSelectInitialUuid"))
+            self.assertIn("return;", between[:gui])
+            self.assertIn("return;", between[gui:])
+            self.assertNotIn("customMcAttackCrosshairEntity();", between)
+            self.assertNotIn("customMcClickMouse();", between)
 
     def test_final_gate_safeguards_actual_native_crosshair_and_original_world(self):
         helper = BRIDGE.split(

@@ -2185,6 +2185,24 @@ public final class Minecraft189RuntimeBridge {
                 host.worldEntityCombatState().snapshot());
     }
 
+    /**
+     * Recheck the exact original vanilla GuiScreen directly before a native
+     * automated action. Source getter reentry between initial admission and
+     * final controller dispatch may open a menu. Rejecting an attempted
+     * action revokes scheduler credit rather than replaying it later.
+     *
+     * This is NOT an original PvP controller/UUID or server-damage witness.
+     */
+    private static boolean vetoOriginalScreenBeforeNativeCombat(
+            final Minecraft189HostRuntime host,
+            final Minecraft189ClickMouseControl minecraft) {
+        if (Minecraft189NativeGuiCombatVeto.blocks(minecraft)) {
+            host.suspendSyntheticCombatForOriginalGui();
+            return true;
+        }
+        return false;
+    }
+
     public static synchronized void autoClick(
             final Minecraft189ClickMouseControl minecraft) {
         final Minecraft189HostRuntime host =
@@ -2958,6 +2976,12 @@ public final class Minecraft189RuntimeBridge {
                     }
                 }
             }
+            // Preserve all original read-only acceptance and negative
+            // controls above this point; none authorize automated input.
+            // Opening a vanilla GUI vetoes Pot, Rod, melee and reblock in
+            // this tokenized cycle, regardless of CustomMC ClickGUI.
+            if (vetoOriginalScreenBeforeNativeCombat(host, minecraft))
+                return;
             final Minecraft189SwordBlockControl swordBlock =
                     minecraft instanceof Minecraft189SwordBlockControl
                     ? (Minecraft189SwordBlockControl) minecraft : null;
@@ -3021,7 +3045,9 @@ public final class Minecraft189RuntimeBridge {
                         // pitch must remain ours at actual right-click.
                         Minecraft189AutoPotSourceCast.execute(
                                 host, originalPotionSlot,
-                                () -> minecraft.customMcRightClickMouse());
+                                () -> minecraft.customMcRightClickMouse(),
+                                () -> !vetoOriginalScreenBeforeNativeCombat(
+                                        host, minecraft));
                     } finally {
                         host.restoreAutoPotSlot(originalPotionSlot);
                     }
@@ -3044,6 +3070,8 @@ public final class Minecraft189RuntimeBridge {
                                 && swordBlock.customMcIsUsingItem())
                             swordBlock.customMcStopUsingItem();
                         if (host.mayExecuteAutoRodUse(originalRodSlot)) {
+                            if (vetoOriginalScreenBeforeNativeCombat(
+                                    host, minecraft)) return;
                             minecraft.customMcRightClickMouse();
                             host.commitAutoRodUseAttempt(originalRodSlot);
                         }
@@ -3359,6 +3387,8 @@ public final class Minecraft189RuntimeBridge {
                                     host, minecraft, playerIndex,
                                     hitSelectInitialUuid))
                                 return;
+                            if (vetoOriginalScreenBeforeNativeCombat(
+                                    host, minecraft)) return;
                             triggerDispatchUuid.set(sourceUuid);
                             try {
                                 minecraft.customMcAttackCrosshairEntity();
@@ -3397,6 +3427,8 @@ public final class Minecraft189RuntimeBridge {
                                         host, minecraft, playerIndex,
                                         hitSelectInitialUuid))
                                     return;
+                                if (vetoOriginalScreenBeforeNativeCombat(
+                                        host, minecraft)) return;
                                 auraDispatchUuid.set(ownerUuid);
                                 try {
                                     minecraft.customMcAttackCrosshairEntity();
@@ -3411,6 +3443,8 @@ public final class Minecraft189RuntimeBridge {
                                     host, minecraft, playerIndex,
                                     hitSelectInitialUuid))
                                 return;
+                            if (vetoOriginalScreenBeforeNativeCombat(
+                                    host, minecraft)) return;
                             minecraft.customMcClickMouse();
                         }
                     } finally {
@@ -3434,6 +3468,10 @@ public final class Minecraft189RuntimeBridge {
                     // tracking ownership (cooldown/no-item may refuse it).
                     final long useToken = host.beginAutoBlockNativeUse();
                     if (useToken != 0) {
+                        // A source held-item getter may open a vanilla menu
+                        // AFTER melee. Never issue synthetic reblock into it.
+                        if (vetoOriginalScreenBeforeNativeCombat(
+                                host, minecraft)) return;
                         minecraft.customMcRightClickMouse();
                         if (swordBlock.customMcIsUsingItem()) {
                             host.recordAutoBlockStart(useToken);

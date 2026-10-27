@@ -66,6 +66,7 @@ final class Minecraft189MappedHostTransformationTest {
             loader.put("cj", scaffoldBlockPosShape());
             loader.put("cq", scaffoldFacingShape());
             loader.put("aui", scaffoldVec3Shape());
+        loader.put("axu", emptyClass("axu"));
             loader.put("auh$a", movingObjectTypeShape());
             loader.put("auh", transformer.transform("auh", movingObjectShape()));
             loader.put("avo", guiIngameShape());
@@ -338,6 +339,7 @@ final class Minecraft189MappedHostTransformationTest {
         loader.put("cj", scaffoldBlockPosShape());
         loader.put("cq", scaffoldFacingShape());
         loader.put("aui", scaffoldVec3Shape());
+        loader.put("axu", emptyClass("axu"));
         loader.put(
                 "auh",
                 transformer.transform("auh", movingObjectShape()));
@@ -4142,6 +4144,21 @@ final class Minecraft189MappedHostTransformationTest {
                             .getInt(
                                     minecraft));
 
+            // V344: exact original vanilla GuiScreen (not CustomMC GUI)
+            // blocks any synthetic native click and drops scheduler credit.
+            minecraftClass.getField("m").set(
+                    minecraft,
+                    loader.loadClass("axu").getDeclaredConstructor()
+                            .newInstance());
+            for (int i = 0; i < 4; i++) {
+                runTick.invoke(minecraft);
+            }
+            assertEquals(
+                    2,
+                    minecraftClass.getField("clickMouseCalls")
+                            .getInt(minecraft));
+            minecraftClass.getField("m").set(minecraft, null);
+
             runtime.requireHostRuntime()
                     .featureCatalog()
                     .autoClicker()
@@ -7203,6 +7220,7 @@ final class Minecraft189MappedHostTransformationTest {
         field(writer, "o", "Lbfk;");
         field(writer, "q", "Lavo;");
         field(writer, "t", "Lavh;");
+        field(writer, "m", "Laxu;");
         field(writer, "Q", "Lbde;");
         field(writer, "ap", "I");
         field(writer, "ag", "I");
