@@ -19,8 +19,8 @@ import java.util.List;
 import java.util.Objects;
 
 public final class ClickGuiComposer {
-    private static final float ROOT_RADIUS = 10.0F;
-    private static final float CONTROL_RADIUS = 6.0F;
+    private static final float ROOT_RADIUS = 7.0F;
+    private static final float CONTROL_RADIUS = 4.0F;
 
     private final ClickGuiLayoutEngine layoutEngine;
     private final ClickGuiContentRegistry contentRegistry;
@@ -100,10 +100,6 @@ public final class ClickGuiComposer {
                         1.0F,
                         theme.color(UiColorRole.BORDER)));
 
-        commands.add(new UiRoundedRectCommand(2,
-                root.x() + 8.0F, root.y() + 1.0F,
-                Math.max(0.0F, root.width() - 16.0F), 2.0F, 1.0F,
-                theme.color(UiColorRole.ACCENT)));
         final UiBounds sidebar = layout.sidebar();
         commands.add(
                 new UiRectCommand(
@@ -115,18 +111,20 @@ public final class ClickGuiComposer {
                         theme.color(
                                 UiColorRole.BACKGROUND)));
 
-        commands.add(new UiRoundedRectCommand(3,
-                sidebar.x() + 15.0F, sidebar.y() + 12.0F,
-                26.0F, 26.0F, 7.0F, theme.color(UiColorRole.ACCENT)));
+        // Wordmark replaces the app-like monogram tile. Keep Minecraft
+        // text-only rendering until a real native font atlas is verified.
         commands.add(new UiTextCommand(4,
-                sidebar.x() + 24.0F, sidebar.y() + 20.0F,
-                UiFonts.DEFAULT, "C", theme.color(UiColorRole.BACKGROUND)));
+                sidebar.x() + 15.0F, sidebar.y() + 15.0F,
+                UiFonts.DEFAULT, "custommc",
+                theme.color(UiColorRole.TEXT_PRIMARY)));
         commands.add(new UiTextCommand(4,
-                sidebar.x() + 48.0F, sidebar.y() + 16.0F,
-                UiFonts.DEFAULT, "CUSTOMMC", theme.color(UiColorRole.TEXT_PRIMARY)));
-        commands.add(new UiTextCommand(4,
-                sidebar.x() + 48.0F, sidebar.y() + 28.0F,
-                UiFonts.DEFAULT, "1.8.9  /  CLIENT", theme.color(UiColorRole.TEXT_MUTED)));
+                sidebar.x() + 15.0F, sidebar.y() + 29.0F,
+                UiFonts.DEFAULT, "CLIENT  /  1.8.9",
+                theme.color(UiColorRole.TEXT_MUTED)));
+        commands.add(new UiRoundedRectCommand(4,
+                sidebar.x() + 15.0F, sidebar.y() + 43.0F,
+                29.0F, 2.0F, 1.0F,
+                theme.color(UiColorRole.ACCENT)));
 
         final UiBounds search = layout.search();
         commands.add(
@@ -280,10 +278,6 @@ public final class ClickGuiComposer {
                                 ClickGuiMetrics.PAGE_HEIGHT - 10.0F,
                                 theme.color(
                                         UiColorRole.ACCENT)));
-                commands.add(new UiRoundedRectCommand(0,
-                        navigation.x() + 6.0F, y + 27.0F,
-                        Math.max(0.0F, navigation.width() - 12.0F),
-                        1.0F, 0.5F, theme.color(UiColorRole.BORDER)));
             }
 
             commands.add(

@@ -25,13 +25,13 @@ final class UiSettingDecorations {
                 && row.width() >= 60.0F && row.height() >= 16.0F) {
             final boolean enabled = Boolean.TRUE.equals(setting.get());
             final float x = row.x() + row.width() - 47.0F;
-            final float y = row.y() + (row.height() - 16.0F) * 0.5F;
+            final float y = row.y() + (row.height() - 14.0F) * 0.5F;
             draw.add(new UiRoundedRectCommand(2, x, y,
-                    34.0F, 16.0F, 8.0F, theme.color(
+                    31.0F, 14.0F, 7.0F, theme.color(
                     enabled ? UiColorRole.ACCENT : UiColorRole.BORDER)));
             draw.add(new UiRoundedRectCommand(3,
-                    x + (enabled ? 19.0F : 3.0F), y + 3.0F,
-                    10.0F, 10.0F, 5.0F,
+                    x + (enabled ? 18.0F : 3.0F), y + 3.0F,
+                    8.0F, 8.0F, 4.0F,
                     theme.color(UiColorRole.TEXT_PRIMARY)));
         } else if (descriptor.numericSpec() != null
                 && setting.get() instanceof Number) {
