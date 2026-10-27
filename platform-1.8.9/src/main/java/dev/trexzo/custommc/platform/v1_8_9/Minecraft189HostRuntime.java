@@ -2425,17 +2425,28 @@ public final class Minecraft189HostRuntime
 
     long beginAutoBlockNativeUse() {
         requireOpen();
-        return featureCatalog.autoBlock().beginNativeUse();
+        // V340: the earlier mayStart sword check and this actual native
+        // right-click are separated by callbacks that may reenter HeldItem.
+        // Require a fresh verified sword before minting source-bound token.
+        // The serial is read AFTER that original sword evidence returns.
+        if (!holdingVerifiedSword()) return 0L;
+        return featureCatalog.autoBlock().beginNativeUse(
+                heldItemOwnerSerial);
     }
 
     void recordAutoBlockStart(final long useToken) {
         requireOpen();
+        // The native isUsingItem result was already observed in the bridge.
+        // This second source check may itself trigger a NEW HeldItem callback.
+        // Never allow a sword of the same TYPE from a newer callback to
+        // commit an older synthetic use-item lease.
         final boolean currentSword = holdingVerifiedSword();
         featureCatalog.autoBlock().completeNativeUse(
                 useToken, currentSword,
                 clickGuiRuntime.coreRuntime().model().snapshot().open(),
                 inputState.pointerPressed(
-                        Minecraft189ClickRateTracker.RIGHT_BUTTON));
+                        Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                heldItemOwnerSerial);
     }
 
     private boolean identityRequired() {
