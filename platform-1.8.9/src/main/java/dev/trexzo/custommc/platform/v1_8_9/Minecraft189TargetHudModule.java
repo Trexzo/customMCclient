@@ -49,9 +49,9 @@ public final class Minecraft189TargetHudModule implements Module {
     private final Setting<Integer> y = new Setting<Integer>(
             Y_SETTING_ID, 210, v -> v != null && v >= 0 && v <= 4096, SettingCodecs.INTEGER);
     private final Setting<Boolean> compact = new Setting<Boolean>(
-            COMPACT_SETTING_ID, Boolean.FALSE, v -> v != null, SettingCodecs.BOOLEAN);
+            COMPACT_SETTING_ID, Boolean.TRUE, v -> v != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> proximityMeter = new Setting<Boolean>(
-            PROXIMITY_METER_SETTING_ID, Boolean.FALSE,
+            PROXIMITY_METER_SETTING_ID, Boolean.TRUE,
             v -> v != null, SettingCodecs.BOOLEAN);
     private final Setting<Integer> proximityRange = new Setting<Integer>(
             PROXIMITY_RANGE_SETTING_ID, DEFAULT_PROXIMITY_RANGE,

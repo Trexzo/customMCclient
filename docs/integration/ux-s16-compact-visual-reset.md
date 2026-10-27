@@ -18,3 +18,6 @@
 - Strict Windows+Ubuntu Foundation CI and official Mojang 1.8.9 binary CI must complete at exact head.
 - No edits to RuntimeBridge, HostRuntime, native hooks, networking, UUID, player ownership or combat control.
 - Do not merge to main until these, plus physical UI cursor/focus acceptance, are verified.
+
+## Default TargetHUD presentation
+The new-install default is compact=true and proximityMeter=true, producing a compact source-grounded two-row nearby-player tracker with a real distance meter rather than the old larger debug-style YAW/PITCH panel. Existing persisted settings remain authoritative and the full diagnostic source angle layout remains user-selectable. A proximity meter is **not target HP**.

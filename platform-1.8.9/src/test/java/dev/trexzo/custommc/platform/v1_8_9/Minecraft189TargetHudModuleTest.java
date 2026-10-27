@@ -105,8 +105,11 @@ final class Minecraft189TargetHudModuleTest {
             assertEquals(ModuleState.DISABLED,
                     controller.stateOf(Minecraft189TargetHudModule.ID));
             assertFalse(hud.renderPassInstalled());
-            assertFalse(hud.compactSetting().get().booleanValue());
-            assertFalse(hud.proximityMeterSetting().get().booleanValue());
+            assertTrue(hud.compactSetting().get().booleanValue());
+            assertTrue(hud.proximityMeterSetting().get().booleanValue());
+            // Explicit full-size, meter-off legacy acceptance exercised below.
+            hud.compactSetting().set(Boolean.FALSE);
+            hud.proximityMeterSetting().set(Boolean.FALSE);
             assertFalse(hud.showCoordinatesSetting().get().booleanValue());
             assertEquals("false", settings.snapshotEncoded().get(
                     Minecraft189TargetHudModule.SHOW_COORDINATES_SETTING_ID));
