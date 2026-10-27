@@ -3046,6 +3046,29 @@ public final class Minecraft189HostRuntime
         owner.customMcSetSprinting(true);
     }
 
+    /**
+     * A real vanilla GuiScreen takes priority over synthetic combat even
+     * when the independent CustomMC ClickGUI is closed. Drop every pending
+     * scheduler/Trigger UUID grant and WTap reset, while retaining module
+     * enabled settings and physical mouse-button ownership.
+     *
+     * Called from the existing tokenized combat callback. Its finally
+     * releases the combat cycle; this method never forges controller hits.
+     */
+    void suspendSyntheticCombatForOriginalGui() {
+        requireOpen();
+        ++triggerDispatchAdmissionSerial;
+        triggerDispatchLease.clear();
+        featureCatalog.autoClicker().suspendForGui();
+        featureCatalog.triggerBot().suspend();
+        featureCatalog.killAura().suspend();
+        featureCatalog.wTap().suspendForGui(
+                inputState.pointerPressed(
+                        Minecraft189ClickRateTracker.LEFT_BUTTON));
+        pendingKeepSprintSource = null;
+        ++keepSprintAdmissionSerial;
+    }
+
     boolean shouldAutoClick() {
         return shouldAutoClick(false, -1);
     }
