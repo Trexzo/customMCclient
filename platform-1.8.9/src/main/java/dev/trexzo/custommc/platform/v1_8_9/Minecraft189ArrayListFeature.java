@@ -47,6 +47,9 @@ final class Minecraft189ArrayListFeature
     private final SettingRegistry.Registration showBackgroundSetting;
     private final SettingPresentationRegistry.Registration showBackgroundPresentation;
     private final ModuleSettingRegistry.Registration showBackgroundBinding;
+    private final SettingRegistry.Registration animateSetting;
+    private final SettingPresentationRegistry.Registration animatePresentation;
+    private final ModuleSettingRegistry.Registration animateBinding;
     private boolean closed;
 
     private Minecraft189ArrayListFeature(
@@ -77,7 +80,10 @@ final class Minecraft189ArrayListFeature
             final ModuleSettingRegistry.Registration rightAlignedBinding,
             final SettingRegistry.Registration showBackgroundSetting,
             final SettingPresentationRegistry.Registration showBackgroundPresentation,
-            final ModuleSettingRegistry.Registration showBackgroundBinding) {
+            final ModuleSettingRegistry.Registration showBackgroundBinding,
+            final SettingRegistry.Registration animateSetting,
+            final SettingPresentationRegistry.Registration animatePresentation,
+            final ModuleSettingRegistry.Registration animateBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -106,6 +112,9 @@ final class Minecraft189ArrayListFeature
         this.showBackgroundSetting = showBackgroundSetting;
         this.showBackgroundPresentation = showBackgroundPresentation;
         this.showBackgroundBinding = showBackgroundBinding;
+        this.animateSetting = animateSetting;
+        this.animatePresentation = animatePresentation;
+        this.animateBinding = animateBinding;
     }
 
     static Minecraft189ArrayListFeature install(
@@ -158,6 +167,9 @@ final class Minecraft189ArrayListFeature
         SettingRegistry.Registration showBackgroundSetting = null;
         SettingPresentationRegistry.Registration showBackgroundPresentation = null;
         ModuleSettingRegistry.Registration showBackgroundBinding = null;
+        SettingRegistry.Registration animateSetting = null;
+        SettingPresentationRegistry.Registration animatePresentation = null;
+        ModuleSettingRegistry.Registration animateBinding = null;
 
         try {
             moduleRegistration =
@@ -184,6 +196,7 @@ final class Minecraft189ArrayListFeature
             showOverflowSetting = settings.register(module.showOverflowSetting());
             rightAlignedSetting = settings.register(module.rightAlignedSetting());
             showBackgroundSetting = settings.register(module.showBackgroundSetting());
+            animateSetting = settings.register(module.animateSetting());
 
             xPresentation =
                     settingPresentations.register(
@@ -234,6 +247,10 @@ final class Minecraft189ArrayListFeature
                     new SettingDescriptor(
                             Minecraft189ArrayListModule.SHOW_BACKGROUND_SETTING_ID,
                             "Row Background", SettingValueKind.BOOLEAN, 70));
+            animatePresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189ArrayListModule.ANIMATE_SETTING_ID,
+                            "Animate Entries", SettingValueKind.BOOLEAN, 80));
 
             xBinding =
                     moduleSettings.register(
@@ -273,6 +290,10 @@ final class Minecraft189ArrayListFeature
                     new ModuleSettingBinding(
                             Minecraft189ArrayListModule.ID,
                             Minecraft189ArrayListModule.SHOW_BACKGROUND_SETTING_ID, 70));
+            animateBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189ArrayListModule.ID,
+                            Minecraft189ArrayListModule.ANIMATE_SETTING_ID, 80));
 
             return new Minecraft189ArrayListFeature(
                     controller,
@@ -302,8 +323,14 @@ final class Minecraft189ArrayListFeature
                     rightAlignedBinding,
                     showBackgroundSetting,
                     showBackgroundPresentation,
-                    showBackgroundBinding);
+                    showBackgroundBinding,
+                    animateSetting,
+                    animatePresentation,
+                    animateBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(animateBinding, failure);
+            closeQuietly(animatePresentation, failure);
+            closeQuietly(animateSetting, failure);
             closeQuietly(showBackgroundBinding, failure);
             closeQuietly(showBackgroundPresentation, failure);
             closeQuietly(showBackgroundSetting, failure);
@@ -361,6 +388,9 @@ final class Minecraft189ArrayListFeature
             failure = closeFailure;
         }
 
+        failure = close(animateBinding, failure);
+        failure = close(animatePresentation, failure);
+        failure = close(animateSetting, failure);
         failure = close(showBackgroundBinding, failure);
         failure = close(showBackgroundPresentation, failure);
         failure = close(showBackgroundSetting, failure);
