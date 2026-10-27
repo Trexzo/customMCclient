@@ -219,6 +219,29 @@ public final class Minecraft189WTapModule
             return false;
         }
 
+        // V337: the opt-in grounded/forward requirements remain binding
+        // for *every* original native sprint-reset write, not just the
+        // initial physical attack edge. Cancel remaining multi-tick writes
+        // if genuine movement loses either elected qualification. Preserve
+        // cooldown and the actual held-button edge; no delayed reset can
+        // replay when the player lands or resumes W without releasing LMB.
+        if (resetTicksRemaining > 0
+                && ((requireGround.get().booleanValue()
+                        && !movement.onGround())
+                    || (requireForward.get().booleanValue()
+                        && !forwardHeld))) {
+            // Also revoke any outer in-flight setter that reentered the
+            // module during native EntityPlayer.setSprinting(false).
+            ++nativeSprintWriteEpoch;
+            resetTicksRemaining = 0;
+            eligibleReleasedTicks = 0;
+            previousLeftButtonHeld = leftButtonHeld;
+            if (cooldownRemaining > 0) {
+                cooldownRemaining--;
+            }
+            return false;
+        }
+
         final int configuredMinRelease = minReleaseTicks.get().intValue();
         if (scheduledMinReleaseTicks != configuredMinRelease) {
             // A live edit cannot reuse an old release interval or replay
