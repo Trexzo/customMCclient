@@ -9,6 +9,9 @@ import dev.trexzo.custommc.core.render.RenderPipeline;
 import dev.trexzo.custommc.core.render.RenderFrame;
 import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
+import dev.trexzo.custommc.core.setting.SettingDescriptor;
+import dev.trexzo.custommc.core.setting.SettingValueKind;
+import dev.trexzo.custommc.core.ui.UiThemeSettings;
 import dev.trexzo.custommc.core.ui.UiThemeProvider;
 import dev.trexzo.custommc.core.ui.UiRenderer;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
@@ -33,15 +36,21 @@ public final class Minecraft189ClickGuiRuntime
     private final ClickGuiRuntime coreRuntime;
     private final Minecraft189UiViewportProvider viewportProvider;
     private final Minecraft189UiRenderer renderer;
+    private final SettingRegistry.Registration themeSettingRegistration;
+    private final SettingPresentationRegistry.Registration themePresentationRegistration;
     private boolean closed;
 
     private Minecraft189ClickGuiRuntime(
             final ClickGuiRuntime coreRuntime,
             final Minecraft189UiViewportProvider viewportProvider,
-            final Minecraft189UiRenderer renderer) {
+            final Minecraft189UiRenderer renderer,
+            final SettingRegistry.Registration themeSettingRegistration,
+            final SettingPresentationRegistry.Registration themePresentationRegistration) {
         this.coreRuntime = coreRuntime;
         this.viewportProvider = viewportProvider;
         this.renderer = renderer;
+        this.themeSettingRegistration = themeSettingRegistration;
+        this.themePresentationRegistration = themePresentationRegistration;
     }
 
     public static Minecraft189ClickGuiRuntime install(
@@ -268,8 +277,21 @@ public final class Minecraft189ClickGuiRuntime
                 }
             }
         };
-        final ClickGuiRuntime coreRuntime =
-                ClickGuiRuntime.install(
+        // The profile registry owns the choice. Registration occurs before
+        // ClickGUI compose, with exact rollback if installation fails.
+        final SettingRegistry.Registration themeRegistration =
+                settings.register(UiThemeSettings.setting());
+        SettingPresentationRegistry.Registration presentation = null;
+        final ClickGuiRuntime coreRuntime;
+        try {
+            presentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            UiThemeSettings.ID,
+                            "Visual Theme (left/right to switch)",
+                            SettingValueKind.TEXT, -100));
+            final UiThemeProvider liveThemes = () ->
+                    UiThemeSettings.resolve(settings, themeProvider.theme());
+            coreRuntime = ClickGuiRuntime.install(
                         context.modules(),
                         context.moduleController(),
                         modulePresentations,
@@ -282,14 +304,22 @@ public final class Minecraft189ClickGuiRuntime
                         renderPipeline,
                         context.services(),
                         viewportProvider,
-                        themeProvider,
+                        liveThemes,
                         guardedRenderer);
+        } catch (RuntimeException failure) {
+            if (presentation != null) {
+                try { presentation.close(); }
+                catch (RuntimeException cleanup) { failure.addSuppressed(cleanup); }
+            }
+            try { themeRegistration.close(); }
+            catch (RuntimeException cleanup) { failure.addSuppressed(cleanup); }
+            throw failure;
+        }
         installedModel.set(coreRuntime.model());
 
         return new Minecraft189ClickGuiRuntime(
-                coreRuntime,
-                viewportProvider,
-                renderer);
+                coreRuntime, viewportProvider, renderer,
+                themeRegistration, presentation);
     }
 
     public ClickGuiRuntime coreRuntime() {
@@ -316,6 +346,14 @@ public final class Minecraft189ClickGuiRuntime
             }
             closed = true;
         }
-        coreRuntime.close();
+        try {
+            coreRuntime.close();
+        } finally {
+            try {
+                themePresentationRegistration.close();
+            } finally {
+                themeSettingRegistration.close();
+            }
+        }
     }
 }
