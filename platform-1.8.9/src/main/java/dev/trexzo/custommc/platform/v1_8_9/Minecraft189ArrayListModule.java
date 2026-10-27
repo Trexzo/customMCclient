@@ -220,7 +220,7 @@ public final class Minecraft189ArrayListModule
         // estimate instead of filling a huge equal-width rectangle.
         if (chipWidth >= 2.0F) {
             hostCallbacks.fillRoundedRect(chipX, currentY - 1.0F,
-                    chipWidth, CHIP_HEIGHT, 2.0F,
+                    chipWidth, CHIP_HEIGHT, Math.min(2.0F, chipWidth * .5F),
                     0x50000000 | (theme.color(UiColorRole.SURFACE) & 0xFFFFFF));
         }
         if (edge >= 2.0F) {
