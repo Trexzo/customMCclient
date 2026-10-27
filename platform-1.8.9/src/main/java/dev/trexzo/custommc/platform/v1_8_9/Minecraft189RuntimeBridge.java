@@ -2151,6 +2151,40 @@ public final class Minecraft189RuntimeBridge {
                 : host.raycastHitboxBorder(playerCandidate, nativeBorder);
     }
 
+    /**
+     * V338 final synthetic HitSelect verdict, immediately before original
+     * clickMouse or PlayerControllerMP.attackEntity. Match the *earlier*
+     * native ray UUID to the current indexed World identity and recompute
+     * its currently published hurt window. Re-sample the actual vanilla ray
+     * after hotbar/rotation/native getters: an index or target switch cannot
+     * spend an older hit's permission. This never queues a rejected swing.
+     *
+     * Disabled HitSelect keeps the previously certified owner behavior.
+     * Physical/manual vanilla mouse input is not intercepted here.
+     */
+    private static boolean permitsHitSelectAtNativeDispatch(
+            final Minecraft189HostRuntime host,
+            final Minecraft189ClickMouseControl minecraft,
+            final int originalIndex,
+            final UUID originalUuid) {
+        final Minecraft189HitSelectModule hitSelect =
+                host.featureCatalog().hitSelect();
+        if (!hitSelect.active()) return true;
+        if (originalUuid == null || originalIndex < 0
+                || !(minecraft instanceof Minecraft189CrosshairHitAccess))
+            return false;
+        final Minecraft189CrosshairHitAccess originalRay =
+                (Minecraft189CrosshairHitAccess) minecraft;
+        if (!originalRay.customMcCrosshairPlayerHit()
+                || originalRay.customMcCrosshairPlayerIndex() != originalIndex)
+            return false;
+        return hitSelect.permitsOriginalOwner(
+                originalIndex, originalUuid,
+                host.worldEntityUuidState().snapshot(),
+                host.worldEntityKindState().snapshot(),
+                host.worldEntityCombatState().snapshot());
+    }
+
     public static synchronized void autoClick(
             final Minecraft189ClickMouseControl minecraft) {
         final Minecraft189HostRuntime host =
@@ -2936,6 +2970,15 @@ public final class Minecraft189RuntimeBridge {
                     ? ((Minecraft189CrosshairHitAccess) minecraft)
                             .customMcCrosshairPlayerIndex()
                     : -1;
+            // Preserve the exact original player identity observed at the
+            // first native raycast for an optional final HitSelect check.
+            // Never allow a later reuse of this World list slot to inherit
+            // an earlier target's injury window.
+            final UUID hitSelectInitialUuid =
+                    host.featureCatalog().hitSelect().active()
+                    && playerHit && playerIndex >= 0
+                    ? host.worldEntityUuidState().snapshot().at(playerIndex)
+                    : null;
             // V51: the real Mojang objectMouseOver is sampled before
             // synthetic action scheduling; observe the original ray while B
             // is source-UUID-locked, even if no controller click follows.
@@ -3312,6 +3355,10 @@ public final class Minecraft189RuntimeBridge {
                                 Minecraft189VanillaMeleeAcceptance.onNativeClick(
                                         minecraft);
                             }
+                            if (!permitsHitSelectAtNativeDispatch(
+                                    host, minecraft, playerIndex,
+                                    hitSelectInitialUuid))
+                                return;
                             triggerDispatchUuid.set(sourceUuid);
                             try {
                                 minecraft.customMcAttackCrosshairEntity();
@@ -3346,6 +3393,10 @@ public final class Minecraft189RuntimeBridge {
                                 ownerUuid = acceptanceRemotePairOwnerForNativeProof(
                                         host, ownerUuid);
                             if (ownerUuid != null) {
+                                if (!permitsHitSelectAtNativeDispatch(
+                                        host, minecraft, playerIndex,
+                                        hitSelectInitialUuid))
+                                    return;
                                 auraDispatchUuid.set(ownerUuid);
                                 try {
                                     minecraft.customMcAttackCrosshairEntity();
@@ -3356,6 +3407,10 @@ public final class Minecraft189RuntimeBridge {
                         } else {
                             // Manual mouse and Auto Clicker preserve vanilla
                             // clickMouse semantics and their previous CI.
+                            if (!permitsHitSelectAtNativeDispatch(
+                                    host, minecraft, playerIndex,
+                                    hitSelectInitialUuid))
+                                return;
                             minecraft.customMcClickMouse();
                         }
                     } finally {
