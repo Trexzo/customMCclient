@@ -35,13 +35,17 @@ class V347OriginalServerSpawnEvidence(unittest.TestCase):
         conditional = run.index(
             "if args.rejoin_target or args.rejoin_release:", native_ready)
         native_set = run.index('"setworldspawn 0 4 0"')
-        native_ack = run.index('expected=b"Set world spawn to"')
+        native_ack = run.index('expected=b"Set the world spawn point to (0, 4, 0)"')
         native_host = run.index("host_cmd = client_command(")
         self.assertLess(native_ready, conditional)
         self.assertLess(conditional, native_set)
         self.assertLess(native_set, native_ack)
         self.assertLess(native_ack, native_host)
         self.assertIn("send_server_command(server, server_log,", run)
+        # Vanilla 1.8.9's actual response is fully pinned; avoid accepting
+        # a different worldspawn or an unrelated generic acknowledgement.
+        self.assertIn(
+            'expected=b"Set the world spawn point to (0, 4, 0)"', run)
         self.assertIn("wait_for(server, server_log, HOST_JOIN,", run)
 
     def test_server_login_remains_only_source_for_original_combat_coordinates(self):
