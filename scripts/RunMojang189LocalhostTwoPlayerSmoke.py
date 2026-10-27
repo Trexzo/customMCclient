@@ -1800,6 +1800,21 @@ def run(args):
         print("CUSTOMMC_OFFICIAL_189_LOCAL_DEDICATED_SERVER_READY=YES",
               flush=True)
 
+        if args.rejoin_target or args.rejoin_release:
+            # V347: the original FLAT vanilla server may choose a fresh
+            # login spawn beyond the deliberately restricted 1024-cell
+            # rejoin-world fixture. Set ONLY these rejoin scenarios' real
+            # world spawn before any player connects, using an actual
+            # acknowledged dedicated-server 1.8.9 console command.
+            # The later CIHost login coordinates are STILL parsed from
+            # original server.log, and all native player/UUID/ray, 35
+            # physical stone and server damage gates remain unchanged.
+            send_server_command(server, server_log,
+                                "setworldspawn 0 4 0",
+                                expected=b"Set world spawn to")
+            print("CUSTOMMC_189_V347_REJOIN_NATIVE_WORLDSPAWN_ACK=YES",
+                  flush=True)
+
         host_cmd = client_command(
             args, root / "host-game", "CIHost",
             "00000000000000000000000000000001", port, remote=True
