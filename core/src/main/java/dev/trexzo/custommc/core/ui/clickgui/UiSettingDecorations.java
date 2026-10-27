@@ -21,7 +21,8 @@ final class UiSettingDecorations {
             final Setting<?> setting,
             final SettingDescriptor descriptor, final UiTheme theme) {
         final List<UiDrawCommand> draw = new ArrayList<UiDrawCommand>();
-        if (descriptor.kind() == SettingValueKind.BOOLEAN) {
+        if (descriptor.kind() == SettingValueKind.BOOLEAN
+                && row.width() >= 60.0F && row.height() >= 16.0F) {
             final boolean enabled = Boolean.TRUE.equals(setting.get());
             final float x = row.x() + row.width() - 47.0F;
             final float y = row.y() + (row.height() - 16.0F) * 0.5F;
@@ -41,13 +42,15 @@ final class UiSettingDecorations {
                     ? 0.0D : Math.max(0.0D,
                     Math.min(1.0D, (raw - spec.minimum()) / span));
             final float width = Math.max(0.0F, row.width() - 158.0F);
+            if (width < 2.0F || row.height() < 7.0F) return draw;
             final float left = row.x() + 12.0F;
             final float top = row.y() + row.height() - 5.0F;
             draw.add(new UiRoundedRectCommand(1, left, top,
                     width, 2.0F, 1.0F, theme.color(UiColorRole.BORDER)));
             if (ratio > 0.0D) {
                 draw.add(new UiRoundedRectCommand(2, left, top,
-                        width * (float) ratio, 2.0F, 1.0F,
+                        width * (float) ratio, 2.0F,
+                        Math.min(1.0F, width * (float) ratio * 0.5F),
                         theme.color(UiColorRole.ACCENT)));
             }
         }
