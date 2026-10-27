@@ -132,6 +132,26 @@ public final class Minecraft189AutoBlockModule implements Module {
         return token;
     }
 
+    /**
+     * V346: abandon ONLY this exact pending native sword-use lease when
+     * original rightClickMouse refuses, throws or an original GuiScreen
+     * veto interrupts dispatch. Never revoke a newer reentrant source
+     * reservation or an already completed owned block.
+     *
+     * Cancellation is bookkeeping only; it NEVER calls stopUsingItem and
+     * cannot release a user's physical/manual right-click.
+     */
+    synchronized boolean cancelPendingNativeUse(final long token) {
+        if (token == 0L || token != pendingUseToken) return false;
+        pendingUseToken = 0L;
+        pendingEpoch = 0L;
+        pendingHoldTicks = 0;
+        pendingManualPolicy = false;
+        pendingHeldOwnerRequired = false;
+        pendingHeldOwnerSerial = 0L;
+        return true;
+    }
+
     /** Legacy tests carry no original native HeldItem generation evidence. */
     synchronized boolean completeNativeUse(final long token,
             final boolean swordStillHeld, final boolean guiOpen,
