@@ -28,6 +28,23 @@ final class UiThemeTest {
     }
 
     @Test
+    void presetsRetainFullSemanticCoverageAndDistinctAccents() {
+        for (UiTheme candidate : new UiTheme[] {
+                UiThemes.nebula(), UiThemes.frost(), UiThemes.mono()}) {
+            for (UiColorRole role : UiColorRole.values()) {
+                candidate.color(role);
+            }
+            assertEquals(candidate.id(), UiThemes.byId(candidate.id()).id());
+        }
+        org.junit.jupiter.api.Assertions.assertNotEquals(
+                UiThemes.nebula().color(UiColorRole.ACCENT),
+                UiThemes.frost().color(UiColorRole.ACCENT));
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> UiThemes.byId("not-a-theme"));
+    }
+
+    @Test
     void themeDefensivelyCopiesPalette() {
         final EnumMap<UiColorRole, Integer> colors =
                 new EnumMap<UiColorRole, Integer>(
