@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Objects;
 
 public final class ClickGuiComposer {
-    private static final float ROOT_RADIUS = 12.0F;
+    private static final float ROOT_RADIUS = 10.0F;
     private static final float CONTROL_RADIUS = 6.0F;
 
     private final ClickGuiLayoutEngine layoutEngine;
@@ -76,6 +76,10 @@ public final class ClickGuiComposer {
                 new UiCommandBuffer();
 
         final UiBounds root = layout.root();
+        commands.add(new UiRoundedRectCommand(0,
+                root.x() - 5.0F, root.y() + 6.0F,
+                root.width() + 10.0F, root.height() + 3.0F,
+                ROOT_RADIUS + 3.0F, 0x7A000000));
         commands.add(
                 new UiRoundedRectCommand(
                         0,
@@ -96,6 +100,10 @@ public final class ClickGuiComposer {
                         1.0F,
                         theme.color(UiColorRole.BORDER)));
 
+        commands.add(new UiRoundedRectCommand(2,
+                root.x() + 8.0F, root.y() + 1.0F,
+                Math.max(0.0F, root.width() - 16.0F), 2.0F, 1.0F,
+                theme.color(UiColorRole.ACCENT)));
         final UiBounds sidebar = layout.sidebar();
         commands.add(
                 new UiRectCommand(
@@ -107,15 +115,18 @@ public final class ClickGuiComposer {
                         theme.color(
                                 UiColorRole.BACKGROUND)));
 
-        commands.add(
-                new UiTextCommand(
-                        3,
-                        sidebar.x() + 18.0F,
-                        sidebar.y() + 18.0F,
-                        UiFonts.DEFAULT,
-                        "Client",
-                        theme.color(
-                                UiColorRole.TEXT_PRIMARY)));
+        commands.add(new UiRoundedRectCommand(3,
+                sidebar.x() + 15.0F, sidebar.y() + 12.0F,
+                26.0F, 26.0F, 7.0F, theme.color(UiColorRole.ACCENT)));
+        commands.add(new UiTextCommand(4,
+                sidebar.x() + 24.0F, sidebar.y() + 20.0F,
+                UiFonts.DEFAULT, "C", theme.color(UiColorRole.BACKGROUND)));
+        commands.add(new UiTextCommand(4,
+                sidebar.x() + 48.0F, sidebar.y() + 16.0F,
+                UiFonts.DEFAULT, "CUSTOMMC", theme.color(UiColorRole.TEXT_PRIMARY)));
+        commands.add(new UiTextCommand(4,
+                sidebar.x() + 48.0F, sidebar.y() + 28.0F,
+                UiFonts.DEFAULT, "1.8.9  /  CLIENT", theme.color(UiColorRole.TEXT_MUTED)));
 
         final UiBounds search = layout.search();
         commands.add(
@@ -157,6 +168,9 @@ public final class ClickGuiComposer {
                                                 hasQuery
                                                         ? UiColorRole.TEXT_PRIMARY
                                                         : UiColorRole.TEXT_MUTED)))));
+        commands.add(new UiOutlineCommand(4,
+                search.x(), search.y(), search.width(), search.height(),
+                1.0F, theme.color(UiColorRole.BORDER)));
         if (hasQuery) {
             commands.add(
                     new UiTextCommand(
@@ -266,6 +280,10 @@ public final class ClickGuiComposer {
                                 ClickGuiMetrics.PAGE_HEIGHT - 10.0F,
                                 theme.color(
                                         UiColorRole.ACCENT)));
+                commands.add(new UiRoundedRectCommand(0,
+                        navigation.x() + 6.0F, y + 27.0F,
+                        Math.max(0.0F, navigation.width() - 12.0F),
+                        1.0F, 0.5F, theme.color(UiColorRole.BORDER)));
             }
 
             commands.add(

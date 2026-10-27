@@ -18,6 +18,7 @@ import dev.trexzo.custommc.core.ui.UiKeys;
 import dev.trexzo.custommc.core.ui.UiPointerAction;
 import dev.trexzo.custommc.core.ui.UiPointerButton;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
+import dev.trexzo.custommc.core.ui.UiOutlineCommand;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
@@ -123,7 +124,15 @@ public final class SettingListPageContent
                                     ROW_RADIUS,
                                     row.height() * 0.5F),
                             theme.color(
-                                    UiColorRole.BACKGROUND)));
+                                    UiColorRole.SURFACE_RAISED)));
+            commands.add(new UiOutlineCommand(1,
+                    row.x(), row.y(), row.width(), row.height(), 1.0F,
+                    theme.color(UiColorRole.BORDER)));
+            commands.add(new UiRoundedRectCommand(1,
+                    row.x() + Math.max(0.0F, row.width() - 143.0F),
+                    row.y() + 6.0F, Math.min(132.0F, row.width()),
+                    row.height() - 12.0F, 5.0F,
+                    theme.color(UiColorRole.BACKGROUND)));
 
             commands.add(
                     new UiTextCommand(
@@ -134,6 +143,9 @@ public final class SettingListPageContent
                             entry.descriptor.label(),
                             theme.color(
                                     UiColorRole.TEXT_PRIMARY)));
+
+            commands.addAll(UiSettingDecorations.compose(
+                    row, entry.setting, entry.descriptor, theme));
 
             final boolean editing =
                     editor.isEditing(entry.setting);

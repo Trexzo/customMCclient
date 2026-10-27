@@ -65,6 +65,8 @@ final class Minecraft189ArrayListModuleTest {
                         host);
 
         try {
+            assertEquals(Boolean.TRUE, runtime.featureCatalog().arrayList()
+                    .rightAlignedSetting().get());
             runtime.featureCatalog()
                     .arrayList()
                     .xSetting()
@@ -92,8 +94,8 @@ final class Minecraft189ArrayListModuleTest {
             assertEquals(
                     Arrays.asList(
                             "8.0,8.0",
-                            "40.0,50.0",
-                            "40.0,62.0"),
+                            "1064.0,50.0",
+                            "1064.0,62.0"),
                     host.positions);
 
             host.clear();
@@ -110,8 +112,16 @@ final class Minecraft189ArrayListModuleTest {
                     host.text);
             assertEquals(
                     Arrays.asList(
-                            "40.0,50.0"),
+                            "1064.0,50.0"),
                     host.positions);
+            host.clear();
+            // Persisted opt-out keeps exact legacy left-X behavior.
+            runtime.featureCatalog().arrayList().rightAlignedSetting()
+                    .set(Boolean.FALSE);
+            runtime.renderHud(2L, 0.0F);
+            assertEquals(Arrays.asList("40.0,50.0"), host.positions);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.RIGHT_ALIGNED_SETTING_ID));
         } finally {
             runtime.close();
         }
@@ -220,8 +230,8 @@ final class Minecraft189ArrayListModuleTest {
                     "CustomMC", "[Combat] No Hit Delay", "[Movement] Auto Sprint",
                     "[Player] Fast Place", "[Visuals] Watermark",
                     "[Visuals] Array List"), host.text);
-            assertEquals(Arrays.asList("8.0,8.0", "8.0,24.0", "8.0,36.0",
-                    "8.0,48.0", "8.0,60.0", "8.0,72.0"), host.positions);
+            assertEquals(Arrays.asList("8.0,8.0", "1096.0,24.0", "1096.0,36.0",
+                    "1096.0,48.0", "1096.0,60.0", "1096.0,72.0"), host.positions);
             host.clear();
 
             // Grouping works with labels off and reflects live enable states.
@@ -289,7 +299,7 @@ final class Minecraft189ArrayListModuleTest {
             runtime.renderHud(2L, 0.0F);
             assertEquals(Arrays.asList(
                     "CustomMC", "Watermark", "Auto Sprint", "+ 3 more"), host.text);
-            assertEquals("8.0,48.0", host.positions.get(3));
+            assertEquals("1096.0,48.0", host.positions.get(3));
             host.clear();
 
             list.groupCategoriesSetting().set(Boolean.TRUE);
@@ -324,6 +334,7 @@ final class Minecraft189ArrayListModuleTest {
         }
         assertNull(settings.find(Minecraft189ArrayListModule.MAX_VISIBLE_SETTING_ID));
         assertNull(settings.find(Minecraft189ArrayListModule.SHOW_OVERFLOW_SETTING_ID));
+        assertNull(settings.find(Minecraft189ArrayListModule.RIGHT_ALIGNED_SETTING_ID));
         assertNull(modules.find(Minecraft189ArrayListModule.ID));
     }
 

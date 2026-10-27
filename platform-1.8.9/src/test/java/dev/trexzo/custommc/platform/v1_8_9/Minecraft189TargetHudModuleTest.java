@@ -137,7 +137,7 @@ final class Minecraft189TargetHudModuleTest {
             assertBar(host.bars.get(0), 36.0F, 253.0F,
                     140.0F, 2.0F, 0xFF303D4A);
             assertBar(host.bars.get(1), 36.0F, 253.0F,
-                    61.25F, 2.0F, 0xFF70C9E8);
+                    61.25F, 2.0F, 0xFF59A7FF);
 
             // Range beyond 9m -> proportional fill; below 9m -> no fill.
             hud.proximityRangeSetting().set(8);
@@ -159,7 +159,7 @@ final class Minecraft189TargetHudModuleTest {
             assertBar(host.bars.get(0), 36.0F, 235.0F,
                     118.0F, 2.0F, 0xFF303D4A);
             assertBar(host.bars.get(1), 36.0F, 235.0F,
-                    91.45F, 2.0F, 0xFFFFB65C);
+                    91.45F, 2.0F, 0xFF7C6CFF);
 
             hud.proximityMeterSetting().set(Boolean.FALSE);
             host.bars.clear();
@@ -327,9 +327,9 @@ final class Minecraft189TargetHudModuleTest {
                 Minecraft189TargetHudModule.proximityFraction(4.0D, 0), 0.000001F);
         assertEquals(0.0F,
                 Minecraft189TargetHudModule.proximityFraction(4.0D, 65), 0.000001F);
-        assertEquals(0xFF70C9E8,
+        assertEquals(0xFF59A7FF,
                 Minecraft189TargetHudModule.proximityFillColor(0.749F));
-        assertEquals(0xFFFFB65C,
+        assertEquals(0xFF7C6CFF,
                 Minecraft189TargetHudModule.proximityFillColor(0.75F));
     }
 
@@ -384,17 +384,17 @@ final class Minecraft189TargetHudModuleTest {
 
     @Test
     void adaptiveAccentUsesConfirmedDistanceOnlyAndPreservesDefaultCyan() {
-        assertEquals(0xFF70C9E8, Minecraft189TargetHudModule.accentColor(
+        assertEquals(0xFF59A7FF, Minecraft189TargetHudModule.accentColor(
                 0.0D, 16, false));
-        assertEquals(0xFFFFB65C, Minecraft189TargetHudModule.accentColor(
+        assertEquals(0xFF7C6CFF, Minecraft189TargetHudModule.accentColor(
                 4.0D, 16, true)); // Inclusive 75%-fraction boundary.
-        assertEquals(0xFF70C9E8, Minecraft189TargetHudModule.accentColor(
+        assertEquals(0xFF59A7FF, Minecraft189TargetHudModule.accentColor(
                 4.01D, 16, true));
-        assertEquals(0xFF70C9E8, Minecraft189TargetHudModule.accentColor(
+        assertEquals(0xFF59A7FF, Minecraft189TargetHudModule.accentColor(
                 Double.NaN, 16, true));
-        assertEquals(0xFF70C9E8, Minecraft189TargetHudModule.accentColor(
+        assertEquals(0xFF59A7FF, Minecraft189TargetHudModule.accentColor(
                 Double.POSITIVE_INFINITY, 16, true));
-        assertEquals(0xFF70C9E8, Minecraft189TargetHudModule.accentColor(
+        assertEquals(0xFF59A7FF, Minecraft189TargetHudModule.accentColor(
                 -1.0D, 16, true));
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -433,25 +433,25 @@ final class Minecraft189TargetHudModuleTest {
                     runtime.playerPositionState().snapshot(),
                     runtime.nearestPlayerTargetState().snapshot());
             runtime.renderHud(0L, 0.0F);
-            assertEquals(0xFF70C9E8, host.lastAccentColor);
+            assertEquals(0xFF59A7FF, host.lastAccentColor);
             assertEquals(2, host.roundedRects);
 
             hud.adaptiveAccentSetting().set(Boolean.TRUE);
             assertEquals("true", settings.snapshotEncoded().get(
                     Minecraft189TargetHudModule.ADAPTIVE_ACCENT_SETTING_ID));
             runtime.renderHud(1L, 0.0F); // 9m at 16m range is not close.
-            assertEquals(0xFF70C9E8, host.lastAccentColor);
+            assertEquals(0xFF59A7FF, host.lastAccentColor);
             hud.proximityRangeSetting().set(40);
             runtime.renderHud(2L, 0.0F); // 9m <= 10m close threshold.
-            assertEquals(0xFFFFB65C, host.lastAccentColor);
+            assertEquals(0xFF7C6CFF, host.lastAccentColor);
             assertEquals(6, host.roundedRects);
             hud.proximityRangeSetting().set(8);
             runtime.renderHud(3L, 0.0F);
-            assertEquals(0xFF70C9E8, host.lastAccentColor);
+            assertEquals(0xFF59A7FF, host.lastAccentColor);
             hud.adaptiveAccentSetting().set(Boolean.FALSE);
             hud.proximityRangeSetting().set(40);
             runtime.renderHud(4L, 0.0F);
-            assertEquals(0xFF70C9E8, host.lastAccentColor);
+            assertEquals(0xFF59A7FF, host.lastAccentColor);
             controller.disable(Minecraft189TargetHudModule.ID);
             final int beforeDisabled = host.roundedRects;
             runtime.renderHud(5L, 0.0F);

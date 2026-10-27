@@ -37,10 +37,13 @@ final class Minecraft189ArrayListFeature
     private final ModuleSettingRegistry.Registration groupCategoriesBinding;
     private final SettingRegistry.Registration maxVisibleSetting;
     private final SettingRegistry.Registration showOverflowSetting;
+    private final SettingRegistry.Registration rightAlignedSetting;
     private final SettingPresentationRegistry.Registration maxVisiblePresentation;
     private final SettingPresentationRegistry.Registration showOverflowPresentation;
+    private final SettingPresentationRegistry.Registration rightAlignedPresentation;
     private final ModuleSettingRegistry.Registration maxVisibleBinding;
     private final ModuleSettingRegistry.Registration showOverflowBinding;
+    private final ModuleSettingRegistry.Registration rightAlignedBinding;
     private boolean closed;
 
     private Minecraft189ArrayListFeature(
@@ -65,7 +68,10 @@ final class Minecraft189ArrayListFeature
             final SettingPresentationRegistry.Registration maxVisiblePresentation,
             final SettingPresentationRegistry.Registration showOverflowPresentation,
             final ModuleSettingRegistry.Registration maxVisibleBinding,
-            final ModuleSettingRegistry.Registration showOverflowBinding) {
+            final ModuleSettingRegistry.Registration showOverflowBinding,
+            final SettingRegistry.Registration rightAlignedSetting,
+            final SettingPresentationRegistry.Registration rightAlignedPresentation,
+            final ModuleSettingRegistry.Registration rightAlignedBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -88,6 +94,9 @@ final class Minecraft189ArrayListFeature
         this.showOverflowPresentation = showOverflowPresentation;
         this.maxVisibleBinding = maxVisibleBinding;
         this.showOverflowBinding = showOverflowBinding;
+        this.rightAlignedSetting = rightAlignedSetting;
+        this.rightAlignedPresentation = rightAlignedPresentation;
+        this.rightAlignedBinding = rightAlignedBinding;
     }
 
     static Minecraft189ArrayListFeature install(
@@ -134,6 +143,9 @@ final class Minecraft189ArrayListFeature
         SettingPresentationRegistry.Registration showOverflowPresentation = null;
         ModuleSettingRegistry.Registration maxVisibleBinding = null;
         ModuleSettingRegistry.Registration showOverflowBinding = null;
+        SettingRegistry.Registration rightAlignedSetting = null;
+        SettingPresentationRegistry.Registration rightAlignedPresentation = null;
+        ModuleSettingRegistry.Registration rightAlignedBinding = null;
 
         try {
             moduleRegistration =
@@ -158,6 +170,7 @@ final class Minecraft189ArrayListFeature
             groupCategoriesSetting = settings.register(module.groupCategoriesSetting());
             maxVisibleSetting = settings.register(module.maxVisibleSetting());
             showOverflowSetting = settings.register(module.showOverflowSetting());
+            rightAlignedSetting = settings.register(module.rightAlignedSetting());
 
             xPresentation =
                     settingPresentations.register(
@@ -200,6 +213,10 @@ final class Minecraft189ArrayListFeature
                     new SettingDescriptor(
                             Minecraft189ArrayListModule.SHOW_OVERFLOW_SETTING_ID,
                             "Show Overflow Count", SettingValueKind.BOOLEAN, 50));
+            rightAlignedPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189ArrayListModule.RIGHT_ALIGNED_SETTING_ID,
+                            "Align Right", SettingValueKind.BOOLEAN, 60));
 
             xBinding =
                     moduleSettings.register(
@@ -231,6 +248,10 @@ final class Minecraft189ArrayListFeature
                     new ModuleSettingBinding(
                             Minecraft189ArrayListModule.ID,
                             Minecraft189ArrayListModule.SHOW_OVERFLOW_SETTING_ID, 50));
+            rightAlignedBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189ArrayListModule.ID,
+                            Minecraft189ArrayListModule.RIGHT_ALIGNED_SETTING_ID, 60));
 
             return new Minecraft189ArrayListFeature(
                     controller,
@@ -254,8 +275,14 @@ final class Minecraft189ArrayListFeature
                     maxVisiblePresentation,
                     showOverflowPresentation,
                     maxVisibleBinding,
-                    showOverflowBinding);
+                    showOverflowBinding,
+                    rightAlignedSetting,
+                    rightAlignedPresentation,
+                    rightAlignedBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(rightAlignedBinding, failure);
+            closeQuietly(rightAlignedPresentation, failure);
+            closeQuietly(rightAlignedSetting, failure);
             closeQuietly(showOverflowBinding, failure);
             closeQuietly(maxVisibleBinding, failure);
             closeQuietly(showOverflowPresentation, failure);
@@ -307,6 +334,9 @@ final class Minecraft189ArrayListFeature
             failure = closeFailure;
         }
 
+        failure = close(rightAlignedBinding, failure);
+        failure = close(rightAlignedPresentation, failure);
+        failure = close(rightAlignedSetting, failure);
         failure = close(showOverflowBinding, failure);
         failure = close(maxVisibleBinding, failure);
         failure = close(showOverflowPresentation, failure);

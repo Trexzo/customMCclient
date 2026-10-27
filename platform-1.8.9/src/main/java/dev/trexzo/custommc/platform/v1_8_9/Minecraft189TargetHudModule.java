@@ -31,8 +31,8 @@ public final class Minecraft189TargetHudModule implements Module {
     public static final int MINIMUM_PROXIMITY_RANGE = 1;
     public static final int MAXIMUM_PROXIMITY_RANGE = 64;
     private static final int PROXIMITY_TRACK_ARGB = 0xFF303D4A;
-    private static final int PROXIMITY_FILL_ARGB = 0xFF70C9E8;
-    private static final int PROXIMITY_CLOSE_ARGB = 0xFFFFB65C;
+    private static final int PROXIMITY_FILL_ARGB = 0xFF59A7FF;
+    private static final int PROXIMITY_CLOSE_ARGB = 0xFF7C6CFF;
     public static final String RENDER_PASS_ID = "target-hud";
     private final Minecraft189NearestPlayerTargetState nearest;
     private final Minecraft189TargetRotationState direction;
@@ -236,7 +236,11 @@ public final class Minecraft189TargetHudModule implements Module {
             graphics.beginUi(viewport);
             RuntimeException failure = null;
             try {
-                graphics.fillRoundedRect(left, top, width, height, 6.0F, 0xE610141E);
+                graphics.fillRoundedRect(left, top, width, height, 7.0F, 0xE811161F);
+                graphics.strokeRect(left, top, width, height, 1.0F, 0xAA273042);
+                graphics.strokeRect(left + 7.0F, top + 1.0F,
+                        Math.max(0.0F, width - 14.0F), 1.0F, 1.0F,
+                        0x5559A7FF);
                 graphics.fillRoundedRect(left, top, 3.0F, height, 1.5F,
                         accentColor(target.distance(),
                                 proximityRange.get().intValue(),
@@ -244,15 +248,15 @@ public final class Minecraft189TargetHudModule implements Module {
                 graphics.drawText(UiFonts.DEFAULT, left + 12, top + 7,
                         "TARGET  #" + (target.entityIndex() + 1), 0xFFFFFFFF);
                 graphics.drawText(UiFonts.DEFAULT, left + 12, top + 23,
-                        distanceText(target), 0xFFC4CBD5);
+                        distanceText(target), 0xFFDDE8F8);
                 if (!small) {
                     graphics.drawText(UiFonts.DEFAULT, left + 12, top + 39,
-                            directionText(angle), 0xFF92A8BF);
+                            directionText(angle), 0xFF9EAEC4);
                 }
                 if (coordinates != null) {
                     graphics.drawText(UiFonts.DEFAULT, left + 12,
                             top + (small ? 39.0F : 55.0F),
-                            coordinates, 0xFF92A8BF);
+                            coordinates, 0xFF9EAEC4);
                 }
                 if (proximityMeter.get().booleanValue()) {
                     final float trackLeft = left + 12.0F;
