@@ -202,6 +202,8 @@ public final class Minecraft189HostRuntime
     private final Minecraft189FeatureCatalog featureCatalog;
     private final Minecraft189Hooks renderHooks;
     private final Minecraft189HostInputBridge inputBridge;
+    private final Minecraft189CombatCycleArbiter combatCycle =
+            new Minecraft189CombatCycleArbiter();
     private boolean closed;
 
     private Minecraft189HostRuntime(
@@ -2395,6 +2397,27 @@ public final class Minecraft189HostRuntime
         }
     }
 
+    /** One non-reentrant native combat callback may own one primary lane. */
+    long enterSyntheticCombatCycle() {
+        requireOpen();
+        return combatCycle.enter();
+    }
+
+    boolean claimSyntheticCombatPrimary(final long token,
+            final Minecraft189CombatCycleArbiter.Primary primary) {
+        requireOpen();
+        return combatCycle.claimPrimary(token, primary);
+    }
+
+    boolean claimSyntheticCombatReblock(final long token) {
+        requireOpen();
+        return combatCycle.claimReblock(token);
+    }
+
+    void leaveSyntheticCombatCycle(final long token) {
+        combatCycle.leave(token);
+    }
+
     boolean shouldReleaseAutoBlock(final boolean playerHit,
             final int hitIndex) {
         requireOpen();
@@ -3363,6 +3386,10 @@ public final class Minecraft189HostRuntime
             closed = true;
         }
         RuntimeException failure = null;
+        // Revoke in-flight action-cycle tokens before any native-source
+        // lease, module, hotbar or UI teardown. A stale finally cannot
+        // release a newer generation created by another callback.
+        combatCycle.revoke();
         inputState.clear();
         frameRateTracker.clear();
         clickRateTracker.clear();
