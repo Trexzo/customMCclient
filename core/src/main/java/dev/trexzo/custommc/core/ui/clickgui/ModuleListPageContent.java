@@ -36,7 +36,7 @@ public final class ModuleListPageContent
     private static final float GROUP_GAP = 10.0F;
     private static final float ROW_HEIGHT = 36.0F;
     private static final float ROW_GAP = 7.0F;
-    private static final float ROW_RADIUS = 6.0F;
+    private static final float ROW_RADIUS = 8.0F;
 
     private final ModuleRegistry modules;
     private final ModuleController controller;
@@ -238,6 +238,19 @@ public final class ModuleListPageContent
                                             ? UiColorRole.SURFACE_RAISED
                                             : UiColorRole.BACKGROUND)));
 
+            commands.add(new UiOutlineCommand(1,
+                    row.x(), row.y(), row.width(), row.height(),
+                    1.0F, theme.color(UiColorRole.BORDER)));
+            if (state == ModuleState.ENABLED) {
+                commands.add(new UiRoundedRectCommand(1,
+                        row.x() + 2.0F, row.y() + 7.0F,
+                        3.0F, row.height() - 14.0F, 1.5F,
+                        theme.color(UiColorRole.ACCENT)));
+            }
+            commands.add(new UiRoundedRectCommand(1,
+                    row.x() + row.width() - 84.0F, row.y() + 7.0F,
+                    76.0F, row.height() - 14.0F, 6.0F,
+                    theme.color(UiColorRole.SURFACE_RAISED)));
             if (selection != null
                     && selection.isSelected(id)) {
                 commands.add(
