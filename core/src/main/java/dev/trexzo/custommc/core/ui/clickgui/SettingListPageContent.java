@@ -23,6 +23,7 @@ import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiTheme;
+import dev.trexzo.custommc.core.ui.UiThemeSettings;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -202,6 +203,15 @@ public final class SettingListPageContent
                 continue;
             }
 
+            if (UiThemeSettings.ID.equals(entry.setting.id())) {
+                if (event.button() == UiPointerButton.LEFT
+                        || event.button() == UiPointerButton.RIGHT) {
+                    return UiThemeSettings.cycle(
+                            entry.setting,
+                            event.button() == UiPointerButton.LEFT);
+                }
+                return false;
+            }
             return editor.pointer(
                     context,
                     entry.setting,
