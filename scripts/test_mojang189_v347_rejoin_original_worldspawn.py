@@ -30,7 +30,10 @@ class V347OriginalServerSpawnEvidence(unittest.TestCase):
         run = HARNESS_SOURCE.split("def run(", 1)[1].split(
             "    except BaseException:", 1)[0]
         native_ready = run.index("CUSTOMMC_OFFICIAL_189_LOCAL_DEDICATED_SERVER_READY")
-        conditional = run.index("if args.rejoin_target or args.rejoin_release:")
+        # An earlier condition also controls fixture log bookkeeping.
+        # Bind this assertion to the actual server-ready command block.
+        conditional = run.index(
+            "if args.rejoin_target or args.rejoin_release:", native_ready)
         native_set = run.index('"setworldspawn 0 4 0"')
         native_ack = run.index('expected=b"Set world spawn to"')
         native_host = run.index("host_cmd = client_command(")
