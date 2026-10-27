@@ -121,7 +121,7 @@ final class Minecraft189ArrayListFeature
                         controller,
                         presentations,
                         renderPipeline,
-                        hostCallbacks);
+                        hostCallbacks, settings);
 
         ModuleRegistry.Registration moduleRegistration = null;
         ModulePresentationRegistry.Registration presentation = null;

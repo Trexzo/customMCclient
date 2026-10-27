@@ -12,6 +12,11 @@ import dev.trexzo.custommc.core.render.RenderPipeline;
 import dev.trexzo.custommc.core.render.RenderStage;
 import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
+import dev.trexzo.custommc.core.setting.SettingRegistry;
+import dev.trexzo.custommc.core.ui.UiTheme;
+import dev.trexzo.custommc.core.ui.UiThemes;
+import dev.trexzo.custommc.core.ui.UiThemeSettings;
+import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiFonts;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
@@ -45,9 +50,7 @@ public final class Minecraft189ArrayListModule
             "render.array-list.rightAligned";
     private static final float CARD_WIDTH = 184.0F;
     private static final float CARD_HEIGHT = 12.0F;
-    private static final int CARD_ARGB = 0xD911161F;
-    private static final int ACCENT_ARGB = 0xFF59A7FF;
-
+ 
     private static final int PRIORITY = 110;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
     private static final float LINE_HEIGHT = 12.0F;
@@ -57,6 +60,7 @@ public final class Minecraft189ArrayListModule
     private final ModulePresentationRegistry presentations;
     private final RenderPipeline renderPipeline;
     private final LegacyUiHostCallbacks hostCallbacks;
+    private final SettingRegistry themeSettings;
     private final Setting<Integer> x =
             new Setting<Integer>(
                     X_SETTING_ID,
@@ -95,6 +99,18 @@ public final class Minecraft189ArrayListModule
             final ModulePresentationRegistry presentations,
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
+        this(modules, controller, presentations, renderPipeline,
+                hostCallbacks, null);
+    }
+
+    public Minecraft189ArrayListModule(
+            final ModuleRegistry modules,
+            final ModuleController controller,
+            final ModulePresentationRegistry presentations,
+            final RenderPipeline renderPipeline,
+            final LegacyUiHostCallbacks hostCallbacks,
+            final SettingRegistry themeSettings) {
+        this.themeSettings = themeSettings;
         this.modules = Objects.requireNonNull(
                 modules,
                 "modules");
@@ -183,10 +199,15 @@ public final class Minecraft189ArrayListModule
                 viewport.logicalWidth() - x.get().floatValue() - CARD_WIDTH)
                 : x.get().floatValue();
         if (right) {
+            final UiTheme theme = themeSettings == null
+                    ? UiThemes.nebula()
+                    : UiThemeSettings.resolve(themeSettings, UiThemes.nebula());
             hostCallbacks.fillRoundedRect(left, currentY - 1.0F,
-                    CARD_WIDTH, CARD_HEIGHT, 3.0F, CARD_ARGB);
+                    CARD_WIDTH, CARD_HEIGHT, 3.0F,
+                    0xD9000000 | (theme.color(UiColorRole.SURFACE) & 0xFFFFFF));
             hostCallbacks.fillRect(left + CARD_WIDTH - 2.0F,
-                    currentY, 2.0F, CARD_HEIGHT - 2.0F, ACCENT_ARGB);
+                    currentY, 2.0F, CARD_HEIGHT - 2.0F,
+                    theme.color(UiColorRole.ACCENT));
             hostCallbacks.pushClip(left + 8.0F, currentY - 1.0F,
                     CARD_WIDTH - 17.0F, CARD_HEIGHT);
         }
