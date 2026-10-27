@@ -1511,6 +1511,38 @@ public final class Minecraft189RuntimeBridge {
                         slowedValue);
     }
 
+    /**
+     * V339 native EntityLivingBase.knockBack owner fence: the transformed
+     * method is inherited by *all* living entities, but the private user's
+     * Velocity feature must never scale other players' or mobs' motion.
+     * Exact obfuscated original EntityPlayerSP (bew) is the only admitted
+     * local class in Minecraft 1.8.9. Do not infer from names, team, target
+     * UUID, or the attacker's identity. No packet or motion write occurs
+     * in this guard; the caller returns the actual vanilla result.
+     */
+    static boolean velocityOriginalLocalOwner(final Object owner) {
+        return owner != null
+                && Minecraft189Mappings.ENTITY_PLAYER_SP
+                        .obfuscatedInternalName()
+                        .equals(owner.getClass().getName());
+    }
+
+    public static synchronized double adjustVelocityHorizontalOriginalOwner(
+            final Object originalKnockbackOwner,
+            final double before,
+            final double after) {
+        return !velocityOriginalLocalOwner(originalKnockbackOwner)
+                ? after : adjustVelocityHorizontal(before, after);
+    }
+
+    public static synchronized double adjustVelocityVerticalOriginalOwner(
+            final Object originalKnockbackOwner,
+            final double before,
+            final double after) {
+        return !velocityOriginalLocalOwner(originalKnockbackOwner)
+                ? after : adjustVelocityVertical(before, after);
+    }
+
     public static synchronized double adjustVelocityHorizontal(
             final double before,
             final double after) {
