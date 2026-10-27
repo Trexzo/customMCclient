@@ -21,6 +21,7 @@ final class UiThemeSettingsTest {
         final UiTheme injected = UiThemes.frost();
         try (SettingRegistry.Registration registration =
                      registry.register(selected)) {
+            org.junit.jupiter.api.Assertions.assertNotNull(registration);
             assertEquals("default", selected.get());
             assertEquals(injected.id(),
                     UiThemeSettings.resolve(registry, injected).id());
