@@ -1343,6 +1343,23 @@ public final class Minecraft189RuntimeBridge {
                     && activeRuntime.hostInstalled()) {
                 reportAcceptanceScreen();
             }
+            // V345: gameTick-only forensic for source-original GUI changes
+            // during genuine combat acceptance. ConnectScreen 'awz' may
+            // remain OPEN after World/UUID data arrives; only native source
+            // transitions can establish whether it clears or reopens.
+            // Pure read-only diagnostics: never modify input, GUI/counter,
+            // controller dispatch, UUID or damage acceptance criteria.
+            if (!Boolean.getBoolean("custommc.acceptance.reportLiveWorld")
+                    && activeRuntime.hostInstalled()
+                    && (Boolean.getBoolean("custommc.acceptance.reportAutoClicker")
+                        || Boolean.getBoolean(
+                                "custommc.acceptance.requireAutoClickerExactRemoteUuid")
+                        || Boolean.getBoolean(
+                                "custommc.acceptance.reportKillAuraRejoin")
+                        || Boolean.getBoolean(
+                                "custommc.acceptance.reportTriggerBotRealPvp"))) {
+                reportAcceptanceScreen();
+            }
             if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")
                     && !acceptanceWorldReported
                     && activeRuntime.hostInstalled()) {
