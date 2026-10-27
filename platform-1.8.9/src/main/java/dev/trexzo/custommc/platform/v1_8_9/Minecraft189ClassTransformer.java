@@ -3472,6 +3472,10 @@ public final class Minecraft189ClassTransformer
                 false);
 
         method.visitVarInsn(Opcodes.ALOAD, 0);
+        // The inherited pr.knockBack method also runs for remote players,
+        // mobs, and other living entities. Pass the genuine receiver so
+        // Velocity can only change the original local bew player's motion.
+        method.visitVarInsn(Opcodes.ALOAD, 0);
         method.visitVarInsn(Opcodes.DLOAD, 7);
         method.visitVarInsn(Opcodes.ALOAD, 0);
         method.visitFieldInsn(
@@ -3482,8 +3486,8 @@ public final class Minecraft189ClassTransformer
         method.visitMethodInsn(
                 Opcodes.INVOKESTATIC,
                 RUNTIME_BRIDGE_INTERNAL_NAME,
-                "adjustVelocityHorizontal",
-                "(DD)D",
+                "adjustVelocityHorizontalOriginalOwner",
+                "(Ljava/lang/Object;DD)D",
                 false);
         method.visitFieldInsn(
                 Opcodes.PUTFIELD,
@@ -3491,6 +3495,10 @@ public final class Minecraft189ClassTransformer
                 motionX.obfuscatedName(),
                 motionX.descriptor());
 
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        // The inherited pr.knockBack method also runs for remote players,
+        // mobs, and other living entities. Pass the genuine receiver so
+        // Velocity can only change the original local bew player's motion.
         method.visitVarInsn(Opcodes.ALOAD, 0);
         method.visitVarInsn(Opcodes.DLOAD, 9);
         method.visitVarInsn(Opcodes.ALOAD, 0);
@@ -3502,8 +3510,8 @@ public final class Minecraft189ClassTransformer
         method.visitMethodInsn(
                 Opcodes.INVOKESTATIC,
                 RUNTIME_BRIDGE_INTERNAL_NAME,
-                "adjustVelocityVertical",
-                "(DD)D",
+                "adjustVelocityVerticalOriginalOwner",
+                "(Ljava/lang/Object;DD)D",
                 false);
         method.visitFieldInsn(
                 Opcodes.PUTFIELD,
@@ -3511,6 +3519,10 @@ public final class Minecraft189ClassTransformer
                 motionY.obfuscatedName(),
                 motionY.descriptor());
 
+        method.visitVarInsn(Opcodes.ALOAD, 0);
+        // The inherited pr.knockBack method also runs for remote players,
+        // mobs, and other living entities. Pass the genuine receiver so
+        // Velocity can only change the original local bew player's motion.
         method.visitVarInsn(Opcodes.ALOAD, 0);
         method.visitVarInsn(Opcodes.DLOAD, 11);
         method.visitVarInsn(Opcodes.ALOAD, 0);
@@ -3522,8 +3534,8 @@ public final class Minecraft189ClassTransformer
         method.visitMethodInsn(
                 Opcodes.INVOKESTATIC,
                 RUNTIME_BRIDGE_INTERNAL_NAME,
-                "adjustVelocityHorizontal",
-                "(DD)D",
+                "adjustVelocityHorizontalOriginalOwner",
+                "(Ljava/lang/Object;DD)D",
                 false);
         method.visitFieldInsn(
                 Opcodes.PUTFIELD,
