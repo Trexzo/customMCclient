@@ -18,6 +18,7 @@ import dev.trexzo.custommc.core.ui.UiKeys;
 import dev.trexzo.custommc.core.ui.UiPointerAction;
 import dev.trexzo.custommc.core.ui.UiPointerButton;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
+import dev.trexzo.custommc.core.ui.UiOutlineCommand;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
