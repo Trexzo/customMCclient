@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public final class Minecraft189ArrayListModule
@@ -50,6 +51,8 @@ public final class Minecraft189ArrayListModule
             "render.array-list.rightAligned";
     public static final String SHOW_BACKGROUND_SETTING_ID =
             "render.array-list.showBackground";
+    public static final String ANIMATE_SETTING_ID =
+            "render.array-list.animate";
     // Intrinsic-size chips replace S12's identical 184px rectangles.
     // Glyph widths are conservative approximations of the native 1.8.9 font:
     // the host currently exposes drawString but not getStringWidth.
@@ -97,6 +100,11 @@ public final class Minecraft189ArrayListModule
     private final Setting<Boolean> showBackground = new Setting<Boolean>(
             SHOW_BACKGROUND_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
+    private final Setting<Boolean> animate = new Setting<Boolean>(
+            ANIMATE_SETTING_ID, Boolean.TRUE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    private final Minecraft189ArrayListMotion motion =
+            new Minecraft189ArrayListMotion();
     private final Setting<Boolean> showOverflow = new Setting<Boolean>(
             SHOW_OVERFLOW_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
@@ -156,6 +164,7 @@ public final class Minecraft189ArrayListModule
     public Setting<Boolean> showOverflowSetting() { return showOverflow; }
     public Setting<Boolean> rightAlignedSetting() { return rightAligned; }
     public Setting<Boolean> showBackgroundSetting() { return showBackground; }
+    public Setting<Boolean> animateSetting() { return animate; }
 
     static int categoryOrder(final ModuleDescriptor descriptor) {
         final String id = descriptor == null
@@ -193,6 +202,7 @@ public final class Minecraft189ArrayListModule
         }
         renderRegistration.close();
         renderRegistration = null;
+        motion.reset();
     }
 
     synchronized boolean renderPassInstalled() {
@@ -207,18 +217,21 @@ public final class Minecraft189ArrayListModule
     }
 
     private void drawModuleCard(final UiViewport viewport,
-            final float currentY, final String label) {
+            final float currentY, final String label, final float phase) {
         final boolean right = rightAligned.get().booleanValue();
         if (!right) {
             // Existing explicitly left-aligned saved profiles remain intact.
-            hostCallbacks.drawText(UiFonts.DEFAULT, x.get().floatValue(),
-                    currentY, label, TEXT_ARGB);
+            hostCallbacks.drawText(UiFonts.DEFAULT,
+                    x.get().floatValue() - Minecraft189ArrayListMotion.slide(phase),
+                    currentY, label,
+                    Minecraft189ArrayListMotion.withOpacity(TEXT_ARGB, phase));
             return;
         }
         final float edge = Math.min(viewport.logicalWidth(),
                 Math.max(0.0F, viewport.logicalWidth() - x.get().floatValue()));
         final float textX = rightAlignedTextX(viewport.logicalWidth(),
-                x.get().floatValue(), label);
+                x.get().floatValue(), label)
+                + Minecraft189ArrayListMotion.slide(phase);
         final float chipX = Math.max(0.0F, textX - 4.0F);
         final float chipWidth = Math.max(0.0F, edge - chipX);
         final UiTheme theme = themeSettings == null
@@ -229,11 +242,14 @@ public final class Minecraft189ArrayListModule
         if (showBackground.get().booleanValue() && chipWidth >= 2.0F) {
             hostCallbacks.fillRoundedRect(chipX, currentY - 1.0F,
                     chipWidth, CHIP_HEIGHT, Math.min(2.0F, chipWidth * .5F),
-                    0x50000000 | (theme.color(UiColorRole.SURFACE) & 0xFFFFFF));
+                    Minecraft189ArrayListMotion.withOpacity(
+                            0x50000000 | (theme.color(UiColorRole.SURFACE)
+                                    & 0xFFFFFF), phase));
         }
         if (edge >= 2.0F) {
             hostCallbacks.fillRect(edge - 2.0F, currentY, 2.0F, 9.0F,
-                    theme.color(UiColorRole.ACCENT));
+                    Minecraft189ArrayListMotion.withOpacity(
+                            theme.color(UiColorRole.ACCENT), phase));
         }
         final float clipWidth = Math.max(0.0F, edge - textX - 5.0F);
         if (clipWidth > 0.0F) {
@@ -242,7 +258,8 @@ public final class Minecraft189ArrayListModule
             try {
                 hostCallbacks.drawText(UiFonts.DEFAULT,
                         textX, currentY, label,
-                        theme.color(UiColorRole.TEXT_PRIMARY));
+                        Minecraft189ArrayListMotion.withOpacity(
+                                theme.color(UiColorRole.TEXT_PRIMARY), phase));
             } finally {
                 hostCallbacks.popClip();
             }
@@ -310,19 +327,26 @@ public final class Minecraft189ArrayListModule
                                         left.id(), presentations.find(left.id()), withCategory)));
                     }
                 });
+                final List<String> activeIds = new ArrayList<String>(enabled.size());
+                for (Module module : enabled) {
+                    activeIds.add(module.id());
+                }
+                final Map<String, Float> phases =
+                        motion.advance(activeIds, animate.get().booleanValue());
                 final int displayed = Math.min(enabled.size(), maxVisible.get().intValue());
                 for (int index = 0; index < displayed; index++) {
                     final Module module = enabled.get(index);
                     final ModuleDescriptor descriptor = presentations.find(module.id());
                     drawModuleCard(viewport, currentY,
-                            moduleLabel(module.id(), descriptor, withCategory));
+                            moduleLabel(module.id(), descriptor, withCategory),
+                            phases.get(module.id()).floatValue());
                     currentY += LINE_HEIGHT;
                 }
                 // No fabricated modules: the overflow count is computed
                 // solely from the enabled module registry snapshot.
                 if (showOverflow.get().booleanValue() && enabled.size() > displayed) {
                     drawModuleCard(viewport, currentY,
-                            "+ " + (enabled.size() - displayed) + " more");
+                            "+ " + (enabled.size() - displayed) + " more", 1.0F);
                 }
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;

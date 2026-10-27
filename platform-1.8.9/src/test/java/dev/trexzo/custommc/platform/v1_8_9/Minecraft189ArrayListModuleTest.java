@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -163,6 +164,70 @@ final class Minecraft189ArrayListModuleTest {
                         Minecraft189ArrayListModule.Y_SETTING_ID));
         assertNull(settings.find(Minecraft189ArrayListModule.SHOW_CATEGORIES_SETTING_ID));
         assertNull(settings.find(Minecraft189ArrayListModule.GROUP_CATEGORIES_SETTING_ID));
+    }
+
+    @Test
+    void nativeHudSlidesNewModuleWithoutShowingDisabledGhostRows() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189ArrayListModule list =
+                    runtime.featureCatalog().arrayList();
+            assertEquals(Boolean.TRUE, list.animateSetting().get());
+            controller.enable(Minecraft189WatermarkModule.ID);
+            controller.enable(Minecraft189ArrayListModule.ID);
+            runtime.renderHud(0L, 0.0F);
+            controller.enable(Minecraft189AutoSprintModule.ID);
+            host.clear();
+            runtime.renderHud(1L, 0.0F);
+            final int entering = host.text.indexOf("Auto Sprint");
+            assertTrue(entering >= 0);
+            final float enteringX = Float.parseFloat(
+                    host.positions.get(entering).split(",")[0]);
+            assertTrue(enteringX > Minecraft189ArrayListModule.rightAlignedTextX(
+                    1280.0F, 8.0F, "Auto Sprint"));
+            assertTrue((host.textColors.get(entering) >>> 24) < 255);
+            for (int frame = 2; frame <= 5; frame++) {
+                host.clear();
+                runtime.renderHud(frame, 0.0F);
+            }
+            final int settled = host.text.indexOf("Auto Sprint");
+            assertEquals(0xFFF2F4F6,
+                    host.textColors.get(settled).intValue());
+            assertEquals(Minecraft189ArrayListModule.rightAlignedTextX(
+                    1280.0F, 8.0F, "Auto Sprint"),
+                    Float.parseFloat(
+                            host.positions.get(settled).split(",")[0]), 0.001F);
+
+            controller.disable(Minecraft189AutoSprintModule.ID);
+            host.clear();
+            runtime.renderHud(6L, 0.0F);
+            assertFalse(host.text.contains("Auto Sprint"));
+
+            list.animateSetting().set(Boolean.FALSE);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.ANIMATE_SETTING_ID));
+            controller.enable(Minecraft189AutoSprintModule.ID);
+            host.clear();
+            runtime.renderHud(7L, 0.0F);
+            assertEquals(0xFFF2F4F6, host.textColors.get(
+                    host.text.indexOf("Auto Sprint")).intValue());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189ArrayListModule.ANIMATE_SETTING_ID));
     }
 
     @Test
@@ -371,12 +436,14 @@ final class Minecraft189ArrayListModuleTest {
                 new ArrayList<String>();
         private final List<String> positions =
                 new ArrayList<String>();
+        private final List<Integer> textColors = new ArrayList<Integer>();
         private int lastAccentColor;
         private int roundedRects;
 
         private void clear() {
             text.clear();
             positions.clear();
+            textColors.clear();
             roundedRects = 0;
         }
 
@@ -453,6 +520,7 @@ final class Minecraft189ArrayListModuleTest {
                 final String value,
                 final int argb) {
             text.add(value);
+            textColors.add(Integer.valueOf(argb));
             positions.add(
                     Float.toString(x)
                             + ","
