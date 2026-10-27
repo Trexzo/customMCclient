@@ -35,9 +35,9 @@ public final class Minecraft189TargetHudModule implements Module {
     public static final int DEFAULT_PROXIMITY_RANGE = 16;
     public static final int MINIMUM_PROXIMITY_RANGE = 1;
     public static final int MAXIMUM_PROXIMITY_RANGE = 64;
-    private static final int PROXIMITY_TRACK_ARGB = 0xFF303D4A;
-    private static final int PROXIMITY_FILL_ARGB = 0xFF59A7FF;
-    private static final int PROXIMITY_CLOSE_ARGB = 0xFF7C6CFF;
+    private static final int PROXIMITY_TRACK_ARGB = 0xFF30343B;
+    private static final int PROXIMITY_FILL_ARGB = 0xFFEE8755;
+    private static final int PROXIMITY_CLOSE_ARGB = 0xFFFFA171;
     public static final String RENDER_PASS_ID = "target-hud";
     private final Minecraft189NearestPlayerTargetState nearest;
     private final Minecraft189TargetRotationState direction;
@@ -250,8 +250,8 @@ public final class Minecraft189TargetHudModule implements Module {
             final float left = cardBounds.x();
             final float top = cardBounds.y();
             final UiTheme theme = themeSettings == null
-                    ? UiThemes.nebula()
-                    : UiThemeSettings.resolve(themeSettings, UiThemes.nebula());
+                    ? UiThemes.graphite()
+                    : UiThemeSettings.resolve(themeSettings, UiThemes.graphite());
             final int liveAccent = adaptiveAccent.get().booleanValue()
                     && proximityFraction(target.distance(),
                             proximityRange.get().intValue()) >= 0.75F
@@ -293,7 +293,7 @@ public final class Minecraft189TargetHudModule implements Module {
                     final float fraction = proximityFraction(
                             target.distance(), proximityRange.get().intValue());
                     graphics.fillRect(trackLeft, trackTop,
-                            trackWidth, 2.0F, PROXIMITY_TRACK_ARGB);
+                            trackWidth, 2.0F, theme.color(UiColorRole.BORDER));
                     if (fraction > 0.0F) {
                         graphics.fillRect(trackLeft, trackTop,
                                 trackWidth * fraction, 2.0F,

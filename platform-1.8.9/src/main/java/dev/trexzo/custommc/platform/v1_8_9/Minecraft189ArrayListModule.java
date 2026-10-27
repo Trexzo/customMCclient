@@ -214,8 +214,8 @@ public final class Minecraft189ArrayListModule
         final float chipX = Math.max(0.0F, textX - 4.0F);
         final float chipWidth = Math.max(0.0F, edge - chipX);
         final UiTheme theme = themeSettings == null
-                ? UiThemes.nebula()
-                : UiThemeSettings.resolve(themeSettings, UiThemes.nebula());
+                ? UiThemes.graphite()
+                : UiThemeSettings.resolve(themeSettings, UiThemes.graphite());
         // Restraint matters: a translucent chip hugs the measured-length
         // estimate instead of filling a huge equal-width rectangle.
         if (chipWidth >= 2.0F) {
