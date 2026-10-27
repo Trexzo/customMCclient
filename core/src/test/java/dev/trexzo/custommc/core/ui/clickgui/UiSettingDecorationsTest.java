@@ -26,17 +26,17 @@ final class UiSettingDecorationsTest {
         final SettingDescriptor descriptor = new SettingDescriptor(
                 "test.switch", "Test Switch", SettingValueKind.BOOLEAN, 0);
         final List<UiDrawCommand> off = UiSettingDecorations.compose(
-                NORMAL, value, descriptor, UiThemes.nebula());
+                NORMAL, value, descriptor, UiThemes.graphite());
         assertEquals(2, off.size());
-        assertEquals(UiThemes.nebula().color(UiColorRole.BORDER),
+        assertEquals(UiThemes.graphite().color(UiColorRole.BORDER),
                 ((UiRoundedRectCommand) off.get(0)).argb());
         assertEquals(Boolean.FALSE, value.get());
 
         value.set(Boolean.TRUE);
         final List<UiDrawCommand> on = UiSettingDecorations.compose(
-                NORMAL, value, descriptor, UiThemes.nebula());
+                NORMAL, value, descriptor, UiThemes.graphite());
         assertEquals(2, on.size());
-        assertEquals(UiThemes.nebula().color(UiColorRole.ACCENT),
+        assertEquals(UiThemes.graphite().color(UiColorRole.ACCENT),
                 ((UiRoundedRectCommand) on.get(0)).argb());
         assertEquals(Boolean.TRUE, value.get());
         assertTrue(((UiRoundedRectCommand) on.get(1)).x()
@@ -52,13 +52,13 @@ final class UiSettingDecorationsTest {
                 "test.value", "Value", SettingValueKind.INTEGER, 0,
                 new SettingNumericSpec(0, 100, 1));
         final List<UiDrawCommand> atOne = UiSettingDecorations.compose(
-                NORMAL, value, descriptor, UiThemes.nebula());
+                NORMAL, value, descriptor, UiThemes.graphite());
         assertEquals(2, atOne.size());
         assertEquals(2.42F, ((UiRoundedRectCommand) atOne.get(1)).width(), 0.001F);
         assertEquals(Integer.valueOf(1), value.get());
         value.set(100);
         final List<UiDrawCommand> atMax = UiSettingDecorations.compose(
-                NORMAL, value, descriptor, UiThemes.nebula());
+                NORMAL, value, descriptor, UiThemes.graphite());
         assertEquals(242F, ((UiRoundedRectCommand) atMax.get(1)).width(), .001F);
     }
 
@@ -69,7 +69,7 @@ final class UiSettingDecorationsTest {
         assertTrue(UiSettingDecorations.compose(
                 new UiBounds(0, 0, 42, 12), enabled,
                 new SettingDescriptor("test.bool", "Bool",
-                        SettingValueKind.BOOLEAN, 0), UiThemes.nebula())
+                        SettingValueKind.BOOLEAN, 0), UiThemes.graphite())
                 .isEmpty());
         final Setting<Integer> zero = new Setting<Integer>(
                 "test.zero", 0, x -> x != null, SettingCodecs.INTEGER);
@@ -77,9 +77,9 @@ final class UiSettingDecorationsTest {
                 "test.zero", "Zero", SettingValueKind.INTEGER, 0,
                 new SettingNumericSpec(0, 100, 1));
         assertEquals(1, UiSettingDecorations.compose(
-                NORMAL, zero, numeric, UiThemes.nebula()).size());
+                NORMAL, zero, numeric, UiThemes.graphite()).size());
         assertTrue(UiSettingDecorations.compose(
                 new UiBounds(0, 0, 60, 12), zero, numeric,
-                UiThemes.nebula()).isEmpty());
+                UiThemes.graphite()).isEmpty());
     }
 }
