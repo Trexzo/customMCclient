@@ -2456,6 +2456,11 @@ public final class Minecraft189HostRuntime
                 heldItemOwnerSerial);
     }
 
+    /** Final cleanup: never send native item release or revoke newer lease. */
+    void cancelAutoBlockNativeUse(final long useToken) {
+        featureCatalog.autoBlock().cancelPendingNativeUse(useToken);
+    }
+
     void recordAutoBlockStart(final long useToken) {
         requireOpen();
         // The native isUsingItem result was already observed in the bridge.
