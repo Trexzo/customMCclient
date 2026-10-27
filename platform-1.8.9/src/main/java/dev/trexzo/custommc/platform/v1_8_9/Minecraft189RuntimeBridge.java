@@ -3485,13 +3485,23 @@ public final class Minecraft189RuntimeBridge {
                     // tracking ownership (cooldown/no-item may refuse it).
                     final long useToken = host.beginAutoBlockNativeUse();
                     if (useToken != 0) {
-                        // A source held-item getter may open a vanilla menu
-                        // AFTER melee. Never issue synthetic reblock into it.
-                        if (vetoOriginalScreenBeforeNativeCombat(
-                                host, minecraft)) return;
-                        minecraft.customMcRightClickMouse();
-                        if (swordBlock.customMcIsUsingItem()) {
-                            host.recordAutoBlockStart(useToken);
+                        try {
+                            // A source held-item getter may open a vanilla
+                            // menu AFTER melee. Never issue reblock into it.
+                            if (vetoOriginalScreenBeforeNativeCombat(
+                                    host, minecraft)) return;
+                            minecraft.customMcRightClickMouse();
+                            if (swordBlock.customMcIsUsingItem()) {
+                                host.recordAutoBlockStart(useToken);
+                            }
+                        } finally {
+                            // This exact uncommitted native use lease may
+                            // otherwise survive a GUI veto, native exception,
+                            // or original right-click refusing to use item.
+                            // A completed block or newer reservation is not
+                            // affected. Original mouse/item release stays
+                            // exclusively in Minecraft and existing policy.
+                            host.cancelAutoBlockNativeUse(useToken);
                         }
                     }
                 }
