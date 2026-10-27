@@ -44,6 +44,21 @@ final class UiThemeSettingsTest {
     }
 
     @Test
+    void oldPresetLoadsAsGraphiteAndCannotBeReselected() {
+        final Setting<String> selected = UiThemeSettings.setting();
+        assertEquals("graphite", selected.decode("nebula"));
+        assertThrows(IllegalArgumentException.class,
+                () -> selected.set("nebula"));
+        assertEquals("Graphite", UiThemeSettings.displayName("default"));
+        assertEquals("Graphite", UiThemeSettings.displayName("graphite"));
+        assertEquals("Blue", UiThemeSettings.displayName("blue"));
+        assertEquals("Mono", UiThemeSettings.displayName("mono"));
+        assertEquals("Frost", UiThemeSettings.displayName("frost"));
+        assertEquals(UiThemes.graphite().color(UiColorRole.ACCENT),
+                UiThemes.byId("nebula").color(UiColorRole.ACCENT));
+    }
+
+    @Test
     void rejectsUnknownProfilesWithoutChangingActiveTheme() {
         final Setting<String> selected = UiThemeSettings.setting();
         assertThrows(IllegalArgumentException.class,
