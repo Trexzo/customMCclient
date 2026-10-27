@@ -19,3 +19,6 @@ This is a real production-code UI change stacked on S16 [PR #838](https://github
 No measured native font-width API, custom typeface, motion/animation, real target name/HP/avatar, or genuine game screenshots yet. All still require source/runtime acceptance. No gameplay/combat/input/World/hooks changes in this UI lane.
 
 CI policy: Windows and Ubuntu Foundation and official Mojang 1.8.9 binary must pass at the exact commit; keep failures visible. Stay Draft, never merge to main without genuine on-screen UI acceptance.
+
+## ArrayList minimal preset
+Source-rendered ArrayList now defaults to **no backing rectangles** with compact measured-estimate text and the slim accent edge, closer to Slinky's minimal HUD ethos. The optional persisted **Row Background** switch enables tight per-label translucent backplates. The setting is registered with correct cleanup and profile persistence; width sorting and strict enable/disable semantics are unchanged.

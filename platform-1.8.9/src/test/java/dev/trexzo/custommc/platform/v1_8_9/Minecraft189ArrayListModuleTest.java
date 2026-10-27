@@ -101,6 +101,19 @@ final class Minecraft189ArrayListModuleTest {
                     host.positions);
 
             assertEquals(0xFFEE8755, host.lastAccentColor);
+            assertEquals(Boolean.FALSE,
+                    runtime.featureCatalog().arrayList().showBackgroundSetting().get());
+            assertEquals(0, host.roundedRects);
+            runtime.featureCatalog().arrayList().showBackgroundSetting()
+                    .set(Boolean.TRUE);
+            host.clear();
+            runtime.renderHud(9L, 0.0F);
+            assertEquals(2, host.roundedRects);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.SHOW_BACKGROUND_SETTING_ID));
+            runtime.featureCatalog().arrayList().showBackgroundSetting()
+                    .set(Boolean.FALSE);
+            host.clear();
             assertTrue(UiThemeSettings.cycle(
                     settings.find(UiThemeSettings.ID), true));
             host.clear();
@@ -348,6 +361,7 @@ final class Minecraft189ArrayListModuleTest {
         assertNull(settings.find(Minecraft189ArrayListModule.MAX_VISIBLE_SETTING_ID));
         assertNull(settings.find(Minecraft189ArrayListModule.SHOW_OVERFLOW_SETTING_ID));
         assertNull(settings.find(Minecraft189ArrayListModule.RIGHT_ALIGNED_SETTING_ID));
+        assertNull(settings.find(Minecraft189ArrayListModule.SHOW_BACKGROUND_SETTING_ID));
         assertNull(modules.find(Minecraft189ArrayListModule.ID));
     }
 
@@ -358,10 +372,12 @@ final class Minecraft189ArrayListModuleTest {
         private final List<String> positions =
                 new ArrayList<String>();
         private int lastAccentColor;
+        private int roundedRects;
 
         private void clear() {
             text.clear();
             positions.clear();
+            roundedRects = 0;
         }
 
         @Override
@@ -404,6 +420,7 @@ final class Minecraft189ArrayListModuleTest {
                 final float height,
                 final float radius,
                 final int argb) {
+            roundedRects++;
         }
 
         @Override
