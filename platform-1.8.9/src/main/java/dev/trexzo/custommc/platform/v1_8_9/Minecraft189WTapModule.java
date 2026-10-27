@@ -117,6 +117,10 @@ public final class Minecraft189WTapModule
     // Genuine mapped EntityPlayer.setSprinting(false) may reenter a
     // module enable/disable, ClickGUI, or persisted sprint-reset policy.
     private long nativeSprintWriteEpoch;
+    // Original EntityPlayer.setSprinting(false) may synchronously enter a
+    // second source callback on this same Java thread. Never dispatch a
+    // second native setter while the first has not returned.
+    private boolean nativeSprintWriteInProgress;
 
     @Override
     public String id() {
@@ -187,6 +191,16 @@ public final class Minecraft189WTapModule
             final boolean leftButtonHeld,
             final boolean forwardHeld,
             final Minecraft189NearestPlayerTargetState.Snapshot nearestPlayer) {
+        if (nativeSprintWriteInProgress) {
+            // Reentrant original setter callbacks must not reissue sprint
+            // writes, resurrect a cancelled multi-tick reset, or bank an
+            // apparent new attack edge. A pending outer setter is revoked
+            // even when the nested movement and policy remain unchanged.
+            ++nativeSprintWriteEpoch;
+            resetState();
+            previousLeftButtonHeld = leftButtonHeld;
+            return false;
+        }
         if (!enabled
                 || player == null
                 || movement == null
@@ -341,6 +355,7 @@ public final class Minecraft189WTapModule
     private void writeOriginalSprintReset(
             final Minecraft189PlayerSprintControl player,
             final boolean physicalAttackHeld) {
+        nativeSprintWriteInProgress = true;
         try {
             player.customMcSetSprinting(false);
         } catch (RuntimeException nativeFailure) {
@@ -351,6 +366,10 @@ public final class Minecraft189WTapModule
             resetState();
             previousLeftButtonHeld = physicalAttackHeld;
             throw nativeFailure;
+        } finally {
+            // Do not clear this flag from nested callbacks or lifecycle
+            // methods. Only the original outer JVM setter may release it.
+            nativeSprintWriteInProgress = false;
         }
     }
 
