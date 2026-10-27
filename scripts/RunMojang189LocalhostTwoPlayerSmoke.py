@@ -1304,6 +1304,91 @@ def send_server_command(server, log, command, expected=None, timeout=6):
                          + " log=" + after[-800:].decode("ascii", "replace"))
 
 
+def v348_latest_original_gui_screen(log, max_bytes=16777216):
+    """Last COMPLETE source-original gameTick GUI transition in bounded log.
+
+    This is a negative/physical-input eligibility witness only; it never
+    represents original attack success or fakes a clear screen.
+    """
+    if (not isinstance(max_bytes, int) or isinstance(max_bytes, bool)
+            or not 128 <= max_bytes <= 16777216):
+        raise ValueError("V348 native GUI evidence bound invalid")
+    source = Path(log)
+    if source.is_symlink() or not source.is_file():
+        return None
+    marker = b"CUSTOMMC_189_ACCEPTANCE_SCREEN="
+    with source.open("rb") as stream:
+        size = stream.seek(0, 2)
+        start = max(0, size - max_bytes)
+        stream.seek(start)
+        raw = stream.read(max_bytes)
+    if start:
+        first = raw.find(b"\n")
+        raw = raw[first + 1:] if first >= 0 else b""
+    last_complete = raw.rfind(b"\n")
+    raw = raw[:last_complete + 1] if last_complete >= 0 else b""
+    state = None
+    for line in raw.splitlines():
+        if line.startswith(marker):
+            value = line[len(marker):].rstrip(b"\r")
+            if 0 < len(value) <= 128:
+                try:
+                    state = value.decode("ascii", "strict")
+                except UnicodeDecodeError:
+                    state = None
+    return state
+
+
+def v348_resume_confirmed_original_pause(host, host_log, deadline):
+    """Physically dismiss only original axp pause GUI in strict rejoin CI.
+
+    The game itself must first report the pause state. Never send blind
+    Escape: on a CLEAR screen it would CREATE the pause GUI. A fresh
+    original gameTick CLEAR line after real XTest Escape is compulsory.
+    No manual attack click or native leftClickCounter rewrite occurs.
+    """
+    if not (Path(host_log).exists() and host.poll() is None):
+        raise AssertionError("V348 source host not alive for GUI recovery")
+    timeout = min(deadline, time.monotonic() + 5.0)
+    screen = None
+    while time.monotonic() < timeout:
+        check_process(host, "original GUI recovery source")
+        screen = v348_latest_original_gui_screen(host_log)
+        if screen == "axp" or screen == "(in-game/no GUI)":
+            break
+        time.sleep(0.1)
+    if screen != "axp":
+        # A verified CLEAR is already in-game; an unknown/ConnectScreen
+        # never grants permission to send Escape or fabricate gameplay.
+        return False
+
+    result = subprocess.run(
+        ["xdotool", "search", "--onlyvisible", "--pid", str(host.pid),
+         "--name", "Minecraft"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=4)
+    if result.returncode != 0:
+        raise AssertionError("V348 original host Minecraft window missing")
+    windows = result.stdout.decode("ascii", "strict").splitlines()
+    if len(windows) != 1 or not windows[0].isdigit():
+        raise AssertionError("V348 original host X11 window not unique")
+    window = windows[0]
+    # Validate the genuine same-PID game window, then activate it before
+    # submitting the already whitelisted keyboard-only original Escape.
+    # Do not infer source GUI state from X11 focus/title.
+    if v348_latest_original_gui_screen(host_log) != "axp":
+        return False
+    offset = Path(host_log).stat().st_size
+    send_real_host_key(host, window, "Escape")
+    wait_for_new_original_source_marker(
+        host, host_log, offset,
+        b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)",
+        min(deadline, time.monotonic() + 5.0),
+        "real XTest Escape closed original axp pause")
+    print("CUSTOMMC_189_V348_SOURCE_PAUSE_CLOSED_BY_REAL_ESCAPE=YES",
+          flush=True)
+    return True
+
+
 def restore_real_attacker_focus(host, target, deadline):
     """Reclaim real X11 active-window ownership after the second JVM starts.
 
@@ -1866,6 +1951,14 @@ def run(args):
                  "target graphical client")
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
+
+        if args.rejoin_target or args.rejoin_release:
+            # V348 original 'awz -> CLEAR -> axp' was captured during
+            # genuine rejoin acceptance. Only the latest original axp
+            # transition authorizes a physical, host-window-owned Escape.
+            # This occurs BEFORE rejoin PvP baseline/damage assertions.
+            v348_resume_confirmed_original_pause(
+                host, host_log, deadline)
 
         if args.scaffold_placement:
             # V30: actual dedicated ORIGINAL 1.8.9 server owns both clients,
@@ -3055,6 +3148,11 @@ def run(args):
             wait_for_log_occurrences(
                 server, server_log, TARGET_JOIN, 2, deadline,
                 "same real CITarget username second dedicated-server join")
+            # A second actual client JVM may take X11 focus away from
+            # CIHost. Clear only a newly observed original axp pause, never
+            # manufacture attacks or reset Minecraft's click guard.
+            v348_resume_confirmed_original_pause(
+                host, host_log, deadline)
             send_server_command(server, server_log, "gamemode 1 CITarget")
             # M419 alone uses a more stable real A server position.
             # The original earlier A/B interaction remains unchanged.
