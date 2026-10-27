@@ -1952,6 +1952,14 @@ def run(args):
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
 
+        if args.rejoin_target or args.rejoin_release:
+            # V348 original 'awz -> CLEAR -> axp' was captured during
+            # genuine rejoin acceptance. Only the latest original axp
+            # transition authorizes a physical, host-window-owned Escape.
+            # This occurs BEFORE rejoin PvP baseline/damage assertions.
+            v348_resume_confirmed_original_pause(
+                host, host_log, deadline)
+
         if args.scaffold_placement:
             # V30: actual dedicated ORIGINAL 1.8.9 server owns both clients,
             # target block and survival inventory. No client-owned fixture
@@ -3140,6 +3148,11 @@ def run(args):
             wait_for_log_occurrences(
                 server, server_log, TARGET_JOIN, 2, deadline,
                 "same real CITarget username second dedicated-server join")
+            # A second actual client JVM may take X11 focus away from
+            # CIHost. Clear only a newly observed original axp pause, never
+            # manufacture attacks or reset Minecraft's click guard.
+            v348_resume_confirmed_original_pause(
+                host, host_log, deadline)
             send_server_command(server, server_log, "gamemode 1 CITarget")
             # M419 alone uses a more stable real A server position.
             # The original earlier A/B interaction remains unchanged.
