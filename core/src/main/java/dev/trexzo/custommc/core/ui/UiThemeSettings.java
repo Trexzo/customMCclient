@@ -22,7 +22,10 @@ public final class UiThemeSettings {
     }
 
     public static boolean isValid(final String id) {
+        // Legacy "nebula" values remain readable but never appear in UI
+        // choices. They resolve to graphite rather than restoring its colors.
         return DEFAULT.equals(id) || "nebula".equals(id)
+                || "graphite".equals(id) || "blue".equals(id)
                 || "frost".equals(id) || "mono".equals(id);
     }
 
@@ -44,8 +47,10 @@ public final class UiThemeSettings {
                 || !(setting.get() instanceof String)) return false;
         final String current = (String) setting.get();
         if (!isValid(current)) return false;
-        final String[] choices = {"default", "frost", "mono", "nebula"};
-        int index = 0;
+        final String[] choices = {
+                "default", "graphite", "blue", "mono", "frost"};
+        // A saved retired preset starts at the nearest modern equivalent.
+        int index = "nebula".equals(current) ? 1 : 0;
         for (int i = 0; i < choices.length; i++) {
             if (choices[i].equals(current)) { index = i; break; }
         }
