@@ -100,13 +100,15 @@ final class Minecraft189ArrayListModuleTest {
                             "1184.0,62.0"),
                     host.positions);
 
-            assertEquals(0xFF59A7FF, host.lastAccentColor);
+            assertEquals(0xFFEE8755, host.lastAccentColor);
+            assertTrue(UiThemeSettings.cycle(
+                    settings.find(UiThemeSettings.ID), true));
             assertTrue(UiThemeSettings.cycle(
                     settings.find(UiThemeSettings.ID), true));
             host.clear();
             runtime.renderHud(4L, 0.0F);
-            assertEquals(0xFF48D5DE, host.lastAccentColor);
-            assertEquals("frost", settings.snapshotEncoded()
+            assertEquals(0xFF5994EA, host.lastAccentColor);
+            assertEquals("blue", settings.snapshotEncoded()
                     .get(UiThemeSettings.ID));
             assertTrue(UiThemeSettings.cycle(
                     settings.find(UiThemeSettings.ID), false));

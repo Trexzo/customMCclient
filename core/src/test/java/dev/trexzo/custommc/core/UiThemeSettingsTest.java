@@ -26,14 +26,14 @@ final class UiThemeSettingsTest {
             assertEquals(injected.id(),
                     UiThemeSettings.resolve(registry, injected).id());
             assertTrue(UiThemeSettings.cycle(selected, true));
-            assertEquals("frost", selected.get());
-            assertEquals(UiThemes.frost().color(UiColorRole.ACCENT),
-                    UiThemeSettings.resolve(registry, UiThemes.nebula())
+            assertEquals("graphite", selected.get());
+            assertEquals(UiThemes.graphite().color(UiColorRole.ACCENT),
+                    UiThemeSettings.resolve(registry, UiThemes.graphite())
                             .color(UiColorRole.ACCENT));
             assertTrue(UiThemeSettings.cycle(selected, true));
-            assertEquals("mono", selected.get());
+            assertEquals("blue", selected.get());
             assertTrue(UiThemeSettings.cycle(selected, false));
-            assertEquals("frost", selected.get());
+            assertEquals("graphite", selected.get());
             assertTrue(UiThemeSettings.cycle(selected, false));
             assertEquals("default", selected.get());
             assertEquals(injected.id(),

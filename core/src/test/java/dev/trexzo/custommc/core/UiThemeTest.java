@@ -30,14 +30,14 @@ final class UiThemeTest {
     @Test
     void presetsRetainFullSemanticCoverageAndDistinctAccents() {
         for (UiTheme candidate : new UiTheme[] {
-                UiThemes.nebula(), UiThemes.frost(), UiThemes.mono()}) {
+                UiThemes.graphite(), UiThemes.blue(), UiThemes.frost(), UiThemes.mono()}) {
             for (UiColorRole role : UiColorRole.values()) {
                 candidate.color(role);
             }
             assertEquals(candidate.id(), UiThemes.byId(candidate.id()).id());
         }
         org.junit.jupiter.api.Assertions.assertNotEquals(
-                UiThemes.nebula().color(UiColorRole.ACCENT),
+                UiThemes.graphite().color(UiColorRole.ACCENT),
                 UiThemes.frost().color(UiColorRole.ACCENT));
         org.junit.jupiter.api.Assertions.assertThrows(
                 IllegalArgumentException.class,
