@@ -26,14 +26,14 @@ final class UiThemeSettingsTest {
             assertEquals(injected.id(),
                     UiThemeSettings.resolve(registry, injected).id());
             assertTrue(UiThemeSettings.cycle(selected, true));
-            assertEquals("graphite", selected.get());
-            assertEquals(UiThemes.graphite().color(UiColorRole.ACCENT),
+            assertEquals("blue", selected.get());
+            assertEquals(UiThemes.blue().color(UiColorRole.ACCENT),
                     UiThemeSettings.resolve(registry, UiThemes.graphite())
                             .color(UiColorRole.ACCENT));
             assertTrue(UiThemeSettings.cycle(selected, true));
-            assertEquals("blue", selected.get());
+            assertEquals("mono", selected.get());
             assertTrue(UiThemeSettings.cycle(selected, false));
-            assertEquals("graphite", selected.get());
+            assertEquals("blue", selected.get());
             assertTrue(UiThemeSettings.cycle(selected, false));
             assertEquals("default", selected.get());
             assertEquals(injected.id(),
@@ -47,6 +47,9 @@ final class UiThemeSettingsTest {
     void oldPresetLoadsAsGraphiteAndCannotBeReselected() {
         final Setting<String> selected = UiThemeSettings.setting();
         assertEquals("graphite", selected.decode("nebula"));
+        selected.set(selected.decode("nebula"));
+        assertTrue(UiThemeSettings.cycle(selected, true));
+        assertEquals("blue", selected.get());
         assertThrows(IllegalArgumentException.class,
                 () -> selected.set("nebula"));
         assertEquals("Graphite", UiThemeSettings.displayName("default"));

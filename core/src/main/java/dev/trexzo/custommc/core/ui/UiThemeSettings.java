@@ -68,8 +68,9 @@ public final class UiThemeSettings {
                 || !(setting.get() instanceof String)) return false;
         final String current = (String) setting.get();
         if (!isValid(current)) return false;
-        final String[] choices = {
-                "default", "graphite", "blue", "mono", "frost"};
+        // Default is already Graphite. Avoid a duplicate visually inert
+        // Graphite choice; imported legacy graphite values act as default.
+        final String[] choices = {"default", "blue", "mono", "frost"};
         int index = 0;
         for (int i = 0; i < choices.length; i++) {
             if (choices[i].equals(current)) { index = i; break; }

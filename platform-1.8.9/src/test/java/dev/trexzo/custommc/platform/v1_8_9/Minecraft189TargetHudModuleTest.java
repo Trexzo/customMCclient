@@ -71,8 +71,6 @@ final class Minecraft189TargetHudModuleTest {
             assertEquals(0xFFEE8755, host.lastAccentColor);
             assertTrue(UiThemeSettings.cycle(
                     settings.find(UiThemeSettings.ID), true));
-            assertTrue(UiThemeSettings.cycle(
-                    settings.find(UiThemeSettings.ID), true));
             runtime.renderHud(2L, 0F);
             assertEquals(0xFF5994EA, host.lastAccentColor);
             assertTrue(host.texts.contains("9.0 m  away"));
