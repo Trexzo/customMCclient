@@ -287,7 +287,7 @@ public final class Minecraft189ClickGuiRuntime
             presentation = settingPresentations.register(
                     new SettingDescriptor(
                             UiThemeSettings.ID,
-                            "Visual Theme (left/right to switch)",
+                            "Appearance",
                             SettingValueKind.TEXT, -100));
             final UiThemeProvider liveThemes = () ->
                     UiThemeSettings.resolve(settings, themeProvider.theme());

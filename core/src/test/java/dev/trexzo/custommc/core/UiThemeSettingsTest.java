@@ -26,14 +26,14 @@ final class UiThemeSettingsTest {
             assertEquals(injected.id(),
                     UiThemeSettings.resolve(registry, injected).id());
             assertTrue(UiThemeSettings.cycle(selected, true));
-            assertEquals("frost", selected.get());
-            assertEquals(UiThemes.frost().color(UiColorRole.ACCENT),
-                    UiThemeSettings.resolve(registry, UiThemes.nebula())
+            assertEquals("blue", selected.get());
+            assertEquals(UiThemes.blue().color(UiColorRole.ACCENT),
+                    UiThemeSettings.resolve(registry, UiThemes.graphite())
                             .color(UiColorRole.ACCENT));
             assertTrue(UiThemeSettings.cycle(selected, true));
             assertEquals("mono", selected.get());
             assertTrue(UiThemeSettings.cycle(selected, false));
-            assertEquals("frost", selected.get());
+            assertEquals("blue", selected.get());
             assertTrue(UiThemeSettings.cycle(selected, false));
             assertEquals("default", selected.get());
             assertEquals(injected.id(),
@@ -41,6 +41,24 @@ final class UiThemeSettingsTest {
         }
         assertEquals(injected.id(),
                 UiThemeSettings.resolve(registry, injected).id());
+    }
+
+    @Test
+    void oldPresetLoadsAsGraphiteAndCannotBeReselected() {
+        final Setting<String> selected = UiThemeSettings.setting();
+        assertEquals("graphite", selected.decode("nebula"));
+        selected.set(selected.decode("nebula"));
+        assertTrue(UiThemeSettings.cycle(selected, true));
+        assertEquals("blue", selected.get());
+        assertThrows(IllegalArgumentException.class,
+                () -> selected.set("nebula"));
+        assertEquals("Graphite", UiThemeSettings.displayName("default"));
+        assertEquals("Graphite", UiThemeSettings.displayName("graphite"));
+        assertEquals("Blue", UiThemeSettings.displayName("blue"));
+        assertEquals("Mono", UiThemeSettings.displayName("mono"));
+        assertEquals("Frost", UiThemeSettings.displayName("frost"));
+        assertEquals(UiThemes.graphite().color(UiColorRole.ACCENT),
+                UiThemes.byId("nebula").color(UiColorRole.ACCENT));
     }
 
     @Test

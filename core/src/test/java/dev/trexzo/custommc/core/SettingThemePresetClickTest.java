@@ -45,8 +45,8 @@ final class SettingThemePresetClickTest {
         final UiPointerEvent right = new UiPointerEvent(240, 170,
                 UiPointerButton.RIGHT, UiPointerAction.PRESS);
         assertTrue(page.pointer(context, left));
-        assertEquals("frost", theme.get());
-        assertEquals("frost", registry.snapshotEncoded().get(UiThemeSettings.ID));
+        assertEquals("blue", theme.get());
+        assertEquals("blue", registry.snapshotEncoded().get(UiThemeSettings.ID));
         assertTrue(page.pointer(context, right));
         assertEquals("default", theme.get());
         assertFalse(page.pointer(context, new UiPointerEvent(240, 170,

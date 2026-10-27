@@ -1,7 +1,7 @@
 package dev.trexzo.custommc.core.ui;
 
 import dev.trexzo.custommc.core.setting.Setting;
-import dev.trexzo.custommc.core.setting.SettingCodecs;
+import dev.trexzo.custommc.core.setting.SettingCodec;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 
 import java.util.Objects;
@@ -14,15 +14,30 @@ public final class UiThemeSettings {
     public static final String ID = "ui.theme.preset";
     private static final String DEFAULT = "default";
 
+    private static final SettingCodec<String> CODEC =
+            new SettingCodec<String>() {
+                @Override
+                public String encode(final String value) {
+                    return value;
+                }
+                @Override
+                public String decode(final String saved) {
+                    // Old profiles are migrated when loaded; no old theme
+                    // name or color reaches the live settings UI.
+                    return "nebula".equals(saved) ? "graphite" : saved;
+                }
+            };
+
     private UiThemeSettings() { }
 
     public static Setting<String> setting() {
         return new Setting<String>(ID, DEFAULT,
-                UiThemeSettings::isValid, SettingCodecs.STRING);
+                UiThemeSettings::isValid, CODEC);
     }
 
     public static boolean isValid(final String id) {
-        return DEFAULT.equals(id) || "nebula".equals(id)
+        return DEFAULT.equals(id)
+                || "graphite".equals(id) || "blue".equals(id)
                 || "frost".equals(id) || "mono".equals(id);
     }
 
@@ -38,13 +53,24 @@ public final class UiThemeSettings {
         return UiThemes.byId((String) selected);
     }
 
+    public static String displayName(final String selected) {
+        if ("default".equals(selected) || "graphite".equals(selected))
+            return "Graphite";
+        if ("blue".equals(selected)) return "Blue";
+        if ("mono".equals(selected)) return "Mono";
+        if ("frost".equals(selected)) return "Frost";
+        return "Unknown";
+    }
+
     public static boolean cycle(final Setting<?> setting,
             final boolean forwards) {
         if (setting == null || !ID.equals(setting.id())
                 || !(setting.get() instanceof String)) return false;
         final String current = (String) setting.get();
         if (!isValid(current)) return false;
-        final String[] choices = {"default", "frost", "mono", "nebula"};
+        // Default is already Graphite. Avoid a duplicate visually inert
+        // Graphite choice; imported legacy graphite values act as default.
+        final String[] choices = {"default", "blue", "mono", "frost"};
         int index = 0;
         for (int i = 0; i < choices.length; i++) {
             if (choices[i].equals(current)) { index = i; break; }
