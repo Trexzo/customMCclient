@@ -2124,6 +2124,12 @@ public final class Minecraft189RuntimeBridge {
         final Minecraft189HostRuntime host =
                 activeHost();
         if (host != null && minecraft != null) {
+            // V341: the top-level original-game synthetic action callback
+            // owns at most one primary lane. JNI/vanilla getter reentry is
+            // not allowed to borrow that lane or double-spend click credit.
+            final long combatCycleToken = host.enterSyntheticCombatCycle();
+            if (combatCycleToken == 0L) return;
+            try {
             if (Boolean.getBoolean(
                     "custommc.acceptance.reportTriggerBotRealPvp")
                     && !acceptanceTriggerEnabled) {
@@ -2923,6 +2929,10 @@ public final class Minecraft189RuntimeBridge {
                 final int originalPotionSlot = host.selectAutoPotSlot();
                 if (originalPotionSlot >= 0) {
                     try {
+                        if (!host.claimSyntheticCombatPrimary(
+                                combatCycleToken,
+                                Minecraft189CombatCycleArbiter.Primary.POTION))
+                            return;
                         if (swordBlock != null && host.releaseAutoBlockBeforeAction()
                                 && swordBlock.customMcIsUsingItem())
                             swordBlock.customMcStopUsingItem();
@@ -2951,6 +2961,10 @@ public final class Minecraft189RuntimeBridge {
                 final int originalRodSlot = host.selectAutoRodSlot();
                 if (originalRodSlot >= 0) {
                     try {
+                        if (!host.claimSyntheticCombatPrimary(
+                                combatCycleToken,
+                                Minecraft189CombatCycleArbiter.Primary.ROD))
+                            return;
                         if (swordBlock != null && host.releaseAutoBlockBeforeAction()
                                 && swordBlock.customMcIsUsingItem())
                             swordBlock.customMcStopUsingItem();
@@ -2980,6 +2994,10 @@ public final class Minecraft189RuntimeBridge {
                     .vetoTransientUnownedPhaseFourSyntheticClick(
                             host, playerHit, playerIndex)) return;
             if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {
+                if (!host.claimSyntheticCombatPrimary(
+                        combatCycleToken,
+                        Minecraft189CombatCycleArbiter.Primary.MELEE))
+                    return;
                 if (Boolean.getBoolean(
                         "custommc.acceptance.reportKillAuraRangeVeto")) {
                     throw new IllegalStateException(
@@ -3322,7 +3340,8 @@ public final class Minecraft189RuntimeBridge {
                     host.restoreCombatSlotAfterSyntheticClick(originalSlot);
                 }
                 if (swordBlock != null && host.mayStartAutoBlock(
-                        playerHit, playerIndex, originalSlot, alreadyUsingItem)) {
+                        playerHit, playerIndex, originalSlot, alreadyUsingItem)
+                        && host.claimSyntheticCombatReblock(combatCycleToken)) {
                     // Source-mapped rightClickMouse is the only way to begin
                     // vanilla sword use. Verify it actually started before
                     // tracking ownership (cooldown/no-item may refuse it).
@@ -3334,6 +3353,12 @@ public final class Minecraft189RuntimeBridge {
                         }
                     }
                 }
+            }
+            } finally {
+                // Every early return and throwing Mojang right-click or
+                // controller callback returns this cycle to QUIESCENT.
+                // Stale tokens can never close a newer runtime cycle.
+                host.leaveSyntheticCombatCycle(combatCycleToken);
             }
         }
     }
