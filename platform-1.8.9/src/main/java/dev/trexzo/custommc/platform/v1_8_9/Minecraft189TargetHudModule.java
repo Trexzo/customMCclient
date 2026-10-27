@@ -7,6 +7,11 @@ import dev.trexzo.custommc.core.render.RenderPipeline;
 import dev.trexzo.custommc.core.render.RenderStage;
 import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
+import dev.trexzo.custommc.core.setting.SettingRegistry;
+import dev.trexzo.custommc.core.ui.UiTheme;
+import dev.trexzo.custommc.core.ui.UiThemes;
+import dev.trexzo.custommc.core.ui.UiThemeSettings;
+import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiFonts;
 import dev.trexzo.custommc.core.ui.UiViewport;
@@ -38,6 +43,7 @@ public final class Minecraft189TargetHudModule implements Module {
     private final Minecraft189TargetRotationState direction;
     private final RenderPipeline pipeline;
     private final LegacyUiHostCallbacks graphics;
+    private final SettingRegistry themeSettings;
     private final Setting<Integer> x = new Setting<Integer>(
             X_SETTING_ID, 18, v -> v != null && v >= 0 && v <= 4096, SettingCodecs.INTEGER);
     private final Setting<Integer> y = new Setting<Integer>(
@@ -65,6 +71,16 @@ public final class Minecraft189TargetHudModule implements Module {
             final Minecraft189TargetRotationState direction,
             final RenderPipeline pipeline,
             final LegacyUiHostCallbacks graphics) {
+        this(nearest, direction, pipeline, graphics, null);
+    }
+
+    public Minecraft189TargetHudModule(
+            final Minecraft189NearestPlayerTargetState nearest,
+            final Minecraft189TargetRotationState direction,
+            final RenderPipeline pipeline,
+            final LegacyUiHostCallbacks graphics,
+            final SettingRegistry themeSettings) {
+        this.themeSettings = themeSettings;
         this.nearest = Objects.requireNonNull(nearest, "nearest");
         this.direction = Objects.requireNonNull(direction, "direction");
         this.pipeline = Objects.requireNonNull(pipeline, "pipeline");
@@ -233,18 +249,26 @@ public final class Minecraft189TargetHudModule implements Module {
                     width, height);
             final float left = cardBounds.x();
             final float top = cardBounds.y();
+            final UiTheme theme = themeSettings == null
+                    ? UiThemes.nebula()
+                    : UiThemeSettings.resolve(themeSettings, UiThemes.nebula());
+            final int liveAccent = adaptiveAccent.get().booleanValue()
+                    && proximityFraction(target.distance(),
+                            proximityRange.get().intValue()) >= 0.75F
+                    ? theme.color(UiColorRole.ACCENT_HOVER)
+                    : theme.color(UiColorRole.ACCENT);
             graphics.beginUi(viewport);
             RuntimeException failure = null;
             try {
-                graphics.fillRoundedRect(left, top, width, height, 7.0F, 0xE811161F);
-                graphics.strokeRect(left, top, width, height, 1.0F, 0xAA273042);
+                graphics.fillRoundedRect(left, top, width, height, 7.0F,
+                        0xE8000000 | (theme.color(UiColorRole.SURFACE) & 0xFFFFFF));
+                graphics.strokeRect(left, top, width, height, 1.0F,
+                        0xAA000000 | (theme.color(UiColorRole.BORDER) & 0xFFFFFF));
                 graphics.strokeRect(left + 7.0F, top + 1.0F,
                         Math.max(0.0F, width - 14.0F), 1.0F, 1.0F,
-                        0x5559A7FF);
+                        0x55000000 | (theme.color(UiColorRole.ACCENT) & 0xFFFFFF));
                 graphics.fillRoundedRect(left, top, 3.0F, height, 1.5F,
-                        accentColor(target.distance(),
-                                proximityRange.get().intValue(),
-                                adaptiveAccent.get().booleanValue()));
+                        liveAccent);
                 graphics.drawText(UiFonts.DEFAULT, left + 12, top + 7,
                         "TARGET  #" + (target.entityIndex() + 1), 0xFFFFFFFF);
                 graphics.drawText(UiFonts.DEFAULT, left + 12, top + 23,
@@ -269,7 +293,9 @@ public final class Minecraft189TargetHudModule implements Module {
                     if (fraction > 0.0F) {
                         graphics.fillRect(trackLeft, trackTop,
                                 trackWidth * fraction, 2.0F,
-                                proximityFillColor(fraction));
+                                fraction >= 0.75F
+                                        ? theme.color(UiColorRole.ACCENT_HOVER)
+                                        : theme.color(UiColorRole.ACCENT));
                     }
                 }
             } catch (RuntimeException e) {
