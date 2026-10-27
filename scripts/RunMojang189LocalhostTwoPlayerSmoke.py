@@ -1811,7 +1811,7 @@ def run(args):
             # physical stone and server damage gates remain unchanged.
             send_server_command(server, server_log,
                                 "setworldspawn 0 4 0",
-                                expected=b"Set world spawn to")
+                                expected=b"Set the world spawn point to (0, 4, 0)")
             print("CUSTOMMC_189_V347_REJOIN_NATIVE_WORLDSPAWN_ACK=YES",
                   flush=True)
 
