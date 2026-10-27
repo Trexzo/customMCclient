@@ -2425,11 +2425,10 @@ public final class Minecraft189HostRuntime
 
     long beginAutoBlockNativeUse() {
         requireOpen();
-        // V340: the earlier mayStart sword check and this actual native
-        // right-click are separated by callbacks that may reenter HeldItem.
-        // Require a fresh verified sword before minting source-bound token.
-        // The serial is read AFTER that original sword evidence returns.
-        if (!holdingVerifiedSword()) return 0L;
+        // V340: existing mayStart checks the original sword, but this
+        // reservation must not invoke an additional native HeldItem getter.
+        // Keep original callback ordering; bind the actual current owner
+        // serial at reservation and revalidate it AFTER right-click returns.
         return featureCatalog.autoBlock().beginNativeUse(
                 heldItemOwnerSerial);
     }
