@@ -12,7 +12,21 @@ final class Minecraft189AutoPotSourceCast {
             final Minecraft189HostRuntime host,
             final int originalSlot,
             final Runnable nativeRightClick) {
-        if (host == null || nativeRightClick == null || originalSlot < 0)
+        return execute(host, originalSlot, nativeRightClick, () -> true);
+    }
+
+    /**
+     * Optional extra source admission occurs AFTER mapped pitch/item getters
+     * and immediately BEFORE vanilla rightClickMouse. Rejecting this gate
+     * must never commit a fabricated potion-use result.
+     */
+    static boolean execute(
+            final Minecraft189HostRuntime host,
+            final int originalSlot,
+            final Runnable nativeRightClick,
+            final java.util.function.BooleanSupplier nativeAdmission) {
+        if (host == null || nativeRightClick == null || originalSlot < 0
+                || nativeAdmission == null)
             return false;
         final Minecraft189AutoPotPitchLease aim =
                 host.beginAutoPotDownwardPitch(originalSlot);
@@ -27,6 +41,7 @@ final class Minecraft189AutoPotSourceCast {
                     "custommc.acceptance.requireNativeRodPotionDiscovery"))
                 Minecraft189OriginalCombatItemDiscoveryAcceptance
                         .beforeNativeAutoPotUse(host, originalSlot);
+            if (!nativeAdmission.getAsBoolean()) return false;
             nativeRightClick.run();
             host.commitAutoPotUseAttempt(originalSlot);
             if (Boolean.getBoolean(
