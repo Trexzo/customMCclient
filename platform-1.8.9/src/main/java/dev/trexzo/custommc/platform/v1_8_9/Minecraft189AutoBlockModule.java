@@ -29,6 +29,12 @@ public final class Minecraft189AutoBlockModule implements Module {
     private long pendingEpoch;
     private int pendingHoldTicks;
     private boolean pendingManualPolicy;
+    // V340: capture the SAME original HeldItem callback generation for
+    // the entire native rightClickMouse/use-item lease. A reentrant
+    // inventory/local-player callback may replace the source with another
+    // sword before right-click returns. Sword kind alone is not identity.
+    private boolean pendingHeldOwnerRequired;
+    private long pendingHeldOwnerSerial;
     // The synthetic sword block already owns a genuine original use-item
     // action. Persist the EXACT policy that authorized THAT action rather
     // than allowing a later GUI edit to extend its lifetime.
@@ -39,12 +45,16 @@ public final class Minecraft189AutoBlockModule implements Module {
     @Override public synchronized void onEnable() {
         lifecycleEpoch++;
         pendingUseToken = 0;
+        pendingHeldOwnerRequired = false;
+        pendingHeldOwnerSerial = 0L;
         enabled = true;
     }
     @Override public synchronized void onDisable() {
         // Preserve pending release: native stop must happen on next callback.
         lifecycleEpoch++;
         pendingUseToken = 0;
+        pendingHeldOwnerRequired = false;
+        pendingHeldOwnerSerial = 0L;
         enabled = false;
     }
 
@@ -96,27 +106,64 @@ public final class Minecraft189AutoBlockModule implements Module {
                 && (!pauseManualRight.get() || !manualRightHeld);
     }
 
-    /** Reserves a single use-result token after the current native admission. */
+    /** Source-independent legacy admission retained for existing unit fixtures. */
     synchronized long beginNativeUse() {
+        return beginNativeUseInternal(0L, false);
+    }
+
+    /**
+     * Original-game admission: the exact HeldItem source generation must
+     * survive native rightClickMouse and its potentially reentrant getters.
+     */
+    synchronized long beginNativeUse(final long originalHeldOwnerSerial) {
+        return beginNativeUseInternal(originalHeldOwnerSerial, true);
+    }
+
+    private long beginNativeUseInternal(final long originalHeldOwnerSerial,
+            final boolean requireOriginalHeldOwner) {
         if (!enabled || ownsBlock) return 0;
         final long token = ++nextUseToken;
         pendingUseToken = token;
         pendingEpoch = lifecycleEpoch;
         pendingHoldTicks = holdTicks.get();
         pendingManualPolicy = pauseManualRight.get();
+        pendingHeldOwnerRequired = requireOriginalHeldOwner;
+        pendingHeldOwnerSerial = originalHeldOwnerSerial;
         return token;
     }
 
-    /** Commit only an unchanged native right-click result for this activation. */
+    /** Legacy tests carry no original native HeldItem generation evidence. */
     synchronized boolean completeNativeUse(final long token,
             final boolean swordStillHeld, final boolean guiOpen,
             final boolean manualRightHeld) {
+        return completeNativeUseInternal(token, swordStillHeld, guiOpen,
+                manualRightHeld, 0L, false);
+    }
+
+    /** Complete ONLY with the original owner generation actually observed. */
+    synchronized boolean completeNativeUse(final long token,
+            final boolean swordStillHeld, final boolean guiOpen,
+            final boolean manualRightHeld, final long currentHeldOwnerSerial) {
+        return completeNativeUseInternal(token, swordStillHeld, guiOpen,
+                manualRightHeld, currentHeldOwnerSerial, true);
+    }
+
+    private boolean completeNativeUseInternal(final long token,
+            final boolean swordStillHeld, final boolean guiOpen,
+            final boolean manualRightHeld, final long currentHeldOwnerSerial,
+            final boolean hasCurrentHeldOwner) {
         final boolean valid = token != 0 && token == pendingUseToken
                 && pendingEpoch == lifecycleEpoch && enabled
                 && !ownsBlock && swordStillHeld && !guiOpen
                 && !manualRightHeld && pendingHoldTicks == holdTicks.get()
-                && pendingManualPolicy == pauseManualRight.get();
-        if (token != 0 && token == pendingUseToken) pendingUseToken = 0;
+                && pendingManualPolicy == pauseManualRight.get()
+                && (!pendingHeldOwnerRequired || (hasCurrentHeldOwner
+                        && pendingHeldOwnerSerial == currentHeldOwnerSerial));
+        if (token != 0 && token == pendingUseToken) {
+            pendingUseToken = 0;
+            pendingHeldOwnerRequired = false;
+            pendingHeldOwnerSerial = 0L;
+        }
         if (valid) {
             ownsBlock = true;
             age = 0;
@@ -139,6 +186,8 @@ public final class Minecraft189AutoBlockModule implements Module {
     synchronized void forgetForShutdown() {
         lifecycleEpoch++;
         pendingUseToken = 0;
+        pendingHeldOwnerRequired = false;
+        pendingHeldOwnerSerial = 0L;
         ownsBlock = false;
         age = 0;
         clearOwnedPolicy();
