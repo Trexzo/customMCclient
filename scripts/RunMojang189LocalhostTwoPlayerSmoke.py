@@ -168,6 +168,39 @@ def v318_original_negative_native_source(log, scene, limit=1048576):
     return result[-24:]
 
 
+def v345_original_screen_timeline(log, max_bytes=16777216):
+    """First and last original gameTick GuiScreen classes, FAILURES ONLY.
+
+    Bounded source read and bounded output; no class names are synthesized,
+    no GUI contents are touched and NO PvP/controller permission is inferred.
+    """
+    if (not isinstance(max_bytes, int) or isinstance(max_bytes, bool)
+            or not 1 <= max_bytes <= 16777216):
+        raise ValueError("V345 original screen read limit invalid")
+    source = Path(log)
+    if source.is_symlink() or not source.is_file():
+        return []
+
+    marker = b"CUSTOMMC_189_ACCEPTANCE_SCREEN="
+    early, recent = [], []
+    scanned = 0
+    with source.open("rb") as stream:
+        for raw in stream:
+            scanned += len(raw)
+            if scanned > max_bytes:
+                break
+            if not raw.endswith(b"\n") or not raw.startswith(marker):
+                continue
+            witness = raw.rstrip(b"\r\n")[:384].decode("utf-8", "replace")
+            if len(early) < 5:
+                early.append(witness)
+            else:
+                recent.append(witness)
+                if len(recent) > 5:
+                    recent.pop(0)
+    return early + recent
+
+
 def check_process(proc, phase):
     code = proc.poll()
     if code is not None:
@@ -4002,6 +4035,15 @@ def run(args):
                   flush=True)
     except BaseException:
         for name, log in logs:
+            if name == "host":
+                # V345 failure-only forensic evidence. The normal positive
+                # native controller/UUID/hurt/server gates are unmodified.
+                print("CUSTOMMC_189_V345_ORIGINAL_SCREEN_TIMELINE_START",
+                      file=sys.stderr)
+                for screen in v345_original_screen_timeline(log):
+                    print(screen, file=sys.stderr)
+                print("CUSTOMMC_189_V345_ORIGINAL_SCREEN_TIMELINE_END",
+                      file=sys.stderr)
             print("M405_" + name.upper() + "_TAIL_START",
                   file=sys.stderr)
             print(log_tail(log, 6000).decode("utf-8", "replace"),
