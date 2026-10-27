@@ -20,6 +20,7 @@ import dev.trexzo.custommc.core.ui.clickgui.ClickGuiLayoutEngine;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiRuntime;
 import dev.trexzo.custommc.core.ui.clickgui.HudPositionPageContent;
 import dev.trexzo.custommc.core.ui.UiViewport;
+import dev.trexzo.custommc.core.ui.UiThemeSettings;
 import dev.trexzo.custommc.platform.PlatformContext;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,57 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189TargetHudModuleTest {
+    @Test
+    void liveThemeChangesActualNativeTargetHudAccentWithoutChangingSourceData() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            controller.enable(Minecraft189TargetHudModule.ID);
+            runtime.playerPositionState().update(0.0D, 0.0D, 0.0D);
+            runtime.worldEntityPositionState().update(
+                    new double[] {0, 0, 0, 0, 0, 9});
+            runtime.worldEntityKindState().update(new int[] {
+                    Minecraft189WorldEntityKindState.LIVING
+                            | Minecraft189WorldEntityKindState.PLAYER
+                            | Minecraft189WorldEntityKindState.LOCAL_PLAYER,
+                    Minecraft189WorldEntityKindState.LIVING
+                            | Minecraft189WorldEntityKindState.PLAYER
+            });
+            runtime.nearestPlayerTargetState().update(
+                    runtime.playerPositionState().snapshot(),
+                    runtime.worldEntityPositionState().snapshot(),
+                    runtime.worldEntityKindState().snapshot());
+            runtime.targetRotationState().update(
+                    runtime.playerPositionState().snapshot(),
+                    runtime.nearestPlayerTargetState().snapshot());
+            runtime.renderHud(1L, 0F);
+            assertEquals(0xFF59A7FF, host.lastAccentColor);
+            assertTrue(UiThemeSettings.cycle(
+                    settings.find(UiThemeSettings.ID), true));
+            runtime.renderHud(2L, 0F);
+            assertEquals(0xFF48D5DE, host.lastAccentColor);
+            assertEquals("DIST  9.0m",
+                    host.texts.get(host.texts.size() - 2));
+            assertEquals("frost",
+                    settings.snapshotEncoded().get(UiThemeSettings.ID));
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(UiThemeSettings.ID));
+    }
+
     @Test
     void targetHudUsesRealRemotePlayerAuthorityAndOwnsRenderPass() {
         final ModuleRegistry modules = new ModuleRegistry();
