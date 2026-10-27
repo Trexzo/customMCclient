@@ -17,12 +17,12 @@ public final class ClickGuiLayoutEngine {
 
         final float width =
                 Math.min(
-                        920.0F,
-                        viewportWidth * 0.84F);
+                        738.0F,
+                        viewportWidth * 0.88F);
         final float height =
                 Math.min(
-                        600.0F,
-                        viewportHeight * 0.80F);
+                        490.0F,
+                        viewportHeight * 0.78F);
         final float x =
                 (viewportWidth - width) * 0.5F;
         final float y =
@@ -30,19 +30,19 @@ public final class ClickGuiLayoutEngine {
 
         final float sidebarWidth =
                 Math.min(
-                        190.0F,
-                        width * 0.30F);
+                        158.0F,
+                        width * 0.28F);
         final float padding =
                 Math.min(
-                        18.0F,
+                        13.0F,
                         width * 0.025F);
         final float titleHeight =
                 Math.min(
-                        38.0F,
+                        32.0F,
                         height * 0.10F);
         final float searchHeight =
                 Math.min(
-                        32.0F,
+                        28.0F,
                         height * 0.09F);
 
         final UiBounds root =

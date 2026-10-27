@@ -73,7 +73,7 @@ final class Minecraft189TargetHudModuleTest {
                     settings.find(UiThemeSettings.ID), true));
             runtime.renderHud(2L, 0F);
             assertEquals(0xFF48D5DE, host.lastAccentColor);
-            assertEquals("DIST  9.0m",
+            assertEquals("9.0 m  away",
                     host.texts.get(host.texts.size() - 2));
             assertEquals("frost",
                     settings.snapshotEncoded().get(UiThemeSettings.ID));
@@ -105,8 +105,11 @@ final class Minecraft189TargetHudModuleTest {
             assertEquals(ModuleState.DISABLED,
                     controller.stateOf(Minecraft189TargetHudModule.ID));
             assertFalse(hud.renderPassInstalled());
-            assertFalse(hud.compactSetting().get().booleanValue());
-            assertFalse(hud.proximityMeterSetting().get().booleanValue());
+            assertTrue(hud.compactSetting().get().booleanValue());
+            assertTrue(hud.proximityMeterSetting().get().booleanValue());
+            // Explicit full-size, meter-off legacy acceptance exercised below.
+            hud.compactSetting().set(Boolean.FALSE);
+            hud.proximityMeterSetting().set(Boolean.FALSE);
             assertFalse(hud.showCoordinatesSetting().get().booleanValue());
             assertEquals("false", settings.snapshotEncoded().get(
                     Minecraft189TargetHudModule.SHOW_COORDINATES_SETTING_ID));
@@ -144,9 +147,9 @@ final class Minecraft189TargetHudModuleTest {
                     runtime.nearestPlayerTargetState().snapshot());
             runtime.renderHud(2L, 0.0F);
             assertEquals(3, host.texts.size());
-            assertEquals("TARGET  #2", host.texts.get(0));
-            assertEquals("DIST  9.0m", host.texts.get(1));
-            assertEquals("YAW  0°    PITCH  0°", host.texts.get(2));
+            assertEquals("NEARBY  02", host.texts.get(0));
+            assertEquals("9.0 m  away", host.texts.get(1));
+            assertEquals("LOOK  0°  /  0°", host.texts.get(2));
             assertEquals(2, host.roundedRects);
             assertEquals(1, host.begins);
             assertEquals(1, host.ends);
@@ -165,8 +168,8 @@ final class Minecraft189TargetHudModuleTest {
                     .get(Minecraft189TargetHudModule.COMPACT_SETTING_ID));
             runtime.renderHud(21L, 0.0F);
             assertEquals(5, host.texts.size());
-            assertEquals("TARGET  #2", host.texts.get(3));
-            assertEquals("DIST  9.0m", host.texts.get(4));
+            assertEquals("NEARBY  02", host.texts.get(3));
+            assertEquals("9.0 m  away", host.texts.get(4));
             assertEquals(4, host.roundedRects);
             assertEquals(142.0F, host.lastCardWidth, 0.001F);
             assertEquals(38.0F, host.lastCardHeight, 0.001F);
@@ -176,7 +179,7 @@ final class Minecraft189TargetHudModuleTest {
             hud.compactSetting().set(Boolean.FALSE);
             runtime.renderHud(22L, 0.0F);
             assertEquals(8, host.texts.size());
-            assertEquals("YAW  0°    PITCH  0°", host.texts.get(7));
+            assertEquals("LOOK  0°  /  0°", host.texts.get(7));
             assertEquals(164.0F, host.lastCardWidth, 0.001F);
             assertEquals(56.0F, host.lastCardHeight, 0.001F);
 

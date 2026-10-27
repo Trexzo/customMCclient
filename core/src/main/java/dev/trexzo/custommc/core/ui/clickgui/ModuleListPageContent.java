@@ -30,13 +30,13 @@ import java.util.Objects;
 
 public final class ModuleListPageContent
         implements ClickGuiPageContent {
-    private static final float PADDING = 24.0F;
-    private static final float TITLE_GAP = 34.0F;
-    private static final float CATEGORY_HEADER_HEIGHT = 22.0F;
-    private static final float GROUP_GAP = 10.0F;
-    private static final float ROW_HEIGHT = 36.0F;
-    private static final float ROW_GAP = 7.0F;
-    private static final float ROW_RADIUS = 8.0F;
+    private static final float PADDING = 18.0F;
+    private static final float TITLE_GAP = 30.0F;
+    private static final float CATEGORY_HEADER_HEIGHT = 18.0F;
+    private static final float GROUP_GAP = 7.0F;
+    private static final float ROW_HEIGHT = 29.0F;
+    private static final float ROW_GAP = 4.0F;
+    private static final float ROW_RADIUS = 4.0F;
 
     private final ModuleRegistry modules;
     private final ModuleController controller;
@@ -223,71 +223,40 @@ public final class ModuleListPageContent
                             bounds,
                             y);
 
-            commands.add(
-                    new UiRoundedRectCommand(
-                            0,
-                            row.x(),
-                            row.y(),
-                            row.width(),
-                            row.height(),
-                            Math.min(
-                                    ROW_RADIUS,
-                                    row.height() * 0.5F),
-                            theme.color(
-                                    state == ModuleState.ENABLED
-                                            ? UiColorRole.SURFACE_RAISED
-                                            : UiColorRole.BACKGROUND)));
-
-            commands.add(new UiOutlineCommand(1,
+            // Dense, flat rows: no identical big status capsules.
+            commands.add(new UiRoundedRectCommand(0,
                     row.x(), row.y(), row.width(), row.height(),
-                    1.0F, theme.color(UiColorRole.BORDER)));
+                    Math.min(ROW_RADIUS, row.height() * .5F),
+                    theme.color(state == ModuleState.ENABLED
+                            ? UiColorRole.SURFACE_RAISED
+                            : UiColorRole.BACKGROUND)));
+            if (selection != null && selection.isSelected(id)) {
+                commands.add(new UiOutlineCommand(1,
+                        row.x(), row.y(), row.width(), row.height(),
+                        1.0F, theme.color(UiColorRole.ACCENT)));
+            }
             if (state == ModuleState.ENABLED) {
-                commands.add(new UiRoundedRectCommand(1,
-                        row.x() + 2.0F, row.y() + 7.0F,
-                        3.0F, row.height() - 14.0F, 1.5F,
+                commands.add(new UiRoundedRectCommand(2,
+                        row.x() + 3.0F, row.y() + 7.0F,
+                        2.0F, 15.0F, 1.0F,
                         theme.color(UiColorRole.ACCENT)));
             }
-            commands.add(new UiRoundedRectCommand(1,
-                    row.x() + row.width() - 84.0F, row.y() + 7.0F,
-                    76.0F, row.height() - 14.0F, 6.0F,
-                    theme.color(UiColorRole.SURFACE_RAISED)));
-            if (selection != null
-                    && selection.isSelected(id)) {
-                commands.add(
-                        new UiOutlineCommand(
-                                1,
-                                row.x(),
-                                row.y(),
-                                row.width(),
-                                row.height(),
-                                1.0F,
-                                theme.color(
-                                        UiColorRole.ACCENT)));
-            }
-
-            commands.add(
-                    new UiTextCommand(
-                            0,
-                            row.x() + 12.0F,
-                            row.y() + 10.0F,
-                            UiFonts.DEFAULT,
-                            entry.displayName(),
-                            theme.color(
-                                    UiColorRole.TEXT_PRIMARY)));
-
-            commands.add(
-                    new UiTextCommand(
-                            0,
-                            Math.max(
-                                    row.x() + 12.0F,
-                                    row.x()
-                                            + row.width()
-                                            - 72.0F),
-                            row.y() + 10.0F,
-                            UiFonts.DEFAULT,
-                            state.name(),
-                            theme.color(
-                                    stateColorRole(state))));
+            commands.add(new UiTextCommand(2,
+                    row.x() + 13.0F, row.y() + 10.0F,
+                    UiFonts.DEFAULT, entry.displayName(),
+                    theme.color(UiColorRole.TEXT_PRIMARY)));
+            final boolean active = state == ModuleState.ENABLED;
+            final float toggleX = row.x() + Math.max(0.0F, row.width() - 41.0F);
+            commands.add(new UiRoundedRectCommand(2,
+                    toggleX, row.y() + 9.0F,
+                    29.0F, 13.0F, 6.5F,
+                    theme.color(active ? UiColorRole.ACCENT
+                            : UiColorRole.BORDER)));
+            commands.add(new UiRoundedRectCommand(3,
+                    toggleX + (active ? 17.0F : 3.0F),
+                    row.y() + 12.0F,
+                    7.0F, 7.0F, 3.5F,
+                    theme.color(UiColorRole.TEXT_PRIMARY)));
 
             y += ROW_HEIGHT + ROW_GAP;
         }

@@ -5,6 +5,8 @@ import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
+import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
+import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiThemes;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiContentContext;
@@ -101,6 +103,10 @@ final class ClickGuiPageContentTest {
         boolean sawFly = false;
 
         for (UiDrawCommand command : commands) {
+            if (command instanceof UiRoundedRectCommand) {
+                sawEnabled |= ((UiRoundedRectCommand) command).argb()
+                        == UiThemes.darkDefault().color(UiColorRole.ACCENT);
+            }
             if (!(command instanceof UiTextCommand)) {
                 continue;
             }
@@ -108,7 +114,6 @@ final class ClickGuiPageContentTest {
                     ((UiTextCommand) command).text();
             sawTitle |= "Modules".equals(text);
             sawEsp |= "esp".equals(text);
-            sawEnabled |= "ENABLED".equals(text);
             sawFly |= "fly".equals(text);
         }
 

@@ -48,8 +48,10 @@ public final class Minecraft189ArrayListModule
     public static final int DEFAULT_MAX_VISIBLE = 128;
     public static final String RIGHT_ALIGNED_SETTING_ID =
             "render.array-list.rightAligned";
-    private static final float CARD_WIDTH = 184.0F;
-    private static final float CARD_HEIGHT = 12.0F;
+    // Intrinsic-size chips replace S12's identical 184px rectangles.
+    // Glyph widths are conservative approximations of the native 1.8.9 font:
+    // the host currently exposes drawString but not getStringWidth.
+    private static final float CHIP_HEIGHT = 11.0F;
  
     private static final int PRIORITY = 110;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
@@ -190,33 +192,52 @@ public final class Minecraft189ArrayListModule
                 && renderRegistration.active();
     }
 
+    static float rightAlignedTextX(final float screenWidth,
+            final float inset, final String label) {
+        return Math.max(4.0F, screenWidth - inset
+                - 8.0F - Minecraft189HudTextMetrics.width(label));
+    }
+
     private void drawModuleCard(final UiViewport viewport,
             final float currentY, final String label) {
-        // Preserve pre-existing left-coordinate semantics when Right Align
-        // is disabled. Right Align treats X as screen-edge inset.
         final boolean right = rightAligned.get().booleanValue();
-        final float left = right ? Math.max(0.0F,
-                viewport.logicalWidth() - x.get().floatValue() - CARD_WIDTH)
-                : x.get().floatValue();
-        if (right) {
-            final UiTheme theme = themeSettings == null
-                    ? UiThemes.nebula()
-                    : UiThemeSettings.resolve(themeSettings, UiThemes.nebula());
-            hostCallbacks.fillRoundedRect(left, currentY - 1.0F,
-                    CARD_WIDTH, CARD_HEIGHT, 3.0F,
-                    0xD9000000 | (theme.color(UiColorRole.SURFACE) & 0xFFFFFF));
-            hostCallbacks.fillRect(left + CARD_WIDTH - 2.0F,
-                    currentY, 2.0F, CARD_HEIGHT - 2.0F,
-                    theme.color(UiColorRole.ACCENT));
-            hostCallbacks.pushClip(left + 8.0F, currentY - 1.0F,
-                    CARD_WIDTH - 17.0F, CARD_HEIGHT);
+        if (!right) {
+            // Existing explicitly left-aligned saved profiles remain intact.
+            hostCallbacks.drawText(UiFonts.DEFAULT, x.get().floatValue(),
+                    currentY, label, TEXT_ARGB);
+            return;
         }
-        try {
-            hostCallbacks.drawText(UiFonts.DEFAULT,
-                    right ? left + 8.0F : left,
-                    currentY, label, right ? 0xFFE7EDF8 : TEXT_ARGB);
-        } finally {
-            if (right) hostCallbacks.popClip();
+        final float edge = Math.min(viewport.logicalWidth(),
+                Math.max(0.0F, viewport.logicalWidth() - x.get().floatValue()));
+        final float textX = rightAlignedTextX(viewport.logicalWidth(),
+                x.get().floatValue(), label);
+        final float chipX = Math.max(0.0F, textX - 4.0F);
+        final float chipWidth = Math.max(0.0F, edge - chipX);
+        final UiTheme theme = themeSettings == null
+                ? UiThemes.nebula()
+                : UiThemeSettings.resolve(themeSettings, UiThemes.nebula());
+        // Restraint matters: a translucent chip hugs the measured-length
+        // estimate instead of filling a huge equal-width rectangle.
+        if (chipWidth >= 2.0F) {
+            hostCallbacks.fillRoundedRect(chipX, currentY - 1.0F,
+                    chipWidth, CHIP_HEIGHT, Math.min(2.0F, chipWidth * .5F),
+                    0x50000000 | (theme.color(UiColorRole.SURFACE) & 0xFFFFFF));
+        }
+        if (edge >= 2.0F) {
+            hostCallbacks.fillRect(edge - 2.0F, currentY, 2.0F, 9.0F,
+                    theme.color(UiColorRole.ACCENT));
+        }
+        final float clipWidth = Math.max(0.0F, edge - textX - 5.0F);
+        if (clipWidth > 0.0F) {
+            hostCallbacks.pushClip(textX, currentY - 1.0F,
+                    clipWidth, CHIP_HEIGHT);
+            try {
+                hostCallbacks.drawText(UiFonts.DEFAULT,
+                        textX, currentY, label,
+                        theme.color(UiColorRole.TEXT_PRIMARY));
+            } finally {
+                hostCallbacks.popClip();
+            }
         }
     }
 
@@ -261,18 +282,26 @@ public final class Minecraft189ArrayListModule
                         enabled.add(module);
                     }
                 }
-                if (groupCategories.get().booleanValue()) {
-                    // Java's stable list sort preserves order within each category.
-                    Collections.sort(enabled, new Comparator<Module>() {
-                        @Override
-                        public int compare(final Module left, final Module right) {
-                            return Integer.compare(
+                final boolean withCategory = showCategories.get().booleanValue();
+                final boolean grouped = groupCategories.get().booleanValue();
+                // Stable sort: choose category first only when explicitly
+                // grouped, then descending intrinsic text-width estimate.
+                Collections.sort(enabled, new Comparator<Module>() {
+                    @Override
+                    public int compare(final Module left, final Module right) {
+                        if (grouped) {
+                            final int category = Integer.compare(
                                     categoryOrder(presentations.find(left.id())),
                                     categoryOrder(presentations.find(right.id())));
+                            if (category != 0) return category;
                         }
-                    });
-                }
-                final boolean withCategory = showCategories.get().booleanValue();
+                        return Integer.compare(
+                                Minecraft189HudTextMetrics.width(moduleLabel(
+                                        right.id(), presentations.find(right.id()), withCategory)),
+                                Minecraft189HudTextMetrics.width(moduleLabel(
+                                        left.id(), presentations.find(left.id()), withCategory)));
+                    }
+                });
                 final int displayed = Math.min(enabled.size(), maxVisible.get().intValue());
                 for (int index = 0; index < displayed; index++) {
                     final Module module = enabled.get(index);

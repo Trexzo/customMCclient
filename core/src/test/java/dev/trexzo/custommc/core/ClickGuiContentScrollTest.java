@@ -115,7 +115,7 @@ final class ClickGuiContentScrollTest {
                     input.pointer(
                             new UiPointerEvent(
                                     layout.content().x() + 30.0F,
-                                    layout.content().y() + 60.0F,
+                                    layout.content().y() + 40.0F,
                                     UiPointerButton.LEFT,
                                     UiPointerAction.PRESS),
                             viewport));

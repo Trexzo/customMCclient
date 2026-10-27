@@ -96,8 +96,8 @@ final class Minecraft189ArrayListModuleTest {
             assertEquals(
                     Arrays.asList(
                             "8.0,8.0",
-                            "1064.0,50.0",
-                            "1064.0,62.0"),
+                            "1184.0,50.0",
+                            "1184.0,62.0"),
                     host.positions);
 
             assertEquals(0xFF59A7FF, host.lastAccentColor);
@@ -125,7 +125,7 @@ final class Minecraft189ArrayListModuleTest {
                     host.text);
             assertEquals(
                     Arrays.asList(
-                            "1064.0,50.0"),
+                            "1184.0,50.0"),
                     host.positions);
             host.clear();
             // Persisted opt-out keeps exact legacy left-X behavior.
@@ -243,8 +243,8 @@ final class Minecraft189ArrayListModuleTest {
                     "CustomMC", "[Combat] No Hit Delay", "[Movement] Auto Sprint",
                     "[Player] Fast Place", "[Visuals] Watermark",
                     "[Visuals] Array List"), host.text);
-            assertEquals(Arrays.asList("8.0,8.0", "1096.0,24.0", "1096.0,36.0",
-                    "1096.0,48.0", "1096.0,60.0", "1096.0,72.0"), host.positions);
+            assertEquals(Arrays.asList("8.0,8.0", "1160.0,24.0", "1152.0,36.0",
+                    "1170.0,48.0", "1170.0,60.0", "1170.0,72.0"), host.positions);
             host.clear();
 
             // Grouping works with labels off and reflects live enable states.
@@ -256,8 +256,8 @@ final class Minecraft189ArrayListModuleTest {
             host.clear();
             arrayList.groupCategoriesSetting().set(Boolean.FALSE);
             runtime.renderHud(104L, 0.0F);
-            assertEquals(Arrays.asList("CustomMC", "Watermark",
-                    "Auto Sprint", "Fast Place", "Array List"), host.text);
+            assertEquals(Arrays.asList("CustomMC", "Auto Sprint",
+                    "Fast Place", "Watermark", "Array List"), host.text);
         } finally {
             runtime.close();
         }
@@ -301,7 +301,7 @@ final class Minecraft189ArrayListModuleTest {
 
             list.maxVisibleSetting().set(2);
             runtime.renderHud(1L, 0.0F);
-            assertEquals(Arrays.asList("CustomMC", "Watermark", "Auto Sprint"),
+            assertEquals(Arrays.asList("CustomMC", "No Hit Delay", "Auto Sprint"),
                     host.text);
             host.clear();
             list.showOverflowSetting().set(Boolean.TRUE);
@@ -311,8 +311,8 @@ final class Minecraft189ArrayListModuleTest {
                     Minecraft189ArrayListModule.SHOW_OVERFLOW_SETTING_ID));
             runtime.renderHud(2L, 0.0F);
             assertEquals(Arrays.asList(
-                    "CustomMC", "Watermark", "Auto Sprint", "+ 3 more"), host.text);
-            assertEquals("1096.0,48.0", host.positions.get(3));
+                    "CustomMC", "No Hit Delay", "Auto Sprint", "+ 3 more"), host.text);
+            assertEquals("1222.0,48.0", host.positions.get(3));
             host.clear();
 
             list.groupCategoriesSetting().set(Boolean.TRUE);
@@ -391,7 +391,7 @@ final class Minecraft189ArrayListModuleTest {
                 final float width,
                 final float height,
                 final int argb) {
-            if (width == 2.0F && height == 10.0F) {
+            if (width == 2.0F && height == 9.0F) {
                 lastAccentColor = argb;
             }
         }

@@ -49,9 +49,9 @@ public final class Minecraft189TargetHudModule implements Module {
     private final Setting<Integer> y = new Setting<Integer>(
             Y_SETTING_ID, 210, v -> v != null && v >= 0 && v <= 4096, SettingCodecs.INTEGER);
     private final Setting<Boolean> compact = new Setting<Boolean>(
-            COMPACT_SETTING_ID, Boolean.FALSE, v -> v != null, SettingCodecs.BOOLEAN);
+            COMPACT_SETTING_ID, Boolean.TRUE, v -> v != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> proximityMeter = new Setting<Boolean>(
-            PROXIMITY_METER_SETTING_ID, Boolean.FALSE,
+            PROXIMITY_METER_SETTING_ID, Boolean.TRUE,
             v -> v != null, SettingCodecs.BOOLEAN);
     private final Setting<Integer> proximityRange = new Setting<Integer>(
             PROXIMITY_RANGE_SETTING_ID, DEFAULT_PROXIMITY_RANGE,
@@ -163,7 +163,7 @@ public final class Minecraft189TargetHudModule implements Module {
     }
 
     static String distanceText(final Minecraft189NearestPlayerTargetState.Snapshot target) {
-        return String.format(Locale.ROOT, "DIST  %.1fm", target.distance());
+        return String.format(Locale.ROOT, "%.1f m  away", target.distance());
     }
 
     static String coordinateText(
@@ -213,7 +213,7 @@ public final class Minecraft189TargetHudModule implements Module {
     static String directionText(final Minecraft189TargetRotationState.Snapshot rotation) {
         // Avoid displaying -0 degrees when the exact target angles
         // carry IEEE-754 negative zero from atan2.
-        return String.format(Locale.ROOT, "YAW  %d°    PITCH  %d°",
+        return String.format(Locale.ROOT, "LOOK  %d°  /  %d°",
                 Math.round(rotation.yaw()), Math.round(rotation.pitch()));
     }
 
@@ -270,17 +270,21 @@ public final class Minecraft189TargetHudModule implements Module {
                 graphics.fillRoundedRect(left, top, 3.0F, height, 1.5F,
                         liveAccent);
                 graphics.drawText(UiFonts.DEFAULT, left + 12, top + 7,
-                        "TARGET  #" + (target.entityIndex() + 1), 0xFFFFFFFF);
+                        String.format(Locale.ROOT, "NEARBY  %02d",
+                                target.entityIndex() + 1),
+                        theme.color(UiColorRole.TEXT_PRIMARY));
                 graphics.drawText(UiFonts.DEFAULT, left + 12, top + 23,
-                        distanceText(target), 0xFFDDE8F8);
+                        distanceText(target), theme.color(UiColorRole.ACCENT));
                 if (!small) {
                     graphics.drawText(UiFonts.DEFAULT, left + 12, top + 39,
-                            directionText(angle), 0xFF9EAEC4);
+                            directionText(angle),
+                            theme.color(UiColorRole.TEXT_MUTED));
                 }
                 if (coordinates != null) {
                     graphics.drawText(UiFonts.DEFAULT, left + 12,
                             top + (small ? 39.0F : 55.0F),
-                            coordinates, 0xFF9EAEC4);
+                            coordinates,
+                            theme.color(UiColorRole.TEXT_MUTED));
                 }
                 if (proximityMeter.get().booleanValue()) {
                     final float trackLeft = left + 12.0F;
