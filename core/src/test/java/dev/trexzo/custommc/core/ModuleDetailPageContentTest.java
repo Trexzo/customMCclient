@@ -32,6 +32,7 @@ import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiThemes;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiContentContext;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiContentInputContext;
+import dev.trexzo.custommc.core.ui.clickgui.ClickGuiNavigator;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiPage;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiSnapshot;
 import dev.trexzo.custommc.core.ui.clickgui.ModuleDetailPageContent;
@@ -65,6 +66,42 @@ final class ModuleDetailPageContentTest {
         assertFalse(
                 text.contains(
                         "Aura Enabled"));
+    }
+
+    @Test
+    void contextualBackLinkRoutesToModulesWithoutChangingSelectedModule() {
+        final Fixture fixture = new Fixture();
+        fixture.selection.select("combat.aura");
+        final ClickGuiPage page =
+                new ClickGuiPage("module-detail", "Module Details", 0);
+        final ClickGuiSnapshot snapshot =
+                new ClickGuiSnapshot(true, "module-detail", "",
+                        Arrays.asList(page));
+        final java.util.concurrent.atomic.AtomicReference<String> destination =
+                new java.util.concurrent.atomic.AtomicReference<String>();
+        final ClickGuiNavigator navigator = id -> {
+            destination.set(id);
+            return true;
+        };
+        final ClickGuiContentInputContext input =
+                new ClickGuiContentInputContext(snapshot, page,
+                        new UiBounds(100, 100, 700, 500),
+                        new UiFocusManager(), navigator);
+
+        assertTrue(texts(fixture.content.compose(fixture.context()))
+                .contains("< Modules"));
+        assertTrue(fixture.content.pointer(input,
+                new UiPointerEvent(690, 111, UiPointerButton.LEFT,
+                        UiPointerAction.PRESS)));
+        assertEquals("modules", destination.get());
+        assertEquals("combat.aura", fixture.selection.selectedModuleId());
+
+        // A right click on the same hint must NOT unexpectedly navigate.
+        destination.set(null);
+        assertFalse(fixture.content.pointer(input,
+                new UiPointerEvent(690, 111, UiPointerButton.RIGHT,
+                        UiPointerAction.PRESS)));
+        assertEquals(null, destination.get());
     }
 
     @Test
