@@ -42,6 +42,16 @@ The read-only `Minecraft189OverlayFocusGuardian` now tries the original `ave` cl
 
 Test coverage includes the mock host where no original `ave` exists: even a nominally ungrabbed synthetic mouse must not promote UNKNOWN to GUI-ready. **The cause of the original reflection failure has not yet been established**. The new diagnostic run must produce the true original failure category and actual detail/back screenshots before claiming success.
 
+## Fourth native result: proven null duplicate singleton, real original tick provenance
+
+The next original binary [run #40711527447](https://github.com/Trexzo/customMCclient/actions/runs/40711527447) confirmed why the classloader-only approach was insufficient. Authentic log evidence showed repeated `CUSTOMMC_189_NATIVE_FOCUS_READ_FAILURE=native-singleton:overlay-loader:null`, even though the physical original Minecraft world and Graphite Modules screenshot were rendered. Its screenshot stage still **FAILED** at the real Module Details right-click; original binary certification remains RED. Foundation Windows/Ubuntu at that head passed.
+
+The real transformed `ave.s()V` (`Minecraft.runTick`) source callback already passes the **genuine original `this` object** into `Minecraft189RuntimeBridge.originalScaffoldContextAtTick(Object minecraft)`. The UI lane now borrows only that exact typed `ave` object via a weak reference, from this already-existing hook — no new transformer instrumentation or gameplay mutation. It is available to the UI focus reader even if another classloader's `ave.A()` static singleton is null. Before source admission, the original screen `m` must have exactly descriptor `Laxu;`, and focus `w` must be boolean. The existing guard still separately requires a live X11 Display, native GUI_READY, real Mouse created and ungrabbed, with pointer inside window. No standalone source witness can authorize an actual physical click.
+
+The only modification to shared `Minecraft189RuntimeBridge.java` is one UI-only read-only callback at existing runTick and a clear on runtime shutdown; there are **zero changes to combat decisions or Scaffold control paths**. No original player, World, cursor, target or packet is retained. The weak reference is dropped when the runtime closes; arbitrary unrelated test objects cannot become the original game authority. Repeated identical reflection failures are logged only once to prevent CI flood. New Java and Python regression tests cover these boundaries.
+
+This **is not yet proof** that native focus release and Module Details work. The exact new head must pass the strict original screenshot interaction and provide independently verifiable `module-detail.png` and `modules-return.png`, plus actual source release/restore markers. Any remaining failure stays red.
+
 ## Acceptance status
 
 At PR creation, genuine S26 `module-detail.png` and `modules-return.png` do not yet exist. Do **not** claim actual native back-link functionality until both pictures and source markers are produced by a successful CI run, and do **not** claim full native CI certification unless the entire original Minecraft job has passed. If a real click fails the bounded deadline, leave the stage red and inspect the authentic source.
