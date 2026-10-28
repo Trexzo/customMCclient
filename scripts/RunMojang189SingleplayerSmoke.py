@@ -199,6 +199,29 @@ def await_marker(process, log, marker, deadline, stage):
     raise AssertionError("no " + stage + " checkpoint before bounded deadline")
 
 
+def await_fresh_native_visual_page(process, log, page, cursor, deadline):
+    """Require a NEW post-render native page transition after physical X11 input.
+
+    A stale 'modules' marker from the earlier screenshot must never certify
+    an actual successful back press, even if the GUI stays on Module Details.
+    """
+    marker = ("CUSTOMMC_189_NATIVE_VISUAL_PAGE=" + page).encode("ascii")
+    while time.monotonic() < deadline:
+        require_running(process, "genuine original ClickGUI " + page)
+        if not log.exists():
+            time.sleep(.15)
+            continue
+        with log.open("rb") as handle:
+            handle.seek(cursor)
+            fresh = handle.read()
+        if marker in fresh.splitlines():
+            return
+        time.sleep(.15)
+    raise AssertionError(
+        "no fresh source-rendered " + page
+        + " page after physical original X11 navigation")
+
+
 def current_screen(log):
     """Read the most recent actual vanilla GUI callback from the JVM."""
     prefix = b"CUSTOMMC_189_ACCEPTANCE_SCREEN="
@@ -835,7 +858,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         native_scaffold_placement=None, native_step_clickgui=False,
         native_noclip_clickgui=False, native_reach_clickgui=False,
         native_combatslot_clickgui=False, native_rod_potion_discovery=False,
-        visual_capture_dir=None):
+        visual_capture_dir=None, visual_capture_details=False):
     if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer,
                              timer_speed, native_step_clickgui,
                              native_noclip_clickgui,
@@ -843,6 +866,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                              native_combatslot_clickgui,
                              native_rod_potion_discovery)) > 1:
         raise ValueError("manual and module combat tests are exclusive")
+    if visual_capture_details and not visual_capture_dir:
+        raise ValueError("contextual detail capture requires real visual capture directory")
     controlled_combat = attack or auto_clicker or kill_aura_nonplayer
     if safe_walk_edge not in (None, "enabled", "disabled"):
         raise ValueError("invalid SafeWalk edge control")
@@ -1086,6 +1111,44 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 require_visible_graphite(before, modules)
                 print("CUSTOMMC_189_NATIVE_VISUAL_GRAPHITE_PANEL_PASS=YES",
                       flush=True)
+                if visual_capture_details:
+                    # Genuine source-rendered S25 Module Details, reached
+                    # through the actual visible first module's right click.
+                    # Exactly 854x480/GUI scale 1 is pinned by this harness.
+                    if modules["dimensions"] != [854, 480]:
+                        raise AssertionError(
+                            "detail pointer proof requires pinned 854x480 X11 geometry")
+                    detail_cursor = log.stat().st_size
+                    xdotool("mousemove", "--window", window, 300, 114)
+                    xdotool("click", "--window", window, "3")
+                    await_fresh_native_visual_page(
+                        process, log, "module-detail", detail_cursor,
+                        min(deadline, time.monotonic() + 9))
+                    time.sleep(.35)
+                    detail_image = capture_original_x11(
+                        window, output / "module-detail.png")
+                    print("CUSTOMMC_189_NATIVE_VISUAL_DETAIL_CAPTURE="
+                          + json.dumps(detail_image, sort_keys=True), flush=True)
+                    require_visible_graphite(before, detail_image)
+
+                    # Actual left click at the fixed top-right S25
+                    # < Modules return action. The source marker must be
+                    # NEW: the previous modules.png marker cannot count.
+                    back_cursor = log.stat().st_size
+                    xdotool("mousemove", "--window", window, 733, 47)
+                    xdotool("click", "--window", window, "1")
+                    await_fresh_native_visual_page(
+                        process, log, "modules", back_cursor,
+                        min(deadline, time.monotonic() + 9))
+                    time.sleep(.35)
+                    returned_image = capture_original_x11(
+                        window, output / "modules-return.png")
+                    print("CUSTOMMC_189_NATIVE_VISUAL_BACK_CAPTURE="
+                          + json.dumps(returned_image, sort_keys=True),
+                          flush=True)
+                    require_visible_graphite(before, returned_image)
+                    print("CUSTOMMC_189_NATIVE_VISUAL_DETAIL_BACK_PASS=YES",
+                          flush=True)
                 # Down is a physical original Keyboard.next event routed to
                 # ClickGuiInputController page navigation, not direct model mutation.
                 xdotool("key", "--clearmodifiers", "Down")
@@ -2054,6 +2117,8 @@ if __name__ == "__main__":
     parser.add_argument("--timeout", type=int, default=150)
     parser.add_argument("--visual-capture-dir", default=None,
                         help="opt-in genuine X11 PNG evidence of world/Modules/Settings")
+    parser.add_argument("--visual-capture-details", action="store_true",
+                        help="physically right-click original module, capture Details, then use real back-link")
     parser.add_argument("--attack", action="store_true",
                         help="create offline creative world and verify genuine melee hurt")
     parser.add_argument("--timer-speed", action="store_true",
@@ -2106,6 +2171,7 @@ if __name__ == "__main__":
             native_combatslot_clickgui=args.native_combatslot_clickgui,
             native_rod_potion_discovery=args.native_rod_potion_discovery,
             visual_capture_dir=args.visual_capture_dir,
+            visual_capture_details=args.visual_capture_details,
             native_world_camera=args.native_world_camera,
             native_safe_walk=args.native_safe_walk,
             safe_walk_edge=args.safe_walk_edge,
