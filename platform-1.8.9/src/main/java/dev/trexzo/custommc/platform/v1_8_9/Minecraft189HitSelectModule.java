@@ -186,6 +186,9 @@ public final class Minecraft189HitSelectModule implements Module {
         if (selectedOriginalUuid == null
                 || !originalOwnerValid(verifiedCrosshairIndex, currentIds,
                     currentKinds, currentCombat)
+                // Keep V338/V342's explicit final-source veto even though
+                // originalOwnerValid also checks the same real player kind.
+                || currentKinds.localPlayer(verifiedCrosshairIndex)
                 || !selectedOriginalUuid.equals(
                         currentIds.at(verifiedCrosshairIndex)))
             return false;
