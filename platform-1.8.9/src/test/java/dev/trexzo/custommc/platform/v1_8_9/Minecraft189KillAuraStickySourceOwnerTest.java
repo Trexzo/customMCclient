@@ -166,6 +166,38 @@ final class Minecraft189KillAuraStickySourceOwnerTest {
     }
 
     @Test
+    void originalAntiBotDisallowanceReleasesBWithoutBypassingPolicy() {
+        start();
+        initialB();
+        final Minecraft189AntiBotModule antiBot =
+                new Minecraft189AntiBotModule();
+        antiBot.onEnable();
+        try {
+            // Original native World proves B absent from network tab,
+            // whereas newly loaded A has known, present network identity.
+            world(new UUID[] {LOCAL, A, B},
+                    new int[] {SELF, PLAYER, PLAYER},
+                    new int[] {
+                        1,
+                        1 | Minecraft189WorldEntityCombatState.NETWORK_INFO_KNOWN
+                          | Minecraft189WorldEntityCombatState.NETWORK_INFO_PRESENT,
+                        1 | Minecraft189WorldEntityCombatState.NETWORK_INFO_KNOWN
+                    },
+                    new double[] {0, 0, 0, 1, 0, 0, 2, 0, 0});
+            Minecraft189KillAuraTargetSelector.select(
+                    aura, local.snapshot(), rotation.snapshot(),
+                    positions.snapshot(), kinds.snapshot(), combat.snapshot(),
+                    antiBot, null, null, identities.snapshot(),
+                    null, null, selected);
+            assertTrue(selected.snapshot().found());
+            assertEquals(1, selected.snapshot().entityIndex());
+            assertEquals(A, aura.lockedTargetUuid());
+        } finally {
+            antiBot.onDisable();
+        }
+    }
+
+    @Test
     void originalWorldOrModuleLifecycleExplicitlyRevokesUuid() {
         start();
         initialB();
