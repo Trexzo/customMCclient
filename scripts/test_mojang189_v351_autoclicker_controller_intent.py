@@ -61,7 +61,7 @@ class AutoClickerControllerIntentV351(unittest.TestCase):
         self.assertIn("final Minecraft189AutoClickerControllerLease.Intent autoClickerIntent", gate)
         self.assertIn("entity instanceof Minecraft189NativeEntityUuidAccess", gate)
         self.assertIn(".customMcNativeEntityUuid()", gate)
-        self.assertIn("autoClickerIntent.permits(actual,", gate)
+        self.assertIn("autoClickerIntent.consumeOriginalController(actual,", gate)
         self.assertIn("nativeOwnerEpoch()", gate)
         self.assertIn("triggerModeSetting().get().booleanValue()", gate)
         self.assertIn("featureCatalog().killAura().active()", gate)
@@ -96,6 +96,8 @@ class AutoClickerControllerIntentV351(unittest.TestCase):
     def test_lease_never_claims_server_hit_or_changes_packets(self):
         self.assertIn("originalTarget.equals(actualControllerUuid)", LEASE)
         self.assertIn("ownerEpoch == liveEpoch", LEASE)
+        self.assertIn("if (controllerSpent) return false;", LEASE)
+        self.assertIn("controllerSpent = true;", LEASE)
         self.assertIn("pending = null;", LEASE)
         self.assertNotIn("attackEntity(", LEASE)
         self.assertNotIn("sendPacket", LEASE)
