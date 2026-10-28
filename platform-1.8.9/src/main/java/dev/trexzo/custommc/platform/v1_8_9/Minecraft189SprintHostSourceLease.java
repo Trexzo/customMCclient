@@ -12,6 +12,10 @@ final class Minecraft189SprintHostSourceLease {
     private Minecraft189PlayerSprintControl original;
     private boolean guiAtEntry;
     private boolean revoked;
+    // A guarded setter captured during the previous native callback
+    // cannot silently become authorized by a later callback with the
+    // same or different original player reference.
+    private long generation;
 
     boolean enter(final Minecraft189PlayerSprintControl player,
             final boolean guiFocused) {
@@ -21,6 +25,7 @@ final class Minecraft189SprintHostSourceLease {
             }
             return false;
         }
+        ++generation;
         dispatching = true;
         original = player;
         guiAtEntry = guiFocused;
@@ -39,14 +44,17 @@ final class Minecraft189SprintHostSourceLease {
             final BooleanSupplier currentGuiFocused) {
         if (player == null) return null;
         Objects.requireNonNull(currentGuiFocused, "currentGuiFocused");
+        final long token = generation;
         return sprinting -> {
-            if (stillOwned(currentGuiFocused.getAsBoolean())) {
+            if (token == generation && original == player
+                    && stillOwned(currentGuiFocused.getAsBoolean())) {
                 player.customMcSetSprinting(sprinting);
             }
         };
     }
 
     void exit() {
+        ++generation;
         original = null;
         guiAtEntry = false;
         revoked = false;
