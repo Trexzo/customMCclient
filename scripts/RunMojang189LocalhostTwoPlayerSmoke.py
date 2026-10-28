@@ -1364,8 +1364,8 @@ def v348_resume_confirmed_original_pause(host, host_log, deadline,
         return False
 
     # V349: LWJGL2 Minecraft 1.8.9 may omit _NET_WM_PID. Thus a late
-    # xdotool "--pid" lookup is NOT native ownership proof and cannot
-    # safely choose a window after CITarget/CITargetB are also launched.
+    # process-ID-filtered X11 lookup is NOT native ownership proof and
+    # cannot safely choose a window after CITarget/CITargetB launch.
     # Instead the original CIHost window ID was captured while it was
     # the ONLY Minecraft window in our isolated fresh Xvfb display,
     # before any target started. Revalidate that exact original ID is
