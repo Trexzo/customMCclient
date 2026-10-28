@@ -48,6 +48,7 @@ final class Minecraft189KillAuraStickySourceOwnerTest {
         aura.fovSetting().set(35.0D);
         aura.minCpsSetting().set(20);
         aura.maxCpsSetting().set(20);
+        aura.pauseSneakSetting().set(Boolean.FALSE);
         aura.onEnable();
         local.update(0.0, 0.0, 0.0);
         rotation.update(-90.0F, 0.0F);
