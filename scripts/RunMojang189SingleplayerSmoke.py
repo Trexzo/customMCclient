@@ -1114,6 +1114,14 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 print("CUSTOMMC_189_NATIVE_VISUAL_GRAPHITE_PANEL_PASS=YES",
                       flush=True)
                 if visual_capture_details:
+                    # A real original-game cursor grab must have been
+                    # released by vanilla Minecraft's ave.o() first. The
+                    # existing strict physical-mouse admission is unchanged.
+                    await_marker(
+                        process, log,
+                        b"CUSTOMMC_189_NATIVE_GUI_CURSOR_RELEASE=YES",
+                        min(deadline, time.monotonic() + 6),
+                        "original vanilla cursor release for real GUI mouse")
                     # Genuine source-rendered S25 Module Details, reached
                     # through the actual visible first module's right click.
                     # Exactly 854x480/GUI scale 1 is pinned by this harness.
@@ -1165,6 +1173,12 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                       + json.dumps(settings_image, sort_keys=True),
                       flush=True)
                 xdotool("key", "--clearmodifiers", "Shift_R")
+                if visual_capture_details:
+                    await_marker(
+                        process, log,
+                        b"CUSTOMMC_189_NATIVE_GUI_CURSOR_RESTORE=YES",
+                        min(deadline, time.monotonic() + 6),
+                        "original vanilla cursor restoration after GUI close")
                 print("CUSTOMMC_189_NATIVE_VISUAL_SCREENSHOTS_RECORDED=YES",
                       flush=True)
             if timer_speed:
