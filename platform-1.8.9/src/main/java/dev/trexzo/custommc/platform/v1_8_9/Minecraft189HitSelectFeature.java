@@ -56,6 +56,30 @@ final class Minecraft189HitSelectFeature implements AutoCloseable {
                     new ModuleSettingBinding(
                             Minecraft189HitSelectModule.ID,
                             Minecraft189HitSelectModule.MAX_HURT_TICKS_SETTING_ID, 0)));
+            feature.owned.add(settings.register(
+                    feature.module.minTargetHurtTicksSetting()));
+            feature.owned.add(settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189HitSelectModule.MIN_HURT_TICKS_SETTING_ID,
+                            "Minimum Target Hurt Ticks",
+                            SettingValueKind.INTEGER, 10,
+                            new SettingNumericSpec(
+                                    0, Minecraft189HitSelectModule.MAXIMUM_HURT_TICKS, 1))));
+            feature.owned.add(moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189HitSelectModule.ID,
+                            Minecraft189HitSelectModule.MIN_HURT_TICKS_SETTING_ID, 10)));
+            feature.owned.add(settings.register(
+                    feature.module.requireObservedRecoverySetting()));
+            feature.owned.add(settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189HitSelectModule.REQUIRE_RECOVERY_SETTING_ID,
+                            "Require Observed Hurt Recovery",
+                            SettingValueKind.BOOLEAN, 20)));
+            feature.owned.add(moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189HitSelectModule.ID,
+                            Minecraft189HitSelectModule.REQUIRE_RECOVERY_SETTING_ID, 20)));
             return feature;
         } catch (RuntimeException ex) {
             try { feature.close(); }

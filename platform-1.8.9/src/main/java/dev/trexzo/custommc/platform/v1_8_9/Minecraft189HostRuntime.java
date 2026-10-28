@@ -1908,6 +1908,7 @@ public final class Minecraft189HostRuntime
             if (tickUuidWorld != identityWorld) {
                 featureCatalog.killAura().rememberSelectedTarget(
                         null, "original-world-identity-changed");
+                featureCatalog.hitSelect().suspendForSource();
             }
             tickUuidWorld = identityWorld;
             if (world == null) {
@@ -1973,6 +1974,7 @@ public final class Minecraft189HostRuntime
         tickVisibilityWorld = null;
         featureCatalog.killAura().rememberSelectedTarget(
                 null, "original-world-source-revoked");
+        featureCatalog.hitSelect().suspendForSource();
     }
 
     void worldEntityKinds(
@@ -3101,6 +3103,7 @@ public final class Minecraft189HostRuntime
         featureCatalog.autoClicker().suspendForGui();
         featureCatalog.triggerBot().suspend();
         featureCatalog.killAura().suspend();
+        featureCatalog.hitSelect().suspendForGui();
         featureCatalog.wTap().suspendForGui(
                 inputState.pointerPressed(
                         Minecraft189ClickRateTracker.LEFT_BUTTON));
@@ -3150,9 +3153,24 @@ public final class Minecraft189HostRuntime
             featureCatalog.autoClicker().suspendForGui();
             featureCatalog.triggerBot().suspend();
             featureCatalog.killAura().suspend();
+            featureCatalog.hitSelect().suspendForGui();
             return false;
         }
         final boolean confirmedHit = crosshairPlayerHit;
+        final Minecraft189HitSelectModule hitSelect =
+                featureCatalog.hitSelect();
+        // Observe EVERY original indexed native scheduler callback, not
+        // only clicks scheduled by Aura, TriggerBot or AutoClicker. This
+        // allows the true source hurt-time rise and recovery to be seen
+        // without manufacturing or banking an extra attack.
+        if (requireOriginalTargetUuid && hitSelect.active()
+                && hitSelect.requireObservedRecoverySetting().get()) {
+            hitSelect.observeOriginalOwner(
+                    confirmedHit ? crosshairPlayerIndex : -1,
+                    worldEntityUuidState.snapshot(),
+                    worldEntityKindState.snapshot(),
+                    worldEntityCombatState.snapshot());
+        }
         // Exactly one Combat module can own an automatic attack callback.
         // Dedicated Trigger Bot has precedence; legacy Auto Clicker trigger
         // mode remains for backward-compatible persisted profiles.
@@ -3361,8 +3379,48 @@ public final class Minecraft189HostRuntime
                 crosshairPlayerIndex, playerPositionState.snapshot(),
                 worldEntityPositionState.snapshot(),
                 worldEntityKindState.snapshot(), nativeHitbox)) return false;
-        if (!featureCatalog.hitSelect().permits(
-                crosshairPlayerIndex, combat)) {
+        // HitSelect's optional recovery latch is strictly owned by the
+        // ORIGINAL current remote UUID, not a cached entity index. Legacy
+        // default mode retains the same index/hurt-time behavior.
+        java.util.UUID verifiedHitSelectUuid = null;
+        long verifiedHitSelectEpoch = -1L;
+        int verifiedHitSelectMin = -1;
+        int verifiedHitSelectMax = -1;
+        if (requireOriginalTargetUuid && hitSelect.active()
+                && hitSelect.requireObservedRecoverySetting().get()) {
+            verifiedHitSelectEpoch = hitSelect.nativeOwnerEpoch();
+            verifiedHitSelectMin =
+                    hitSelect.minTargetHurtTicksSetting().get();
+            verifiedHitSelectMax =
+                    hitSelect.maxTargetHurtTicksSetting().get();
+            final Minecraft189WorldEntityUuidState.Snapshot currentIds =
+                    worldEntityUuidState.snapshot();
+            final Minecraft189WorldEntityKindState.Snapshot currentKinds =
+                    worldEntityKindState.snapshot();
+            if (tickUuidWorld == null || crosshairPlayerIndex < 0
+                    || !currentIds.available() || !currentKinds.available()
+                    || currentIds.entityCount() != combat.entityCount()
+                    || !hitSelect.permitsOriginalOwner(
+                            crosshairPlayerIndex,
+                            currentIds.at(crosshairPlayerIndex),
+                            currentIds, currentKinds, combat))
+                return false;
+            try {
+                if (!currentIds.matches(tickUuidWorld.customMcLoadedEntityUuids()))
+                    return false;
+            } catch (RuntimeException invalidNativeWorld) {
+                return false;
+            }
+            if (!hitSelect.active()
+                    || !hitSelect.requireObservedRecoverySetting().get()
+                    || hitSelect.nativeOwnerEpoch() != verifiedHitSelectEpoch
+                    || hitSelect.minTargetHurtTicksSetting().get()
+                            != verifiedHitSelectMin
+                    || hitSelect.maxTargetHurtTicksSetting().get()
+                            != verifiedHitSelectMax)
+                return false;
+            verifiedHitSelectUuid = currentIds.at(crosshairPlayerIndex);
+        } else if (!hitSelect.permits(crosshairPlayerIndex, combat)) {
             return false;
         }
         if (!featureCatalog.criticals().permits(
@@ -3425,6 +3483,24 @@ public final class Minecraft189HostRuntime
         if (verifiedAutoClickerUuid != null) {
             autoClickerControllerLease.arm(
                     verifiedAutoClickerUuid, verifiedAutoClickerEpoch);
+        }
+        // Consume the optional UUID-specific recovery state only after
+        // the full cross-module synthetic-click admission has passed.
+        // A failed Criticals, range, guard, GUI or owner-epoch gate
+        // cannot spend a recovery cycle or queue a delayed click.
+        if (verifiedHitSelectUuid != null) {
+            // The original World getter or later guard callbacks may
+            // synchronously OFF->ON this module, replace its World, or
+            // edit its recovery window. Never consume a stale owner.
+            if (!hitSelect.active()
+                    || !hitSelect.requireObservedRecoverySetting().get()
+                    || hitSelect.nativeOwnerEpoch() != verifiedHitSelectEpoch
+                    || hitSelect.minTargetHurtTicksSetting().get()
+                            != verifiedHitSelectMin
+                    || hitSelect.maxTargetHurtTicksSetting().get()
+                            != verifiedHitSelectMax)
+                return false;
+            hitSelect.noteScheduledOriginalClick(verifiedHitSelectUuid);
         }
         clickRateTracker.recordPress(
                 Minecraft189ClickRateTracker.LEFT_BUTTON);
