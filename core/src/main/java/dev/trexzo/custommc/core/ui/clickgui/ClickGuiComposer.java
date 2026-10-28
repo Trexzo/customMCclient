@@ -240,17 +240,20 @@ public final class ClickGuiComposer {
             final UiTheme theme) {
         final List<UiDrawCommand> commands =
                 new ArrayList<UiDrawCommand>();
+        final List<ClickGuiPage> pages =
+                ClickGuiNavigationPages.visible(snapshot);
+        final String activePageId =
+                ClickGuiNavigationPages.highlightedId(snapshot);
         final float scroll =
                 ClickGuiMetrics.clampNavigationScroll(
                         snapshot.navigationScroll(),
-                        snapshot.pages().size(),
+                        pages.size(),
                         navigation.height());
         float y = navigation.y() - scroll;
 
-        for (ClickGuiPage page : snapshot.pages()) {
+        for (ClickGuiPage page : pages) {
             final boolean selected =
-                    page.id().equals(
-                            snapshot.selectedPageId());
+                    page.id().equals(activePageId);
 
             if (selected) {
                 commands.add(

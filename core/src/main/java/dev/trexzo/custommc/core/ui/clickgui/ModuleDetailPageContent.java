@@ -205,6 +205,8 @@ public final class ModuleDetailPageContent
                 bounds, totalHeight, scrollOffset, theme));
         commands.addAll(UiContentBottomCue.compose(
                 bounds, totalHeight, scrollOffset, theme));
+        // Fixed contextual return remains accessible even after scroll.
+        commands.addAll(UiModuleDetailBackLink.compose(bounds, theme));
         return commands;
     }
 
@@ -231,6 +233,14 @@ public final class ModuleDetailPageContent
                         context.bounds(), totalHeight, scrollOffset,
                         event.x(), event.y())) {
             return false;
+        }
+        if (event.action() == UiPointerAction.PRESS
+                && event.button() == UiPointerButton.LEFT
+                && UiModuleDetailBackLink.hit(
+                        context.bounds(), event.x(), event.y())) {
+            final ClickGuiNavigator navigator = context.navigator();
+            return navigator != null
+                    && navigator.selectPage(ClickGuiRuntime.MODULES_PAGE_ID);
         }
 
         if (keybindEditor != null

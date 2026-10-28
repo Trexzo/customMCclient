@@ -192,14 +192,14 @@ public final class ClickGuiInputController
             final float current =
                     ClickGuiMetrics.clampNavigationScroll(
                             snapshot.navigationScroll(),
-                            snapshot.pages().size(),
+                            ClickGuiNavigationPages.visible(snapshot).size(),
                             layout.navigation().height());
             final float next =
                     ClickGuiMetrics.clampNavigationScroll(
                             current
                                     - event.deltaY()
                                     * ClickGuiMetrics.NAVIGATION_SCROLL_STEP,
-                            snapshot.pages().size(),
+                            ClickGuiNavigationPages.visible(snapshot).size(),
                             layout.navigation().height());
 
             model.setNavigationScroll(next);
@@ -255,6 +255,12 @@ public final class ClickGuiInputController
         if (event.action() == UiKeyAction.PRESS
                 && UiKeys.ESCAPE.equals(event.key())) {
             focusManager.clearFocus();
+            // Detail view is contextual. Escape goes back once; the next
+            // Escape closes ClickGUI. Focused editors own Escape above.
+            if (ClickGuiRuntime.MODULE_DETAIL_PAGE_ID.equals(
+                    model.snapshot().selectedPageId())) {
+                return model.select(ClickGuiRuntime.MODULES_PAGE_ID);
+            }
             model.close();
             return true;
         }
@@ -294,14 +300,16 @@ public final class ClickGuiInputController
             return false;
         }
         final ClickGuiSnapshot snapshot = model.snapshot();
-        final List<ClickGuiPage> pages = snapshot.pages();
+        final List<ClickGuiPage> pages =
+                ClickGuiNavigationPages.visible(snapshot);
         if (pages.isEmpty()) {
             return false;
         }
 
         int current = -1;
         for (int i = 0; i < pages.size(); i++) {
-            if (pages.get(i).id().equals(snapshot.selectedPageId())) {
+            if (pages.get(i).id().equals(
+                    ClickGuiNavigationPages.highlightedId(snapshot))) {
                 current = i;
                 break;
             }
@@ -387,12 +395,12 @@ public final class ClickGuiInputController
         final float scroll =
                 ClickGuiMetrics.clampNavigationScroll(
                         snapshot.navigationScroll(),
-                        snapshot.pages().size(),
+                        ClickGuiNavigationPages.visible(snapshot).size(),
                         layout.navigation().height());
         float rowY =
                 layout.navigation().y() - scroll;
 
-        for (ClickGuiPage page : snapshot.pages()) {
+        for (ClickGuiPage page : ClickGuiNavigationPages.visible(snapshot)) {
             if (pointerY >= rowY
                     && pointerY
                     < rowY + ClickGuiMetrics.PAGE_HEIGHT) {
