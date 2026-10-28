@@ -12,6 +12,7 @@ import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiPointerAction;
 import dev.trexzo.custommc.core.ui.UiPointerButton;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
+import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiThemes;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiContentContext;
@@ -108,6 +109,45 @@ final class ClickGuiModuleRowActionTest {
         assertTrue(content.pointer(input,
                 press(250.0F, 160.0F, UiPointerButton.RIGHT)));
         assertEquals(ModuleState.ENABLED, controller.stateOf(id));
+    }
+
+    @Test
+    void maskedBottomRowCannotBeClickedThroughUntilScrollingRevealsIt() {
+        final ModuleRegistry registry = new ModuleRegistry();
+        for (int index = 0; index < 8; index++) {
+            final String id = String.format("module-%02d", index);
+            registry.register(new Module() {
+                @Override
+                public String id() { return id; }
+            });
+        }
+        final ModuleController controller = new ModuleController(registry);
+        final ModuleListPageContent content =
+                new ModuleListPageContent(registry, controller);
+        final ClickGuiPage page =
+                new ClickGuiPage("modules", "Modules", 0);
+        final ClickGuiSnapshot snapshot =
+                new ClickGuiSnapshot(true, "modules", "",
+                        Collections.singletonList(page));
+        final ClickGuiContentInputContext input =
+                new ClickGuiContentInputContext(
+                        snapshot, page, CONTENT_BOUNDS);
+        // At zero offset the last row is y379..408, while the actual
+        // 18px bottom panel footer begins at y402. Clicking its covered
+        // pixels must NOT enable the hidden last row.
+        assertFalse(content.pointer(input,
+                press(230.0F, 404.0F, UiPointerButton.LEFT)));
+        assertEquals(ModuleState.DISABLED,
+                controller.stateOf("module-07"));
+
+        // Existing wheel input remains authoritative. The last row is
+        // completely visible after the bounded 6px scroll to the end.
+        assertTrue(content.scroll(input,
+                new UiScrollEvent(260.0F, 220.0F, -1.0F)));
+        assertTrue(content.pointer(input,
+                press(230.0F, 399.0F, UiPointerButton.LEFT)));
+        assertEquals(ModuleState.ENABLED,
+                controller.stateOf("module-07"));
     }
 
     @Test
