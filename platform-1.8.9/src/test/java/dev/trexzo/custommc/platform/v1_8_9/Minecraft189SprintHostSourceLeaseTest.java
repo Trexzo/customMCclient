@@ -92,4 +92,70 @@ final class Minecraft189SprintHostSourceLeaseTest {
     @Test void integratedNativeExceptionReleasesHostForNewSource(){try(Fixture f=new Fixture()){f.auto();f.state(false);final Player a=new Player(false);a.fail=true;assertThrows(IllegalStateException.class,()->f.runtime.playerSprintControl(a));assertTrue(a.sprint);final Player b=new Player(false);f.runtime.playerSprintControl(b);assertEquals(1,b.trueWrites);}}
     @Test void integratedOriginalGuiVetoPreservesActualSprint(){try(Fixture f=new Fixture()){f.auto();f.state(false);f.runtime.key(LegacyKeyboardCodes.RIGHT_SHIFT,'\0',true,false,true,false,false);assertTrue(f.runtime.clickGuiRuntime().coreRuntime().model().snapshot().open());final Player a=new Player(false);f.runtime.playerSprintControl(a);assertEquals(0,a.writes);}}
     @Test void integratedMissingMovementSnapshotNeverInjectsSprint(){try(Fixture f=new Fixture()){f.auto();final Player a=new Player(false);f.runtime.playerSprintControl(a);assertEquals(0,a.writes);}}
+    @Test void previousHostTickGuardCannotWriteAfterSameOriginalReenters() {
+        final Minecraft189SprintHostSourceLease l = lease();
+        final Player p = new Player(true);
+        assertTrue(l.enter(p, false));
+        final Minecraft189PlayerSprintControl stale =
+                l.guardedPlayer(p, () -> false);
+        l.exit();
+        assertTrue(l.enter(p, false));
+        stale.customMcSetSprinting(false);
+        assertEquals(0, p.writes);
+        final Minecraft189PlayerSprintControl fresh =
+                l.guardedPlayer(p, () -> false);
+        fresh.customMcSetSprinting(false);
+        assertEquals(1, p.falseWrites);
+        l.exit();
+    }
+
+    @Test void integratedWTapReentrantFalseAfterNativeWriteCannotBeUndoneByAutoSprint() {
+        try (Fixture f = new Fixture()) {
+            f.wtap();
+            f.auto();
+            f.runtime.featureCatalog().wTap().resetTicksSetting().set(3);
+            f.runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            final Player p = new Player(true);
+            f.state(true);
+            f.runtime.playerSprintControl(p);
+            assertEquals(1, p.falseWrites);
+            assertEquals(0, p.trueWrites);
+
+            // A later reset tick is still running, but the native sprint
+            // getter now truthfully says false. WTap's original setter
+            // synchronously OFF->ON reenters and makes apply return false.
+            // Old behavior let AutoSprint write true from this same stale
+            // false-sprint snapshot, undoing WTap inside one host callback.
+            f.state(false);
+            p.onWrite = () -> {
+                f.controller.disable(Minecraft189WTapModule.ID);
+                f.controller.enable(Minecraft189WTapModule.ID);
+                f.runtime.playerSprintControl(p);
+            };
+            f.runtime.playerSprintControl(p);
+            assertEquals(2, p.falseWrites);
+            assertEquals(0, p.trueWrites);
+            assertFalse(p.sprint);
+
+            // In a later separate real host callback, WTap makes no
+            // setter attempt and AutoSprint is still free to resume.
+            f.runtime.playerSprintControl(p);
+            assertEquals(1, p.trueWrites);
+            assertTrue(p.sprint);
+        }
+    }
+
+    @Test void integratedWTapNoOpAllowsAutoSprintSameCallback() {
+        try (Fixture f = new Fixture()) {
+            f.wtap();
+            f.auto();
+            final Player p = new Player(false);
+            f.state(false);
+            f.runtime.playerSprintControl(p);
+            assertEquals(0, p.falseWrites);
+            assertEquals(1, p.trueWrites);
+        }
+    }
+
 }
