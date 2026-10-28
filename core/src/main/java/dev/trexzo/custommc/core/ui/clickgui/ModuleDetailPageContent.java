@@ -149,7 +149,7 @@ public final class ModuleDetailPageContent
                             bounds.x() + PADDING,
                             bounds.y() + PADDING + 22.0F,
                             UiFonts.DEFAULT,
-                            "Right-click a module to inspect its settings.",
+                            "Open settings with the module dots or right-click.",
                             theme.color(
                                     UiColorRole.TEXT_MUTED)));
             return commands;
@@ -165,68 +165,25 @@ public final class ModuleDetailPageContent
                         contentHeight(visible.size()),
                         bounds.height());
 
-        commands.add(
-                new UiTextCommand(
-                        0,
-                        bounds.x() + PADDING,
-                        bounds.y() + PADDING - scrollOffset,
-                        UiFonts.DEFAULT,
-                        moduleDescriptor == null
-                                ? moduleId
-                                : moduleDescriptor.displayName(),
-                        theme.color(
-                                UiColorRole.TEXT_PRIMARY)));
-
-        final ModuleState state =
-                controller.stateOf(moduleId);
-        commands.add(
-                new UiTextCommand(
-                        0,
-                        bounds.x() + PADDING,
-                        bounds.y() + PADDING + 22.0F - scrollOffset,
-                        UiFonts.DEFAULT,
-                        state.name(),
-                        theme.color(
-                                stateColorRole(state))));
-
-        if (moduleDescriptor != null
-                && !moduleDescriptor.description().isEmpty()) {
-            commands.add(
-                    new UiTextCommand(
-                            0,
-                            bounds.x() + PADDING + 92.0F,
-                            bounds.y() + PADDING + 22.0F - scrollOffset,
-                            UiFonts.DEFAULT,
-                            moduleDescriptor.description(),
-                            theme.color(
-                                    UiColorRole.TEXT_MUTED)));
-        }
-
+        final ModuleState state = controller.stateOf(moduleId);
+        final String displayName = moduleDescriptor == null
+                ? moduleId : moduleDescriptor.displayName();
+        final String description = moduleDescriptor == null
+                ? null : moduleDescriptor.description();
+        String bindText = null;
+        boolean capturing = false;
         if (moduleKeybinds != null) {
-            final ModuleKeybind binding =
-                    moduleKeybinds.findByModule(
-                            moduleId);
-            final String captureLabel =
-                    keybindEditor == null
-                            ? null
-                            : keybindEditor.captureLabel(
-                                    moduleId);
-            commands.add(
-                    new UiTextCommand(
-                            0,
-                            bounds.x() + PADDING,
-                            bounds.y() + PADDING + 44.0F - scrollOffset,
-                            UiFonts.DEFAULT,
-                            captureLabel != null
-                                    ? captureLabel
-                                    : binding == null
-                                    ? "Bind: Unbound"
-                                    : "Bind: " + binding.chord(),
-                            theme.color(
-                                    captureLabel != null
-                                            ? UiColorRole.ACCENT
-                                            : UiColorRole.TEXT_MUTED)));
+            final ModuleKeybind binding = moduleKeybinds.findByModule(moduleId);
+            final String captureLabel = keybindEditor == null
+                    ? null : keybindEditor.captureLabel(moduleId);
+            capturing = captureLabel != null;
+            bindText = capturing ? captureLabel
+                    : binding == null ? "Bind: Unbound"
+                    : "Bind: " + binding.chord();
         }
+        commands.addAll(UiModuleDetailHeader.compose(
+                bounds, scrollOffset, displayName,
+                state, description, bindText, capturing, theme));
 
         for (int index = 0;
              index < visible.size();
@@ -408,22 +365,6 @@ public final class ModuleDetailPageContent
                 + rowCount * ROW_HEIGHT
                 + (rowCount - 1) * ROW_GAP
                 + PADDING;
-    }
-
-    private static UiColorRole stateColorRole(
-            final ModuleState state) {
-        switch (state) {
-            case ENABLED:
-                return UiColorRole.POSITIVE;
-            case FAILED:
-                return UiColorRole.DANGER;
-            case ENABLING:
-            case DISABLING:
-                return UiColorRole.WARNING;
-            case DISABLED:
-            default:
-                return UiColorRole.TEXT_MUTED;
-        }
     }
 
     private static final class SettingEntry {

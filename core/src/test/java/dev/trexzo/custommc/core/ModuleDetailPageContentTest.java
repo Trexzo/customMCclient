@@ -61,7 +61,7 @@ final class ModuleDetailPageContentTest {
                         "Select a module"));
         assertTrue(
                 text.contains(
-                        "Right-click a module to inspect its settings."));
+                        "Open settings with the module dots or right-click."));
         assertFalse(
                 text.contains(
                         "Aura Enabled"));
