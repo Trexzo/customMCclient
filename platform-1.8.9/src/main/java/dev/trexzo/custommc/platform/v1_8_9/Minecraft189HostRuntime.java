@@ -3383,8 +3383,16 @@ public final class Minecraft189HostRuntime
         // ORIGINAL current remote UUID, not a cached entity index. Legacy
         // default mode retains the same index/hurt-time behavior.
         java.util.UUID verifiedHitSelectUuid = null;
+        long verifiedHitSelectEpoch = -1L;
+        int verifiedHitSelectMin = -1;
+        int verifiedHitSelectMax = -1;
         if (requireOriginalTargetUuid && hitSelect.active()
                 && hitSelect.requireObservedRecoverySetting().get()) {
+            verifiedHitSelectEpoch = hitSelect.nativeOwnerEpoch();
+            verifiedHitSelectMin =
+                    hitSelect.minTargetHurtTicksSetting().get();
+            verifiedHitSelectMax =
+                    hitSelect.maxTargetHurtTicksSetting().get();
             final Minecraft189WorldEntityUuidState.Snapshot currentIds =
                     worldEntityUuidState.snapshot();
             final Minecraft189WorldEntityKindState.Snapshot currentKinds =
@@ -3403,6 +3411,14 @@ public final class Minecraft189HostRuntime
             } catch (RuntimeException invalidNativeWorld) {
                 return false;
             }
+            if (!hitSelect.active()
+                    || !hitSelect.requireObservedRecoverySetting().get()
+                    || hitSelect.nativeOwnerEpoch() != verifiedHitSelectEpoch
+                    || hitSelect.minTargetHurtTicksSetting().get()
+                            != verifiedHitSelectMin
+                    || hitSelect.maxTargetHurtTicksSetting().get()
+                            != verifiedHitSelectMax)
+                return false;
             verifiedHitSelectUuid = currentIds.at(crosshairPlayerIndex);
         } else if (!hitSelect.permits(crosshairPlayerIndex, combat)) {
             return false;
@@ -3472,8 +3488,20 @@ public final class Minecraft189HostRuntime
         // the full cross-module synthetic-click admission has passed.
         // A failed Criticals, range, guard, GUI or owner-epoch gate
         // cannot spend a recovery cycle or queue a delayed click.
-        if (verifiedHitSelectUuid != null)
+        if (verifiedHitSelectUuid != null) {
+            // The original World getter or later guard callbacks may
+            // synchronously OFF->ON this module, replace its World, or
+            // edit its recovery window. Never consume a stale owner.
+            if (!hitSelect.active()
+                    || !hitSelect.requireObservedRecoverySetting().get()
+                    || hitSelect.nativeOwnerEpoch() != verifiedHitSelectEpoch
+                    || hitSelect.minTargetHurtTicksSetting().get()
+                            != verifiedHitSelectMin
+                    || hitSelect.maxTargetHurtTicksSetting().get()
+                            != verifiedHitSelectMax)
+                return false;
             hitSelect.noteScheduledOriginalClick(verifiedHitSelectUuid);
+        }
         clickRateTracker.recordPress(
                 Minecraft189ClickRateTracker.LEFT_BUTTON);
         return true;
