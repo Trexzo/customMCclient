@@ -55,6 +55,11 @@ public final class Minecraft189HostRuntime
     // must remain the SAME UUID at actual PlayerControllerMP dispatch.
     private final Minecraft189TriggerDispatchUuidLease triggerDispatchLease =
             new Minecraft189TriggerDispatchUuidLease();
+    // One UUID-specific vanilla clickMouse may be admitted into the actual
+    // PlayerControllerMP argument only by its original scheduler owner.
+    private final Minecraft189AutoClickerControllerLease
+            autoClickerControllerLease =
+            new Minecraft189AutoClickerControllerLease();
     private long triggerDispatchAdmissionSerial;
     private final Minecraft189CriticalsEvidence criticalsEvidence =
             new Minecraft189CriticalsEvidence();
@@ -3064,6 +3069,7 @@ public final class Minecraft189HostRuntime
         requireOpen();
         ++triggerDispatchAdmissionSerial;
         triggerDispatchLease.clear();
+        autoClickerControllerLease.clear();
         featureCatalog.autoClicker().suspendForGui();
         featureCatalog.triggerBot().suspend();
         featureCatalog.killAura().suspend();
@@ -3108,6 +3114,7 @@ public final class Minecraft189HostRuntime
         // An older outer callback cannot revive its stale prior admission.
         final long admissionSerial = ++triggerDispatchAdmissionSerial;
         triggerDispatchLease.clear();
+        autoClickerControllerLease.clear();
         // No automatic attack may cross the native ClickGUI focus boundary.
         // The same rule applies to hold and trigger modes; pending phase
         // is cancelled so closing the GUI cannot replay banked clicks.
@@ -3387,6 +3394,10 @@ public final class Minecraft189HostRuntime
             triggerDispatchLease.arm(
                     verifiedTriggerUuid, verifiedTriggerEpoch);
         }
+        if (verifiedAutoClickerUuid != null) {
+            autoClickerControllerLease.arm(
+                    verifiedAutoClickerUuid, verifiedAutoClickerEpoch);
+        }
         clickRateTracker.recordPress(
                 Minecraft189ClickRateTracker.LEFT_BUTTON);
         return true;
@@ -3398,6 +3409,24 @@ public final class Minecraft189HostRuntime
      * TriggerBot crosshair confirmation; spend it exactly once even if
      * the native player list index or module activation has changed.
      */
+    /** Native indexed trigger only: spend the UUID just before vanilla
+     * clickMouse, then enforce the same owner at the real controller.
+     * A failed attempt is consumed without authorizing later replay.
+     */
+    Minecraft189AutoClickerControllerLease.Intent
+            consumeAutoClickerControllerIntent(final java.util.UUID sourceUuid) {
+        requireOpen();
+        final Minecraft189AutoClickerModule clicker =
+                featureCatalog.autoClicker();
+        return autoClickerControllerLease.consume(
+                sourceUuid, clicker.nativeOwnerEpoch(),
+                clicker.active()
+                        && clicker.triggerModeSetting().get().booleanValue(),
+                featureCatalog.killAura().active()
+                        || featureCatalog.triggerBot().active(),
+                clickGuiRuntime.coreRuntime().model().snapshot().open());
+    }
+
     boolean consumeTriggerDispatchUuid(final java.util.UUID sourceUuid) {
         requireOpen();
         return triggerDispatchLease.consume(
@@ -3533,6 +3562,7 @@ public final class Minecraft189HostRuntime
         // lease, module, hotbar or UI teardown. A stale finally cannot
         // release a newer generation created by another callback.
         combatCycle.revoke();
+        autoClickerControllerLease.clear();
         inputState.clear();
         frameRateTracker.clear();
         clickRateTracker.clear();
