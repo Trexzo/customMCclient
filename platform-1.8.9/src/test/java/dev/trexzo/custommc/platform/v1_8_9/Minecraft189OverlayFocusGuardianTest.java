@@ -98,6 +98,21 @@ final class Minecraft189OverlayFocusGuardianTest {
     }
 
     @Test
+    void unavailableOriginalClassNeverGrantsGuiFocusFromMouseAlone() {
+        // Mock JVMs do not load the original Mojang class ave, even if
+        // later code supplies a synthetic physical mouse state.
+        final Minecraft189OverlayFocusGuardian.Snapshot source =
+                Minecraft189OverlayFocusGuardian.observeNative();
+        assertFalse(source.available());
+        assertEquals(Minecraft189OverlayFocusGuardian.Mode.UNKNOWN,
+                Minecraft189OverlayFocusGuardian.classify(source));
+        assertFalse(Minecraft189OverlayFocusGuardian.permitsPhysicalMouse(
+                source, true, true, false, true));
+        assertEquals(null,
+                Minecraft189OverlayFocusGuardian.findOriginalMinecraftInstance());
+    }
+
+    @Test
     void pinnedOriginalScreenAndFocusMappingsAreExactAndReadOnly() {
         assertEquals("ave",
                 Minecraft189Mappings.MINECRAFT.obfuscatedInternalName());
