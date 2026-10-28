@@ -8,6 +8,7 @@ import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.setting.SettingValueKind;
 import dev.trexzo.custommc.core.ui.UiBounds;
+import dev.trexzo.custommc.core.ui.UiClipCommand;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiPointerAction;
 import dev.trexzo.custommc.core.ui.UiPointerButton;
@@ -93,24 +94,11 @@ final class SettingListPageContentTest {
                                                 400.0F),
                                         UiThemes.darkDefault()));
 
-        boolean sawEspLabel = false;
-        boolean sawTrue = false;
-        boolean sawRange = false;
-
-        for (UiDrawCommand command : commands) {
-            if (!(command instanceof UiTextCommand)) {
-                continue;
-            }
-            final String text =
-                    ((UiTextCommand) command).text();
-            sawEspLabel |= "ESP Enabled".equals(text);
-            sawTrue |= "true".equals(text);
-            sawRange |= "Attack Range".equals(text);
-        }
-
-        assertTrue(sawEspLabel);
-        assertTrue(sawTrue);
-        assertFalse(sawRange);
+        // The Boolean state is conveyed by its drawn switch; labels are
+        // scissor-clipped rather than loose text over the value control.
+        assertTrue(hasText(commands, "ESP Enabled"));
+        assertFalse(hasText(commands, "true"));
+        assertFalse(hasText(commands, "Attack Range"));
     }
 
     @Test
@@ -792,9 +780,33 @@ final class SettingListPageContentTest {
                     ((UiTextCommand) command).text())) {
                 return ((UiTextCommand) command).y();
             }
+            if (command instanceof UiClipCommand) {
+                try {
+                    return textY(((UiClipCommand) command).commands(),
+                            expectedText);
+                } catch (IllegalArgumentException missing) {
+                    // Keep searching nested and sibling draw commands.
+                }
+            }
         }
         throw new IllegalArgumentException(
                 "missing text command: " + expectedText);
+    }
+
+    private static boolean hasText(
+            final List<UiDrawCommand> commands,
+            final String expected) {
+        for (UiDrawCommand command : commands) {
+            if (command instanceof UiTextCommand
+                    && expected.equals(((UiTextCommand) command).text())) {
+                return true;
+            }
+            if (command instanceof UiClipCommand
+                    && hasText(((UiClipCommand) command).commands(), expected)) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }
