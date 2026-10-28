@@ -203,6 +203,8 @@ public final class ModuleDetailPageContent
 
         commands.addAll(UiContentScrollRail.compose(
                 bounds, totalHeight, scrollOffset, theme));
+        commands.addAll(UiContentBottomCue.compose(
+                bounds, totalHeight, scrollOffset, theme));
         return commands;
     }
 
@@ -221,11 +223,15 @@ public final class ModuleDetailPageContent
         final List<SettingEntry> visible =
                 visibleSettings(
                         module.id());
+        final float totalHeight = contentHeight(visible.size());
         final float scrollOffset =
-                scroll.offset(
-                        contentHeight(
-                                visible.size()),
-                        context.bounds().height());
+                scroll.offset(totalHeight, context.bounds().height());
+        if (event.action() == UiPointerAction.PRESS
+                && UiContentBottomCue.blocksPointer(
+                        context.bounds(), totalHeight, scrollOffset,
+                        event.x(), event.y())) {
+            return false;
+        }
 
         if (keybindEditor != null
                 && event.action() == UiPointerAction.PRESS
