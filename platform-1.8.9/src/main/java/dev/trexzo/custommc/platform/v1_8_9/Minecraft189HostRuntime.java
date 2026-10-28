@@ -3075,11 +3075,13 @@ public final class Minecraft189HostRuntime
     }
 
     boolean shouldAutoClick() {
-        return shouldAutoClick(false, -1);
+        return shouldAutoClickInternal(false, -1, null, false);
     }
 
     boolean shouldAutoClick(final boolean crosshairPlayerHit) {
-        return shouldAutoClick(crosshairPlayerHit, -1);
+        // Unindexed legacy test API; never reached by the original
+        // Minecraft autoClick callback, which supplies its ray index.
+        return shouldAutoClickInternal(crosshairPlayerHit, -1, null, false);
     }
 
     boolean shouldAutoClick(final boolean crosshairPlayerHit,
@@ -3094,6 +3096,13 @@ public final class Minecraft189HostRuntime
 
     boolean shouldAutoClick(final boolean crosshairPlayerHit,
             final int crosshairPlayerIndex, final double[] nativeHitbox) {
+        return shouldAutoClickInternal(crosshairPlayerHit, crosshairPlayerIndex,
+                nativeHitbox, true);
+    }
+
+    private boolean shouldAutoClickInternal(final boolean crosshairPlayerHit,
+            final int crosshairPlayerIndex, final double[] nativeHitbox,
+            final boolean requireOriginalTargetUuid) {
         requireOpen();
         // Nested external mapped World getters may reenter this scheduler.
         // An older outer callback cannot revive its stale prior admission.
@@ -3120,6 +3129,10 @@ public final class Minecraft189HostRuntime
                 Minecraft189ClickRateTracker.RIGHT_BUTTON);
         final boolean click;
         java.util.UUID verifiedTriggerUuid = null;
+        java.util.UUID verifiedAutoClickerUuid = null;
+        long verifiedAutoClickerEpoch = -1L;
+        boolean nativeAutoClickerScheduled = false;
+        boolean nativeAutoClickerTriggerMode = false;
         long verifiedTriggerEpoch = -1L;
         if (aura.active()) {
             trigger.suspend();
@@ -3205,10 +3218,72 @@ public final class Minecraft189HostRuntime
         } else {
             aura.suspend();
             trigger.suspend();
-            click = featureCatalog.autoClicker().shouldClick(
-                    attackHeld, inputState.keyPressed(LegacyKeyboardCodes.W),
-                    rightHeld, nearestPlayerTargetState.snapshot(),
-                    playerMovementState.snapshot(), confirmedHit);
+            final Minecraft189AutoClickerModule clicker =
+                    featureCatalog.autoClicker();
+            final boolean uuidBoundTrigger = requireOriginalTargetUuid
+                    && clicker.triggerModeSetting().get().booleanValue();
+            nativeAutoClickerScheduled = requireOriginalTargetUuid;
+            nativeAutoClickerTriggerMode = uuidBoundTrigger;
+            if (uuidBoundTrigger) {
+                final long ownerEpoch = clicker.nativeOwnerEpoch();
+                // The same indexed ray must match a fresh ORIGINAL World
+                // loaded UUID list, including a verified player-kind owner.
+                final Minecraft189WorldEntityUuidState.Snapshot ids =
+                        worldEntityUuidState.snapshot();
+                final Minecraft189WorldEntityKindState.Snapshot kinds =
+                        worldEntityKindState.snapshot();
+                final Minecraft189WorldEntityCombatState.Snapshot targets =
+                        worldEntityCombatState.snapshot();
+                if (confirmedHit && crosshairPlayerIndex >= 0
+                        && tickUuidWorld != null && ids.available()
+                        && kinds.available() && targets.available()
+                        && ids.entityCount() == kinds.entityCount()
+                        && ids.entityCount() == targets.entityCount()
+                        && crosshairPlayerIndex < ids.entityCount()
+                        && kinds.player(crosshairPlayerIndex)
+                        && !kinds.localPlayer(crosshairPlayerIndex)) {
+                    try {
+                        if (ids.matches(tickUuidWorld.customMcLoadedEntityUuids()))
+                            verifiedAutoClickerUuid = ids.at(crosshairPlayerIndex);
+                    } catch (RuntimeException invalidNativeWorld) {
+                        verifiedAutoClickerUuid = null;
+                    }
+                }
+                if (ownerEpoch != clicker.nativeOwnerEpoch()
+                        || !clicker.active()
+                        || !clicker.triggerModeSetting().get().booleanValue()
+                        || aura.active() || trigger.active()
+                        || admissionSerial != triggerDispatchAdmissionSerial
+                        || clickGuiRuntime.coreRuntime().model().snapshot().open()) {
+                    clicker.suspendForGui();
+                    return false;
+                }
+                // Physical input may have changed inside the original getter.
+                click = clicker.shouldClick(
+                        inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.LEFT_BUTTON),
+                        inputState.keyPressed(LegacyKeyboardCodes.W),
+                        inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                        nearestPlayerTargetState.snapshot(),
+                        playerMovementState.snapshot(), confirmedHit,
+                        verifiedAutoClickerUuid);
+            } else if (requireOriginalTargetUuid) {
+                // The indexed production path NEVER supplies the legacy
+                // test-only sentinel UUID. If trigger mode is enabled
+                // mid-callback, a null source owner must deny the click.
+                click = clicker.shouldClick(
+                        attackHeld, inputState.keyPressed(LegacyKeyboardCodes.W),
+                        rightHeld, nearestPlayerTargetState.snapshot(),
+                        playerMovementState.snapshot(), confirmedHit, null);
+            } else {
+                click = clicker.shouldClick(
+                        attackHeld, inputState.keyPressed(LegacyKeyboardCodes.W),
+                        rightHeld, nearestPlayerTargetState.snapshot(),
+                        playerMovementState.snapshot(), confirmedHit);
+            }
+            if (click && requireOriginalTargetUuid)
+                verifiedAutoClickerEpoch = clicker.nativeOwnerEpoch();
         }
         // One shared final veto applies to every automatic click owner.
         // It never alters genuine vanilla mouse presses. A rejected click
@@ -3264,7 +3339,37 @@ public final class Minecraft189HostRuntime
                         || featureCatalog.noClip().active())) {
             return false;
         }
-        if (admissionSerial != triggerDispatchAdmissionSerial)
+        if (nativeAutoClickerScheduled
+                && (verifiedAutoClickerEpoch < 0
+                    || verifiedAutoClickerEpoch
+                        != featureCatalog.autoClicker().nativeOwnerEpoch()
+                    || nativeAutoClickerTriggerMode
+                        != featureCatalog.autoClicker().triggerModeSetting()
+                                .get().booleanValue()
+                    || !featureCatalog.autoClicker().active()))
+            return false;
+        if (verifiedAutoClickerUuid != null) {
+            final Minecraft189WorldEntityUuidState.Snapshot ids =
+                    worldEntityUuidState.snapshot();
+            if (!requireOriginalTargetUuid
+                    || !featureCatalog.autoClicker().active()
+                    || !featureCatalog.autoClicker().triggerModeSetting()
+                            .get().booleanValue()
+                    || aura.active() || trigger.active()
+                    || !ids.available() || crosshairPlayerIndex < 0
+                    || crosshairPlayerIndex >= ids.entityCount()
+                    || !verifiedAutoClickerUuid.equals(ids.at(crosshairPlayerIndex))
+                    || tickUuidWorld == null)
+                return false;
+            try {
+                if (!ids.matches(tickUuidWorld.customMcLoadedEntityUuids()))
+                    return false;
+            } catch (RuntimeException changedNativeWorld) {
+                return false;
+            }
+        }
+        if (admissionSerial != triggerDispatchAdmissionSerial
+                || clickGuiRuntime.coreRuntime().model().snapshot().open())
             return false;
         if (verifiedTriggerUuid != null) {
             // Require the ORIGINAL source UUID and module activation that
