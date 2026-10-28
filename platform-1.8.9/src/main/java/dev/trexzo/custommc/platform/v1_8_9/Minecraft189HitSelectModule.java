@@ -172,7 +172,8 @@ public final class Minecraft189HitSelectModule implements Module {
             final Minecraft189WorldEntityKindState.Snapshot currentKinds,
             final Minecraft189WorldEntityCombatState.Snapshot currentCombat) {
         if (!enabled) return true;
-        if (!originalOwnerValid(verifiedCrosshairIndex, currentIds,
+        if (selectedOriginalUuid == null
+                || !originalOwnerValid(verifiedCrosshairIndex, currentIds,
                     currentKinds, currentCombat)
                 || !selectedOriginalUuid.equals(
                         currentIds.at(verifiedCrosshairIndex)))
