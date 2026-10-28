@@ -14,6 +14,9 @@ import dev.trexzo.custommc.core.ui.clickgui.ClickGuiPage;
 import dev.trexzo.custommc.core.ui.clickgui.ClickGuiRenderPass;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -58,6 +61,43 @@ final class ClickGuiRenderPassTest {
         assertEquals(0, viewportCalls.get());
         assertEquals(0, themeCalls.get());
         assertEquals(0, renderCalls.get());
+    }
+
+    @Test
+    void visualEvidenceReportsOnlyRealRenderedPageTransitionsWhenOptedIn() {
+        final ClickGuiModel model = new ClickGuiModel();
+        model.register(new ClickGuiPage("modules", "Modules", 0));
+        model.register(new ClickGuiPage("settings", "Settings", 10));
+        model.open();
+        final AtomicInteger actualRenders = new AtomicInteger();
+        final ClickGuiRenderPass pass = new ClickGuiRenderPass(
+                "click-gui", 500, model,
+                frame -> new UiViewport(854, 480, 1.0F),
+                UiThemes::graphite,
+                (frame, viewport, commands) -> actualRenders.incrementAndGet());
+        final String property = "custommc.acceptance.reportNativeVisualPage";
+        final String beforeFlag = System.getProperty(property);
+        final PrintStream original = System.out;
+        final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        try {
+            System.setProperty(property, "true");
+            System.setOut(new PrintStream(captured, true));
+            pass.render(new RenderFrame(1L, 0.0F));
+            pass.render(new RenderFrame(2L, 0.0F));
+            model.select("settings");
+            pass.render(new RenderFrame(3L, 0.0F));
+            model.close();
+            pass.render(new RenderFrame(4L, 0.0F));
+        } finally {
+            System.setOut(original);
+            if (beforeFlag == null) System.clearProperty(property);
+            else System.setProperty(property, beforeFlag);
+        }
+        final String logs = new String(captured.toByteArray(),
+                StandardCharsets.UTF_8);
+        assertEquals(3, actualRenders.get());
+        assertEquals(1, logs.split("CUSTOMMC_189_NATIVE_VISUAL_PAGE=modules", -1).length - 1);
+        assertEquals(1, logs.split("CUSTOMMC_189_NATIVE_VISUAL_PAGE=settings", -1).length - 1);
     }
 
     @Test
