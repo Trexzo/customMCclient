@@ -224,7 +224,8 @@ def await_fresh_native_visual_page(process, log, page, cursor, deadline):
         + " page after physical original X11 navigation")
 
 
-def await_original_gui_cursor_ready(process, log, deadline):
+def await_original_gui_cursor_ready(
+        process, log, deadline, after_cursor=0, announce=True):
     """Demand actual native GUI_READY evidence before physical X11 click.
 
     A pre-existing ungrabbed original cursor may require no vanilla release;
@@ -241,12 +242,18 @@ def await_original_gui_cursor_ready(process, log, deadline):
     )
     while time.monotonic() < deadline:
         require_running(process, "original GUI cursor admission")
-        fresh = read_tail(log)
+        if not log.exists():
+            time.sleep(.15)
+            continue
+        with log.open("rb") as stream:
+            stream.seek(after_cursor)
+            fresh = stream.read()
         if any(marker in fresh for marker in negatives):
             raise AssertionError("real original mouse focus failed before GUI click")
         if any(marker in fresh for marker in positives):
-            print("CUSTOMMC_189_NATIVE_VISUAL_MOUSE_READY_SOURCE=YES",
-                  flush=True)
+            if announce:
+                print("CUSTOMMC_189_NATIVE_VISUAL_MOUSE_READY_SOURCE=YES",
+                      flush=True)
             return
         time.sleep(.15)
     raise AssertionError(
@@ -1130,6 +1137,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 before = capture_original_x11(window, output / "world.png")
                 print("CUSTOMMC_189_NATIVE_VISUAL_WORLD="
                       + json.dumps(before, sort_keys=True), flush=True)
+                gui_open_cursor = log.stat().st_size
                 xdotool("key", "--clearmodifiers", "Shift_R")
                 await_marker(process, log,
                              b"CUSTOMMC_189_NATIVE_VISUAL_PAGE=modules",
@@ -1147,7 +1155,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                     # released by vanilla Minecraft's ave.o() first. The
                     # existing strict physical-mouse admission is unchanged.
                     await_original_gui_cursor_ready(
-                        process, log, min(deadline, time.monotonic() + 6))
+                        process, log, min(deadline, time.monotonic() + 6),
+                        after_cursor=gui_open_cursor)
                     # Genuine source-rendered S25 Module Details, reached
                     # through the actual visible first module's right click.
                     # Exactly 854x480/GUI scale 1 is pinned by this harness.
