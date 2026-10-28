@@ -18,6 +18,14 @@ Introduce pure `UiContentScrollRail.compose` and render it through the actual co
 
 This is an incremental, real Java renderer improvement supported by real screenshots — not a mockup. It preserves the compact Graphite design, avoiding visual noise while signaling scrollability.
 
+## S23 genuine screenshot verification (28 October 2026)
+
+The updated S23 source also completed its **original Mojang Java 8/X11 GUI capture** in [run #40693008780](https://github.com/Trexzo/customMCclient/actions/runs/40693008780), stage `S22 capture original Mojang ClickGUI visual evidence` = SUCCESS, followed by successful PNG artifact upload. Exact S23 binary input: `e30cedaed63d8d10e33f738e8836071c73201478`, output artifact `custommc-189-real-graphite-visuals` ID `12818670405` (`world.png`, `modules.png`, `settings.png`).
+
+I inspected the downloaded **actual** 854×480 PNGs (not source code or an approximation). The new 3px muted right-hand scrollbar thumb is visibly present at the top of the Modules and Settings viewport, aligned to the content margin and not overlapping row text, toggles or editable values. The state still shows 85 modules and the authentic native Settings values. This satisfies the initial native visual scroll-discoverability acceptance.
+
+The scrollbar is deliberately restrained, and the final row can still be partly clipped at the bottom: S23 makes the presence of more content explicit rather than solving all pagination, mouse-wheel, varied GUI scale or font-size issues. **Genuine scrolled-page captures and module-detail screenshots remain future acceptance gaps.** The overall long original-binary test may still be in progress after the successful capture stage.
+
 ## Verification
 
 `UiContentScrollRailTest` covers no-overflow suppression, long-content proportional thumb, beginning/middle/end scroll travel, viewport containment, theme roles and nonfinite geometry rejection. Existing module/settings/detail interaction suites stay active. Real screenshots of scrolled pages are still needed before calling the whole scrolling UX visually approved. Keep this draft until exact-head Windows/Ubuntu Foundation and pinned native original-game acceptance pass.
