@@ -18,6 +18,7 @@ import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.setting.SettingValueKind;
 import dev.trexzo.custommc.core.ui.UiBounds;
+import dev.trexzo.custommc.core.ui.UiClipCommand;
 import dev.trexzo.custommc.core.ui.UiFocusManager;
 import dev.trexzo.custommc.core.ui.UiKey;
 import dev.trexzo.custommc.core.ui.UiKeyAction;
@@ -258,7 +259,7 @@ final class ModuleDetailPageContentTest {
                 before,
                 "Aura Enabled",
                 "Attack Range");
-        assertTrue(before.contains("false"));
+        assertFalse(before.contains("false"));
         assertTrue(before.contains("3"));
 
         assertFalse(
@@ -278,7 +279,7 @@ final class ModuleDetailPageContentTest {
                                 fixture.context()));
 
         assertTrue(after.contains("ENABLED"));
-        assertTrue(after.contains("true"));
+        assertFalse(after.contains("true"));
         assertFalse(after.contains("false"));
     }
 
@@ -288,9 +289,9 @@ final class ModuleDetailPageContentTest {
                 new ArrayList<String>();
         for (UiDrawCommand command : commands) {
             if (command instanceof UiTextCommand) {
-                result.add(
-                        ((UiTextCommand) command)
-                                .text());
+                result.add(((UiTextCommand) command).text());
+            } else if (command instanceof UiClipCommand) {
+                result.addAll(texts(((UiClipCommand) command).commands()));
             }
         }
         return result;
