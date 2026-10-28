@@ -1171,7 +1171,10 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                     # < Modules return action. The source marker must be
                     # NEW: the previous modules.png marker cannot count.
                     back_cursor = log.stat().st_size
-                    xdotool("mousemove", "--window", window, 733, 47)
+                    # At native 854x480 scale 1, layout root y=52.8,
+                    # detail-back button y=56.8..73.8. The old y=47
+                    # landed OUTSIDE the real button.
+                    xdotool("mousemove", "--window", window, 733, 65)
                     xdotool("click", "--window", window, "1")
                     await_fresh_native_visual_page(
                         process, log, "modules", back_cursor,
