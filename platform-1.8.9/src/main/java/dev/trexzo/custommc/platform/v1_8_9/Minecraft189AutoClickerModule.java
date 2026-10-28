@@ -4,6 +4,7 @@ import dev.trexzo.custommc.core.module.Module;
 import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
 
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class Minecraft189AutoClickerModule
@@ -62,6 +63,8 @@ public final class Minecraft189AutoClickerModule
     public static final int MAXIMUM_RAMP_UP_TICKS = 100;
 
     private static final int TICKS_PER_SECOND = 20;
+    // Legacy unindexed Java tests have no original World identity.
+    private static final UUID LEGACY_TEST_TARGET = new UUID(0L, 0L);
 
     private final Setting<Integer> minCps =
             new Setting<Integer>(
@@ -163,6 +166,8 @@ public final class Minecraft189AutoClickerModule
             value -> value != null && value >= 1 && value <= TICKS_PER_SECOND,
             SettingCodecs.INTEGER);
     private int triggerConfirmedFrames;
+    private UUID confirmedTargetUuid;
+    private long nativeOwnerEpoch;
     private int scheduledTriggerConfirmTicks = 1;
     private boolean scheduledTriggerMode;
     private boolean enabled;
@@ -271,14 +276,18 @@ public final class Minecraft189AutoClickerModule
 
     @Override
     public synchronized void onEnable() {
+        ++nativeOwnerEpoch;
         enabled = true;
+        confirmedTargetUuid = null;
         triggerConfirmedFrames = 0;
         resetSchedule();
     }
 
     @Override
     public synchronized void onDisable() {
+        ++nativeOwnerEpoch;
         enabled = false;
+        confirmedTargetUuid = null;
         triggerConfirmedFrames = 0;
         resetSchedule();
     }
@@ -287,8 +296,13 @@ public final class Minecraft189AutoClickerModule
     // Retain the user's enabled setting, but discard every pending click
     // credit, start-delay tick, burst phase, and trigger confirmation.
     synchronized void suspendForGui() {
+        confirmedTargetUuid = null;
         triggerConfirmedFrames = 0;
         resetSchedule();
+    }
+
+    synchronized long nativeOwnerEpoch() {
+        return nativeOwnerEpoch;
     }
 
     synchronized boolean shouldClick(
@@ -336,13 +350,47 @@ public final class Minecraft189AutoClickerModule
             final Minecraft189NearestPlayerTargetState.Snapshot nearestPlayer,
             final Minecraft189PlayerMovementState.Snapshot movement,
             final boolean crosshairPlayerHit) {
+        // Compatibility for historical unindexed tests only. The native
+        // HostRuntime uses the explicit source-UUID overload.
+        return shouldClick(leftButtonHeld, forwardHeld, rightButtonHeld,
+                nearestPlayer, movement, crosshairPlayerHit,
+                crosshairPlayerHit ? LEGACY_TEST_TARGET : null);
+    }
+
+    synchronized boolean shouldClick(
+            final boolean leftButtonHeld,
+            final boolean forwardHeld,
+            final boolean rightButtonHeld,
+            final Minecraft189NearestPlayerTargetState.Snapshot nearestPlayer,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final boolean crosshairPlayerHit,
+            final UUID verifiedCrosshairUuid) {
         final boolean trigger = triggerMode.get().booleanValue();
         final int requiredFrames = triggerConfirmTicks.get().intValue();
         if (scheduledTriggerConfirmTicks != requiredFrames
                 || scheduledTriggerMode != trigger) {
+            confirmedTargetUuid = null;
             triggerConfirmedFrames = 0;
+            resetSchedule();
             scheduledTriggerConfirmTicks = requiredFrames;
             scheduledTriggerMode = trigger;
+        }
+        if (trigger) {
+            if (!crosshairPlayerHit || verifiedCrosshairUuid == null) {
+                confirmedTargetUuid = null;
+                triggerConfirmedFrames = 0;
+                resetSchedule();
+                return false;
+            }
+            if (!verifiedCrosshairUuid.equals(confirmedTargetUuid)) {
+                // The next player starts without the previous player's
+                // confirmation, CPS credit, ramp, burst or cooldown.
+                confirmedTargetUuid = verifiedCrosshairUuid;
+                triggerConfirmedFrames = 0;
+                resetSchedule();
+            }
+        } else {
+            confirmedTargetUuid = null;
         }
         if (!enabled
                 || (trigger && !crosshairPlayerHit)
@@ -366,6 +414,7 @@ public final class Minecraft189AutoClickerModule
                         || nearestPlayer.distance() > maxPlayerDistance.get().doubleValue()))) {
             resetSchedule();
             triggerConfirmedFrames = 0;
+            confirmedTargetUuid = null;
             return false;
         }
         // Require a consecutive sequence of confirmed crosshair player hits
