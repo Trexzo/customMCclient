@@ -47,6 +47,10 @@ final class Minecraft189AutoClickerControllerLease {
                 new Intent(originalTarget, ownerEpoch);
     }
 
+    synchronized boolean pending() {
+        return pending != null;
+    }
+
     /** A failed or stale reservation is spent rather than replayed. */
     synchronized Intent consume(final UUID actualSourceUuid,
             final long currentEpoch, final boolean triggerEnabled,
