@@ -780,6 +780,14 @@ final class SettingListPageContentTest {
                     ((UiTextCommand) command).text())) {
                 return ((UiTextCommand) command).y();
             }
+            if (command instanceof UiClipCommand) {
+                try {
+                    return textY(((UiClipCommand) command).commands(),
+                            expectedText);
+                } catch (IllegalArgumentException missing) {
+                    // Keep searching nested and sibling draw commands.
+                }
+            }
         }
         throw new IllegalArgumentException(
                 "missing text command: " + expectedText);
