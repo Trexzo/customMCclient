@@ -98,6 +98,19 @@ final class Minecraft189OverlayFocusGuardianTest {
     }
 
     @Test
+    void neverAcceptsArbitraryObjectAsOriginalNativeTickInstance() {
+        Minecraft189OverlayFocusGuardian.clearOriginalTickInstance();
+        assertFalse(Minecraft189OverlayFocusGuardian.observeOriginalTickInstance(
+                new Object()));
+        assertFalse(Minecraft189OverlayFocusGuardian.observeOriginalTickInstance(
+                null));
+        assertFalse(Minecraft189OverlayFocusGuardian.observeNative().available());
+        assertEquals(null,
+                Minecraft189OverlayFocusGuardian.findOriginalMinecraftInstance());
+        Minecraft189OverlayFocusGuardian.clearOriginalTickInstance();
+    }
+
+    @Test
     void unavailableOriginalClassNeverGrantsGuiFocusFromMouseAlone() {
         // Mock JVMs do not load the original Mojang class ave, even if
         // later code supplies a synthetic physical mouse state.
