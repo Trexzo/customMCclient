@@ -284,6 +284,7 @@ final class Minecraft189MappedHostTransformationTest {
                         2.0F,
                         0xFFFFFFFF,
                         false));
+        assertEquals(47, fontAccess.getStringWidth("hello"));
     }
 
     @Test
@@ -6998,6 +6999,14 @@ final class Minecraft189MappedHostTransformationTest {
                 Opcodes.IRETURN);
         draw.visitMaxs(1, 6);
         draw.visitEnd();
+
+        final MethodVisitor nativeWidth = writer.visitMethod(
+                Opcodes.ACC_PUBLIC, "a", "(Ljava/lang/String;)I", null, null);
+        nativeWidth.visitCode();
+        nativeWidth.visitIntInsn(Opcodes.BIPUSH, 47);
+        nativeWidth.visitInsn(Opcodes.IRETURN);
+        nativeWidth.visitMaxs(1, 2);
+        nativeWidth.visitEnd();
 
         writer.visitEnd();
         return writer.toByteArray();
