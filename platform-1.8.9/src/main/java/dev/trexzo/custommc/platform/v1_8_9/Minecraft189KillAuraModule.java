@@ -102,16 +102,28 @@ public final class Minecraft189KillAuraModule implements Module {
             final Minecraft189TargetRotationState.Snapshot target,
             final boolean attackHeld,
             final Minecraft189PlayerMovementState.Snapshot movement) {
-        if (player == null || !eligible(target, attackHeld, movement)
-                || rotation == null || !rotation.available()) {
+        if (player == null || rotation == null || !rotation.available()
+                || target == null || !target.available()) {
+            // Invalid original source/rotation revokes the target and CPS.
             clear();
+            return false;
+        }
+        if (!eligible(target, attackHeld, movement)) {
+            // The selector can publish a valid but targetless scan while
+            // retaining a live original World UUID (FOV/hurt veto). Never
+            // let this drop a previously source-verified sticky target.
+            resetSchedule();
+            lastEntityIndex = -1;
             return false;
         }
         final double dyaw = wrap(target.yaw() - rotation.yaw());
         final double dpitch = target.pitch() - rotation.pitch();
         if (!Double.isFinite(dyaw) || !Double.isFinite(dpitch)
                 || Math.abs(dyaw) > fov.get() || Math.abs(dpitch) > fov.get()) {
-            clear();
+            // No native rotation writes or melee outside configured FOV;
+            // only the valid owner UUID may persist through this tick.
+            resetSchedule();
+            lastEntityIndex = -1;
             return false;
         }
         if (lastEntityIndex != target.entityIndex()) {
