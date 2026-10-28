@@ -4,6 +4,7 @@ import dev.trexzo.custommc.core.module.Module;
 import dev.trexzo.custommc.core.module.ModuleController;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.ui.UiBounds;
+import dev.trexzo.custommc.core.ui.UiClipCommand;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiColorRole;
@@ -97,30 +98,34 @@ final class ClickGuiPageContentTest {
                                         400.0F),
                                 UiThemes.darkDefault()));
 
-        boolean sawTitle = false;
-        boolean sawEsp = false;
         boolean sawEnabled = false;
-        boolean sawFly = false;
-
         for (UiDrawCommand command : commands) {
             if (command instanceof UiRoundedRectCommand) {
                 sawEnabled |= ((UiRoundedRectCommand) command).argb()
                         == UiThemes.darkDefault().color(UiColorRole.ACCENT);
             }
-            if (!(command instanceof UiTextCommand)) {
-                continue;
-            }
-            final String text =
-                    ((UiTextCommand) command).text();
-            sawTitle |= "Modules".equals(text);
-            sawEsp |= "esp".equals(text);
-            sawFly |= "fly".equals(text);
         }
 
-        assertTrue(sawTitle);
-        assertTrue(sawEsp);
+        assertTrue(containsText(commands, "Modules"));
+        assertTrue(containsText(commands, "esp"));
         assertTrue(sawEnabled);
-        assertFalse(sawFly);
+        assertFalse(containsText(commands, "fly"));
+    }
+
+    private static boolean containsText(
+            final List<UiDrawCommand> commands,
+            final String expected) {
+        for (UiDrawCommand command : commands) {
+            if (command instanceof UiTextCommand
+                    && expected.equals(((UiTextCommand) command).text())) {
+                return true;
+            }
+            if (command instanceof UiClipCommand
+                    && containsText(((UiClipCommand) command).commands(), expected)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Module module(
