@@ -29,7 +29,7 @@ class OriginalHostTraceExtractionV356(unittest.TestCase):
                       HARNESS)
 
     def test_diagnostic_is_fail_only_and_no_new_success_oracle(self):
-        x = HARNESS.index('    except BaseException:\n')
+        x = HARNESS.rindex('    except BaseException:\n')
         y = HARNESS.index('    finally:\n', x)
         handler = HARNESS[x:y]
         self.assertIn("V356_ORIGINAL_HOST_LOCK_TRANSITIONS", handler)
