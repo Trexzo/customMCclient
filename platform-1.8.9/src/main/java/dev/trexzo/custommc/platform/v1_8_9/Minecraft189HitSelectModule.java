@@ -42,6 +42,9 @@ public final class Minecraft189HitSelectModule implements Module {
                     value -> value != null,
                     SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // A real World loadedEntityList getter can synchronously disable this
+    // module or revoke GUI/source ownership before the final native click.
+    private long nativeOwnerEpoch;
     private UUID observedOriginalUuid;
     // Preserve each original player's own recovery latch across A/B target
     // changes and list reorder; a temporary switch must not rearm A.
@@ -69,21 +72,30 @@ public final class Minecraft189HitSelectModule implements Module {
 
     @Override
     public synchronized void onEnable() {
+        ++nativeOwnerEpoch;
         enabled = true;
         forgetRecovery();
     }
 
     @Override
     public synchronized void onDisable() {
+        ++nativeOwnerEpoch;
         enabled = false;
         forgetRecovery();
     }
 
     // GUI focus, source World replacement and shutdown must never carry
     // a pending original-UUID recovery sequence into the next world.
-    synchronized void suspendForGui() { forgetRecovery(); }
-    synchronized void suspendForSource() { forgetRecovery(); }
+    synchronized void suspendForGui() {
+        ++nativeOwnerEpoch;
+        forgetRecovery();
+    }
+    synchronized void suspendForSource() {
+        ++nativeOwnerEpoch;
+        forgetRecovery();
+    }
 
+    synchronized long nativeOwnerEpoch() { return nativeOwnerEpoch; }
     synchronized boolean active() { return enabled; }
 
     /**
@@ -105,6 +117,7 @@ public final class Minecraft189HitSelectModule implements Module {
         final int max = maxTargetHurtTicks.get();
         if (previousRecoveryEnabled != requireObservedRecovery.get()
                 || observedMinimum != min || observedMaximum != max) {
+            ++nativeOwnerEpoch;
             forgetRecovery();
             previousRecoveryEnabled = true;
             observedMinimum = min;
