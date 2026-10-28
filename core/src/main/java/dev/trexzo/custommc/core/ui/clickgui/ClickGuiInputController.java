@@ -255,6 +255,12 @@ public final class ClickGuiInputController
         if (event.action() == UiKeyAction.PRESS
                 && UiKeys.ESCAPE.equals(event.key())) {
             focusManager.clearFocus();
+            // Detail view is contextual. Escape goes back once; the next
+            // Escape closes ClickGUI. Focused editors own Escape above.
+            if (ClickGuiRuntime.MODULE_DETAIL_PAGE_ID.equals(
+                    model.snapshot().selectedPageId())) {
+                return model.select(ClickGuiRuntime.MODULES_PAGE_ID);
+            }
             model.close();
             return true;
         }
