@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Objects;
 
 public final class Minecraft189ArrayListModule
@@ -212,12 +213,24 @@ public final class Minecraft189ArrayListModule
 
     static float rightAlignedTextX(final float screenWidth,
             final float inset, final String label) {
-        return Math.max(4.0F, screenWidth - inset
-                - 8.0F - Minecraft189HudTextMetrics.width(label));
+        return rightAlignedTextX(screenWidth, inset,
+                Minecraft189HudTextMetrics.width(label));
+    }
+
+    private static float rightAlignedTextX(final float screenWidth,
+            final float inset, final int exactWidth) {
+        return Math.max(4.0F, screenWidth - inset - 8.0F - exactWidth);
+    }
+
+    private int actualTextWidth(final String text) {
+        final int nativeWidth = hostCallbacks.textWidth(UiFonts.DEFAULT, text);
+        return nativeWidth >= 0 ? nativeWidth
+                : Minecraft189HudTextMetrics.width(text);
     }
 
     private void drawModuleCard(final UiViewport viewport,
-            final float currentY, final String label, final float phase) {
+            final float currentY, final String label, final float phase,
+            final int measuredWidth) {
         final boolean right = rightAligned.get().booleanValue();
         if (!right) {
             // Existing explicitly left-aligned saved profiles remain intact.
@@ -230,7 +243,7 @@ public final class Minecraft189ArrayListModule
         final float edge = Math.min(viewport.logicalWidth(),
                 Math.max(0.0F, viewport.logicalWidth() - x.get().floatValue()));
         final float textX = rightAlignedTextX(viewport.logicalWidth(),
-                x.get().floatValue(), label)
+                x.get().floatValue(), measuredWidth)
                 + Minecraft189ArrayListMotion.slide(phase);
         final float chipX = Math.max(0.0F, textX - 4.0F);
         final float chipWidth = Math.max(0.0F, edge - chipX);
@@ -309,8 +322,16 @@ public final class Minecraft189ArrayListModule
                 }
                 final boolean withCategory = showCategories.get().booleanValue();
                 final boolean grouped = groupCategories.get().booleanValue();
-                // Stable sort: choose category first only when explicitly
-                // grouped, then descending intrinsic text-width estimate.
+                // Ask the exact same native FontRenderer that draws HUD text
+                // for glyph widths. Compute once per module/frame to keep the
+                // comparator deterministic and avoid repeated font calls.
+                final Map<String, Integer> widths = new HashMap<String, Integer>();
+                for (Module candidate : enabled) {
+                    widths.put(candidate.id(), Integer.valueOf(actualTextWidth(
+                            moduleLabel(candidate.id(),
+                                    presentations.find(candidate.id()),
+                                    withCategory))));
+                }
                 Collections.sort(enabled, new Comparator<Module>() {
                     @Override
                     public int compare(final Module left, final Module right) {
@@ -321,10 +342,8 @@ public final class Minecraft189ArrayListModule
                             if (category != 0) return category;
                         }
                         return Integer.compare(
-                                Minecraft189HudTextMetrics.width(moduleLabel(
-                                        right.id(), presentations.find(right.id()), withCategory)),
-                                Minecraft189HudTextMetrics.width(moduleLabel(
-                                        left.id(), presentations.find(left.id()), withCategory)));
+                                widths.get(right.id()).intValue(),
+                                widths.get(left.id()).intValue());
                     }
                 });
                 final List<String> activeIds = new ArrayList<String>(enabled.size());
@@ -339,14 +358,16 @@ public final class Minecraft189ArrayListModule
                     final ModuleDescriptor descriptor = presentations.find(module.id());
                     drawModuleCard(viewport, currentY,
                             moduleLabel(module.id(), descriptor, withCategory),
-                            phases.get(module.id()).floatValue());
+                            phases.get(module.id()).floatValue(),
+                            widths.get(module.id()).intValue());
                     currentY += LINE_HEIGHT;
                 }
                 // No fabricated modules: the overflow count is computed
                 // solely from the enabled module registry snapshot.
                 if (showOverflow.get().booleanValue() && enabled.size() > displayed) {
                     drawModuleCard(viewport, currentY,
-                            "+ " + (enabled.size() - displayed) + " more", 1.0F);
+                            "+ " + (enabled.size() - displayed) + " more", 1.0F,
+                            actualTextWidth("+ " + (enabled.size() - displayed) + " more"));
                 }
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
