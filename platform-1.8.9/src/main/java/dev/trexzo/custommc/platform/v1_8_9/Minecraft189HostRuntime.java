@@ -3130,6 +3130,9 @@ public final class Minecraft189HostRuntime
         final boolean click;
         java.util.UUID verifiedTriggerUuid = null;
         java.util.UUID verifiedAutoClickerUuid = null;
+        long verifiedAutoClickerEpoch = -1L;
+        boolean nativeAutoClickerScheduled = false;
+        boolean nativeAutoClickerTriggerMode = false;
         long verifiedTriggerEpoch = -1L;
         if (aura.active()) {
             trigger.suspend();
@@ -3219,6 +3222,8 @@ public final class Minecraft189HostRuntime
                     featureCatalog.autoClicker();
             final boolean uuidBoundTrigger = requireOriginalTargetUuid
                     && clicker.triggerModeSetting().get().booleanValue();
+            nativeAutoClickerScheduled = requireOriginalTargetUuid;
+            nativeAutoClickerTriggerMode = uuidBoundTrigger;
             if (uuidBoundTrigger) {
                 final long ownerEpoch = clicker.nativeOwnerEpoch();
                 // The same indexed ray must match a fresh ORIGINAL World
@@ -3263,12 +3268,22 @@ public final class Minecraft189HostRuntime
                         nearestPlayerTargetState.snapshot(),
                         playerMovementState.snapshot(), confirmedHit,
                         verifiedAutoClickerUuid);
+            } else if (requireOriginalTargetUuid) {
+                // The indexed production path NEVER supplies the legacy
+                // test-only sentinel UUID. If trigger mode is enabled
+                // mid-callback, a null source owner must deny the click.
+                click = clicker.shouldClick(
+                        attackHeld, inputState.keyPressed(LegacyKeyboardCodes.W),
+                        rightHeld, nearestPlayerTargetState.snapshot(),
+                        playerMovementState.snapshot(), confirmedHit, null);
             } else {
                 click = clicker.shouldClick(
                         attackHeld, inputState.keyPressed(LegacyKeyboardCodes.W),
                         rightHeld, nearestPlayerTargetState.snapshot(),
                         playerMovementState.snapshot(), confirmedHit);
             }
+            if (click && requireOriginalTargetUuid)
+                verifiedAutoClickerEpoch = clicker.nativeOwnerEpoch();
         }
         // One shared final veto applies to every automatic click owner.
         // It never alters genuine vanilla mouse presses. A rejected click
@@ -3324,6 +3339,15 @@ public final class Minecraft189HostRuntime
                         || featureCatalog.noClip().active())) {
             return false;
         }
+        if (nativeAutoClickerScheduled
+                && (verifiedAutoClickerEpoch < 0
+                    || verifiedAutoClickerEpoch
+                        != featureCatalog.autoClicker().nativeOwnerEpoch()
+                    || nativeAutoClickerTriggerMode
+                        != featureCatalog.autoClicker().triggerModeSetting()
+                                .get().booleanValue()
+                    || !featureCatalog.autoClicker().active()))
+            return false;
         if (verifiedAutoClickerUuid != null) {
             final Minecraft189WorldEntityUuidState.Snapshot ids =
                     worldEntityUuidState.snapshot();
