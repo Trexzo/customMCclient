@@ -233,6 +233,7 @@ jobs:
             --overlay "build/runtime-overlay" \
             --game "$RUNNER_TEMP/custommc-189-ux-visual" \
             --visual-capture-dir "$RUNNER_TEMP/custommc-189-ux-visual-shots" \
+            --visual-capture-details \
             --timeout 150
       - name: S22 archive original Minecraft GUI screenshots (even on failure)
         if: ${{ always() }}

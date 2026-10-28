@@ -739,6 +739,17 @@ public final class Minecraft189Mappings {
                     "()V",
                     "func_71407_l",
                     "runTick");
+    // Original 1.8.9 joined.srg: ave/o()V and ave/n()V.
+    // Invoke vanilla focus ownership methods only at genuine overlay
+    // transitions; never directly spoof Mouse.grabbed or focus fields.
+    public static final MappedMethod MINECRAFT_SET_INGAME_NOT_IN_FOCUS =
+            new MappedMethod(
+                    MINECRAFT, "o", "()V",
+                    "func_71364_i", "setIngameNotInFocus");
+    public static final MappedMethod MINECRAFT_SET_INGAME_FOCUS =
+            new MappedMethod(
+                    MINECRAFT, "n", "()V",
+                    "func_71381_h", "setIngameFocus");
     public static final MappedMethod MINECRAFT_CLICK_MOUSE =
             new MappedMethod(
                     MINECRAFT,
