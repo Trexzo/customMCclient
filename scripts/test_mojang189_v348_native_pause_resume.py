@@ -58,7 +58,7 @@ class NativePauseV348(TestCase):
             host.poll.return_value = None
             with patch.object(self.mod, "send_real_host_key") as key:
                 self.assertFalse(self.mod.v348_resume_confirmed_original_pause(
-                    host, log, time.monotonic() + 1.0))
+                    host, log, time.monotonic() + 1.0, "9001"))
                 key.assert_not_called()
 
     def test_pause_requires_exact_host_window_and_fresh_clear_after_escape(self):
@@ -69,15 +69,21 @@ class NativePauseV348(TestCase):
                             b"CUSTOMMC_189_ACCEPTANCE_SCREEN=axp\n")
             host = Mock(pid=1234)
             host.poll.return_value = None
-            process = Mock(returncode=0, stdout=b"9001\n")
-            with patch.object(self.mod.subprocess, "run", return_value=process) as run, \
+            # Two visible Minecraft windows are LEGAL after target launch.
+            # The sole PRE-TARGET host X11 ID is what authorizes Escape.
+            visible = Mock(returncode=0, stdout=b"9001\n9002\n")
+            title = Mock(returncode=0, stdout=b"Minecraft 1.8.9\n")
+            with patch.object(self.mod.subprocess, "run",
+                              side_effect=[visible, title]) as run, \
                  patch.object(self.mod, "send_real_host_key") as key, \
                  patch.object(self.mod, "wait_for_new_original_source_marker") as proof:
                 self.assertTrue(self.mod.v348_resume_confirmed_original_pause(
-                    host, log, time.monotonic() + 4.0))
-                run.assert_called_once()
-                self.assertIn("--pid", run.call_args.args[0])
-                self.assertIn("1234", run.call_args.args[0])
+                    host, log, time.monotonic() + 4.0, "9001"))
+                self.assertEqual(2, run.call_count)
+                self.assertNotIn("--pid", run.call_args_list[0].args[0])
+                self.assertEqual(
+                    ["xdotool", "getwindowname", "9001"],
+                    run.call_args_list[1].args[0])
                 key.assert_called_once_with(host, "9001", "Escape")
                 proof.assert_called_once()
                 args = proof.call_args.args
@@ -92,17 +98,26 @@ class NativePauseV348(TestCase):
             log.write_bytes(b"CUSTOMMC_189_ACCEPTANCE_SCREEN=axp\n")
             host = Mock(pid=1234)
             host.poll.return_value = None
+            # Multiple target windows are expected, but the captured
+            # original host ID must still exist among visible windows.
             result = Mock(returncode=0, stdout=b"77\n88\n")
             with patch.object(self.mod.subprocess, "run", return_value=result), \
                  patch.object(self.mod, "send_real_host_key") as key:
-                with self.assertRaises(AssertionError):
+                with self.assertRaisesRegex(AssertionError, "disappeared"):
                     self.mod.v348_resume_confirmed_original_pause(
-                        host, log, time.monotonic() + 2.0)
+                        host, log, time.monotonic() + 2.0, "9001")
                 key.assert_not_called()
 
     def test_exact_two_rejoin_calls_and_strict_server_authority_stay(self):
         run = SOURCE.split("def run(", 1)[1].split("    except BaseException:", 1)[0]
         self.assertEqual(2, run.count("v348_resume_confirmed_original_pause("))
+        self.assertEqual(2, run.count("host, host_log, deadline, host_window)"))
+        pretarget = run.index("host_window = identify_original_host_window_before_target(host)", 
+                              run.index("host_cmd = client_command("))
+        self.assertLess(pretarget, run.index('with target_log.open("wb")'))
+        self.assertNotIn("--pid", SOURCE.split(
+            "def v348_resume_confirmed_original_pause(", 1)[1].split(
+            "def restore_real_attacker_focus(", 1)[0])
         self.assertIn("if args.rejoin_target or args.rejoin_release:", run)
         self.assertIn("wait_for_log_occurrences(", run)
         method = SOURCE.split("def v348_resume_confirmed_original_pause(", 1)[1].split(
