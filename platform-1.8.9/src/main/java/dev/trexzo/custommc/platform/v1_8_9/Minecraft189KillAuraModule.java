@@ -80,15 +80,28 @@ public final class Minecraft189KillAuraModule implements Module {
         return enabled && lockTarget.get() ? lockedTargetUuid : null;
     }
     synchronized void rememberSelectedTarget(final UUID uuid) {
+        rememberSelectedTarget(uuid, "source-selector");
+    }
+    synchronized void rememberSelectedTarget(final UUID uuid,
+            final String reason) {
+        final UUID before = lockedTargetUuid;
         lockedTargetUuid = enabled && lockTarget.get() ? uuid : null;
+        Minecraft189RejoinTargetAcceptance.traceNativeOwnerTransition(
+                before, lockedTargetUuid, reason);
     }
     synchronized boolean active() { return enabled; }
 
     @Override
-    public synchronized void onEnable() { enabled = true; clear(); }
+    public synchronized void onEnable() {
+        enabled = true;
+        clear("module-enable");
+    }
     @Override
-    public synchronized void onDisable() { enabled = false; clear(); }
-    synchronized void suspend() { clear(); }
+    public synchronized void onDisable() {
+        enabled = false;
+        clear("module-disable");
+    }
+    synchronized void suspend() { clear("host-suspend-gui-or-world"); }
     /**
      * A rejected automatic click drops all CPS credit, but must not erase
      * a separately source-verified UUID target lock. Absence of a crosshair
@@ -104,7 +117,7 @@ public final class Minecraft189KillAuraModule implements Module {
             final Minecraft189PlayerMovementState.Snapshot movement) {
         if (player == null || rotation == null || !rotation.available()) {
             // The original player/rotation source itself has disappeared.
-            clear();
+            clear("invalid-original-player-rotation");
             return false;
         }
         if (!eligible(target, attackHeld, movement)) {
@@ -210,10 +223,10 @@ public final class Minecraft189KillAuraModule implements Module {
         return min == max ? min : ThreadLocalRandom.current().nextInt(min, max + 1);
     }
 
-    private void clear() {
+    private void clear(final String reason) {
         resetSchedule();
         lastEntityIndex = -1;
-        lockedTargetUuid = null;
+        rememberSelectedTarget(null, reason);
     }
 
     private void resetSchedule() {

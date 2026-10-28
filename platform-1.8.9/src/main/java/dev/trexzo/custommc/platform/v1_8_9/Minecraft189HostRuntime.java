@@ -1906,7 +1906,8 @@ public final class Minecraft189HostRuntime
                     world instanceof Minecraft189WorldEntityUuidAccess
                             ? (Minecraft189WorldEntityUuidAccess) world : null;
             if (tickUuidWorld != identityWorld) {
-                featureCatalog.killAura().rememberSelectedTarget(null);
+                featureCatalog.killAura().rememberSelectedTarget(
+                        null, "original-world-identity-changed");
             }
             tickUuidWorld = identityWorld;
             if (world == null) {
@@ -1970,7 +1971,8 @@ public final class Minecraft189HostRuntime
         targetRotationState.clear();
         tickUuidWorld = null;
         tickVisibilityWorld = null;
-        featureCatalog.killAura().rememberSelectedTarget(null);
+        featureCatalog.killAura().rememberSelectedTarget(
+                null, "original-world-source-revoked");
     }
 
     void worldEntityKinds(
@@ -2166,7 +2168,8 @@ public final class Minecraft189HostRuntime
         worldEntityCombatState.clear();
         nearestPlayerTargetState.clear();
         targetRotationState.clear();
-        featureCatalog.killAura().rememberSelectedTarget(null);
+        featureCatalog.killAura().rememberSelectedTarget(
+                null, "original-world-combat-inconsistent");
     }
 
     private boolean worldEntityDownstreamSourceStillOwned(final Object world) {

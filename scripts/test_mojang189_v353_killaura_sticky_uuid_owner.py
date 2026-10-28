@@ -41,7 +41,10 @@ class StickyOriginalUuidV353(unittest.TestCase):
         self.assertIn("verifiedPlayerIndex != target.entityIndex()", AURA)
 
     def test_explicit_world_revocation_and_combat_owner_remain_hard_gates(self):
-        self.assertIn("featureCatalog.killAura().rememberSelectedTarget(null);", HOST)
+        self.assertIn('"original-world-source-revoked"', HOST)
+        self.assertIn('"original-world-identity-changed"', HOST)
+        self.assertIn('"original-world-combat-inconsistent"', HOST)
+        self.assertIn('featureCatalog.killAura().rememberSelectedTarget(', HOST)
         self.assertIn("featureCatalog.killAura().suspend();", HOST)
         self.assertIn("ids.matches(tickUuidWorld.customMcLoadedEntityUuids())", HOST)
         self.assertIn("selectedUuid.equals(ids.at(crosshairPlayerIndex))", HOST)

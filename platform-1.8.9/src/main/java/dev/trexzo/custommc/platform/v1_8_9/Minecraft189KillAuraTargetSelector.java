@@ -100,7 +100,7 @@ final class Minecraft189KillAuraTargetSelector {
                 || positions.entityCount() != kinds.entityCount()
                 || positions.entityCount() != combat.entityCount()) {
             target.clear();
-            if (aura != null) aura.rememberSelectedTarget(null);
+            if (aura != null) aura.rememberSelectedTarget(null, "selector-invalid-original-state");
             return;
         }
 
@@ -109,14 +109,14 @@ final class Minecraft189KillAuraTargetSelector {
                 && (identities == null || !identities.available()
                     || identities.entityCount() != positions.entityCount())) {
             target.clear();
-            aura.rememberSelectedTarget(null);
+            aura.rememberSelectedTarget(null, "selector-invalid-original-uuid");
             return;
         }
         if (wallCheck != null && wallCheck.active()
                 && (visibility == null || !visibility.available()
                     || visibility.entityCount() != positions.entityCount())) {
             target.clear();
-            aura.rememberSelectedTarget(null);
+            aura.rememberSelectedTarget(null, "selector-missing-visibility");
             return;
         }
         final UUID lockedUuid = aura.lockedTargetUuid();
@@ -170,7 +170,9 @@ final class Minecraft189KillAuraTargetSelector {
         aura.rememberSelectedTarget(
                 selected.found() && lockEnabled
                         ? identities.at(selected.entityIndex())
-                        : (pinnedOwner ? lockedUuid : null));
+                        : (pinnedOwner ? lockedUuid : null),
+                pinnedOwner ? "selector-verified-existing-uuid"
+                        : "selector-live-candidate-or-absent");
     }
 
     private static boolean verifiedLockRetainable(
