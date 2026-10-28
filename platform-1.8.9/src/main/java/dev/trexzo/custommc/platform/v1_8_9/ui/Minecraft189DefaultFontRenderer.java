@@ -6,7 +6,7 @@ import dev.trexzo.custommc.core.ui.UiFonts;
 import java.util.Objects;
 
 public final class Minecraft189DefaultFontRenderer
-        implements LegacyUiTextRenderer {
+        implements LegacyUiTextMeasurer {
     private final Minecraft189FontRendererAccess access;
 
     public Minecraft189DefaultFontRenderer(
@@ -15,6 +15,15 @@ public final class Minecraft189DefaultFontRenderer
                 Objects.requireNonNull(
                         access,
                         "access");
+    }
+
+    @Override
+    public int textWidth(final UiFontHandle font, final String text) {
+        Objects.requireNonNull(text, "text");
+        if (!UiFonts.DEFAULT.equals(Objects.requireNonNull(font, "font"))) {
+            throw new IllegalArgumentException("unsupported Minecraft 1.8.9 font");
+        }
+        return access.getStringWidth(text);
     }
 
     @Override

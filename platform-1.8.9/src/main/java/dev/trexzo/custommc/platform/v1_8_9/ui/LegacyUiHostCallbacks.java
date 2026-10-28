@@ -45,5 +45,13 @@ public interface LegacyUiHostCallbacks
             String text,
             int argb);
 
+    /**
+     * Optional width measurement. Older synthetic HUD hosts retain the
+     * deterministic glyph-estimate fallback instead of being broken.
+     */
+    default int textWidth(final UiFontHandle font, final String text) {
+        return -1;
+    }
+
     void endUi();
 }
