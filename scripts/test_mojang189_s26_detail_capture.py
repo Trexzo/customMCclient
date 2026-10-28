@@ -8,7 +8,8 @@ import tempfile
 import time
 import unittest
 
-from RunMojang189SingleplayerSmoke import await_fresh_native_visual_page
+from RunMojang189SingleplayerSmoke import (await_fresh_native_visual_page,
+                                            await_original_gui_cursor_ready)
 
 ROOT = Path(__file__).resolve().parent.parent
 RUNNER = ROOT / "scripts" / "RunMojang189SingleplayerSmoke.py"
@@ -49,6 +50,25 @@ class OriginalDetailCaptureChecks(unittest.TestCase):
                 await_fresh_native_visual_page(
                     LivingProcess(), log, "module-detail", cursor,
                     time.monotonic() + .03)
+
+    def test_native_ready_source_can_be_existing_safe_gui_or_vanilla_release(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "client.log"
+            for tag in (
+                b"CUSTOMMC_189_NATIVE_GUI_CURSOR_READY=YES\\n",
+                b"CUSTOMMC_189_NATIVE_GUI_CURSOR_RELEASE=YES\\n",
+            ):
+                log.write_bytes(tag)
+                await_original_gui_cursor_ready(
+                    LivingProcess(), log, time.monotonic() + .1)
+
+    def test_original_mouse_rejection_cannot_be_labelled_safe(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "client.log"
+            log.write_bytes(b"CUSTOMMC_189_NATIVE_GUI_FOCUS_REJECTED=YES\\n")
+            with self.assertRaisesRegex(AssertionError, "mouse focus failed"):
+                await_original_gui_cursor_ready(
+                    LivingProcess(), log, time.monotonic() + .1)
 
     def test_actual_native_pointer_and_original_window_are_mandatory(self):
         script = RUNNER.read_text(encoding="utf-8")
