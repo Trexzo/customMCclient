@@ -70,6 +70,26 @@ class OriginalDetailCaptureChecks(unittest.TestCase):
                 await_original_gui_cursor_ready(
                     LivingProcess(), log, time.monotonic() + .1)
 
+    def test_original_back_click_is_inside_actual_854x480_layout(self):
+        # Real ClickGuiLayoutEngine: width=min(738,w*.88),
+        # height=min(490,h*.78), sidebar=min(158,width*.28);
+        # UiModuleDetailBackLink: x=content.right-15-102,
+        # y=content.top+4, size 102x17 (not a Python UI mock).
+        width, height = 854, 480
+        root_width = min(738.0, width * .88)
+        root_height = min(490.0, height * .78)
+        root_x = (width - root_width) / 2
+        root_y = (height - root_height) / 2
+        content_right = root_x + root_width
+        button_left = content_right - 15.0 - 102.0
+        button_top = root_y + 4.0
+        self.assertTrue(button_left <= 733 < button_left + 102.0)
+        self.assertTrue(button_top <= 65 < button_top + 17.0)
+        self.assertFalse(button_top <= 47 < button_top + 17.0)
+        self.assertIn(
+            'xdotool("mousemove", "--window", window, 733, 65)',
+            RUNNER.read_text(encoding="utf-8"))
+
     def test_actual_native_pointer_and_original_window_are_mandatory(self):
         script = RUNNER.read_text(encoding="utf-8")
         workflow = WORKFLOW.read_text(encoding="utf-8")
