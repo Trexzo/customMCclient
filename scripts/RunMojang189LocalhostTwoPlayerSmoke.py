@@ -4169,6 +4169,30 @@ def run(args):
     except BaseException:
         for name, log in logs:
             if name == "host":
+                # V356: bounded forensic extraction from the WHOLE original
+                # Minecraft host stdout. The prior 6,000-byte tail loses
+                # the first phase-3 B UUID revocation because rejoin can
+                # continue for hundreds of genuine native callbacks.
+                # Read-only on failure: never admits an action, fake World
+                # evidence, new client instance or altered timeout.
+                witness = b"CUSTOMMC_189_REJOIN_NATIVE_LOCK_TRANSITION_DIAG"
+                lock_transitions = []
+                total_transitions = 0
+                if log.exists():
+                    with log.open("rb") as original_host_log:
+                        for native_line in original_host_log:
+                            if witness in native_line:
+                                total_transitions += 1
+                                if len(lock_transitions) < 16:
+                                    lock_transitions.append(
+                                        native_line[:1200].decode(
+                                            "utf-8", "replace").rstrip())
+                print("CUSTOMMC_189_V356_ORIGINAL_HOST_LOCK_TRANSITIONS_START"
+                      + " count=" + str(total_transitions), file=sys.stderr)
+                for native_line in lock_transitions:
+                    print(native_line, file=sys.stderr)
+                print("CUSTOMMC_189_V356_ORIGINAL_HOST_LOCK_TRANSITIONS_END",
+                      file=sys.stderr)
                 # V345 failure-only forensic evidence. The normal positive
                 # native controller/UUID/hurt/server gates are unmodified.
                 print("CUSTOMMC_189_V345_ORIGINAL_SCREEN_TIMELINE_START",
