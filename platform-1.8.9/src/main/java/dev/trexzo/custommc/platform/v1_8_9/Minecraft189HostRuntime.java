@@ -164,6 +164,9 @@ public final class Minecraft189HostRuntime
     private boolean pendingKeepSprintRequireHit;
     private boolean pendingKeepSprintPauseSneak;
     private long pendingKeepSprintLifecycleEpoch;
+    private long pendingKeepSprintAdmissionSerial;
+    private final Minecraft189KeepSprintRestoreLease keepSprintRestoreLease =
+            new Minecraft189KeepSprintRestoreLease();
     // Admission serial forbids a nested source callback from minting or
     // resurrecting an older approval in the same original click stack.
     private long keepSprintAdmissionSerial;
@@ -1052,6 +1055,9 @@ public final class Minecraft189HostRuntime
         if (!sprintHostLease.enter(player, originalGuiFocus)) {
             return;
         }
+        // A nested original sprint callback invalidates the KeepSprint
+        // post-attack source sample, even for the same player reference.
+        keepSprintRestoreLease.revoke();
         sprintWriteArbiter.enter();
         final Minecraft189PlayerSprintControl guardedPlayer =
                 sprintHostLease.guardedPlayer(player,
@@ -3020,6 +3026,7 @@ public final class Minecraft189HostRuntime
 
     boolean shouldKeepSprintAfterSyntheticClick(final boolean playerHit) {
         requireOpen();
+        keepSprintRestoreLease.revoke();
         // A rejected click must never leave permission for a later
         // unrelated source click or a new local player.
         pendingKeepSprintSource = null;
@@ -3051,6 +3058,7 @@ public final class Minecraft189HostRuntime
         if (admitted && tickSprintControl == current) {
             pendingKeepSprintSource = current;
             pendingKeepSprintLifecycleEpoch = lifetime;
+            pendingKeepSprintAdmissionSerial = admission;
             pendingKeepSprintPlayerHit = playerHit;
             pendingKeepSprintForward =
                     module.requireForwardSetting().get().booleanValue();
@@ -3066,43 +3074,92 @@ public final class Minecraft189HostRuntime
 
     void restoreSprintAfterSyntheticClick() {
         requireOpen();
-        // Consume the one-click grant BEFORE calling the original source.
-        // A throwing or reentrant sprint setter cannot replay it.
+        // Consume the exact one-click grant BEFORE any original getter.
+        // Even a throwing or reentrant player cannot replay this grant.
         final Minecraft189PlayerSprintControl owner = pendingKeepSprintSource;
+        final long admission = pendingKeepSprintAdmissionSerial;
+        final long lifetime = pendingKeepSprintLifecycleEpoch;
+        final boolean originalPlayerHit = pendingKeepSprintPlayerHit;
+        final boolean forwardPolicy = pendingKeepSprintForward;
+        final boolean hitPolicy = pendingKeepSprintRequireHit;
+        final boolean sneakPolicy = pendingKeepSprintPauseSneak;
         pendingKeepSprintSource = null;
         if (owner == null || owner != tickSprintControl
-                || !(owner instanceof Minecraft189PlayerMovementStateAccess)) {
+                || !(owner instanceof Minecraft189PlayerMovementStateAccess)
+                || admission != keepSprintAdmissionSerial
+                || !keepSprintRestoreLease.enter(owner)) {
             return;
         }
-        final Minecraft189KeepSprintModule module = featureCatalog.keepSprint();
-        if (pendingKeepSprintLifecycleEpoch != module.lifecycleEpoch()) {
-            // Even immediate OFF->ON with identical persisted policy is a
-            // distinct lifecycle and cannot adopt an in-flight click grant.
-            return;
+        try {
+            final Minecraft189KeepSprintModule module =
+                    featureCatalog.keepSprint();
+            if (!keepSprintRestoreStillOwned(owner, module, admission,
+                    lifetime, forwardPolicy, hitPolicy, sneakPolicy))
+                return;
+
+            final Minecraft189PlayerMovementStateAccess state =
+                    (Minecraft189PlayerMovementStateAccess) owner;
+            // Each of these is a real original Minecraft getter. A getter
+            // may reenter a different native player callback, open a GUI,
+            // change KeepSprint policy, or enable WTap. Revalidate AFTER
+            // every read before using the resulting source evidence.
+            final boolean ground = state.customMcOnGround();
+            if (!keepSprintRestoreStillOwned(owner, module, admission,
+                    lifetime, forwardPolicy, hitPolicy, sneakPolicy))
+                return;
+            final boolean sneaking = state.customMcSneaking();
+            if (!keepSprintRestoreStillOwned(owner, module, admission,
+                    lifetime, forwardPolicy, hitPolicy, sneakPolicy))
+                return;
+            final boolean sprintingNow = state.customMcSprinting();
+            if (!keepSprintRestoreStillOwned(owner, module, admission,
+                    lifetime, forwardPolicy, hitPolicy, sneakPolicy))
+                return;
+            // No native setter is necessary if the original vanilla
+            // attack did not actually cancel sprint. In particular this
+            // avoids a redundant true-write that could reenter AutoSprint.
+            if (sprintingNow) return;
+
+            final Minecraft189PlayerMovementState measured =
+                    new Minecraft189PlayerMovementState();
+            measured.update(ground, sneaking, sprintingNow);
+            if (!module.shouldRestore(
+                    measured.snapshot(), true,
+                    inputState.keyPressed(LegacyKeyboardCodes.W),
+                    originalPlayerHit, featureCatalog.wTap().active(),
+                    clickGuiRuntime.coreRuntime().model().snapshot().open()))
+                return;
+
+            // The last original setter belongs only to this live grant,
+            // source player, GUI and module generation. Never restore
+            // after a nested callback or when WTap has taken authority.
+            if (!keepSprintRestoreStillOwned(owner, module, admission,
+                    lifetime, forwardPolicy, hitPolicy, sneakPolicy))
+                return;
+            owner.customMcSetSprinting(true);
+        } finally {
+            keepSprintRestoreLease.exit();
         }
-        if (pendingKeepSprintForward
-                    != module.requireForwardSetting().get().booleanValue()
-                || pendingKeepSprintRequireHit
-                    != module.requirePlayerHitSetting().get().booleanValue()
-                || pendingKeepSprintPauseSneak
-                    != module.pauseWhileSneakingSetting().get().booleanValue()) {
-            return;
-        }
-        final Minecraft189PlayerMovementStateAccess state =
-                (Minecraft189PlayerMovementStateAccess) owner;
-        final Minecraft189PlayerMovementState measured =
-                new Minecraft189PlayerMovementState();
-        measured.update(state.customMcOnGround(), state.customMcSneaking(),
-                state.customMcSprinting());
-        if (!module.shouldRestore(
-                measured.snapshot(), true,
-                inputState.keyPressed(LegacyKeyboardCodes.W),
-                pendingKeepSprintPlayerHit,
-                featureCatalog.wTap().active(),
-                clickGuiRuntime.coreRuntime().model().snapshot().open())) {
-            return;
-        }
-        owner.customMcSetSprinting(true);
+    }
+
+    private boolean keepSprintRestoreStillOwned(
+            final Minecraft189PlayerSprintControl original,
+            final Minecraft189KeepSprintModule module,
+            final long admission,
+            final long lifecycle,
+            final boolean forwardPolicy,
+            final boolean hitPolicy,
+            final boolean sneakPolicy) {
+        return keepSprintRestoreLease.stillOwned(original)
+                && original == tickSprintControl
+                && keepSprintAdmissionSerial == admission
+                && module.lifecycleEpoch() == lifecycle
+                && module.active()
+                && !featureCatalog.wTap().active()
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open()
+                && forwardPolicy == module.requireForwardSetting().get()
+                && hitPolicy == module.requirePlayerHitSetting().get()
+                && sneakPolicy == module.pauseWhileSneakingSetting().get();
     }
 
     /**
@@ -3128,6 +3185,7 @@ public final class Minecraft189HostRuntime
                         Minecraft189ClickRateTracker.LEFT_BUTTON));
         pendingKeepSprintSource = null;
         ++keepSprintAdmissionSerial;
+        keepSprintRestoreLease.revoke();
     }
 
     boolean shouldAutoClick() {
@@ -3713,6 +3771,7 @@ public final class Minecraft189HostRuntime
         tickSprintControl = null;
         pendingKeepSprintSource = null;
         keepSprintAdmissionSerial++;
+        keepSprintRestoreLease.revoke();
         tickHotbarControl = null;
         tickHotbarPlayer = null;
         tickHeldItemAccess = null;
