@@ -8,6 +8,7 @@ import dev.trexzo.custommc.core.module.ModuleDescriptor;
 import dev.trexzo.custommc.core.module.ModulePresentationRegistry;
 import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.ui.UiBounds;
+import dev.trexzo.custommc.core.ui.UiClipCommand;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiThemes;
@@ -176,9 +177,9 @@ final class ModuleCategoryPresentationTest {
                 new ArrayList<String>();
         for (UiDrawCommand command : commands) {
             if (command instanceof UiTextCommand) {
-                text.add(
-                        ((UiTextCommand) command)
-                                .text());
+                text.add(((UiTextCommand) command).text());
+            } else if (command instanceof UiClipCommand) {
+                text.addAll(texts(((UiClipCommand) command).commands()));
             }
         }
         return text;

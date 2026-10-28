@@ -10,6 +10,7 @@ import dev.trexzo.custommc.core.module.ModuleRegistry;
 import dev.trexzo.custommc.core.module.ModuleState;
 import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiColorRole;
+import dev.trexzo.custommc.core.ui.UiClipCommand;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiFonts;
 import dev.trexzo.custommc.core.ui.UiOutlineCommand;
@@ -223,11 +224,16 @@ public final class ModuleListPageContent
                             bounds,
                             y);
 
-            // Dense, flat rows: no identical big status capsules.
+            // Clear module states with a compact settings affordance.
+            // All text stays inside its own scissor region, so wide
+            // module names cannot paint over the toggle or details action.
+            final boolean hasDetails = detailsAvailable()
+                    && row.width() >= 90.0F;
+            final boolean active = state == ModuleState.ENABLED;
             commands.add(new UiRoundedRectCommand(0,
                     row.x(), row.y(), row.width(), row.height(),
-                    Math.min(ROW_RADIUS, row.height() * .5F),
-                    theme.color(state == ModuleState.ENABLED
+                    Math.min(ROW_RADIUS, row.height() * 0.5F),
+                    theme.color(active
                             ? UiColorRole.SURFACE_RAISED
                             : UiColorRole.BACKGROUND)));
             if (selection != null && selection.isSelected(id)) {
@@ -235,28 +241,52 @@ public final class ModuleListPageContent
                         row.x(), row.y(), row.width(), row.height(),
                         1.0F, theme.color(UiColorRole.ACCENT)));
             }
-            if (state == ModuleState.ENABLED) {
+            if (state != ModuleState.DISABLED) {
                 commands.add(new UiRoundedRectCommand(2,
                         row.x() + 3.0F, row.y() + 7.0F,
                         2.0F, 15.0F, 1.0F,
-                        theme.color(UiColorRole.ACCENT)));
+                        theme.color(active
+                                ? UiColorRole.ACCENT
+                                : stateColorRole(state))));
             }
-            commands.add(new UiTextCommand(2,
-                    row.x() + 13.0F, row.y() + 10.0F,
-                    UiFonts.DEFAULT, entry.displayName(),
-                    theme.color(UiColorRole.TEXT_PRIMARY)));
-            final boolean active = state == ModuleState.ENABLED;
-            final float toggleX = row.x() + Math.max(0.0F, row.width() - 41.0F);
-            commands.add(new UiRoundedRectCommand(2,
-                    toggleX, row.y() + 9.0F,
-                    29.0F, 13.0F, 6.5F,
-                    theme.color(active ? UiColorRole.ACCENT
-                            : UiColorRole.BORDER)));
-            commands.add(new UiRoundedRectCommand(3,
-                    toggleX + (active ? 17.0F : 3.0F),
-                    row.y() + 12.0F,
-                    7.0F, 7.0F, 3.5F,
-                    theme.color(UiColorRole.TEXT_PRIMARY)));
+
+            final float nameX = row.x() + 13.0F;
+            final float reserved = hasDetails ? 87.0F : 57.0F;
+            final float nameWidth =
+                    Math.max(0.0F, row.width() - 13.0F - reserved);
+            if (nameWidth > 0.0F) {
+                commands.add(new UiClipCommand(2,
+                        new UiBounds(nameX, row.y(),
+                                nameWidth, row.height()),
+                        Collections.<UiDrawCommand>singletonList(
+                                new UiTextCommand(0,
+                                        nameX, row.y() + 10.0F,
+                                        UiFonts.DEFAULT, entry.displayName(),
+                                        theme.color(UiColorRole.TEXT_PRIMARY)))));
+            }
+
+            if (row.width() >= 55.0F) {
+                final float toggleX =
+                        row.x() + row.width() - (hasDetails ? 65.0F : 41.0F);
+                commands.add(new UiRoundedRectCommand(2,
+                        toggleX, row.y() + 9.0F,
+                        29.0F, 13.0F, 6.5F,
+                        theme.color(active
+                                ? UiColorRole.ACCENT
+                                : UiColorRole.BORDER)));
+                commands.add(new UiRoundedRectCommand(3,
+                        toggleX + (active ? 17.0F : 3.0F),
+                        row.y() + 12.0F,
+                        7.0F, 7.0F, 3.5F,
+                        theme.color(UiColorRole.TEXT_PRIMARY)));
+            }
+            if (hasDetails) {
+                commands.add(new UiTextCommand(3,
+                        row.x() + row.width() - 23.0F,
+                        row.y() + 9.0F,
+                        UiFonts.DEFAULT, "...",
+                        theme.color(UiColorRole.TEXT_MUTED)));
+            }
 
             y += ROW_HEIGHT + ROW_GAP;
         }
@@ -316,25 +346,18 @@ public final class ModuleListPageContent
             if (row.contains(
                     event.x(),
                     event.y())) {
-                if (event.button()
-                        == UiPointerButton.LEFT) {
-                    return toggle(
-                            entry.module.id());
+                if (event.button() == UiPointerButton.LEFT) {
+                    // The final 26px is a true clickable settings button.
+                    // Every other left press retains the existing toggle.
+                    if (detailsAvailable()
+                            && row.width() >= 90.0F
+                            && event.x() >= row.x() + row.width() - 26.0F) {
+                        return openDetails(context, entry.module.id());
+                    }
+                    return toggle(entry.module.id());
                 }
-                if (selection == null) {
-                    return false;
-                }
-                selection.select(
-                        entry.module.id());
-
-                final ClickGuiNavigator navigator =
-                        context.navigator();
-                if (detailPageId != null
-                        && navigator != null) {
-                    navigator.selectPage(
-                            detailPageId);
-                }
-                return true;
+                // Preserve the existing right-click-anywhere shortcut.
+                return openDetails(context, entry.module.id());
             }
 
             y += ROW_HEIGHT + ROW_GAP;
@@ -359,6 +382,24 @@ public final class ModuleListPageContent
                         visible,
                         hasCategoryHeaders(visible)),
                 context.bounds().height());
+        return true;
+    }
+
+    private boolean detailsAvailable() {
+        return selection != null && detailPageId != null;
+    }
+
+    private boolean openDetails(
+            final ClickGuiContentInputContext context,
+            final String moduleId) {
+        if (selection == null) {
+            return false;
+        }
+        selection.select(moduleId);
+        final ClickGuiNavigator navigator = context.navigator();
+        if (detailPageId != null && navigator != null) {
+            navigator.selectPage(detailPageId);
+        }
         return true;
     }
 
