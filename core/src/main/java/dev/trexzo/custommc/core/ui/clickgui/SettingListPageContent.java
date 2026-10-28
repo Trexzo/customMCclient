@@ -86,11 +86,9 @@ public final class SettingListPageContent
         final UiTheme theme = context.theme();
         final List<Entry> visible =
                 entries(context.snapshot());
+        final float totalHeight = contentHeight(visible.size());
         final float scrollOffset =
-                scroll.offset(
-                        contentHeight(
-                                visible.size()),
-                        bounds.height());
+                scroll.offset(totalHeight, bounds.height());
 
         commands.add(
                 new UiTextCommand(
@@ -122,6 +120,8 @@ public final class SettingListPageContent
                     value, editing, theme));
         }
 
+        commands.addAll(UiContentScrollRail.compose(
+                bounds, totalHeight, scrollOffset, theme));
         return commands;
     }
 

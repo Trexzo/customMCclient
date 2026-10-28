@@ -149,12 +149,10 @@ public final class ModuleListPageContent
                         context.snapshot());
         final boolean categoryHeaders =
                 hasCategoryHeaders(visible);
+        final float totalHeight =
+                contentHeight(visible, categoryHeaders);
         final float scrollOffset =
-                scroll.offset(
-                        contentHeight(
-                                visible,
-                                categoryHeaders),
-                        bounds.height());
+                scroll.offset(totalHeight, bounds.height());
 
         commands.add(
                 new UiTextCommand(
@@ -291,6 +289,8 @@ public final class ModuleListPageContent
             y += ROW_HEIGHT + ROW_GAP;
         }
 
+        commands.addAll(UiContentScrollRail.compose(
+                bounds, totalHeight, scrollOffset, theme));
         return commands;
     }
 
