@@ -21,6 +21,7 @@ public final class Minecraft189OverlayFocusGuardian {
     // Weak custody prevents stale old-world or closed-client ownership.
     private static volatile WeakReference<Object> originalTickInstance =
             new WeakReference<Object>(null);
+    private static volatile String lastNativeDiagnostic;
 
     private Minecraft189OverlayFocusGuardian() { }
 
@@ -303,8 +304,14 @@ public final class Minecraft189OverlayFocusGuardian {
         if (Boolean.getBoolean("custommc.acceptance.reportNativeVisualPage")) {
             final String safe = cause.length() <= 130
                     ? cause : cause.substring(0, 130);
-            System.out.println("CUSTOMMC_189_NATIVE_FOCUS_READ_FAILURE="
-                    + stage + ":" + loader + ":" + safe);
+            final String diagnosis = stage + ":" + loader + ":" + safe;
+            // One distinct original failure witness per observed condition.
+            // Do not flood CI with a line for every original HUD frame.
+            if (!diagnosis.equals(lastNativeDiagnostic)) {
+                lastNativeDiagnostic = diagnosis;
+                System.out.println("CUSTOMMC_189_NATIVE_FOCUS_READ_FAILURE="
+                        + diagnosis);
+            }
         }
     }
 
