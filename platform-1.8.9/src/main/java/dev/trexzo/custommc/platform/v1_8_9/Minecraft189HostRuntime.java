@@ -129,6 +129,10 @@ public final class Minecraft189HostRuntime
     // routing must share one original sprint source and UI focus lease.
     private final Minecraft189SprintHostSourceLease sprintHostLease =
             new Minecraft189SprintHostSourceLease();
+    // The WTap and AutoSprint modules must not write opposite sprint
+    // values from one old native movement snapshot.
+    private final Minecraft189SprintWriteArbiter sprintWriteArbiter =
+            new Minecraft189SprintWriteArbiter();
     // Three genuine EntityPlayerSP XYZ getter calls must belong to
     // ONE original local player before publishing position or speed.
     private final Minecraft189PositionHostSourceLease positionHostLease =
@@ -1048,10 +1052,17 @@ public final class Minecraft189HostRuntime
         if (!sprintHostLease.enter(player, originalGuiFocus)) {
             return;
         }
+        sprintWriteArbiter.enter();
         final Minecraft189PlayerSprintControl guardedPlayer =
                 sprintHostLease.guardedPlayer(player,
                         () -> clickGuiRuntime.coreRuntime()
                                 .model().snapshot().open());
+        final Minecraft189PlayerSprintControl wTapControl =
+                sprintWriteArbiter.guardedPlayer(guardedPlayer,
+                        Minecraft189SprintWriteArbiter.Owner.W_TAP);
+        final Minecraft189PlayerSprintControl autoSprintControl =
+                sprintWriteArbiter.guardedPlayer(guardedPlayer,
+                        Minecraft189SprintWriteArbiter.Owner.AUTO_SPRINT);
         try {
             // The identity recorded for a later KeepSprint restore must
             // remain the ORIGINAL player, never this guarded adapter.
@@ -1076,11 +1087,18 @@ public final class Minecraft189HostRuntime
                     Minecraft189ClickRateTracker.LEFT_BUTTON);
             if (originalGuiFocus) {
                 featureCatalog.wTap().suspendForGui(attackHeld);
-            } else if (featureCatalog.wTap().apply(
-                    guardedPlayer, movement, attackHeld,
-                    inputState.keyPressed(LegacyKeyboardCodes.W),
-                    nearestPlayerTargetState.snapshot())) {
-                return;
+            } else {
+                final boolean wTapReportedWrite = featureCatalog.wTap().apply(
+                        wTapControl, movement, attackHeld,
+                        inputState.keyPressed(LegacyKeyboardCodes.W),
+                        nearestPlayerTargetState.snapshot());
+                // Real setSprinting(false) can reenter WTap OFF->ON and
+                // cause apply() to return false after writing. Such a
+                // setter still OWNS this callback; AutoSprint must not
+                // replay an opposite setSprinting(true) on old evidence.
+                if (wTapReportedWrite || sprintWriteArbiter.ownedBy(
+                        Minecraft189SprintWriteArbiter.Owner.W_TAP))
+                    return;
             }
             // A genuine original WTap setter can synchronously reenter
             // this host. AutoSprint must never consume the old snapshot
@@ -1090,7 +1108,7 @@ public final class Minecraft189HostRuntime
             }
             featureCatalog.autoSprint()
                     .apply(
-                            guardedPlayer,
+                            autoSprintControl,
                             movement,
                             inputState.keyPressed(LegacyKeyboardCodes.W),
                             inputState.keyPressed(LegacyKeyboardCodes.W)
@@ -1101,6 +1119,7 @@ public final class Minecraft189HostRuntime
         } finally {
             // Native setSprinting may apply real vanilla state then throw.
             // Never invent a sprint rollback or leave the host guard held.
+            sprintWriteArbiter.exit();
             sprintHostLease.exit();
         }
     }
