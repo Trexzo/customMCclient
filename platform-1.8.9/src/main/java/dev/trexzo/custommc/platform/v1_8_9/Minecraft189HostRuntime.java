@@ -137,6 +137,10 @@ public final class Minecraft189HostRuntime
     // reads and all cross-module original yaw/pitch setters.
     private final Minecraft189RotationHostSourceLease rotationHostLease =
             new Minecraft189RotationHostSourceLease();
+    // Within the already-validated original player callback, exactly one
+    // rotation module may make native yaw/pitch setter attempts.
+    private final Minecraft189RotationAxisArbiter rotationAxisArbiter =
+            new Minecraft189RotationAxisArbiter();
     // Original loadedEntityList visibility, UUID and XYZ snapshots
     // must not borrow a different world during a native getter.
     private final Minecraft189WorldEntityHostSourceLease worldEntityHostLease =
@@ -715,6 +719,7 @@ public final class Minecraft189HostRuntime
         if (!rotationHostLease.enter(player, originalGuiFocus)) {
             return;
         }
+        rotationAxisArbiter.enter();
         try {
             if (player == null) {
                 playerRotationState.clear();
@@ -754,6 +759,18 @@ public final class Minecraft189HostRuntime
                                 : null);
             final Minecraft189PlayerRotationState.Snapshot rotation =
                     playerRotationState.snapshot();
+            final Minecraft189PlayerRotationControl spinControl =
+                    rotationAxisArbiter.guardedControl(control,
+                            Minecraft189RotationAxisArbiter.Owner.SPIN);
+            final Minecraft189PlayerRotationControl auraControl =
+                    rotationAxisArbiter.guardedControl(control,
+                            Minecraft189RotationAxisArbiter.Owner.KILL_AURA);
+            final Minecraft189PlayerRotationControl assistControl =
+                    rotationAxisArbiter.guardedControl(control,
+                            Minecraft189RotationAxisArbiter.Owner.AIM_ASSIST);
+            final Minecraft189PlayerRotationControl jitterControl =
+                    rotationAxisArbiter.guardedControl(control,
+                            Minecraft189RotationAxisArbiter.Owner.JITTER);
 
             // Refresh ground authority from the exact player being rotated,
             // not a movement snapshot published later in the host tick.
@@ -797,7 +814,7 @@ public final class Minecraft189HostRuntime
             }
             final boolean spinOwnsRotation = featureCatalog.spin()
                     .apply(
-                            control,
+                            spinControl,
                             rotation,
                             leftButtonHeld,
                             playerMovementState.snapshot());
@@ -805,7 +822,8 @@ public final class Minecraft189HostRuntime
                 discardRotationSourceEvidence();
                 return;
             }
-            if (spinOwnsRotation) {
+            if (spinOwnsRotation || rotationAxisArbiter.ownedBy(
+                    Minecraft189RotationAxisArbiter.Owner.SPIN)) {
                 featureCatalog.jitter()
                         .apply(
                                 null,
@@ -828,7 +846,7 @@ public final class Minecraft189HostRuntime
                                 .acceptanceFovOriginalYawWriteCount()
                             : -1;
                 final boolean originalAuraAimReturnedTrue =
-                        aura.aim(control, rotation, auraTarget,
+                        aura.aim(auraControl, rotation, auraTarget,
                                 leftButtonHeld, playerMovementState.snapshot());
                 if (!rotationHostSourceStillOwned()) {
                     discardRotationSourceEvidence();
@@ -905,7 +923,7 @@ public final class Minecraft189HostRuntime
                 assistTarget = aimAssistRangeRotationState.snapshot();
             }
             final boolean assistOwnsRotation = assist.apply(
-                            control,
+                            assistControl,
                             rotation,
                             assistTarget,
                             leftButtonHeld,
@@ -916,7 +934,8 @@ public final class Minecraft189HostRuntime
                 discardRotationSourceEvidence();
                 return;
             }
-            if (assistOwnsRotation) {
+            if (assistOwnsRotation || rotationAxisArbiter.ownedBy(
+                    Minecraft189RotationAxisArbiter.Owner.AIM_ASSIST)) {
                 featureCatalog.jitter()
                         .apply(
                                 null,
@@ -926,7 +945,7 @@ public final class Minecraft189HostRuntime
             }
             featureCatalog.jitter()
                     .apply(
-                            control,
+                            jitterControl,
                             rotation,
                             leftButtonHeld,
                             playerMovementState.snapshot(),
@@ -941,6 +960,9 @@ public final class Minecraft189HostRuntime
             discardRotationSourceEvidence();
             throw nativeFailure;
         } finally {
+            // Invalidate module-specific wrappers before the original
+            // player source can be used by the next native callback.
+            rotationAxisArbiter.exit();
             rotationHostLease.exit();
         }
     }
