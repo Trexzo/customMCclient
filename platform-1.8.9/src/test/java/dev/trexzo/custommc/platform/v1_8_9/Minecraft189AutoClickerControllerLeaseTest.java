@@ -40,6 +40,21 @@ final class Minecraft189AutoClickerControllerLeaseTest {
         // Even after admission, the real controller's Entity can change.
         assertFalse(accepted.permits(PLAYER_B, 10L, true, false, false));
         assertFalse(accepted.permits(null, 10L, true, false, false));
+        assertTrue(accepted.consumeOriginalController(
+                PLAYER_A, 10L, true, false, false));
+        // A second native attackEntity within the same clickMouse cannot
+        // borrow the same previously-consumed controller identity.
+        assertFalse(accepted.consumeOriginalController(
+                PLAYER_A, 10L, true, false, false));
+
+        lease.arm(PLAYER_A, 11L);
+        final Minecraft189AutoClickerControllerLease.Intent rejected =
+                lease.consume(PLAYER_A, 11L, true, false, false);
+        assertNotNull(rejected);
+        assertFalse(rejected.consumeOriginalController(
+                PLAYER_B, 11L, true, false, false));
+        assertFalse(rejected.consumeOriginalController(
+                PLAYER_A, 11L, true, false, false));
     }
 
     @Test
