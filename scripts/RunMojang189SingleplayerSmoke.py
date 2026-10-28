@@ -224,6 +224,35 @@ def await_fresh_native_visual_page(process, log, page, cursor, deadline):
         + " page after physical original X11 navigation")
 
 
+def await_original_gui_cursor_ready(process, log, deadline):
+    """Demand actual native GUI_READY evidence before physical X11 click.
+
+    A pre-existing ungrabbed original cursor may require no vanilla release;
+    either way production input still checks real LWJGL/native ownership.
+    """
+    positives = (
+        b"CUSTOMMC_189_NATIVE_GUI_CURSOR_RELEASE=YES",
+        b"CUSTOMMC_189_NATIVE_GUI_CURSOR_READY=YES",
+    )
+    negatives = (
+        b"CUSTOMMC_189_NATIVE_GUI_FOCUS_REJECTED=YES",
+        b"CUSTOMMC_189_NATIVE_GUI_FOCUS_RELEASE_FAILED=YES",
+        b"CUSTOMMC_189_NATIVE_GUI_FOCUS_VERIFY_FAILED=YES",
+    )
+    while time.monotonic() < deadline:
+        require_running(process, "original GUI cursor admission")
+        fresh = read_tail(log)
+        if any(marker in fresh for marker in negatives):
+            raise AssertionError("real original mouse focus failed before GUI click")
+        if any(marker in fresh for marker in positives):
+            print("CUSTOMMC_189_NATIVE_VISUAL_MOUSE_READY_SOURCE=YES",
+                  flush=True)
+            return
+        time.sleep(.15)
+    raise AssertionError(
+        "no original GUI_READY/ungrabbed cursor source marker before deadline")
+
+
 def current_screen(log):
     """Read the most recent actual vanilla GUI callback from the JVM."""
     prefix = b"CUSTOMMC_189_ACCEPTANCE_SCREEN="
@@ -1117,11 +1146,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                     # A real original-game cursor grab must have been
                     # released by vanilla Minecraft's ave.o() first. The
                     # existing strict physical-mouse admission is unchanged.
-                    await_marker(
-                        process, log,
-                        b"CUSTOMMC_189_NATIVE_GUI_CURSOR_RELEASE=YES",
-                        min(deadline, time.monotonic() + 6),
-                        "original vanilla cursor release for real GUI mouse")
+                    await_original_gui_cursor_ready(
+                        process, log, min(deadline, time.monotonic() + 6))
                     # Genuine source-rendered S25 Module Details, reached
                     # through the actual visible first module's right click.
                     # Exactly 854x480/GUI scale 1 is pinned by this harness.
