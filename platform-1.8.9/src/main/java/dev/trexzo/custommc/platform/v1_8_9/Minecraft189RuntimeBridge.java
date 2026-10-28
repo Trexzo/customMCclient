@@ -16,6 +16,11 @@ public final class Minecraft189RuntimeBridge {
     // Separate original-controller dispatch ownership for TriggerBot.
     private static final ThreadLocal<UUID> triggerDispatchUuid =
             new ThreadLocal<UUID>();
+    // Unlike manual/ordinary hold clicks, Auto Clicker trigger mode
+    // carries its source-UUID/epoch into the real controller argument.
+    private static final ThreadLocal<Minecraft189AutoClickerControllerLease.Intent>
+            autoClickerControllerIntent =
+            new ThreadLocal<Minecraft189AutoClickerControllerLease.Intent>();
     // M423 acceptance witness only; the ordinary production gate below
     // remains unchanged and active for both locked and unlocked Aura.
     private static boolean acceptanceUnlockedOwnerVetoReported;
@@ -3462,7 +3467,36 @@ public final class Minecraft189RuntimeBridge {
                                 return;
                             if (vetoOriginalScreenBeforeNativeCombat(
                                     host, minecraft)) return;
-                            minecraft.customMcClickMouse();
+                            if (host.hasPendingAutoClickerControllerIntent()) {
+                                // A native index may be reused after source
+                                // scheduling or during synthetic slot changes.
+                                // Spend exactly this target's original UUID.
+                                final UUID currentSourceUuid = playerHit
+                                        && playerIndex >= 0
+                                        ? host.worldEntityUuidState()
+                                                .snapshot().at(playerIndex)
+                                        : null;
+                                final Minecraft189AutoClickerControllerLease.Intent
+                                        controllerIntent =
+                                        host.consumeAutoClickerControllerIntent(
+                                                currentSourceUuid);
+                                if (controllerIntent == null) return;
+                                autoClickerControllerIntent.set(controllerIntent);
+                            } else if (host.featureCatalog().autoClicker().active()
+                                    && host.featureCatalog().autoClicker()
+                                            .triggerModeSetting().get()) {
+                                // Trigger mode enabled mid-callback is not
+                                // allowed to borrow an unscoped vanilla click.
+                                return;
+                            }
+                            try {
+                                // Keep precisely one original clickMouse
+                                // call: physical/hold mode is unscoped;
+                                // trigger mode carries an original UUID.
+                                minecraft.customMcClickMouse();
+                            } finally {
+                                autoClickerControllerIntent.remove();
+                            }
                         }
                     } finally {
                         Minecraft189VanillaMeleeAcceptance.syntheticAuraFinished();
@@ -3629,6 +3663,29 @@ public final class Minecraft189RuntimeBridge {
             final Object entity) {
         final UUID expected = auraDispatchUuid.get();
         final UUID expectedTrigger = triggerDispatchUuid.get();
+        final Minecraft189AutoClickerControllerLease.Intent autoClickerIntent =
+                autoClickerControllerIntent.get();
+        if (autoClickerIntent != null) {
+            final UUID actual =
+                    entity instanceof Minecraft189NativeEntityUuidAccess
+                    ? ((Minecraft189NativeEntityUuidAccess) entity)
+                            .customMcNativeEntityUuid() : null;
+            if (activeRuntime == null || !activeRuntime.hostInstalled()
+                    || expected != null || expectedTrigger != null)
+                return false;
+            final Minecraft189HostRuntime host =
+                    activeRuntime.requireHostRuntime();
+            if (!autoClickerIntent.consumeOriginalController(actual,
+                    host.featureCatalog().autoClicker().nativeOwnerEpoch(),
+                    host.featureCatalog().autoClicker().active()
+                            && host.featureCatalog().autoClicker()
+                                    .triggerModeSetting().get().booleanValue(),
+                    host.featureCatalog().killAura().active()
+                            || host.featureCatalog().triggerBot().active(),
+                    host.clickGuiRuntime().coreRuntime()
+                            .model().snapshot().open()))
+                return false;
+        }
         if (expectedTrigger != null) {
             // Fail BEFORE vanilla ATTACK packet side effects if the current
             // original controller argument differs from the owned ray UUID.
