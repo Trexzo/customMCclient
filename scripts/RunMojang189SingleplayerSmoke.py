@@ -941,6 +941,9 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                        "-Dcustommc.acceptance.requireNativeWorldOrigin=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireNativePlayerBoxFrame=true")
+    if visual_capture_dir:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportNativeVisualPage=true")
     command.insert(command.index("-cp"), "-Dcustommc.acceptance.reportLiveWorld=true")
     if timer_speed:
         command.insert(command.index("-cp"),
@@ -1072,7 +1075,10 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 print("CUSTOMMC_189_NATIVE_VISUAL_WORLD="
                       + json.dumps(before, sort_keys=True), flush=True)
                 xdotool("key", "--clearmodifiers", "Shift_R")
-                time.sleep(1.2)
+                await_marker(process, log,
+                             b"CUSTOMMC_189_NATIVE_VISUAL_PAGE=modules",
+                             deadline, "source-rendered Modules page")
+                time.sleep(.4)
                 require_running(process, "native ClickGUI screenshot")
                 modules = capture_original_x11(window, output / "modules.png")
                 print("CUSTOMMC_189_NATIVE_VISUAL_MODULES="
@@ -1083,7 +1089,10 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
                 # Down is a physical original Keyboard.next event routed to
                 # ClickGuiInputController page navigation, not direct model mutation.
                 xdotool("key", "--clearmodifiers", "Down")
-                time.sleep(.65)
+                await_marker(process, log,
+                             b"CUSTOMMC_189_NATIVE_VISUAL_PAGE=settings",
+                             deadline, "source-rendered Settings page")
+                time.sleep(.35)
                 require_running(process, "native Settings screenshot")
                 settings_image = capture_original_x11(
                     window, output / "settings.png")
