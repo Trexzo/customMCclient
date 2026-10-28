@@ -610,6 +610,13 @@ final class Minecraft189MappingsTest {
                 "func_175065_a",
                 "drawString");
         assertMethod(
+                Minecraft189Mappings.FONT_RENDERER_GET_STRING_WIDTH,
+                Minecraft189Mappings.FONT_RENDERER,
+                "a",
+                "(Ljava/lang/String;)I",
+                "func_78256_a",
+                "getStringWidth");
+        assertMethod(
                 Minecraft189Mappings.GUI_INGAME_RENDER_OVERLAY,
                 Minecraft189Mappings.GUI_INGAME,
                 "a",
@@ -2260,6 +2267,9 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.FONT_RENDERER_DRAW_STRING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.FONT_RENDERER_GET_STRING_WIDTH);
         return finish(writer);
     }
 
