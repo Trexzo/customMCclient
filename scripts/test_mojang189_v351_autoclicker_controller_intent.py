@@ -48,7 +48,7 @@ class AutoClickerControllerIntentV351(unittest.TestCase):
         self.assertIn("host.consumeAutoClickerControllerIntent(", native)
         self.assertIn("autoClickerControllerIntent.set(controllerIntent)", native)
         self.assertIn("autoClickerControllerIntent.remove();", native)
-        self.assertEqual(2, native.count("minecraft.customMcClickMouse();"))
+        self.assertEqual(1, native.count("minecraft.customMcClickMouse();"))
         self.assertLess(native.index("host.consumeAutoClickerControllerIntent("),
                         native.index("autoClickerControllerIntent.set("))
         self.assertLess(native.index("autoClickerControllerIntent.set("),
