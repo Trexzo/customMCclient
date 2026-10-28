@@ -214,7 +214,9 @@ def await_fresh_native_visual_page(process, log, page, cursor, deadline):
         with log.open("rb") as handle:
             handle.seek(cursor)
             fresh = handle.read()
-        if marker in fresh.splitlines():
+        # JVM log adapters may prefix each line with a timestamp, but
+        # only a complete freshly emitted marker line can certify the page.
+        if any(line.endswith(marker) for line in fresh.splitlines()):
             return
         time.sleep(.15)
     raise AssertionError(
