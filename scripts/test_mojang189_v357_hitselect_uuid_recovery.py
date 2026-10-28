@@ -50,6 +50,10 @@ class OriginalHitSelectRecoveryV357(unittest.TestCase):
             HOST.index('clickRateTracker.recordPress(', HOST.index(
                 'hitSelect.noteScheduledOriginalClick(verifiedHitSelectUuid)')))
         self.assertIn('if (admissionSerial != triggerDispatchAdmissionSerial', HOST)
+        self.assertIn('hitSelect.nativeOwnerEpoch() != verifiedHitSelectEpoch', HOST)
+        self.assertIn('hitSelect.minTargetHurtTicksSetting().get()', HOST)
+        self.assertIn('hitSelect.maxTargetHurtTicksSetting().get()', HOST)
+        self.assertIn('++nativeOwnerEpoch;', MODULE)
         self.assertIn('minecraft.customMcAttackCrosshairEntity();', CONTROLLER)
 
     def test_no_synthetic_hit_from_observer_and_no_manual_interception(self):
