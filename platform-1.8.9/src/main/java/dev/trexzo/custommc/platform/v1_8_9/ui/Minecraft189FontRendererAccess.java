@@ -7,4 +7,13 @@ public interface Minecraft189FontRendererAccess {
             float y,
             int argb,
             boolean shadow);
+
+    /**
+     * Optional to preserve existing synthetic renderer hosts. The exact
+     * obfuscated 1.8.9 FontRenderer receives a native bridge by ASM.
+     * Negative means the host does not support native measurement.
+     */
+    default int getStringWidth(final String text) {
+        return -1;
+    }
 }
