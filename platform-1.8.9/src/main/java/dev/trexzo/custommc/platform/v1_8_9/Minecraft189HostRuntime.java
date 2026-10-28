@@ -3409,6 +3409,11 @@ public final class Minecraft189HostRuntime
      * TriggerBot crosshair confirmation; spend it exactly once even if
      * the native player list index or module activation has changed.
      */
+    boolean hasPendingAutoClickerControllerIntent() {
+        requireOpen();
+        return autoClickerControllerLease.pending();
+    }
+
     /** Native indexed trigger only: spend the UUID just before vanilla
      * clickMouse, then enforce the same owner at the real controller.
      * A failed attempt is consumed without authorizing later replay.
