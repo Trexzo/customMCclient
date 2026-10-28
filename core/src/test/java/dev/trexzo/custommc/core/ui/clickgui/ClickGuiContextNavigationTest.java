@@ -59,7 +59,10 @@ final class ClickGuiContextNavigationTest {
         UiClipCommand nav = null;
         for (UiDrawCommand command : commands) {
             if (command instanceof UiClipCommand
-                    && ((UiClipCommand) command).bounds().equals(layout.navigation())) {
+                    && ((UiClipCommand) command).bounds().x() == layout.navigation().x()
+                    && ((UiClipCommand) command).bounds().y() == layout.navigation().y()
+                    && ((UiClipCommand) command).bounds().width() == layout.navigation().width()
+                    && ((UiClipCommand) command).bounds().height() == layout.navigation().height()) {
                 nav = (UiClipCommand) command;
                 break;
             }
