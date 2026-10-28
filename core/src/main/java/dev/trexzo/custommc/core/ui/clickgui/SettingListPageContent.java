@@ -7,9 +7,7 @@ import dev.trexzo.custommc.core.setting.SettingPresentationRegistry;
 import dev.trexzo.custommc.core.setting.SettingRegistry;
 import dev.trexzo.custommc.core.setting.SettingValueKind;
 import dev.trexzo.custommc.core.ui.UiBounds;
-import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
-import dev.trexzo.custommc.core.ui.UiFonts;
 import dev.trexzo.custommc.core.ui.UiFocusManager;
 import dev.trexzo.custommc.core.ui.UiFocusTarget;
 import dev.trexzo.custommc.core.ui.UiKeyAction;
@@ -18,8 +16,6 @@ import dev.trexzo.custommc.core.ui.UiKeys;
 import dev.trexzo.custommc.core.ui.UiPointerAction;
 import dev.trexzo.custommc.core.ui.UiPointerButton;
 import dev.trexzo.custommc.core.ui.UiPointerEvent;
-import dev.trexzo.custommc.core.ui.UiOutlineCommand;
-import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiScrollEvent;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiTheme;
@@ -114,60 +110,14 @@ public final class SettingListPageContent
                             index,
                             scrollOffset);
 
-            commands.add(
-                    new UiRoundedRectCommand(
-                            0,
-                            row.x(),
-                            row.y(),
-                            row.width(),
-                            row.height(),
-                            Math.min(
-                                    ROW_RADIUS,
-                                    row.height() * 0.5F),
-                            theme.color(
-                                    UiColorRole.SURFACE_RAISED)));
-            commands.add(new UiOutlineCommand(1,
-                    row.x(), row.y(), row.width(), row.height(), 1.0F,
-                    theme.color(UiColorRole.BORDER)));
-            commands.add(new UiRoundedRectCommand(1,
-                    row.x() + Math.max(0.0F, row.width() - 143.0F),
-                    row.y() + 6.0F, Math.min(132.0F, row.width()),
-                    row.height() - 12.0F, 5.0F,
-                    theme.color(UiColorRole.BACKGROUND)));
-
-            commands.add(
-                    new UiTextCommand(
-                            0,
-                            row.x() + 12.0F,
-                            row.y() + 10.0F,
-                            UiFonts.DEFAULT,
-                            entry.descriptor.label(),
-                            theme.color(
-                                    UiColorRole.TEXT_PRIMARY)));
-
-            commands.addAll(UiSettingDecorations.compose(
-                    row, entry.setting, entry.descriptor, theme));
-
-            final boolean editing =
-                    editor.isEditing(entry.setting);
-            commands.add(
-                    new UiTextCommand(
-                            0,
-                            Math.max(
-                                    row.x() + 12.0F,
-                                    row.x()
-                                            + row.width()
-                                            - 130.0F),
-                            row.y() + 10.0F,
-                            UiFonts.DEFAULT,
-                            UiThemeSettings.ID.equals(entry.setting.id())
-                                    ? UiThemeSettings.displayName(
-                                            String.valueOf(entry.setting.get()))
-                                    : editor.displayValue(entry.setting),
-                            theme.color(
-                                    editing
-                                            ? UiColorRole.ACCENT
-                                            : UiColorRole.TEXT_MUTED)));
+            final boolean editing = editor.isEditing(entry.setting);
+            final String value = UiThemeSettings.ID.equals(entry.setting.id())
+                    ? UiThemeSettings.displayName(
+                            String.valueOf(entry.setting.get()))
+                    : editor.displayValue(entry.setting);
+            commands.addAll(UiSettingRowVisuals.compose(
+                    row, entry.setting, entry.descriptor,
+                    value, editing, theme));
         }
 
         return commands;
