@@ -35,6 +35,11 @@ class V350NativeTargetOwner(unittest.TestCase):
         self.assertIn("verifiedAutoClickerUuid = ids.at(crosshairPlayerIndex)", HOST)
         self.assertIn("|| admissionSerial != triggerDispatchAdmissionSerial", HOST)
         self.assertIn("verifiedAutoClickerUuid.equals(ids.at(crosshairPlayerIndex))", HOST)
+        self.assertIn("nativeAutoClickerScheduled = requireOriginalTargetUuid", HOST)
+        self.assertIn("verifiedAutoClickerEpoch", HOST)
+        self.assertIn("verifiedAutoClickerEpoch < 0", HOST)
+        self.assertIn("playerMovementState.snapshot(), confirmedHit, null);", HOST)
+        self.assertIn("nativeAutoClickerTriggerMode", HOST)
 
     def test_shared_combat_lanes_and_native_controller_authority_remain(self):
         action = BRIDGE.split(
