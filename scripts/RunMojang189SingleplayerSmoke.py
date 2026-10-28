@@ -15,6 +15,8 @@ import tempfile
 import time
 
 from RunMojang189GraphicalSmoke import build_command
+from Mojang189VisualEvidence import (capture_original_x11,
+                                    require_visible_graphite)
 
 def v313_original_crash_report_header(game_dir, max_bytes=6000,
                                       started_after_ns=None):
@@ -832,7 +834,8 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         native_scaffold_context=False, native_scaffold_candidate=False,
         native_scaffold_placement=None, native_step_clickgui=False,
         native_noclip_clickgui=False, native_reach_clickgui=False,
-        native_combatslot_clickgui=False, native_rod_potion_discovery=False):
+        native_combatslot_clickgui=False, native_rod_potion_discovery=False,
+        visual_capture_dir=None):
     if sum(bool(x) for x in (attack, auto_clicker, kill_aura_nonplayer,
                              timer_speed, native_step_clickgui,
                              native_noclip_clickgui,
@@ -873,7 +876,7 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
         raise ValueError("native survival placement must run in an isolated world")
     # A real rendered world camera requires a focused Minecraft window;
     # vanilla singleplayer otherwise automatically opens the pause GUI.
-    needs_active_window = controlled_combat or timer_speed or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or bool(native_scaffold_placement) or native_step_clickgui or native_noclip_clickgui or native_reach_clickgui or native_combatslot_clickgui or native_rod_potion_discovery
+    needs_active_window = controlled_combat or timer_speed or native_world_camera or native_safe_walk or bool(safe_walk_edge) or native_scaffold_world or native_scaffold_tick or native_scaffold_raytrace or native_scaffold_context or native_scaffold_candidate or bool(native_scaffold_placement) or native_step_clickgui or native_noclip_clickgui or native_reach_clickgui or native_combatslot_clickgui or native_rod_potion_discovery or bool(visual_capture_dir)
     if not os.environ.get("DISPLAY"):
         raise ValueError("this acceptance requires a real Xvfb DISPLAY")
     if not (70 <= timeout <= 240):
@@ -1054,6 +1057,42 @@ def run(command, game, timeout, attack=False, auto_clicker=False,
             click(window, 346, 462)
             print("CUSTOMMC_189_NEW_WORLD_GUI_REQUEST_SENT=YES", flush=True)
             await_marker(process, log, WORLD, deadline, "real player/world-tick")
+            if visual_capture_dir:
+                # The genuine Mojang world is loaded, source-currentScreen
+                # is CLEAR and the live OpenGL window is X11-focused.
+                # This is an independently opted-in visual diagnostic, not
+                # a synthetic Java renderer or a combat acceptance shortcut.
+                import json
+                resume_if_paused(process, log, window)
+                xdotool("windowactivate", "--sync", window)
+                output = Path(visual_capture_dir)
+                if output.is_symlink():
+                    raise ValueError("visual output directory may not be a symlink")
+                before = capture_original_x11(window, output / "world.png")
+                print("CUSTOMMC_189_NATIVE_VISUAL_WORLD="
+                      + json.dumps(before, sort_keys=True), flush=True)
+                xdotool("key", "--clearmodifiers", "Shift_R")
+                time.sleep(1.2)
+                require_running(process, "native ClickGUI screenshot")
+                modules = capture_original_x11(window, output / "modules.png")
+                print("CUSTOMMC_189_NATIVE_VISUAL_MODULES="
+                      + json.dumps(modules, sort_keys=True), flush=True)
+                require_visible_graphite(before, modules)
+                print("CUSTOMMC_189_NATIVE_VISUAL_GRAPHITE_PANEL_PASS=YES",
+                      flush=True)
+                # Down is a physical original Keyboard.next event routed to
+                # ClickGuiInputController page navigation, not direct model mutation.
+                xdotool("key", "--clearmodifiers", "Down")
+                time.sleep(.65)
+                require_running(process, "native Settings screenshot")
+                settings_image = capture_original_x11(
+                    window, output / "settings.png")
+                print("CUSTOMMC_189_NATIVE_VISUAL_SETTINGS_CAPTURE="
+                      + json.dumps(settings_image, sort_keys=True),
+                      flush=True)
+                xdotool("key", "--clearmodifiers", "Shift_R")
+                print("CUSTOMMC_189_NATIVE_VISUAL_SCREENSHOTS_RECORDED=YES",
+                      flush=True)
             if timer_speed:
                 resume_if_paused(process, log, window)
                 await_marker(process, log, TIMER_DISABLED, deadline,
@@ -2004,6 +2043,8 @@ if __name__ == "__main__":
     for field in ("java", "client", "libraries", "assets", "natives", "overlay", "game"):
         parser.add_argument("--" + field, required=True)
     parser.add_argument("--timeout", type=int, default=150)
+    parser.add_argument("--visual-capture-dir", default=None,
+                        help="opt-in genuine X11 PNG evidence of world/Modules/Settings")
     parser.add_argument("--attack", action="store_true",
                         help="create offline creative world and verify genuine melee hurt")
     parser.add_argument("--timer-speed", action="store_true",
@@ -2055,6 +2096,7 @@ if __name__ == "__main__":
             native_reach_clickgui=args.native_reach_clickgui,
             native_combatslot_clickgui=args.native_combatslot_clickgui,
             native_rod_potion_discovery=args.native_rod_potion_discovery,
+            visual_capture_dir=args.visual_capture_dir,
             native_world_camera=args.native_world_camera,
             native_safe_walk=args.native_safe_walk,
             safe_walk_edge=args.safe_walk_edge,
