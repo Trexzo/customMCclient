@@ -168,20 +168,15 @@ final class Minecraft189ClickGuiNativeFocusLease {
 
     private static boolean invokeNative(
             final Minecraft189Mappings.MappedMethod target) {
+        // Use the same exact-source original-game loader strategy as the
+        // read-only admission probe. Never invoke an arbitrary game object.
+        final Object minecraft =
+                Minecraft189OverlayFocusGuardian.findOriginalMinecraftInstance();
+        if (minecraft == null) {
+            return false;
+        }
         try {
-            final Class<?> original =
-                    Class.forName(
-                            Minecraft189Mappings.MINECRAFT.obfuscatedInternalName()
-                                    .replace('/', '.'),
-                            false, Minecraft189ClickGuiNativeFocusLease.class.getClassLoader());
-            final Method get = original.getDeclaredMethod(
-                    Minecraft189Mappings.MINECRAFT_GET_MINECRAFT.obfuscatedName());
-            get.setAccessible(true);
-            final Object minecraft = get.invoke(null);
-            if (minecraft == null) {
-                return false;
-            }
-            final Method focus = original.getDeclaredMethod(
+            final Method focus = minecraft.getClass().getDeclaredMethod(
                     target.obfuscatedName());
             focus.setAccessible(true);
             focus.invoke(minecraft);
