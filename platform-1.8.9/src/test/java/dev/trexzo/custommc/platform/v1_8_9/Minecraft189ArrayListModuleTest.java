@@ -20,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -231,6 +233,41 @@ final class Minecraft189ArrayListModuleTest {
     }
 
     @Test
+    void realNativeWidthsOverrideGlyphEstimatesForSortingAndRightEdge() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final RecordingHost host = new RecordingHost();
+        // Deliberately invert the glyph estimate: exact measured Auto Sprint
+        // is wider and must outrank No Hit Delay.
+        host.nativeWidths.put("Auto Sprint", Integer.valueOf(100));
+        host.nativeWidths.put("No Hit Delay", Integer.valueOf(5));
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            controller.enable(Minecraft189ArrayListModule.ID);
+            controller.enable(Minecraft189AutoSprintModule.ID);
+            controller.enable(Minecraft189NoHitDelayModule.ID);
+            runtime.renderHud(0L, 0.0F);
+            assertEquals("Auto Sprint", host.text.get(0));
+            assertEquals("1164.0,24.0", host.positions.get(0));
+            assertEquals("No Hit Delay",
+                    host.text.get(host.text.size() - 1));
+            assertTrue(host.measureCalls > 0);
+        } finally {
+            runtime.close();
+        }
+    }
+
+    @Test
     void categoryLabelsCoverAllFourSupportedCategoriesAndFallback() {
         assertEquals("[Other] unmapped.module",
                 Minecraft189ArrayListModule.moduleLabel("unmapped.module", null, true));
@@ -439,6 +476,9 @@ final class Minecraft189ArrayListModuleTest {
         private final List<Integer> textColors = new ArrayList<Integer>();
         private int lastAccentColor;
         private int roundedRects;
+        private int measureCalls;
+        private final Map<String, Integer> nativeWidths =
+                new HashMap<String, Integer>();
 
         private void clear() {
             text.clear();
@@ -510,6 +550,13 @@ final class Minecraft189ArrayListModuleTest {
 
         @Override
         public void popClip() {
+        }
+
+        @Override
+        public int textWidth(final UiFontHandle font, final String value) {
+            measureCalls++;
+            final Integer nativeWidth = nativeWidths.get(value);
+            return nativeWidth == null ? -1 : nativeWidth.intValue();
         }
 
         @Override
