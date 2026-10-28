@@ -31,6 +31,10 @@ final class Minecraft189RejoinTargetAcceptance {
     private static int nativeCrosshairEvidenceTicks;
     private static int m419NativeStableSourceTicks;
     private static int m419TransientWrongOwnerVetoCount;
+    private static int v355LockTransitionReports;
+    private static int v355BReleasedReports;
+    private static int v355BReacquiredReports;
+    private static int v355ASelectedReports;
 
     private Minecraft189RejoinTargetAcceptance() {}
 
@@ -54,6 +58,45 @@ final class Minecraft189RejoinTargetAcceptance {
         nativeCrosshairEvidenceTicks = 0;
         m419NativeStableSourceTicks = 0;
         m419TransientWrongOwnerVetoCount = 0;
+        v355LockTransitionReports = v355BReleasedReports = 0;
+        v355BReacquiredReports = v355ASelectedReports = 0;
+    }
+
+    /**
+     * V355 acceptance-only telemetry: name the EXACT first production
+     * source/GUI/aim path that loses B. Never affects the UUID lock,
+     * candidate selection, controller dispatch, or damage oracles.
+     *
+     * The phase-2/3/4 witness consumes only actual original World and
+     * module transitions; the diagnostic cannot print a PASS or advance
+     * the rejoin state machine.
+     */
+    static void traceNativeOwnerTransition(final UUID previous,
+            final UUID next, final String reason) {
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraRejoin")
+                || phase < 2 || phase > 4
+                || java.util.Objects.equals(previous, next)
+                || survivorUuid == null || originalUuid == null) return;
+        final boolean bLost = survivorUuid.equals(previous)
+                && !survivorUuid.equals(next);
+        final boolean bAcquired = !survivorUuid.equals(previous)
+                && survivorUuid.equals(next);
+        final boolean aAcquired = !originalUuid.equals(previous)
+                && originalUuid.equals(next);
+        // Preserve the FIRST native B loss and A selection regardless of
+        // later polling activity, while never flooding CI stdout.
+        final boolean report = (bLost && v355BReleasedReports++ < 4)
+                || (bAcquired && v355BReacquiredReports++ < 4)
+                || (aAcquired && v355ASelectedReports++ < 4);
+        if (!report || ++v355LockTransitionReports > 12) return;
+        System.out.println("CUSTOMMC_189_REJOIN_NATIVE_LOCK_TRANSITION_DIAG"
+                + " phase=" + phase + " n=" + v355LockTransitionReports
+                + " source=" + reason
+                + " before=" + previous + " after=" + next
+                + " B_RELEASED=" + bLost
+                + " B_ACQUIRED=" + bAcquired
+                + " A_ACQUIRED=" + aAcquired);
+        System.out.flush();
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
