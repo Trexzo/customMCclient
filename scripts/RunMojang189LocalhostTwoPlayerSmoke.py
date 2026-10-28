@@ -1339,7 +1339,8 @@ def v348_latest_original_gui_screen(log, max_bytes=16777216):
     return state
 
 
-def v348_resume_confirmed_original_pause(host, host_log, deadline):
+def v348_resume_confirmed_original_pause(host, host_log, deadline,
+                                          original_host_window):
     """Physically dismiss only original axp pause GUI in strict rejoin CI.
 
     The game itself must first report the pause state. Never send blind
@@ -1362,19 +1363,31 @@ def v348_resume_confirmed_original_pause(host, host_log, deadline):
         # never grants permission to send Escape or fabricate gameplay.
         return False
 
-    result = subprocess.run(
-        ["xdotool", "search", "--onlyvisible", "--pid", str(host.pid),
-         "--name", "Minecraft"],
+    # V349: LWJGL2 Minecraft 1.8.9 may omit _NET_WM_PID. Thus a late
+    # xdotool "--pid" lookup is NOT native ownership proof and cannot
+    # safely choose a window after CITarget/CITargetB are also launched.
+    # Instead the original CIHost window ID was captured while it was
+    # the ONLY Minecraft window in our isolated fresh Xvfb display,
+    # before any target started. Revalidate that exact original ID is
+    # still visible and named Minecraft; do not select from candidates.
+    window = str(original_host_window)
+    if not window.isdigit():
+        raise AssertionError("V349 no pre-target original host window")
+    visible = subprocess.run(
+        ["xdotool", "search", "--onlyvisible", "--name", "Minecraft"],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=4)
-    if result.returncode != 0:
-        raise AssertionError("V348 original host Minecraft window missing")
-    windows = result.stdout.decode("ascii", "strict").splitlines()
-    if len(windows) != 1 or not windows[0].isdigit():
-        raise AssertionError("V348 original host X11 window not unique")
-    window = windows[0]
-    # Validate the genuine same-PID game window, then activate it before
-    # submitting the already whitelisted keyboard-only original Escape.
-    # Do not infer source GUI state from X11 focus/title.
+    if visible.returncode != 0:
+        raise AssertionError("V349 original Minecraft windows missing")
+    candidates = set(visible.stdout.decode("ascii", "strict").split())
+    if window not in candidates:
+        raise AssertionError("V349 captured original host window disappeared")
+    title = subprocess.run(
+        ["xdotool", "getwindowname", window],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=4)
+    if title.returncode != 0 or "Minecraft" not in title.stdout.decode(
+            "utf-8", "replace"):
+        raise AssertionError("V349 original host window title invalid")
+    # No GUI status or native attack is inferred from X11 title/focus.
     if v348_latest_original_gui_screen(host_log) != "axp":
         return False
     offset = Path(host_log).stat().st_size
@@ -1922,6 +1935,13 @@ def run(args):
             # Unique real Minecraft client on this freshly allocated Xvfb
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
+        if args.rejoin_target or args.rejoin_release:
+            # Capture host only while it remains the *sole* Minecraft
+            # window, not by ambiguous late --pid once targets exist.
+            if host_window is not None:
+                raise AssertionError(
+                    "V349 host window already captured by another fixture")
+            host_window = identify_original_host_window_before_target(host)
         with target_log.open("wb") as out:
             target = subprocess.Popen(
                 target_cmd, env=env, stdout=out,
@@ -1958,7 +1978,7 @@ def run(args):
             # transition authorizes a physical, host-window-owned Escape.
             # This occurs BEFORE rejoin PvP baseline/damage assertions.
             v348_resume_confirmed_original_pause(
-                host, host_log, deadline)
+                host, host_log, deadline, host_window)
 
         if args.scaffold_placement:
             # V30: actual dedicated ORIGINAL 1.8.9 server owns both clients,
@@ -3152,7 +3172,7 @@ def run(args):
             # CIHost. Clear only a newly observed original axp pause, never
             # manufacture attacks or reset Minecraft's click guard.
             v348_resume_confirmed_original_pause(
-                host, host_log, deadline)
+                host, host_log, deadline, host_window)
             send_server_command(server, server_log, "gamemode 1 CITarget")
             # M419 alone uses a more stable real A server position.
             # The original earlier A/B interaction remains unchanged.
