@@ -16,6 +16,7 @@ final class Minecraft189AutoClickerControllerLease {
     static final class Intent {
         private final UUID originalTarget;
         private final long ownerEpoch;
+        private boolean controllerSpent;
 
         private Intent(final UUID originalTarget, final long ownerEpoch) {
             this.originalTarget = originalTarget;
@@ -29,6 +30,20 @@ final class Minecraft189AutoClickerControllerLease {
                     && originalTarget.equals(actualControllerUuid)
                     && ownerEpoch == liveEpoch && triggerEnabled
                     && !otherOwnerActive && !guiOpen;
+        }
+
+        /**
+         * Spend the actual PlayerControllerMP attackEntity argument exactly
+         * once, even if native callbacks reenter before clickMouse unwinds.
+         */
+        synchronized boolean consumeOriginalController(
+                final UUID actualControllerUuid, final long liveEpoch,
+                final boolean triggerEnabled, final boolean otherOwnerActive,
+                final boolean guiOpen) {
+            if (controllerSpent) return false;
+            controllerSpent = true;
+            return permits(actualControllerUuid, liveEpoch, triggerEnabled,
+                    otherOwnerActive, guiOpen);
         }
 
         UUID targetUuid() {
