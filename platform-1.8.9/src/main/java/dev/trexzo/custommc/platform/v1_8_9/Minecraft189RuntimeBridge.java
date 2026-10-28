@@ -3675,7 +3675,7 @@ public final class Minecraft189RuntimeBridge {
                 return false;
             final Minecraft189HostRuntime host =
                     activeRuntime.requireHostRuntime();
-            if (!autoClickerIntent.permits(actual,
+            if (!autoClickerIntent.consumeOriginalController(actual,
                     host.featureCatalog().autoClicker().nativeOwnerEpoch(),
                     host.featureCatalog().autoClicker().active()
                             && host.featureCatalog().autoClicker()
