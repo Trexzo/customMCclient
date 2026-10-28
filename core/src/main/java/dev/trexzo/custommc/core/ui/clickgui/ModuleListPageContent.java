@@ -291,6 +291,8 @@ public final class ModuleListPageContent
 
         commands.addAll(UiContentScrollRail.compose(
                 bounds, totalHeight, scrollOffset, theme));
+        commands.addAll(UiContentBottomCue.compose(
+                bounds, totalHeight, scrollOffset, theme));
         return commands;
     }
 
@@ -314,12 +316,14 @@ public final class ModuleListPageContent
                         context.snapshot());
         final boolean categoryHeaders =
                 hasCategoryHeaders(visible);
+        final float totalHeight = contentHeight(visible, categoryHeaders);
         final float scrollOffset =
-                scroll.offset(
-                        contentHeight(
-                                visible,
-                                categoryHeaders),
-                        context.bounds().height());
+                scroll.offset(totalHeight, context.bounds().height());
+        if (UiContentBottomCue.blocksPointer(
+                context.bounds(), totalHeight, scrollOffset,
+                event.x(), event.y())) {
+            return false;
+        }
         float y =
                 firstRowY(
                         context.bounds(),
