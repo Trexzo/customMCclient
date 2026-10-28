@@ -22,6 +22,13 @@ public final class ClickGuiRenderPass
     private final UiViewportProvider viewportProvider;
     private final UiThemeProvider themeProvider;
     private final UiRenderer renderer;
+    // Only used by opt-in original 1.8.9 screenshot evidence.
+    private String lastReportedVisualPage;
+    private static final java.util.Set<String> MODULE_PAGE_NAMES =
+            java.util.Collections.unmodifiableSet(
+                    new java.util.HashSet<String>(
+                            java.util.Arrays.asList(
+                                    "modules", "settings", "module-detail")));
 
     public ClickGuiRenderPass(
             final String id,
@@ -113,6 +120,7 @@ public final class ClickGuiRenderPass
         final ClickGuiSnapshot snapshot =
                 model.snapshot();
         if (!snapshot.open()) {
+            lastReportedVisualPage = null;
             return;
         }
 
@@ -134,6 +142,20 @@ public final class ClickGuiRenderPass
                 frame,
                 viewport,
                 commands);
+
+        // Read-only original render-pass witness: this marker is emitted
+        // only after the real renderer callback returns, and only when the
+        // native screenshot harness explicitly opts in. It never changes
+        // model selection, GUI focus, controller or world state.
+        if (Boolean.getBoolean("custommc.acceptance.reportNativeVisualPage")) {
+            final String page = snapshot.selectedPageId();
+            if (page != null && !page.equals(lastReportedVisualPage)) {
+                if (MODULE_PAGE_NAMES.contains(page)) {
+                    System.out.println("CUSTOMMC_189_NATIVE_VISUAL_PAGE=" + page);
+                }
+                lastReportedVisualPage = page;
+            }
+        }
     }
 
     private static String requireId(final String id) {

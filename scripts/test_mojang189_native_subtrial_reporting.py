@@ -75,8 +75,16 @@ class OriginalMojangNativeSubtrialReportTest(unittest.TestCase):
         names = re.findall(r"^      - name: (.*)$", self.source,
                            flags=re.MULTILINE)
         reviewed = [n for n in names if n.startswith(("V308 ", "V309 "))]
-        self.assertEqual(69, len(names))
-        self.assertEqual(67, len(names) - len(reviewed))
+        # The S22 visual proof adds two *distinct* genuine Mojang CI
+        # steps without changing the original 69 certified stages.
+        visual = [n for n in names if n.startswith("S22 ")]
+        self.assertEqual([
+            "S22 capture original Mojang ClickGUI visual evidence",
+            "S22 archive original Minecraft GUI screenshots (even on failure)",
+        ], visual)
+        original = [n for n in names if not n.startswith("S22 ")]
+        self.assertEqual(69, len(original))
+        self.assertEqual(67, len(original) - len(reviewed))
         self.assertEqual([
             "V308 original E after first three-mode Scaffold stone permanently revokes live quota",
             "V309 original hotbar 2 to 1 after first Scaffold stone revokes live quota",
