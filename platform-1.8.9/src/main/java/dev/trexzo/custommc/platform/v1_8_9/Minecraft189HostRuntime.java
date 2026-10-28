@@ -2420,6 +2420,9 @@ public final class Minecraft189HostRuntime
     }
 
     void leaveSyntheticCombatCycle(final long token) {
+        // No native controller authorization survives an action callback,
+        // including an early return, original click exception or GUI veto.
+        autoClickerControllerLease.clear();
         combatCycle.leave(token);
     }
 
