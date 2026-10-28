@@ -52,6 +52,10 @@ The only modification to shared `Minecraft189RuntimeBridge.java` is one UI-only 
 
 This **is not yet proof** that native focus release and Module Details work. The exact new head must pass the strict original screenshot interaction and provide independently verifiable `module-detail.png` and `modules-return.png`, plus actual source release/restore markers. Any remaining failure stays red.
 
+## Fresh evidence guard
+
+The existing physical test now records the real game log end **immediately before** Right Shift opens ClickGUI. A native `CURSOR_READY` or `CURSOR_RELEASE` marker is accepted only if written after that source cursor; an old marker cannot certify the current overlay. The standalone offline Python tests no longer print the same user-facing native success marker, preventing CI logs from confusing synthetic test execution with the genuine Minecraft click. A regression test proves a pre-existing positive marker fails until a new one is appended. The equivalent detail/back markers continue to require their own fresh source cursors.
+
 ## Acceptance status
 
 At PR creation, genuine S26 `module-detail.png` and `modules-return.png` do not yet exist. Do **not** claim actual native back-link functionality until both pictures and source markers are produced by a successful CI run, and do **not** claim full native CI certification unless the entire original Minecraft job has passed. If a real click fails the bounded deadline, leave the stage red and inspect the authentic source.
