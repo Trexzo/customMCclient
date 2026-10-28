@@ -122,6 +122,8 @@ public final class SettingListPageContent
 
         commands.addAll(UiContentScrollRail.compose(
                 bounds, totalHeight, scrollOffset, theme));
+        commands.addAll(UiContentBottomCue.compose(
+                bounds, totalHeight, scrollOffset, theme));
         return commands;
     }
 
@@ -138,11 +140,14 @@ public final class SettingListPageContent
 
         final List<Entry> visible =
                 entries(context.snapshot());
+        final float totalHeight = contentHeight(visible.size());
         final float scrollOffset =
-                scroll.offset(
-                        contentHeight(
-                                visible.size()),
-                        context.bounds().height());
+                scroll.offset(totalHeight, context.bounds().height());
+        if (UiContentBottomCue.blocksPointer(
+                context.bounds(), totalHeight, scrollOffset,
+                event.x(), event.y())) {
+            return false;
+        }
         for (int index = 0;
              index < visible.size();
              index++) {

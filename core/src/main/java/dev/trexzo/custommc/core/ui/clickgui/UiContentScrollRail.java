@@ -21,7 +21,7 @@ import java.util.Objects;
  */
 final class UiContentScrollRail {
     private static final float TRACK_TOP = 49.0F;
-    private static final float TRACK_BOTTOM = 13.0F;
+    private static final float TRACK_BOTTOM = 21.0F;
     private static final float RIGHT_INSET = 9.0F;
     private static final float TRACK_WIDTH = 2.0F;
     private static final float THUMB_WIDTH = 3.0F;
