@@ -32,6 +32,44 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class SettingListPageContentTest {
     @Test
+    void footerNeverLetsMaskedSettingToggleAndClearsAtScrolledEnd() {
+        final SettingRegistry settings = new SettingRegistry();
+        final SettingPresentationRegistry presentations =
+                new SettingPresentationRegistry();
+        for (int i = 0; i < 8; i++) {
+            final String id = String.format("feature.%02d", i);
+            settings.register(new Setting<Boolean>(id, false,
+                    value -> true, SettingCodecs.BOOLEAN));
+            presentations.register(new SettingDescriptor(
+                    id, "Feature " + i, SettingValueKind.BOOLEAN, i));
+        }
+        final SettingListPageContent content =
+                new SettingListPageContent(settings, presentations);
+        final ClickGuiPage page = new ClickGuiPage(
+                "settings", "Settings", 0);
+        final ClickGuiSnapshot snapshot = new ClickGuiSnapshot(
+                true, "settings", "", Arrays.asList(page));
+        final UiBounds bounds = new UiBounds(200, 100, 500, 320);
+        final ClickGuiContentInputContext input =
+                new ClickGuiContentInputContext(snapshot, page, bounds);
+
+        // The 6th row extends y383..421; the visual cue covers y402..420.
+        assertFalse(content.pointer(input,
+                new UiPointerEvent(239, 405, UiPointerButton.LEFT,
+                        UiPointerAction.PRESS)));
+        assertFalse((Boolean) settings.find("feature.05").get());
+
+        // Existing real wheel displacement, not a synthetic setting edit:
+        // the last row becomes fully visible after scrolling to the end.
+        assertTrue(content.scroll(input,
+                new UiScrollEvent(260, 220, -5.0F)));
+        assertTrue(content.pointer(input,
+                new UiPointerEvent(239, 371, UiPointerButton.LEFT,
+                        UiPointerAction.PRESS)));
+        assertTrue((Boolean) settings.find("feature.07").get());
+    }
+
+    @Test
     void listUsesDescriptorsSearchPriorityAndLiveSettingValue() {
         final SettingRegistry settings =
                 new SettingRegistry();
