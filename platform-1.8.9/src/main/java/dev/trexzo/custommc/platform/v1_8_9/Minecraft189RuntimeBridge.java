@@ -3482,20 +3482,20 @@ public final class Minecraft189RuntimeBridge {
                                                 currentSourceUuid);
                                 if (controllerIntent == null) return;
                                 autoClickerControllerIntent.set(controllerIntent);
-                                try {
-                                    minecraft.customMcClickMouse();
-                                } finally {
-                                    autoClickerControllerIntent.remove();
-                                }
-                            } else {
-                                // Trigger mode enabled during another click's
-                                // callback must never fall back to plain
-                                // vanilla clickMouse without UUID authority.
-                                if (host.featureCatalog().autoClicker().active()
-                                        && host.featureCatalog().autoClicker()
-                                                .triggerModeSetting().get())
-                                    return;
+                            } else if (host.featureCatalog().autoClicker().active()
+                                    && host.featureCatalog().autoClicker()
+                                            .triggerModeSetting().get()) {
+                                // Trigger mode enabled mid-callback is not
+                                // allowed to borrow an unscoped vanilla click.
+                                return;
+                            }
+                            try {
+                                // Keep precisely one original clickMouse
+                                // call: physical/hold mode is unscoped;
+                                // trigger mode carries an original UUID.
                                 minecraft.customMcClickMouse();
+                            } finally {
+                                autoClickerControllerIntent.remove();
                             }
                         }
                     } finally {
