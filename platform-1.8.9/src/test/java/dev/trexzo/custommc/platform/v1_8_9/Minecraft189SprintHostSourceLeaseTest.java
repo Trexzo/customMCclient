@@ -241,7 +241,7 @@ final class Minecraft189SprintHostSourceLeaseTest {
             assertTrue(f.runtime.shouldKeepSprintAfterSyntheticClick(true));
             p.sprint=false;
             p.onRead=()->f.runtime.key(
-                    LegacyKeyboardCodes.RIGHT_SHIFT,'\\0',true,false,true,false,false);
+                    LegacyKeyboardCodes.RIGHT_SHIFT,(char) 0,true,false,true,false,false);
             f.runtime.restoreSprintAfterSyntheticClick();
             assertEquals(0,p.writes);
             assertTrue(f.runtime.clickGuiRuntime().coreRuntime()
