@@ -50,7 +50,7 @@ class OriginalRejoinPhaseThreeV352(unittest.TestCase):
         self.assertIn("REJOIN_UUID, deadline,", HARNESS)
         self.assertIn("wait_for(host, host_log, REJOIN_B_RETAINED, deadline,", HARNESS)
         self.assertIn("wait_for_real_score(server,server_log,\"CITargetB\"", HARNESS)
-        self.assertIn("wait_for_real_score(server,server_log,\"CITarget\"", HARNESS)
+        self.assertIn('wait_for_real_score(server, server_log, "CITarget", deadline)', HARNESS)
         self.assertIn("verifyRealControllerB(", ACCEPT)
         self.assertIn("requireRejoinedControllerEntityUuid", ACCEPT)
         self.assertIn("originalUuid.equals(argumentUuid)", ACCEPT)
