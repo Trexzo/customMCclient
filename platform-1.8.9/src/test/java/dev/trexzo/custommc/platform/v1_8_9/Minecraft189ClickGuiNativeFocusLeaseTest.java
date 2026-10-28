@@ -35,7 +35,7 @@ final class Minecraft189ClickGuiNativeFocusLeaseTest {
     void onlyActualGameplayGrabCanRequestOriginalVanillaRelease() {
         assertEquals(Minecraft189ClickGuiNativeFocusLease.Decision.RELEASE_ORIGINAL,
                 action(false, true, true, GAMEPLAY, true, true, false));
-        assertEquals(Minecraft189ClickGuiNativeFocusLease.Decision.REJECT_OPEN,
+        assertEquals(Minecraft189ClickGuiNativeFocusLease.Decision.RELEASE_ORIGINAL,
                 action(false, true, true, GAMEPLAY, true, false, false));
         assertEquals(Minecraft189ClickGuiNativeFocusLease.Decision.REJECT_OPEN,
                 action(false, true, true, GAMEPLAY, false, false, false));
@@ -49,9 +49,9 @@ final class Minecraft189ClickGuiNativeFocusLeaseTest {
 
     @Test
     void readyMouseDoesNotGetInventedReleaseOrRegrab() {
-        assertEquals(Minecraft189ClickGuiNativeFocusLease.Decision.NONE,
+        assertEquals(Minecraft189ClickGuiNativeFocusLease.Decision.ALREADY_READY,
                 action(false, true, true, READY, true, false, false));
-        assertEquals(Minecraft189ClickGuiNativeFocusLease.Decision.REJECT_OPEN,
+        assertEquals(Minecraft189ClickGuiNativeFocusLease.Decision.RELEASE_ORIGINAL,
                 action(false, true, true, READY, true, true, false));
         assertEquals(Minecraft189ClickGuiNativeFocusLease.Decision.NONE,
                 action(false, true, false, GAMEPLAY, true, true, false));
@@ -63,6 +63,10 @@ final class Minecraft189ClickGuiNativeFocusLeaseTest {
                 action(true, false, true, READY, true, false, true));
         assertEquals(Minecraft189ClickGuiNativeFocusLease.Decision.NONE,
                 action(true, false, true, READY, true, false, false));
+        // Even if native focus was already GUI_READY on opening, the
+        // overlay must restore gameplay on closing its own UI session.
+        assertEquals(Minecraft189ClickGuiNativeFocusLease.Decision.RESTORE_ORIGINAL,
+                action(true, false, true, READY, true, false, true));
         assertEquals(Minecraft189ClickGuiNativeFocusLease.Decision.NONE,
                 action(true, false, true, VANILLA, true, false, true));
         assertEquals(Minecraft189ClickGuiNativeFocusLease.Decision.NONE,
