@@ -60,7 +60,23 @@ class OriginalDetailCaptureChecks(unittest.TestCase):
             ):
                 log.write_bytes(tag)
                 await_original_gui_cursor_ready(
-                    LivingProcess(), log, time.monotonic() + .1)
+                    LivingProcess(), log, time.monotonic() + .1,
+                    announce=False)
+
+    def test_original_cursor_ready_must_be_emitted_after_real_toggle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "client.log"
+            log.write_bytes(b"CUSTOMMC_189_NATIVE_GUI_CURSOR_READY=YES\\n")
+            before_toggle = log.stat().st_size
+            with self.assertRaisesRegex(AssertionError, "no original GUI_READY"):
+                await_original_gui_cursor_ready(
+                    LivingProcess(), log, time.monotonic() + .03,
+                    after_cursor=before_toggle, announce=False)
+            with log.open("ab") as stream:
+                stream.write(b"CUSTOMMC_189_NATIVE_GUI_CURSOR_RELEASE=YES\\n")
+            await_original_gui_cursor_ready(
+                LivingProcess(), log, time.monotonic() + .1,
+                after_cursor=before_toggle, announce=False)
 
     def test_original_mouse_rejection_cannot_be_labelled_safe(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -68,7 +84,8 @@ class OriginalDetailCaptureChecks(unittest.TestCase):
             log.write_bytes(b"CUSTOMMC_189_NATIVE_GUI_FOCUS_REJECTED=YES\\n")
             with self.assertRaisesRegex(AssertionError, "mouse focus failed"):
                 await_original_gui_cursor_ready(
-                    LivingProcess(), log, time.monotonic() + .1)
+                    LivingProcess(), log, time.monotonic() + .1,
+                    announce=False)
 
     def test_original_back_click_is_inside_actual_854x480_layout(self):
         # Real ClickGuiLayoutEngine: width=min(738,w*.88),
