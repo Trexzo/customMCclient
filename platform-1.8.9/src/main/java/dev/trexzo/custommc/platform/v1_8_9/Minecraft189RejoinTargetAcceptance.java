@@ -791,7 +791,27 @@ final class Minecraft189RejoinTargetAcceptance {
     static boolean m419MustVetoPendingSyntheticClick(
             final boolean acceptanceEnabled, final int observedPhase,
             final String realSourceRejection, final boolean nativeRayHitsB) {
-        return acceptanceEnabled && observedPhase == 4
+        // Keep the original 4-argument phase-4 contract unchanged.
+        return m419MustVetoPendingSyntheticClick(
+                acceptanceEnabled, observedPhase, realSourceRejection,
+                nativeRayHitsB, false);
+    }
+
+    /**
+     * V352: a newly rejoined A can already be present in the original
+     * World while the 20-sample B sticky-lock gate is still phase 3.
+     * A real phase-3 A-locked synthetic click must be VETOED, not sent or
+     * interpreted as a successful B survivor proof. Before A rejoins,
+     * phase-3 B clicks still run under their existing strict checks.
+     * This predicate only denies attempts; it cannot certify PvP.
+     */
+    static boolean m419MustVetoPendingSyntheticClick(
+            final boolean acceptanceEnabled, final int observedPhase,
+            final String realSourceRejection, final boolean nativeRayHitsB,
+            final boolean sourceARejoinedWithBPresent) {
+        final boolean guardedRejoin = observedPhase == 4
+                || (observedPhase == 3 && sourceARejoinedWithBPresent);
+        return acceptanceEnabled && guardedRejoin
                 && (realSourceRejection != null || !nativeRayHitsB);
     }
 
@@ -801,7 +821,8 @@ final class Minecraft189RejoinTargetAcceptance {
         final boolean acceptanceEnabled =
                 Boolean.getBoolean("custommc.acceptance.reportKillAuraRejoin")
                 && Boolean.getBoolean("custommc.acceptance.requireRejoinedControllerB");
-        if (!acceptanceEnabled || phase != 4) return false;
+        if (!acceptanceEnabled || (phase != 3 && phase != 4))
+            return false;
         final Evidence e = read(host);
         final Minecraft189KillAuraModule aura =
                 host.featureCatalog().killAura();
@@ -809,8 +830,14 @@ final class Minecraft189RejoinTargetAcceptance {
         final boolean originalRayHitsB = e != null && e.b >= 0
                 && originalPlayerHit && originalHitIndex == e.b
                 && survivorUuid.equals(e.ids.at(e.b));
+        // Phase 3 is guarded only AFTER both A (new original EntityPlayer)
+        // and B are actually present in the source World. This preserves
+        // the pre-rejoin native B-click and 15-sample B-only gates.
+        final boolean rejoinedAWithBPresent =
+                e != null && e.a >= 0 && e.b >= 0;
         if (!m419MustVetoPendingSyntheticClick(
-                acceptanceEnabled, phase, sourceReason, originalRayHitsB))
+                acceptanceEnabled, phase, sourceReason, originalRayHitsB,
+                rejoinedAWithBPresent))
             return false;
         // READ ONLY and tightly bounded diagnostics; no success marker.
         // A permanently invalid World is still a genuine timed CI FAIL.
@@ -818,6 +845,8 @@ final class Minecraft189RejoinTargetAcceptance {
         if (samples <= 4 || samples % 80 == 0) {
             System.out.println("CUSTOMMC_189_M419_TRANSIENT_WRONG_UUID_CLICK_VETO"
                     + " observed=" + samples
+                    + " phase=" + phase
+                    + " rejoinedAWithBPresent=" + rejoinedAWithBPresent
                     + " reason=" + sourceReason
                     + " sourceRayB=" + originalRayHitsB
                     + " nativeRayIndex=" + originalHitIndex
