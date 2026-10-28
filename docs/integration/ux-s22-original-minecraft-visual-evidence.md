@@ -12,7 +12,7 @@ S22 adds **opt-in evidence collection** on that exact original runtime: `RunMoja
 
 Python `mss==10.1.0` captures raw RGB directly from the original X11 window. A conservative Graphite color witness compares the before/after real pixel grid and refuses to call `modules.png` a verified Graphite panel when the expected palette does not appear. The script checks PNG signatures and sizes, records SHA256, exact dimensions and real palette hit counts for each file. This is **not** an artificial HTML/JVM rendering or CSS approximation.
 
-The existing original-binary workflow now includes a separate S22 step after graphical smoke and uploads the actual PNG files as a 14-day artifact `custommc-189-real-graphite-visuals`. Upload is marked always() to retain negative images from a failure. The visual step itself is strict (no `continue-on-error`), so a missing original GUI evidence witness remains a real test failure.
+The existing original-binary workflow now includes an early S22 step after original game assets/runtime/X11 provisioning and before unrelated combat tests and uploads the actual PNG files as a 14-day artifact `custommc-189-real-graphite-visuals`. Upload is marked always() to retain negative images from a failure. The visual step itself is strict (no `continue-on-error`), so a missing original GUI evidence witness remains a real test failure.
 
 ## How to review genuine images
 
