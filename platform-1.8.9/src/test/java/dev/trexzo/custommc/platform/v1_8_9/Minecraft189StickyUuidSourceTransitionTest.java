@@ -106,16 +106,25 @@ final class Minecraft189StickyUuidSourceTransitionTest {
         s.expect(1, B);
     }
 
-    @Test void disqualifiedAOutsideCurrentFovReleasesLockToB() {
+    @Test void transientAOutsideCurrentFovRetainsUuidWithoutSelectingB() {
         final Source s = new Source();
         s.select();
         s.expect(0, A);
         // A moves due east, outside a strict 45-degree FOV;
-        // B stays directly ahead and inside default reach.
+        // B stays directly ahead and inside default reach. The original
+        // UUID A remains alive/in-range: preserve its source lock, but
+        // NEVER publish an aim target or redirect the attack to B.
         s.aura.fovSetting().set(45.0D);
         s.positions.update(new double[]{2, 0, 0, 0, 0, 1.5});
         s.select();
-        s.expect(1, B);
+        assertTrue(s.selected.snapshot().available());
+        assertFalse(s.selected.snapshot().found());
+        assertEquals(A, s.aura.lockedTargetUuid());
+
+        // Only a fresh native FOV-eligible A may resume automatic aim.
+        s.positions.update(new double[]{0, 0, 2, 0, 0, 1.5});
+        s.select();
+        s.expect(0, A);
     }
 
     @Test void missingIdentitySnapshotRevokesLockRatherThanGuessing() {
