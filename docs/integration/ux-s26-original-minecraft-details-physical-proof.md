@@ -30,6 +30,18 @@ The UI-only `Minecraft189ClickGuiNativeFocusLease` now calls **vanilla methods**
 
 Extra native acceptance now demands `CUSTOMMC_189_NATIVE_GUI_CURSOR_RELEASE=YES` before the physical Details right-click, and `CUSTOMMC_189_NATIVE_GUI_CURSOR_RESTORE=YES` after Right Shift closes the custom overlay. Java tests cover mapping exactness, safe ownership transitions, strict refusal of unknown/vanilla focus, and the unchanged captured-mouse rejection. This was a necessary repair discovered through **genuine original-game failure**, not a relaxation of admission.
 
+## Third original native failure and exact-classloader diagnostics
+
+The subsequent exact-head original Minecraft [run #40704576052](https://github.com/Trexzo/customMCclient/actions/runs/40704576052) failed at the visual screenshot stage too, with a more precise authentic log witness:
+
+`CUSTOMMC_189_NATIVE_GUI_FOCUS_OBSERVED=available:false,vanilla:false,gameplay:false,mouse:true,grabbed:true,active:true,inside:true,action:REJECT_OPEN`.
+
+This proves a live original X11 Display and grabbed mouse, but **does not prove the read-only native focus reflection found the original Minecraft singleton or fields**. The native admission must remain closed. Windows/Ubuntu Foundation for that exact head passed.
+
+The read-only `Minecraft189OverlayFocusGuardian` now tries the original `ave` class, verified `A()` singleton getter and exact `m` screen/`w` focus fields first through its defining loader and then through the current Minecraft thread's context loader if distinct. Unknown, failed lookup, null singleton, wrong class or unreadable fields still yield UNKNOWN and reject physical mouse input. Opt-in native screenshot logs now report the **real underlying reflection failure stage/loader/type**, rather than treating missing field data as a zero-valued screen/focus. The vanilla focus lease uses this same exact-instance lookup; it never calls a method on an arbitrary object. No gameplay-mouse guard, packet or combat path has been weakened.
+
+Test coverage includes the mock host where no original `ave` exists: even a nominally ungrabbed synthetic mouse must not promote UNKNOWN to GUI-ready. **The cause of the original reflection failure has not yet been established**. The new diagnostic run must produce the true original failure category and actual detail/back screenshots before claiming success.
+
 ## Acceptance status
 
 At PR creation, genuine S26 `module-detail.png` and `modules-return.png` do not yet exist. Do **not** claim actual native back-link functionality until both pictures and source markers are produced by a successful CI run, and do **not** claim full native CI certification unless the entire original Minecraft job has passed. If a real click fails the bounded deadline, leave the stage red and inspect the authentic source.
