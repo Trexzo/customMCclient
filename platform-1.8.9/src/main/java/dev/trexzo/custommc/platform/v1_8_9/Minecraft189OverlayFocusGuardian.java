@@ -4,6 +4,7 @@ import dev.trexzo.custommc.core.ui.clickgui.ClickGuiModel;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.ref.WeakReference;
 import java.util.Objects;
 
 /**
@@ -14,7 +15,45 @@ import java.util.Objects;
  * actions are not allowed while vanilla still owns the gameplay cursor.
  */
 public final class Minecraft189OverlayFocusGuardian {
+    // Borrow ONLY the exact original 'ave' object observed from the
+    // already-pinned transformed Minecraft.runTick(Object this) callback.
+    // Never retain a world, player, screen or any gameplay controller.
+    // Weak custody prevents stale old-world or closed-client ownership.
+    private static volatile WeakReference<Object> originalTickInstance =
+            new WeakReference<Object>(null);
+
     private Minecraft189OverlayFocusGuardian() { }
+
+    /**
+     * Read-only provenance from an existing genuine transformed vanilla
+     * runTick callback. This does not authorize mouse input by itself.
+     */
+    static boolean observeOriginalTickInstance(final Object instance) {
+        if (instance == null || !Minecraft189Mappings.MINECRAFT
+                .obfuscatedInternalName().replace('/', '.')
+                .equals(instance.getClass().getName())) {
+            return false;
+        }
+        final Object retained = originalTickInstance.get();
+        if (retained != instance) {
+            originalTickInstance = new WeakReference<Object>(instance);
+        }
+        return true;
+    }
+
+    private static Object verifiedOriginalTickInstance() {
+        final Object current = originalTickInstance.get();
+        if (current != null && Minecraft189Mappings.MINECRAFT
+                .obfuscatedInternalName().replace('/', '.')
+                .equals(current.getClass().getName())) {
+            return current;
+        }
+        return null;
+    }
+
+    static void clearOriginalTickInstance() {
+        originalTickInstance = new WeakReference<Object>(null);
+    }
 
     public enum Mode {
         UNKNOWN,
@@ -136,6 +175,16 @@ public final class Minecraft189OverlayFocusGuardian {
      * from the client overlay loader. No non-original substitute is accepted.
      */
     public static Snapshot observeNative() {
+        // The original active Minecraft JVM may have a second copy of
+        // ave in the overlay loader whose static A() singleton is NULL.
+        // Prefer the genuine object passed directly from original runTick.
+        final Object fromLiveTick = verifiedOriginalTickInstance();
+        if (fromLiveTick != null) {
+            final Snapshot tick = readFields(fromLiveTick, "original-runTick-this");
+            if (tick.available()) {
+                return tick;
+            }
+        }
         final ClassLoader owned =
                 Minecraft189OverlayFocusGuardian.class.getClassLoader();
         final ClassLoader context = Thread.currentThread().getContextClassLoader();
@@ -153,6 +202,15 @@ public final class Minecraft189OverlayFocusGuardian {
     }
 
     static Object findOriginalMinecraftInstance() {
+        final Object originalTick = verifiedOriginalTickInstance();
+        if (originalTick != null) {
+            // Exact vanilla object delivered by already-existing runTick
+            // transformation. The read-only field probe validates it again
+            // before any native focus lease decides to invoke vanilla.
+            if (readFields(originalTick, "original-runTick-this").available()) {
+                return originalTick;
+            }
+        }
         final ClassLoader owned =
                 Minecraft189OverlayFocusGuardian.class.getClassLoader();
         Object instance = tryOriginalInstance(owned, "overlay-loader");
@@ -167,15 +225,31 @@ public final class Minecraft189OverlayFocusGuardian {
     private static Snapshot tryNativeRead(
             final ClassLoader loader, final String label) {
         final Object instance = tryOriginalInstance(loader, label);
-        if (instance == null) {
-            return Snapshot.unknown();
-        }
+        return instance == null
+                ? Snapshot.unknown() : readFields(instance, label);
+    }
+
+    private static Snapshot readFields(
+            final Object instance, final String label) {
         try {
             final Class<?> minecraft = instance.getClass();
+            if (!Minecraft189Mappings.MINECRAFT.obfuscatedInternalName()
+                    .replace('/', '.').equals(minecraft.getName())) {
+                diagnose("native-instance", label, "not-the-original-ave");
+                return Snapshot.unknown();
+            }
             final Field screen = minecraft.getDeclaredField(
                     Minecraft189Mappings.MINECRAFT_CURRENT_SCREEN.obfuscatedName());
             final Field gameplay = minecraft.getDeclaredField(
                     Minecraft189Mappings.MINECRAFT_INGAME_HAS_FOCUS.obfuscatedName());
+            // Check the original 1.8.9 source descriptors, not merely
+            // field names on an unrelated similarly-shaped object.
+            if (!Minecraft189Mappings.MINECRAFT_CURRENT_SCREEN.descriptor()
+                    .equals("L" + screen.getType().getName().replace('.', '/') + ";")
+                    || gameplay.getType() != boolean.class) {
+                diagnose("native-field", label, "wrong-descriptors");
+                return Snapshot.unknown();
+            }
             screen.setAccessible(true);
             gameplay.setAccessible(true);
             return Snapshot.known(
