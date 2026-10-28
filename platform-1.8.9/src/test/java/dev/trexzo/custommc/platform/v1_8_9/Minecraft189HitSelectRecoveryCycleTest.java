@@ -107,8 +107,14 @@ final class Minecraft189HitSelectRecoveryCycleTest {
         assertFalse(s.allows(0, A));
         s.select.noteScheduledOriginalClick(B);
         assertFalse(s.allows(1, B));
-        // A genuinely fresh target switch starts its own observation,
-        // rather than replaying another target's recovery evidence.
+        // Returning to a previously clicked A must not erase its
+        // UUID-specific recovery state by briefly selecting B.
+        s.observe(0);
+        assertFalse(s.allows(0, A));
+        s.hurt(5, 0);
+        s.observe(0);
+        assertFalse(s.allows(0, A));
+        s.hurt(0, 0);
         s.observe(0);
         assertTrue(s.allows(0, A));
     }
