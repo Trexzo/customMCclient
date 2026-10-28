@@ -5,6 +5,8 @@ import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
 
 import java.util.UUID;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Optional synthetic-click gate using real mapped enemy hurt-time.
@@ -41,7 +43,11 @@ public final class Minecraft189HitSelectModule implements Module {
                     SettingCodecs.BOOLEAN);
     private boolean enabled;
     private UUID observedOriginalUuid;
-    private RecoveryState recoveryState = RecoveryState.READY;
+    // Preserve each original player's own recovery latch across A/B target
+    // changes and list reorder; a temporary switch must not rearm A.
+    private final LinkedHashMap<UUID, RecoveryState> recoveryByUuid =
+            new LinkedHashMap<UUID, RecoveryState>();
+    private static final int MAX_TRACKED_OWNERS = 16;
     private int observedMinimum = -1;
     private int observedMaximum = -1;
     private boolean previousRecoveryEnabled;
@@ -109,17 +115,22 @@ public final class Minecraft189HitSelectModule implements Module {
         if (!originalOwnerValid(crosshairIndex, ids, kinds, combat))
             return;
         final UUID current = ids.at(crosshairIndex);
-        if (!current.equals(observedOriginalUuid)) {
-            observedOriginalUuid = current;
-            recoveryState = RecoveryState.READY;
+        observedOriginalUuid = current;
+        if (!recoveryByUuid.containsKey(current)) {
+            if (recoveryByUuid.size() >= MAX_TRACKED_OWNERS) {
+                final UUID oldest = recoveryByUuid.keySet().iterator().next();
+                recoveryByUuid.remove(oldest);
+            }
+            recoveryByUuid.put(current, RecoveryState.READY);
         }
         if (min > max) return; // Contradictory live settings fail shut.
         final int hurt = combat.hurtTime(crosshairIndex);
-        if (recoveryState == RecoveryState.WAIT_FOR_HURT && hurt > max) {
-            recoveryState = RecoveryState.WAIT_FOR_READY;
-        } else if (recoveryState == RecoveryState.WAIT_FOR_READY
+        final RecoveryState stage = recoveryByUuid.get(current);
+        if (stage == RecoveryState.WAIT_FOR_HURT && hurt > max) {
+            recoveryByUuid.put(current, RecoveryState.WAIT_FOR_READY);
+        } else if (stage == RecoveryState.WAIT_FOR_READY
                 && hurt >= min && hurt <= max) {
-            recoveryState = RecoveryState.READY;
+            recoveryByUuid.put(current, RecoveryState.READY);
         }
     }
 
@@ -128,14 +139,14 @@ public final class Minecraft189HitSelectModule implements Module {
         if (enabled && requireObservedRecovery.get()
                 && originalUuid != null
                 && originalUuid.equals(observedOriginalUuid)
-                && recoveryState == RecoveryState.READY) {
-            recoveryState = RecoveryState.WAIT_FOR_HURT;
+                && recoveryByUuid.get(originalUuid) == RecoveryState.READY) {
+            recoveryByUuid.put(originalUuid, RecoveryState.WAIT_FOR_HURT);
         }
     }
 
     private void forgetRecovery() {
         observedOriginalUuid = null;
-        recoveryState = RecoveryState.READY;
+        recoveryByUuid.clear();
         observedMinimum = -1;
         observedMaximum = -1;
         previousRecoveryEnabled = false;
@@ -182,7 +193,8 @@ public final class Minecraft189HitSelectModule implements Module {
             return false;
         return !requireObservedRecovery.get()
                 || (selectedOriginalUuid.equals(observedOriginalUuid)
-                        && recoveryState == RecoveryState.READY
+                        && recoveryByUuid.get(selectedOriginalUuid)
+                                == RecoveryState.READY
                         && observedMinimum == minTargetHurtTicks.get()
                         && observedMaximum == maxTargetHurtTicks.get());
     }
