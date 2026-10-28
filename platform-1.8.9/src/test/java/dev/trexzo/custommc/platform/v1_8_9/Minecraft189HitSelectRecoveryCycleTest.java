@@ -179,6 +179,30 @@ final class Minecraft189HitSelectRecoveryCycleTest {
     }
 
     @Test
+    void nativeWorldReadReentryRevokesOldActivationAndChangedPolicy() {
+        final Source s = new Source();
+        s.recovery();
+        s.observe(0);
+        long token = s.select.nativeOwnerEpoch();
+        assertTrue(s.allows(0, A));
+        s.select.suspendForSource();
+        assertTrue(s.select.nativeOwnerEpoch() != token);
+        assertFalse(s.allows(0, A));
+        s.observe(0);
+        long fresh = s.select.nativeOwnerEpoch();
+        assertTrue(s.allows(0, A));
+        s.select.maxTargetHurtTicksSetting().set(3);
+        s.observe(0);
+        assertTrue(s.select.nativeOwnerEpoch() != fresh);
+        assertTrue(s.allows(0, A));
+        fresh = s.select.nativeOwnerEpoch();
+        s.select.onDisable();
+        s.select.onEnable();
+        assertTrue(s.select.nativeOwnerEpoch() != fresh);
+        assertFalse(s.allows(0, A));
+    }
+
+    @Test
     void indexOnlyLegacyCallerCannotBypassRecoveryMode() {
         final Source s = new Source();
         s.recovery();
