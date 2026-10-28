@@ -63,16 +63,16 @@ final class UiContentScrollRailTest {
     @Test
     void rejectsNonfiniteOrNegativeMeasurements() {
         assertThrows(IllegalArgumentException.class, () ->
-                UiContentScrollRail.compose(CONT, Float.NaN,
+                UiContentScrollRail.compose(CONTENT, Float.NaN,
                         0.0F, UiThemes.graphite()));
         assertThrows(IllegalArgumentException.class, () ->
-                UiContentScrollRail.compose(CONT, -5.0F,
+                UiContentScrollRail.compose(CONTENT, -5.0F,
                         0.0F, UiThemes.graphite()));
         assertThrows(IllegalArgumentException.class, () ->
-                UiContentScrollRail.compose(CONT, 1000.0F,
+                UiContentScrollRail.compose(CONTENT, 1000.0F,
                         Float.POSITIVE_INFINITY, UiThemes.graphite()));
         assertThrows(IllegalArgumentException.class, () ->
-                UiContentScrollRail.compose(CONT, 1000.0F,
+                UiContentScrollRail.compose(CONTENT, 1000.0F,
                         -1.0F, UiThemes.graphite()));
     }
 
