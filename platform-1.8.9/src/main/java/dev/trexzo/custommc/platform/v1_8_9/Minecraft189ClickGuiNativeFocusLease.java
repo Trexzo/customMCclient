@@ -18,10 +18,10 @@ import java.util.Objects;
  */
 final class Minecraft189ClickGuiNativeFocusLease {
     enum Decision {
-        NONE, RELEASE_ORIGINAL, RESTORE_ORIGINAL, REJECT_OPEN
+        NONE, ALREADY_READY, RELEASE_ORIGINAL, RESTORE_ORIGINAL, REJECT_OPEN
     }
 
-    private boolean ownsRelease;
+    private boolean ownsGuiFocus;
 
     void afterKeyTransition(final ClickGuiModel model,
             final boolean previouslyOpen) {
@@ -59,10 +59,33 @@ final class Minecraft189ClickGuiNativeFocusLease {
 
         final Decision action = decide(
                 previouslyOpen, nowOpen, true, nativeState,
-                mouseCreated, grabbed, ownsRelease);
+                mouseCreated, grabbed, ownsGuiFocus);
+        // Record actual original native state at the transition, never
+        // guess why a graphical focus check failed. This is diagnostic
+        // evidence, not acceptance or permission to forward mouse clicks.
+        if (Boolean.getBoolean("custommc.acceptance.reportNativeVisualPage")) {
+            System.out.println("CUSTOMMC_189_NATIVE_GUI_FOCUS_OBSERVED="
+                    + "available:" + nativeState.available()
+                    + ",vanilla:" + nativeState.vanillaScreen()
+                    + ",gameplay:" + nativeState.gameplayFocus()
+                    + ",mouse:" + mouseCreated
+                    + ",grabbed:" + grabbed
+                    + ",active:" + Display.isActive()
+                    + ",inside:" + (mouseCreated && Mouse.isInsideWindow())
+                    + ",action:" + action.name());
+        }
         if (action == Decision.REJECT_OPEN) {
             model.close();
+            ownsGuiFocus = false;
             System.out.println("CUSTOMMC_189_NATIVE_GUI_FOCUS_REJECTED=YES");
+            return;
+        }
+        if (action == Decision.ALREADY_READY) {
+            // This is an observed original ungrabbed GUI state, not an
+            // invented release. Closing the overlay must still return
+            // ownership to the original game through its own method.
+            ownsGuiFocus = true;
+            System.out.println("CUSTOMMC_189_NATIVE_GUI_CURSOR_READY=YES");
             return;
         }
         if (action == Decision.RELEASE_ORIGINAL) {
@@ -84,22 +107,33 @@ final class Minecraft189ClickGuiNativeFocusLease {
                 System.out.println("CUSTOMMC_189_NATIVE_GUI_FOCUS_VERIFY_FAILED=YES");
                 return;
             }
-            ownsRelease = true;
+            ownsGuiFocus = true;
             System.out.println("CUSTOMMC_189_NATIVE_GUI_CURSOR_RELEASE=YES");
             return;
         }
         if (action == Decision.RESTORE_ORIGINAL) {
-            ownsRelease = false;
+            ownsGuiFocus = false;
             if (Display.isActive()
                     && invokeNative(Minecraft189Mappings.MINECRAFT_SET_INGAME_FOCUS)) {
-                System.out.println("CUSTOMMC_189_NATIVE_GUI_CURSOR_RESTORE=YES");
+                final Minecraft189OverlayFocusGuardian.Snapshot restored =
+                        Minecraft189OverlayFocusGuardian.observeNative();
+                if (Minecraft189OverlayFocusGuardian.classify(restored)
+                        == Minecraft189OverlayFocusGuardian.Mode.GAMEPLAY_CAPTURED
+                        && Mouse.isCreated() && Mouse.isGrabbed()) {
+                    System.out.println("CUSTOMMC_189_NATIVE_GUI_CURSOR_RESTORE=YES");
+                } else {
+                    System.out.println("CUSTOMMC_189_NATIVE_GUI_FOCUS_RESTORE_VERIFY_FAILED=YES");
+                }
+            } else {
+                System.out.println("CUSTOMMC_189_NATIVE_GUI_FOCUS_RESTORE_FAILED=YES");
             }
             return;
         }
 
-        // A genuine vanilla GuiScreen retains its own input ownership.
-        if (!nowOpen && ownsRelease && nativeState.vanillaScreen()) {
-            ownsRelease = false;
+        // Another original vanilla GUI or loss of X11 focus wins.
+        // Never try to grab the mouse on its behalf.
+        if (!nowOpen) {
+            ownsGuiFocus = false;
         }
     }
 
@@ -108,7 +142,7 @@ final class Minecraft189ClickGuiNativeFocusLease {
             final boolean displayCreated,
             final Minecraft189OverlayFocusGuardian.Snapshot nativeState,
             final boolean mouseCreated, final boolean grabbed,
-            final boolean ownsRelease) {
+            final boolean ownsGuiFocus) {
         Objects.requireNonNull(nativeState, "nativeState");
         if (wasOpen == nowOpen || !displayCreated) {
             return Decision.NONE;
@@ -118,13 +152,16 @@ final class Minecraft189ClickGuiNativeFocusLease {
                     || !mouseCreated) {
                 return Decision.REJECT_OPEN;
             }
-            if (nativeState.gameplayFocus()) {
-                return grabbed ? Decision.RELEASE_ORIGINAL
-                        : Decision.REJECT_OPEN;
+            // The game can be observed between mouse-grab and native
+            // inGameHasFocus updates. If either says gameplay still owns
+            // the cursor, ask *vanilla* to release; do not make it usable
+            // until the strict post-readback confirms GUI_READY/ungrabbed.
+            if (nativeState.gameplayFocus() || grabbed) {
+                return Decision.RELEASE_ORIGINAL;
             }
-            return !grabbed ? Decision.NONE : Decision.REJECT_OPEN;
+            return Decision.ALREADY_READY;
         }
-        return ownsRelease && nativeState.available()
+        return ownsGuiFocus && nativeState.available()
                 && !nativeState.vanillaScreen()
                 ? Decision.RESTORE_ORIGINAL : Decision.NONE;
     }
