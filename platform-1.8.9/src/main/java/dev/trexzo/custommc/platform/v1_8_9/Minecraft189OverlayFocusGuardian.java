@@ -129,22 +129,49 @@ public final class Minecraft189OverlayFocusGuardian {
         }
     }
 
+    /**
+     * Read the original 1.8.9 game fields through the exact mapped class.
+     * Try our defining loader first and the live Minecraft thread-context
+     * loader second: some original-game launchers isolate transformed classes
+     * from the client overlay loader. No non-original substitute is accepted.
+     */
     public static Snapshot observeNative() {
-        try {
-            final ClassLoader loader =
-                    Minecraft189OverlayFocusGuardian.class.getClassLoader();
-            final Class<?> minecraft = Class.forName(
-                    Minecraft189Mappings.MINECRAFT.obfuscatedInternalName()
-                            .replace('/', '.'),
-                    false,
-                    loader);
-            final Method get = minecraft.getDeclaredMethod(
-                    Minecraft189Mappings.MINECRAFT_GET_MINECRAFT.obfuscatedName());
-            get.setAccessible(true);
-            final Object instance = get.invoke(null);
-            if (instance == null) {
-                return Snapshot.unknown();
+        final ClassLoader owned =
+                Minecraft189OverlayFocusGuardian.class.getClassLoader();
+        final ClassLoader context = Thread.currentThread().getContextClassLoader();
+        final Snapshot primary = tryNativeRead(owned, "overlay-loader");
+        if (primary.available()) {
+            return primary;
+        }
+        if (context != null && context != owned) {
+            final Snapshot secondary = tryNativeRead(context, "thread-context-loader");
+            if (secondary.available()) {
+                return secondary;
             }
+        }
+        return Snapshot.unknown();
+    }
+
+    static Object findOriginalMinecraftInstance() {
+        final ClassLoader owned =
+                Minecraft189OverlayFocusGuardian.class.getClassLoader();
+        Object instance = tryOriginalInstance(owned, "overlay-loader");
+        if (instance != null) {
+            return instance;
+        }
+        final ClassLoader context = Thread.currentThread().getContextClassLoader();
+        return context == null || context == owned
+                ? null : tryOriginalInstance(context, "thread-context-loader");
+    }
+
+    private static Snapshot tryNativeRead(
+            final ClassLoader loader, final String label) {
+        final Object instance = tryOriginalInstance(loader, label);
+        if (instance == null) {
+            return Snapshot.unknown();
+        }
+        try {
+            final Class<?> minecraft = instance.getClass();
             final Field screen = minecraft.getDeclaredField(
                     Minecraft189Mappings.MINECRAFT_CURRENT_SCREEN.obfuscatedName());
             final Field gameplay = minecraft.getDeclaredField(
@@ -155,11 +182,56 @@ public final class Minecraft189OverlayFocusGuardian {
                     screen.get(instance) != null,
                     gameplay.getBoolean(instance));
         } catch (ReflectiveOperationException unavailable) {
-            return Snapshot.unknown();
+            diagnose("native-field", label, unavailable);
         } catch (LinkageError unavailable) {
-            return Snapshot.unknown();
+            diagnose("native-field", label, unavailable);
         } catch (SecurityException unavailable) {
-            return Snapshot.unknown();
+            diagnose("native-field", label, unavailable);
+        }
+        return Snapshot.unknown();
+    }
+
+    private static Object tryOriginalInstance(
+            final ClassLoader loader, final String label) {
+        try {
+            final Class<?> minecraft = Class.forName(
+                    Minecraft189Mappings.MINECRAFT.obfuscatedInternalName()
+                            .replace('/', '.'), false, loader);
+            final Method get = minecraft.getDeclaredMethod(
+                    Minecraft189Mappings.MINECRAFT_GET_MINECRAFT.obfuscatedName());
+            get.setAccessible(true);
+            final Object instance = get.invoke(null);
+            if (instance == null) {
+                diagnose("native-singleton", label, "null");
+            } else if (instance.getClass() != minecraft) {
+                diagnose("native-singleton", label, "wrong-class");
+                return null;
+            }
+            return instance;
+        } catch (ReflectiveOperationException unavailable) {
+            diagnose("native-instance", label, unavailable);
+        } catch (LinkageError unavailable) {
+            diagnose("native-instance", label, unavailable);
+        } catch (SecurityException unavailable) {
+            diagnose("native-instance", label, unavailable);
+        }
+        return null;
+    }
+
+    private static void diagnose(
+            final String stage, final String loader, final Throwable error) {
+        diagnose(stage, loader, error.getClass().getSimpleName()
+                + ":" + String.valueOf(error.getMessage()));
+    }
+
+    private static void diagnose(
+            final String stage, final String loader, final String cause) {
+        if (Boolean.getBoolean("custommc.acceptance.reportNativeVisualPage")) {
+            final String safe = cause.length() <= 130
+                    ? cause : cause.substring(0, 130);
+            System.out.println("CUSTOMMC_189_NATIVE_FOCUS_READ_FAILURE="
+                    + stage + ":" + loader + ":" + safe);
         }
     }
+
 }
