@@ -90,6 +90,23 @@ class OriginalDetailCaptureChecks(unittest.TestCase):
             'xdotool("mousemove", "--window", window, 733, 65)',
             RUNNER.read_text(encoding="utf-8"))
 
+    def test_focus_authority_is_only_original_pinned_run_tick_object(self):
+        focus = (ROOT / "platform-1.8.9/src/main/java/dev/trexzo/"
+                 "custommc/platform/v1_8_9/Minecraft189OverlayFocusGuardian.java")
+        bridge = (ROOT / "platform-1.8.9/src/main/java/dev/trexzo/"
+                  "custommc/platform/v1_8_9/Minecraft189RuntimeBridge.java")
+        focus_source = focus.read_text(encoding="utf-8")
+        bridge_source = bridge.read_text(encoding="utf-8")
+        self.assertIn(
+            "Minecraft189OverlayFocusGuardian.observeOriginalTickInstance(minecraft);",
+            bridge_source)
+        self.assertIn("original-runTick-this", focus_source)
+        self.assertIn("new WeakReference<Object>(instance)", focus_source)
+        self.assertIn("getDeclaredField(", focus_source)
+        self.assertIn("wrong-descriptors", focus_source)
+        self.assertIn("return Snapshot.unknown()", focus_source)
+        self.assertIn("lastNativeDiagnostic", focus_source)
+
     def test_actual_native_pointer_and_original_window_are_mandatory(self):
         script = RUNNER.read_text(encoding="utf-8")
         workflow = WORKFLOW.read_text(encoding="utf-8")
