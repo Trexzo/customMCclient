@@ -10,7 +10,7 @@ Previous UX S16–S21 source tests proved UI commands and behavior, but **could 
 
 S22 adds **opt-in evidence collection** on that exact original runtime: `RunMojang189SingleplayerSmoke.py --visual-capture-dir <folder>` runs the existing genuine Mojang Java8/Xvfb singleplayer world fixture, with strict original World tick and native GUI transitions. It activates the exact live Minecraft window through X11, captures `world.png` before overlay, sends physical Right Shift (the existing actual ClickGUI key), saves `modules.png`, then sends a real Down key and saves `settings.png`. It closes the overlay with Right Shift before process exit.
 
-Python `mss==10.1.0` captures raw RGB directly from the original X11 window. A conservative Graphite color witness compares the before/after real pixel grid and refuses to call `modules.png` a verified Graphite panel when the expected palette does not appear. The script checks PNG signatures and sizes, records SHA256, exact dimensions and real palette hit counts for each file. This is **not** an artificial HTML/JVM rendering or CSS approximation.
+Python `mss==10.1.0` captures raw RGB directly from the original X11 window. A conservative Graphite color witness compares the before/after real pixel grid and refuses to call `modules.png` a verified Graphite panel when the expected palette does not appear. The opt-in core `ClickGuiRenderPass` source witness additionally requires a **post-render real model snapshot transition** to `modules` after Right Shift and to `settings` after Down. The renderer outputs one marker per page transition, only when the explicit JVM property is enabled; a screenshot with the wrong page cannot silently pass the navigation gate. The script checks PNG signatures and sizes, records SHA256, exact dimensions and real palette hit counts for each file. This is **not** an artificial HTML/JVM rendering or CSS approximation.
 
 The existing original-binary workflow now includes an early S22 step after original game assets/runtime/X11 provisioning and before unrelated combat tests and uploads the actual PNG files as a 14-day artifact `custommc-189-real-graphite-visuals`. Upload is marked always() to retain negative images from a failure. The visual step itself is strict (no `continue-on-error`), so a missing original GUI evidence witness remains a real test failure.
 
@@ -27,6 +27,6 @@ The first S22 capture uses the existing native harness fixed 854×480 window and
 
 - Existing source-original GUI/World/X11 checks stay intact.
 - `scripts/test_mojang189_visual_evidence.py` tests geometry rejection, pixel evidence, before/after rejection and mismatch.
-- On-screen screenshots are generated only by the pinned game test. No screenshot exists at PR creation time.
+- On-screen screenshots are generated only by the pinned game test. No screenshot exists at PR creation time. `ClickGuiRenderPassTest` asserts that the source marker is opt-in, printed once per actual rendered page, and absent after the overlay closes.
 - Shader color recognition is a **corroboration**, not a substitute for checking the images or the original-game input routes.
 - If native compilation or test provisioning fails before the S22 step, no screenshot is claimed.
