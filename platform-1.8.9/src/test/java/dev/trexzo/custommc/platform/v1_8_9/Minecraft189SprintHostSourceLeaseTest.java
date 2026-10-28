@@ -19,10 +19,18 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 final class Minecraft189SprintHostSourceLeaseTest {
-    private static final class Player implements Minecraft189PlayerSprintControl {
-        boolean sprint; int writes,trueWrites,falseWrites; boolean fail;
-        Runnable onWrite;
+    private static final class Player implements Minecraft189PlayerSprintControl,
+            Minecraft189PlayerMovementStateAccess {
+        boolean sprint, sneak, failRead; int writes,trueWrites,falseWrites; boolean fail;
+        Runnable onWrite, onRead;
         Player(boolean sprint){this.sprint=sprint;}
+        @Override public boolean customMcOnGround() {
+            final Runnable cb=onRead;onRead=null;if(cb!=null)cb.run();
+            if(failRead)throw new IllegalStateException("original movement getter");
+            return true;
+        }
+        @Override public boolean customMcSneaking(){return sneak;}
+        @Override public boolean customMcSprinting(){return sprint;}
         @Override public void customMcSetSprinting(boolean value){
             writes++; if(writes>8)throw new AssertionError("recursive native sprint");
             sprint=value;if(value)trueWrites++;else falseWrites++;
@@ -51,6 +59,10 @@ final class Minecraft189SprintHostSourceLeaseTest {
         void state(boolean sprint){runtime.playerMovementState().update(true,false,sprint);}
         void auto(){controller.enable(Minecraft189AutoSprintModule.ID);}
         void wtap(){controller.enable(Minecraft189WTapModule.ID);}
+        void keepSprint() {
+            controller.enable(Minecraft189KeepSprintModule.ID);
+            runtime.featureCatalog().keepSprint().requireForwardSetting().set(false);
+        }
         @Override public void close(){runtime.close();}
     }
     private static final class NoOpHost implements LegacyUiHostCallbacks {
@@ -155,6 +167,128 @@ final class Minecraft189SprintHostSourceLeaseTest {
             f.runtime.playerSprintControl(p);
             assertEquals(0, p.falseWrites);
             assertEquals(1, p.trueWrites);
+        }
+    }
+
+    @Test void keepSprintRestoresOnlyOnceAfterActualVanillaSprintLoss() {
+        try (Fixture f=new Fixture()) {
+            f.keepSprint();
+            final Player p=new Player(true);
+            f.runtime.playerSprintControl(p);
+            assertTrue(f.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            p.sprint=false; // Original vanilla controller ended sprint.
+            f.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(1,p.trueWrites);
+            assertTrue(p.sprint);
+            f.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(1,p.trueWrites); // The native click cannot replay.
+        }
+    }
+    @Test void keepSprintNoOpWhenVanillaAlreadyStillSprinting() {
+        try (Fixture f=new Fixture()) {
+            f.keepSprint();
+            final Player p=new Player(true);
+            f.runtime.playerSprintControl(p);
+            assertTrue(f.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            f.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(0,p.writes);
+        }
+    }
+    @Test void keepSprintGetterOtherNativePlayerRevokesOldRestore() {
+        try (Fixture f=new Fixture()) {
+            f.keepSprint();
+            final Player a=new Player(true),b=new Player(false);
+            f.runtime.playerSprintControl(a);
+            assertTrue(f.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            a.sprint=false;
+            a.onRead=()->f.runtime.playerSprintControl(b);
+            f.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(0,a.writes);
+            assertEquals(0,b.writes);
+            f.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(0,a.writes);
+        }
+    }
+    @Test void keepSprintNestedOriginalGetterCannotMintAnotherGrant() {
+        try (Fixture f=new Fixture()) {
+            f.keepSprint();
+            final Player p=new Player(true);
+            f.runtime.playerSprintControl(p);
+            assertTrue(f.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            p.sprint=false;
+            p.onRead=()->assertFalse(
+                    f.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            f.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(0,p.trueWrites);
+        }
+    }
+    @Test void keepSprintOriginalGetterGuiAndPolicyChangesCancelRestore() {
+        try (Fixture f=new Fixture()) {
+            f.keepSprint();
+            final Player p=new Player(true);
+            f.runtime.playerSprintControl(p);
+            assertTrue(f.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            p.sprint=false;
+            p.onRead=()->f.runtime.featureCatalog().keepSprint()
+                    .requireForwardSetting().set(true);
+            f.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(0,p.writes);
+        }
+        try (Fixture f=new Fixture()) {
+            f.keepSprint();
+            final Player p=new Player(true);
+            f.runtime.playerSprintControl(p);
+            assertTrue(f.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            p.sprint=false;
+            p.onRead=()->f.runtime.key(
+                    LegacyKeyboardCodes.RIGHT_SHIFT,'\\0',true,false,true,false,false);
+            f.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(0,p.writes);
+            assertTrue(f.runtime.clickGuiRuntime().coreRuntime()
+                    .model().snapshot().open());
+        }
+    }
+    @Test void keepSprintWTapActivationDuringOriginalGetterCancelsRestore() {
+        try (Fixture f=new Fixture()) {
+            f.keepSprint();
+            final Player p=new Player(true);
+            f.runtime.playerSprintControl(p);
+            assertTrue(f.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            p.sprint=false;
+            p.onRead=()->f.wtap();
+            f.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(0,p.writes);
+        }
+    }
+    @Test void keepSprintThrowingNativeGetterConsumesGrantAndClearsLease() {
+        try (Fixture f=new Fixture()) {
+            f.keepSprint();
+            final Player p=new Player(true);
+            f.runtime.playerSprintControl(p);
+            assertTrue(f.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            p.sprint=false;p.failRead=true;
+            assertThrows(IllegalStateException.class,
+                    ()->f.runtime.restoreSprintAfterSyntheticClick());
+            p.failRead=false;
+            f.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(0,p.writes);
+            p.sprint=true;
+            assertTrue(f.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            p.sprint=false;
+            f.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(1,p.trueWrites);
+        }
+    }
+    @Test void keepSprintNativeSetterReentryCannotWriteTwice() {
+        try (Fixture f=new Fixture()) {
+            f.keepSprint();
+            final Player p=new Player(true);
+            f.runtime.playerSprintControl(p);
+            assertTrue(f.runtime.shouldKeepSprintAfterSyntheticClick(true));
+            p.sprint=false;
+            p.onWrite=()->f.runtime.restoreSprintAfterSyntheticClick();
+            f.runtime.restoreSprintAfterSyntheticClick();
+            assertEquals(1,p.trueWrites);
         }
     }
 
