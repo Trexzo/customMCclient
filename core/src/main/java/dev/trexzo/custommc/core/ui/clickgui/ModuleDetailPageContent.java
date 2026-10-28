@@ -160,10 +160,9 @@ public final class ModuleDetailPageContent
                 modulePresentations.find(moduleId);
         final List<SettingEntry> visible =
                 visibleSettings(moduleId);
+        final float totalHeight = contentHeight(visible.size());
         final float scrollOffset =
-                scroll.offset(
-                        contentHeight(visible.size()),
-                        bounds.height());
+                scroll.offset(totalHeight, bounds.height());
 
         final ModuleState state = controller.stateOf(moduleId);
         final String displayName = moduleDescriptor == null
@@ -202,6 +201,8 @@ public final class ModuleDetailPageContent
                     editor.isEditing(entry.setting), theme));
         }
 
+        commands.addAll(UiContentScrollRail.compose(
+                bounds, totalHeight, scrollOffset, theme));
         return commands;
     }
 
