@@ -149,7 +149,7 @@ public final class ModuleDetailPageContent
                             bounds.x() + PADDING,
                             bounds.y() + PADDING + 22.0F,
                             UiFonts.DEFAULT,
-                            "Right-click a module to inspect its settings.",
+                            "Open settings with the module dots or right-click.",
                             theme.color(
                                     UiColorRole.TEXT_MUTED)));
             return commands;
