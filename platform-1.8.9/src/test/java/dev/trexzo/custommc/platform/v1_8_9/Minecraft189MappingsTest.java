@@ -610,6 +610,13 @@ final class Minecraft189MappingsTest {
                 "func_175065_a",
                 "drawString");
         assertMethod(
+                Minecraft189Mappings.FONT_RENDERER_GET_STRING_WIDTH,
+                Minecraft189Mappings.FONT_RENDERER,
+                "a",
+                "(Ljava/lang/String;)I",
+                "func_78256_a",
+                "getStringWidth");
+        assertMethod(
                 Minecraft189Mappings.GUI_INGAME_RENDER_OVERLAY,
                 Minecraft189Mappings.GUI_INGAME,
                 "a",
@@ -2252,6 +2259,51 @@ final class Minecraft189MappingsTest {
         return finish(writer);
     }
 
+    @Test
+    void originalFontRendererReceivesExactMeasuredWidthMethod() {
+        final Minecraft189ClassTransformer transformer =
+                new Minecraft189ClassTransformer();
+        final byte[] source = fontRendererShape();
+        final byte[] result = transformer.transform(
+                Minecraft189Mappings.FONT_RENDERER.obfuscatedBinaryName(), source);
+        final boolean[] bridgeFound = {false};
+        final boolean[] delegatesToOriginal = {false};
+        new org.objectweb.asm.ClassReader(result).accept(
+                new org.objectweb.asm.ClassVisitor(Opcodes.ASM9) {
+                    @Override
+                    public org.objectweb.asm.MethodVisitor visitMethod(
+                            final int access, final String name, final String descriptor,
+                            final String signature, final String[] exceptions) {
+                        if (!"getStringWidth".equals(name)
+                                || !"(Ljava/lang/String;)I".equals(descriptor))
+                            return null;
+                        bridgeFound[0] = true;
+                        return new org.objectweb.asm.MethodVisitor(Opcodes.ASM9) {
+                            @Override
+                            public void visitMethodInsn(final int opcode,
+                                    final String owner, final String nativeName,
+                                    final String nativeDescriptor, final boolean isInterface) {
+                                if (opcode == Opcodes.INVOKEVIRTUAL
+                                        && "avn".equals(owner)
+                                        && "a".equals(nativeName)
+                                        && "(Ljava/lang/String;)I".equals(nativeDescriptor))
+                                    delegatesToOriginal[0] = true;
+                            }
+                        };
+                    }
+                }, 0);
+        assertEquals(true, bridgeFound[0]);
+        assertEquals(true, delegatesToOriginal[0]);
+
+        final ClassWriter missing = writer(
+                Minecraft189Mappings.FONT_RENDERER.obfuscatedInternalName());
+        addMethod(missing, Minecraft189Mappings.FONT_RENDERER_DRAW_STRING);
+        assertThrows(IllegalStateException.class,
+                () -> transformer.transform(
+                        Minecraft189Mappings.FONT_RENDERER.obfuscatedBinaryName(),
+                        finish(missing)));
+    }
+
     private static byte[] fontRendererShape() {
         final ClassWriter writer =
                 writer(
@@ -2260,6 +2312,9 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.FONT_RENDERER_DRAW_STRING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.FONT_RENDERER_GET_STRING_WIDTH);
         return finish(writer);
     }
 

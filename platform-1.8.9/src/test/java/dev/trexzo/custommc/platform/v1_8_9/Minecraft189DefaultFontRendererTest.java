@@ -45,6 +45,19 @@ final class Minecraft189DefaultFontRendererTest {
     }
 
     @Test
+    void exactWidthIsReadFromTheSameNativeFontAccess() {
+        final RecordingFontAccess access = new RecordingFontAccess();
+        access.width = 73;
+        final Minecraft189DefaultFontRenderer renderer =
+                new Minecraft189DefaultFontRenderer(access);
+        assertEquals(73, renderer.textWidth(UiFonts.DEFAULT, "Auto Sprint"));
+        assertEquals(0, access.calls);
+        assertThrows(IllegalArgumentException.class,
+                () -> renderer.textWidth(new UiFontHandle("alternate"),
+                        "Auto Sprint"));
+    }
+
+    @Test
     void unknownSemanticFontIsRejectedBeforeTouchingMinecraftRenderer() {
         final RecordingFontAccess access =
                 new RecordingFontAccess();
@@ -75,6 +88,12 @@ final class Minecraft189DefaultFontRendererTest {
         private int argb;
         private boolean shadow;
         private int calls;
+        private int width = -1;
+
+        @Override
+        public int getStringWidth(final String text) {
+            return width;
+        }
 
         @Override
         public int drawString(

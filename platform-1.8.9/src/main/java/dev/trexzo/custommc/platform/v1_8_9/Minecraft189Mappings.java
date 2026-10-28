@@ -827,6 +827,15 @@ public final class Minecraft189Mappings {
                     "(Ljava/lang/String;FFIZ)I",
                     "func_175065_a",
                     "drawString");
+    // Original Mojang 1.8.9 avn.a(String) returns the renderer's width,
+    // including actual resource-pack glyphs and Unicode/bold formatting.
+    public static final MappedMethod FONT_RENDERER_GET_STRING_WIDTH =
+            new MappedMethod(
+                    FONT_RENDERER,
+                    "a",
+                    "(Ljava/lang/String;)I",
+                    "func_78256_a",
+                    "getStringWidth");
     public static final MappedMethod GUI_INGAME_RENDER_OVERLAY =
             new MappedMethod(
                     GUI_INGAME,

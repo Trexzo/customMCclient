@@ -200,6 +200,14 @@ public final class Lwjgl2LegacyUiHostCallbacks
     }
 
     @Override
+    public int textWidth(final UiFontHandle font, final String text) {
+        Objects.requireNonNull(font, "font");
+        Objects.requireNonNull(text, "text");
+        if (!(textRenderer instanceof LegacyUiTextMeasurer)) return -1;
+        return ((LegacyUiTextMeasurer) textRenderer).textWidth(font, text);
+    }
+
+    @Override
     public void drawText(
             final UiFontHandle font,
             final float x,

@@ -2040,6 +2040,23 @@ public final class Minecraft189ClassTransformer
                                 0,
                                 0);
                         method.visitEnd();
+
+                        final Minecraft189Mappings.MappedMethod measure =
+                                Minecraft189Mappings.FONT_RENDERER_GET_STRING_WIDTH;
+                        final MethodVisitor width = cv.visitMethod(
+                                Opcodes.ACC_PUBLIC,
+                                "getStringWidth",
+                                "(Ljava/lang/String;)I", null, null);
+                        width.visitCode();
+                        width.visitVarInsn(Opcodes.ALOAD, 0);
+                        width.visitVarInsn(Opcodes.ALOAD, 1);
+                        width.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                                measure.owner().obfuscatedInternalName(),
+                                measure.obfuscatedName(),
+                                measure.descriptor(), false);
+                        width.visitInsn(Opcodes.IRETURN);
+                        width.visitMaxs(0, 0);
+                        width.visitEnd();
                         super.visitEnd();
                     }
                 },
