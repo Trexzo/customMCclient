@@ -18,6 +18,9 @@ import java.util.Optional;
 public final class Minecraft189InputHooks {
     private final Minecraft189Platform platform;
     private final LegacyInputTranslator translator;
+    // UI-only original cursor owner. Gameplay/click paths remain unchanged.
+    private final Minecraft189ClickGuiNativeFocusLease uiFocus =
+            new Minecraft189ClickGuiNativeFocusLease();
 
     public Minecraft189InputHooks(
             final Minecraft189Platform platform) {
@@ -177,6 +180,12 @@ public final class Minecraft189InputHooks {
             }
         }
 
+        final ClickGuiModel guiModel =
+                services.contains(ClickGuiModel.class)
+                        ? services.require(ClickGuiModel.class) : null;
+        final boolean beforeGuiOpen =
+                guiModel != null && guiModel.snapshot().open();
+
         if (services.contains(
                 Minecraft189ClickGuiToggleController.class)
                 && services.require(
@@ -185,6 +194,9 @@ public final class Minecraft189InputHooks {
                         legacyKeyCode,
                         pressed,
                         repeat)) {
+            if (guiModel != null) {
+                uiFocus.afterKeyTransition(guiModel, beforeGuiOpen);
+            }
             return true;
         }
 
@@ -193,6 +205,9 @@ public final class Minecraft189InputHooks {
                 && services.require(
                 ClickGuiInputController.class)
                 .key(event)) {
+            if (guiModel != null) {
+                uiFocus.afterKeyTransition(guiModel, beforeGuiOpen);
+            }
             return true;
         }
 
