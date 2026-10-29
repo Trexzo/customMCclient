@@ -2773,6 +2773,71 @@ public final class Minecraft189HostRuntime
     }
 
     /**
+     * Final production-only original potion authorization. Read-only V132
+     * native /give source-potion discovery still calls mayExecuteAutoPotUse
+     * without demanding low health. A real synthetic rightClickMouse must
+     * additionally witness its EXACT original player currently low on HP
+     * and no physical RMB takeover.
+     *
+     * The mapped health getters and full item validation can synchronously
+     * reenter source/GUI/policy callbacks; bracket both with identity and
+     * unchanged native health readbacks, never dispatch on a borrowed
+     * health HUD snapshot or another respawned EntityPlayer.
+     */
+    boolean mayDispatchAutoPotNativeUse(final int originalSlot) {
+        requireOpen();
+        if (!mayExecuteAutoPotUse(originalSlot)
+                || inputState.pointerPressed(
+                        Minecraft189ClickRateTracker.RIGHT_BUTTON))
+            return false;
+        final Minecraft189PlayerInventoryAccess originalPlayer =
+                tickHotbarPlayer;
+        final Minecraft189PlayerHeldItemAccess originalHeld =
+                tickHeldItemAccess;
+        final Minecraft189InventoryHotbarControl inventory =
+                autoPotLeaseInventory;
+        if (originalPlayer == null || originalPlayer != (Object) originalHeld
+                || !(originalPlayer instanceof Minecraft189PlayerHealthAccess)
+                || inventory == null || tickHotbarControl != inventory
+                || autoPotLeaseOriginal != originalSlot)
+            return false;
+        final Minecraft189PlayerHealthAccess live =
+                (Minecraft189PlayerHealthAccess) originalPlayer;
+        final float maximum = live.customMcMaxHealth();
+        if (tickHotbarPlayer != originalPlayer
+                || tickHeldItemAccess != originalHeld
+                || tickHotbarControl != inventory
+                || autoPotLeaseInventory != inventory)
+            return false;
+        final float health = live.customMcHealth();
+        if (tickHotbarPlayer != originalPlayer
+                || tickHeldItemAccess != originalHeld
+                || tickHotbarControl != inventory
+                || autoPotLeaseInventory != inventory
+                || !featureCatalog.autoPot().permitsLiveNativeHealth(
+                        health, maximum))
+            return false;
+        // Native potion ItemStack / currentItem validation occurs AFTER
+        // health getters; they can change the item, GUI or policy. Read the
+        // current health again after item verification as well, so later
+        // reentrant native item reads cannot borrow an old low-HP witness.
+        if (!mayExecuteAutoPotUse(originalSlot)) return false;
+        final float finalMaximum = live.customMcMaxHealth();
+        final float finalHealth = live.customMcHealth();
+        return finalMaximum == maximum && finalHealth == health
+                && tickHotbarPlayer == originalPlayer
+                && tickHeldItemAccess == originalHeld
+                && tickHotbarControl == inventory
+                && autoPotLeaseInventory == inventory
+                && autoPotLeaseOriginal == originalSlot
+                && !inputState.pointerPressed(
+                        Minecraft189ClickRateTracker.RIGHT_BUTTON)
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open()
+                && featureCatalog.autoPot().permitsLiveNativeHealth(
+                        finalHealth, finalMaximum);
+    }
+
+    /**
      * The verified native potion owns currentItem first. Opt-in pitch
      * adjustment is subordinate to the SAME real local player lease, not
      * a cached look vector or target-player rotation.
