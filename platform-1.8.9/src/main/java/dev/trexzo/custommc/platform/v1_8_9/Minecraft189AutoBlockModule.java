@@ -152,6 +152,30 @@ public final class Minecraft189AutoBlockModule implements Module {
         return true;
     }
 
+    /**
+     * V360: final pre-rightClickMouse dispatch gate for the exact
+     * original-game HeldItem reservation. This DOES NOT consume the lease:
+     * completeNativeUse still requires genuine isUsingItem after vanilla
+     * right-click, and cancellation remains token-specific in finally.
+     *
+     * The source World/held-item getter may synchronously reenter the
+     * module or change the inventory. A new owner generation, changed
+     * policy, GUI, manual-right takeover or missing original sword must
+     * veto the native click BEFORE it occurs, not merely its bookkeeping.
+     */
+    synchronized boolean permitsNativeUseDispatch(final long token,
+            final boolean swordStillHeld, final boolean guiOpen,
+            final boolean manualRightHeld, final long currentHeldOwnerSerial) {
+        return token != 0L && token == pendingUseToken
+                && pendingEpoch == lifecycleEpoch && enabled
+                && !ownsBlock && swordStillHeld && !guiOpen
+                && !manualRightHeld
+                && pendingHoldTicks == holdTicks.get()
+                && pendingManualPolicy == pauseManualRight.get()
+                && pendingHeldOwnerRequired
+                && pendingHeldOwnerSerial == currentHeldOwnerSerial;
+    }
+
     /** Legacy tests carry no original native HeldItem generation evidence. */
     synchronized boolean completeNativeUse(final long token,
             final boolean swordStillHeld, final boolean guiOpen,
