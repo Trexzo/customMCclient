@@ -41,6 +41,10 @@ final class Minecraft189CombatItemUseBoundaryTest {
             final Player player = new Player(inventory);
             runtime.playerHotbarSlot(player);
             runtime.playerHeldItem(player);
+            // V361: the final native rod dispatch must still observe
+            // genuine physical LMB, not only a cached earlier admission.
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
             controller.enable(Minecraft189AutoRodModule.ID);
             controller.enable(Minecraft189AutoPotModule.ID);
 
@@ -121,6 +125,10 @@ final class Minecraft189CombatItemUseBoundaryTest {
             controller.enable(Minecraft189AutoRodModule.ID);
             runtime.playerHotbarSlot(player);
             runtime.playerHeldItem(player);
+            // V361: the final native rod dispatch must still observe
+            // genuine physical LMB, not only a cached earlier admission.
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
 
             assertFalse(runtime.featureCatalog().autoRod()
                     .preserveActiveHookSetting().get(),
@@ -664,6 +672,10 @@ final class Minecraft189CombatItemUseBoundaryTest {
             final Player player = new Player(inventory);
             runtime.playerHotbarSlot(player);
             runtime.playerHeldItem(player);
+            // V361: the final native rod dispatch must still observe
+            // genuine physical LMB, not only a cached earlier admission.
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
             controller.enable(Minecraft189AutoRodModule.ID);
             controller.enable(Minecraft189AutoPotModule.ID);
             controller.enable(Minecraft189CombatSlotModule.ID);
@@ -874,6 +886,10 @@ final class Minecraft189CombatItemUseBoundaryTest {
             final Player player = new Player(inventory);
             runtime.playerHotbarSlot(player);
             runtime.playerHeldItem(player);
+            // V361: the final native rod dispatch must still observe
+            // genuine physical LMB, not only a cached earlier admission.
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
             controller.enable(Minecraft189AutoRodModule.ID);
             controller.enable(Minecraft189AutoPotModule.ID);
             controller.enable(Minecraft189CombatSlotModule.ID);
@@ -1127,6 +1143,10 @@ final class Minecraft189CombatItemUseBoundaryTest {
             final Player player = new Player(inventory);
             runtime.playerHotbarSlot(player);
             runtime.playerHeldItem(player);
+            // V361: the final native rod dispatch must still observe
+            // genuine physical LMB, not only a cached earlier admission.
+            runtime.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
             controller.enable(Minecraft189AutoRodModule.ID);
             controller.enable(Minecraft189AutoPotModule.ID);
 
