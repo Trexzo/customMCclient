@@ -71,7 +71,7 @@ class NativeGuiAndCombatCycleV344(unittest.TestCase):
         self.assertEqual(9, action.count("vetoOriginalScreenBeforeNativeCombat("))
         rod = action.index("if (host.mayExecuteAutoRodUse(originalRodSlot))")
         first_screen = action.index("vetoOriginalScreenBeforeNativeCombat(", rod)
-        next_rod = action.index("if (!host.mayExecuteAutoRodUse(originalRodSlot))",
+        next_rod = action.index("if (!host.mayDispatchAutoRodNativeUse(originalRodSlot))",
                                 first_screen)
         last_screen = action.index("vetoOriginalScreenBeforeNativeCombat(",
                                    next_rod)
