@@ -3099,7 +3099,7 @@ public final class Minecraft189RuntimeBridge {
                             // selected ItemStack or physical input. Repeat
                             // native source verification AFTER that getter,
                             // never borrow an earlier successful rod lease.
-                            if (!host.mayExecuteAutoRodUse(originalRodSlot))
+                            if (!host.mayDispatchAutoRodNativeUse(originalRodSlot))
                                 return;
                             // The final item/type/currentItem getters can
                             // themselves open a vanilla GuiScreen. No rod
