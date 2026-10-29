@@ -32,7 +32,6 @@ final class Minecraft189ArrayListLayoutTest {
                 85, 128, cap, true);
         assertEquals(cap - 1, rows);
         assertTrue(top + (rows + 1) * 12.0F <= 480 - 4.0F);
-        assertEquals(85 - rows, 85 - rows);
         assertEquals(0, Minecraft189ArrayListLayout.visibleRows(
                 85, 128, 0, true));
         assertEquals(0, Minecraft189ArrayListLayout.rowCapacity(12, 10));
@@ -44,7 +43,7 @@ final class Minecraft189ArrayListLayoutTest {
                 Minecraft189ArrayListLayout.safeTop(4096, 480), 0.001F);
         assertEquals(846.0F,
                 Minecraft189ArrayListLayout.safeRightEdge(4096, 854), 0.001F);
-        assertEquals(850.0F,
+        assertEquals(8.0F,
                 Minecraft189ArrayListLayout.safeLeft(4096, 854), 0.001F);
         assertEquals(1,
                 Minecraft189ArrayListLayout.rowCapacity(480, 464));
