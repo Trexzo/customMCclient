@@ -21,6 +21,8 @@ import dev.trexzo.custommc.core.ui.clickgui.ClickGuiRuntime;
 import dev.trexzo.custommc.core.ui.clickgui.HudPositionPageContent;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.core.ui.UiThemeSettings;
+import dev.trexzo.custommc.core.ui.UiColorRole;
+import dev.trexzo.custommc.core.ui.UiThemes;
 import dev.trexzo.custommc.platform.PlatformContext;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
 import org.junit.jupiter.api.Test;
@@ -69,6 +71,18 @@ final class Minecraft189TargetHudModuleTest {
                     runtime.nearestPlayerTargetState().snapshot());
             runtime.renderHud(1L, 0F);
             assertEquals(0xFFEE8755, host.lastAccentColor);
+            // The original target identity/distance is unchanged, but
+            // hierarchy is quieter and all source text is clipped to the
+            // actual 142x38 compact card minus its 12px interior insets.
+            assertEquals(1, host.outerStrokes);
+            assertEquals(1, host.pushClips);
+            assertEquals(1, host.popClips);
+            assertEquals(118.0F, host.lastClipWidth, 0.001F);
+            assertEquals(30.0F, host.lastClipHeight, 0.001F);
+            assertEquals(UiThemes.graphite().color(UiColorRole.TEXT_MUTED),
+                    host.textColors.get(0).intValue());
+            assertEquals(UiThemes.graphite().color(UiColorRole.TEXT_PRIMARY),
+                    host.textColors.get(1).intValue());
             assertTrue(UiThemeSettings.cycle(
                     settings.find(UiThemeSettings.ID), true));
             runtime.renderHud(2L, 0F);
@@ -562,7 +576,14 @@ final class Minecraft189TargetHudModuleTest {
     private static final class RecordingHost
             implements LegacyUiHostCallbacks {
         private final java.util.List<String> texts = new java.util.ArrayList<String>();
+        private final java.util.List<Integer> textColors =
+                new java.util.ArrayList<Integer>();
         private final java.util.List<Bar> bars = new java.util.ArrayList<Bar>();
+        private int outerStrokes;
+        private int pushClips;
+        private int popClips;
+        private float lastClipWidth;
+        private float lastClipHeight;
         private int roundedRects;
         private int lastAccentColor;
         private float lastCardWidth;
@@ -629,6 +650,7 @@ final class Minecraft189TargetHudModuleTest {
                 final float height,
                 final float thickness,
                 final int argb) {
+            outerStrokes++;
         }
 
         @Override
@@ -637,10 +659,14 @@ final class Minecraft189TargetHudModuleTest {
                 final float y,
                 final float width,
                 final float height) {
+            pushClips++;
+            lastClipWidth = width;
+            lastClipHeight = height;
         }
 
         @Override
         public void popClip() {
+            popClips++;
         }
 
         @Override
@@ -651,6 +677,7 @@ final class Minecraft189TargetHudModuleTest {
                 final String text,
                 final int argb) {
             texts.add(text);
+            textColors.add(Integer.valueOf(argb));
             lastX = x;
             lastY = y;
         }
