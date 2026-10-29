@@ -54,12 +54,19 @@ final class UiSettingDecorationsTest {
         final List<UiDrawCommand> atOne = UiSettingDecorations.compose(
                 NORMAL, value, descriptor, UiThemes.graphite());
         assertEquals(2, atOne.size());
-        assertEquals(2.42F, ((UiRoundedRectCommand) atOne.get(1)).width(), 0.001F);
+        assertEquals(1.2F, ((UiRoundedRectCommand) atOne.get(1)).width(), 0.001F);
         assertEquals(Integer.valueOf(1), value.get());
+        // The progress witness is entirely inside the native value well:
+        // x = row.right - 143 .. row.right - 11.
+        final UiRoundedRectCommand track =
+                (UiRoundedRectCommand) atOne.get(0);
+        assertEquals(NORMAL.x() + NORMAL.width() - 137.0F, track.x());
+        assertTrue(track.x() + track.width()
+                <= NORMAL.x() + NORMAL.width() - 11.0F);
         value.set(100);
         final List<UiDrawCommand> atMax = UiSettingDecorations.compose(
                 NORMAL, value, descriptor, UiThemes.graphite());
-        assertEquals(242F, ((UiRoundedRectCommand) atMax.get(1)).width(), .001F);
+        assertEquals(120F, ((UiRoundedRectCommand) atMax.get(1)).width(), .001F);
     }
 
     @Test
