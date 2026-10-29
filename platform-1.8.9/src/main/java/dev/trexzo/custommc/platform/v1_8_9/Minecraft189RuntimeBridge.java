@@ -3524,6 +3524,16 @@ public final class Minecraft189RuntimeBridge {
                             // menu AFTER melee. Never issue reblock into it.
                             if (vetoOriginalScreenBeforeNativeCombat(
                                     host, minecraft)) return;
+                            // A mapped native held-item getter may reenter
+                            // the original source AFTER mayStart/beginNativeUse
+                            // and replace the item, player or policy. Veto
+                            // the *actual* vanilla right click before dispatch.
+                            if (!host.mayDispatchAutoBlockNativeUse(useToken))
+                                return;
+                            // Final vanilla screen read AFTER that native
+                            // sword check: source getters may open GuiScreen.
+                            if (vetoOriginalScreenBeforeNativeCombat(
+                                    host, minecraft)) return;
                             minecraft.customMcRightClickMouse();
                             if (swordBlock.customMcIsUsingItem()) {
                                 host.recordAutoBlockStart(useToken);
