@@ -63,6 +63,16 @@ public final class Minecraft189HostRuntime
     private long triggerDispatchAdmissionSerial;
     private final Minecraft189CriticalsEvidence criticalsEvidence =
             new Minecraft189CriticalsEvidence();
+    // Only one exact native player, module policy and scheduler callback
+    // may authorize a final original-game critical attack.
+    private long criticalsSourceGeneration;
+    private long criticalsNativeAdmissionSerial = -1L;
+    private long criticalsNativeSourceGeneration;
+    private long criticalsNativeLifecycleEpoch;
+    private double criticalsNativeMinimumFall;
+    private boolean criticalsNativeRequireDescending;
+    private boolean criticalsNativeActive;
+    private Minecraft189PlayerInventoryAccess criticalsNativePlayer;
     // One original player owns the whole motion host chain, across
     // independently guarded Movement module callbacks.
     private final Minecraft189MotionHostSourceLease motionHostLease =
@@ -659,6 +669,7 @@ public final class Minecraft189HostRuntime
             // Clear both halves on every original host tick. No stale
             // fall/motion evidence can authorize automatic attacks.
             criticalsEvidence.reset();
+            ++criticalsSourceGeneration;
             tickSprintControl = null;
             pendingKeepSprintSource = null;
             keepSprintAdmissionSerial++;
@@ -1798,6 +1809,9 @@ public final class Minecraft189HostRuntime
         requireOpen();
         if (!hotbarHostLease.enter(player)) return;
         try {
+            // Even an A-B-A native callback revokes the old Criticals
+            // source generation when the same Java player returns.
+            ++criticalsSourceGeneration;
             // Neither the selected HUD slot nor the mutable combat hotbar
             // control may survive a changed/null original player source.
             tickHotbarControl = null;
@@ -2242,6 +2256,7 @@ public final class Minecraft189HostRuntime
             // AutoBlock sword read, even if the player is later restored.
             tickHeldItemAccess = null;
             heldItemOwnerSerial++;
+            ++criticalsSourceGeneration;
             if (player == null) {
                 heldItemState.clear();
                 return;
@@ -3322,6 +3337,8 @@ public final class Minecraft189HostRuntime
     void suspendSyntheticCombatForOriginalGui() {
         requireOpen();
         ++triggerDispatchAdmissionSerial;
+        criticalsNativeAdmissionSerial = -1L;
+        criticalsNativePlayer = null;
         triggerDispatchLease.clear();
         autoClickerControllerLease.clear();
         featureCatalog.autoClicker().suspendForGui();
@@ -3369,6 +3386,8 @@ public final class Minecraft189HostRuntime
         // Nested external mapped World getters may reenter this scheduler.
         // An older outer callback cannot revive its stale prior admission.
         final long admissionSerial = ++triggerDispatchAdmissionSerial;
+        criticalsNativeAdmissionSerial = -1L;
+        criticalsNativePlayer = null;
         triggerDispatchLease.clear();
         autoClickerControllerLease.clear();
         // No automatic attack may cross the native ClickGUI focus boundary.
@@ -3727,9 +3746,98 @@ public final class Minecraft189HostRuntime
                 return false;
             hitSelect.noteScheduledOriginalClick(verifiedHitSelectUuid);
         }
+        // Capture only after all HitSelect/UUID/range/GUI admission gates.
+        final Minecraft189CriticalsModule nativeCriticals =
+                featureCatalog.criticals();
+        criticalsNativeActive = nativeCriticals.active();
+        criticalsNativeLifecycleEpoch = nativeCriticals.lifecycleEpoch();
+        criticalsNativeMinimumFall =
+                nativeCriticals.minimumFallDistanceSetting().get();
+        criticalsNativeRequireDescending =
+                nativeCriticals.requireDescendingSetting().get();
+        criticalsNativeSourceGeneration = criticalsSourceGeneration;
+        criticalsNativePlayer = tickHotbarPlayer;
+        criticalsNativeAdmissionSerial = admissionSerial;
         clickRateTracker.recordPress(
                 Minecraft189ClickRateTracker.LEFT_BUTTON);
         return true;
+    }
+
+    /**
+     * Final genuine local-player Criticals gate, shared by native Aura,
+     * TriggerBot and AutoClicker. HitSelect's original UUID/hurt recovery
+     * remains independent. No jump, packet, fake fallDistance or controller.
+     */
+    boolean mayDispatchOriginalCriticals() {
+        requireOpen();
+        final Minecraft189CriticalsModule module = featureCatalog.criticals();
+        if (criticalsNativeAdmissionSerial < 0L
+                || criticalsNativeAdmissionSerial != triggerDispatchAdmissionSerial
+                || module.active() != criticalsNativeActive
+                || module.lifecycleEpoch() != criticalsNativeLifecycleEpoch
+                || module.minimumFallDistanceSetting().get()
+                        != criticalsNativeMinimumFall
+                || module.requireDescendingSetting().get()
+                        != criticalsNativeRequireDescending) return false;
+        if (!module.active()) return true;
+
+        final Minecraft189PlayerInventoryAccess original = criticalsNativePlayer;
+        final long generation = criticalsNativeSourceGeneration;
+        if (!criticalNativeSourceStillOwned(original, generation)
+                || !(original instanceof Minecraft189PlayerMovementStateAccess)
+                || !(original instanceof Minecraft189PlayerFallDistanceControl)
+                || !(original instanceof Minecraft189PlayerMotionControl))
+            return false;
+        final Minecraft189PlayerMovementStateAccess movement =
+                (Minecraft189PlayerMovementStateAccess) original;
+        final Minecraft189PlayerFallDistanceControl fall =
+                (Minecraft189PlayerFallDistanceControl) original;
+        final Minecraft189PlayerMotionControl motion =
+                (Minecraft189PlayerMotionControl) original;
+        // All six values come from genuine mapped getters. A callback
+        // reentry or an in-place movement transition rejects the older
+        // synthetic click; the second read must agree with the first.
+        final boolean ground = movement.customMcOnGround();
+        if (!criticalNativeSourceStillOwned(original, generation)) return false;
+        final float distance = fall.customMcFallDistance();
+        if (!criticalNativeSourceStillOwned(original, generation)) return false;
+        final double motionY = motion.customMcMotionY();
+        if (!criticalNativeSourceStillOwned(original, generation)) return false;
+        final boolean groundAgain = movement.customMcOnGround();
+        if (!criticalNativeSourceStillOwned(original, generation)) return false;
+        final float distanceAgain = fall.customMcFallDistance();
+        if (!criticalNativeSourceStillOwned(original, generation)) return false;
+        final double motionAgain = motion.customMcMotionY();
+        if (!criticalNativeSourceStillOwned(original, generation)
+                || ground != groundAgain || distance != distanceAgain
+                || motionY != motionAgain) return false;
+        return module.permitsOriginalNativeFall(groundAgain,
+                distanceAgain, motionAgain,
+                featureCatalog.flight().active()
+                        || featureCatalog.freeze().active()
+                        || featureCatalog.noFall().active()
+                        || featureCatalog.noGravity().active()
+                        || featureCatalog.noClip().active())
+                && criticalNativeSourceStillOwned(original, generation)
+                && module.active() == criticalsNativeActive
+                && module.lifecycleEpoch() == criticalsNativeLifecycleEpoch
+                && module.minimumFallDistanceSetting().get()
+                        == criticalsNativeMinimumFall
+                && module.requireDescendingSetting().get()
+                        == criticalsNativeRequireDescending
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open();
+    }
+
+    private boolean criticalNativeSourceStillOwned(
+            final Minecraft189PlayerInventoryAccess original,
+            final long generation) {
+        return original != null && criticalsSourceGeneration == generation
+                && criticalsNativePlayer == original
+                && tickHotbarPlayer == original
+                && tickHeldItemAccess == original
+                && criticalsNativeAdmissionSerial
+                        == triggerDispatchAdmissionSerial
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open();
     }
 
     /**

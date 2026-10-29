@@ -43,6 +43,44 @@ final class Minecraft189CriticalsModuleTest {
         assertTrue(module.permits(null, null, true));
     }
 
+    @Test void nativeCriticalsMustObserveActualOriginalAirborneFallAndDescent() {
+        final Minecraft189CriticalsModule module = new Minecraft189CriticalsModule();
+        // Disabled Criticals is not a minted native permission. The host
+        // separately preserves disabled default attacks after its own grant.
+        assertFalse(module.permitsOriginalNativeFall(false, .6F, -.2D, false));
+        module.onEnable();
+        assertTrue(module.permitsOriginalNativeFall(false, .6F, -.2D, false));
+        assertFalse(module.permitsOriginalNativeFall(true, .6F, -.2D, false));
+        assertFalse(module.permitsOriginalNativeFall(false, .01F, -.2D, false));
+        assertFalse(module.permitsOriginalNativeFall(false, .6F, +.2D, false));
+        assertFalse(module.permitsOriginalNativeFall(false, .6F,
+                Double.NaN, false));
+        assertFalse(module.permitsOriginalNativeFall(false,
+                Float.NaN, -.2D, false));
+        assertFalse(module.permitsOriginalNativeFall(false, .6F, -.2D, true));
+        module.requireDescendingSetting().set(false);
+        assertTrue(module.permitsOriginalNativeFall(false, .6F, +.2D, false));
+        module.minimumFallDistanceSetting().set(1.0D);
+        assertFalse(module.permitsOriginalNativeFall(false, .6F, -.2D, false));
+        assertTrue(module.permitsOriginalNativeFall(false, 1.1F, -.2D, false));
+        module.onDisable();
+        assertFalse(module.permitsOriginalNativeFall(false, 1.1F, -.2D, false));
+    }
+
+    @Test void nativeCriticalsOffOnIsDistinctOriginalControllerOwner() {
+        final Minecraft189CriticalsModule module = new Minecraft189CriticalsModule();
+        final long a = module.lifecycleEpoch();
+        module.onEnable();
+        final long b = module.lifecycleEpoch();
+        assertTrue(b > a);
+        module.onDisable();
+        final long c = module.lifecycleEpoch();
+        module.onEnable();
+        assertTrue(module.lifecycleEpoch() > c);
+        assertTrue(module.lifecycleEpoch() != b);
+        assertTrue(module.permitsOriginalNativeFall(false, .5F, -.2D, false));
+    }
+
     @Test void persistsValidatedSettingsAndReleasesAllRegistrations() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
