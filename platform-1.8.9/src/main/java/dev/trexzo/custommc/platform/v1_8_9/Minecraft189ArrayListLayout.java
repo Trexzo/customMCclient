@@ -24,6 +24,11 @@ final class Minecraft189ArrayListLayout {
     static float safeLeft(final float configuredX, final float screenWidth) {
         if (!Float.isFinite(configuredX) || !Float.isFinite(screenWidth)
                 || screenWidth <= 0.0F) return 0.0F;
+        if (configuredX > screenWidth - 28.0F) {
+            // A user may move from a wide monitor to a small window.
+            // Restore a useful natural left margin only in that case.
+            return Math.min(8.0F, Math.max(0.0F, screenWidth - SCREEN_PADDING));
+        }
         return Math.min(Math.max(SCREEN_PADDING, configuredX),
                 Math.max(0.0F, screenWidth - SCREEN_PADDING));
     }
