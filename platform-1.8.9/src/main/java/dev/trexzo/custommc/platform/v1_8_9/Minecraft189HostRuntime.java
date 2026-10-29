@@ -2895,14 +2895,58 @@ public final class Minecraft189HostRuntime
 
     boolean mayExecuteAutoRodUse(final int originalSlot) {
         requireOpen();
-        return !clickGuiRuntime.coreRuntime().model().snapshot().open()
-                && mayCastWithoutReelingActiveHook()
-                && sameLocalHotbarAndHeldItemOwner()
-                && autoRodLeaseInventory != null
-                && tickHotbarControl == autoRodLeaseInventory
-                && Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
-                        featureCatalog.autoRod(), autoRodLeaseInventory,
-                        tickHeldItemAccess, originalSlot);
+        // V361: this is called both after AutoBlock's genuine
+        // stopUsingItem() and after the original GuiScreen veto. Neither
+        // native callback may transfer an older ROD action to a new
+        // InventoryPlayer, a reused hotbar index, or a changed physical
+        // attack/right-button state.
+        final Minecraft189InventoryHotbarControl inventory =
+                autoRodLeaseInventory;
+        final Minecraft189PlayerInventoryAccess originalPlayer =
+                tickHotbarPlayer;
+        final Minecraft189PlayerHeldItemAccess originalHeld =
+                tickHeldItemAccess;
+        final long originalHeldGeneration = heldItemOwnerSerial;
+        final Minecraft189AutoRodModule rod = featureCatalog.autoRod();
+        if (originalSlot < 0 || originalSlot > 8
+                || inventory == null || autoRodLeaseOriginal != originalSlot
+                || tickHotbarControl != inventory
+                || originalPlayer == null || originalHeld == null
+                || originalPlayer != (Object) originalHeld
+                || clickGuiRuntime.coreRuntime().model().snapshot().open()
+                || (rod.requireHoldSetting().get()
+                        && !inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.LEFT_BUTTON))
+                || (rod.pauseRightSetting().get()
+                        && inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.RIGHT_BUTTON)))
+            return false;
+
+        // Original fishEntity and original ItemStack reads can synchronously
+        // reenter playerHeldItem/playerHotbarSlot. Keep the exact source
+        // generation and both original owner references across ALL reads.
+        if (!mayCastWithoutReelingActiveHook()
+                || heldItemOwnerSerial != originalHeldGeneration
+                || tickHotbarControl != inventory
+                || tickHotbarPlayer != originalPlayer
+                || tickHeldItemAccess != originalHeld)
+            return false;
+        if (!Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                rod, inventory, originalHeld, originalSlot))
+            return false;
+        return heldItemOwnerSerial == originalHeldGeneration
+                && tickHotbarControl == inventory
+                && tickHotbarPlayer == originalPlayer
+                && tickHeldItemAccess == originalHeld
+                && autoRodLeaseInventory == inventory
+                && autoRodLeaseOriginal == originalSlot
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open()
+                && (!rod.requireHoldSetting().get()
+                        || inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.LEFT_BUTTON))
+                && (!rod.pauseRightSetting().get()
+                        || !inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.RIGHT_BUTTON));
     }
 
     void restoreAutoRodSlot(final int originalSlot) {
