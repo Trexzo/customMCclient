@@ -9,6 +9,8 @@ import dev.trexzo.custommc.core.ui.UiColorRole;
 import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiFonts;
 import dev.trexzo.custommc.core.ui.UiOutlineCommand;
+import dev.trexzo.custommc.core.ui.UiRectCommand;
+import dev.trexzo.custommc.core.ui.UiThemeSettings;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiTheme;
@@ -27,6 +29,8 @@ import java.util.Objects;
 final class UiSettingRowVisuals {
     private static final float INSET = 12.0F;
     private static final float TEXT_Y = 10.0F;
+    private static final float LABEL_Y = 6.0F;
+    private static final float HELP_Y = 22.0F;
 
     private UiSettingRowVisuals() {
     }
@@ -54,9 +58,19 @@ final class UiSettingRowVisuals {
                 Math.min(6.0F,
                         Math.min(row.width(), row.height()) * 0.5F),
                 theme.color(UiColorRole.SURFACE_RAISED)));
-        commands.add(new UiOutlineCommand(
-                1, row.x(), row.y(), row.width(), row.height(),
-                1.0F, theme.color(UiColorRole.BORDER)));
+        // Thin hairline separation rather than a border around every
+        // individual field. Editing gets a real focused outline.
+        if (editing) {
+            commands.add(new UiOutlineCommand(
+                    1, row.x(), row.y(), row.width(), row.height(),
+                    1.0F, theme.color(UiColorRole.ACCENT)));
+        } else if (row.width() >= 24.0F && row.height() >= 10.0F) {
+            commands.add(new UiRectCommand(
+                    1, row.x() + 12.0F,
+                    row.y() + row.height() - 1.0F,
+                    row.width() - 24.0F, 1.0F,
+                    theme.color(UiColorRole.BORDER)));
+        }
 
         final boolean booleanControl =
                 descriptor.kind() == SettingValueKind.BOOLEAN;
@@ -66,8 +80,16 @@ final class UiSettingRowVisuals {
         final float labelRight = row.x() + row.width()
                 - (booleanControl ? 60.0F : 160.0F);
         final float labelWidth = Math.max(0.0F, labelRight - labelX);
+        final boolean twoLines = row.height() >= 34.0F
+                && labelWidth >= 112.0F;
         addClippedText(commands, row, labelX, labelWidth,
-                descriptor.label(), theme.color(UiColorRole.TEXT_PRIMARY));
+                descriptor.label(), theme.color(UiColorRole.TEXT_PRIMARY),
+                twoLines ? LABEL_Y : TEXT_Y);
+        if (twoLines) {
+            addClippedText(commands, row, labelX, labelWidth,
+                    interactionHint(descriptor, editing),
+                    theme.color(UiColorRole.TEXT_MUTED), HELP_Y);
+        }
 
         if (!booleanControl) {
             // Text, enum and numeric rows share one bounded value area.
@@ -98,9 +120,34 @@ final class UiSettingRowVisuals {
             addClippedText(commands, row, valueX,
                     Math.max(0.0F, valueRight - valueX),
                     valueText, theme.color(editing
-                            ? UiColorRole.ACCENT : UiColorRole.TEXT_MUTED));
+                            ? UiColorRole.ACCENT : UiColorRole.TEXT_PRIMARY),
+                    row.height() >= 34.0F ? 12.0F : TEXT_Y);
         }
         return commands;
+    }
+
+    static String interactionHint(
+            final SettingDescriptor descriptor, final boolean editing) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        if (editing) {
+            return "ENTER SAVE  /  ESC CANCEL";
+        }
+        if (UiThemeSettings.ID.equals(descriptor.settingId())) {
+            return "LEFT NEXT  /  RIGHT PREVIOUS";
+        }
+        switch (descriptor.kind()) {
+            case BOOLEAN:
+                return "CLICK TO TOGGLE";
+            case INTEGER:
+            case DOUBLE:
+                // The existing controller is step-based. Never label the
+                // numeric progress witness a draggable slider.
+                return "LEFT +  /  RIGHT -";
+            case TEXT:
+                return "CLICK TO EDIT";
+            default:
+                return "";
+        }
     }
 
     private static void addClippedText(
@@ -109,8 +156,10 @@ final class UiSettingRowVisuals {
             final float x,
             final float width,
             final String value,
-            final int argb) {
-        if (width <= 0.0F || row.height() < TEXT_Y + 2.0F) {
+            final int argb,
+            final float offsetY) {
+        if (width <= 0.0F || value.isEmpty()
+                || row.height() < offsetY + 2.0F) {
             return;
         }
         commands.add(new UiClipCommand(
@@ -118,7 +167,7 @@ final class UiSettingRowVisuals {
                 new UiBounds(x, row.y(), width, row.height()),
                 Collections.<UiDrawCommand>singletonList(
                         new UiTextCommand(
-                                0, x, row.y() + TEXT_Y,
+                                0, x, row.y() + offsetY,
                                 UiFonts.DEFAULT, value, argb))));
     }
 }
