@@ -22,16 +22,19 @@ the earlier source verdict risks a stale rod click.
    `fishEntity` and verified selected ItemStack/native getter sequence.
    A nested same-player held-item refresh invalidates the stale
    generation even if the exact rod type did not change.
-2. Re-evaluates the existing **Require Attack Held** and **Pause While
-   Right-Clicking** policies from actual current pointer state before
-   and after the native getters. Manual RMB takeover cannot authorize
-   an old rod attempt. Default rod slot, discovery/protection, hook,
-   cooldown and item identity policies are not changed.
+2. Read-only `mayExecuteAutoRodUse` continues to prove the
+   genuine original rod/slot/owner for the original V132 Mojang `/give`
+   discovery acceptance **without requiring a physical attack**. The
+   distinct production-only `mayDispatchAutoRodNativeUse` additionally
+   enforces current **Require Attack Held** and **Pause While
+   Right-Clicking** policy from the real pointer before and after
+   native getters. This separation fixes the genuine V132 regression
+   without weakening live rightClickMouse admission or forging input.
 3. Bridge retains original action ordering: AutoBlock release,
-   first real rod verification, original vanilla GuiScreen veto,
-   **renewed** native rod source verification, **second** original
-   GuiScreen veto, then exactly one vanilla `rightClickMouse`, one
-   completed original cooldown and finally safe slot restoration.
+   first read-only genuine rod verification, original vanilla
+   GuiScreen veto, **final production rod + physical-input gate**,
+   **second** original GuiScreen veto, then exactly one vanilla
+   `rightClickMouse`, completed original cooldown and safe slot restore.
 4. Source tests V344 are updated to require **nine** original screen
    veto calls: original seven, V360's added post-sword one and V361's
    added post-rod one. No original assertions are deleted.
