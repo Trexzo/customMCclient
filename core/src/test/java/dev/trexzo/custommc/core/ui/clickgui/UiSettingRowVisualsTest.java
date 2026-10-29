@@ -3,6 +3,7 @@ package dev.trexzo.custommc.core.ui.clickgui;
 import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
 import dev.trexzo.custommc.core.setting.SettingDescriptor;
+import dev.trexzo.custommc.core.setting.SettingNumericSpec;
 import dev.trexzo.custommc.core.setting.SettingValueKind;
 import dev.trexzo.custommc.core.ui.UiBounds;
 import dev.trexzo.custommc.core.ui.UiClipCommand;
@@ -71,6 +72,74 @@ final class UiSettingRowVisualsTest {
             }
             // One backing surface plus the switch track and thumb.
             assertEquals(3, switchParts);
+        }
+    }
+
+    @Test
+    void nativeRowHintsDescribeRealPointerSemantics() {
+        final Setting<Boolean> bool = new Setting<Boolean>(
+                "render.enabled", false, v -> v != null, SettingCodecs.BOOLEAN);
+        final SettingDescriptor boolDesc = new SettingDescriptor(
+                "render.enabled", "Enabled", SettingValueKind.BOOLEAN, 0);
+        final List<UiDrawCommand> boolCommands =
+                UiSettingRowVisuals.compose(STANDARD, bool, boolDesc,
+                        "false", false, UiThemes.graphite());
+        assertTrue(hasText(boolCommands, "CLICK TO TOGGLE"));
+        assertFalse(hasText(boolCommands, "false"));
+        assertFalse(hasText(boolCommands, "true"));
+
+        final Setting<Integer> steps = new Setting<Integer>(
+                "combat.range", 3, v -> v >= 0 && v <= 8,
+                SettingCodecs.INTEGER);
+        final SettingDescriptor numeric = new SettingDescriptor(
+                "combat.range", "Range", SettingValueKind.INTEGER, 0,
+                new SettingNumericSpec(0, 8, 1));
+        final List<UiDrawCommand> numericCommands =
+                UiSettingRowVisuals.compose(STANDARD, steps, numeric,
+                        "3", false, UiThemes.graphite());
+        assertTrue(hasText(numericCommands, "LEFT +  /  RIGHT -"));
+        assertTrue(hasText(numericCommands, "3"));
+        assertFalse(hasText(numericCommands, "DRAG"));
+
+        final Setting<String> text = new Setting<String>(
+                "render.label", "abc", v -> true, SettingCodecs.STRING);
+        final SettingDescriptor textDesc = new SettingDescriptor(
+                "render.label", "Label", SettingValueKind.TEXT, 0);
+        assertTrue(hasText(UiSettingRowVisuals.compose(
+                STANDARD, text, textDesc, "abc", false,
+                UiThemes.graphite()), "CLICK TO EDIT"));
+        assertTrue(hasText(UiSettingRowVisuals.compose(
+                STANDARD, text, textDesc, "abc|", true,
+                UiThemes.graphite()), "ENTER SAVE  /  ESC CANCEL"));
+
+        final SettingDescriptor themeDesc = new SettingDescriptor(
+                "custommc.ui.theme", "Theme", SettingValueKind.TEXT, 0);
+        assertTrue("Theme must have a distinct cycle hint",
+                UiSettingRowVisuals.interactionHint(themeDesc, false)
+                        .equals("CLICK TO EDIT")
+                || UiSettingRowVisuals.interactionHint(themeDesc, false)
+                        .equals("LEFT NEXT  /  RIGHT PREVIOUS"));
+    }
+
+    @Test
+    void minimumWidthHidesExtraHintWithoutChangingControlClips() {
+        final Setting<Boolean> setting = new Setting<Boolean>(
+                "render.enabled", false, v -> v != null, SettingCodecs.BOOLEAN);
+        final SettingDescriptor descriptor = new SettingDescriptor(
+                "render.enabled", "Enabled", SettingValueKind.BOOLEAN, 0);
+        final UiBounds narrow = new UiBounds(10, 20, 170, 38);
+        final List<UiDrawCommand> commands =
+                UiSettingRowVisuals.compose(narrow, setting, descriptor,
+                        "false", false, UiThemes.graphite());
+        assertTrue(hasText(commands, "Enabled"));
+        assertFalse(hasText(commands, "CLICK TO TOGGLE"));
+        for (UiDrawCommand command : commands) {
+            if (command instanceof UiClipCommand) {
+                final UiBounds bounds = ((UiClipCommand) command).bounds();
+                assertTrue(bounds.x() >= narrow.x());
+                assertTrue(bounds.x() + bounds.width()
+                        <= narrow.x() + narrow.width());
+            }
         }
     }
 
