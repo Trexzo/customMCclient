@@ -3069,7 +3069,15 @@ public final class Minecraft189RuntimeBridge {
                                 host, originalPotionSlot,
                                 () -> minecraft.customMcRightClickMouse(),
                                 () -> !vetoOriginalScreenBeforeNativeCombat(
-                                        host, minecraft));
+                                        host, minecraft)
+                                        && host.mayDispatchAutoPotNativeUse(
+                                                originalPotionSlot)
+                                        // Original source health/item getters
+                                        // may synchronously open a real
+                                        // GuiScreen. Recheck just before
+                                        // vanilla potion right-click.
+                                        && !vetoOriginalScreenBeforeNativeCombat(
+                                                host, minecraft));
                     } finally {
                         host.restoreAutoPotSlot(originalPotionSlot);
                     }
