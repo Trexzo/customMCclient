@@ -76,7 +76,12 @@ final class Minecraft189ArrayListMotionTest {
                 Minecraft189ArrayListMotion.withOpacity(0xFFEE8755, 3.0F));
         assertEquals(0x50000000,
                 Minecraft189ArrayListMotion.withOpacity(0x50000000, 1.0F));
+        assertEquals(12.0F, Minecraft189ArrayListMotion.slide(0.0F), .0001F);
         assertTrue(Minecraft189ArrayListMotion.slide(.22F) > 0.0F);
+        assertTrue(Minecraft189ArrayListMotion.slide(.22F)
+                > Minecraft189ArrayListMotion.slide(.44F));
+        assertTrue(Minecraft189ArrayListMotion.slide(.44F)
+                > Minecraft189ArrayListMotion.slide(.66F));
         assertEquals(0.0F, Minecraft189ArrayListMotion.slide(1.0F), .0001F);
     }
 }
