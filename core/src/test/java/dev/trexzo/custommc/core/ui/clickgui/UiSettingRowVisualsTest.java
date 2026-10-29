@@ -11,6 +11,7 @@ import dev.trexzo.custommc.core.ui.UiDrawCommand;
 import dev.trexzo.custommc.core.ui.UiRoundedRectCommand;
 import dev.trexzo.custommc.core.ui.UiTextCommand;
 import dev.trexzo.custommc.core.ui.UiThemes;
+import dev.trexzo.custommc.core.ui.UiThemeSettings;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -113,12 +114,9 @@ final class UiSettingRowVisualsTest {
                 UiThemes.graphite()), "ENTER SAVE  /  ESC CANCEL"));
 
         final SettingDescriptor themeDesc = new SettingDescriptor(
-                "custommc.ui.theme", "Theme", SettingValueKind.TEXT, 0);
-        assertTrue("Theme must have a distinct cycle hint",
-                UiSettingRowVisuals.interactionHint(themeDesc, false)
-                        .equals("CLICK TO EDIT")
-                || UiSettingRowVisuals.interactionHint(themeDesc, false)
-                        .equals("LEFT NEXT  /  RIGHT PREVIOUS"));
+                UiThemeSettings.ID, "Theme", SettingValueKind.TEXT, 0);
+        assertEquals("LEFT NEXT  /  RIGHT PREVIOUS",
+                UiSettingRowVisuals.interactionHint(themeDesc, false));
     }
 
     @Test
