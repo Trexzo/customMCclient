@@ -64,7 +64,17 @@ class NativeGuiAndCombatCycleV344(unittest.TestCase):
             self.assertGreater(previous, 0)
             previous_hurt = action.rfind("if (!permitsHitSelectAtNativeDispatch(", 0, at)
             self.assertGreater(previous, previous_hurt)
-        self.assertEqual(7, action.count("vetoOriginalScreenBeforeNativeCombat("))
+        # V360 adds one genuinely new vanilla GuiScreen check AFTER
+        # fresh original sword/source generation validation and BEFORE
+        # rightClickMouse. Keep the original seven checks mandatory.
+        self.assertEqual(8, action.count("vetoOriginalScreenBeforeNativeCombat("))
+        block = action.index("host.beginAutoBlockNativeUse()")
+        new_source = action.index("host.mayDispatchAutoBlockNativeUse(useToken)", block)
+        next_screen = action.index("vetoOriginalScreenBeforeNativeCombat(", new_source)
+        native_reblock = action.index("minecraft.customMcRightClickMouse();",
+                                     next_screen)
+        self.assertLess(new_source, next_screen)
+        self.assertLess(next_screen, native_reblock)
 
     def test_item_lanes_refuse_native_use_before_commit(self):
         action = self.action
