@@ -264,27 +264,44 @@ public final class Minecraft189TargetHudModule implements Module {
                         0xE8000000 | (theme.color(UiColorRole.SURFACE) & 0xFFFFFF));
                 graphics.strokeRect(left, top, width, height, 1.0F,
                         0xAA000000 | (theme.color(UiColorRole.BORDER) & 0xFFFFFF));
-                graphics.strokeRect(left + 7.0F, top + 1.0F,
-                        Math.max(0.0F, width - 14.0F), 1.0F, 1.0F,
-                        0x55000000 | (theme.color(UiColorRole.ACCENT) & 0xFFFFFF));
+                // Quiet reference-client hierarchy: one subtle outer
+                // boundary and a live source-driven accent rail, not an
+                // additional decorative top border competing with the text.
                 graphics.fillRoundedRect(left, top, 3.0F, height, 1.5F,
                         liveAccent);
-                graphics.drawText(UiFonts.DEFAULT, left + 12, top + 7,
-                        String.format(Locale.ROOT, "NEARBY  %02d",
-                                target.entityIndex() + 1),
-                        theme.color(UiColorRole.TEXT_PRIMARY));
-                graphics.drawText(UiFonts.DEFAULT, left + 12, top + 23,
-                        distanceText(target), theme.color(UiColorRole.ACCENT));
-                if (!small) {
-                    graphics.drawText(UiFonts.DEFAULT, left + 12, top + 39,
-                            directionText(angle),
-                            theme.color(UiColorRole.TEXT_MUTED));
-                }
-                if (coordinates != null) {
-                    graphics.drawText(UiFonts.DEFAULT, left + 12,
-                            top + (small ? 39.0F : 55.0F),
-                            coordinates,
-                            theme.color(UiColorRole.TEXT_MUTED));
+                final float textLeft = left + 12.0F;
+                final float textWidth = Math.max(0.0F, width - 24.0F);
+                final float textHeight = Math.max(0.0F,
+                        height - (proximityMeter.get().booleanValue()
+                                ? 8.0F : 4.0F));
+                // The real Minecraft font is still authoritative. Keep all
+                // labels within the physical HUD, including source-native
+                // expanded coordinates and long localized values.
+                if (textWidth > 0.0F && textHeight > 0.0F) {
+                    graphics.pushClip(textLeft, top + 4.0F,
+                            textWidth, textHeight);
+                    try {
+                        graphics.drawText(UiFonts.DEFAULT, textLeft, top + 7,
+                                String.format(Locale.ROOT, "NEARBY  %02d",
+                                        target.entityIndex() + 1),
+                                theme.color(UiColorRole.TEXT_MUTED));
+                        graphics.drawText(UiFonts.DEFAULT, textLeft, top + 23,
+                                distanceText(target),
+                                theme.color(UiColorRole.TEXT_PRIMARY));
+                        if (!small) {
+                            graphics.drawText(UiFonts.DEFAULT, textLeft, top + 39,
+                                    directionText(angle),
+                                    theme.color(UiColorRole.TEXT_MUTED));
+                        }
+                        if (coordinates != null) {
+                            graphics.drawText(UiFonts.DEFAULT, textLeft,
+                                    top + (small ? 39.0F : 55.0F),
+                                    coordinates,
+                                    theme.color(UiColorRole.TEXT_MUTED));
+                        }
+                    } finally {
+                        graphics.popClip();
+                    }
                 }
                 if (proximityMeter.get().booleanValue()) {
                     final float trackLeft = left + 12.0F;
