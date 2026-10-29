@@ -53,6 +53,11 @@ final class Minecraft189ArrayListMotion {
     }
 
     static float slide(final float phase) {
-        return (1.0F - Math.max(0.0F, Math.min(1.0F, phase))) * 12.0F;
+        // Smoothstep retains 12px maximum and an exact zero at rest, but
+        // avoids linear-position snapping as a label finishes entering.
+        // Opacity and module state remain authoritative and unchanged.
+        final float t = Math.max(0.0F, Math.min(1.0F, phase));
+        final float eased = t * t * (3.0F - 2.0F * t);
+        return (1.0F - eased) * 12.0F;
     }
 }

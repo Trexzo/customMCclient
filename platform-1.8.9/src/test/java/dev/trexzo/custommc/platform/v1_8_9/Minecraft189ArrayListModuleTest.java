@@ -344,6 +344,64 @@ final class Minecraft189ArrayListModuleTest {
     }
 
     @Test
+    void realPlatformHudStackRecoversOn854x480WithoutFakeEnabledRows() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(
+                new EventBus(), modules, controller, services));
+        final RecordingHost host = new RecordingHost();
+        host.windowWidth = 854;
+        host.windowHeight = 480;
+        final Minecraft189HostRuntime runtime =
+                Minecraft189HostRuntime.install(
+                        platform, new ModulePresentationRegistry(),
+                        new ModuleCategoryRegistry(),
+                        new ModuleSettingRegistry(modules, settings),
+                        null, null, settings,
+                        new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189ArrayListModule list = runtime.featureCatalog().arrayList();
+            controller.enable(Minecraft189WatermarkModule.ID);
+            controller.enable(Minecraft189ArrayListModule.ID);
+            controller.enable(Minecraft189AutoSprintModule.ID);
+            controller.enable(Minecraft189FastPlaceModule.ID);
+            controller.enable(Minecraft189NoHitDelayModule.ID);
+
+            // A saved coordinate from a larger window must not hide the
+            // enabled-module list after shrinking to actual 854x480.
+            list.ySetting().set(4096);
+            list.xSetting().set(4096);
+            list.showOverflowSetting().set(Boolean.TRUE);
+            runtime.renderHud(12L, 0.0F);
+            assertEquals(Arrays.asList("CustomMC", "+ 5 more"), host.text);
+            final float lastX = Float.parseFloat(
+                    host.positions.get(1).split(",")[0]);
+            final float lastY = Float.parseFloat(
+                    host.positions.get(1).split(",")[1]);
+            assertTrue(lastX >= 4.0F && lastX <= 846.0F);
+            assertEquals(464.0F, lastY, 0.001F);
+            assertEquals("4096", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.X_SETTING_ID));
+            assertEquals("4096", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.Y_SETTING_ID));
+
+            // Restore ordinary placement: all real enabled modules return.
+            list.ySetting().set(24);
+            list.xSetting().set(8);
+            host.clear();
+            runtime.renderHud(13L, 0.0F);
+            assertEquals(6, host.text.size());
+            assertFalse(host.text.contains("+ 5 more"));
+        } finally {
+            runtime.close();
+        }
+    }
+
+    @Test
     void maxRowsAndOverflowOnlyShowActualEnabledModules() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -439,6 +497,8 @@ final class Minecraft189ArrayListModuleTest {
         private final List<Integer> textColors = new ArrayList<Integer>();
         private int lastAccentColor;
         private int roundedRects;
+        private int windowWidth = 1280;
+        private int windowHeight = 720;
 
         private void clear() {
             text.clear();
@@ -449,12 +509,12 @@ final class Minecraft189ArrayListModuleTest {
 
         @Override
         public int framebufferWidth() {
-            return 1280;
+            return windowWidth;
         }
 
         @Override
         public int framebufferHeight() {
-            return 720;
+            return windowHeight;
         }
 
         @Override
