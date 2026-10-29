@@ -18,7 +18,7 @@ class OriginalRodNativeOwnerV361(unittest.TestCase):
     def test_exact_source_generation_and_native_hotbar_lease(self):
         method = HOST.split(
             "    boolean mayExecuteAutoRodUse(final int originalSlot) {", 1
-        )[1].split("\n    void restoreAutoRodSlot(", 1)[0]
+        )[1].split("\n    /**", 1)[0]
         for requirement in (
             "final Minecraft189InventoryHotbarControl inventory =",
             "final Minecraft189PlayerInventoryAccess originalPlayer =",
@@ -34,10 +34,23 @@ class OriginalRodNativeOwnerV361(unittest.TestCase):
             "Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(",
             "clickGuiRuntime.coreRuntime().model().snapshot().open()",
             "mayCastWithoutReelingActiveHook()",
-            "Minecraft189ClickRateTracker.LEFT_BUTTON",
-            "Minecraft189ClickRateTracker.RIGHT_BUTTON",
         ):
             self.assertIn(requirement, method)
+        # V132 original Mojang /give acceptance is a genuinely read-only
+        # source rod discovery, with no attack-key input or fake controller.
+        self.assertNotIn("Minecraft189ClickRateTracker.LEFT_BUTTON", method)
+        self.assertNotIn("customMcRightClickMouse()", method)
+
+    def test_actual_native_use_requires_current_physical_input_and_source(self):
+        method = HOST.split(
+            "boolean mayDispatchAutoRodNativeUse(final int originalSlot) {", 1
+        )[1].split("\n    void restoreAutoRodSlot(", 1)[0]
+        self.assertIn("mayExecuteAutoRodUse(originalSlot)", method)
+        self.assertIn("rod.requireHoldSetting().get()", method)
+        self.assertIn("Minecraft189ClickRateTracker.LEFT_BUTTON", method)
+        self.assertIn("rod.pauseRightSetting().get()", method)
+        self.assertIn("Minecraft189ClickRateTracker.RIGHT_BUTTON", method)
+        self.assertIn("clickGuiRuntime.coreRuntime().model().snapshot().open()", method)
         self.assertNotIn("customMcRightClickMouse()", method)
         self.assertNotIn("customMcSetSelectedHotbarSlot(", method)
 
@@ -55,13 +68,15 @@ class OriginalRodNativeOwnerV361(unittest.TestCase):
         self.assertIn("host.claimSyntheticCombatPrimary(", section)
         self.assertIn("Minecraft189CombatCycleArbiter.Primary.ROD", section)
         self.assertIn("host.releaseAutoBlockBeforeAction()", section)
-        self.assertEqual(2, section.count("host.mayExecuteAutoRodUse(originalRodSlot)"))
+        self.assertEqual(1, section.count("host.mayExecuteAutoRodUse(originalRodSlot)"))
+        self.assertEqual(1, section.count(
+            "host.mayDispatchAutoRodNativeUse(originalRodSlot)"))
         self.assertEqual(2, section.count("vetoOriginalScreenBeforeNativeCombat("))
         self.assertEqual(1, section.count("minecraft.customMcRightClickMouse();"))
         a = section.index("host.releaseAutoBlockBeforeAction()")
         b = section.index("host.mayExecuteAutoRodUse(originalRodSlot)")
         c = section.index("vetoOriginalScreenBeforeNativeCombat(", b)
-        d = section.index("host.mayExecuteAutoRodUse(originalRodSlot)", c)
+        d = section.index("host.mayDispatchAutoRodNativeUse(originalRodSlot)", c)
         e = section.index("vetoOriginalScreenBeforeNativeCombat(", d)
         f = section.index("minecraft.customMcRightClickMouse();", e)
         g = section.index("host.commitAutoRodUseAttempt(originalRodSlot);", f)
