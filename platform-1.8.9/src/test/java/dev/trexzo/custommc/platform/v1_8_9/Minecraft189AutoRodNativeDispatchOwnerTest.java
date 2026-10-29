@@ -130,11 +130,28 @@ final class Minecraft189AutoRodNativeDispatchOwnerTest {
             final int original = f.select();
             assertEquals(4, original);
             assertEquals(1, f.player.inventory.slot);
-            assertTrue(f.host.mayExecuteAutoRodUse(original));
-            assertTrue(f.host.mayExecuteAutoRodUse(original));
+            assertTrue(f.host.mayDispatchAutoRodNativeUse(original));
+            assertTrue(f.host.mayDispatchAutoRodNativeUse(original));
             f.restore(original);
             assertEquals(4, f.player.inventory.slot);
-            assertFalse(f.host.mayExecuteAutoRodUse(original));
+            assertFalse(f.host.mayDispatchAutoRodNativeUse(original));
+        }
+    }
+
+    @Test void readOnlyNativeRodDiscoveryDoesNotRequireMouseButNeverDispatches() {
+        try (Fixture f = new Fixture()) {
+            final int original = f.select();
+            assertEquals(4, original);
+            f.host.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, false);
+            // V132's genuine /give discovery checks source ItemStack and
+            // currentItem without issuing an attack or a fake LMB event.
+            assertTrue(f.host.mayExecuteAutoRodUse(original));
+            assertFalse(f.host.mayDispatchAutoRodNativeUse(original));
+            f.host.inputState().pointerButton(
+                    Minecraft189ClickRateTracker.LEFT_BUTTON, true);
+            assertTrue(f.host.mayDispatchAutoRodNativeUse(original));
+            f.restore(original);
         }
     }
 
@@ -144,13 +161,13 @@ final class Minecraft189AutoRodNativeDispatchOwnerTest {
             assertEquals(4, original);
             f.host.inputState().pointerButton(
                     Minecraft189ClickRateTracker.LEFT_BUTTON, false);
-            assertFalse(f.host.mayExecuteAutoRodUse(original));
+            assertFalse(f.host.mayDispatchAutoRodNativeUse(original));
             f.host.inputState().pointerButton(
                     Minecraft189ClickRateTracker.LEFT_BUTTON, true);
-            assertTrue(f.host.mayExecuteAutoRodUse(original));
+            assertTrue(f.host.mayDispatchAutoRodNativeUse(original));
             f.host.inputState().pointerButton(
                     Minecraft189ClickRateTracker.RIGHT_BUTTON, true);
-            assertFalse(f.host.mayExecuteAutoRodUse(original));
+            assertFalse(f.host.mayDispatchAutoRodNativeUse(original));
             f.restore(original);
         }
     }
@@ -160,7 +177,7 @@ final class Minecraft189AutoRodNativeDispatchOwnerTest {
             final int original = f.select();
             assertEquals(4, original);
             f.player.onHeldGetter = () -> f.host.playerHeldItem(f.player);
-            assertFalse(f.host.mayExecuteAutoRodUse(original));
+            assertFalse(f.host.mayDispatchAutoRodNativeUse(original));
             f.restore(original);
         }
     }
@@ -174,7 +191,7 @@ final class Minecraft189AutoRodNativeDispatchOwnerTest {
                 f.host.playerHotbarSlot(other);
                 f.host.playerHeldItem(other);
             };
-            assertFalse(f.host.mayExecuteAutoRodUse(original));
+            assertFalse(f.host.mayDispatchAutoRodNativeUse(original));
             f.restore(original);
         }
     }
@@ -186,7 +203,7 @@ final class Minecraft189AutoRodNativeDispatchOwnerTest {
             f.player.rod().onRodGetter = () ->
                     f.host.featureCatalog().autoRod()
                         .cooldownTicksSetting().set(45);
-            assertFalse(f.host.mayExecuteAutoRodUse(original));
+            assertFalse(f.host.mayDispatchAutoRodNativeUse(original));
             f.restore(original);
         }
     }
@@ -197,9 +214,9 @@ final class Minecraft189AutoRodNativeDispatchOwnerTest {
                     .preserveActiveHookSetting().set(true);
             final int original = f.select();
             assertEquals(4, original);
-            assertTrue(f.host.mayExecuteAutoRodUse(original));
+            assertTrue(f.host.mayDispatchAutoRodNativeUse(original));
             f.player.hooked = true;
-            assertFalse(f.host.mayExecuteAutoRodUse(original));
+            assertFalse(f.host.mayDispatchAutoRodNativeUse(original));
             f.restore(original);
         }
     }
@@ -211,7 +228,7 @@ final class Minecraft189AutoRodNativeDispatchOwnerTest {
             final int original = f.select();
             assertEquals(4, original);
             f.player.onHookGetter = () -> f.host.playerHeldItem(f.player);
-            assertFalse(f.host.mayExecuteAutoRodUse(original));
+            assertFalse(f.host.mayDispatchAutoRodNativeUse(original));
             f.restore(original);
         }
     }
@@ -222,7 +239,7 @@ final class Minecraft189AutoRodNativeDispatchOwnerTest {
             assertEquals(4, original);
             f.host.key(LegacyKeyboardCodes.RIGHT_SHIFT, (char) 0,
                     true, false, true, false, false);
-            assertFalse(f.host.mayExecuteAutoRodUse(original));
+            assertFalse(f.host.mayDispatchAutoRodNativeUse(original));
             f.player.inventory.slot = 6;
             f.restore(original);
             assertEquals(6, f.player.inventory.slot);
