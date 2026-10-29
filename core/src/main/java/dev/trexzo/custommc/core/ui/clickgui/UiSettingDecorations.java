@@ -41,10 +41,14 @@ final class UiSettingDecorations {
             final double ratio = span <= 0.0D || !Double.isFinite(raw)
                     ? 0.0D : Math.max(0.0D,
                     Math.min(1.0D, (raw - spec.minimum()) / span));
-            final float width = Math.max(0.0F, row.width() - 158.0F);
-            if (width < 2.0F || row.height() < 7.0F) return draw;
-            final float left = row.x() + 12.0F;
-            final float top = row.y() + row.height() - 5.0F;
+            // Read-only fill level lives INSIDE the existing bounded
+            // numeric value well, not beneath the setting label where it
+            // resembled a draggable input. Actual editing remains left/right
+            // click in SettingEditorController.
+            if (row.width() < 180.0F || row.height() < 22.0F) return draw;
+            final float width = 120.0F;
+            final float left = row.x() + row.width() - 137.0F;
+            final float top = row.y() + row.height() - 9.0F;
             draw.add(new UiRoundedRectCommand(1, left, top,
                     width, 2.0F, 1.0F, theme.color(UiColorRole.BORDER)));
             if (ratio > 0.0D) {
