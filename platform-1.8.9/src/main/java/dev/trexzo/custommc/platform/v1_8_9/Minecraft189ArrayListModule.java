@@ -217,20 +217,38 @@ public final class Minecraft189ArrayListModule
     }
 
     private void drawModuleCard(final UiViewport viewport,
-            final float currentY, final String label, final float phase) {
+            final float currentY, final String originalLabel, final float phase) {
         final boolean right = rightAligned.get().booleanValue();
+        final float screenWidth = viewport.logicalWidth();
         if (!right) {
-            // Existing explicitly left-aligned saved profiles remain intact.
-            hostCallbacks.drawText(UiFonts.DEFAULT,
-                    x.get().floatValue() - Minecraft189ArrayListMotion.slide(phase),
-                    currentY, label,
-                    Minecraft189ArrayListMotion.withOpacity(TEXT_ARGB, phase));
+            // Left-aligned saved profiles keep their original position when
+            // in bounds, while long text is clipped and offscreen positions
+            // remain recoverable after scale/resolution changes.
+            final float left = Minecraft189ArrayListLayout.safeLeft(
+                    x.get().floatValue(), screenWidth);
+            final String label = Minecraft189ArrayListLayout.fitLabel(
+                    originalLabel, Math.max(0.0F, screenWidth - left - 8.0F));
+            if (label.isEmpty()) return;
+            final float textX = Math.max(4.0F,
+                    left - Minecraft189ArrayListMotion.slide(phase));
+            hostCallbacks.pushClip(4.0F, currentY - 1.0F,
+                    Math.max(0.0F, screenWidth - 8.0F), CHIP_HEIGHT);
+            try {
+                hostCallbacks.drawText(UiFonts.DEFAULT,
+                        textX, currentY, label,
+                        Minecraft189ArrayListMotion.withOpacity(TEXT_ARGB, phase));
+            } finally {
+                hostCallbacks.popClip();
+            }
             return;
         }
-        final float edge = Math.min(viewport.logicalWidth(),
-                Math.max(0.0F, viewport.logicalWidth() - x.get().floatValue()));
-        final float textX = rightAlignedTextX(viewport.logicalWidth(),
-                x.get().floatValue(), label)
+        final float edge = Minecraft189ArrayListLayout.safeRightEdge(
+                x.get().floatValue(), screenWidth);
+        final String label = Minecraft189ArrayListLayout.fitLabel(
+                originalLabel, Math.max(0.0F, edge - 12.0F));
+        if (label.isEmpty()) return;
+        final float textX = rightAlignedTextX(screenWidth,
+                screenWidth - edge, label)
                 + Minecraft189ArrayListMotion.slide(phase);
         final float chipX = Math.max(0.0F, textX - 4.0F);
         final float chipWidth = Math.max(0.0F, edge - chipX);
@@ -299,8 +317,8 @@ public final class Minecraft189ArrayListModule
             hostCallbacks.beginUi(viewport);
             RuntimeException failure = null;
             try {
-                float currentY =
-                        y.get().floatValue();
+                float currentY = Minecraft189ArrayListLayout.safeTop(
+                        y.get().floatValue(), viewport.logicalHeight());
                 final List<Module> enabled = new ArrayList<Module>();
                 for (Module module : modules.snapshot()) {
                     if (controller.stateOf(module.id()) == ModuleState.ENABLED) {
@@ -333,7 +351,11 @@ public final class Minecraft189ArrayListModule
                 }
                 final Map<String, Float> phases =
                         motion.advance(activeIds, animate.get().booleanValue());
-                final int displayed = Math.min(enabled.size(), maxVisible.get().intValue());
+                final int capacity = Minecraft189ArrayListLayout.rowCapacity(
+                        viewport.logicalHeight(), currentY);
+                final int displayed = Minecraft189ArrayListLayout.visibleRows(
+                        enabled.size(), maxVisible.get().intValue(),
+                        capacity, showOverflow.get().booleanValue());
                 for (int index = 0; index < displayed; index++) {
                     final Module module = enabled.get(index);
                     final ModuleDescriptor descriptor = presentations.find(module.id());
@@ -344,7 +366,9 @@ public final class Minecraft189ArrayListModule
                 }
                 // No fabricated modules: the overflow count is computed
                 // solely from the enabled module registry snapshot.
-                if (showOverflow.get().booleanValue() && enabled.size() > displayed) {
+                if (showOverflow.get().booleanValue()
+                        && enabled.size() > displayed
+                        && displayed < capacity) {
                     drawModuleCard(viewport, currentY,
                             "+ " + (enabled.size() - displayed) + " more", 1.0F);
                 }
