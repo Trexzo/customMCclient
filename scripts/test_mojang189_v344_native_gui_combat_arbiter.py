@@ -64,10 +64,22 @@ class NativeGuiAndCombatCycleV344(unittest.TestCase):
             self.assertGreater(previous, 0)
             previous_hurt = action.rfind("if (!permitsHitSelectAtNativeDispatch(", 0, at)
             self.assertGreater(previous, previous_hurt)
-        # V360 adds one genuinely new vanilla GuiScreen check AFTER
-        # fresh original sword/source generation validation and BEFORE
-        # rightClickMouse. Keep the original seven checks mandatory.
-        self.assertEqual(8, action.count("vetoOriginalScreenBeforeNativeCombat("))
+        # V360 added the post-sword getter screen veto; V361 adds the
+        # analogous post-rod getter screen veto, after revalidating the
+        # same original ItemStack/currentItem source at the native boundary.
+        # Keep all original seven checks and the V360 eighth mandatory.
+        self.assertEqual(9, action.count("vetoOriginalScreenBeforeNativeCombat("))
+        rod = action.index("if (host.mayExecuteAutoRodUse(originalRodSlot))")
+        first_screen = action.index("vetoOriginalScreenBeforeNativeCombat(", rod)
+        next_rod = action.index("if (!host.mayDispatchAutoRodNativeUse(originalRodSlot))",
+                                first_screen)
+        last_screen = action.index("vetoOriginalScreenBeforeNativeCombat(",
+                                   next_rod)
+        original_right = action.index("minecraft.customMcRightClickMouse();",
+                                      last_screen)
+        self.assertLess(first_screen, next_rod)
+        self.assertLess(next_rod, last_screen)
+        self.assertLess(last_screen, original_right)
         block = action.index("host.beginAutoBlockNativeUse()")
         new_source = action.index("host.mayDispatchAutoBlockNativeUse(useToken)", block)
         next_screen = action.index("vetoOriginalScreenBeforeNativeCombat(", new_source)

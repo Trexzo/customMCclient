@@ -2895,14 +2895,74 @@ public final class Minecraft189HostRuntime
 
     boolean mayExecuteAutoRodUse(final int originalSlot) {
         requireOpen();
-        return !clickGuiRuntime.coreRuntime().model().snapshot().open()
-                && mayCastWithoutReelingActiveHook()
-                && sameLocalHotbarAndHeldItemOwner()
-                && autoRodLeaseInventory != null
-                && tickHotbarControl == autoRodLeaseInventory
-                && Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
-                        featureCatalog.autoRod(), autoRodLeaseInventory,
-                        tickHeldItemAccess, originalSlot);
+        // V361: read-only original rod identity / live source verification.
+        // This method is also used by the genuine Mojang V132 /give
+        // discovery acceptance without physical LMB. Native dispatch must
+        // additionally call mayDispatchAutoRodNativeUse(), which requires
+        // real input and rechecks ownership before rightClickMouse.
+        final Minecraft189InventoryHotbarControl inventory =
+                autoRodLeaseInventory;
+        final Minecraft189PlayerInventoryAccess originalPlayer =
+                tickHotbarPlayer;
+        final Minecraft189PlayerHeldItemAccess originalHeld =
+                tickHeldItemAccess;
+        final long originalHeldGeneration = heldItemOwnerSerial;
+        final Minecraft189AutoRodModule rod = featureCatalog.autoRod();
+        if (originalSlot < 0 || originalSlot > 8
+                || inventory == null || autoRodLeaseOriginal != originalSlot
+                || tickHotbarControl != inventory
+                || originalPlayer == null || originalHeld == null
+                || originalPlayer != (Object) originalHeld
+                || clickGuiRuntime.coreRuntime().model().snapshot().open())
+            return false;
+
+        // Original fishEntity and original ItemStack reads can synchronously
+        // reenter playerHeldItem/playerHotbarSlot. Keep the exact source
+        // generation and both original owner references across ALL reads.
+        if (!mayCastWithoutReelingActiveHook()
+                || heldItemOwnerSerial != originalHeldGeneration
+                || tickHotbarControl != inventory
+                || tickHotbarPlayer != originalPlayer
+                || tickHeldItemAccess != originalHeld)
+            return false;
+        if (!Minecraft189VerifiedCombatItemSlot.stillOwnsRodAtUse(
+                rod, inventory, originalHeld, originalSlot))
+            return false;
+        return heldItemOwnerSerial == originalHeldGeneration
+                && tickHotbarControl == inventory
+                && tickHotbarPlayer == originalPlayer
+                && tickHeldItemAccess == originalHeld
+                && autoRodLeaseInventory == inventory
+                && autoRodLeaseOriginal == originalSlot
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open();
+    }
+
+    /**
+     * Actual rightClickMouse dispatch, NOT read-only source rod discovery.
+     * An original-game V132 /give ItemStack acceptance must be able to
+     * verify its native rod with no LMB pressed; such a verification does
+     * not authorize a synthetic click. Only this final production gate
+     * requires the current physical LMB/RMB policy, as a live input fact.
+     */
+    boolean mayDispatchAutoRodNativeUse(final int originalSlot) {
+        requireOpen();
+        final Minecraft189AutoRodModule rod = featureCatalog.autoRod();
+        if (!mayExecuteAutoRodUse(originalSlot))
+            return false;
+        return (!rod.requireHoldSetting().get()
+                    || inputState.pointerPressed(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON))
+                && (!rod.pauseRightSetting().get()
+                    || !inputState.pointerPressed(
+                            Minecraft189ClickRateTracker.RIGHT_BUTTON))
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open()
+                && mayExecuteAutoRodUse(originalSlot)
+                && (!rod.requireHoldSetting().get()
+                    || inputState.pointerPressed(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON))
+                && (!rod.pauseRightSetting().get()
+                    || !inputState.pointerPressed(
+                            Minecraft189ClickRateTracker.RIGHT_BUTTON));
     }
 
     void restoreAutoRodSlot(final int originalSlot) {
