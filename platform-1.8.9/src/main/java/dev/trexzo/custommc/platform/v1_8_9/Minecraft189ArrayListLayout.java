@@ -31,8 +31,14 @@ final class Minecraft189ArrayListLayout {
     static float safeRightEdge(final float inset, final float screenWidth) {
         if (!Float.isFinite(inset) || !Float.isFinite(screenWidth)
                 || screenWidth <= 0.0F) return 0.0F;
-        return Math.min(Math.max(0.0F, screenWidth - inset),
-                Math.max(0.0F, screenWidth - SCREEN_PADDING));
+        final float maximum = Math.max(0.0F, screenWidth - SCREEN_PADDING);
+        if (inset > screenWidth - 28.0F) {
+            // A saved position from a larger monitor must not make every
+            // entry disappear when Minecraft shrinks. Recover at the
+            // natural right edge WITHOUT rewriting the saved preference.
+            return Math.max(0.0F, screenWidth - 8.0F);
+        }
+        return Math.min(Math.max(0.0F, screenWidth - inset), maximum);
     }
 
     static int rowCapacity(final float screenHeight, final float top) {
