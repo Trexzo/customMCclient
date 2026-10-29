@@ -2516,6 +2516,29 @@ public final class Minecraft189HostRuntime
                 heldItemOwnerSerial);
     }
 
+    /**
+     * V360: pre-vanilla-rightClickMouse authority for this exact original
+     * sword reservation. Both mapped native getter calls in
+     * holdingVerifiedSword() may reenter playerHeldItem(), so require the
+     * SAME held-item owner generation from before and after those reads.
+     *
+     * No new right click, controller call or packet is created here.
+     */
+    boolean mayDispatchAutoBlockNativeUse(final long useToken) {
+        requireOpen();
+        if (useToken == 0L) return false;
+        final long ownerBeforeRead = heldItemOwnerSerial;
+        final boolean nativeSwordStillHeld = holdingVerifiedSword();
+        return nativeSwordStillHeld
+                && ownerBeforeRead == heldItemOwnerSerial
+                && featureCatalog.autoBlock().permitsNativeUseDispatch(
+                        useToken, nativeSwordStillHeld,
+                        clickGuiRuntime.coreRuntime().model().snapshot().open(),
+                        inputState.pointerPressed(
+                                Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                        heldItemOwnerSerial);
+    }
+
     /** Final cleanup: never send native item release or revoke newer lease. */
     void cancelAutoBlockNativeUse(final long useToken) {
         featureCatalog.autoBlock().cancelPendingNativeUse(useToken);
