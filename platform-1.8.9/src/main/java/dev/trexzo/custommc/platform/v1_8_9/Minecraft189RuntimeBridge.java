@@ -3425,6 +3425,9 @@ public final class Minecraft189RuntimeBridge {
                                 Minecraft189VanillaMeleeAcceptance.onNativeClick(
                                         minecraft);
                             }
+                            // Final original Criticals movement proof precedes the HitSelect
+                            // UUID/hurt-time check. Failed criticals never authorize a hit.
+                            if (!host.mayDispatchOriginalCriticals()) return;
                             if (!permitsHitSelectAtNativeDispatch(
                                     host, minecraft, playerIndex,
                                     hitSelectInitialUuid))
@@ -3465,6 +3468,9 @@ public final class Minecraft189RuntimeBridge {
                                 ownerUuid = acceptanceRemotePairOwnerForNativeProof(
                                         host, ownerUuid);
                             if (ownerUuid != null) {
+                                // Final original Criticals movement proof precedes the HitSelect
+                                // UUID/hurt-time check. Failed criticals never authorize a hit.
+                                if (!host.mayDispatchOriginalCriticals()) return;
                                 if (!permitsHitSelectAtNativeDispatch(
                                         host, minecraft, playerIndex,
                                         hitSelectInitialUuid))
@@ -3481,6 +3487,9 @@ public final class Minecraft189RuntimeBridge {
                         } else {
                             // Manual mouse and Auto Clicker preserve vanilla
                             // clickMouse semantics and their previous CI.
+                            // Final original Criticals movement proof precedes the HitSelect
+                            // UUID/hurt-time check. Failed criticals never authorize a hit.
+                            if (!host.mayDispatchOriginalCriticals()) return;
                             if (!permitsHitSelectAtNativeDispatch(
                                     host, minecraft, playerIndex,
                                     hitSelectInitialUuid))
