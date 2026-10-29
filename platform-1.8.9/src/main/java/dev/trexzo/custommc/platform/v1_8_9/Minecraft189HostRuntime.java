@@ -2895,11 +2895,11 @@ public final class Minecraft189HostRuntime
 
     boolean mayExecuteAutoRodUse(final int originalSlot) {
         requireOpen();
-        // V361: this is called both after AutoBlock's genuine
-        // stopUsingItem() and after the original GuiScreen veto. Neither
-        // native callback may transfer an older ROD action to a new
-        // InventoryPlayer, a reused hotbar index, or a changed physical
-        // attack/right-button state.
+        // V361: read-only original rod identity / live source verification.
+        // This method is also used by the genuine Mojang V132 /give
+        // discovery acceptance without physical LMB. Native dispatch must
+        // additionally call mayDispatchAutoRodNativeUse(), which requires
+        // real input and rechecks ownership before rightClickMouse.
         final Minecraft189InventoryHotbarControl inventory =
                 autoRodLeaseInventory;
         final Minecraft189PlayerInventoryAccess originalPlayer =
@@ -2913,13 +2913,7 @@ public final class Minecraft189HostRuntime
                 || tickHotbarControl != inventory
                 || originalPlayer == null || originalHeld == null
                 || originalPlayer != (Object) originalHeld
-                || clickGuiRuntime.coreRuntime().model().snapshot().open()
-                || (rod.requireHoldSetting().get()
-                        && !inputState.pointerPressed(
-                                Minecraft189ClickRateTracker.LEFT_BUTTON))
-                || (rod.pauseRightSetting().get()
-                        && inputState.pointerPressed(
-                                Minecraft189ClickRateTracker.RIGHT_BUTTON)))
+                || clickGuiRuntime.coreRuntime().model().snapshot().open())
             return false;
 
         // Original fishEntity and original ItemStack reads can synchronously
@@ -2940,13 +2934,35 @@ public final class Minecraft189HostRuntime
                 && tickHeldItemAccess == originalHeld
                 && autoRodLeaseInventory == inventory
                 && autoRodLeaseOriginal == originalSlot
-                && !clickGuiRuntime.coreRuntime().model().snapshot().open()
-                && (!rod.requireHoldSetting().get()
-                        || inputState.pointerPressed(
-                                Minecraft189ClickRateTracker.LEFT_BUTTON))
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open();
+    }
+
+    /**
+     * Actual rightClickMouse dispatch, NOT read-only source rod discovery.
+     * An original-game V132 /give ItemStack acceptance must be able to
+     * verify its native rod with no LMB pressed; such a verification does
+     * not authorize a synthetic click. Only this final production gate
+     * requires the current physical LMB/RMB policy, as a live input fact.
+     */
+    boolean mayDispatchAutoRodNativeUse(final int originalSlot) {
+        requireOpen();
+        final Minecraft189AutoRodModule rod = featureCatalog.autoRod();
+        if (!mayExecuteAutoRodUse(originalSlot))
+            return false;
+        return (!rod.requireHoldSetting().get()
+                    || inputState.pointerPressed(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON))
                 && (!rod.pauseRightSetting().get()
-                        || !inputState.pointerPressed(
-                                Minecraft189ClickRateTracker.RIGHT_BUTTON));
+                    || !inputState.pointerPressed(
+                            Minecraft189ClickRateTracker.RIGHT_BUTTON))
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open()
+                && mayExecuteAutoRodUse(originalSlot)
+                && (!rod.requireHoldSetting().get()
+                    || inputState.pointerPressed(
+                            Minecraft189ClickRateTracker.LEFT_BUTTON))
+                && (!rod.pauseRightSetting().get()
+                    || !inputState.pointerPressed(
+                            Minecraft189ClickRateTracker.RIGHT_BUTTON));
     }
 
     void restoreAutoRodSlot(final int originalSlot) {
