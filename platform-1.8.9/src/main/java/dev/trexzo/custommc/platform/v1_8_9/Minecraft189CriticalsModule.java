@@ -23,13 +23,41 @@ public final class Minecraft189CriticalsModule implements Module {
             REQUIRE_DESCENDING, Boolean.TRUE, value -> value != null,
             SettingCodecs.BOOLEAN);
     private boolean enabled;
+    // OFF -> ON -> OFF with identical GUI settings is a different
+    // native synthetic-attack owner, never an older saved grant.
+    private long lifecycleEpoch;
 
     @Override public String id() { return ID; }
-    @Override public synchronized void onEnable() { enabled = true; }
-    @Override public synchronized void onDisable() { enabled = false; }
+    @Override public synchronized void onEnable() {
+        ++lifecycleEpoch;
+        enabled = true;
+    }
+    @Override public synchronized void onDisable() {
+        ++lifecycleEpoch;
+        enabled = false;
+    }
+    synchronized long lifecycleEpoch() { return lifecycleEpoch; }
     public Setting<Double> minimumFallDistanceSetting() { return minFall; }
     public Setting<Boolean> requireDescendingSetting() { return requireDescending; }
     synchronized boolean active() { return enabled; }
+
+    /**
+     * Real mapped player state at the final native melee dispatch. Source
+     * readers must separately prove one unchanged local player and one
+     * callback generation. This method is pure: it never jumps, spoofs
+     * ground/motion, sends packets, or changes HitSelect recovery credit.
+     */
+    synchronized boolean permitsOriginalNativeFall(
+            final boolean originalOnGround, final float originalFall,
+            final double originalMotionY,
+            final boolean competingMovementOwner) {
+        if (!enabled) return false; // Native gate requires the same activation.
+        return !competingMovementOwner && !originalOnGround
+                && Float.isFinite(originalFall) && originalFall >= 0.0F
+                && Double.isFinite(originalMotionY)
+                && originalFall >= minFall.get()
+                && (!requireDescending.get() || originalMotionY < 0.0D);
+    }
 
     synchronized boolean permits(
             final Minecraft189PlayerMovementState.Snapshot movement,
