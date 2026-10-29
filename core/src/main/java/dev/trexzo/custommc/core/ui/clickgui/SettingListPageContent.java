@@ -99,6 +99,39 @@ public final class SettingListPageContent
                         context.page().title(),
                         theme.color(
                                 UiColorRole.TEXT_PRIMARY)));
+        // Tight reference-client hierarchy: explicit count and a quiet
+        // instruction, with the existing 38px rows and hitboxes unchanged.
+        if (bounds.width() >= 225.0F) {
+            commands.add(new UiTextCommand(
+                    0,
+                    bounds.x() + Math.max(PADDING,
+                            bounds.width() - 112.0F),
+                    bounds.y() + PADDING - scrollOffset,
+                    UiFonts.DEFAULT,
+                    visible.size() + " settings",
+                    theme.color(UiColorRole.TEXT_MUTED)));
+        }
+        if (bounds.width() >= 190.0F) {
+            commands.add(new UiTextCommand(
+                    0,
+                    bounds.x() + PADDING,
+                    bounds.y() + PADDING + 15.0F - scrollOffset,
+                    UiFonts.DEFAULT,
+                    "SELECT A CONTROL TO CONFIGURE",
+                    theme.color(UiColorRole.TEXT_MUTED)));
+        }
+        if (visible.isEmpty()) {
+            commands.add(new UiTextCommand(
+                    0,
+                    bounds.x() + PADDING,
+                    bounds.y() + PADDING + TITLE_GAP + 12.0F
+                            - scrollOffset,
+                    UiFonts.DEFAULT,
+                    context.snapshot().searchQuery().trim().isEmpty()
+                            ? "No settings available"
+                            : "No settings match your search",
+                    theme.color(UiColorRole.TEXT_MUTED)));
+        }
 
         for (int index = 0;
              index < visible.size();
