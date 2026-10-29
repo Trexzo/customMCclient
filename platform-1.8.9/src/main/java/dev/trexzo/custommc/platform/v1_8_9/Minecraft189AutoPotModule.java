@@ -130,6 +130,23 @@ public final class Minecraft189AutoPotModule implements Module {
         return true;
     }
 
+    /**
+     * Final production native-use health gate. No cooldown, item-selection
+     * or admission side effects: original Mojang /give discovery may use
+     * mayExecuteAutoPotUse() without inventing damaged player health.
+     *
+     * Only the actual rightClickMouse path must still observe the exact
+     * original player's current finite live health below its persisted
+     * threshold; never spend a potion from an old low-health HUD sample.
+     */
+    synchronized boolean permitsLiveNativeHealth(
+            final float current, final float maximum) {
+        return enabled && Float.isFinite(current) && Float.isFinite(maximum)
+                && maximum > 0.0F && current > 0.0F
+                && current < maximum
+                && 100.0D * current / maximum <= healthThreshold.get();
+    }
+
     synchronized void commitUseAttempt() {
         if (enabled) {
             remaining = cooldown.get();

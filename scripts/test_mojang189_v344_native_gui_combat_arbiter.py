@@ -64,11 +64,18 @@ class NativeGuiAndCombatCycleV344(unittest.TestCase):
             self.assertGreater(previous, 0)
             previous_hurt = action.rfind("if (!permitsHitSelectAtNativeDispatch(", 0, at)
             self.assertGreater(previous, previous_hurt)
-        # V360 added the post-sword getter screen veto; V361 adds the
-        # analogous post-rod getter screen veto, after revalidating the
-        # same original ItemStack/currentItem source at the native boundary.
-        # Keep all original seven checks and the V360 eighth mandatory.
-        self.assertEqual(9, action.count("vetoOriginalScreenBeforeNativeCombat("))
+        # Keep the original seven vanilla GuiScreen checks, plus V360's
+        # post-sword, V361's post-rod, and V362's post-live-health-potion
+        # source-getter checks. No existing screen veto may be removed.
+        self.assertEqual(10, action.count("vetoOriginalScreenBeforeNativeCombat("))
+        potion = action.index("if (host.shouldAutoPot(playerHit, playerIndex))")
+        final_health = action.index("host.mayDispatchAutoPotNativeUse(", potion)
+        final_screen = action.index("vetoOriginalScreenBeforeNativeCombat(",
+                                    final_health)
+        rod_start = action.index("if (host.shouldAutoRod(playerHit, playerIndex))",
+                                 final_screen)
+        self.assertLess(final_health, final_screen)
+        self.assertLess(final_screen, rod_start)
         rod = action.index("if (host.mayExecuteAutoRodUse(originalRodSlot))")
         first_screen = action.index("vetoOriginalScreenBeforeNativeCombat(", rod)
         next_rod = action.index("if (!host.mayDispatchAutoRodNativeUse(originalRodSlot))",
