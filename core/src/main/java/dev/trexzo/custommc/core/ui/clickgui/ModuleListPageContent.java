@@ -200,16 +200,32 @@ public final class ModuleListPageContent
                 }
                 currentCategory =
                         entry.categoryId();
+                // A slim section rule and count give the group hierarchy
+                // of a modern settings UI without adding more large cards.
                 commands.add(
                         new UiTextCommand(
                                 0,
                                 bounds.x() + PADDING,
-                                y + 4.0F,
+                                y + 3.0F,
                                 UiFonts.DEFAULT,
-                                categoryDisplayName(
-                                        currentCategory),
-                                theme.color(
-                                        UiColorRole.TEXT_MUTED)));
+                                categoryDisplayName(currentCategory),
+                                theme.color(UiColorRole.TEXT_PRIMARY)));
+                if (bounds.width() >= 270.0F) {
+                    commands.add(
+                            new UiTextCommand(
+                                    0,
+                                    bounds.x() + bounds.width() - 88.0F,
+                                    y + 3.0F,
+                                    UiFonts.DEFAULT,
+                                    categoryCount(visible, currentCategory)
+                                            + " modules",
+                                    theme.color(UiColorRole.TEXT_MUTED)));
+                }
+                commands.add(new dev.trexzo.custommc.core.ui.UiRectCommand(
+                        0, bounds.x() + PADDING,
+                        y + CATEGORY_HEADER_HEIGHT - 2.0F,
+                        Math.max(0.0F, bounds.width() - PADDING * 2.0F),
+                        1.0F, theme.color(UiColorRole.BORDER)));
                 y += CATEGORY_HEADER_HEIGHT;
             }
 
@@ -248,20 +264,9 @@ public final class ModuleListPageContent
                                 : stateColorRole(state))));
             }
 
-            final float nameX = row.x() + 13.0F;
-            final float reserved = hasDetails ? 87.0F : 57.0F;
-            final float nameWidth =
-                    Math.max(0.0F, row.width() - 13.0F - reserved);
-            if (nameWidth > 0.0F) {
-                commands.add(new UiClipCommand(2,
-                        new UiBounds(nameX, row.y(),
-                                nameWidth, row.height()),
-                        Collections.<UiDrawCommand>singletonList(
-                                new UiTextCommand(0,
-                                        nameX, row.y() + 10.0F,
-                                        UiFonts.DEFAULT, entry.displayName(),
-                                        theme.color(UiColorRole.TEXT_PRIMARY)))));
-            }
+            commands.addAll(UiModuleCardText.compose(
+                    row, entry.displayName(), entry.description(),
+                    hasDetails, theme));
 
             if (row.width() >= 55.0F) {
                 final float toggleX =
@@ -562,6 +567,17 @@ public final class ModuleListPageContent
         return categoryId;
     }
 
+    private static int categoryCount(
+            final List<Entry> entries, final String categoryId) {
+        int count = 0;
+        for (Entry entry : entries) {
+            if (categoryId.equals(entry.categoryId())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private boolean hasCategoryHeaders(
             final List<Entry> entries) {
         for (Entry entry : entries) {
@@ -680,6 +696,10 @@ public final class ModuleListPageContent
             return descriptor == null
                     ? ModuleDescriptor.DEFAULT_CATEGORY_ID
                     : descriptor.categoryId();
+        }
+
+        String description() {
+            return descriptor == null ? "" : descriptor.description();
         }
 
         int priority() {
