@@ -3094,6 +3094,18 @@ public final class Minecraft189RuntimeBridge {
                         if (host.mayExecuteAutoRodUse(originalRodSlot)) {
                             if (vetoOriginalScreenBeforeNativeCombat(
                                     host, minecraft)) return;
+                            // The original vanilla screen getter can
+                            // synchronously change the local source player,
+                            // selected ItemStack or physical input. Repeat
+                            // native source verification AFTER that getter,
+                            // never borrow an earlier successful rod lease.
+                            if (!host.mayExecuteAutoRodUse(originalRodSlot))
+                                return;
+                            // The final item/type/currentItem getters can
+                            // themselves open a vanilla GuiScreen. No rod
+                            // rightClickMouse may cross that focus boundary.
+                            if (vetoOriginalScreenBeforeNativeCombat(
+                                    host, minecraft)) return;
                             minecraft.customMcRightClickMouse();
                             host.commitAutoRodUseAttempt(originalRodSlot);
                         }
