@@ -3195,6 +3195,10 @@ public final class Minecraft189RuntimeBridge {
             if (Minecraft189RejoinTargetAcceptance
                     .vetoTransientUnownedPhaseFourSyntheticClick(
                             host, playerHit, playerIndex)) return;
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraLockedTarget"))
+                Minecraft189LockedTargetAcceptance.traceNativeRay(
+                        host, playerHit, playerIndex);
             if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {
                 if (!host.claimSyntheticCombatPrimary(
                         combatCycleToken,
