@@ -65,6 +65,9 @@ public final class Minecraft189TargetHudModule implements Module {
             SHOW_COORDINATES_SETTING_ID, Boolean.FALSE,
             v -> v != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration registration;
+    // A read-only original-game HUD screenshot witness, opt-in only.
+    // Never enables a module or changes source-player selection.
+    private boolean nativeVisualReported;
 
     public Minecraft189TargetHudModule(
             final Minecraft189NearestPlayerTargetState nearest,
