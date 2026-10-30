@@ -390,6 +390,11 @@ public final class Minecraft189ArrayListModule
                     }
                 }
             }
+            if (!nativeVisualReported
+                    && Boolean.getBoolean("custommc.acceptance.reportNativeHudVisual")) {
+                nativeVisualReported = true;
+                System.out.println("CUSTOMMC_189_REAL_ARRAYLIST_RENDERED=YES");
+            }
         }
     }
 }
