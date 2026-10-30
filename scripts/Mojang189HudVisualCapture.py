@@ -52,6 +52,38 @@ def require_fresh(host, log, marker, start, deadline, check, name):
     raise AssertionError("no fresh real Minecraft source witness: " + name)
 
 
+def original_pause_button_signature(samples):
+    """Four independent true-original vanilla Game Menu button pixels.
+
+    Sampling the left blank part of four buttons avoids text and prevents
+    a stale log or synthetic Java screen state from granting menu recovery.
+    A single naturally grey in-game block must not count as Game Menu.
+    """
+    if len(samples) != 4:
+        return False
+    return all(len(rgb) == 3
+               and 85 <= min(rgb) <= max(rgb) <= 145
+               and max(rgb) - min(rgb) <= 3
+               for rgb in samples)
+
+
+def original_pause_menu_visible(window, dimensions):
+    """Read-only real X11 frame probe, not an inferred GUI-open flag."""
+    from mss import mss
+    w, h = dimensions["width"], dimensions["height"]
+    x = round(w / 2.0 - 177)
+    ys = (round(h / 4.0 + 16), round(h / 4.0 + 64),
+          round(h / 4.0 + 160), round(h / 4.0 + 208))
+    if not (0 <= x < w and all(0 <= y < h for y in ys)):
+        raise AssertionError("original pause-menu witness outside window")
+    with mss() as capture:
+        image = capture.grab(dimensions)
+        raw = image.rgb
+    samples = [tuple(raw[(y * w + x) * 3:(y * w + x) * 3 + 3])
+               for y in ys]
+    return original_pause_button_signature(samples)
+
+
 def capture_two_player_hud(args, host, host_log, host_window, server,
                            server_log, deadline, send_server_command,
                            spawn_fixture, wait_for, check_process, remote):
@@ -88,6 +120,16 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
         ["xdotool", "getwindowgeometry", "--shell", window],
         timeout=8).decode("utf-8", "replace"))
     focus, clear, module = hud_controls(dims["width"], dims["height"])
+    if original_pause_menu_visible(window, dims):
+        # Genuine previous CI failure #41057213142: vanilla Game Menu
+        # overlaid Graphite ClickGUI. Click Back to Game ONLY if four
+        # independent original button pixels prove that menu is visible.
+        click((round(dims["width"] / 2.0),
+               round(dims["height"] / 4.0 + 16.0)))
+        time.sleep(.6)
+        if original_pause_menu_visible(window, dims):
+            raise AssertionError("S31 original vanilla Back to Game did not dismiss menu")
+        print("CUSTOMMC_189_S31_REAL_VANILLA_PAUSE_DISMISSED=YES", flush=True)
     before = capture_original_x11(window, output / "world-before.png")
     print("CUSTOMMC_189_S31_TRUE_TWO_PLAYER_BEFORE=" + str(before), flush=True)
 
@@ -98,6 +140,8 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
     time.sleep(.35)
     gui = capture_original_x11(window, output / "native-modules.png")
     require_visible_graphite(before, gui)
+    if original_pause_menu_visible(window, dims):
+        raise AssertionError("S31 original vanilla pause menu overlaps real ClickGUI")
 
     for idx, (query, marker) in enumerate((
         ("array list", b"CUSTOMMC_189_REAL_ARRAYLIST_RENDERED=YES"),
@@ -120,6 +164,8 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
     time.sleep(.9)
     check_process(host, "real Minecraft post-GUI HUD")
     after = capture_original_x11(window, output / "enabled-hud.png")
+    if original_pause_menu_visible(window, dims):
+        raise AssertionError("S31 original Game Menu obscures enabled HUD")
     if before["dimensions"] != gui["dimensions"] or before["dimensions"] != after["dimensions"]:
         raise AssertionError("X11 Minecraft window changed size during visual proof")
     if before["sha256"] == after["sha256"]:
