@@ -6,7 +6,8 @@ from pathlib import Path
 from types import SimpleNamespace
 import time
 
-from Mojang189HudVisualCapture import (hud_controls, require_fresh,
+from Mojang189HudVisualCapture import (HUD_SEARCH_TERMS,
+                                     hud_controls, require_fresh,
                                      original_pause_button_signature,
                                      original_native_ui_scale)
 
@@ -69,6 +70,14 @@ class HudVisualTest(unittest.TestCase):
             original_native_ui_scale(
                 b"CUSTOMMC_189_S31_ORIGINAL_UI_VIEWPORT=854x480,scale:0.25\n",
                 854, 480)
+
+    def test_physical_search_does_not_open_original_vanilla_gui_hotkeys(self):
+        self.assertEqual(2, len(HUD_SEARCH_TERMS))
+        self.assertEqual(["array", "r hud"], [q for q, _ in HUD_SEARCH_TERMS])
+        for query, witness in HUD_SEARCH_TERMS:
+            self.assertFalse(any(c in "te" for c in query.lower()))
+            self.assertTrue(witness.startswith(b"CUSTOMMC_189_REAL_"))
+            self.assertTrue(witness.endswith(b"=YES"))
 
     def test_invalid_windows_refused(self):
         for dims in ((0, 480), (854, 0), (199, 480), (854, 159)):
