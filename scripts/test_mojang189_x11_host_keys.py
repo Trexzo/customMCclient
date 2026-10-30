@@ -3,12 +3,17 @@
 No X11 server, Mojang binary, credentials or gameplay window required.
 """
 import subprocess
+import tempfile
+import time
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from RunMojang189LocalhostTwoPlayerSmoke import (
     identify_original_host_window_before_target,
     send_real_host_key,
+    original_hud_source_screen,
+    require_original_hud_clear_screen,
 )
 
 
@@ -90,6 +95,60 @@ class OriginalHostWindowFixtureTest(unittest.TestCase):
             send_real_host_key(self.host(), "751", "e")
         self.assertFalse(any(c.args[0][1] == "key"
                              for c in run.call_args_list))
+
+
+    def test_hud_visual_source_clear_does_not_send_escape(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "native.log"
+            path.write_bytes(
+                b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)\\n".replace(b"\\n", b"\n"))
+            self.assertEqual(b"(in-game/no GUI)",
+                             original_hud_source_screen(path))
+            with patch("RunMojang189LocalhostTwoPlayerSmoke.send_real_host_key") as key:
+                require_original_hud_clear_screen(
+                    self.host(), path, "751", time.monotonic() + 1)
+                key.assert_not_called()
+
+    def test_hud_visual_real_pause_requires_fresh_original_clear_after_escape(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "native.log"
+            path.write_bytes(b"CUSTOMMC_189_ACCEPTANCE_SCREEN=axp\n")
+            def original_escape(_host, window, key):
+                self.assertEqual(("751", "Escape"), (window, key))
+                with path.open("ab") as native:
+                    native.write(
+                        b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)\n")
+            with patch("RunMojang189LocalhostTwoPlayerSmoke.send_real_host_key",
+                       side_effect=original_escape) as send:
+                require_original_hud_clear_screen(
+                    self.host(), path, "751", time.monotonic() + 2)
+                send.assert_called_once()
+
+    def test_hud_visual_unknown_native_gui_cannot_be_dismissed_or_certified(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "native.log"
+            path.write_bytes(b"no original screen evidence\n")
+            with patch("RunMojang189LocalhostTwoPlayerSmoke.send_real_host_key") as key:
+                with self.assertRaisesRegex(AssertionError, "unverified"):
+                    require_original_hud_clear_screen(
+                        self.host(), path, "751", time.monotonic() + 1)
+                path.write_bytes(b"CUSTOMMC_189_ACCEPTANCE_SCREEN=axv\n")
+                with self.assertRaisesRegex(AssertionError, "unverified"):
+                    require_original_hud_clear_screen(
+                        self.host(), path, "751", time.monotonic() + 1)
+                key.assert_not_called()
+
+    def test_hud_visual_stale_pause_never_counts_as_post_input_clear(self):
+        with tempfile.TemporaryDirectory() as root:
+            path = Path(root) / "native.log"
+            path.write_bytes(
+                b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)\n"
+                b"CUSTOMMC_189_ACCEPTANCE_SCREEN=axp\n")
+            with patch("RunMojang189LocalhostTwoPlayerSmoke.send_real_host_key") as key:
+                with self.assertRaisesRegex(AssertionError, "fresh source"):
+                    require_original_hud_clear_screen(
+                        self.host(), path, "751", time.monotonic() + .01)
+                key.assert_called_once()
 
 
 if __name__ == "__main__":
