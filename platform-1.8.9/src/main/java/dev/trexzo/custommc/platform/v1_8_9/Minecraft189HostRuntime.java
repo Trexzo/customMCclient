@@ -835,7 +835,7 @@ public final class Minecraft189HostRuntime
                 featureCatalog.spin().apply(null, null, false);
                 featureCatalog.aimAssist().apply(null, null, null, false, false);
                 featureCatalog.jitter().apply(null, null, false);
-                featureCatalog.killAura().suspend();
+                featureCatalog.killAura().suspendForGui();
                 return;
             }
             final boolean spinOwnsRotation = featureCatalog.spin()
@@ -3432,7 +3432,7 @@ public final class Minecraft189HostRuntime
         autoClickerControllerLease.clear();
         featureCatalog.autoClicker().suspendForGui();
         featureCatalog.triggerBot().suspend();
-        featureCatalog.killAura().suspend();
+        featureCatalog.killAura().suspendForGui();
         featureCatalog.hitSelect().suspendForGui();
         featureCatalog.wTap().suspendForGui(
                 inputState.pointerPressed(
@@ -3485,7 +3485,7 @@ public final class Minecraft189HostRuntime
         if (clickGuiRuntime.coreRuntime().model().snapshot().open()) {
             featureCatalog.autoClicker().suspendForGui();
             featureCatalog.triggerBot().suspend();
-            featureCatalog.killAura().suspend();
+            featureCatalog.killAura().suspendForGui();
             featureCatalog.hitSelect().suspendForGui();
             return false;
         }
