@@ -9,6 +9,7 @@ final class Minecraft189LockedTargetAcceptance {
     // V366 R2: bounded, acceptance-only observations from the original
     // crosshair/scheduler callback. Never used to admit an action.
     private static int phaseThreeRayObservations, phaseThreeScheduleObservations;
+    private static int phaseThreeTickObservations;
     // Acceptance-only provenance copied from the SAME existing snapshots.
     // Never participates in initial eligibility, target selection, or clicks.
     private static int initialSourceObservations, maxInitialAStreak;
@@ -23,6 +24,7 @@ final class Minecraft189LockedTargetAcceptance {
         phase = initialTicks = armedTicks = heldTicks = 0;
         aHit = bHit = false;
         phaseThreeRayObservations = phaseThreeScheduleObservations = 0;
+        phaseThreeTickObservations = 0;
         initialSourceObservations = maxInitialAStreak = 0;
         phase0SourceUnavailable = phase0CountMismatch = 0;
         phase0RemoteIdentityMissing = phase0NonfiniteDistance = 0;
@@ -186,6 +188,35 @@ final class Minecraft189LockedTargetAcceptance {
                     System.out.flush();
                 }
             } else heldTicks=0;
+        }
+        // V366 R3: if the genuine original tick observer continues while
+        // phase-3 ray/scheduler hooks go silent, distinguish missing native
+        // callbacks from a target/rotation mismatch. No additional source
+        // getters, actions, target ownership mutations or artificial PASS.
+        if (phase == 3) {
+            final int tick = ++phaseThreeTickObservations;
+            if (tick == 1 || tick % 40 == 0) {
+                final Minecraft189PlayerRotationState.Snapshot rotation =
+                        host.playerRotationState().snapshot();
+                System.out.println("CUSTOMMC_189_V366_LOCK_PHASE3_TICK_DIAG"
+                        + " n=" + tick
+                        + " rayCallbacks=" + phaseThreeRayObservations
+                        + " scheduleCallbacks=" + phaseThreeScheduleObservations
+                        + " sourceReason=" + lastReadReason
+                        + " lockedUuid=" + aura.lockedTargetUuid()
+                        + " aIndex=" + (e == null ? -1 : e.a)
+                        + " bIndex=" + (e == null ? -1 : e.b)
+                        + " a3D=" + (e == null ? Double.NaN : e.da)
+                        + " b3D=" + (e == null ? Double.NaN : e.db)
+                        + " selectedIndex=" + (e == null ? -1 : e.near.entityIndex())
+                        + " aimIndex=" + (e == null ? -1 : e.aim.entityIndex())
+                        + " aimYaw=" + (e == null ? Double.NaN : e.aim.yaw())
+                        + " aimPitch=" + (e == null ? Double.NaN : e.aim.pitch())
+                        + " rotationAvailable=" + rotation.available()
+                        + " rotationYaw=" + rotation.yaw()
+                        + " rotationPitch=" + rotation.pitch());
+                System.out.flush();
+            }
         }
         if (phase==4 && e!=null && e.aFarBSelected()
                 && bUuid.equals(aura.lockedTargetUuid())) {
