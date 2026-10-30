@@ -3195,6 +3195,12 @@ public final class Minecraft189RuntimeBridge {
             if (Minecraft189RejoinTargetAcceptance
                     .vetoTransientUnownedPhaseFourSyntheticClick(
                             host, playerHit, playerIndex)) return;
+            // V366 R2 diagnostic only: observe genuine renderer ray before
+            // the existing scheduler decides; never manufacture a target.
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraLockedTarget"))
+                Minecraft189LockedTargetAcceptance.observeNativeRay(
+                        host, playerHit, playerIndex);
             if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {
                 if (!host.claimSyntheticCombatPrimary(
                         combatCycleToken,
