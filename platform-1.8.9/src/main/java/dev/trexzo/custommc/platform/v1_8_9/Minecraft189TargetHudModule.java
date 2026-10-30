@@ -65,6 +65,9 @@ public final class Minecraft189TargetHudModule implements Module {
             SHOW_COORDINATES_SETTING_ID, Boolean.FALSE,
             v -> v != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration registration;
+    // A read-only original-game HUD screenshot witness, opt-in only.
+    // Never enables a module or changes source-player selection.
+    private boolean nativeVisualReported;
 
     public Minecraft189TargetHudModule(
             final Minecraft189NearestPlayerTargetState nearest,
@@ -329,6 +332,16 @@ public final class Minecraft189TargetHudModule implements Module {
                     if (failure != null) failure.addSuppressed(e);
                     else throw e;
                 }
+            }
+            if (!nativeVisualReported
+                    && Boolean.getBoolean("custommc.acceptance.reportNativeHudVisual")) {
+                nativeVisualReported = true;
+                // This marker is emitted AFTER the real native HUD frame
+                // finished and only for the matching live source player.
+                System.out.println("CUSTOMMC_189_REAL_TARGET_HUD_RENDERED=YES"
+                        + " index=" + target.entityIndex()
+                        + " distanceSquared=" + target.distanceSquared()
+                        + " size=" + width + "x" + height);
             }
         }
     }

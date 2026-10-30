@@ -242,6 +242,36 @@ jobs:
           path: ${{ runner.temp }}/custommc-189-ux-visual-shots/*.png
           if-no-files-found: warn
           retention-days: 14
+      # S31: two real original Mojang JVMs and their dedicated server.
+      # Actual physical ClickGUI search/left-click enables BOTH HUD modules.
+      # A source-driven render witness and genuine X11 pixels are required;
+      # no fake remote players or Java model mutation are allowed.
+      - name: S31 physically enable and capture true two-player ArrayList and Target HUD
+        timeout-minutes: 6
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '2.1'
+        run: |
+          python scripts/test_mojang189_s31_hud_visual.py
+          xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189LocalhostTwoPlayerSmoke.py \
+            --java "$JAVA_HOME/bin/java" \
+            --server "$RUNNER_TEMP/minecraft-1.8.9-dedicated-server.jar" \
+            --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
+            --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
+            --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
+            --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
+            --overlay "build/runtime-overlay" \
+            --root "$RUNNER_TEMP/custommc-189-s31-real-hud" \
+            --hud-visual-dir "$RUNNER_TEMP/custommc-189-s31-real-hud-photos" \
+            --timeout 200
+      - name: S31 archive true original two-player HUD photos even if acceptance fails
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: custommc-189-real-two-player-enabled-hud
+          path: ${{ runner.temp }}/custommc-189-s31-real-hud-photos/*.png
+          if-no-files-found: warn
+          retention-days: 14
       - name: Run offline singleplayer with genuine player and world Combat snapshots
         timeout-minutes: 4
         env:

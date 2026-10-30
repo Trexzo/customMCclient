@@ -18,6 +18,9 @@ import java.util.Optional;
 public final class Minecraft189InputHooks {
     private final Minecraft189Platform platform;
     private final LegacyInputTranslator translator;
+    // UI-only original cursor owner. Gameplay/click paths remain unchanged.
+    private final Minecraft189ClickGuiNativeFocusLease uiFocus =
+            new Minecraft189ClickGuiNativeFocusLease();
 
     public Minecraft189InputHooks(
             final Minecraft189Platform platform) {
@@ -68,7 +71,17 @@ public final class Minecraft189InputHooks {
             final int pixelYFromBottom,
             final int legacyButton,
             final boolean pressed) {
-        if (!mayEditWithMouse()) {
+        final boolean nativeAllowed = mayEditWithMouse();
+        if (pressed && Boolean.getBoolean(
+                "custommc.acceptance.reportNativeHudVisual")) {
+            // Only observe actual upstream LWJGL button events. Do not
+            // promote denied events into a synthetic ClickGUI click.
+            System.out.println("CUSTOMMC_189_S31_REAL_MOUSE_BUTTON="
+                    + legacyButton + ",nativeAllowed:" + nativeAllowed
+                    + ",fb:" + framebufferWidth + "x" + framebufferHeight
+                    + ",xy:" + pixelX + "," + pixelYFromBottom);
+        }
+        if (!nativeAllowed) {
             return false;
         }
         final UiViewport viewport =
@@ -88,9 +101,20 @@ public final class Minecraft189InputHooks {
             return false;
         }
 
-        return input().pointer(
-                event.get(),
-                viewport);
+        final boolean handled = input().pointer(
+                event.get(), viewport);
+        if (pressed && Boolean.getBoolean(
+                "custommc.acceptance.reportNativeHudVisual")) {
+            final ServiceRegistry state =
+                    platform.requireContext().services();
+            final String query = state.contains(ClickGuiModel.class)
+                    ? state.require(ClickGuiModel.class)
+                            .snapshot().searchQuery() : "";
+            System.out.println("CUSTOMMC_189_S31_REAL_GUI_POINTER="
+                    + "handled:" + handled
+                    + ",query:" + query);
+        }
+        return handled;
     }
 
     /**
@@ -177,6 +201,12 @@ public final class Minecraft189InputHooks {
             }
         }
 
+        final ClickGuiModel guiModel =
+                services.contains(ClickGuiModel.class)
+                        ? services.require(ClickGuiModel.class) : null;
+        final boolean beforeGuiOpen =
+                guiModel != null && guiModel.snapshot().open();
+
         if (services.contains(
                 Minecraft189ClickGuiToggleController.class)
                 && services.require(
@@ -185,6 +215,9 @@ public final class Minecraft189InputHooks {
                         legacyKeyCode,
                         pressed,
                         repeat)) {
+            if (guiModel != null) {
+                uiFocus.afterKeyTransition(guiModel, beforeGuiOpen);
+            }
             return true;
         }
 
@@ -193,6 +226,9 @@ public final class Minecraft189InputHooks {
                 && services.require(
                 ClickGuiInputController.class)
                 .key(event)) {
+            if (guiModel != null) {
+                uiFocus.afterKeyTransition(guiModel, beforeGuiOpen);
+            }
             return true;
         }
 

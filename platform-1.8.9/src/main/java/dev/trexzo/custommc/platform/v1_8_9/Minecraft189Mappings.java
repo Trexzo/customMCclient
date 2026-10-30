@@ -739,6 +739,16 @@ public final class Minecraft189Mappings {
                     "()V",
                     "func_71407_l",
                     "runTick");
+    // Original Mojang 1.8.9 joined.srg: actual vanilla focus methods.
+    // Never alter Mouse.grabbed or the original focus flags directly.
+    public static final MappedMethod MINECRAFT_SET_INGAME_NOT_IN_FOCUS =
+            new MappedMethod(
+                    MINECRAFT, "o", "()V",
+                    "func_71364_i", "setIngameNotInFocus");
+    public static final MappedMethod MINECRAFT_SET_INGAME_FOCUS =
+            new MappedMethod(
+                    MINECRAFT, "n", "()V",
+                    "func_71381_h", "setIngameFocus");
     public static final MappedMethod MINECRAFT_CLICK_MOUSE =
             new MappedMethod(
                     MINECRAFT,

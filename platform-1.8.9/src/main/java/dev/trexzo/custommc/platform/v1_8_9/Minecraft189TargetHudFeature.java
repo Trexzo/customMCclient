@@ -146,7 +146,7 @@ final class Minecraft189TargetHudFeature
                             new ModuleDescriptor(
                                     Minecraft189TargetHudModule.ID,
                                     "Target HUD",
-                                    "Shows the nearest mapped remote-player distance and direction.",
+                                    "Compact HUD card showing the nearest mapped remote-player distance and direction.",
                                     Minecraft189FeatureCatalog
                                             .VISUALS_CATEGORY_ID,
                                     55));

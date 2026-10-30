@@ -561,6 +561,7 @@ public final class Minecraft189RuntimeBridge {
 
     public static synchronized void originalScaffoldContextAtTick(final Object minecraft) {
         if (activeRuntime == null || activeRuntime.closed()) {
+            Minecraft189OverlayFocusGuardian.clearOriginalTickInstance();
             scaffoldOriginalPlacementReadback = null;
             scaffoldOriginalPlacementReadbackEpoch = 0L;
             scaffoldOriginalPlacementActivation = 0L;
@@ -569,6 +570,10 @@ public final class Minecraft189RuntimeBridge {
             scaffoldOriginalActivationLease = 0L;
             return;
         }
+        // Visual-only read-only custody of THIS already-transformed original
+        // ave.s() runTick receiver. Neither admission nor gameplay authority
+        // is granted merely by keeping a weak source reference.
+        Minecraft189OverlayFocusGuardian.observeOriginalTickInstance(minecraft);
         // Track exact original Minecraft/World/player identities only while
         // the opt-in placement proof is active or a receipt is outstanding.
         final Minecraft189ScaffoldModule scaffold = activeRuntime.scaffoldModule();

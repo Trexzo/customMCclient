@@ -17,6 +17,7 @@ import time
 import os
 
 from RunMojang189GraphicalSmoke import build_command, required_file
+from Mojang189HudVisualCapture import capture_two_player_hud
 
 DONE = b"Done ("
 HOST_JOIN = b"CIHost joined the game"
@@ -1415,6 +1416,11 @@ def client_command(args, game, username, uuid, port, remote):
             raise ValueError("V309 hotbar abort requires genuine three-block production")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireProductionScaffoldThreeHotbarAbort=true")
+    if remote and args.hud_visual_dir:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportNativeHudVisual=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportNativeVisualPage=true")
     if remote and args.esp_visual:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.enableRealRemotePlayerBoxEsp=true")
@@ -1785,7 +1791,7 @@ def run(args):
                  min(deadline, time.monotonic() + 65),
                  "host graphical client")
         host_window = None
-        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk", "production-repeat-six-keyboard-walk"):
+        if args.hud_visual_dir or args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk", "production-repeat-six-keyboard-walk"):
             # Unique real Minecraft client on this freshly allocated Xvfb
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
@@ -1818,6 +1824,13 @@ def run(args):
                  "target graphical client")
         wait_for(host, host_log, REMOTE, deadline,
                  "genuine host world nonlocal EntityPlayer for 20 ticks")
+
+        if args.hud_visual_dir:
+            capture_two_player_hud(
+                args, host, host_log, host_window, server,
+                server_log, deadline, send_server_command,
+                actual_server_spawn_fixture, wait_for, check_process, REMOTE)
+            return
 
         if args.scaffold_placement:
             # V30: actual dedicated ORIGINAL 1.8.9 server owns both clients,
@@ -4085,11 +4098,18 @@ def main():
                        help="verify real wall-check off/on invalidates occluded targets before damage recovery")
     group.add_argument("--fov-veto", action="store_true",
                        help="prove in-range real player behind camera is excluded")
+    group.add_argument("--hud-visual-dir",
+                       help="S31 real two-player original HUD X11 screenshot folder")
     group.add_argument("--esp-visual", action="store_true",
                        help="require exact remote Mojang UUID actual Box ESP HUD draw")
     args = parser.parse_args()
     configure_original_scaffold_gui_negative(args)
     configure_original_scaffold_hotbar_negative(args)
+    if args.hud_visual_dir and (
+            args.scaffold_placement or args.esp_visual or args.pvp
+            or args.rejoin_target or args.rejoin_release or args.locked_target
+            or args.simultaneous or args.multi_target):
+        parser.error("--hud-visual-dir must use the standalone original two-player fixture")
     if args.triggerbot_pvp:
         if args.unlocked_scoped_veto or args.unlocked_remote_owner_veto:
             parser.error("TriggerBot must remain isolated from Aura owner fixtures")

@@ -82,7 +82,13 @@ class OriginalMojangNativeSubtrialReportTest(unittest.TestCase):
             "S22 capture original Mojang ClickGUI visual evidence",
             "S22 archive original Minecraft GUI screenshots (even on failure)",
         ], visual)
-        original = [n for n in names if not n.startswith("S22 ")]
+        s31 = [n for n in names if n.startswith("S31 ")]
+        self.assertEqual([
+            "S31 physically enable and capture true two-player ArrayList and Target HUD",
+            "S31 archive true original two-player HUD photos even if acceptance fails",
+        ], s31)
+        original = [n for n in names
+                    if not n.startswith(("S22 ", "S31 "))]
         self.assertEqual(69, len(original))
         self.assertEqual(67, len(original) - len(reviewed))
         self.assertEqual([

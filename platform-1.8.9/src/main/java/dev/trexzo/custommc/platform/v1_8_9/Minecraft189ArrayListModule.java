@@ -109,6 +109,9 @@ public final class Minecraft189ArrayListModule
             SHOW_OVERFLOW_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
+    // Read-only proof of successful enabled-list painting for the opt-in
+    // original two-player screenshot harness. No module auto-activation.
+    private boolean nativeVisualReported;
 
     public Minecraft189ArrayListModule(
             final ModuleRegistry modules,
@@ -386,6 +389,11 @@ public final class Minecraft189ArrayListModule
                         throw closeFailure;
                     }
                 }
+            }
+            if (!nativeVisualReported
+                    && Boolean.getBoolean("custommc.acceptance.reportNativeHudVisual")) {
+                nativeVisualReported = true;
+                System.out.println("CUSTOMMC_189_REAL_ARRAYLIST_RENDERED=YES");
             }
         }
     }
