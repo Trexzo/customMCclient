@@ -152,6 +152,17 @@ public final class ClickGuiRenderPass
             if (page != null && !page.equals(lastReportedVisualPage)) {
                 if (MODULE_PAGE_NAMES.contains(page)) {
                     System.out.println("CUSTOMMC_189_NATIVE_VISUAL_PAGE=" + page);
+                    if ("modules".equals(page)
+                            && Boolean.getBoolean(
+                                    "custommc.acceptance.reportNativeHudVisual")) {
+                        // Original renderer-owned viewport, not an
+                        // X11/screenshot guess. This read-only witness
+                        // drives the separate genuine physical click test.
+                        System.out.println("CUSTOMMC_189_S31_ORIGINAL_UI_VIEWPORT="
+                                + viewport.pixelWidth() + "x"
+                                + viewport.pixelHeight()
+                                + ",scale:" + viewport.scale());
+                    }
                 }
                 lastReportedVisualPage = page;
             }
