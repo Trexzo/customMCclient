@@ -7,7 +7,8 @@ from types import SimpleNamespace
 import time
 
 from Mojang189HudVisualCapture import (hud_controls, require_fresh,
-                                     original_pause_button_signature)
+                                     original_pause_button_signature,
+                                     original_native_ui_scale)
 
 
 class HudVisualTest(unittest.TestCase):
@@ -39,6 +40,35 @@ class HudVisualTest(unittest.TestCase):
             source[:3] + [(182, 155, 155)]))  # no grey button
         self.assertFalse(original_pause_button_signature(
             [(10, 10, 10)] * 4))
+
+    def test_real_854x480_graphite_gui_scale_aligns_first_module_row(self):
+        # Original run #41059457312: first visible row occupies
+        # native physical Y~165..222. Old unscaled click landed at Y133
+        # on the Combat section header; never treat that as toggling.
+        source = (b"CUSTOMMC_189_NATIVE_VISUAL_PAGE=modules\n"
+                  b"CUSTOMMC_189_S31_ORIGINAL_UI_VIEWPORT="
+                  b"854x480,scale:1.3333334\n")
+        scale = original_native_ui_scale(source, 854, 480)
+        focus, clear, module = hud_controls(854, 480, scale)
+        self.assertTrue(80 <= focus[0] <= 120)
+        self.assertTrue(90 <= focus[1] <= 125)
+        self.assertTrue(215 <= clear[0] <= 245)
+        self.assertTrue(300 <= module[0] <= 345)
+        self.assertTrue(155 <= module[1] <= 190)
+        self.assertNotEqual(module, hud_controls(854, 480, 1.0)[2])
+
+    def test_native_scale_cannot_be_inferred_from_stale_or_wrong_frame(self):
+        source = b"CUSTOMMC_189_S31_ORIGINAL_UI_VIEWPORT=854x480,scale:1.3333334\n"
+        with self.assertRaises(AssertionError):
+            original_native_ui_scale(source, 1280, 720)
+        with self.assertRaises(AssertionError):
+            original_native_ui_scale(source + source, 854, 480)
+        with self.assertRaises(AssertionError):
+            original_native_ui_scale(b"", 854, 480)
+        with self.assertRaises(AssertionError):
+            original_native_ui_scale(
+                b"CUSTOMMC_189_S31_ORIGINAL_UI_VIEWPORT=854x480,scale:0.25\n",
+                854, 480)
 
     def test_invalid_windows_refused(self):
         for dims in ((0, 480), (854, 0), (199, 480), (854, 159)):
