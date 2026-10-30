@@ -181,7 +181,6 @@ public final class Minecraft189HitSelectModule implements Module {
     }
 
     /** V364: legacy scheduler-only notification never changes recovery. */
-    @Deprecated
     synchronized void noteScheduledOriginalClick(final UUID originalUuid) {
         // Not native controller evidence. Deliberately no state mutation.
     }
