@@ -29,14 +29,17 @@ edge and leaves that UUID in `WAIT_FOR_HURT` indefinitely.
   Criticals, HitSelect UUID/hurt-time and original vanilla GuiScreen
   checks. Each native call clears it in `finally`, including exceptions,
   native cooldown vetoes and failed controller ownership.
-- The existing transformed original
-  `PlayerControllerMP.attackEntity(EntityPlayer,Entity)`
-  observation receives the ACTUAL vanilla Entity argument and is
-  the only location advancing `READY → WAIT_FOR_HURT`.
-  An exact matched remote UUID, unchanged HitSelect enabled/recovery
-  policy and activation epoch, unchanged min/max hurt window,
-  still-current observed original UUID and current READY state are all
-  required. The one-shot intent is consumed before verification.
+- The transformed original
+  `PlayerControllerMP.attackEntity(EntityPlayer,Entity)` **dispatch
+  authorization** receives the ACTUAL vanilla Entity argument.
+  Only *after* the existing original-controller UUID/owner and
+  stale-dispatch guards approve that argument may it advance
+  `READY → WAIT_FOR_HURT`. An entry-only diagnostic callback is not
+  sufficient: it may precede a legitimate native veto. An exact
+  matched remote UUID, unchanged HitSelect enabled/recovery policy
+  and activation epoch, unchanged min/max hurt window, still-current
+  observed original UUID and READY state are all mandatory.
+  The one-shot intent is consumed before module verification.
 - Manual vanilla mouse clicks have **no synthetic HitSelect intent**;
   mismatched A/B UUID, unexpected reentrant controller, source reset,
   GUI suspension, module OFF→ON, or changed setting cannot consume the
@@ -56,7 +59,7 @@ edge and leaves that UUID in `WAIT_FOR_HURT` indefinitely.
   settings change, and no fabricated hurt/ready edge.
 - `scripts/test_mojang189_v364_hitselect_real_controller_recovery.py`:
   three exact native attack scopes, per-action finally cleanup,
-  real controller observer, untouched original controller/UUID and
+  **approved native controller dispatch** ordering, untouched original UUID and
   dedicated-server acceptance.
 - Exact-head Windows/Ubuntu Foundation CI and genuine original Mojang
   1.8.9 binary preflight remain mandatory.
