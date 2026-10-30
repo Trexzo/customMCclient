@@ -77,7 +77,7 @@ class V365OriginalHurtJumpReset(unittest.TestCase):
         self.assertIn("playerHurtTimeState.update(nativeHurtTime)",HOST)
         self.assertIn("playerMovementState.update(ground, sneaking, sprinting)",HOST)
         self.assertIn("++jumpResetSourceGeneration;",HOST)
-        self.assertIn("original Minecraft",JUMP)
+        self.assertIn("original native EntityPlayer.jump()",JUMP)
         self.assertIn("host.playerJumpControl(player)",BRIDGE)
 
 if __name__=="__main__":
