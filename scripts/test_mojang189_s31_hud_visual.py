@@ -6,7 +6,8 @@ from pathlib import Path
 from types import SimpleNamespace
 import time
 
-from Mojang189HudVisualCapture import hud_controls, require_fresh
+from Mojang189HudVisualCapture import (hud_controls, require_fresh,
+                                     original_pause_button_signature)
 
 
 class HudVisualTest(unittest.TestCase):
@@ -24,6 +25,20 @@ class HudVisualTest(unittest.TestCase):
         focus, clear, module = hud_controls(1280, 720)
         self.assertTrue(0 < focus[0] < clear[0] < module[0] < 1280)
         self.assertTrue(0 < focus[1] < module[1] < 720)
+
+    def test_only_four_real_vanilla_pause_buttons_allow_physical_menu_recovery(self):
+        # Exact source X11 failure at native #41057213142:
+        # grey vanilla Game Menu buttons covered a valid Graphite GUI.
+        source = [(112, 112, 112), (111, 111, 111),
+                  (112, 112, 112), (111, 111, 111)]
+        self.assertTrue(original_pause_button_signature(source))
+        self.assertFalse(original_pause_button_signature(source[:3]))
+        self.assertFalse(original_pause_button_signature(
+            source[:3] + [(49, 60, 75)]))  # real sky/game world
+        self.assertFalse(original_pause_button_signature(
+            source[:3] + [(182, 155, 155)]))  # no grey button
+        self.assertFalse(original_pause_button_signature(
+            [(10, 10, 10)] * 4))
 
     def test_invalid_windows_refused(self):
         for dims in ((0, 480), (854, 0), (199, 480), (854, 159)):
