@@ -186,10 +186,14 @@ class OriginalHostWindowFixtureTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "native.log"
             path.write_bytes(b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)\n")
-            with patch("RunMojang189LocalhostTwoPlayerSmoke.send_real_host_key") as key:
+            # A controlled clock jumps past the bounded 8-second source
+            # deadline after physical E; no slow wall-clock sleep in CI.
+            with patch("RunMojang189LocalhostTwoPlayerSmoke.send_real_host_key") as key, \
+                 patch("RunMojang189LocalhostTwoPlayerSmoke.time.monotonic",
+                       side_effect=(0.0, 0.0, 9.0)):
                 with self.assertRaisesRegex(AssertionError, "verified inventory"):
                     require_original_hud_tutorial_finished(
-                        self.host(), path, "751", time.monotonic() + .02)
+                        self.host(), path, "751", 20.0)
                 key.assert_called_once()
 
 if __name__ == "__main__":
