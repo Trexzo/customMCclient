@@ -74,7 +74,22 @@ public final class Minecraft189JumpResetModule implements Module {
             final Minecraft189PlayerHurtTimeState.Snapshot hurt,
             final boolean forwardHeld,
             final boolean suspended) {
+        // Existing deterministic module tests/legacy unindexed callers do
+        // not fabricate original EntityPlayerSP getter evidence. Production
+        // host supplies the distinct strict original-native admission.
+        return apply(player, movement, hurt, forwardHeld, suspended,
+                () -> true);
+    }
+
+    synchronized boolean apply(
+            final Minecraft189PlayerJumpControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final Minecraft189PlayerHurtTimeState.Snapshot hurt,
+            final boolean forwardHeld,
+            final boolean suspended,
+            final java.util.function.BooleanSupplier nativeAdmission) {
         if (!enabled || player == null || movement == null
+                || nativeAdmission == null
                 || !movement.available() || hurt == null
                 || !hurt.available()) {
             if (!nativeJumpDispatching) clear();
@@ -112,14 +127,24 @@ public final class Minecraft189JumpResetModule implements Module {
         if (chance.get() != 100 && ThreadLocalRandom.current().nextInt(100) >= chance.get()) {
             return false;
         }
-        // Commit cooldown BEFORE the real native call: the source bridge
-        // may partially jump and then throw. The same hurt edge cannot
-        // immediately spend a second original action on another callback.
-        cooldownRemaining = configuredCooldown;
+        // Reserve the synchronous module lane before invoking mapped
+        // native getters: even a rejected original getter may reenter the
+        // scheduler with a newer hurt snapshot. Never bank a second edge.
         final long originalEpoch = nativeJumpOwnerEpoch;
         final Object[] originalPolicy = nativeJumpPolicy();
         nativeJumpDispatching = true;
         try {
+            // V365: the genuine original player, current hurt-time, ground/
+            // sneak/sprint and physical forward source must STILL own this
+            // edge at the last dispatch boundary. A stale source veto
+            // consumes the edge but must NOT spend cooldown or fake a jump.
+            if (!nativeAdmission.getAsBoolean()
+                    || !nativeJumpOwned(originalEpoch, originalPolicy))
+                return false;
+            // Commit cooldown BEFORE the real native call: the source
+            // may physically jump and then throw. An exception may not
+            // immediately replay the same input under another module.
+            cooldownRemaining = configuredCooldown;
             player.customMcJump();
             if (!nativeJumpOwned(originalEpoch, originalPolicy)) {
                 // The physical original jump may already have happened.
