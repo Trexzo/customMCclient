@@ -89,6 +89,37 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         self.assertIn('Minecraft189LockedTargetAcceptance.observeAuraSchedule(',
                       HOST)
 
+    def test_phase_three_tick_and_failure_forensics_are_read_only(self):
+        owner = (BASE / "Minecraft189LockedTargetAcceptance.java").read_text(
+            encoding="utf-8")
+        observed = owner.split("static void observe(Minecraft189HostRuntime host)", 1)[1].split(
+            "static void observeNativeRay(", 1)[0]
+        self.assertIn("phaseThreeTickObservations = 0;", owner)
+        self.assertIn("if (phase == 3)", observed)
+        self.assertIn("tick == 1 || tick % 40 == 0", observed)
+        self.assertIn("CUSTOMMC_189_V366_LOCK_PHASE3_TICK_DIAG", observed)
+        self.assertIn("rayCallbacks=", observed)
+        self.assertIn("scheduleCallbacks=", observed)
+        self.assertIn("rotationYaw=", observed)
+        self.assertIn("lockedUuid=", observed)
+        diagnostic = observed.split("// V366 R3:", 1)[1].split(
+            "if (phase==4 &&", 1)[0]
+        for forbidden in ("customMc", "attackEntity(", "sendPacket(",
+                          "rememberSelectedTarget(", "shouldClick(",
+                          "customMcSetRotation", "phase=4"):
+            self.assertNotIn(forbidden, diagnostic)
+        for witness in (
+            'b"CUSTOMMC_189_V366_LOCK_PHASE3_TICK_DIAG"',
+            'b"CUSTOMMC_189_V366_LOCK_PHASE3_NATIVE_RAY_DIAG"',
+            'b"CUSTOMMC_189_V366_LOCK_PHASE3_SCHEDULE_DIAG"',
+            "with log.open(\"rb\") as original_host:",
+            "if len(phase3_first) < 12:",
+            "if len(phase3_last) == 12:",
+            "CUSTOMMC_189_V366_PHASE3_FORENSICS_START",
+            "CUSTOMMC_189_V366_PHASE3_FORENSICS_END",
+        ):
+            self.assertIn(witness, HARNESS)
+
     def test_original_v47_rejoin_server_damage_oracle_unchanged(self):
         for term in (
             "CUSTOMMC_189_REJOIN_REAL_A_DISCONNECTED_PASS",
