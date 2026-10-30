@@ -30,7 +30,8 @@ class OriginalHitSelectRecoveryV357(unittest.TestCase):
             self.assertIn(state, MODULE)
         self.assertIn('LinkedHashMap<UUID, RecoveryState>', MODULE)
         self.assertIn('MAX_TRACKED_OWNERS = 16', MODULE)
-        self.assertIn('recoveryByUuid.get(originalUuid)', MODULE)
+        self.assertIn('recoveryByUuid.get(scheduledOriginalUuid)', MODULE)
+        self.assertIn('scheduledOriginalUuid.equals(actualOriginalEntityUuid)', MODULE)
         self.assertIn('recoveryByUuid.get(selectedOriginalUuid)', MODULE)
         self.assertIn('originalOwnerValid(', MODULE)
         self.assertIn('kinds.player(index) && !kinds.localPlayer(index)', MODULE)
@@ -41,14 +42,16 @@ class OriginalHitSelectRecoveryV357(unittest.TestCase):
     def test_shared_final_native_owner_and_scheduler(self):
         self.assertIn('hitSelect.observeOriginalOwner(', HOST)
         self.assertIn('hitSelect.permitsOriginalOwner(', HOST)
-        self.assertIn('hitSelect.noteScheduledOriginalClick(verifiedHitSelectUuid)', HOST)
+        # V364: scheduling may verify UUID/epoch but cannot claim a
+        # server-observable hurt cycle until real vanilla controller entry.
+        self.assertNotIn('hitSelect.noteScheduledOriginalClick(verifiedHitSelectUuid)', HOST)
+        self.assertIn('noteOriginalNativeControllerAttack(', CONTROLLER)
+        self.assertIn('observeHitSelectOriginalControllerArgument(entity);', CONTROLLER)
         self.assertIn('currentIds.matches(tickUuidWorld.customMcLoadedEntityUuids())', HOST)
         self.assertIn('featureCatalog.hitSelect().suspendForGui()', HOST)
         self.assertIn('featureCatalog.hitSelect().suspendForSource()', HOST)
-        self.assertLess(
-            HOST.index('hitSelect.noteScheduledOriginalClick(verifiedHitSelectUuid)'),
-            HOST.index('clickRateTracker.recordPress(', HOST.index(
-                'hitSelect.noteScheduledOriginalClick(verifiedHitSelectUuid)')))
+        self.assertIn('clickRateTracker.recordPress(', HOST)
+        self.assertIn('if (admissionSerial != triggerDispatchAdmissionSerial', HOST)
         self.assertIn('if (admissionSerial != triggerDispatchAdmissionSerial', HOST)
         self.assertIn('hitSelect.nativeOwnerEpoch() != verifiedHitSelectEpoch', HOST)
         self.assertIn('hitSelect.minTargetHurtTicksSetting().get()', HOST)
@@ -58,7 +61,7 @@ class OriginalHitSelectRecoveryV357(unittest.TestCase):
 
     def test_no_synthetic_hit_from_observer_and_no_manual_interception(self):
         method = MODULE.split('synchronized void observeOriginalOwner(', 1)[1].split(
-            'synchronized void noteScheduledOriginalClick(', 1)[0]
+            'synchronized boolean noteOriginalNativeControllerAttack(', 1)[0]
         for forbidden in ('customMcAttackCrosshairEntity(', 'sendPacket(',
                           'customMcSetRotationYaw(', 'recordPress('):
             self.assertNotIn(forbidden, method)
