@@ -71,7 +71,17 @@ public final class Minecraft189InputHooks {
             final int pixelYFromBottom,
             final int legacyButton,
             final boolean pressed) {
-        if (!mayEditWithMouse()) {
+        final boolean nativeAllowed = mayEditWithMouse();
+        if (pressed && Boolean.getBoolean(
+                "custommc.acceptance.reportNativeHudVisual")) {
+            // Only observe actual upstream LWJGL button events. Do not
+            // promote denied events into a synthetic ClickGUI click.
+            System.out.println("CUSTOMMC_189_S31_REAL_MOUSE_BUTTON="
+                    + legacyButton + ",nativeAllowed:" + nativeAllowed
+                    + ",fb:" + framebufferWidth + "x" + framebufferHeight
+                    + ",xy:" + pixelX + "," + pixelYFromBottom);
+        }
+        if (!nativeAllowed) {
             return false;
         }
         final UiViewport viewport =
@@ -91,9 +101,20 @@ public final class Minecraft189InputHooks {
             return false;
         }
 
-        return input().pointer(
-                event.get(),
-                viewport);
+        final boolean handled = input().pointer(
+                event.get(), viewport);
+        if (pressed && Boolean.getBoolean(
+                "custommc.acceptance.reportNativeHudVisual")) {
+            final ServiceRegistry state =
+                    platform.requireContext().services();
+            final String query = state.contains(ClickGuiModel.class)
+                    ? state.require(ClickGuiModel.class)
+                            .snapshot().searchQuery() : "";
+            System.out.println("CUSTOMMC_189_S31_REAL_GUI_POINTER="
+                    + "handled:" + handled
+                    + ",query:" + query);
+        }
+        return handled;
     }
 
     /**
