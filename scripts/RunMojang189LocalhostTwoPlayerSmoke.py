@@ -1593,6 +1593,68 @@ def require_original_hud_clear_screen(host, host_log, host_window, deadline):
           flush=True)
 
 
+def require_original_hud_tutorial_finished(host, host_log, host_window, deadline):
+    """Clear the first-join inventory hint using only original X11 input.
+
+    The real two-player frame still showed Minecraft's vanilla Press E
+    notification over ArrayList and fresh join chat under Target HUD.
+    Physical E genuinely opens the standard inventory; original
+    currentScreen must report that transition before physical Escape can
+    close it. Waiting for chat/achievement fade never bypasses evidence.
+    """
+    clear = b"(in-game/no GUI)"
+    prefix = b"CUSTOMMC_189_ACCEPTANCE_SCREEN="
+    if original_hud_source_screen(host_log) != clear:
+        raise AssertionError("tutorial dismissal requires source GUI CLEAR")
+    if time.monotonic() + 13 >= deadline:
+        raise AssertionError("insufficient genuine game time for clean HUD capture")
+    cursor = host_log.stat().st_size
+    send_real_host_key(host, host_window, "e")
+    stop = min(deadline, time.monotonic() + 8)
+    inventory_state = None
+    while time.monotonic() < stop:
+        check_process(host, "original inventory-open screenshot preparation")
+        with host_log.open("rb") as reader:
+            reader.seek(cursor)
+            fresh = reader.read(200000)
+        screens = [line.split(prefix, 1)[1].strip()
+                   for line in fresh.splitlines() if prefix in line]
+        if screens:
+            inventory_state = screens[-1]
+            break
+        time.sleep(.15)
+    if inventory_state is None or inventory_state in (clear, b"axp"):
+        raise AssertionError(
+            "original physical E did not open a verified inventory GUI")
+    if original_hud_source_screen(host_log) != inventory_state:
+        raise AssertionError("inventory state was not latest source state")
+    cursor = host_log.stat().st_size
+    send_real_host_key(host, host_window, "Escape")
+    stop = min(deadline, time.monotonic() + 8)
+    marker = prefix + clear
+    while time.monotonic() < stop:
+        check_process(host, "original inventory Escape exit")
+        with host_log.open("rb") as reader:
+            reader.seek(cursor)
+            fresh = reader.read(200000)
+        if marker in fresh:
+            break
+        time.sleep(.15)
+    else:
+        raise AssertionError(
+            "physical inventory Escape lacked fresh original GUI CLEAR")
+    if original_hud_source_screen(host_log) != clear:
+        raise AssertionError("tutorial cleanup did not restore game GUI CLEAR")
+    # Native Minecraft chat and advancement toast are a screenshot fixture
+    # obstruction. Let real client ticks fade them, not a fake UI override.
+    time.sleep(11.0)
+    check_process(host, "post-tutorial genuine HUD scene")
+    if original_hud_source_screen(host_log) != clear:
+        raise AssertionError("native GUI reopened during screenshot stabilization")
+    print("CUSTOMMC_OFFICIAL_189_REAL_HUD_VANILLA_TUTORIAL_CLEARED_PASS=YES",
+          flush=True)
+
+
 def send_real_host_key(host, host_window, key):
     """Send whitelisted vanilla key to previously identified original host."""
     # Physically switch from selected slot 0 to slot 1 in V309 only.
@@ -2928,6 +2990,8 @@ def run(args):
                     raise AssertionError("wrong native X11 window before HUD capture")
                 time.sleep(0.4)
                 require_original_hud_clear_screen(
+                    host, host_log, host_window, deadline)
+                require_original_hud_tutorial_finished(
                     host, host_log, host_window, deadline)
                 # The previous S31 capture succeeded with a vanilla pause
                 # menu masking both modules. Require the original game to
