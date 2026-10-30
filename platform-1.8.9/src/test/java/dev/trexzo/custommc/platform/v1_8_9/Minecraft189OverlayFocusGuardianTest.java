@@ -98,6 +98,21 @@ final class Minecraft189OverlayFocusGuardianTest {
     }
 
     @Test
+    void unknownOriginalTickObjectNeverAuthorizesPhysicalUiInput() {
+        Minecraft189OverlayFocusGuardian.clearOriginalTickInstance();
+        assertFalse(Minecraft189OverlayFocusGuardian.observeOriginalTickInstance(
+                new Object()));
+        assertFalse(Minecraft189OverlayFocusGuardian.observeOriginalTickInstance(null));
+        final Minecraft189OverlayFocusGuardian.Snapshot unknown =
+                Minecraft189OverlayFocusGuardian.observeNative();
+        assertFalse(unknown.available());
+        assertFalse(Minecraft189OverlayFocusGuardian.permitsPhysicalMouse(
+                unknown, true, true, false, true));
+        assertEquals(null, Minecraft189OverlayFocusGuardian.findOriginalMinecraftInstance());
+        Minecraft189OverlayFocusGuardian.clearOriginalTickInstance();
+    }
+
+    @Test
     void pinnedOriginalScreenAndFocusMappingsAreExactAndReadOnly() {
         assertEquals("ave",
                 Minecraft189Mappings.MINECRAFT.obfuscatedInternalName());
