@@ -73,7 +73,15 @@ class HudVisualTest(unittest.TestCase):
 
     def test_physical_search_does_not_open_original_vanilla_gui_hotkeys(self):
         self.assertEqual(2, len(HUD_SEARCH_TERMS))
-        self.assertEqual(["array", "r hud"], [q for q, _ in HUD_SEARCH_TERMS])
+        self.assertEqual(["array", "mapp"], [q for q, _ in HUD_SEARCH_TERMS])
+        # The original implementation descriptor, NOT inferred screenshot
+        # text, must actually contain the no-vanilla-hotkey fragment.
+        source = (Path(__file__).resolve().parent.parent
+                  / "platform-1.8.9" / "src" / "main" / "java"
+                  / "dev" / "trexzo" / "custommc" / "platform"
+                  / "v1_8_9" / "Minecraft189TargetHudFeature.java").read_text()
+        self.assertIn("mapped remote-player distance and direction", source)
+        self.assertIn(HUD_SEARCH_TERMS[1][0], source.lower())
         for query, witness in HUD_SEARCH_TERMS:
             self.assertFalse(any(c in "te" for c in query.lower()))
             self.assertTrue(witness.startswith(b"CUSTOMMC_189_REAL_"))
