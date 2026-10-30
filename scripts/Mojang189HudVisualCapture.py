@@ -14,6 +14,13 @@ import time
 from Mojang189VisualEvidence import (
     capture_original_x11, parse_x11_geometry, require_visible_graphite)
 
+# Source descriptor fragments. Do not type vanilla chat(T)/inventory(E)
+# into an overlay that has not yet proven native keyboard consumption.
+HUD_SEARCH_TERMS = (
+    ("array", b"CUSTOMMC_189_REAL_ARRAYLIST_RENDERED=YES"),
+    ("r hud", b"CUSTOMMC_189_REAL_TARGET_HUD_RENDERED=YES"),
+)
+
 
 def original_native_ui_scale(source, width, height):
     """Require one fresh actual renderer viewport witness, not guessed X11 scale."""
@@ -204,10 +211,7 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
     # physically typed "array list" ended with T and opened original chat,
     # dismissing ClickGUI before the test could click its module row.
     # Both fragments are genuine distinctive ModuleDescriptor substrings.
-    for idx, (query, marker) in enumerate((
-        ("array", b"CUSTOMMC_189_REAL_ARRAYLIST_RENDERED=YES"),
-        ("r hud", b"CUSTOMMC_189_REAL_TARGET_HUD_RENDERED=YES"),
-    )):
+    for idx, (query, marker) in enumerate(HUD_SEARCH_TERMS):
         # Always route by ORIGINAL ClickGuiInputController search and
         # actual ModuleListPageContent row hitbox. No Java module injection.
         click(focus if idx == 0 else clear)
