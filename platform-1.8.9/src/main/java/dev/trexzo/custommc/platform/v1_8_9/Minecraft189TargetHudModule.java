@@ -46,8 +46,13 @@ public final class Minecraft189TargetHudModule implements Module {
     private final SettingRegistry themeSettings;
     private final Setting<Integer> x = new Setting<Integer>(
             X_SETTING_ID, 18, v -> v != null && v >= 0 && v <= 4096, SettingCodecs.INTEGER);
+    // Genuine two-player X11 S31 screenshot: 210 logical px is clamped
+    // against the 240px UI viewport and overlays vanilla chat/hotbar.
+    // New profiles start at a quieter upper-left safe position. Persisted
+    // user Y settings and all explicit HUD Layout edits stay authoritative.
+    public static final int DEFAULT_Y = 68;
     private final Setting<Integer> y = new Setting<Integer>(
-            Y_SETTING_ID, 210, v -> v != null && v >= 0 && v <= 4096, SettingCodecs.INTEGER);
+            Y_SETTING_ID, DEFAULT_Y, v -> v != null && v >= 0 && v <= 4096, SettingCodecs.INTEGER);
     private final Setting<Boolean> compact = new Setting<Boolean>(
             COMPACT_SETTING_ID, Boolean.TRUE, v -> v != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> proximityMeter = new Setting<Boolean>(
