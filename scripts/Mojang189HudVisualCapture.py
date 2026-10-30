@@ -141,7 +141,8 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
     # ave focus setter must have *actually* released its LWJGL cursor.
     # Reject any still-grabbed GUI before typing search or clicking a row.
     focused = False
-    while time.monotonic() < min(deadline, time.monotonic() + 3.0):
+    focus_deadline = min(deadline, time.monotonic() + 3.0)
+    while time.monotonic() < focus_deadline:
         check_process(host, "strict original Minecraft GUI focus")
         with Path(host_log).open("rb") as stream:
             stream.seek(start)
