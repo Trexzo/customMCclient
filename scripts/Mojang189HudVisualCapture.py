@@ -212,6 +212,34 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
     # dismissing ClickGUI before the test could click its module row.
     # Both fragments are genuine distinctive ModuleDescriptor substrings.
     for idx, (query, marker) in enumerate(HUD_SEARCH_TERMS):
+        # Every genuine in-world mouse click may let vanilla reclaim
+        # gameplay capture. The previous *module row* click was admitted
+        # and enabled ArrayList, but then the next SEARCH CLEAR click was
+        # denied: a focus lease must be freshly owned for each X11 click.
+        if idx:
+            key("Shift_R")
+            time.sleep(.35)
+            refresh_at = Path(host_log).stat().st_size
+            key("Shift_R")
+            refresh_ready = False
+            refresh_deadline = min(deadline, time.monotonic() + 4.0)
+            while time.monotonic() < refresh_deadline:
+                check_process(host, "physical second module search focus")
+                with Path(host_log).open("rb") as native:
+                    native.seek(refresh_at)
+                    source = native.read()
+                if (b"CUSTOMMC_189_NATIVE_GUI_CURSOR_RELEASE=YES" in source
+                        or b"CUSTOMMC_189_NATIVE_GUI_CURSOR_READY=YES" in source):
+                    refresh_ready = True
+                    break
+                if (b"CUSTOMMC_189_NATIVE_GUI_FOCUS_REJECTED=YES" in source
+                        or b"CUSTOMMC_189_NATIVE_GUI_FOCUS_VERIFY_FAILED=YES" in source):
+                    raise AssertionError("native second search focus not owned")
+                time.sleep(.12)
+            if not refresh_ready:
+                raise AssertionError("no fresh source cursor for second search clear")
+            print("CUSTOMMC_189_S31_NATIVE_CURSOR_RESTORED_FOR_SECOND_SEARCH=YES",
+                  flush=True)
         # Always route by ORIGINAL ClickGuiInputController search and
         # actual ModuleListPageContent row hitbox. No Java module injection.
         click(focus if idx == 0 else clear)
