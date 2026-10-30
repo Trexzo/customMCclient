@@ -147,14 +147,42 @@ public final class Minecraft189HitSelectModule implements Module {
         }
     }
 
-    /** Only called after all other native scheduler/source guards pass. */
+    /**
+     * V364: Only the actual transformed original PlayerControllerMP
+     * attackEntity callback can begin a hurt/recovery cycle. Mere scheduler
+     * approval, native Criticals/GUI rejection, an unscoped manual click, or
+     * Minecraft.clickMouse's unpassed cooldown guard must NOT spend READY.
+     *
+     * The bridge supplies the exact ray UUID/activation/settings captured
+     * immediately before its native controller call, and the genuine
+     * Entity argument's source-mapped UUID. No packet or click is emitted.
+     */
+    synchronized boolean noteOriginalNativeControllerAttack(
+            final UUID scheduledOriginalUuid,
+            final UUID actualOriginalEntityUuid,
+            final long capturedOwnerEpoch,
+            final int capturedMinimum,
+            final int capturedMaximum) {
+        if (!enabled || !requireObservedRecovery.get()
+                || scheduledOriginalUuid == null
+                || !scheduledOriginalUuid.equals(actualOriginalEntityUuid)
+                || !scheduledOriginalUuid.equals(observedOriginalUuid)
+                || capturedOwnerEpoch != nativeOwnerEpoch
+                || capturedMinimum != minTargetHurtTicks.get()
+                || capturedMaximum != maxTargetHurtTicks.get()
+                || observedMinimum != capturedMinimum
+                || observedMaximum != capturedMaximum
+                || capturedMinimum > capturedMaximum
+                || recoveryByUuid.get(scheduledOriginalUuid)
+                        != RecoveryState.READY)
+            return false;
+        recoveryByUuid.put(scheduledOriginalUuid, RecoveryState.WAIT_FOR_HURT);
+        return true;
+    }
+
+    /** V364: legacy scheduler-only notification never changes recovery. */
     synchronized void noteScheduledOriginalClick(final UUID originalUuid) {
-        if (enabled && requireObservedRecovery.get()
-                && originalUuid != null
-                && originalUuid.equals(observedOriginalUuid)
-                && recoveryByUuid.get(originalUuid) == RecoveryState.READY) {
-            recoveryByUuid.put(originalUuid, RecoveryState.WAIT_FOR_HURT);
-        }
+        // Not native controller evidence. Deliberately no state mutation.
     }
 
     private void forgetRecovery() {

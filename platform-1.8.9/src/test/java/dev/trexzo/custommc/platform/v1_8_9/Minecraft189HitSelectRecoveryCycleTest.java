@@ -52,6 +52,15 @@ final class Minecraft189HitSelectRecoveryCycleTest {
         void recovery() {
             select.requireObservedRecoverySetting().set(Boolean.TRUE);
         }
+
+        /** Deterministic native-controller-shaped acknowledgement, not
+         * simulated damage: server injury must still rise and recover. */
+        boolean nativeController(final UUID sourceEntity) {
+            return select.noteOriginalNativeControllerAttack(
+                    sourceEntity, sourceEntity, select.nativeOwnerEpoch(),
+                    select.minTargetHurtTicksSetting().get(),
+                    select.maxTargetHurtTicksSetting().get());
+        }
     }
 
     @Test
@@ -72,12 +81,12 @@ final class Minecraft189HitSelectRecoveryCycleTest {
     }
 
     @Test
-    void oneScheduledClickNeedsActualHurtRiseThenFallBeforeNext() {
+    void oneNativeControllerAttackNeedsActualHurtRiseThenFallBeforeNext() {
         final Source s = new Source();
         s.recovery();
         s.observe(0);
         assertTrue(s.allows(0, A));
-        s.select.noteScheduledOriginalClick(A);
+        s.nativeController(A);
         assertFalse(s.allows(0, A));
         // Unchanged 'ready' snapshots cannot rearm on an old ready tick.
         s.observe(0);
@@ -91,7 +100,7 @@ final class Minecraft189HitSelectRecoveryCycleTest {
         s.hurt(1, 0);
         s.observe(0);
         assertTrue(s.allows(0, A));
-        s.select.noteScheduledOriginalClick(A);
+        s.nativeController(A);
         assertFalse(s.allows(0, A));
     }
 
@@ -100,12 +109,12 @@ final class Minecraft189HitSelectRecoveryCycleTest {
         final Source s = new Source();
         s.recovery();
         s.observe(0);
-        s.select.noteScheduledOriginalClick(A);
+        s.nativeController(A);
         assertFalse(s.allows(0, A));
         s.observe(1);
         assertTrue(s.allows(1, B));
         assertFalse(s.allows(0, A));
-        s.select.noteScheduledOriginalClick(B);
+        s.nativeController(B);
         assertFalse(s.allows(1, B));
         // Returning to a previously clicked A must not erase its
         // UUID-specific recovery state by briefly selecting B.
@@ -124,7 +133,7 @@ final class Minecraft189HitSelectRecoveryCycleTest {
         final Source s = new Source();
         s.recovery();
         s.observe(0);
-        s.select.noteScheduledOriginalClick(A);
+        s.nativeController(A);
         s.hurt(8, 0);
         s.ids.clear();
         s.observe(0);
@@ -154,17 +163,17 @@ final class Minecraft189HitSelectRecoveryCycleTest {
     }
 
     @Test
-    void disableGuiAndSourceRevocationErasePriorScheduledCredit() {
+    void disableGuiAndSourceRevocationErasePriorControllerCredit() {
         final Source s = new Source();
         s.recovery();
         s.observe(0);
-        s.select.noteScheduledOriginalClick(A);
+        s.nativeController(A);
         assertFalse(s.allows(0, A));
         s.select.suspendForGui();
         assertFalse(s.allows(0, A));
         s.observe(0);
         assertTrue(s.allows(0, A));
-        s.select.noteScheduledOriginalClick(A);
+        s.nativeController(A);
         s.select.suspendForSource();
         assertFalse(s.allows(0, A));
         s.observe(0);
@@ -209,9 +218,9 @@ final class Minecraft189HitSelectRecoveryCycleTest {
         s.observe(0);
         assertFalse(s.select.permits(0, s.combat.snapshot()));
         assertTrue(s.allows(0, A));
-        s.select.noteScheduledOriginalClick(B);
+        s.nativeController(B);
         assertTrue(s.allows(0, A));
-        s.select.noteScheduledOriginalClick(A);
+        s.nativeController(A);
         assertFalse(s.allows(0, A));
         s.select.requireObservedRecoverySetting().set(Boolean.FALSE);
         s.observe(0);

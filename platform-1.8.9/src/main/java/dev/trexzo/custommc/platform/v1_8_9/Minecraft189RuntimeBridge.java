@@ -21,6 +21,62 @@ public final class Minecraft189RuntimeBridge {
     private static final ThreadLocal<Minecraft189AutoClickerControllerLease.Intent>
             autoClickerControllerIntent =
             new ThreadLocal<Minecraft189AutoClickerControllerLease.Intent>();
+    /**
+     * V364: one synchronous, original-controller-only HitSelect provenance.
+     * Scheduler credit is NOT hurt/recovery evidence; manual vanilla clicks
+     * never install this scope. A native player-controller observation with
+     * the exact real Entity UUID consumes this ticket at most once.
+     */
+    private static final ThreadLocal<HitSelectNativeControllerIntent>
+            hitSelectNativeControllerIntent =
+            new ThreadLocal<HitSelectNativeControllerIntent>();
+
+    private static final class HitSelectNativeControllerIntent {
+        final UUID expectedOriginalUuid;
+        final long ownerEpoch;
+        final int minimum;
+        final int maximum;
+        HitSelectNativeControllerIntent(final UUID expectedOriginalUuid,
+                final long ownerEpoch, final int minimum, final int maximum) {
+            this.expectedOriginalUuid = expectedOriginalUuid;
+            this.ownerEpoch = ownerEpoch;
+            this.minimum = minimum;
+            this.maximum = maximum;
+        }
+    }
+
+    private static void armHitSelectOriginalControllerIntent(
+            final Minecraft189HostRuntime host, final UUID expectedOriginalUuid) {
+        hitSelectNativeControllerIntent.remove();
+        final Minecraft189HitSelectModule select = host.featureCatalog().hitSelect();
+        if (expectedOriginalUuid == null || !select.active()
+                || !select.requireObservedRecoverySetting().get()) return;
+        hitSelectNativeControllerIntent.set(new HitSelectNativeControllerIntent(
+                expectedOriginalUuid, select.nativeOwnerEpoch(),
+                select.minTargetHurtTicksSetting().get(),
+                select.maxTargetHurtTicksSetting().get()));
+    }
+
+    /** No scheduler-only recovery transition. Called only after the genuine
+     * transformed vanilla controller's final source UUID/stale-dispatch veto
+     * has returned TRUE, with the original Entity argument.
+     */
+    private static void observeHitSelectOriginalControllerArgument(
+            final Object entity) {
+        final HitSelectNativeControllerIntent intent =
+                hitSelectNativeControllerIntent.get();
+        if (intent == null) return; // manual original controller click
+        hitSelectNativeControllerIntent.remove(); // at-most-once per action
+        final Minecraft189HostRuntime host = activeHost();
+        if (host == null) return;
+        final UUID actual = entity instanceof Minecraft189NativeEntityUuidAccess
+                ? ((Minecraft189NativeEntityUuidAccess) entity)
+                        .customMcNativeEntityUuid() : null;
+        host.featureCatalog().hitSelect().noteOriginalNativeControllerAttack(
+                intent.expectedOriginalUuid, actual, intent.ownerEpoch,
+                intent.minimum, intent.maximum);
+    }
+
     // M423 acceptance witness only; the ordinary production gate below
     // remains unchanged and active for both locked and unlocked Aura.
     private static boolean acceptanceUnlockedOwnerVetoReported;
@@ -252,6 +308,7 @@ public final class Minecraft189RuntimeBridge {
         activeRuntime = next;
         auraDispatchUuid.remove();
         triggerDispatchUuid.remove();
+        hitSelectNativeControllerIntent.remove();
         acceptanceUnlockedOwnerVetoReported = false;
         acceptanceUnlockedOwnerFreshReported = false;
         acceptanceUnlockedRemoteUuid = null;
@@ -3435,9 +3492,12 @@ public final class Minecraft189RuntimeBridge {
                             if (vetoOriginalScreenBeforeNativeCombat(
                                     host, minecraft)) return;
                             triggerDispatchUuid.set(sourceUuid);
+                            armHitSelectOriginalControllerIntent(
+                                    host, hitSelectInitialUuid);
                             try {
                                 minecraft.customMcAttackCrosshairEntity();
                             } finally {
+                                hitSelectNativeControllerIntent.remove();
                                 triggerDispatchUuid.remove();
                             }
                         } else if (auraOwnedPlayerAttack) {
@@ -3478,9 +3538,12 @@ public final class Minecraft189RuntimeBridge {
                                 if (vetoOriginalScreenBeforeNativeCombat(
                                         host, minecraft)) return;
                                 auraDispatchUuid.set(ownerUuid);
+                                armHitSelectOriginalControllerIntent(
+                                        host, hitSelectInitialUuid);
                                 try {
                                     minecraft.customMcAttackCrosshairEntity();
                                 } finally {
+                                    hitSelectNativeControllerIntent.remove();
                                     auraDispatchUuid.remove();
                                 }
                             }
@@ -3518,12 +3581,15 @@ public final class Minecraft189RuntimeBridge {
                                 // allowed to borrow an unscoped vanilla click.
                                 return;
                             }
+                            armHitSelectOriginalControllerIntent(
+                                    host, hitSelectInitialUuid);
                             try {
                                 // Keep precisely one original clickMouse
                                 // call: physical/hold mode is unscoped;
                                 // trigger mode carries an original UUID.
                                 minecraft.customMcClickMouse();
                             } finally {
+                                hitSelectNativeControllerIntent.remove();
                                 autoClickerControllerIntent.remove();
                             }
                         }
@@ -3859,14 +3925,26 @@ public final class Minecraft189RuntimeBridge {
                 Minecraft189RejoinTargetAcceptance
                         .verifyScopedOwnerAccepted(expected, actual);
         }
+        // V364: An original PlayerControllerMP entry alone is not proof
+        // the final original-controller UUID/stale-dispatch veto passed.
+        // Mark HitSelect's recovery ONLY on the allowed outgoing side of
+        // this exact native dispatch guard, before vanilla attack effects.
+        final boolean nativeAuthorized;
         if (!Boolean.getBoolean(
-                "custommc.acceptance.requireStaleDispatchVeto"))
-            return true;
-        if (activeRuntime == null || !activeRuntime.hostInstalled())
-            throw new IllegalStateException(
-                    "M421 controller missing genuine installed host");
-        return Minecraft189RejoinTargetAcceptance.allowStaleDispatchAfterRealExit(
-                activeRuntime.requireHostRuntime(), controller, player, entity);
+                "custommc.acceptance.requireStaleDispatchVeto")) {
+            nativeAuthorized = true;
+        } else {
+            if (activeRuntime == null || !activeRuntime.hostInstalled())
+                throw new IllegalStateException(
+                        "M421 controller missing genuine installed host");
+            nativeAuthorized =
+                    Minecraft189RejoinTargetAcceptance.allowStaleDispatchAfterRealExit(
+                            activeRuntime.requireHostRuntime(),
+                            controller, player, entity);
+        }
+        if (nativeAuthorized)
+            observeHitSelectOriginalControllerArgument(entity);
+        return nativeAuthorized;
     }
 
     public static synchronized void acceptanceControllerAttackEntity(

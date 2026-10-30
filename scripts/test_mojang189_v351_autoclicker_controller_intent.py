@@ -69,7 +69,15 @@ class AutoClickerControllerIntentV351(unittest.TestCase):
         self.assertIn("snapshot().open()", gate)
         self.assertIn("final UUID expected = auraDispatchUuid.get()", gate)
         self.assertIn("final UUID expectedTrigger = triggerDispatchUuid.get()", gate)
-        self.assertIn("return Minecraft189RejoinTargetAcceptance.allowStaleDispatchAfterRealExit(", gate)
+        # V364 retains the same original stale-dispatch veto, but reads
+        # its boolean result before acknowledging HitSelect recovery:
+        # rejected controller targets must never enter WAIT_FOR_HURT.
+        self.assertIn("Minecraft189RejoinTargetAcceptance.allowStaleDispatchAfterRealExit(", gate)
+        self.assertIn("nativeAuthorized =", gate)
+        self.assertIn("if (nativeAuthorized)", gate)
+        self.assertIn("return nativeAuthorized;", gate)
+        self.assertLess(gate.index("allowStaleDispatchAfterRealExit("),
+                        gate.index("observeHitSelectOriginalControllerArgument(entity);"))
         self.assertIn("final UUID expectedTrigger", gate)
 
     def test_original_action_arbiter_and_vanilla_authority_unchanged(self):

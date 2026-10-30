@@ -3728,10 +3728,11 @@ public final class Minecraft189HostRuntime
             autoClickerControllerLease.arm(
                     verifiedAutoClickerUuid, verifiedAutoClickerEpoch);
         }
-        // Consume the optional UUID-specific recovery state only after
-        // the full cross-module synthetic-click admission has passed.
-        // A failed Criticals, range, guard, GUI or owner-epoch gate
-        // cannot spend a recovery cycle or queue a delayed click.
+        // Validate the optional original UUID recovery owner for this
+        // scheduler decision, but do NOT spend its READY state here.
+        // V364 requires a genuine original PlayerControllerMP attackEntity
+        // argument; a later Criticals, GuiScreen or controller veto must
+        // leave this hurt/recovery cycle untouched.
         if (verifiedHitSelectUuid != null) {
             // The original World getter or later guard callbacks may
             // synchronously OFF->ON this module, replace its World, or
@@ -3744,7 +3745,7 @@ public final class Minecraft189HostRuntime
                     || hitSelect.maxTargetHurtTicksSetting().get()
                             != verifiedHitSelectMax)
                 return false;
-            hitSelect.noteScheduledOriginalClick(verifiedHitSelectUuid);
+            // Native controller callback alone can begin WAIT_FOR_HURT.
         }
         // Capture only after all HitSelect/UUID/range/GUI admission gates.
         final Minecraft189CriticalsModule nativeCriticals =
