@@ -229,6 +229,37 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
         require_visible_graphite(before, filtered)
         print("CUSTOMMC_189_S31_REAL_FILTERED_SEARCH=" + str(filtered),
               flush=True)
+        # A genuine ClickGUI search click is admitted, but vanilla can
+        # reclaim its gameplay mouse later in the same original tick.
+        # Demand a fresh verified original cursor release before the
+        # *next physical* module-row click. Never route a captured mouse
+        # as GUI-ready. Search filters persist through ClickGuiModel.toggle.
+        key("Shift_R")
+        time.sleep(.35)
+        reopen_at = Path(host_log).stat().st_size
+        key("Shift_R")
+        fresh_focus = False
+        until = min(deadline, time.monotonic() + 4.0)
+        while time.monotonic() < until:
+            check_process(host, "real 1.8.9 restored module GUI focus")
+            with Path(host_log).open("rb") as stream:
+                stream.seek(reopen_at)
+                data = stream.read()
+            if (b"CUSTOMMC_189_NATIVE_GUI_CURSOR_RELEASE=YES" in data
+                    or b"CUSTOMMC_189_NATIVE_GUI_CURSOR_READY=YES" in data):
+                fresh_focus = True
+                break
+            if (b"CUSTOMMC_189_NATIVE_GUI_FOCUS_VERIFY_FAILED=YES" in data
+                    or b"CUSTOMMC_189_NATIVE_GUI_FOCUS_REJECTED=YES" in data):
+                raise AssertionError("real Minecraft re-open rejected source cursor")
+            time.sleep(.12)
+        if not fresh_focus:
+            raise AssertionError("no fresh source-native cursor release after search")
+        reopened = capture_original_x11(
+            window, output / ("reopened-" + label + ".png"))
+        require_visible_graphite(before, reopened)
+        print("CUSTOMMC_189_S31_FRESH_REAL_CURSOR_BEFORE_ROW=" + label,
+              flush=True)
         start = Path(host_log).stat().st_size
         click(module)
         time.sleep(.35)
