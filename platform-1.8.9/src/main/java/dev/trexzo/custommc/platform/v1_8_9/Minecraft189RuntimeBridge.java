@@ -57,8 +57,9 @@ public final class Minecraft189RuntimeBridge {
                 select.maxTargetHurtTicksSetting().get()));
     }
 
-    /** No scheduler-only recovery transition. Called from the genuine
-     * transformed vanilla controller observation with its real Entity arg.
+    /** No scheduler-only recovery transition. Called only after the genuine
+     * transformed vanilla controller's final source UUID/stale-dispatch veto
+     * has returned TRUE, with the original Entity argument.
      */
     private static void observeHitSelectOriginalControllerArgument(
             final Object entity) {
@@ -3924,23 +3925,31 @@ public final class Minecraft189RuntimeBridge {
                 Minecraft189RejoinTargetAcceptance
                         .verifyScopedOwnerAccepted(expected, actual);
         }
+        // V364: An original PlayerControllerMP entry alone is not proof
+        // the final original-controller UUID/stale-dispatch veto passed.
+        // Mark HitSelect's recovery ONLY on the allowed outgoing side of
+        // this exact native dispatch guard, before vanilla attack effects.
+        final boolean nativeAuthorized;
         if (!Boolean.getBoolean(
-                "custommc.acceptance.requireStaleDispatchVeto"))
-            return true;
-        if (activeRuntime == null || !activeRuntime.hostInstalled())
-            throw new IllegalStateException(
-                    "M421 controller missing genuine installed host");
-        return Minecraft189RejoinTargetAcceptance.allowStaleDispatchAfterRealExit(
-                activeRuntime.requireHostRuntime(), controller, player, entity);
+                "custommc.acceptance.requireStaleDispatchVeto")) {
+            nativeAuthorized = true;
+        } else {
+            if (activeRuntime == null || !activeRuntime.hostInstalled())
+                throw new IllegalStateException(
+                        "M421 controller missing genuine installed host");
+            nativeAuthorized =
+                    Minecraft189RejoinTargetAcceptance.allowStaleDispatchAfterRealExit(
+                            activeRuntime.requireHostRuntime(),
+                            controller, player, entity);
+        }
+        if (nativeAuthorized)
+            observeHitSelectOriginalControllerArgument(entity);
+        return nativeAuthorized;
     }
 
     public static synchronized void acceptanceControllerAttackEntity(
             final Object controller, final Object player,
             final Object entity) {
-        // This observational hook is reached only by real original
-        // PlayerControllerMP.attackEntity, never by an approved scheduler
-        // or a synthetic call that vanished at Criticals/GuiScreen gates.
-        observeHitSelectOriginalControllerArgument(entity);
         // V320: the EXACT original vanilla controller's third (Entity)
         // argument before native attack packet effects. Opt-in for the
         // simultaneous localhost acceptance only, read-only provenance.
