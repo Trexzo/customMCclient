@@ -252,6 +252,7 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
           MESA_GL_VERSION_OVERRIDE: '2.1'
         run: |
+          python scripts/test_mojang189_s31_hud_visual.py
           xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189LocalhostTwoPlayerSmoke.py \
             --java "$JAVA_HOME/bin/java" \
             --server "$RUNNER_TEMP/minecraft-1.8.9-dedicated-server.jar" \
