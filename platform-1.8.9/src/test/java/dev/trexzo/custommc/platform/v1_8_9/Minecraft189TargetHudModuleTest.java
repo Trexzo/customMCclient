@@ -35,6 +35,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class Minecraft189TargetHudModuleTest {
     @Test
+    void nativeTwoPlayerScreenshotDefaultAvoidsChatWithoutRewritingSavedPosition() {
+        // Exact original 854x480 screenshot #12989026500 has a
+        // 427x240 logical UI at scale 2. Previous default Y=210
+        // clamped a 142x38 card to Y=202: physical top 404,
+        // overlapping chat and hotbar. The S32 fresh-profile position
+        // is deliberately above the original lower game HUD.
+        final UiViewport original =
+                new UiViewport(854, 480, 2.0F);
+        final float desired = Minecraft189TargetHudModule.DEFAULT_Y;
+        assertEquals(68.0F, desired, 0.001F);
+        final UiBounds initial = Minecraft189TargetHudModule.visibleCardBounds(
+                original, 18.0F, desired, 142.0F, 38.0F);
+        assertEquals(68.0F, initial.y(), 0.001F);
+        assertTrue(initial.y() + initial.height() < 160.0F);
+        // A saved, intentionally moved position remains authoritative:
+        // no migration or background rewriting of persisted settings.
+        final UiBounds saved = Minecraft189TargetHudModule.visibleCardBounds(
+                original, 24.0F, 186.0F, 142.0F, 38.0F);
+        assertEquals(186.0F, saved.y(), 0.001F);
+        assertEquals(24.0F, saved.x(), 0.001F);
+    }
+
+    @Test
     void liveThemeChangesActualNativeTargetHudAccentWithoutChangingSourceData() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -341,8 +364,9 @@ final class Minecraft189TargetHudModuleTest {
             gui.model().close();
             assertEquals("18", settings.snapshotEncoded().get(
                     Minecraft189TargetHudModule.X_SETTING_ID));
-            assertEquals("210", settings.snapshotEncoded().get(
-                    Minecraft189TargetHudModule.Y_SETTING_ID));
+            assertEquals(String.valueOf(Minecraft189TargetHudModule.DEFAULT_Y),
+                    settings.snapshotEncoded().get(
+                            Minecraft189TargetHudModule.Y_SETTING_ID));
 
             final int renderedTextsBeforeClear = host.texts.size();
             final int renderedBarsBeforeClear = host.bars.size();
