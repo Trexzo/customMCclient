@@ -66,10 +66,24 @@ class V364NativeHitSelectRecovery(unittest.TestCase):
         observer=BRIDGE.split(
             "public static synchronized void acceptanceControllerAttackEntity(",1
         )[1].split("\n    /**",1)[0]
-        self.assertIn("observeHitSelectOriginalControllerArgument(entity);",
-                      observer)
+        # Observational controller-entry callbacks cannot spend recovery
+        # before the original UUID and stale-dispatch veto are approved.
+        self.assertNotIn("observeHitSelectOriginalControllerArgument(entity);",
+                         observer)
         self.assertIn("Minecraft189VanillaMeleeAcceptance.onMojangControllerAttack",
                       observer)
+        final_gate=BRIDGE.split(
+            "public static synchronized boolean acceptanceControllerDispatchAllowed(",1
+        )[1].split("\n    public static synchronized void acceptanceControllerAttackEntity(",1)[0]
+        self.assertIn("final boolean nativeAuthorized;", final_gate)
+        self.assertIn("allowStaleDispatchAfterRealExit(", final_gate)
+        self.assertIn("if (nativeAuthorized)", final_gate)
+        self.assertIn("observeHitSelectOriginalControllerArgument(entity);",
+                      final_gate)
+        self.assertLess(final_gate.index("allowStaleDispatchAfterRealExit("),
+                        final_gate.index("observeHitSelectOriginalControllerArgument(entity);"))
+        self.assertLess(final_gate.index("if (nativeAuthorized)"),
+                        final_gate.index("observeHitSelectOriginalControllerArgument(entity);"))
         guard=BRIDGE.split(
             "private static void observeHitSelectOriginalControllerArgument(",1
         )[1].split("\n    // M423",1)[0]
