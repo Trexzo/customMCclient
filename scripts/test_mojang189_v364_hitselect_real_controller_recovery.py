@@ -29,7 +29,7 @@ class V364NativeHitSelectRecovery(unittest.TestCase):
             "synchronized boolean noteOriginalNativeControllerAttack(",1
         )[1].split("\n    /**",1)[0]
         for v in (
-            "enabled &&", "requireObservedRecovery.get()",
+            "!enabled || !requireObservedRecovery.get()",
             "scheduledOriginalUuid.equals(actualOriginalEntityUuid)",
             "scheduledOriginalUuid.equals(observedOriginalUuid)",
             "capturedOwnerEpoch != nativeOwnerEpoch",
