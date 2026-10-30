@@ -85,6 +85,7 @@ final class Minecraft189JumpResetNativeSourceTest {
                     null,null,settings,new SettingPresentationRegistry(),new Ui());
             controller.enable(Minecraft189JumpResetModule.ID);
             host.featureCatalog().jumpReset().cooldownSetting().set(0);
+            host.key(LegacyKeyboardCodes.W,'w',true,false,false,false,false);
         }
         void source() {
             host.playerMovementState(player);
@@ -167,6 +168,7 @@ final class Minecraft189JumpResetNativeSourceTest {
     @Test void realForwardPolicyAndOtherJumpOwnerStillWin() {
         try(Fixture f=new Fixture()) {
             f.tick(0);
+            f.host.key(LegacyKeyboardCodes.W,'w',false,false,false,false,false);
             // Default Require Forward is true and original W not held.
             // A real local press is needed for the positive native jump.
             f.player.hurt=10;f.source();
