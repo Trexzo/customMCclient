@@ -6,6 +6,8 @@ keyboard/mouse events on the original host can toggle modules. Accepts the
 real-localhost-fixture callbacks rather than creating fake player data.
 """
 from pathlib import Path
+import math
+import re
 import subprocess
 import time
 
@@ -13,25 +15,48 @@ from Mojang189VisualEvidence import (
     capture_original_x11, parse_x11_geometry, require_visible_graphite)
 
 
-def hud_controls(width, height):
-    """Reproduce the authoritative ClickGuiLayoutEngine 1.8.9 geometry."""
-    if not (200 <= width <= 3840 and 160 <= height <= 2160):
-        raise ValueError("genuine X11 window dimensions out of bounds")
-    w = min(738.0, width * .88)
-    h = min(490.0, height * .78)
-    x, y = (width - w) / 2.0, (height - h) / 2.0
+def original_native_ui_scale(source, width, height):
+    """Require one fresh actual renderer viewport witness, not guessed X11 scale."""
+    if not isinstance(source, bytes):
+        raise ValueError("native UI viewport source must be original log bytes")
+    match = re.findall(
+        rb"(?m)^CUSTOMMC_189_S31_ORIGINAL_UI_VIEWPORT="
+        rb"(\d+)x(\d+),scale:([0-9]+(?:\.[0-9]+)?)\r?$",
+        source)
+    if len(match) != 1:
+        raise AssertionError("S31 missing or duplicate original native viewport scale")
+    px, py, value = match[0]
+    if (int(px) != width or int(py) != height):
+        raise AssertionError("original framebuffer disagrees with actual X11 window")
+    scale = float(value)
+    if (not math.isfinite(scale) or scale < 1.0 or scale > 4.0):
+        raise AssertionError("invalid source-native original Minecraft UI scale")
+    return scale
+
+
+def hud_controls(width, height, scale=1.0):
+    """Reproduce native ClickGuiLayoutEngine LOGICAL bounds in X11 pixels."""
+    if not (200 <= width <= 3840 and 160 <= height <= 2160
+            and math.isfinite(scale) and 1.0 <= scale <= 4.0):
+        raise ValueError("genuine X11 window and original UI scale required")
+    vw, vh = width / scale, height / scale
+    w = min(738.0, vw * .88)
+    h = min(490.0, vh * .78)
+    x, y = (vw - w) / 2.0, (vh - h) / 2.0
     sidebar = min(158.0, w * .28)
     padding = min(13.0, w * .025)
     title = min(32.0, h * .10)
     search_h = min(28.0, h * .09)
     search_w = max(0.0, sidebar - padding * 2.0)
-    # Search focus and search clear hotspot.
-    search_focus = (round(x + padding + 15), round(y + padding + title + search_h / 2.0))
-    search_clear = (round(x + padding + search_w - 14), search_focus[1])
-    # Filter to a SINGLE original Visuals module. The category header is
-    # 18px and the untouched native row starts at content.y + 48 + 18.
-    module_toggle = (round(x + sidebar + 18 + 25),
-                     round(y + 18 + 30 + 18 + 14))
+    # Compute in actual source logical units, then scale to real X11.
+    search_focus = (round((x + padding + 15) * scale),
+                    round((y + padding + title + search_h / 2.0) * scale))
+    search_clear = (round((x + padding + search_w - 14) * scale),
+                    search_focus[1])
+    # Actual source category header (18px logical) BEFORE row centre.
+    # Raw framebuffer positions alone hit the header at GUI scale 1.333.
+    module_toggle = (round((x + sidebar + 18 + 25) * scale),
+                     round((y + 18 + 30 + 18 + 14.5) * scale))
     for pt in (search_focus, search_clear, module_toggle):
         if not (0 <= pt[0] < width and 0 <= pt[1] < height):
             raise ValueError("computed genuine GUI point outside X11 window")
@@ -119,7 +144,6 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
     dims = parse_x11_geometry(subprocess.check_output(
         ["xdotool", "getwindowgeometry", "--shell", window],
         timeout=8).decode("utf-8", "replace"))
-    focus, clear, module = hud_controls(dims["width"], dims["height"])
     if original_pause_menu_visible(window, dims):
         # Genuine previous CI failure #41057213142: vanilla Game Menu
         # overlaid Graphite ClickGUI. Click Back to Game ONLY if four
@@ -161,6 +185,15 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
         raise AssertionError(
             "no fresh native Minecraft cursor release / GUI-ready witness")
     print("CUSTOMMC_189_S31_NATIVE_CURSOR_READY=YES", flush=True)
+    with Path(host_log).open("rb") as log:
+        log.seek(start)
+        original_viewport_source = log.read()
+    original_scale = original_native_ui_scale(
+        original_viewport_source, dims["width"], dims["height"])
+    focus, clear, module = hud_controls(
+        dims["width"], dims["height"], original_scale)
+    print("CUSTOMMC_189_S31_SOURCE_GUI_SCALE=" + str(original_scale)
+          + ",search:" + str(focus) + ",module:" + str(module), flush=True)
     time.sleep(.35)
     gui = capture_original_x11(window, output / "native-modules.png")
     require_visible_graphite(before, gui)
