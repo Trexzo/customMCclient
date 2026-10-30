@@ -41,6 +41,14 @@ Two separate confirmed causes were then addressed, without bypasses:
 
 S31 now also prints opt-in genuine LWJGL pointer-admission and handled-event diagnostics. They do not synthesize mouse events, change module selection or weaken `Minecraft189OverlayFocusGuardian.permitsProductionMouseInput`. New negative tests cover original false tick inputs, exact vanilla focus methods, physically captured/unknown cursor rejection and original scale-specific X11 hitbox regression.
 
+## Native screenshot #41075240124 — real search works; second click denied
+
+The source-confirmed exact S31 run [#41075240124](https://github.com/Trexzo/customMCclient/actions/runs/41075240124) preserved GREEN Windows/Ubuntu Foundation and reached the original two-player X11 stage. The real `filtered-arraylist.png` in artifact **12987047613** shows exactly **one** filtered Visuals entry, `Array List`, with the real search query `array`. That disproves the earlier mistaken belief that keyboard search was broken: the previous `array list` query had contained T, allowing vanilla chat to close the overlay. The safe query succeeds.
+
+The same JVM's original pointer diagnostics show **first search click** `nativeAllowed:true` and `handled:true`, but **second row click** `nativeAllowed:false` even though the GUI was still visible and the row was correctly positioned at original UI scale `2.0` (X348,Y214). This is a genuine native cursor ownership/re-capture problem, not an enabled HUD visual success.
+
+The strict S31 screenshot harness now performs an additional pair of **physical RightShift toggles** after search, waiting for the original GUI transition to close then reopen and requiring a new exact `CUSTOMMC_189_NATIVE_GUI_CURSOR_RELEASE=YES` or `CURSOR_READY=YES` marker from the native Mojang focus lease before clicking the row. The actual search remains persisted by `ClickGuiModel.close()/toggle()`. This *tests* the source HUD independently of incidental vanilla cursor re-capture; it does **not** claim that production GUI multi-click focus is fully repaired. A separate focused UX fix may be required once actual mouse ownership diagnostics are verified. No mouse gate bypass or direct controller enable is permitted.
+
 ## What this does NOT certify
 A source marker plus a screenshot is not necessarily perfect pixel-level OCR of every rendered HUD word. The proof is the genuine remote player, actual module lifecycle via real UI, source-native completed frames and original rendered X11 pixels, not an inferred health or a synthetic frame. Visual layout still needs human review of `enabled-hud.png` for typography, clipping, placement and contrast. No automated anti-cheat or combat bypass claim is made.
 
