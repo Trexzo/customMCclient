@@ -18,7 +18,7 @@ from Mojang189VisualEvidence import (
 # into an overlay that has not yet proven native keyboard consumption.
 HUD_SEARCH_TERMS = (
     ("array", b"CUSTOMMC_189_REAL_ARRAYLIST_RENDERED=YES"),
-    ("mapp", b"CUSTOMMC_189_REAL_TARGET_HUD_RENDERED=YES"),
+    ("hud card", b"CUSTOMMC_189_REAL_TARGET_HUD_RENDERED=YES"),
 )
 
 
