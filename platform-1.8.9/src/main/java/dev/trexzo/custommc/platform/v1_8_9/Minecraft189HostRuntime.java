@@ -121,6 +121,11 @@ public final class Minecraft189HostRuntime
     // getter that changes player may not publish old damage evidence.
     private final Minecraft189HurtTimeHostSourceLease hurtTimeHostLease =
             new Minecraft189HurtTimeHostSourceLease();
+    // Original local movement/hurt callbacks are independent. JumpReset
+    // may not combine them across player replacement or A->B->A reentry.
+    private long jumpResetSourceGeneration;
+    private Minecraft189PlayerMovementStateAccess jumpResetMovementOwner;
+    private Minecraft189PlayerHurtTimeAccess jumpResetHurtOwner;
     // World/dimension transitions must never publish a prior player's
     // dimension after synchronous native getter source replacement.
     private final Minecraft189DimensionHostSourceLease dimensionHostLease =
@@ -670,6 +675,9 @@ public final class Minecraft189HostRuntime
             // fall/motion evidence can authorize automatic attacks.
             criticalsEvidence.reset();
             ++criticalsSourceGeneration;
+            ++jumpResetSourceGeneration;
+            jumpResetMovementOwner = null;
+            jumpResetHurtOwner = null;
             tickSprintControl = null;
             pendingKeepSprintSource = null;
             keepSprintAdmissionSerial++;
@@ -1017,6 +1025,8 @@ public final class Minecraft189HostRuntime
         requireOpen();
         // A mapped ground/sneak/sprint getter may synchronously reenter
         // this host with the same or a different original player.
+        ++jumpResetSourceGeneration;
+        jumpResetMovementOwner = null;
         if (!movementSnapshotLease.enter(player)) {
             return;
         }
@@ -1043,6 +1053,7 @@ public final class Minecraft189HostRuntime
             // Publish all THREE actual original-player observations as a
             // single atomic snapshot, never an old/new-player mixture.
             playerMovementState.update(ground, sneaking, sprinting);
+            jumpResetMovementOwner = player;
         } catch (RuntimeException | Error nativeFailure) {
             // A partial genuine original getter is not valid evidence.
             // Do not leave the former grounded/sprint/sneak state visible.
@@ -1198,6 +1209,77 @@ public final class Minecraft189HostRuntime
                 clickGuiRuntime.coreRuntime().model().snapshot().open());
     }
 
+    /**
+     * V365 production-only original native JumpReset admission. Existing
+     * module tests use the legacy pure scheduler path; real native dispatch
+     * requires both independent mapped source callback owners to be this
+     * same genuine local EntityPlayerSP.
+     */
+    private boolean mayDispatchOriginalJumpReset(
+            final Minecraft189PlayerJumpControl player,
+            final Minecraft189PlayerMovementState.Snapshot movement,
+            final Minecraft189PlayerHurtTimeState.Snapshot hurt) {
+        if (!jumpHostSourceStillOwned()
+                || movement == null || !movement.available()
+                || hurt == null || !hurt.available()
+                || !(player instanceof Minecraft189PlayerMovementStateAccess)
+                || !(player instanceof Minecraft189PlayerHurtTimeAccess)
+                || player != jumpResetMovementOwner
+                || player != jumpResetHurtOwner)
+            return false;
+        final Minecraft189PlayerMovementStateAccess sourceMovement =
+                (Minecraft189PlayerMovementStateAccess) player;
+        final Minecraft189PlayerHurtTimeAccess sourceHurt =
+                (Minecraft189PlayerHurtTimeAccess) player;
+        final long generation = jumpResetSourceGeneration;
+        // Actual original hurt/movement getters may reenter their own host
+        // callbacks; reject the outer action even when A->B->A restores
+        // exactly the same Java player and values before returning.
+        final int originalHurt = sourceHurt.customMcHurtTime();
+        if (!jumpResetNativeSourceStillOwned(player, generation)) return false;
+        final boolean ground = sourceMovement.customMcOnGround();
+        if (!jumpResetNativeSourceStillOwned(player, generation)) return false;
+        final boolean sneak = sourceMovement.customMcSneaking();
+        if (!jumpResetNativeSourceStillOwned(player, generation)) return false;
+        final boolean sprint = sourceMovement.customMcSprinting();
+        if (!jumpResetNativeSourceStillOwned(player, generation)) return false;
+        final int hurtAgain = sourceHurt.customMcHurtTime();
+        if (!jumpResetNativeSourceStillOwned(player, generation)) return false;
+        final boolean groundAgain = sourceMovement.customMcOnGround();
+        if (!jumpResetNativeSourceStillOwned(player, generation)) return false;
+        final boolean sneakAgain = sourceMovement.customMcSneaking();
+        if (!jumpResetNativeSourceStillOwned(player, generation)) return false;
+        final boolean sprintAgain = sourceMovement.customMcSprinting();
+        if (!jumpResetNativeSourceStillOwned(player, generation)) return false;
+        final Minecraft189JumpResetModule reset = featureCatalog.jumpReset();
+        return originalHurt == hurtAgain && originalHurt == hurt.hurtTime()
+                && originalHurt > 0
+                && ground && groundAgain && movement.onGround()
+                && sneak == sneakAgain && sneak == movement.sneaking()
+                && sprint == sprintAgain && sprint == movement.sprinting()
+                && (!reset.requireForwardSetting().get()
+                        || inputState.keyPressed(LegacyKeyboardCodes.W))
+                && (!reset.pauseWhileSneakingSetting().get() || !sneakAgain)
+                && (!reset.requireSprintSetting().get() || sprintAgain)
+                && !featureCatalog.longJump().active()
+                && !featureCatalog.highJump().active()
+                && !featureCatalog.lowHop().active()
+                && !featureCatalog.bunnyHop().active()
+                && !featureCatalog.airJump().active()
+                && !featureCatalog.flight().active()
+                && !featureCatalog.freeze().active()
+                && jumpResetNativeSourceStillOwned(player, generation);
+    }
+
+    private boolean jumpResetNativeSourceStillOwned(
+            final Minecraft189PlayerJumpControl player,
+            final long generation) {
+        return jumpResetSourceGeneration == generation
+                && player == jumpResetMovementOwner
+                && player == jumpResetHurtOwner
+                && jumpHostSourceStillOwned();
+    }
+
     void playerJumpControl(
             final Minecraft189PlayerJumpControl player) {
         requireOpen();
@@ -1240,12 +1322,16 @@ public final class Minecraft189HostRuntime
             // Combat Jump Reset consumes only a fresh mapped local hurt edge.
             // Never execute a second synthetic jump in the same callback.
             // Existing movement jump modules retain priority while active.
+            final Minecraft189PlayerHurtTimeState.Snapshot hurtForJump =
+                    playerHurtTimeState.snapshot();
             if (featureCatalog.jumpReset().apply(
-                    guardedPlayer, movement, playerHurtTimeState.snapshot(),
+                    guardedPlayer, movement, hurtForJump,
                     inputState.keyPressed(LegacyKeyboardCodes.W),
                     movementJumpSuspended || longJumpActive || highJumpActive
                             || lowHopActive || bunnyHopActive
-                            || featureCatalog.airJump().active())) {
+                            || featureCatalog.airJump().active(),
+                    () -> mayDispatchOriginalJumpReset(
+                            player, movement, hurtForJump))) {
                 return;
             }
             if (!jumpHostSourceStillOwned()) return;
@@ -1585,6 +1671,8 @@ public final class Minecraft189HostRuntime
     void playerHurtTime(
             final Minecraft189PlayerHurtTimeAccess player) {
         requireOpen();
+        ++jumpResetSourceGeneration;
+        jumpResetHurtOwner = null;
         if (!hurtTimeHostLease.enter(player)) {
             return;
         }
@@ -1601,6 +1689,7 @@ public final class Minecraft189HostRuntime
             // Do not allow an invalid native negative tick to retain
             // an earlier real damage edge for JumpReset or DamageBoost.
             playerHurtTimeState.update(nativeHurtTime);
+            jumpResetHurtOwner = player;
         } catch (RuntimeException | Error nativeFailure) {
             playerHurtTimeState.clear();
             throw nativeFailure;
