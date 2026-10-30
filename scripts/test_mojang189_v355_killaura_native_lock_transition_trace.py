@@ -29,7 +29,7 @@ class NativeOwnerTraceV355(unittest.TestCase):
         self.assertIn("CUSTOMMC_189_REJOIN_NATIVE_LOCK_TRANSITION_DIAG", OWNER)
         self.assertNotIn("CUSTOMMC_189_REJOIN_NATIVE_LOCK_TRANSITION_PASS", OWNER)
 
-    def test_production_owner_assignment_is_identical_without_trace(self):
+    def test_production_owner_assignment_preserves_world_loss_but_separates_gui(self):
         self.assertIn("lockedTargetUuid = enabled && lockTarget.get() ? uuid : null;",
                       AURA)
         self.assertIn("traceNativeOwnerTransition(", AURA)
