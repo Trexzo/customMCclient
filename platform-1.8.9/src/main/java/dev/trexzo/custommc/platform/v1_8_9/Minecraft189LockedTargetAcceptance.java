@@ -14,6 +14,10 @@ final class Minecraft189LockedTargetAcceptance {
     private static int phase0GeometryRejected, phase0SelectionRejected;
     private static String lastInitialReason = "not-observed";
     private static String lastReadReason = "not-observed";
+    // V367 acceptance-only bounded phase-3 observations. Never feed these
+    // counters into source selection, scheduling, or native click ownership.
+    private static int phase3Observations, phase3RayObservations;
+    private static int phase3SchedulerObservations, phase3FinalAdmissions;
     private Minecraft189LockedTargetAcceptance() {}
     static void reset() {
         aUuid = bUuid = null;
@@ -24,6 +28,8 @@ final class Minecraft189LockedTargetAcceptance {
         phase0RemoteIdentityMissing = phase0NonfiniteDistance = 0;
         phase0GeometryRejected = phase0SelectionRejected = 0;
         lastInitialReason = lastReadReason = "not-observed";
+        phase3Observations = phase3RayObservations = 0;
+        phase3SchedulerObservations = phase3FinalAdmissions = 0;
     }
 
     private static Evidence read(Minecraft189HostRuntime host) {
@@ -183,12 +189,94 @@ final class Minecraft189LockedTargetAcceptance {
                 }
             } else heldTicks=0;
         }
+        if (phase==3) tracePhaseThree(host);
         if (phase==4 && e!=null && e.aFarBSelected()
                 && bUuid.equals(aura.lockedTargetUuid())) {
             phase=5;
             System.out.println("CUSTOMMC_189_LOCK_A_INELIGIBLE_RELEASES_TO_B_PASS=YES");
             System.out.flush();
         }
+    }
+
+    /**
+     * V367: snapshot-only diagnostics for the previously unseen sticky-A
+     * phase-3 attack opportunity. No original getter, targeting decision,
+     * controller or packet. Bounded: at first sight and every 80 callbacks.
+     */
+    private static boolean traceAt(final int sample) {
+        return sample == 1 || (sample <= 960 && sample % 80 == 0);
+    }
+
+    static void tracePhaseThree(final Minecraft189HostRuntime host) {
+        if (phase != 3 || !Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraLockedTarget")) return;
+        if (!traceAt(++phase3Observations)) return;
+        final Evidence e = read(host);
+        final Minecraft189KillAuraModule aura =
+                host.featureCatalog().killAura();
+        final Minecraft189PlayerRotationState.Snapshot actual =
+                host.playerRotationState().snapshot();
+        System.out.println("CUSTOMMC_189_V367_LOCK_A_PHASE3_SOURCE_DIAG"
+                + " samples=" + phase3Observations
+                + " source=" + lastReadReason
+                + " aIndex=" + (e == null ? -1 : e.a)
+                + " bIndex=" + (e == null ? -1 : e.b)
+                + " a3D=" + (e == null ? Double.NaN : e.da)
+                + " b3D=" + (e == null ? Double.NaN : e.db)
+                + " selectedA=" + (e != null && e.selected(e.a))
+                + " lockedA=" + aUuid.equals(aura.lockedTargetUuid())
+                + " sourceAim=" + (e == null ? -1 : e.aim.entityIndex())
+                + " aimYaw=" + (e == null ? Double.NaN : e.aim.yaw())
+                + " aimPitch=" + (e == null ? Double.NaN : e.aim.pitch())
+                + " nativeYaw=" + actual.yaw()
+                + " nativePitch=" + actual.pitch()
+                + " actualRotationAvailable=" + actual.available()
+                + " aHurt=" + (e == null ? -1 : e.combat.hurtTime(e.a)));
+        System.out.flush();
+    }
+
+    static void traceNativeRay(final Minecraft189HostRuntime host,
+            final boolean nativePlayerHit, final int nativeIndex) {
+        if (phase != 3 || !Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraLockedTarget")) return;
+        if (!traceAt(++phase3RayObservations)) return;
+        final Evidence e = read(host);
+        System.out.println("CUSTOMMC_189_V367_LOCK_A_PHASE3_RAY_DIAG"
+                + " samples=" + phase3RayObservations
+                + " source=" + lastReadReason
+                + " nativePlayerHit=" + nativePlayerHit
+                + " nativeIndex=" + nativeIndex
+                + " rayA=" + (nativePlayerHit && e != null && nativeIndex == e.a)
+                + " rayB=" + (nativePlayerHit && e != null && nativeIndex == e.b)
+                + " selectedA=" + (e != null && e.selected(e.a))
+                + " lockedA=" + aUuid.equals(
+                        host.featureCatalog().killAura().lockedTargetUuid())
+                + " aIndex=" + (e == null ? -1 : e.a)
+                + " bIndex=" + (e == null ? -1 : e.b));
+        System.out.flush();
+    }
+
+    static void traceNativeScheduler(final Minecraft189HostRuntime host,
+            final boolean schedulerCandidate, final boolean admitted,
+            final int nativeIndex) {
+        if (phase != 3 || !Boolean.getBoolean(
+                "custommc.acceptance.reportKillAuraLockedTarget")) return;
+        final int count = admitted
+                ? ++phase3FinalAdmissions : ++phase3SchedulerObservations;
+        if (!traceAt(count)) return;
+        // Only already-published snapshots. An absent/declined candidate
+        // cannot be converted to an attack by these diagnostics.
+        final Minecraft189TargetRotationState.Snapshot aim =
+                host.targetRotationState().snapshot();
+        System.out.println("CUSTOMMC_189_V367_LOCK_A_PHASE3_SCHEDULER_DIAG"
+                + " samples=" + count
+                + " candidate=" + schedulerCandidate
+                + " admitted=" + admitted
+                + " nativeIndex=" + nativeIndex
+                + " aimIndex=" + aim.entityIndex()
+                + " aimAvailable=" + aim.available()
+                + " auraActive=" + host.featureCatalog().killAura().active());
+        System.out.flush();
     }
 
     static void verifyOwnedClick(Minecraft189HostRuntime host,
