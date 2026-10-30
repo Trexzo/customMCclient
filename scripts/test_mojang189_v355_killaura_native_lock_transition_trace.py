@@ -33,7 +33,13 @@ class NativeOwnerTraceV355(unittest.TestCase):
         self.assertIn("lockedTargetUuid = enabled && lockTarget.get() ? uuid : null;",
                       AURA)
         self.assertIn("traceNativeOwnerTransition(", AURA)
-        self.assertIn('clear("host-suspend-gui-or-world")', AURA)
+        self.assertIn('clear("host-suspend-original-owner-lost")', AURA)
+        self.assertIn("synchronized void suspendForGui()", AURA)
+        gui = AURA.split("synchronized void suspendForGui()", 1)[1].split(
+            "synchronized void vetoSyntheticClick()", 1)[0]
+        self.assertIn("resetSchedule();", gui)
+        self.assertIn("lastEntityIndex = -1;", gui)
+        self.assertNotIn("rememberSelectedTarget(null", gui)
         self.assertIn('clear("invalid-original-player-rotation")', AURA)
         self.assertIn("resetSchedule();", AURA)
         self.assertIn("lastEntityIndex = -1;", AURA)
