@@ -137,6 +137,29 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
     key("Shift_R")
     require_fresh(host, host_log, b"CUSTOMMC_189_NATIVE_VISUAL_PAGE=modules",
                   start, deadline, check_process, "physical GUI open")
+    # Native paint is not permission to send clicks. The original Mojang
+    # ave focus setter must have *actually* released its LWJGL cursor.
+    # Reject any still-grabbed GUI before typing search or clicking a row.
+    focused = False
+    while time.monotonic() < min(deadline, time.monotonic() + 3.0):
+        check_process(host, "strict original Minecraft GUI focus")
+        with Path(host_log).open("rb") as stream:
+            stream.seek(start)
+            source = stream.read()
+        if (b"CUSTOMMC_189_NATIVE_GUI_CURSOR_RELEASE=YES" in source
+                or b"CUSTOMMC_189_NATIVE_GUI_CURSOR_READY=YES" in source):
+            focused = True
+            break
+        if (b"CUSTOMMC_189_NATIVE_GUI_FOCUS_RELEASE_FAILED=YES" in source
+                or b"CUSTOMMC_189_NATIVE_GUI_FOCUS_VERIFY_FAILED=YES" in source
+                or b"CUSTOMMC_189_NATIVE_GUI_FOCUS_REJECTED=YES" in source):
+            raise AssertionError(
+                "original native GUI focus rejected; no physical click allowed")
+        time.sleep(.1)
+    if not focused:
+        raise AssertionError(
+            "no fresh native Minecraft cursor release / GUI-ready witness")
+    print("CUSTOMMC_189_S31_NATIVE_CURSOR_READY=YES", flush=True)
     time.sleep(.35)
     gui = capture_original_x11(window, output / "native-modules.png")
     require_visible_graphite(before, gui)
