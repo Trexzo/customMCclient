@@ -4169,6 +4169,39 @@ def run(args):
     except BaseException:
         for name, log in logs:
             if name == "host":
+                # V366 R3: the ordinary 6KB host tail can omit phase-3
+                # callbacks from a full native-run deadline. Report bounded
+                # first/last read-only witnesses from the ENTIRE genuine
+                # Mojang process output, including a count of zero when
+                # neither the tick nor melee dispatch hooks ran.
+                phase3_markers = (
+                    b"CUSTOMMC_189_V366_LOCK_PHASE3_TICK_DIAG",
+                    b"CUSTOMMC_189_V366_LOCK_PHASE3_NATIVE_RAY_DIAG",
+                    b"CUSTOMMC_189_V366_LOCK_PHASE3_SCHEDULE_DIAG",
+                )
+                phase3_total = 0
+                phase3_first, phase3_last = [], []
+                if log.exists():
+                    with log.open("rb") as original_host:
+                        for native_line in original_host:
+                            if not any(marker in native_line
+                                       for marker in phase3_markers):
+                                continue
+                            phase3_total += 1
+                            witness = native_line[:1200].decode(
+                                "utf-8", "replace").rstrip()
+                            if len(phase3_first) < 12:
+                                phase3_first.append(witness)
+                            else:
+                                if len(phase3_last) == 12:
+                                    phase3_last.pop(0)
+                                phase3_last.append(witness)
+                print("CUSTOMMC_189_V366_PHASE3_FORENSICS_START"
+                      + " count=" + str(phase3_total), file=sys.stderr)
+                for native_line in phase3_first + phase3_last:
+                    print(native_line, file=sys.stderr)
+                print("CUSTOMMC_189_V366_PHASE3_FORENSICS_END",
+                      file=sys.stderr)
                 # V356: bounded forensic extraction from the WHOLE original
                 # Minecraft host stdout. The prior 6,000-byte tail loses
                 # the first phase-3 B UUID revocation because rejoin can
