@@ -84,6 +84,30 @@ def require_fresh(host, log, marker, start, deadline, check, name):
     raise AssertionError("no fresh real Minecraft source witness: " + name)
 
 
+def await_real_graphite_frame(host, window, before, destination,
+                             deadline, check_process):
+    """Wait for actual original pixels after the native focus-reopen tick.
+
+    The native cursor-ready marker can precede the next GL HUD frame. Never
+    classify a gameplay world image as the Graphite UI simply because
+    ave.o() completed; only a genuine visible Graphite panel passes.
+    """
+    until = min(deadline, time.monotonic() + 3.0)
+    last = None
+    while time.monotonic() < until:
+        check_process(host, "S31 original Graphite GUI rerender")
+        last = capture_original_x11(window, destination)
+        try:
+            require_visible_graphite(before, last)
+        except AssertionError:
+            time.sleep(.14)
+            continue
+        return last
+    raise AssertionError(
+        "no fresh source Graphite panel after original UI cursor reopened "
+        + str(last))
+
+
 def original_pause_button_signature(samples):
     """Four independent true-original vanilla Game Menu button pixels.
 
@@ -283,9 +307,12 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
             time.sleep(.12)
         if not fresh_focus:
             raise AssertionError("no fresh source-native cursor release after search")
-        reopened = capture_original_x11(
-            window, output / ("reopened-" + label + ".png"))
-        require_visible_graphite(before, reopened)
+        reopened = await_real_graphite_frame(
+            host, window, before,
+            output / ("reopened-" + label + ".png"),
+            deadline, check_process)
+        if original_pause_menu_visible(window, dims):
+            raise AssertionError("vanilla pause menu obscures reopened Graphite panel")
         print("CUSTOMMC_189_S31_FRESH_REAL_CURSOR_BEFORE_ROW=" + label,
               flush=True)
         start = Path(host_log).stat().st_size
