@@ -3674,6 +3674,9 @@ public final class Minecraft189HostRuntime
         // One shared final veto applies to every automatic click owner.
         // It never alters genuine vanilla mouse presses. A rejected click
         // consumes scheduler credit rather than banking a late burst.
+        if (Boolean.getBoolean("custommc.acceptance.reportKillAuraLockedTarget"))
+            Minecraft189LockedTargetAcceptance.traceNativeScheduler(
+                    this, click, false, crosshairPlayerIndex);
         if (!click) return false;
         final Minecraft189WorldEntityCombatState.Snapshot combat =
                 worldEntityCombatState.snapshot();
@@ -3850,6 +3853,9 @@ public final class Minecraft189HostRuntime
         criticalsNativeAdmissionSerial = admissionSerial;
         clickRateTracker.recordPress(
                 Minecraft189ClickRateTracker.LEFT_BUTTON);
+        if (Boolean.getBoolean("custommc.acceptance.reportKillAuraLockedTarget"))
+            Minecraft189LockedTargetAcceptance.traceNativeScheduler(
+                    this, true, true, crosshairPlayerIndex);
         return true;
     }
 
