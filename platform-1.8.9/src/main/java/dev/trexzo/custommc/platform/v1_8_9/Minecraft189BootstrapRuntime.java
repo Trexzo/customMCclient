@@ -316,6 +316,12 @@ public final class Minecraft189BootstrapRuntime
             // Explicit CI-only opt-in; production module starts DISABLED.
             if (Boolean.getBoolean("custommc.acceptance.enableRealRemotePlayerBoxEsp"))
                 moduleController.enable(Minecraft189PlayerBoxEspModule.ID);
+            // S31: opt-in isolated genuine two-player visual evidence only.
+            // No production default, user profile, or persisted state changes.
+            if (Boolean.getBoolean("custommc.acceptance.captureRealHudVisuals")) {
+                moduleController.enable(Minecraft189TargetHudModule.ID);
+                moduleController.enable(Minecraft189ArrayListModule.ID);
+            }
         } catch (RuntimeException installationFailure) {
             if (scaffoldFeature != null) {
                 try { scaffoldFeature.close(); }

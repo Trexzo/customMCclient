@@ -7,6 +7,7 @@ callbacks; opt-in --pvp requires the genuine Mojang attack controller,
 same-player hurt-time and server-side damage-stat increase.
 """
 import argparse
+import json
 import math
 from pathlib import Path
 import re
@@ -17,6 +18,7 @@ import time
 import os
 
 from RunMojang189GraphicalSmoke import build_command, required_file
+from Mojang189VisualEvidence import capture_original_x11
 
 DONE = b"Done ("
 HOST_JOIN = b"CIHost joined the game"
@@ -1415,6 +1417,13 @@ def client_command(args, game, username, uuid, port, remote):
             raise ValueError("V309 hotbar abort requires genuine three-block production")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireProductionScaffoldThreeHotbarAbort=true")
+    if remote and args.hud_visual_dir:
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.captureRealHudVisuals=true")
+        # The actual obfuscated Minecraft currentScreen is reported only in
+        # this opt-in fixture; a screenshot must not pass over a pause menu.
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportLiveWorld=true")
     if remote and args.esp_visual:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.enableRealRemotePlayerBoxEsp=true")
@@ -1532,6 +1541,118 @@ def identify_original_host_window_before_target(host):
         raise AssertionError("host-only X11 window has no Minecraft title")
     print("CUSTOMMC_189_ORIGINAL_HOST_X11_UNIQUE_PRE_TARGET=YES", flush=True)
     return window
+
+
+def original_hud_source_screen(log):
+    """Read latest reported ORIGINAL Minecraft currentScreen state.
+
+    This is observational game code, not an image or host-window guess.
+    Missing/unknown state can never authorize sending Escape.
+    """
+    prefix = b"CUSTOMMC_189_ACCEPTANCE_SCREEN="
+    screens = [line.split(prefix, 1)[1].strip()
+               for line in log_tail(log, 150000).splitlines()
+               if prefix in line]
+    return screens[-1] if screens else None
+
+
+def require_original_hud_clear_screen(host, host_log, host_window, deadline):
+    """Dismiss only a source-proven vanilla pause GUI via physical Escape.
+
+    The second Mojang JVM commonly causes the host to lose focus and open
+    vanilla GuiIngameMenu (axp). Capturing the X11 RGB frame at that point
+    proved the overlay rendered, but NOT the visible HUD design. No blind
+    Escape: on a genuinely clear screen it would open the pause menu.
+    """
+    check_process(host, "genuine HUD screen-state authority")
+    current = original_hud_source_screen(host_log)
+    clear = b"(in-game/no GUI)"
+    if current == b"axp":
+        cursor = host_log.stat().st_size
+        send_real_host_key(host, host_window, "Escape")
+        stop = min(deadline, time.monotonic() + 8)
+        marker = b"CUSTOMMC_189_ACCEPTANCE_SCREEN=" + clear
+        while time.monotonic() < stop:
+            check_process(host, "original host Escape return to gameplay")
+            with host_log.open("rb") as reader:
+                reader.seek(cursor)
+                fresh = reader.read(200000)
+            if marker in fresh:
+                break
+            time.sleep(.15)
+        else:
+            raise AssertionError(
+                "physical Escape lacked fresh source-currentScreen CLEAR proof")
+    elif current != clear:
+        raise AssertionError(
+            "cannot capture HUD: original Minecraft screen unverified: "
+            + repr(current))
+    if original_hud_source_screen(host_log) != clear:
+        raise AssertionError("native HUD screenshot screen not source-clear")
+    print("CUSTOMMC_OFFICIAL_189_REAL_HUD_ORIGINAL_GUI_CLEAR_PASS=YES",
+          flush=True)
+
+
+def require_original_hud_tutorial_finished(host, host_log, host_window, deadline):
+    """Clear the first-join inventory hint using only original X11 input.
+
+    The real two-player frame still showed Minecraft's vanilla Press E
+    notification over ArrayList and fresh join chat under Target HUD.
+    Physical E genuinely opens the standard inventory; original
+    currentScreen must report that transition before physical Escape can
+    close it. Waiting for chat/achievement fade never bypasses evidence.
+    """
+    clear = b"(in-game/no GUI)"
+    prefix = b"CUSTOMMC_189_ACCEPTANCE_SCREEN="
+    if original_hud_source_screen(host_log) != clear:
+        raise AssertionError("tutorial dismissal requires source GUI CLEAR")
+    if time.monotonic() + 13 >= deadline:
+        raise AssertionError("insufficient genuine game time for clean HUD capture")
+    cursor = host_log.stat().st_size
+    send_real_host_key(host, host_window, "e")
+    stop = min(deadline, time.monotonic() + 8)
+    inventory_state = None
+    while time.monotonic() < stop:
+        check_process(host, "original inventory-open screenshot preparation")
+        with host_log.open("rb") as reader:
+            reader.seek(cursor)
+            fresh = reader.read(200000)
+        screens = [line.split(prefix, 1)[1].strip()
+                   for line in fresh.splitlines() if prefix in line]
+        if screens:
+            inventory_state = screens[-1]
+            break
+        time.sleep(.15)
+    if inventory_state is None or inventory_state in (clear, b"axp"):
+        raise AssertionError(
+            "original physical E did not open a verified inventory GUI")
+    if original_hud_source_screen(host_log) != inventory_state:
+        raise AssertionError("inventory state was not latest source state")
+    cursor = host_log.stat().st_size
+    send_real_host_key(host, host_window, "Escape")
+    stop = min(deadline, time.monotonic() + 8)
+    marker = prefix + clear
+    while time.monotonic() < stop:
+        check_process(host, "original inventory Escape exit")
+        with host_log.open("rb") as reader:
+            reader.seek(cursor)
+            fresh = reader.read(200000)
+        if marker in fresh:
+            break
+        time.sleep(.15)
+    else:
+        raise AssertionError(
+            "physical inventory Escape lacked fresh original GUI CLEAR")
+    if original_hud_source_screen(host_log) != clear:
+        raise AssertionError("tutorial cleanup did not restore game GUI CLEAR")
+    # Native Minecraft chat and advancement toast are a screenshot fixture
+    # obstruction. Let real client ticks fade them, not a fake UI override.
+    time.sleep(11.0)
+    check_process(host, "post-tutorial genuine HUD scene")
+    if original_hud_source_screen(host_log) != clear:
+        raise AssertionError("native GUI reopened during screenshot stabilization")
+    print("CUSTOMMC_OFFICIAL_189_REAL_HUD_VANILLA_TUTORIAL_CLEARED_PASS=YES",
+          flush=True)
 
 
 def send_real_host_key(host, host_window, key):
@@ -1785,7 +1906,8 @@ def run(args):
                  min(deadline, time.monotonic() + 65),
                  "host graphical client")
         host_window = None
-        if args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk", "production-repeat-six-keyboard-walk"):
+        if (args.hud_visual_dir
+                or args.scaffold_placement in ("enabled", "menu-open", "repeat-two", "production-repeat-two", "production-repeat-three", "production-repeat-three-history", "production-repeat-four", "production-repeat-two-keyboard-walk", "production-repeat-three-keyboard-walk", "production-repeat-four-keyboard-walk", "production-repeat-five-keyboard-walk", "production-repeat-six-keyboard-walk")):
             # Unique real Minecraft client on this freshly allocated Xvfb
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
@@ -2847,6 +2969,44 @@ def run(args):
                      deadline, "actual original OpenGL framebuffer pixel from exact remote AABB")
             print("CUSTOMMC_OFFICIAL_189_REMOTE_PLAYER_NATIVE_BOX_RGB_PIXEL_PASS=YES",
                   flush=True)
+            if args.hud_visual_dir:
+                # Require original source-rendered HUD + ArrayList receipts
+                # AND native UUID framebuffer proof before taking a PNG.
+                wait_for(host, host_log,
+                         b"CUSTOMMC_OFFICIAL_189_REAL_TARGET_HUD_DRAW_PASS=YES",
+                         deadline, "authentic remote-player Target HUD draw")
+                wait_for(host, host_log,
+                         b"CUSTOMMC_OFFICIAL_189_REAL_ARRAYLIST_DRAW_PASS=YES",
+                         deadline, "source-enabled ArrayList draw")
+                check_process(host, "two-player HUD screenshot")
+                if host_window is None:
+                    raise AssertionError("missing uniquely identified original host window")
+                subprocess.check_call(
+                    ["xdotool", "windowactivate", "--sync", str(host_window)],
+                    timeout=6)
+                active = subprocess.check_output(
+                    ["xdotool", "getactivewindow"], timeout=4).strip()
+                if int(active) != int(host_window):
+                    raise AssertionError("wrong native X11 window before HUD capture")
+                time.sleep(0.4)
+                require_original_hud_clear_screen(
+                    host, host_log, host_window, deadline)
+                require_original_hud_tutorial_finished(
+                    host, host_log, host_window, deadline)
+                # The previous S31 capture succeeded with a vanilla pause
+                # menu masking both modules. Require the original game to
+                # remain GUI-clear immediately before capturing RGB.
+                time.sleep(0.3)
+                if original_hud_source_screen(host_log) != b"(in-game/no GUI)":
+                    raise AssertionError(
+                        "original host GUI reopened before HUD screenshot")
+                check_process(host, "actual host HUD screenshot frame")
+                screenshot = capture_original_x11(
+                    host_window, Path(args.hud_visual_dir) / "target-hud-arraylist.png")
+                print("CUSTOMMC_OFFICIAL_189_REAL_TWO_PLAYER_HUD_PNG="
+                      + json.dumps(screenshot, sort_keys=True), flush=True)
+                print("CUSTOMMC_OFFICIAL_189_REAL_TWO_PLAYER_HUD_VISUAL_CAPTURE_PASS=YES",
+                      flush=True)
 
         if args.rejoin_target or args.rejoin_release:
             # THREE original Mojang 1.8.9 client JVMs + genuine localhost
@@ -4087,7 +4247,11 @@ def main():
                        help="prove in-range real player behind camera is excluded")
     group.add_argument("--esp-visual", action="store_true",
                        help="require exact remote Mojang UUID actual Box ESP HUD draw")
+    parser.add_argument("--hud-visual-dir", default=None,
+                        help="S31: genuine two-player Target HUD + ArrayList X11 PNG evidence")
     args = parser.parse_args()
+    if args.hud_visual_dir and not args.esp_visual:
+        parser.error("--hud-visual-dir requires --esp-visual for authentic remote framebuffer proof")
     configure_original_scaffold_gui_negative(args)
     configure_original_scaffold_hotbar_negative(args)
     if args.triggerbot_pvp:

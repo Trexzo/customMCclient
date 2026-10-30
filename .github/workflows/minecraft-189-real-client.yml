@@ -242,6 +242,33 @@ jobs:
           path: ${{ runner.temp }}/custommc-189-ux-visual-shots/*.png
           if-no-files-found: warn
           retention-days: 14
+      # S31: separate source-authentic, two-player HUD/ArrayList visual evidence.
+      # Existing S22 only captures ClickGUI in singleplayer; never conflate the two.
+      - name: S31 capture actual two-player Target HUD and enabled ArrayList
+        timeout-minutes: 5
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          MESA_GL_VERSION_OVERRIDE: '2.1'
+        run: |
+          xvfb-run -a -s "-screen 0 1280x720x24" python scripts/RunMojang189LocalhostTwoPlayerSmoke.py \
+            --java "$JAVA_HOME/bin/java" \
+            --server "$RUNNER_TEMP/minecraft-1.8.9-dedicated-server.jar" \
+            --client "$RUNNER_TEMP/minecraft-1.8.9-vanilla.jar" \
+            --libraries "$RUNNER_TEMP/minecraft-1.8.9-libraries/classpath.txt" \
+            --assets "$RUNNER_TEMP/minecraft-1.8.9-resources/assets" \
+            --natives "$RUNNER_TEMP/minecraft-1.8.9-resources/natives" \
+            --overlay "build/runtime-overlay" \
+            --root "$RUNNER_TEMP/custommc-189-s31-two-player-ui" \
+            --timeout 235 --esp-visual \
+            --hud-visual-dir "$RUNNER_TEMP/custommc-189-s31-hud-shots"
+      - name: S31 archive real two-player HUD evidence even on failure
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: custommc-189-real-two-player-hud-arraylist
+          path: ${{ runner.temp }}/custommc-189-s31-hud-shots/*.png
+          if-no-files-found: warn
+          retention-days: 14
       - name: Run offline singleplayer with genuine player and world Combat snapshots
         timeout-minutes: 4
         env:

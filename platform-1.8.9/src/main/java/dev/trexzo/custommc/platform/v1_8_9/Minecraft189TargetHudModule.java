@@ -65,6 +65,7 @@ public final class Minecraft189TargetHudModule implements Module {
             SHOW_COORDINATES_SETTING_ID, Boolean.FALSE,
             v -> v != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration registration;
+    private boolean acceptanceVisualDrawReported;
 
     public Minecraft189TargetHudModule(
             final Minecraft189NearestPlayerTargetState nearest,
@@ -329,6 +330,15 @@ public final class Minecraft189TargetHudModule implements Module {
                     if (failure != null) failure.addSuppressed(e);
                     else throw e;
                 }
+            }
+            // Render receipt is emitted only after a successful genuine HUD
+            // pass with coherent source player + source rotation evidence.
+            if (!acceptanceVisualDrawReported
+                    && Boolean.getBoolean("custommc.acceptance.captureRealHudVisuals")) {
+                acceptanceVisualDrawReported = true;
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_REAL_TARGET_HUD_DRAW_PASS=YES index="
+                        + target.entityIndex() + " distance=" + target.distance());
             }
         }
     }
