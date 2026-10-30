@@ -3548,6 +3548,10 @@ public final class Minecraft189HostRuntime
                     playerRotationState.snapshot(),
                     targetRotationState.snapshot(), attackHeld, rightHeld,
                     playerMovementState.snapshot(), featureCatalog.spin().active());
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraLockedTarget"))
+                Minecraft189LockedTargetAcceptance.observeAuraSchedule(
+                        this, confirmedHit, crosshairPlayerIndex, click);
         } else if (trigger.active()) {
             aura.suspend();
             featureCatalog.autoClicker().suspendForGui();
