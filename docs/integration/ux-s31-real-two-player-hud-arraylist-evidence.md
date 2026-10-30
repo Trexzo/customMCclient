@@ -19,3 +19,11 @@ This change stacks directly on S30's exact verified SHA `b242563e4a681bbb80e2369
 5. The explicit Box ESP outline is present in this fixture to establish remote native UUID/framebuffer evidence; it is not a claim that Box ESP must be enabled for ordinary HUD use.
 
 No changes to combat behavior, targeting authority, native mouse-focus branch, proprietary assets, UI theme configuration, or main. Keep the PR a **draft** until exact-head tests and image review.
+
+## First real screenshot finding and focus recovery (2026-10-30)
+
+The first genuine original-game two-player screenshot stage **passed its render/framebuffer markers**, and its archived PNG (`target-hud-arraylist.png`, SHA256 `11f1493064b0bab8ba0ba3f8e6b228c2c5815c5fcfc507571486365c1be98b73`) indeed contains the real Target HUD and ArrayList. However, the host's vanilla **Game menu was open over the HUD**. The first screenshot therefore does **not** visually certify spacing, hierarchy, clipping or contrast.
+
+The corrected test now explicitly opts into the already verified **original obfuscated Minecraft currentScreen trace** on the host, activates only the previously isolated original host X11 window, and reads the latest source-native screen state. If and only if the original screen is **axp (vanilla pause GUI)** it sends one physical Escape to that exact host window and requires a **fresh post-input `(in-game/no GUI)` native callback**. A screen already clear receives no Escape. Missing, other or stale source states reject the screenshot. It checks GUI-clear again immediately before capture. Separate host-source regression tests cover existing clear, true pause dismissal, unknown GUI and stale-reply rejection.
+
+This follow-up does **not** change HUD drawing, target selection, player data, combat or normal user profile state. The first run's `PASS` remains correctly classified as genuine render/screenshot evidence **but visually obscured**; the corrected exact-head run must be inspected before claiming a clean in-game design screenshot.
