@@ -1420,6 +1420,10 @@ def client_command(args, game, username, uuid, port, remote):
     if remote and args.hud_visual_dir:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.captureRealHudVisuals=true")
+        # The actual obfuscated Minecraft currentScreen is reported only in
+        # this opt-in fixture; a screenshot must not pass over a pause menu.
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.reportLiveWorld=true")
     if remote and args.esp_visual:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.enableRealRemotePlayerBoxEsp=true")
@@ -1537,6 +1541,56 @@ def identify_original_host_window_before_target(host):
         raise AssertionError("host-only X11 window has no Minecraft title")
     print("CUSTOMMC_189_ORIGINAL_HOST_X11_UNIQUE_PRE_TARGET=YES", flush=True)
     return window
+
+
+def original_hud_source_screen(log):
+    """Read latest reported ORIGINAL Minecraft currentScreen state.
+
+    This is observational game code, not an image or host-window guess.
+    Missing/unknown state can never authorize sending Escape.
+    """
+    prefix = b"CUSTOMMC_189_ACCEPTANCE_SCREEN="
+    screens = [line.split(prefix, 1)[1].strip()
+               for line in log_tail(log, 150000).splitlines()
+               if prefix in line]
+    return screens[-1] if screens else None
+
+
+def require_original_hud_clear_screen(host, host_log, host_window, deadline):
+    """Dismiss only a source-proven vanilla pause GUI via physical Escape.
+
+    The second Mojang JVM commonly causes the host to lose focus and open
+    vanilla GuiIngameMenu (axp). Capturing the X11 RGB frame at that point
+    proved the overlay rendered, but NOT the visible HUD design. No blind
+    Escape: on a genuinely clear screen it would open the pause menu.
+    """
+    check_process(host, "genuine HUD screen-state authority")
+    current = original_hud_source_screen(host_log)
+    clear = b"(in-game/no GUI)"
+    if current == b"axp":
+        cursor = host_log.stat().st_size
+        send_real_host_key(host, host_window, "Escape")
+        stop = min(deadline, time.monotonic() + 8)
+        marker = b"CUSTOMMC_189_ACCEPTANCE_SCREEN=" + clear
+        while time.monotonic() < stop:
+            check_process(host, "original host Escape return to gameplay")
+            with host_log.open("rb") as reader:
+                reader.seek(cursor)
+                fresh = reader.read(200000)
+            if marker in fresh:
+                break
+            time.sleep(.15)
+        else:
+            raise AssertionError(
+                "physical Escape lacked fresh source-currentScreen CLEAR proof")
+    elif current != clear:
+        raise AssertionError(
+            "cannot capture HUD: original Minecraft screen unverified: "
+            + repr(current))
+    if original_hud_source_screen(host_log) != clear:
+        raise AssertionError("native HUD screenshot screen not source-clear")
+    print("CUSTOMMC_OFFICIAL_189_REAL_HUD_ORIGINAL_GUI_CLEAR_PASS=YES",
+          flush=True)
 
 
 def send_real_host_key(host, host_window, key):
@@ -2873,6 +2927,15 @@ def run(args):
                 if int(active) != int(host_window):
                     raise AssertionError("wrong native X11 window before HUD capture")
                 time.sleep(0.4)
+                require_original_hud_clear_screen(
+                    host, host_log, host_window, deadline)
+                # The previous S31 capture succeeded with a vanilla pause
+                # menu masking both modules. Require the original game to
+                # remain GUI-clear immediately before capturing RGB.
+                time.sleep(0.3)
+                if original_hud_source_screen(host_log) != b"(in-game/no GUI)":
+                    raise AssertionError(
+                        "original host GUI reopened before HUD screenshot")
                 check_process(host, "actual host HUD screenshot frame")
                 screenshot = capture_original_x11(
                     host_window, Path(args.hud_visual_dir) / "target-hud-arraylist.png")
