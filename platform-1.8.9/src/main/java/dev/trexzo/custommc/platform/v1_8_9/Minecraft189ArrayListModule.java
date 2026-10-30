@@ -109,6 +109,7 @@ public final class Minecraft189ArrayListModule
             SHOW_OVERFLOW_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
+    private boolean acceptanceVisualDrawReported;
 
     public Minecraft189ArrayListModule(
             final ModuleRegistry modules,
@@ -316,6 +317,7 @@ public final class Minecraft189ArrayListModule
 
             hostCallbacks.beginUi(viewport);
             RuntimeException failure = null;
+            int drawnRows = 0;
             try {
                 float currentY = Minecraft189ArrayListLayout.safeTop(
                         y.get().floatValue(), viewport.logicalHeight());
@@ -372,6 +374,7 @@ public final class Minecraft189ArrayListModule
                     drawModuleCard(viewport, currentY,
                             "+ " + (enabled.size() - displayed) + " more", 1.0F);
                 }
+                drawnRows = displayed;
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
                 throw drawFailure;
@@ -386,6 +389,15 @@ public final class Minecraft189ArrayListModule
                         throw closeFailure;
                     }
                 }
+            }
+            // Only the actual in-world renderer can acknowledge this CI-only
+            // check. Never convert a host-source or mock screenshot to PASS.
+            if (drawnRows >= 2 && !acceptanceVisualDrawReported
+                    && Boolean.getBoolean("custommc.acceptance.captureRealHudVisuals")) {
+                acceptanceVisualDrawReported = true;
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_REAL_ARRAYLIST_DRAW_PASS=YES rows="
+                        + drawnRows);
             }
         }
     }
