@@ -96,12 +96,10 @@ class OriginalHostWindowFixtureTest(unittest.TestCase):
         self.assertFalse(any(c.args[0][1] == "key"
                              for c in run.call_args_list))
 
-
     def test_hud_visual_source_clear_does_not_send_escape(self):
         with tempfile.TemporaryDirectory() as root:
             path = Path(root) / "native.log"
-            path.write_bytes(
-                b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)\\n".replace(b"\\n", b"\n"))
+            path.write_bytes(b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)\n")
             self.assertEqual(b"(in-game/no GUI)",
                              original_hud_source_screen(path))
             with patch("RunMojang189LocalhostTwoPlayerSmoke.send_real_host_key") as key:
