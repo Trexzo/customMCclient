@@ -82,7 +82,16 @@ class OriginalMojangNativeSubtrialReportTest(unittest.TestCase):
             "S22 capture original Mojang ClickGUI visual evidence",
             "S22 archive original Minecraft GUI screenshots (even on failure)",
         ], visual)
-        original = [n for n in names if not n.startswith("S22 ")]
+        # S31 adds two independently reviewed two-player visual-evidence
+        # stages. Exclude only those exact names when measuring the immutable
+        # original V308/V309 inventory; never loosen the legacy step gates.
+        s31 = [n for n in names if n.startswith("S31 ")]
+        self.assertEqual([
+            "S31 capture actual two-player Target HUD and enabled ArrayList",
+            "S31 archive real two-player HUD evidence even on failure",
+        ], s31)
+        original = [n for n in names
+                    if not n.startswith(("S22 ", "S31 "))]
         self.assertEqual(69, len(original))
         self.assertEqual(67, len(original) - len(reviewed))
         self.assertEqual([
