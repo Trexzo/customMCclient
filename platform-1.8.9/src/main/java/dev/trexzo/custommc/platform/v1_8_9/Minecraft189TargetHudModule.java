@@ -333,6 +333,16 @@ public final class Minecraft189TargetHudModule implements Module {
                     else throw e;
                 }
             }
+            if (!nativeVisualReported
+                    && Boolean.getBoolean("custommc.acceptance.reportNativeHudVisual")) {
+                nativeVisualReported = true;
+                // This marker is emitted AFTER the real native HUD frame
+                // finished and only for the matching live source player.
+                System.out.println("CUSTOMMC_189_REAL_TARGET_HUD_RENDERED=YES"
+                        + " index=" + target.entityIndex()
+                        + " distanceSquared=" + target.distanceSquared()
+                        + " size=" + width + "x" + height);
+            }
         }
     }
 }
