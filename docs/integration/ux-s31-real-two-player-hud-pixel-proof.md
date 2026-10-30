@@ -18,6 +18,12 @@ The new `S31` original-game CI stage creates:
 
 All source markers are strictly behind `-Dcustommc.acceptance.reportNativeHudVisual=true` and only emit **after** a real render pass has completed. They do not enable or edit any modules or change target selection. Normal production behavior has no new UI log.
 
+## First authentic failure and its bounded repair
+
+Native job [#41057213142](https://github.com/Trexzo/customMCclient/actions/runs/41057213142) failed **correctly** because no fresh original enabled ArrayList HUD witness followed the physical click. The always-uploaded artifact `12977467355` contains two *genuine original X11* images. They independently prove the root cause: `world-before.png` showed the **vanilla Game Menu** still open; `native-modules.png` showed CustomMC's real Graphite Modules page rendered **behind** that same vanilla menu, which intercepted the row clicks. The source login/remote-player admission was fine; this was not evidence of a disabled renderer or broken combat.
+
+The subsequent fix is strictly to the screenshot harness: read four separate original X11 pixels in the **actual Game Menu button surfaces**; if and only if all four match the classic vanilla neutral-grey buttons, physically click the original Back to Game button. Reject if the menu still appears, if it reappears over ClickGUI or if it remains at final HUD capture. No direct screen mutation, no blind Escape, no fabricated render, and no relaxation of the fresh ArrayList/Target HUD witness gate. `test_mojang189_s31_hud_visual.py` checks four-button positive/negative cases.
+
 ## What this does NOT certify
 A source marker plus a screenshot is not necessarily perfect pixel-level OCR of every rendered HUD word. The proof is the genuine remote player, actual module lifecycle via real UI, source-native completed frames and original rendered X11 pixels, not an inferred health or a synthetic frame. Visual layout still needs human review of `enabled-hud.png` for typography, clipping, placement and contrast. No automated anti-cheat or combat bypass claim is made.
 
