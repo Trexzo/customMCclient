@@ -200,9 +200,13 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
     if original_pause_menu_visible(window, dims):
         raise AssertionError("S31 original vanilla pause menu overlaps real ClickGUI")
 
+    # Avoid 1.8.9 vanilla inventory(E)/chat(T) bindings: the old
+    # physically typed "array list" ended with T and opened original chat,
+    # dismissing ClickGUI before the test could click its module row.
+    # Both fragments are genuine distinctive ModuleDescriptor substrings.
     for idx, (query, marker) in enumerate((
-        ("array list", b"CUSTOMMC_189_REAL_ARRAYLIST_RENDERED=YES"),
-        ("target hud", b"CUSTOMMC_189_REAL_TARGET_HUD_RENDERED=YES"),
+        ("array", b"CUSTOMMC_189_REAL_ARRAYLIST_RENDERED=YES"),
+        ("r hud", b"CUSTOMMC_189_REAL_TARGET_HUD_RENDERED=YES"),
     )):
         # Always route by ORIGINAL ClickGuiInputController search and
         # actual ModuleListPageContent row hitbox. No Java module injection.
@@ -218,6 +222,7 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
         label = "arraylist" if idx == 0 else "targethud"
         filtered = capture_original_x11(
             window, output / ("filtered-" + label + ".png"))
+        require_visible_graphite(before, filtered)
         print("CUSTOMMC_189_S31_REAL_FILTERED_SEARCH=" + str(filtered),
               flush=True)
         start = Path(host_log).stat().st_size
