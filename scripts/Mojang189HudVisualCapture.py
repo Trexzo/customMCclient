@@ -154,9 +154,23 @@ def capture_two_player_hud(args, host, host_log, host_window, server,
             ["xdotool", "type", "--clearmodifiers", "--delay", "55", query],
             timeout=15)
         key("Return")
+        time.sleep(.35)
+        # Preserve the actual source window AFTER physical keyboard search:
+        # when a native cursor is still grabbed, its empty search field
+        # must be visible in this genuine original-game artifact.
+        label = "arraylist" if idx == 0 else "targethud"
+        filtered = capture_original_x11(
+            window, output / ("filtered-" + label + ".png"))
+        print("CUSTOMMC_189_S31_REAL_FILTERED_SEARCH=" + str(filtered),
+              flush=True)
         start = Path(host_log).stat().st_size
         click(module)
-        require_fresh(host, host_log, marker, start, deadline,
+        time.sleep(.35)
+        clicked = capture_original_x11(
+            window, output / ("clicked-" + label + ".png"))
+        print("CUSTOMMC_189_S31_REAL_ROW_CLICK=" + str(clicked), flush=True)
+        require_fresh(host, host_log, marker, start,
+                      min(deadline, time.monotonic() + 8.0),
                       check_process, "native enabled " + query)
         print("CUSTOMMC_189_S31_TRUE_X11_MODULE_ENABLED=" + query, flush=True)
 
