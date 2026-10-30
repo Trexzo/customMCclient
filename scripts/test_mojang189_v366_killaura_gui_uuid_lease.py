@@ -66,6 +66,29 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
                       SELECTOR)
         self.assertIn("target.clear();", SELECTOR)
 
+    def test_phase_three_original_ray_and_scheduler_diagnostics_are_read_only(self):
+        owner = (BASE / "Minecraft189LockedTargetAcceptance.java").read_text(
+            encoding="utf-8")
+        self.assertIn('phase != 3) return;', owner)
+        self.assertIn('callback != 1 && callback % 40 != 0', owner)
+        self.assertIn('CUSTOMMC_189_V366_LOCK_PHASE3_NATIVE_RAY_DIAG', owner)
+        self.assertIn('CUSTOMMC_189_V366_LOCK_PHASE3_SCHEDULE_DIAG', owner)
+        ray = owner.split('static void observeNativeRay(', 1)[1].split(
+            '    static void observeAuraSchedule(', 1)[0]
+        schedule = owner.split('static void observeAuraSchedule(', 1)[1].split(
+            '    static void verifyOwnedClick(', 1)[0]
+        for segment in (ray, schedule):
+            for forbidden in ('customMcAttackCrosshairEntity(', 'customMcClickMouse(',
+                              'sendPacket(', 'rememberSelectedTarget(',
+                              'Minecraft189KillAuraTargetSelector.select(',
+                              'aHit=true', 'bHit=true'):
+                self.assertNotIn(forbidden, segment)
+        self.assertIn('Minecraft189LockedTargetAcceptance.observeNativeRay(', BRIDGE)
+        self.assertIn('if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox))',
+                      BRIDGE)
+        self.assertIn('Minecraft189LockedTargetAcceptance.observeAuraSchedule(',
+                      HOST)
+
     def test_original_v47_rejoin_server_damage_oracle_unchanged(self):
         for term in (
             "CUSTOMMC_189_REJOIN_REAL_A_DISCONNECTED_PASS",
