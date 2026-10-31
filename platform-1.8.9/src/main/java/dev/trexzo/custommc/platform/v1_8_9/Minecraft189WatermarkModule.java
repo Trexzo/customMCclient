@@ -139,15 +139,39 @@ public final class Minecraft189WatermarkModule
                             hostCallbacks.framebufferHeight(),
                             hostCallbacks.uiScale());
 
+            // S39: treat X/Y as user-owned saved preferences, but recover
+            // visible insets on a smaller game window or different GUI scale.
+            // Original default (8,8) and short text remain pixel-identical.
+            final float logicalWidth = viewport.logicalWidth();
+            final float logicalHeight = viewport.logicalHeight();
+            final float left = Minecraft189ArrayListLayout.safeLeft(
+                    x.get().floatValue(), logicalWidth);
+            final float top = Minecraft189ArrayListLayout.safeTop(
+                    y.get().floatValue(), logicalHeight);
             hostCallbacks.beginUi(viewport);
             RuntimeException failure = null;
             try {
-                hostCallbacks.drawText(
-                        UiFonts.DEFAULT,
-                        x.get().floatValue(),
-                        y.get().floatValue(),
-                        text.get(),
-                        TEXT_ARGB);
+                final float width = Math.max(0.0F,
+                        logicalWidth - left - 4.0F);
+                final String visible = Minecraft189ArrayListLayout.fitLabel(
+                        text.get(), width,
+                        label -> {
+                            final int measured = hostCallbacks.measureText(label);
+                            return measured >= 0 ? measured
+                                    : Minecraft189HudTextMetrics.width(label);
+                        });
+                if (!visible.isEmpty() && width > 0.0F) {
+                    // Clipping prevents native glyph shadows or unusual
+                    // Unicode metrics from drawing beyond the viewport.
+                    hostCallbacks.pushClip(left, Math.max(0.0F, top - 1.0F),
+                            width, Math.min(11.0F, logicalHeight - top));
+                    try {
+                        hostCallbacks.drawText(UiFonts.DEFAULT,
+                                left, top, visible, TEXT_ARGB);
+                    } finally {
+                        hostCallbacks.popClip();
+                    }
+                }
             } catch (RuntimeException drawFailure) {
                 failure = drawFailure;
                 throw drawFailure;
