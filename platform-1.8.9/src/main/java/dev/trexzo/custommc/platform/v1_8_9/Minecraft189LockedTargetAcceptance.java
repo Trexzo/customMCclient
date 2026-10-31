@@ -254,6 +254,49 @@ final class Minecraft189LockedTargetAcceptance {
         }
     }
 
+    /**
+     * V366 R5: read-only, bounded investigation of a rejected original
+     * GuiScreen. Must run only AFTER the unchanged native gate has blocked.
+     * Never converts OPEN/UNAVAILABLE into a CLEAR admission verdict.
+     */
+    static void observeBlockedNativeScreen(final Object originalMinecraft) {
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraLockedTarget")
+                || phase != 3) return;
+        final int n = phase3GuiVeto;
+        if (n != 1 && n % 80 != 0) return;
+        String screenClass = "unavailable";
+        int matchedFields = 0;
+        try {
+            if (originalMinecraft != null) {
+                java.lang.reflect.Field screen = null;
+                for (java.lang.reflect.Field candidate :
+                        originalMinecraft.getClass().getDeclaredFields()) {
+                    if (!"axu".equals(candidate.getType().getName())) continue;
+                    matchedFields++;
+                    screen = candidate;
+                }
+                if (matchedFields == 1 && screen != null) {
+                    screen.setAccessible(true);
+                    final Object value = screen.get(originalMinecraft);
+                    screenClass = value == null ? "null" : value.getClass().getName();
+                }
+            }
+        } catch (ReflectiveOperationException | RuntimeException unavailable) {
+            screenClass = "reflection-unavailable";
+        }
+        final Minecraft189ScaffoldScreenGate.Verdict verdict =
+                Minecraft189ScaffoldScreenGate.inspect(originalMinecraft);
+        System.out.println("CUSTOMMC_189_V366_LOCK_PHASE3_ORIGINAL_SCREEN_DIAG"
+                + " n=" + n
+                + " sourceClass=" + (originalMinecraft == null ? "null"
+                    : originalMinecraft.getClass().getName())
+                + " screenFieldCount=" + matchedFields
+                + " screenClass=" + screenClass
+                + " originalVerdict=" + verdict
+                + " thread=" + Thread.currentThread().getName());
+        System.out.flush();
+    }
+
     /** Diagnostic only. The original renderer's ray is already published
      * by Minecraft before this hook; no new ray, UUID, packet or click.
      */
