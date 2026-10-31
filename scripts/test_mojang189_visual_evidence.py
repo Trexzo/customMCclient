@@ -6,6 +6,7 @@ from Mojang189VisualEvidence import (
     original_target_hud_native_text_contrast,
     original_arraylist_compact_row_pitch,
     original_arraylist_native_shadow_pixels,
+    original_watermark_recovery_pixels,
 )
 
 
@@ -94,6 +95,36 @@ class NativeVisualEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, "shadow pixels absent"):
             original_arraylist_native_shadow_pixels(sky, width, height)
 
+    def test_native_offscreen_watermark_recovery_requires_real_glyph_pixels(self):
+        # Synthetic classifier fixture only, never a screenshot of Minecraft.
+        width, height = 854, 480
+        sky = bytes((112, 151, 204)) * (width * height)
+        frame = bytearray(sky)
+        with self.assertRaisesRegex(AssertionError, "did not recover"):
+            original_watermark_recovery_pixels(frame, width, height)
+        with self.assertRaisesRegex(AssertionError, "exact CI window"):
+            original_watermark_recovery_pixels(frame, 640, 480)
+
+        # A vanilla HUD bottom rail below y460 must NOT satisfy the gate.
+        for y in range(461, 464):
+            for x in range(16, 180):
+                off = (y * width + x) * 3
+                frame[off:off + 3] = bytes((245, 245, 245))
+        with self.assertRaisesRegex(AssertionError, "did not recover"):
+            original_watermark_recovery_pixels(frame, width, height)
+
+        # Genuine-font-like vertical bars, above the hotbar rail, must be
+        # present in multiple columns and rows in the recovered region.
+        for y in range(449, 459):
+            for x in range(20, 100):
+                if x % 5 in (0, 1):
+                    off = (y * width + x) * 3
+                    frame[off:off + 3] = bytes((245, 245, 245))
+        witness = original_watermark_recovery_pixels(frame, width, height)
+        self.assertGreaterEqual(witness["recovered_bright_pixels"], 80)
+        self.assertGreaterEqual(witness["glyph_columns"], 28)
+        self.assertGreaterEqual(witness["glyph_rows"], 7)
+
     def test_compact_arraylist_glyph_pitch_accepts_real_size_only(self):
         # Synthetic RGB classifier-only unit input, never a game image.
         # The actual gate receives original Mojang X11 framebuffer bytes.
@@ -115,6 +146,22 @@ class NativeVisualEvidenceTests(unittest.TestCase):
                          result["glyph_bands"])
         with self.assertRaisesRegex(AssertionError, "exact CI window"):
             original_arraylist_compact_row_pitch(frame, 640, 480)
+        with self.assertRaisesRegex(AssertionError, "glyph row count"):
+            original_arraylist_compact_row_pitch(
+                frame, width, height, expected_rows=4)
+        for y in range(94, 110):
+            for x in range(685, 699):
+                at = (y * width + x) * 3
+                frame[at:at + 3] = bytes((242, 242, 242))
+        extra = original_arraylist_compact_row_pitch(
+                frame, width, height, expected_rows=4)
+        self.assertEqual([22, 22, 22], extra["physical_row_pitches"])
+        with self.assertRaisesRegex(AssertionError, "glyph row count"):
+            original_arraylist_compact_row_pitch(
+                frame, width, height, expected_rows=3)
+        with self.assertRaises(ValueError):
+            original_arraylist_compact_row_pitch(
+                frame, width, height, expected_rows=5)
 
         with self.assertRaisesRegex(AssertionError, "glyph row count"):
             original_arraylist_compact_row_pitch(sky, width, height)
