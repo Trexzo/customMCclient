@@ -83,16 +83,45 @@ final class Minecraft189ArrayListLayout {
         if (!Float.isFinite(maxWidth) || maxWidth <= 0.0F) return "";
         if (textWidth.applyAsInt(label) <= maxWidth) return label;
         final String ellipsis = "...";
-        final int dotsWidth = textWidth.applyAsInt(ellipsis);
-        if (dotsWidth > maxWidth) return "";
-        int end = label.length();
+        if (textWidth.applyAsInt(ellipsis) > maxWidth) return "";
+        int end = safeEllipsisBoundary(label, label.length());
+        // Measure the ACTUAL output string. Original Minecraft 1.8.9
+        // formatting (notably bold) can change the width of the appended
+        // dots, so width(prefix) + width("...") is not always correct.
         while (end > 0
-                && textWidth.applyAsInt(label.substring(0, end))
-                    + dotsWidth > maxWidth) {
-            end--;
+                && textWidth.applyAsInt(label.substring(0, end) + ellipsis)
+                    > maxWidth) {
+            end = safeEllipsisBoundary(label, end - 1);
         }
-        // Avoid trailing spaces on an ellipsized module name.
-        while (end > 0 && label.charAt(end - 1) == ' ') end--;
         return end == 0 ? ellipsis : label.substring(0, end) + ellipsis;
+    }
+
+    /**
+     * Returns a complete Minecraft 1.8.9 text prefix for display-only
+     * truncation: never split a supplementary Unicode code point or a
+     * section-sign formatting pair, and do not leave a trailing formatting
+     * code that has no visible glyph. Saved names and source strings remain
+     * byte-for-byte unchanged.
+     */
+    private static int safeEllipsisBoundary(final String label, int end) {
+        int old;
+        do {
+            old = end;
+            if (end > 0 && end < label.length()
+                    && Character.isHighSurrogate(label.charAt(end - 1))
+                    && Character.isLowSurrogate(label.charAt(end))) {
+                end--;
+            }
+            if (end > 0 && label.charAt(end - 1) == '\u00a7') {
+                end--;
+            }
+            if (end >= 2 && label.charAt(end - 2) == '\u00a7') {
+                end -= 2;
+            }
+            if (end > 0 && label.charAt(end - 1) == ' ') {
+                end--;
+            }
+        } while (end != old);
+        return end;
     }
 }
