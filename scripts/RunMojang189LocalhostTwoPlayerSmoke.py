@@ -1936,10 +1936,11 @@ def run(args):
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
         if (args.rejoin_target or args.rejoin_release
-                or args.locked_target or args.simultaneous):
+                or args.locked_target or args.simultaneous
+                or args.multi_target):
             # Capture host only while it remains the *sole* Minecraft
             # window, not by ambiguous late --pid once targets exist.
-            # V366 R7: both sticky and simultaneous native fixtures use
+            # V366 R8: sticky, simultaneous and multi-target fixtures use
             # only source-confirmed axp with this pre-target original window.
             if host_window is not None:
                 raise AssertionError(
@@ -3712,6 +3713,19 @@ def run(args):
                   flush=True)
             wait_for(host, host_log, MULTI_READY, deadline,
                      "20 native A candidate callbacks, second UUID out of range")
+            # V366 R8: the third original Minecraft JVM may leave CIHost
+            # in Mojang's real axp pause GUI. Preserve the production
+            # original-screen veto. A source-confirmed axp alone permits
+            # a physical Escape to our pre-target host X11 window, and
+            # native CLEAR is mandatory before actual UUID combat proof.
+            v348_resume_confirmed_original_pause(
+                host, host_log, deadline, host_window)
+            if v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)":
+                raise AssertionError(
+                    "multi-target original host GUI not source CLEAR "
+                    "before real A UUID attack and server damage")
+            print("CUSTOMMC_189_V366_MULTI_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+                  flush=True)
             wait_for(host, host_log, MULTI_HIT_A, deadline,
                      "native A UUID owned Kill Aura attack")
             wait_for_real_score(server, server_log, "CITarget", deadline)
