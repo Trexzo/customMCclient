@@ -227,9 +227,12 @@ final class Minecraft189HostRuntimeTest {
                         .watermark()
                         .renderPassInstalled());
 
+        final int clipsBefore = host.clipPushCalls.get();
         runtime.renderHud(
                 1L,
                 0.0F);
+        assertEquals(clipsBefore + 1, host.clipPushCalls.get());
+        assertEquals(host.clipPushCalls.get(), host.clipPopCalls.get());
         assertEquals(
                 beforeWatermarkText + 1,
                 host.textCalls.get());
@@ -269,6 +272,7 @@ final class Minecraft189HostRuntimeTest {
         final int beforeRecovery = host.textCalls.get();
         runtime.renderHud(11L, 0.0F);
         assertEquals(beforeRecovery + 1, host.textCalls.get());
+        assertEquals(host.clipPushCalls.get(), host.clipPopCalls.get());
         assertEquals("Trexzo", host.lastText);
         assertEquals(8.0F, host.lastTextX, .001F);
         assertEquals(224.0F, host.lastTextY, .001F);
@@ -285,6 +289,7 @@ final class Minecraft189HostRuntimeTest {
         runtime.featureCatalog().watermark().ySetting().set(8);
         runtime.renderHud(12L, 0.0F);
         assertTrue(host.lastText.endsWith("..."));
+        assertEquals(host.clipPushCalls.get(), host.clipPopCalls.get());
         assertEquals(390.0F, host.lastTextX, .001F);
         assertEquals(8.0F, host.lastTextY, .001F);
         assertEquals("390", settings.snapshotEncoded().get(
@@ -443,6 +448,8 @@ final class Minecraft189HostRuntimeTest {
                 new AtomicInteger();
         private final AtomicInteger textCalls =
                 new AtomicInteger();
+        private final AtomicInteger clipPushCalls = new AtomicInteger();
+        private final AtomicInteger clipPopCalls = new AtomicInteger();
         private String lastText;
         private float lastTextX;
         private float lastTextY;
@@ -503,10 +510,12 @@ final class Minecraft189HostRuntimeTest {
                 final float y,
                 final float width,
                 final float height) {
+            clipPushCalls.incrementAndGet();
         }
 
         @Override
         public void popClip() {
+            clipPopCalls.incrementAndGet();
         }
 
         @Override
