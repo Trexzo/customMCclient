@@ -78,17 +78,20 @@ class V349OriginalHostWindowOwner(TestCase):
             run.index("host_cmd = client_command("))
         launch = run.index('with target_log.open("wb")')
         self.assertLess(capture, launch)
-        # V366 R6 permits exactly one extra call only inside the native
-        # sticky-A fixture; keep both original rejoin calls untouched.
-        self.assertEqual(3, run.count(
+        # V366 R7 permits precisely two additional calls: one in sticky-A,
+        # one in simultaneous PvP. The two rejoin calls remain unchanged.
+        self.assertEqual(4, run.count(
             "v348_resume_confirmed_original_pause("))
         self.assertEqual(2, run.split("if args.locked_target:", 1)[0].count(
             "v348_resume_confirmed_original_pause("))
         sticky = run.split("if args.locked_target:", 1)[1].split(
             "if args.simultaneous:", 1)[0]
         self.assertEqual(1, sticky.count("v348_resume_confirmed_original_pause("))
+        simultaneous = run.split("if args.simultaneous:", 1)[1].split(
+            "if args.multi_target:", 1)[0]
+        self.assertEqual(1, simultaneous.count("v348_resume_confirmed_original_pause("))
         self.assertIn(
-            "if args.rejoin_target or args.rejoin_release or args.locked_target:",
+            "or args.locked_target or args.simultaneous):",
             run)
         self.assertIn("CUSTOMMC_189_V366_LOCK_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
                       sticky)
