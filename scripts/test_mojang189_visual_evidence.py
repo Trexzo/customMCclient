@@ -115,7 +115,7 @@ class NativeVisualEvidenceTests(unittest.TestCase):
 
         # Genuine-font-like vertical bars, above the hotbar rail, must be
         # present in multiple columns and rows in the recovered region.
-        for y in range(449, 459):
+        for y in range(429, 440):
             for x in range(20, 100):
                 if x % 5 in (0, 1):
                     off = (y * width + x) * 3
