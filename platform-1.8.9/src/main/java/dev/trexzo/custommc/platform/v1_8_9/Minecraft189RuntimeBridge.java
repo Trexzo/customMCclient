@@ -2276,6 +2276,10 @@ public final class Minecraft189RuntimeBridge {
             final Minecraft189HostRuntime host,
             final Minecraft189ClickMouseControl minecraft) {
         if (Minecraft189NativeGuiCombatVeto.blocks(minecraft)) {
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraLockedTarget"))
+                Minecraft189LockedTargetAcceptance.observeCombatStage(
+                            Minecraft189LockedTargetAcceptance.CombatStage.GUI_VETO);
             host.suspendSyntheticCombatForOriginalGui();
             return true;
         }
@@ -2293,6 +2297,10 @@ public final class Minecraft189RuntimeBridge {
             final long combatCycleToken = host.enterSyntheticCombatCycle();
             if (combatCycleToken == 0L) return;
             try {
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraLockedTarget"))
+                Minecraft189LockedTargetAcceptance.observeCombatStage(
+                            Minecraft189LockedTargetAcceptance.CombatStage.ENTER);
             if (Boolean.getBoolean(
                     "custommc.acceptance.reportTriggerBotRealPvp")
                     && !acceptanceTriggerEnabled) {
@@ -3061,6 +3069,10 @@ public final class Minecraft189RuntimeBridge {
             // this tokenized cycle, regardless of CustomMC ClickGUI.
             if (vetoOriginalScreenBeforeNativeCombat(host, minecraft))
                 return;
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraLockedTarget"))
+                Minecraft189LockedTargetAcceptance.observeCombatStage(
+                            Minecraft189LockedTargetAcceptance.CombatStage.SCREEN_CLEAR);
             final Minecraft189SwordBlockControl swordBlock =
                     minecraft instanceof Minecraft189SwordBlockControl
                     ? (Minecraft189SwordBlockControl) minecraft : null;
@@ -3106,6 +3118,10 @@ public final class Minecraft189RuntimeBridge {
                 // Only an actual potion takes the combat action lane.
                 final int originalPotionSlot = host.selectAutoPotSlot();
                 if (originalPotionSlot >= 0) {
+                    if (Boolean.getBoolean(
+                            "custommc.acceptance.reportKillAuraLockedTarget"))
+                        Minecraft189LockedTargetAcceptance.observeCombatStage(
+                            Minecraft189LockedTargetAcceptance.CombatStage.POTION_RETURN);
                     try {
                         if (!host.claimSyntheticCombatPrimary(
                                 combatCycleToken,
@@ -3148,6 +3164,10 @@ public final class Minecraft189RuntimeBridge {
             if (host.shouldAutoRod(playerHit, playerIndex)) {
                 final int originalRodSlot = host.selectAutoRodSlot();
                 if (originalRodSlot >= 0) {
+                    if (Boolean.getBoolean(
+                            "custommc.acceptance.reportKillAuraLockedTarget"))
+                        Minecraft189LockedTargetAcceptance.observeCombatStage(
+                            Minecraft189LockedTargetAcceptance.CombatStage.ROD_RETURN);
                     try {
                         if (!host.claimSyntheticCombatPrimary(
                                 combatCycleToken,
@@ -3181,6 +3201,10 @@ public final class Minecraft189RuntimeBridge {
                 }
                 // No verified rod in the configured slot: fall through.
             }
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraLockedTarget"))
+                Minecraft189LockedTargetAcceptance.observeCombatStage(
+                            Minecraft189LockedTargetAcceptance.CombatStage.BEFORE_RAY);
             final double[] nativeHitbox = playerHit
                     && host.needsHitboxRangeEvidence()
                     ? ((Minecraft189CrosshairHitAccess) minecraft)
