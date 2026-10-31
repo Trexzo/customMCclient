@@ -1935,11 +1935,12 @@ def run(args):
             # Unique real Minecraft client on this freshly allocated Xvfb
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
-        if args.rejoin_target or args.rejoin_release or args.locked_target:
+        if (args.rejoin_target or args.rejoin_release
+                or args.locked_target or args.simultaneous):
             # Capture host only while it remains the *sole* Minecraft
             # window, not by ambiguous late --pid once targets exist.
-            # V366 R6: sticky-A recovery may only send real Escape to this
-            # captured host window after genuine axp pause source evidence.
+            # V366 R7: both sticky and simultaneous native fixtures use
+            # only source-confirmed axp with this pre-target original window.
             if host_window is not None:
                 raise AssertionError(
                     "V349 host window already captured by another fixture")
@@ -3555,6 +3556,20 @@ def run(args):
                   flush=True)
             wait_for(host, host_log, SIM_READY, deadline,
                      "20 disabled callbacks: both genuine eligible, A nearer")
+            # V366 R7: a newly spawned third Minecraft window can leave
+            # the REAL host in vanilla axp pause, as R5 independently
+            # proved for the sticky-A fixture. Never bypass the production
+            # GUI veto. Only the retained original CIHost X11 window,
+            # source-confirmed axp and a new native CLEAR transition
+            # authorize continuation to actual vanilla controller damage.
+            v348_resume_confirmed_original_pause(
+                host, host_log, deadline, host_window)
+            if v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)":
+                raise AssertionError(
+                    "simultaneous native host screen not CLEAR after "
+                    "source-verified original pause recovery")
+            print("CUSTOMMC_189_V366_SIMULTANEOUS_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+                  flush=True)
             wait_for(host, host_log, SIM_HIT_A, deadline,
                      "UUID A native-owned attack among two eligible players")
             wait_for_real_score(server, server_log, "CITarget", deadline)
