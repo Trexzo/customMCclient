@@ -9,7 +9,9 @@ import java.util.function.ToIntFunction;
  * real logical viewport even at 854x480 and after a GUI-scale change.
  */
 final class Minecraft189ArrayListLayout {
-    static final float LINE_HEIGHT = 12.0F;
+    // Original Minecraft 1.8.9 glyph rows are 9 logical pixels high;
+    // 11px pitch preserves a 2px separation for compact right-aligned HUD.
+    static final float LINE_HEIGHT = 11.0F;
     private static final float SCREEN_PADDING = 4.0F;
     private static final float MIN_TOP_ROOM = 16.0F;
 
