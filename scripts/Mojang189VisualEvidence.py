@@ -109,7 +109,8 @@ def original_target_hud_native_text_contrast(rgb, width, height):
 
 
 
-def original_arraylist_compact_row_pitch(rgb, width, height):
+def original_arraylist_compact_row_pitch(rgb, width, height,
+                                         expected_rows=3):
     """Witness compact row spacing in the actual original X11 RGB pixels.
 
     The fixed two-player acceptance window is 854x480 at GUI scale 2.
@@ -142,13 +143,15 @@ def original_arraylist_compact_row_pitch(rgb, width, height):
             start = previous = None
     if start is not None:
         bands.append((start, previous))
-    if len(bands) != 3:
+    if expected_rows not in (3, 4):
+        raise ValueError("native ArrayList row witness requires exact 3 or 4")
+    if len(bands) != expected_rows:
         raise AssertionError(
             "actual native ArrayList glyph row count implausible: "
             + repr(bands))
     starts = [top for top, bottom in bands]
     pitches = [starts[i] - starts[i - 1] for i in range(1, len(starts))]
-    if pitches != [22, 22] or any(
+    if pitches != [22] * (expected_rows - 1) or any(
             bottom - top + 1 < 6 for top, bottom in bands):
         raise AssertionError(
             "actual native ArrayList row pitch not 11 logical pixels: "
@@ -196,7 +199,45 @@ def original_arraylist_native_shadow_pixels(rgb, width, height):
 
 
 
-def capture_original_x11(window, png_file, require_target_hud_text=False):
+
+def original_watermark_recovery_pixels(rgb, width, height):
+    """X11 frame: recovered Watermark glyphs above the vanilla bottom rail.
+
+    The original 854x480 guiScale-2 font is rendered at recovered logical
+    (8,224). The genuine X11 screenshot from the failed initial S40 gate
+    places its white CustomMC glyphs at x=16..104/y=428..441 (the
+    original X11 framebuffer capture differs by 20px in screen Y from
+    naive logical-Y-times-GUI-scale assumptions). The unchanged real S39
+    baseline has ZERO white pixels in x=16..179/y=424..444; vanilla
+    hotbar/bottom pixels are y>=461 and remain deliberately excluded.
+    Source-native saved-X/Y render receipt is an independent hard gate.
+    """
+    if width != 854 or height != 480 or len(rgb) != width * height * 3:
+        raise AssertionError("native Watermark pixel witness needs exact CI window")
+    bright = 0
+    columns = set()
+    rows = set()
+    for y in range(424, 445):
+        for x in range(16, 180):
+            off = (y * width + x) * 3
+            red, green, blue = rgb[off:off + 3]
+            if min(red, green, blue) > 185 and (
+                    max(red, green, blue) - min(red, green, blue)) < 40:
+                bright += 1
+                columns.add(x)
+                rows.add(y)
+    if bright < 80 or len(columns) < 28 or len(rows) < 7:
+        raise AssertionError(
+            "native offscreen Watermark did not recover visible original "
+            "font pixels: bright={} x={} y={}".format(
+                bright, len(columns), len(rows)))
+    return {"recovered_bright_pixels": bright,
+            "glyph_columns": len(columns), "glyph_rows": len(rows)}
+
+
+
+def capture_original_x11(window, png_file, require_target_hud_text=False,
+                         require_watermark_recovery=False):
     """Screenshot the exact original X11 game window, never a mock canvas."""
     from mss import mss, tools
 
@@ -229,13 +270,19 @@ def capture_original_x11(window, png_file, require_target_hud_text=False):
         "graphite_hits": matches,
         "graphite_samples": sampled,
     }
+    if require_watermark_recovery and not require_target_hud_text:
+        raise ValueError("Watermark recovery witness requires actual HUD screenshot")
     if require_target_hud_text:
         result["native_target_hud_text"] = original_target_hud_native_text_contrast(
             rgb, rectangle["width"], rectangle["height"])
         result["native_arraylist_compact_pitch"] = original_arraylist_compact_row_pitch(
-            rgb, rectangle["width"], rectangle["height"])
+            rgb, rectangle["width"], rectangle["height"],
+            expected_rows=4 if require_watermark_recovery else 3)
         result["native_arraylist_shadow"] = original_arraylist_native_shadow_pixels(
             rgb, rectangle["width"], rectangle["height"])
+        if require_watermark_recovery:
+            result["native_watermark_recovery"] = original_watermark_recovery_pixels(
+                rgb, rectangle["width"], rectangle["height"])
     return result
 
 
