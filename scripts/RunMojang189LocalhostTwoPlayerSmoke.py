@@ -1418,6 +1418,11 @@ def client_command(args, game, username, uuid, port, remote):
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.requireProductionScaffoldThreeHotbarAbort=true")
     if remote and args.hud_visual_dir:
+        # S32 comparison against the prior exact native S31 capture:
+        # disable ONLY the Target HUD text scissor in this isolated test
+        # process, not during normal production/user profiles.
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.diagnoseTargetHudNoTextClip=true")
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.captureRealHudVisuals=true")
         # The actual obfuscated Minecraft currentScreen is reported only in

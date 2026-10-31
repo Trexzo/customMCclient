@@ -279,8 +279,16 @@ public final class Minecraft189TargetHudModule implements Module {
                 // labels within the physical HUD, including source-native
                 // expanded coordinates and long localized values.
                 if (textWidth > 0.0F && textHeight > 0.0F) {
-                    graphics.pushClip(textLeft, top + 4.0F,
-                            textWidth, textHeight);
+                    // S32 isolated original-client diagnostic only: compare
+                    // native font atlas behavior with/without HUD scissor.
+                    // Production retains the original physical text clip.
+                    final boolean diagnosticUnclipped =
+                            Boolean.getBoolean("custommc.acceptance.captureRealHudVisuals")
+                            && Boolean.getBoolean("custommc.acceptance.diagnoseTargetHudNoTextClip");
+                    if (!diagnosticUnclipped) {
+                        graphics.pushClip(textLeft, top + 4.0F,
+                                textWidth, textHeight);
+                    }
                     try {
                         graphics.drawText(UiFonts.DEFAULT, textLeft, top + 7,
                                 String.format(Locale.ROOT, "NEARBY  %02d",
@@ -301,7 +309,9 @@ public final class Minecraft189TargetHudModule implements Module {
                                     theme.color(UiColorRole.TEXT_MUTED));
                         }
                     } finally {
-                        graphics.popClip();
+                        if (!diagnosticUnclipped) {
+                            graphics.popClip();
+                        }
                     }
                 }
                 if (proximityMeter.get().booleanValue()) {
