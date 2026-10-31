@@ -326,6 +326,56 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
         self.assertIn("return true;", veto)
 
+    def test_r9_triggerbot_real_pvp_pause_recovery_preserves_native_oracles(self):
+        # A proven original axp pause blocks legitimate TriggerBot, and the
+        # harness may use a real Escape only on the verified original X11
+        # window. Never fake native ray/UUID, controller, hurt or server score.
+        pvp = HARNESS.split("if args.pvp:", 1)[1].split(
+            "for phase, proc in (", 1)[0]
+        self.assertEqual(1, pvp.count("v348_resume_confirmed_original_pause("))
+        self.assertLess(pvp.index("TRIGGER_ENABLED, deadline,"),
+                        pvp.index("v348_resume_confirmed_original_pause("))
+        self.assertLess(pvp.index("v348_resume_confirmed_original_pause("),
+                        pvp.index("TRIGGER_CLICK, deadline,"))
+        self.assertIn(
+            'v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)"',
+            pvp)
+        self.assertIn(
+            "CUSTOMMC_189_V366_TRIGGERBOT_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+            pvp)
+        self.assertIn(
+            "or args.multi_target or args.triggerbot_pvp):",
+            HARNESS)
+        for real in (
+            "wait_for(host, host_log, TRIGGER_CLICK, deadline,",
+            "wait_for(host, host_log, TRIGGER_RAY, deadline,",
+            "wait_for(host, host_log, TRIGGER_CONTROLLER,",
+            "TRIGGER_HURT if args.triggerbot_pvp else AURA_HURT",
+            '"scoreboard players test CITarget taken 1 999999"',
+            "CUSTOMMC_OFFICIAL_189_TRIGGERBOT_NATIVE_CONTROLLER_",
+            "AND_SERVER_DAMAGE_PASS=YES",
+        ):
+            self.assertIn(real, pvp)
+        source = HARNESS.split("def v348_resume_confirmed_original_pause(", 1)[1].split(
+            "def restore_real_attacker_focus(", 1)[0]
+        for assertion in (
+            'if screen != "axp":',
+            'if v348_latest_original_gui_screen(host_log) != "axp":',
+            'send_real_host_key(host, window, "Escape")',
+            'b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)"',
+            "V349 captured original host window disappeared",
+        ):
+            self.assertIn(assertion, source)
+        self.assertIn(
+            '"custommc.acceptance.reportTriggerBotRealPvp"',
+            BRIDGE.split("private static void reportAcceptanceScreen()", 1)[0])
+        veto = BRIDGE.split(
+            "private static boolean vetoOriginalScreenBeforeNativeCombat(", 1)[1].split(
+            "public static synchronized void autoClick(", 1)[0]
+        self.assertIn("Minecraft189NativeGuiCombatVeto.blocks(minecraft)", veto)
+        self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
+        self.assertIn("return true;", veto)
+
     def test_original_v47_rejoin_server_damage_oracle_unchanged(self):
         for term in (
             "CUSTOMMC_189_REJOIN_REAL_A_DISCONNECTED_PASS",
