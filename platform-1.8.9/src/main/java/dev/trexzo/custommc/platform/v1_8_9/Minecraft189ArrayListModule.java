@@ -110,6 +110,7 @@ public final class Minecraft189ArrayListModule
             value -> value != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
     private boolean acceptanceVisualDrawReported;
+    private boolean acceptanceNativeFontMetricsObserved;
 
     public Minecraft189ArrayListModule(
             final ModuleRegistry modules,
@@ -213,8 +214,25 @@ public final class Minecraft189ArrayListModule
 
     static float rightAlignedTextX(final float screenWidth,
             final float inset, final String label) {
+        return rightAlignedTextX(screenWidth, inset,
+                Minecraft189HudTextMetrics.width(label));
+    }
+
+    static float rightAlignedTextX(final float screenWidth,
+            final float inset, final int measuredWidth) {
         return Math.max(4.0F, screenWidth - inset
-                - 8.0F - Minecraft189HudTextMetrics.width(label));
+                - 8.0F - measuredWidth);
+    }
+
+    private int measuredTextWidth(final String label) {
+        final int nativeWidth = hostCallbacks.measureText(label);
+        if (nativeWidth >= 0) {
+            if (nativeWidth > 0) {
+                acceptanceNativeFontMetricsObserved = true;
+            }
+            return nativeWidth;
+        }
+        return Minecraft189HudTextMetrics.width(label);
     }
 
     private void drawModuleCard(final UiViewport viewport,
@@ -228,7 +246,8 @@ public final class Minecraft189ArrayListModule
             final float left = Minecraft189ArrayListLayout.safeLeft(
                     x.get().floatValue(), screenWidth);
             final String label = Minecraft189ArrayListLayout.fitLabel(
-                    originalLabel, Math.max(0.0F, screenWidth - left - 8.0F));
+                    originalLabel, Math.max(0.0F, screenWidth - left - 8.0F),
+                    this::measuredTextWidth);
             if (label.isEmpty()) return;
             final float textX = Math.max(4.0F,
                     left - Minecraft189ArrayListMotion.slide(phase));
@@ -246,10 +265,11 @@ public final class Minecraft189ArrayListModule
         final float edge = Minecraft189ArrayListLayout.safeRightEdge(
                 x.get().floatValue(), screenWidth);
         final String label = Minecraft189ArrayListLayout.fitLabel(
-                originalLabel, Math.max(0.0F, edge - 12.0F));
+                originalLabel, Math.max(0.0F, edge - 12.0F),
+                this::measuredTextWidth);
         if (label.isEmpty()) return;
         final float textX = rightAlignedTextX(screenWidth,
-                screenWidth - edge, label)
+                screenWidth - edge, measuredTextWidth(label))
                 + Minecraft189ArrayListMotion.slide(phase);
         final float chipX = Math.max(0.0F, textX - 4.0F);
         final float chipWidth = Math.max(0.0F, edge - chipX);
@@ -341,9 +361,9 @@ public final class Minecraft189ArrayListModule
                             if (category != 0) return category;
                         }
                         return Integer.compare(
-                                Minecraft189HudTextMetrics.width(moduleLabel(
+                                measuredTextWidth(moduleLabel(
                                         right.id(), presentations.find(right.id()), withCategory)),
-                                Minecraft189HudTextMetrics.width(moduleLabel(
+                                measuredTextWidth(moduleLabel(
                                         left.id(), presentations.find(left.id()), withCategory)));
                     }
                 });
@@ -398,6 +418,10 @@ public final class Minecraft189ArrayListModule
                 System.out.println(
                         "CUSTOMMC_OFFICIAL_189_REAL_ARRAYLIST_DRAW_PASS=YES rows="
                         + drawnRows);
+                if (acceptanceNativeFontMetricsObserved) {
+                    System.out.println(
+                            "CUSTOMMC_OFFICIAL_189_REAL_ARRAYLIST_NATIVE_FONT_METRICS_PASS=YES");
+                }
             }
         }
     }

@@ -50,6 +50,22 @@ final class Minecraft189ArrayListLayoutTest {
     }
 
     @Test
+    void nativeFontWidthsDriveEllipsisInsteadOfApproximateGlyphTable() {
+        final java.util.function.ToIntFunction<String> original =
+                text -> text.length() * 9;
+        assertEquals("Wide...",
+                Minecraft189ArrayListLayout.fitLabel(
+                        "Wide Name", 63.0F, original));
+        assertEquals("", Minecraft189ArrayListLayout.fitLabel(
+                "Wide Name", 10.0F, original));
+        assertEquals("Name", Minecraft189ArrayListLayout.fitLabel(
+                "Name", 36.0F, original));
+        assertEquals(28.0F,
+                Minecraft189ArrayListModule.rightAlignedTextX(64, 8, 20),
+                .001F);
+    }
+
+    @Test
     void longOriginalLabelGetsBoundedOnlyInPresentation() {
         final String label = "[Combat] A very long module name with full settings";
         final String fitted = Minecraft189ArrayListLayout.fitLabel(label, 96);

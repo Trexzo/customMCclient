@@ -820,6 +820,11 @@ public final class Minecraft189Mappings {
                     "(IZ)V",
                     "func_74510_a",
                     "setKeyBindState");
+    // Original Mojang 1.8.9 avn/a(String)I; verified against
+    // MCP func_78256_a rather than reestimating glyph widths.
+    public static final MappedMethod FONT_RENDERER_GET_STRING_WIDTH =
+            new MappedMethod(FONT_RENDERER, "a", "(Ljava/lang/String;)I",
+                    "func_78256_a", "getStringWidth");
     public static final MappedMethod FONT_RENDERER_DRAW_STRING =
             new MappedMethod(
                     FONT_RENDERER,

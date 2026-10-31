@@ -7,4 +7,7 @@ public interface Minecraft189FontRendererAccess {
             float y,
             int argb,
             boolean shadow);
+
+    // Source-verified original FontRenderer.getStringWidth(String).
+    int getStringWidth(String text);
 }

@@ -2040,6 +2040,23 @@ public final class Minecraft189ClassTransformer
                                 0,
                                 0);
                         method.visitEnd();
+                        // Native exact-width bridge: call original obfuscated
+                        // getStringWidth(String), not a guessed char table.
+                        final Minecraft189Mappings.MappedMethod measure =
+                                Minecraft189Mappings.FONT_RENDERER_GET_STRING_WIDTH;
+                        final MethodVisitor widthMethod =
+                                cv.visitMethod(Opcodes.ACC_PUBLIC,
+                                        "getStringWidth",
+                                        measure.descriptor(), null, null);
+                        widthMethod.visitCode();
+                        widthMethod.visitVarInsn(Opcodes.ALOAD, 0);
+                        widthMethod.visitVarInsn(Opcodes.ALOAD, 1);
+                        widthMethod.visitMethodInsn(Opcodes.INVOKEVIRTUAL,
+                                measure.owner().obfuscatedInternalName(),
+                                measure.obfuscatedName(), measure.descriptor(), false);
+                        widthMethod.visitInsn(Opcodes.IRETURN);
+                        widthMethod.visitMaxs(0, 0);
+                        widthMethod.visitEnd();
                         super.visitEnd();
                     }
                 },

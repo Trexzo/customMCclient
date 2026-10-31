@@ -156,7 +156,8 @@ public final class Minecraft189ClassShapeVerifier {
                 Minecraft189Mappings.FONT_RENDERER,
                 new Minecraft189Mappings.MappedField[0],
                 new Minecraft189Mappings.MappedMethod[]{
-                        Minecraft189Mappings.FONT_RENDERER_DRAW_STRING
+                        Minecraft189Mappings.FONT_RENDERER_DRAW_STRING,
+                        Minecraft189Mappings.FONT_RENDERER_GET_STRING_WIDTH
                 });
     }
 

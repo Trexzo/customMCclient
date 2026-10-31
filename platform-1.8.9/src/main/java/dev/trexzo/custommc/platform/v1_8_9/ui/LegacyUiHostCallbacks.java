@@ -45,5 +45,9 @@ public interface LegacyUiHostCallbacks
             String text,
             int argb);
 
+    // Existing non-LWJGL test hosts stay source-compatible; -1 requests
+    // the bounded historical approximation in the ArrayList renderer.
+    default int measureText(final String text) { return -1; }
+
     void endUi();
 }
