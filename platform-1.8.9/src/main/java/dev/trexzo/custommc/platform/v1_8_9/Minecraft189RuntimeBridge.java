@@ -2280,6 +2280,10 @@ public final class Minecraft189RuntimeBridge {
                     "custommc.acceptance.reportKillAuraLockedTarget"))
                 Minecraft189LockedTargetAcceptance.observeCombatStage(
                             Minecraft189LockedTargetAcceptance.CombatStage.GUI_VETO);
+            if (Boolean.getBoolean(
+                    "custommc.acceptance.reportKillAuraLockedTarget"))
+                Minecraft189LockedTargetAcceptance.observeBlockedNativeScreen(
+                        minecraft);
             host.suspendSyntheticCombatForOriginalGui();
             return true;
         }
