@@ -110,12 +110,12 @@ class NativePauseV348(TestCase):
 
     def test_exact_two_rejoin_calls_and_strict_server_authority_stay(self):
         run = SOURCE.split("def run(", 1)[1].split("    except BaseException:", 1)[0]
-        # V366 R8: exactly two rejoin, one sticky-A, one simultaneous,
-        # and one multi-target verified original X11 recovery.
-        self.assertEqual(5, run.count("v348_resume_confirmed_original_pause("))
+        # V366 R9: exactly two rejoin and one each for sticky-A,
+        # simultaneous, multi-target and isolated TriggerBot real PvP.
+        self.assertEqual(6, run.count("v348_resume_confirmed_original_pause("))
         self.assertEqual(2, run.split("if args.locked_target:", 1)[0].count(
             "v348_resume_confirmed_original_pause("))
-        self.assertEqual(5, run.count("host, host_log, deadline, host_window)"))
+        self.assertEqual(6, run.count("host, host_log, deadline, host_window)"))
         sticky = run.split("if args.locked_target:", 1)[1].split(
             "if args.simultaneous:", 1)[0]
         self.assertEqual(1, sticky.count("v348_resume_confirmed_original_pause("))
@@ -134,6 +134,15 @@ class NativePauseV348(TestCase):
         self.assertIn(
             'v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)"',
             multi)
+        pvp = run.split("if args.pvp:", 1)[1].split("for phase, proc in (", 1)[0]
+        self.assertEqual(1, pvp.count("v348_resume_confirmed_original_pause("))
+        self.assertLess(pvp.index("TRIGGER_ENABLED, deadline,"),
+                        pvp.index("v348_resume_confirmed_original_pause("))
+        self.assertLess(pvp.index("v348_resume_confirmed_original_pause("),
+                        pvp.index("TRIGGER_CLICK, deadline,"))
+        self.assertIn(
+            'v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)"',
+            pvp)
         pretarget = run.index("host_window = identify_original_host_window_before_target(host)", 
                               run.index("host_cmd = client_command("))
         self.assertLess(pretarget, run.index('with target_log.open("wb")'))
@@ -142,7 +151,7 @@ class NativePauseV348(TestCase):
             "def restore_real_attacker_focus(", 1)[0])
         self.assertIn("if args.rejoin_target or args.rejoin_release:", run)
         self.assertIn(
-            "or args.multi_target):",
+            "or args.multi_target or args.triggerbot_pvp):",
             run)
         self.assertIn("wait_for_log_occurrences(", run)
         method = SOURCE.split("def v348_resume_confirmed_original_pause(", 1)[1].split(
