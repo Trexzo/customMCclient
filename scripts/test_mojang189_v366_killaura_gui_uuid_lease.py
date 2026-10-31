@@ -188,7 +188,7 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         # never forge a CLEAR verdict, controller click, server damage or
         # loosen the original GuiScreen veto in production.
         self.assertIn(
-            'or args.multi_target):',
+            'or args.multi_target or args.triggerbot_pvp):',
             HARNESS)
         self.assertIn(
             '"custommc.acceptance.reportKillAuraLockedTarget"',
