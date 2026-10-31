@@ -258,6 +258,48 @@ final class Minecraft189HostRuntimeTest {
                         .get(
                                 Minecraft189WatermarkModule.Y_SETTING_ID));
 
+        // S39: a watermark saved for a 4096px layout must recover to
+        // the authentic 854x480, guiScale 2 window, WITHOUT saving a
+        // different X/Y or adding a synthetic HUD entry.
+        host.width = 854;
+        host.height = 480;
+        host.scale = 2.0F;
+        runtime.featureCatalog().watermark().xSetting().set(4096);
+        runtime.featureCatalog().watermark().ySetting().set(4096);
+        final int beforeRecovery = host.textCalls.get();
+        runtime.renderHud(11L, 0.0F);
+        assertEquals(beforeRecovery + 1, host.textCalls.get());
+        assertEquals("Trexzo", host.lastText);
+        assertEquals(8.0F, host.lastTextX, .001F);
+        assertEquals(224.0F, host.lastTextY, .001F);
+        assertEquals("4096", settings.snapshotEncoded().get(
+                Minecraft189WatermarkModule.X_SETTING_ID));
+        assertEquals("4096", settings.snapshotEncoded().get(
+                Minecraft189WatermarkModule.Y_SETTING_ID));
+
+        // Original FontRenderer label fitting is presentation-only:
+        // old saved X stays unchanged even when long text is ellipsized.
+        runtime.featureCatalog().watermark().textSetting().set(
+                "Trexzo Custom Minecraft Logo");
+        runtime.featureCatalog().watermark().xSetting().set(390);
+        runtime.featureCatalog().watermark().ySetting().set(8);
+        runtime.renderHud(12L, 0.0F);
+        assertTrue(host.lastText.endsWith("..."));
+        assertEquals(390.0F, host.lastTextX, .001F);
+        assertEquals(8.0F, host.lastTextY, .001F);
+        assertEquals("390", settings.snapshotEncoded().get(
+                Minecraft189WatermarkModule.X_SETTING_ID));
+        assertEquals("Trexzo Custom Minecraft Logo",
+                settings.snapshotEncoded().get(
+                        Minecraft189WatermarkModule.TEXT_SETTING_ID));
+        // Restore original viewport and position for unrelated GUI gates.
+        runtime.featureCatalog().watermark().textSetting().set("Trexzo");
+        runtime.featureCatalog().watermark().xSetting().set(24);
+        runtime.featureCatalog().watermark().ySetting().set(36);
+        host.width = 1280;
+        host.height = 720;
+        host.scale = 1.0F;
+
         controller.disable(
                 Minecraft189WatermarkModule.ID);
         assertEquals(
@@ -273,7 +315,7 @@ final class Minecraft189HostRuntimeTest {
                 2L,
                 0.0F);
         assertEquals(
-                beforeWatermarkText + 1,
+                beforeWatermarkText + 3,
                 host.textCalls.get());
 
         runtime.key(
