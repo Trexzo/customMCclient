@@ -98,7 +98,7 @@ final class Minecraft189ArrayListModuleTest {
                     Arrays.asList(
                             "8.0,8.0",
                             "1184.0,50.0",
-                            "1184.0,62.0"),
+                            "1184.0,61.0"),
                     host.positions);
 
             assertEquals(0xFFEE8755, host.lastAccentColor);
@@ -328,8 +328,8 @@ final class Minecraft189ArrayListModuleTest {
                     "CustomMC", "[Combat] No Hit Delay", "[Movement] Auto Sprint",
                     "[Player] Fast Place", "[Visuals] Watermark",
                     "[Visuals] Array List"), host.text);
-            assertEquals(Arrays.asList("8.0,8.0", "1160.0,24.0", "1152.0,36.0",
-                    "1170.0,48.0", "1170.0,60.0", "1170.0,72.0"), host.positions);
+            assertEquals(Arrays.asList("8.0,8.0", "1160.0,24.0", "1152.0,35.0",
+                    "1170.0,46.0", "1170.0,57.0", "1170.0,68.0"), host.positions);
             host.clear();
 
             // Grouping works with labels off and reflects live enable states.
@@ -455,7 +455,7 @@ final class Minecraft189ArrayListModuleTest {
             runtime.renderHud(2L, 0.0F);
             assertEquals(Arrays.asList(
                     "CustomMC", "No Hit Delay", "Auto Sprint", "+ 3 more"), host.text);
-            assertEquals("1222.0,48.0", host.positions.get(3));
+            assertEquals("1222.0,46.0", host.positions.get(3));
             host.clear();
 
             list.groupCategoriesSetting().set(Boolean.TRUE);

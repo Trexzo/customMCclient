@@ -4,6 +4,7 @@ import unittest
 from Mojang189VisualEvidence import (
     graphite_sample_count, parse_x11_geometry, require_visible_graphite,
     original_target_hud_native_text_contrast,
+    original_arraylist_compact_row_pitch,
 )
 
 
@@ -59,6 +60,42 @@ class NativeVisualEvidenceTests(unittest.TestCase):
             require_visible_graphite(before, after)
 
 
+
+    def test_compact_arraylist_glyph_pitch_accepts_real_size_only(self):
+        # Synthetic RGB classifier-only unit input, never a game image.
+        # The actual gate receives original Mojang X11 framebuffer bytes.
+        width, height = 854, 480
+        sky = bytes((170, 198, 247)) * (width * height)
+        frame = bytearray(sky)
+
+        def row(top):
+            for y in range(top, top + 16):
+                for x in range(685, 699):
+                    at = (y * width + x) * 3
+                    frame[at:at + 3] = bytes((242, 242, 242))
+
+        for top in (28, 50, 72):
+            row(top)
+        result = original_arraylist_compact_row_pitch(frame, width, height)
+        self.assertEqual([22, 22], result["physical_row_pitches"])
+        self.assertEqual([[28, 43], [50, 65], [72, 87]],
+                         result["glyph_bands"])
+        with self.assertRaisesRegex(AssertionError, "exact CI window"):
+            original_arraylist_compact_row_pitch(frame, 640, 480)
+
+        with self.assertRaisesRegex(AssertionError, "glyph row count"):
+            original_arraylist_compact_row_pitch(sky, width, height)
+
+        # The previous verified S36 screenshot had 24-pixel spacing.
+        # Keep it a hard negative control (not an allowed alternate).
+        previous = bytearray(sky)
+        for top in (28, 52, 76):
+            for y in range(top, top + 16):
+                for x in range(685, 699):
+                    at = (y * width + x) * 3
+                    previous[at:at + 3] = bytes((242, 242, 242))
+        with self.assertRaisesRegex(AssertionError, "row pitch"):
+            original_arraylist_compact_row_pitch(previous, width, height)
 
     def test_original_hud_font_pixel_probe_rejects_wrong_atlas(self):
         # Pure synthetic RGB unit fixture, NEVER a gameplay screenshot.
