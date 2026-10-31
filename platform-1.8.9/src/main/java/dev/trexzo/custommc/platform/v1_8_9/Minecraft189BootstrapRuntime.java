@@ -319,9 +319,9 @@ public final class Minecraft189BootstrapRuntime
             // S31: opt-in isolated genuine two-player visual evidence only.
             // No production default, user profile, or persisted state changes.
             if (Boolean.getBoolean("custommc.acceptance.captureRealHudVisuals")) {
-                // S33 native screenshot: place the unmodified clipped Target HUD
-                // outside the vanilla hotbar, without changing user profiles.
-                installed.featureCatalog().targetHud().ySetting().set(84);
+                // S34 native screenshot uses the real default placement,
+                // not a test-only y override. Existing profiles still own
+                // their saved position; this CI session is a fresh install.
                 moduleController.enable(Minecraft189TargetHudModule.ID);
                 moduleController.enable(Minecraft189ArrayListModule.ID);
             }
