@@ -1937,11 +1937,12 @@ def run(args):
             host_window = identify_original_host_window_before_target(host)
         if (args.rejoin_target or args.rejoin_release
                 or args.locked_target or args.simultaneous
-                or args.multi_target or args.triggerbot_pvp):
+                or args.multi_target or args.triggerbot_pvp
+                or args.wall_recovery):
             # Capture host only while it remains the *sole* Minecraft
             # window, not by ambiguous late --pid once targets exist.
-            # V366 R9: sticky, simultaneous, multi-target and isolated
-            # TriggerBot use only source-confirmed axp with this host window.
+            # V366 R10: real wall removal uses the same verified CIHost
+            # window recovery as the sticky, simultaneous and PvP fixtures.
             if host_window is not None:
                 raise AssertionError(
                     "V349 host window already captured by another fixture")
@@ -3830,6 +3831,21 @@ def run(args):
                       flush=True)
                 wait_for(host, host_log, WALL_RECOVERY_VISIBLE, deadline,
                          "same native remote player visible and selected after wall removal")
+                if args.wall_recovery:
+                    # R9 original native GUI timeline was unavailable in
+                    # wall recovery, even though server AIR and a real
+                    # visible selected player were verified. Do not bypass
+                    # the original game GUI veto: physically dismiss ONLY
+                    # a source-confirmed vanilla axp pause on the unique
+                    # pre-target CIHost X11 window, then require CLEAR.
+                    v348_resume_confirmed_original_pause(
+                        host, host_log, deadline, host_window)
+                    if v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)":
+                        raise AssertionError(
+                            "wall-recovery original host screen not native CLEAR "
+                            "after real wall removed and target visible")
+                    print("CUSTOMMC_189_V366_WALL_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+                          flush=True)
                 wait_for(host, host_log, WALL_RECOVERY_CLICK, deadline,
                          "Kill Aura owned real visible-player attack after wall removal")
                 wait_for(host, host_log, WALL_RECOVERY_CONTROLLER, deadline,
