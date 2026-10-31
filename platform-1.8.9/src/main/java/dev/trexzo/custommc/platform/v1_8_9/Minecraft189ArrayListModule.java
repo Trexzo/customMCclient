@@ -54,13 +54,16 @@ public final class Minecraft189ArrayListModule
     public static final String ANIMATE_SETTING_ID =
             "render.array-list.animate";
     // Intrinsic-size chips replace S12's identical 184px rectangles.
-    // Glyph widths are conservative approximations of the native 1.8.9 font:
-    // the host currently exposes drawString but not getStringWidth.
+    // S36 measures original Mojang FontRenderer text widths on the genuine
+    // host; test-only hosts fall back to the conservative source estimate.
+    // S37 retains the 11px clip and chip envelope for 11px row pitch.
     private static final float CHIP_HEIGHT = 11.0F;
  
     private static final int PRIORITY = 110;
     private static final int TEXT_ARGB = 0xFFFFFFFF;
-    private static final float LINE_HEIGHT = 12.0F;
+    // Keep drawing and viewport row-capacity arithmetic on one exact pitch.
+    private static final float LINE_HEIGHT =
+            Minecraft189ArrayListLayout.LINE_HEIGHT;
 
     private final ModuleRegistry modules;
     private final ModuleController controller;
