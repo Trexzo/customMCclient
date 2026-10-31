@@ -223,6 +223,13 @@ public final class Lwjgl2LegacyUiHostCallbacks
     }
 
     @Override
+    public int measureText(final String text) {
+        requireFrame();
+        requireNoShapeBatch();
+        return textRenderer.measureText(Objects.requireNonNull(text, "text"));
+    }
+
+    @Override
     public void endUi() {
         requireFrame();
 
