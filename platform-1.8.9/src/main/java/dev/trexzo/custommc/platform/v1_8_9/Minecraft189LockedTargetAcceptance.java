@@ -10,6 +10,11 @@ final class Minecraft189LockedTargetAcceptance {
     // crosshair/scheduler callback. Never used to admit an action.
     private static int phaseThreeRayObservations, phaseThreeScheduleObservations;
     private static int phaseThreeTickObservations;
+    /** Opt-in original autoClick path checkpoints. They never admit attacks. */
+    enum CombatStage { ENTER, SCREEN_CLEAR, GUI_VETO, POTION_RETURN,
+        ROD_RETURN, BEFORE_RAY }
+    private static int phase3Entered, phase3ScreenClear, phase3GuiVeto;
+    private static int phase3PotionReturn, phase3RodReturn, phase3BeforeRay;
     // Acceptance-only provenance copied from the SAME existing snapshots.
     // Never participates in initial eligibility, target selection, or clicks.
     private static int initialSourceObservations, maxInitialAStreak;
@@ -25,6 +30,8 @@ final class Minecraft189LockedTargetAcceptance {
         aHit = bHit = false;
         phaseThreeRayObservations = phaseThreeScheduleObservations = 0;
         phaseThreeTickObservations = 0;
+        phase3Entered = phase3ScreenClear = phase3GuiVeto = 0;
+        phase3PotionReturn = phase3RodReturn = phase3BeforeRay = 0;
         initialSourceObservations = maxInitialAStreak = 0;
         phase0SourceUnavailable = phase0CountMismatch = 0;
         phase0RemoteIdentityMissing = phase0NonfiniteDistance = 0;
@@ -200,6 +207,12 @@ final class Minecraft189LockedTargetAcceptance {
                         host.playerRotationState().snapshot();
                 System.out.println("CUSTOMMC_189_V366_LOCK_PHASE3_TICK_DIAG"
                         + " n=" + tick
+                        + " pathEntered=" + phase3Entered
+                        + " screenClear=" + phase3ScreenClear
+                        + " guiVeto=" + phase3GuiVeto
+                        + " potReturn=" + phase3PotionReturn
+                        + " rodReturn=" + phase3RodReturn
+                        + " beforeRay=" + phase3BeforeRay
                         + " rayCallbacks=" + phaseThreeRayObservations
                         + " scheduleCallbacks=" + phaseThreeScheduleObservations
                         + " sourceReason=" + lastReadReason
@@ -223,6 +236,21 @@ final class Minecraft189LockedTargetAcceptance {
             phase=5;
             System.out.println("CUSTOMMC_189_LOCK_A_INELIGIBLE_RELEASES_TO_B_PASS=YES");
             System.out.flush();
+        }
+    }
+
+    /** V366 R4 read-only callback-stage receipt; no source getter or action. */
+    static void observeCombatStage(final CombatStage stage) {
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraLockedTarget")
+                || phase != 3 || stage == null) return;
+        switch (stage) {
+            case ENTER: phase3Entered++; break;
+            case SCREEN_CLEAR: phase3ScreenClear++; break;
+            case GUI_VETO: phase3GuiVeto++; break;
+            case POTION_RETURN: phase3PotionReturn++; break;
+            case ROD_RETURN: phase3RodReturn++; break;
+            case BEFORE_RAY: phase3BeforeRay++; break;
+            default: throw new IllegalStateException("unrecognized diagnostic stage");
         }
     }
 
