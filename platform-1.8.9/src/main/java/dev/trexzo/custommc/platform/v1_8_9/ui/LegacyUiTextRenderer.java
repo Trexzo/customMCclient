@@ -9,4 +9,7 @@ public interface LegacyUiTextRenderer {
             float y,
             String text,
             int argb);
+
+    // Negative means the legacy host has no native measurement facility.
+    default int measureText(final String text) { return -1; }
 }
