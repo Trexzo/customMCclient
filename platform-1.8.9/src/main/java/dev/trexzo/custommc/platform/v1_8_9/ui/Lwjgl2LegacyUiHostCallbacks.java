@@ -230,6 +230,18 @@ public final class Lwjgl2LegacyUiHostCallbacks
     }
 
     @Override
+    public void drawTextShadow(
+            final UiFontHandle font, final float x, final float y,
+            final String text, final int argb) {
+        requireFrame();
+        requireNoShapeBatch();
+        gl.prepareTextState();
+        textRenderer.drawTextShadow(
+                Objects.requireNonNull(font, "font"),
+                x, y, Objects.requireNonNull(text, "text"), argb);
+    }
+
+    @Override
     public void endUi() {
         requireFrame();
 
