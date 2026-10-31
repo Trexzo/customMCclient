@@ -7,16 +7,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.LongSupplier;
 
 /**
- * Bounded, deterministic per-HUD-frame entrance motion. Only presently
- * enabled modules survive into the snapshot: disabling is immediate and
- * cannot leave a ghost entry or simulated enabled module on screen.
+ * Bounded, wall-clock entrance motion independent of HUD render FPS.
+ * Only presently enabled modules survive into the snapshot: disabling
+ * remains immediate and cannot leave ghost entries. No background tick,
+ * sleep or synthetic enabled-module snapshots are involved.
  */
 final class Minecraft189ArrayListMotion {
-    private static final float FRAME_STEP = 0.22F;
+    private static final float FIRST_VISIBLE_PHASE = 0.22F;
+    private static final long ENTER_DURATION_NANOS = 180_000_000L;
+    private static final long MAX_ELAPSED_NANOS = 200_000_000L;
     private final Map<String, Float> progress = new LinkedHashMap<String, Float>();
+    private final LongSupplier nanoClock;
     private boolean initialized;
+    private long lastFrameNanos;
+
+    Minecraft189ArrayListMotion() {
+        this(System::nanoTime);
+    }
+
+    Minecraft189ArrayListMotion(final LongSupplier nanoClock) {
+        this.nanoClock = Objects.requireNonNull(nanoClock, "nanoClock");
+    }
 
     synchronized Map<String, Float> advance(final List<String> enabledIds,
             final boolean animate) {
@@ -25,14 +39,22 @@ final class Minecraft189ArrayListMotion {
         if (live.size() != enabledIds.size()) {
             throw new IllegalArgumentException("duplicate module ID");
         }
+        final long now = nanoClock.getAsLong();
+        // System.nanoTime has an arbitrary origin and can wrap; a negative
+        // difference never makes the animation run backward or jump.
+        final long difference = now - lastFrameNanos;
+        final long elapsed = initialized && difference > 0L
+                ? Math.min(difference, MAX_ELAPSED_NANOS) : 0L;
+        lastFrameNanos = now;
         progress.keySet().retainAll(live);
         final boolean instant = !initialized || !animate;
         for (String id : live) {
             Objects.requireNonNull(id, "enabled module id");
             final Float prior = progress.get(id);
             final float next = instant ? 1.0F
-                    : prior == null ? FRAME_STEP
-                    : Math.min(1.0F, prior.floatValue() + FRAME_STEP);
+                    : prior == null ? FIRST_VISIBLE_PHASE
+                    : Math.min(1.0F, prior.floatValue()
+                            + (float) elapsed / (float) ENTER_DURATION_NANOS);
             progress.put(id, Float.valueOf(next));
         }
         initialized = true;
@@ -43,6 +65,7 @@ final class Minecraft189ArrayListMotion {
     synchronized void reset() {
         progress.clear();
         initialized = false;
+        lastFrameNanos = 0L;
     }
 
     static int withOpacity(final int color, final float progress) {
