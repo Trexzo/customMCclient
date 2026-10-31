@@ -1937,11 +1937,11 @@ def run(args):
             host_window = identify_original_host_window_before_target(host)
         if (args.rejoin_target or args.rejoin_release
                 or args.locked_target or args.simultaneous
-                or args.multi_target):
+                or args.multi_target or args.triggerbot_pvp):
             # Capture host only while it remains the *sole* Minecraft
             # window, not by ambiguous late --pid once targets exist.
-            # V366 R8: sticky, simultaneous and multi-target fixtures use
-            # only source-confirmed axp with this pre-target original window.
+            # V366 R9: sticky, simultaneous, multi-target and isolated
+            # TriggerBot use only source-confirmed axp with this host window.
             if host_window is not None:
                 raise AssertionError(
                     "V349 host window already captured by another fixture")
@@ -4066,6 +4066,21 @@ def run(args):
                 wait_for(host, host_log, UNLOCKED_SCOPE_FRESH, deadline,
                          "original controller dispatch accepted real remote native UUID")
             if args.triggerbot_pvp:
+                # R8 full original binary CI independently proved that
+                # CIHost reached a real axp pause after earlier CLEAR,
+                # blocking the TriggerBot native controller as designed.
+                # Source-confirmed axp is the ONLY reason to issue a real
+                # Escape to our pre-target original host X11 window. Keep
+                # the live GUI veto and all crosshair/controller/server
+                # oracle requirements unchanged.
+                v348_resume_confirmed_original_pause(
+                    host, host_log, deadline, host_window)
+                if v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)":
+                    raise AssertionError(
+                        "real TriggerBot original GuiScreen not source CLEAR "
+                        "before exact native UUID ray and server damage")
+                print("CUSTOMMC_189_V366_TRIGGERBOT_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+                      flush=True)
                 wait_for(host, host_log, TRIGGER_CLICK, deadline,
                          "one normal TriggerBot original crosshair UUID-owned click")
                 wait_for(host, host_log, TRIGGER_RAY, deadline,
