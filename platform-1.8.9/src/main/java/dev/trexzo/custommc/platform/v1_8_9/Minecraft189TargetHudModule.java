@@ -32,6 +32,10 @@ public final class Minecraft189TargetHudModule implements Module {
             "render.targetHud.adaptiveAccent";
     public static final String SHOW_COORDINATES_SETTING_ID =
             "render.targetHud.showCoordinates";
+    // New profiles start above the vanilla hotbar at every supported
+    // original Minecraft 1.8.9 GUI scale. Saved custom positions remain
+    // untouched, and the existing per-frame viewport clamping is retained.
+    public static final int DEFAULT_Y = 84;
     public static final int DEFAULT_PROXIMITY_RANGE = 16;
     public static final int MINIMUM_PROXIMITY_RANGE = 1;
     public static final int MAXIMUM_PROXIMITY_RANGE = 64;
@@ -47,7 +51,7 @@ public final class Minecraft189TargetHudModule implements Module {
     private final Setting<Integer> x = new Setting<Integer>(
             X_SETTING_ID, 18, v -> v != null && v >= 0 && v <= 4096, SettingCodecs.INTEGER);
     private final Setting<Integer> y = new Setting<Integer>(
-            Y_SETTING_ID, 210, v -> v != null && v >= 0 && v <= 4096, SettingCodecs.INTEGER);
+            Y_SETTING_ID, DEFAULT_Y, v -> v != null && v >= 0 && v <= 4096, SettingCodecs.INTEGER);
     private final Setting<Boolean> compact = new Setting<Boolean>(
             COMPACT_SETTING_ID, Boolean.TRUE, v -> v != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> proximityMeter = new Setting<Boolean>(

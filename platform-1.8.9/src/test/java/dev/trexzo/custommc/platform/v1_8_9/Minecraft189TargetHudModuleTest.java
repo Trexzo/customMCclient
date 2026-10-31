@@ -341,7 +341,7 @@ final class Minecraft189TargetHudModuleTest {
             gui.model().close();
             assertEquals("18", settings.snapshotEncoded().get(
                     Minecraft189TargetHudModule.X_SETTING_ID));
-            assertEquals("210", settings.snapshotEncoded().get(
+            assertEquals("84", settings.snapshotEncoded().get(
                     Minecraft189TargetHudModule.Y_SETTING_ID));
 
             final int renderedTextsBeforeClear = host.texts.size();
@@ -530,6 +530,38 @@ final class Minecraft189TargetHudModuleTest {
         assertNull(settings.find(
                 Minecraft189TargetHudModule.ADAPTIVE_ACCENT_SETTING_ID));
         assertNull(modules.find(Minecraft189TargetHudModule.ID));
+    }
+
+    @Test
+    void newProfileDefaultRemainsAboveHotbarAcrossOriginalGuiScales() {
+        assertEquals(84, Minecraft189TargetHudModule.DEFAULT_Y);
+        // These native logical dimensions cover GUI scales 1, 2, 3, 4
+        // including the 854x480 CI screenshot at GUI scale 2.
+        final UiViewport[] viewports = {
+                new UiViewport(1280, 720, 1.0F),
+                new UiViewport(854, 480, 2.0F),
+                new UiViewport(1280, 720, 3.0F),
+                new UiViewport(1920, 1080, 4.0F)
+        };
+        for (UiViewport viewport : viewports) {
+            for (float cardHeight : new float[]{38.0F, 54.0F, 56.0F, 72.0F}) {
+                final UiBounds bounds =
+                        Minecraft189TargetHudModule.visibleCardBounds(
+                                viewport, 18.0F,
+                                Minecraft189TargetHudModule.DEFAULT_Y,
+                                164.0F, cardHeight);
+                assertEquals(84.0F, bounds.y(), 0.001F);
+                assertTrue(bounds.y() + bounds.height()
+                                <= viewport.logicalHeight() - 36.0F,
+                        "default card must reserve 36 logical pixels at bottom");
+            }
+        }
+        // Existing explicitly saved legacy Y=210 remains user-controlled
+        // and is never migrated/overwritten by a new-profile default.
+        final UiViewport originalCi = new UiViewport(854, 480, 2.0F);
+        final UiBounds oldSaved = Minecraft189TargetHudModule.visibleCardBounds(
+                originalCi, 18.0F, 210.0F, 142.0F, 38.0F);
+        assertEquals(202.0F, oldSaved.y(), 0.001F);
     }
 
     @Test
