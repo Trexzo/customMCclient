@@ -45,6 +45,30 @@ final class Minecraft189DefaultFontRendererTest {
     }
 
     @Test
+    void nativeTextShadowUsesExactOriginalFontRendererFlagOnlyWhenRequested() {
+        final RecordingFontAccess access = new RecordingFontAccess();
+        final Minecraft189DefaultFontRenderer renderer =
+                new Minecraft189DefaultFontRenderer(access);
+        renderer.drawTextShadow(UiFonts.DEFAULT,
+                60.0F, 28.0F, "Array List", 0xFFF2F4F6);
+        assertEquals(1, access.calls);
+        assertEquals("Array List", access.text);
+        assertEquals(60.0F, access.x);
+        assertEquals(28.0F, access.y);
+        assertEquals(0xFFF2F4F6, access.argb);
+        org.junit.jupiter.api.Assertions.assertTrue(access.shadow);
+        renderer.drawText(UiFonts.DEFAULT,
+                60.0F, 28.0F, "Array List", 0xFFF2F4F6);
+        assertEquals(2, access.calls);
+        assertFalse(access.shadow);
+        assertThrows(IllegalArgumentException.class,
+                () -> renderer.drawTextShadow(
+                        new UiFontHandle("custom-display"),
+                        0, 0, "x", 0xFFFFFFFF));
+        assertEquals(2, access.calls);
+    }
+
+    @Test
     void exactNativeTextWidthIsUsedRatherThanEstimatedGlyphWidth() {
         final RecordingFontAccess access = new RecordingFontAccess();
         final Minecraft189DefaultFontRenderer renderer =
