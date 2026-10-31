@@ -1420,6 +1420,8 @@ def client_command(args, game, username, uuid, port, remote):
     if remote and args.hud_visual_dir:
         command.insert(command.index("-cp"),
                        "-Dcustommc.acceptance.captureRealHudVisuals=true")
+        command.insert(command.index("-cp"),
+                       "-Dcustommc.acceptance.captureRealWatermarkRecovery=true")
         # The actual obfuscated Minecraft currentScreen is reported only in
         # this opt-in fixture; a screenshot must not pass over a pause menu.
         command.insert(command.index("-cp"),
@@ -2984,6 +2986,10 @@ def run(args):
                 wait_for(host, host_log,
                          b"CUSTOMMC_OFFICIAL_189_REAL_ARRAYLIST_NATIVE_SHADOW_PASS=YES",
                          deadline, "Mojang FontRenderer.drawString(..., true) used by live ArrayList")
+                wait_for(host, host_log,
+                         b"CUSTOMMC_OFFICIAL_189_REAL_WATERMARK_RECOVERY_PASS=YES "
+                         b"saved=4096,4096 visible=8,224",
+                         deadline, "original Minecraft Watermark actually recovered offscreen X/Y")
                 check_process(host, "two-player HUD screenshot")
                 if host_window is None:
                     raise AssertionError("missing uniquely identified original host window")
@@ -3009,7 +3015,8 @@ def run(args):
                 check_process(host, "actual host HUD screenshot frame")
                 screenshot = capture_original_x11(
                     host_window, Path(args.hud_visual_dir) / "target-hud-arraylist.png",
-                    require_target_hud_text=True)
+                    require_target_hud_text=True,
+                    require_watermark_recovery=True)
                 print("CUSTOMMC_OFFICIAL_189_REAL_TWO_PLAYER_HUD_PNG="
                       + json.dumps(screenshot, sort_keys=True), flush=True)
                 print("CUSTOMMC_OFFICIAL_189_REAL_TWO_PLAYER_HUD_VISUAL_CAPTURE_PASS=YES",
