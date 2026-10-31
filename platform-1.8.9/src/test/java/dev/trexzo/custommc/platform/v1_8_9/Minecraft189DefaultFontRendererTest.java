@@ -45,6 +45,17 @@ final class Minecraft189DefaultFontRendererTest {
     }
 
     @Test
+    void exactNativeTextWidthIsUsedRatherThanEstimatedGlyphWidth() {
+        final RecordingFontAccess access = new RecordingFontAccess();
+        final Minecraft189DefaultFontRenderer renderer =
+                new Minecraft189DefaultFontRenderer(access);
+        assertEquals(37, renderer.measureText("Extra Wide"));
+        assertEquals("Extra Wide", access.widthText);
+        assertEquals(1, access.widthCalls);
+        assertThrows(NullPointerException.class, () -> renderer.measureText(null));
+    }
+
+    @Test
     void unknownSemanticFontIsRejectedBeforeTouchingMinecraftRenderer() {
         final RecordingFontAccess access =
                 new RecordingFontAccess();
@@ -75,6 +86,15 @@ final class Minecraft189DefaultFontRendererTest {
         private int argb;
         private boolean shadow;
         private int calls;
+        private String widthText;
+        private int widthCalls;
+
+        @Override
+        public int getStringWidth(final String text) {
+            widthText = text;
+            widthCalls++;
+            return 37;
+        }
 
         @Override
         public int drawString(
