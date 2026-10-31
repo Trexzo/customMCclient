@@ -215,6 +215,19 @@ public final class Minecraft189TargetHudModule implements Module {
         return new UiBounds(left, top, cardWidth, cardHeight);
     }
 
+    private String fitVisibleText(final String value, final float textWidth) {
+        // The original Mojang FontRenderer is the width authority for native
+        // game rendering. Alternate/test hosts retain the deterministic
+        // historical estimator; never change the source target values.
+        return Minecraft189ArrayListLayout.fitLabel(
+                value, textWidth,
+                label -> {
+                    final int nativeWidth = graphics.measureText(label);
+                    return nativeWidth >= 0 ? nativeWidth
+                            : Minecraft189HudTextMetrics.width(label);
+                });
+    }
+
     static String directionText(final Minecraft189TargetRotationState.Snapshot rotation) {
         // Avoid displaying -0 degrees when the exact target angles
         // carry IEEE-754 negative zero from atan2.
@@ -287,21 +300,22 @@ public final class Minecraft189TargetHudModule implements Module {
                             textWidth, textHeight);
                     try {
                         graphics.drawText(UiFonts.DEFAULT, textLeft, top + 7,
-                                String.format(Locale.ROOT, "NEARBY  %02d",
-                                        target.entityIndex() + 1),
+                                fitVisibleText(String.format(
+                                        Locale.ROOT, "NEARBY  %02d",
+                                        target.entityIndex() + 1), textWidth),
                                 theme.color(UiColorRole.TEXT_MUTED));
                         graphics.drawText(UiFonts.DEFAULT, textLeft, top + 23,
-                                distanceText(target),
+                                fitVisibleText(distanceText(target), textWidth),
                                 theme.color(UiColorRole.TEXT_PRIMARY));
                         if (!small) {
                             graphics.drawText(UiFonts.DEFAULT, textLeft, top + 39,
-                                    directionText(angle),
+                                    fitVisibleText(directionText(angle), textWidth),
                                     theme.color(UiColorRole.TEXT_MUTED));
                         }
                         if (coordinates != null) {
                             graphics.drawText(UiFonts.DEFAULT, textLeft,
                                     top + (small ? 39.0F : 55.0F),
-                                    coordinates,
+                                    fitVisibleText(coordinates, textWidth),
                                     theme.color(UiColorRole.TEXT_MUTED));
                         }
                     } finally {
