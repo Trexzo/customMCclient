@@ -3,6 +3,7 @@ import unittest
 
 from Mojang189VisualEvidence import (
     graphite_sample_count, parse_x11_geometry, require_visible_graphite,
+    original_target_hud_native_text_contrast,
 )
 
 
@@ -57,6 +58,42 @@ class NativeVisualEvidenceTests(unittest.TestCase):
         with self.assertRaises(AssertionError):
             require_visible_graphite(before, after)
 
+
+
+    def test_original_hud_font_pixel_probe_rejects_wrong_atlas(self):
+        # Pure synthetic RGB unit fixture, NEVER a gameplay screenshot.
+        # The real acceptance step passes X11-captured original framebuffer.
+        width, height = 854, 480
+        frame = bytearray(bytes((39, 43, 51)) * (width * height))
+
+        def fill(x0, y0, x1, y1, rgb):
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    at = (y * width + x) * 3
+                    frame[at:at + 3] = bytes(rgb)
+
+        fill(35, 148, 39, 223, (238, 135, 85))
+        # Old actual corrupt native font had virtually no neutral text.
+        with self.assertRaisesRegex(AssertionError, "glyph/texture"):
+            original_target_hud_native_text_contrast(frame, width, height)
+        # Each original glyph line needs a meaningful visible neutral
+        # pixel signal; saturated magenta texture fragments do not count.
+        fill(60, 161, 72, 171, (190, 190, 190))
+        fill(60, 193, 72, 203, (245, 245, 245))
+        result = original_target_hud_native_text_contrast(frame, width, height)
+        self.assertEqual([35, 148], result["rail"])
+        self.assertGreaterEqual(result["nearby_neutral_pixels"], 80)
+        self.assertGreaterEqual(result["distance_neutral_pixels"], 80)
+        fill(60, 193, 72, 203, (200, 30, 220))
+        with self.assertRaisesRegex(AssertionError, "glyph/texture"):
+            original_target_hud_native_text_contrast(frame, width, height)
+
+    def test_original_hud_pixel_probe_refuses_other_resolution_or_no_rail(self):
+        frame = bytes((39, 43, 51)) * (854 * 480)
+        with self.assertRaisesRegex(AssertionError, "accent rail"):
+            original_target_hud_native_text_contrast(frame, 854, 480)
+        with self.assertRaisesRegex(AssertionError, "exact CI window"):
+            original_target_hud_native_text_contrast(frame, 640, 480)
 
 if __name__ == "__main__":
     unittest.main()
