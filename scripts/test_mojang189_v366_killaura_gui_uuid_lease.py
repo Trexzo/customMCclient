@@ -344,7 +344,7 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
             "CUSTOMMC_189_V366_TRIGGERBOT_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
             pvp)
         self.assertIn(
-            "or args.multi_target or args.triggerbot_pvp):",
+            "or args.wall_recovery):",
             HARNESS)
         for real in (
             "wait_for(host, host_log, TRIGGER_CLICK, deadline,",
@@ -369,6 +369,60 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         self.assertIn(
             '"custommc.acceptance.reportTriggerBotRealPvp"',
             BRIDGE.split("private static void reportAcceptanceScreen()", 1)[0])
+        veto = BRIDGE.split(
+            "private static boolean vetoOriginalScreenBeforeNativeCombat(", 1)[1].split(
+            "public static synchronized void autoClick(", 1)[0]
+        self.assertIn("Minecraft189NativeGuiCombatVeto.blocks(minecraft)", veto)
+        self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
+        self.assertIn("return true;", veto)
+
+    def test_r10_server_wall_recovery_keeps_live_gui_veto_and_damage(self):
+        # Earlier original CI proved actual server wall removed and native
+        # player visible, but no owned attack was admitted. Gather original
+        # source-screen truth and allow only the original axp Escape path;
+        # actual Mojang controller and authoritative damage remain required.
+        self.assertIn(
+            '"custommc.acceptance.reportKillAuraWallRecovery"',
+            BRIDGE.split('private static void reportAcceptanceScreen()', 1)[0])
+        wall = HARNESS.split(
+            "if args.wall_veto or args.wall_recovery or args.wall_lifecycle:", 1
+        )[1].split("if args.fov_veto:", 1)[0]
+        self.assertEqual(1, wall.count('v348_resume_confirmed_original_pause('))
+        self.assertIn("if args.wall_recovery:", wall)
+        self.assertLess(
+            wall.index('WALL_RECOVERY_VISIBLE, deadline,'),
+            wall.index('v348_resume_confirmed_original_pause('))
+        self.assertLess(
+            wall.index('v348_resume_confirmed_original_pause('),
+            wall.index('WALL_RECOVERY_CLICK, deadline,'))
+        self.assertIn(
+            'v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)"',
+            wall)
+        self.assertIn(
+            "CUSTOMMC_189_V366_WALL_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+            wall)
+        for oracle in (
+            'expected=b"12 blocks filled"',
+            "WALL_VETO, deadline,",
+            '"scoreboard players test CITarget taken 0 0"',
+            "WALL_RECOVERY_VISIBLE, deadline,",
+            "WALL_RECOVERY_CLICK, deadline,",
+            "WALL_RECOVERY_CONTROLLER, deadline,",
+            '"scoreboard players test CITarget taken 1 999999"',
+            "CUSTOMMC_OFFICIAL_189_WALL_REMOVAL_SERVER_DAMAGE_PASS=YES",
+        ):
+            self.assertIn(oracle, wall)
+        recovery = HARNESS.split(
+            "def v348_resume_confirmed_original_pause(", 1)[1].split(
+            "def restore_real_attacker_focus(", 1)[0]
+        for term in (
+            'if screen != "axp":',
+            'if v348_latest_original_gui_screen(host_log) != "axp":',
+            'send_real_host_key(host, window, "Escape")',
+            'b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)"',
+            "V349 captured original host window disappeared",
+        ):
+            self.assertIn(term, recovery)
         veto = BRIDGE.split(
             "private static boolean vetoOriginalScreenBeforeNativeCombat(", 1)[1].split(
             "public static synchronized void autoClick(", 1)[0]
