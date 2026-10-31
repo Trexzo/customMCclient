@@ -95,7 +95,7 @@ final class Minecraft189ArrayListLayoutTest {
         assertEquals("AB...", Minecraft189ArrayListLayout.fitLabel(
                 "AB\u00a7aCD", 18, sourceFont));
         assertEquals("AB...", Minecraft189ArrayListLayout.fitLabel(
-                "AB\u00a7lCDEFG", 38, sourceFont));
+                "AB\u00a7lCDEFG", 27, sourceFont));
         // A complete styling prefix can be kept when visible glyphs follow.
         assertEquals("\u00a7aGreen...", Minecraft189ArrayListLayout.fitLabel(
                 "\u00a7aGreen Extended", 42, sourceFont));
@@ -126,7 +126,8 @@ final class Minecraft189ArrayListLayoutTest {
                     "dangling Minecraft section code: " + result);
             if (result.endsWith("...")) {
                 final String prefix = result.substring(0, result.length() - 3);
-                assertTrue(!prefix.matches("(?s).*\\\\u00a7[0-9a-fk-or]$"),
+                assertTrue(prefix.length() < 2
+                        || prefix.charAt(prefix.length() - 2) != '\u00a7',
                         "invisible dangling formatting pair: " + result);
             } else {
                 assertEquals(original, result);
