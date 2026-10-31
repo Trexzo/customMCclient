@@ -101,7 +101,25 @@ public final class Minecraft189KillAuraModule implements Module {
         enabled = false;
         clear("module-disable");
     }
-    synchronized void suspend() { clear("host-suspend-gui-or-world"); }
+    synchronized void suspend() { clear("host-suspend-original-owner-lost"); }
+
+    /**
+     * V366: vanilla/custom GUI focus must stop all automation but is NOT
+     * evidence that the loaded original World has lost its current UUID.
+     * Preserve only the previously source-verified sticky identity, never
+     * scheduled click credit, old list indices or unfinished aim progress.
+     *
+     * On GUI close the genuine original World selector must freshly prove
+     * the UUID is unique, alive, in range and permitted by AntiBot, team,
+     * friend and wall guards before any new rotation or melee. Actual World
+     * identity change, source revocation, disable and policy invalidation
+     * retain their hard-clear paths.
+     */
+    synchronized void suspendForGui() {
+        resetSchedule();
+        lastEntityIndex = -1;
+    }
+
     /**
      * A rejected automatic click drops all CPS credit, but must not erase
      * a separately source-verified UUID target lock. Absence of a crosshair

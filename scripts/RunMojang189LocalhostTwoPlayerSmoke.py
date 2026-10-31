@@ -1935,9 +1935,14 @@ def run(args):
             # Unique real Minecraft client on this freshly allocated Xvfb
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
-        if args.rejoin_target or args.rejoin_release:
+        if (args.rejoin_target or args.rejoin_release
+                or args.locked_target or args.simultaneous
+                or args.multi_target or args.triggerbot_pvp
+                or args.wall_recovery):
             # Capture host only while it remains the *sole* Minecraft
             # window, not by ambiguous late --pid once targets exist.
+            # V366 R10: real wall removal uses the same verified CIHost
+            # window recovery as the sticky, simultaneous and PvP fixtures.
             if host_window is not None:
                 raise AssertionError(
                     "V349 host window already captured by another fixture")
@@ -3463,6 +3468,19 @@ def run(args):
                                     expected=b"score 0 is in range 0 to 0")
             print("CUSTOMMC_OFFICIAL_189_LOCK_NEARER_B_STILL_ZERO_DAMAGE_PASS=YES",
                   flush=True)
+            # V366 R6: three real client windows may leave CIHost in Mojang's
+            # original axp pause menu. Preserve the strict GUI combat veto.
+            # Only the known host window and a source-confirmed axp may
+            # authorize a real XTest Escape; no synthetic attack, screen
+            # mutation or arbitrary window choice is allowed here.
+            v348_resume_confirmed_original_pause(
+                host, host_log, deadline, host_window)
+            if v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)":
+                raise AssertionError(
+                    "sticky A original host GUI did not establish native CLEAR "
+                    "before genuine controller/server-damage acceptance")
+            print("CUSTOMMC_189_V366_LOCK_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+                  flush=True)
             # A now enters normal survival, and real attacks MUST produce
             # genuine positive server damage, not merely a creative click.
             send_server_command(server, server_log, "gamemode 0 CITarget")
@@ -3540,6 +3558,20 @@ def run(args):
                   flush=True)
             wait_for(host, host_log, SIM_READY, deadline,
                      "20 disabled callbacks: both genuine eligible, A nearer")
+            # V366 R7: a newly spawned third Minecraft window can leave
+            # the REAL host in vanilla axp pause, as R5 independently
+            # proved for the sticky-A fixture. Never bypass the production
+            # GUI veto. Only the retained original CIHost X11 window,
+            # source-confirmed axp and a new native CLEAR transition
+            # authorize continuation to actual vanilla controller damage.
+            v348_resume_confirmed_original_pause(
+                host, host_log, deadline, host_window)
+            if v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)":
+                raise AssertionError(
+                    "simultaneous native host screen not CLEAR after "
+                    "source-verified original pause recovery")
+            print("CUSTOMMC_189_V366_SIMULTANEOUS_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+                  flush=True)
             wait_for(host, host_log, SIM_HIT_A, deadline,
                      "UUID A native-owned attack among two eligible players")
             wait_for_real_score(server, server_log, "CITarget", deadline)
@@ -3682,6 +3714,19 @@ def run(args):
                   flush=True)
             wait_for(host, host_log, MULTI_READY, deadline,
                      "20 native A candidate callbacks, second UUID out of range")
+            # V366 R8: the third original Minecraft JVM may leave CIHost
+            # in Mojang's real axp pause GUI. Preserve the production
+            # original-screen veto. A source-confirmed axp alone permits
+            # a physical Escape to our pre-target host X11 window, and
+            # native CLEAR is mandatory before actual UUID combat proof.
+            v348_resume_confirmed_original_pause(
+                host, host_log, deadline, host_window)
+            if v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)":
+                raise AssertionError(
+                    "multi-target original host GUI not source CLEAR "
+                    "before real A UUID attack and server damage")
+            print("CUSTOMMC_189_V366_MULTI_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+                  flush=True)
             wait_for(host, host_log, MULTI_HIT_A, deadline,
                      "native A UUID owned Kill Aura attack")
             wait_for_real_score(server, server_log, "CITarget", deadline)
@@ -3786,6 +3831,21 @@ def run(args):
                       flush=True)
                 wait_for(host, host_log, WALL_RECOVERY_VISIBLE, deadline,
                          "same native remote player visible and selected after wall removal")
+                if args.wall_recovery:
+                    # R9 original native GUI timeline was unavailable in
+                    # wall recovery, even though server AIR and a real
+                    # visible selected player were verified. Do not bypass
+                    # the original game GUI veto: physically dismiss ONLY
+                    # a source-confirmed vanilla axp pause on the unique
+                    # pre-target CIHost X11 window, then require CLEAR.
+                    v348_resume_confirmed_original_pause(
+                        host, host_log, deadline, host_window)
+                    if v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)":
+                        raise AssertionError(
+                            "wall-recovery original host screen not native CLEAR "
+                            "after real wall removed and target visible")
+                    print("CUSTOMMC_189_V366_WALL_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+                          flush=True)
                 wait_for(host, host_log, WALL_RECOVERY_CLICK, deadline,
                          "Kill Aura owned real visible-player attack after wall removal")
                 wait_for(host, host_log, WALL_RECOVERY_CONTROLLER, deadline,
@@ -4022,6 +4082,21 @@ def run(args):
                 wait_for(host, host_log, UNLOCKED_SCOPE_FRESH, deadline,
                          "original controller dispatch accepted real remote native UUID")
             if args.triggerbot_pvp:
+                # R8 full original binary CI independently proved that
+                # CIHost reached a real axp pause after earlier CLEAR,
+                # blocking the TriggerBot native controller as designed.
+                # Source-confirmed axp is the ONLY reason to issue a real
+                # Escape to our pre-target original host X11 window. Keep
+                # the live GUI veto and all crosshair/controller/server
+                # oracle requirements unchanged.
+                v348_resume_confirmed_original_pause(
+                    host, host_log, deadline, host_window)
+                if v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)":
+                    raise AssertionError(
+                        "real TriggerBot original GuiScreen not source CLEAR "
+                        "before exact native UUID ray and server damage")
+                print("CUSTOMMC_189_V366_TRIGGERBOT_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+                      flush=True)
                 wait_for(host, host_log, TRIGGER_CLICK, deadline,
                          "one normal TriggerBot original crosshair UUID-owned click")
                 wait_for(host, host_log, TRIGGER_RAY, deadline,
@@ -4169,6 +4244,39 @@ def run(args):
     except BaseException:
         for name, log in logs:
             if name == "host":
+                # V366 R3: the ordinary 6KB host tail can omit phase-3
+                # callbacks from a full native-run deadline. Report bounded
+                # first/last read-only witnesses from the ENTIRE genuine
+                # Mojang process output, including a count of zero when
+                # neither the tick nor melee dispatch hooks ran.
+                phase3_markers = (
+                    b"CUSTOMMC_189_V366_LOCK_PHASE3_TICK_DIAG",
+                    b"CUSTOMMC_189_V366_LOCK_PHASE3_NATIVE_RAY_DIAG",
+                    b"CUSTOMMC_189_V366_LOCK_PHASE3_SCHEDULE_DIAG",
+                )
+                phase3_total = 0
+                phase3_first, phase3_last = [], []
+                if log.exists():
+                    with log.open("rb") as original_host:
+                        for native_line in original_host:
+                            if not any(marker in native_line
+                                       for marker in phase3_markers):
+                                continue
+                            phase3_total += 1
+                            witness = native_line[:1200].decode(
+                                "utf-8", "replace").rstrip()
+                            if len(phase3_first) < 12:
+                                phase3_first.append(witness)
+                            else:
+                                if len(phase3_last) == 12:
+                                    phase3_last.pop(0)
+                                phase3_last.append(witness)
+                print("CUSTOMMC_189_V366_PHASE3_FORENSICS_START"
+                      + " count=" + str(phase3_total), file=sys.stderr)
+                for native_line in phase3_first + phase3_last:
+                    print(native_line, file=sys.stderr)
+                print("CUSTOMMC_189_V366_PHASE3_FORENSICS_END",
+                      file=sys.stderr)
                 # V356: bounded forensic extraction from the WHOLE original
                 # Minecraft host stdout. The prior 6,000-byte tail loses
                 # the first phase-3 B UUID revocation because rejoin can
