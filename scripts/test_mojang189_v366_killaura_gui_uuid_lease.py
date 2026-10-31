@@ -158,6 +158,31 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
                      "rayCallbacks=", "scheduleCallbacks="):
             self.assertIn(text, owner)
 
+    def test_r5_gui_veto_reports_exact_original_screen_without_admitting_click(self):
+        owner = (BASE / "Minecraft189LockedTargetAcceptance.java").read_text(
+            encoding="utf-8")
+        method = owner.split("static void observeBlockedNativeScreen(", 1)[1].split(
+            "static void observeNativeRay(", 1)[0]
+        self.assertIn("phase != 3) return;", method)
+        self.assertIn("n != 1 && n % 80 != 0", method)
+        self.assertIn('"axu".equals(candidate.getType().getName())', method)
+        self.assertIn("Minecraft189ScaffoldScreenGate.inspect(originalMinecraft)", method)
+        self.assertIn("CUSTOMMC_189_V366_LOCK_PHASE3_ORIGINAL_SCREEN_DIAG", method)
+        self.assertIn("originalVerdict=", method)
+        self.assertIn("screenClass=", method)
+        for forbidden in ("customMc", "attackEntity(", "sendPacket(",
+                          "rememberSelectedTarget(", "shouldClick(",
+                          "Minecraft189KillAuraTargetSelector.select(",
+                          "Minecraft189ScaffoldScreenGate.Verdict.CLEAR"):
+            self.assertNotIn(forbidden, method)
+        veto = BRIDGE.split(
+            "private static boolean vetoOriginalScreenBeforeNativeCombat(", 1)[1].split(
+            "public static synchronized void autoClick(", 1)[0]
+        self.assertLess(veto.index("Minecraft189NativeGuiCombatVeto.blocks(minecraft)"),
+                        veto.index("observeBlockedNativeScreen("))
+        self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
+        self.assertIn("return true;", veto)
+
     def test_original_v47_rejoin_server_damage_oracle_unchanged(self):
         for term in (
             "CUSTOMMC_189_REJOIN_REAL_A_DISCONNECTED_PASS",
