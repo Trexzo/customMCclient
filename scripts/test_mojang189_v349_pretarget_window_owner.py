@@ -78,10 +78,10 @@ class V349OriginalHostWindowOwner(TestCase):
             run.index("host_cmd = client_command("))
         launch = run.index('with target_log.open("wb")')
         self.assertLess(capture, launch)
-        # V366 R9 permits one source-confirmed TriggerBot fixture after
-        # the sticky/simultaneous/multi-target fixtures. Both rejoin calls
-        # remain exactly two and neither changes its original X11 owner.
-        self.assertEqual(6, run.count(
+        # V366 R10 allows exactly five source-verified fixture recoveries
+        # (sticky, simultaneous, multi, TriggerBot, wall recovery) in
+        # addition to the original two rejoin calls; X11 identity stays fixed.
+        self.assertEqual(7, run.count(
             "v348_resume_confirmed_original_pause("))
         self.assertEqual(2, run.split("if args.locked_target:", 1)[0].count(
             "v348_resume_confirmed_original_pause("))
@@ -97,10 +97,17 @@ class V349OriginalHostWindowOwner(TestCase):
         self.assertIn("CUSTOMMC_189_V366_MULTI_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES", multi)
         pvp = run.split("if args.pvp:", 1)[1].split("for phase, proc in (", 1)[0]
         self.assertEqual(1, pvp.count("v348_resume_confirmed_original_pause("))
+        wall = run.split("if args.wall_veto or args.wall_recovery or args.wall_lifecycle:", 1)[1].split(
+            "if args.fov_veto:", 1)[0]
+        self.assertEqual(1, wall.count("v348_resume_confirmed_original_pause("))
+        self.assertIn("if args.wall_recovery:", wall)
+        self.assertIn(
+            "CUSTOMMC_189_V366_WALL_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+            wall)
         self.assertIn("CUSTOMMC_189_V366_TRIGGERBOT_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
                       pvp)
         self.assertIn(
-            "or args.multi_target or args.triggerbot_pvp):",
+            "or args.wall_recovery):",
             run)
         self.assertIn("CUSTOMMC_189_V366_LOCK_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
                       sticky)
