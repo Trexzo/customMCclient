@@ -603,6 +603,13 @@ final class Minecraft189MappingsTest {
                 "func_74510_a",
                 "setKeyBindState");
         assertMethod(
+                Minecraft189Mappings.FONT_RENDERER_GET_STRING_WIDTH,
+                Minecraft189Mappings.FONT_RENDERER,
+                "a",
+                "(Ljava/lang/String;)I",
+                "func_78256_a",
+                "getStringWidth");
+        assertMethod(
                 Minecraft189Mappings.FONT_RENDERER_DRAW_STRING,
                 Minecraft189Mappings.FONT_RENDERER,
                 "a",
@@ -2260,6 +2267,9 @@ final class Minecraft189MappingsTest {
         addMethod(
                 writer,
                 Minecraft189Mappings.FONT_RENDERER_DRAW_STRING);
+        addMethod(
+                writer,
+                Minecraft189Mappings.FONT_RENDERER_GET_STRING_WIDTH);
         return finish(writer);
     }
 
