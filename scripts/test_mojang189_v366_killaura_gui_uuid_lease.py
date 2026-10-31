@@ -120,6 +120,44 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         ):
             self.assertIn(witness, HARNESS)
 
+
+    def test_r4_native_combat_stage_diagnostics_cannot_change_admission(self):
+        owner = (BASE / "Minecraft189LockedTargetAcceptance.java").read_text(
+            encoding="utf-8")
+        checkpoint = owner.split("static void observeCombatStage(", 1)[1].split(
+            "static void observeNativeRay(", 1)[0]
+        for stage in ("ENTER", "SCREEN_CLEAR", "GUI_VETO",
+                      "POTION_RETURN", "ROD_RETURN", "BEFORE_RAY"):
+            self.assertIn("case " + stage + ":", checkpoint)
+            self.assertIn("CombatStage." + stage + ")", BRIDGE)
+        self.assertIn("|| phase != 3 || stage == null) return;", checkpoint)
+        for forbidden in ("customMc", "attackEntity(", "sendPacket(",
+                          "rememberSelectedTarget(", "shouldClick(",
+                          "Minecraft189KillAuraTargetSelector.select("):
+            self.assertNotIn(forbidden, checkpoint)
+        cycle = BRIDGE.split("public static synchronized void autoClick(", 1)[1]
+        self.assertLess(cycle.index("CombatStage.ENTER)"),
+                        cycle.index("reportTriggerBotRealPvp"))
+        screen = cycle.index("if (vetoOriginalScreenBeforeNativeCombat(host, minecraft))")
+        clear = cycle.index("CombatStage.SCREEN_CLEAR)")
+        self.assertLess(screen, clear)
+        self.assertLess(cycle.index("CombatStage.POTION_RETURN)"),
+                        cycle.index("CombatStage.ROD_RETURN)"))
+        self.assertLess(cycle.index("CombatStage.ROD_RETURN)"),
+                        cycle.index("CombatStage.BEFORE_RAY)"))
+        self.assertLess(cycle.index("CombatStage.BEFORE_RAY)"),
+                        cycle.index("Minecraft189LockedTargetAcceptance.observeNativeRay("))
+        original_screen = BRIDGE.split(
+            "private static boolean vetoOriginalScreenBeforeNativeCombat(", 1)[1].split(
+            "public static synchronized void autoClick(", 1)[0]
+        self.assertIn("Minecraft189NativeGuiCombatVeto.blocks(minecraft)",
+                      original_screen)
+        self.assertIn("CombatStage.GUI_VETO)", original_screen)
+        for text in ("pathEntered=", "screenClear=", "guiVeto=",
+                     "potReturn=", "rodReturn=", "beforeRay=",
+                     "rayCallbacks=", "scheduleCallbacks="):
+            self.assertIn(text, owner)
+
     def test_original_v47_rejoin_server_damage_oracle_unchanged(self):
         for term in (
             "CUSTOMMC_189_REJOIN_REAL_A_DISCONNECTED_PASS",
