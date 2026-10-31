@@ -108,6 +108,56 @@ def original_target_hud_native_text_contrast(rgb, width, height):
             "distance_neutral_pixels": second}
 
 
+
+def original_arraylist_compact_row_pitch(rgb, width, height):
+    """Witness compact row spacing in the actual original X11 RGB pixels.
+
+    The fixed two-player acceptance window is 854x480 at GUI scale 2.
+    The source-enabled ArrayList appears at top right, with three native
+    white glyph rows against the sky. Ignore the orange edge rail and
+    require three distinct original FontRenderer glyph bands exactly
+    22 physical pixels apart (11 logical pixels, S37). This is NOT OCR
+    and cannot prove gameplay identities, module state or animation.
+    Source render receipts are separately mandatory.
+    """
+    if width != 854 or height != 480 or len(rgb) != width * height * 3:
+        raise AssertionError("ArrayList compact pixel witness needs exact CI window")
+    bands = []
+    start = None
+    previous = None
+    for y in range(12, 116):
+        white = 0
+        for x in range(655, 832):
+            at = (y * width + x) * 3
+            red, green, blue = rgb[at:at + 3]
+            if min(red, green, blue) > 195 and (
+                    max(red, green, blue) - min(red, green, blue)) < 32:
+                white += 1
+        if white > 2:
+            if start is None:
+                start = y
+            previous = y
+        elif start is not None:
+            bands.append((start, previous))
+            start = previous = None
+    if start is not None:
+        bands.append((start, previous))
+    if len(bands) != 3:
+        raise AssertionError(
+            "actual native ArrayList glyph row count implausible: "
+            + repr(bands))
+    starts = [top for top, bottom in bands]
+    pitches = [starts[i] - starts[i - 1] for i in range(1, len(starts))]
+    if pitches != [22, 22] or any(
+            bottom - top + 1 < 6 for top, bottom in bands):
+        raise AssertionError(
+            "actual native ArrayList row pitch not 11 logical pixels: "
+            + repr(bands))
+    return {"glyph_bands": [list(b) for b in bands],
+            "physical_row_pitches": pitches}
+
+
+
 def capture_original_x11(window, png_file, require_target_hud_text=False):
     """Screenshot the exact original X11 game window, never a mock canvas."""
     from mss import mss, tools
@@ -143,6 +193,8 @@ def capture_original_x11(window, png_file, require_target_hud_text=False):
     }
     if require_target_hud_text:
         result["native_target_hud_text"] = original_target_hud_native_text_contrast(
+            rgb, rectangle["width"], rectangle["height"])
+        result["native_arraylist_compact_pitch"] = original_arraylist_compact_row_pitch(
             rgb, rectangle["width"], rectangle["height"])
     return result
 
