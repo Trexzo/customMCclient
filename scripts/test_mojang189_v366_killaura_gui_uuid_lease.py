@@ -183,6 +183,61 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
         self.assertIn("return true;", veto)
 
+    def test_r6_original_pause_recovery_is_real_gui_and_real_x11_only(self):
+        # The test harness may dismiss a source-confirmed vanilla pause,
+        # never forge a CLEAR verdict, controller click, server damage or
+        # loosen the original GuiScreen veto in production.
+        self.assertIn(
+            'if args.rejoin_target or args.rejoin_release or args.locked_target:',
+            HARNESS)
+        self.assertIn(
+            '"custommc.acceptance.reportKillAuraLockedTarget"',
+            BRIDGE.split('private static void reportAcceptanceScreen()', 1)[0])
+        recovery = HARNESS.split(
+            "def v348_resume_confirmed_original_pause(", 1)[1].split(
+            "def restore_real_attacker_focus(", 1)[0]
+        for term in (
+            'v348_latest_original_gui_screen(host_log) != "axp"',
+            'send_real_host_key(host, window, "Escape")',
+            'b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)"',
+            "V349 captured original host window disappeared",
+            "V349 original host window title invalid",
+            "CUSTOMMC_189_V348_SOURCE_PAUSE_CLOSED_BY_REAL_ESCAPE=YES",
+        ):
+            self.assertIn(term, recovery)
+        sticky = HARNESS.split('if args.locked_target:', 1)[1].split(
+            'if args.simultaneous:', 1)[0]
+        preattack = sticky.split(
+            'CUSTOMMC_OFFICIAL_189_LOCK_NEARER_B_STILL_ZERO_DAMAGE_PASS=YES',
+            1)[1].split('send_server_command(server, server_log, "gamemode 0 CITarget")',
+                     1)[0]
+        self.assertIn('v348_resume_confirmed_original_pause(', preattack)
+        self.assertIn(
+            'v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)"',
+            preattack)
+        self.assertIn(
+            "CUSTOMMC_189_V366_LOCK_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+            preattack)
+        self.assertLess(sticky.index("LOCK_RETAINED, deadline,"),
+                        sticky.index("v348_resume_confirmed_original_pause("))
+        self.assertLess(sticky.index("CUSTOMMC_189_V366_LOCK_PREATTACK_"),
+                        sticky.index('send_server_command(server, server_log, "gamemode 0 CITarget")'))
+        for must_remain in (
+            'wait_for(host, host_log, LOCK_HIT_A, deadline,',
+            'wait_for_real_score(server, server_log, "CITarget", deadline)',
+            '"scoreboard players test CITargetB taken 0 0"',
+            'wait_for(host, host_log, LOCK_RELEASE, deadline,',
+            'wait_for(host, host_log, LOCK_HIT_B, deadline,',
+            'wait_for_real_score(server, server_log, "CITargetB", deadline)',
+        ):
+            self.assertIn(must_remain, sticky)
+        veto = BRIDGE.split(
+            "private static boolean vetoOriginalScreenBeforeNativeCombat(", 1)[1].split(
+            "public static synchronized void autoClick(", 1)[0]
+        self.assertIn("Minecraft189NativeGuiCombatVeto.blocks(minecraft)", veto)
+        self.assertIn("return true;", veto)
+        self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
+
     def test_original_v47_rejoin_server_damage_oracle_unchanged(self):
         for term in (
             "CUSTOMMC_189_REJOIN_REAL_A_DISCONNECTED_PASS",
