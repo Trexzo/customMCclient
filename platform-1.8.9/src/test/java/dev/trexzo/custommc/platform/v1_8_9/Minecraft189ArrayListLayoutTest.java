@@ -31,10 +31,29 @@ final class Minecraft189ArrayListLayoutTest {
         final int rows = Minecraft189ArrayListLayout.visibleRows(
                 85, 128, cap, true);
         assertEquals(cap - 1, rows);
-        assertTrue(top + (rows + 1) * 12.0F <= 480 - 4.0F);
+        assertEquals(11.0F, Minecraft189ArrayListLayout.LINE_HEIGHT, .001F);
+        assertTrue(top + (rows + 1)
+                * Minecraft189ArrayListLayout.LINE_HEIGHT <= 480 - 4.0F);
         assertEquals(0, Minecraft189ArrayListLayout.visibleRows(
                 85, 128, 0, true));
         assertEquals(0, Minecraft189ArrayListLayout.rowCapacity(12, 10));
+    }
+
+    @Test
+    void compactPitchIncreasesDensityWithoutDrawingOutsideSmallViewport() {
+        final float y = Minecraft189ArrayListLayout.safeTop(24, 120);
+        final int expected = (int) Math.floor((120 - y - 4) / 11.0F);
+        assertEquals(expected, Minecraft189ArrayListLayout.rowCapacity(120, y));
+        assertTrue(y + expected * Minecraft189ArrayListLayout.LINE_HEIGHT
+                <= 120 - 4);
+        // An overflowing viewport reserves its last full 11px row for
+        // a truthful '+ N more' item, never half a glyph or fake module.
+        final int displayed = Minecraft189ArrayListLayout.visibleRows(
+                128, 128, expected, true);
+        assertEquals(expected - 1, displayed);
+        assertTrue(y + (displayed + 1)
+                * Minecraft189ArrayListLayout.LINE_HEIGHT <= 120 - 4);
+        assertEquals(1, Minecraft189ArrayListLayout.rowCapacity(480, 464));
     }
 
     @Test
