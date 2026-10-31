@@ -1,6 +1,7 @@
 package dev.trexzo.custommc.platform.v1_8_9;
 
 import java.util.Objects;
+import java.util.function.ToIntFunction;
 
 /**
  * Pure 1.8.9 HUD presentation bounds; never writes HUD settings or changes
@@ -70,15 +71,21 @@ final class Minecraft189ArrayListLayout {
     }
 
     static String fitLabel(final String label, final float maxWidth) {
+        return fitLabel(label, maxWidth, Minecraft189HudTextMetrics::width);
+    }
+
+    static String fitLabel(final String label, final float maxWidth,
+            final ToIntFunction<String> textWidth) {
         Objects.requireNonNull(label, "label");
+        Objects.requireNonNull(textWidth, "textWidth");
         if (!Float.isFinite(maxWidth) || maxWidth <= 0.0F) return "";
-        if (Minecraft189HudTextMetrics.width(label) <= maxWidth) return label;
+        if (textWidth.applyAsInt(label) <= maxWidth) return label;
         final String ellipsis = "...";
-        final int dotsWidth = Minecraft189HudTextMetrics.width(ellipsis);
+        final int dotsWidth = textWidth.applyAsInt(ellipsis);
         if (dotsWidth > maxWidth) return "";
         int end = label.length();
         while (end > 0
-                && Minecraft189HudTextMetrics.width(label.substring(0, end))
+                && textWidth.applyAsInt(label.substring(0, end))
                     + dotsWidth > maxWidth) {
             end--;
         }
