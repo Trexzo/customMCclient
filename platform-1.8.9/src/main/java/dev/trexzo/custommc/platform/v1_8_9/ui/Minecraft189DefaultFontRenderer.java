@@ -23,6 +23,8 @@ public final class Minecraft189DefaultFontRenderer
                 Objects.requireNonNull(text, "text")));
     }
 
+    private boolean acceptanceOriginalShadowReported;
+
     @Override
     public void drawText(
             final UiFontHandle font,
@@ -30,23 +32,42 @@ public final class Minecraft189DefaultFontRenderer
             final float y,
             final String text,
             final int argb) {
-        final UiFontHandle requested =
-                Objects.requireNonNull(
-                        font,
-                        "font");
+        drawTextNative(font, x, y, text, argb, false);
+    }
+
+    @Override
+    public void drawTextShadow(
+            final UiFontHandle font,
+            final float x,
+            final float y,
+            final String text,
+            final int argb) {
+        drawTextNative(font, x, y, text, argb, true);
+        // Printed only by the actual Mojang FontRenderer adapter, after
+        // drawString(..., true) returns; never by a fake HUD callback.
+        if (!acceptanceOriginalShadowReported
+                && Boolean.getBoolean(
+                        "custommc.acceptance.captureRealHudVisuals")) {
+            acceptanceOriginalShadowReported = true;
+            System.out.println(
+                    "CUSTOMMC_OFFICIAL_189_REAL_ARRAYLIST_NATIVE_SHADOW_PASS=YES");
+        }
+    }
+
+    private void drawTextNative(
+            final UiFontHandle font,
+            final float x,
+            final float y,
+            final String text,
+            final int argb,
+            final boolean shadow) {
+        final UiFontHandle requested = Objects.requireNonNull(font, "font");
         if (!UiFonts.DEFAULT.equals(requested)) {
             throw new IllegalArgumentException(
                     "unsupported Minecraft 1.8.9 font handle: "
                             + requested.id());
         }
-
-        access.drawString(
-                Objects.requireNonNull(
-                        text,
-                        "text"),
-                x,
-                y,
-                argb,
-                false);
+        access.drawString(Objects.requireNonNull(text, "text"),
+                x, y, argb, shadow);
     }
 }
