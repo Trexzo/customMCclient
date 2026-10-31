@@ -324,6 +324,15 @@ public final class Minecraft189BootstrapRuntime
                 // their saved position; this CI session is a fresh install.
                 moduleController.enable(Minecraft189TargetHudModule.ID);
                 moduleController.enable(Minecraft189ArrayListModule.ID);
+                if (Boolean.getBoolean(
+                        "custommc.acceptance.captureRealWatermarkRecovery")) {
+                    // Only the original two-player visual CI fixture:
+                    // 4096/4096 is a genuinely offscreen saved user position
+                    // that S39 must recover without altering the settings.
+                    installed.featureCatalog().watermark().xSetting().set(4096);
+                    installed.featureCatalog().watermark().ySetting().set(4096);
+                    moduleController.enable(Minecraft189WatermarkModule.ID);
+                }
             }
         } catch (RuntimeException installationFailure) {
             if (scaffoldFeature != null) {
