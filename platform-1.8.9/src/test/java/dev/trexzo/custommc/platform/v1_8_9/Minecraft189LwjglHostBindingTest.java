@@ -106,6 +106,11 @@ final class Minecraft189LwjglHostBindingTest {
     private static final class NoOpFontAccess
             implements Minecraft189FontRendererAccess {
         @Override
+        public int getStringWidth(final String text) {
+            return text == null ? 0 : text.length() * 6;
+        }
+
+        @Override
         public int drawString(
                 final String text,
                 final float x,
