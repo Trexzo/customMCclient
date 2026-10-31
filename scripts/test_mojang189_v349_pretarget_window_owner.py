@@ -78,8 +78,20 @@ class V349OriginalHostWindowOwner(TestCase):
             run.index("host_cmd = client_command("))
         launch = run.index('with target_log.open("wb")')
         self.assertLess(capture, launch)
-        self.assertEqual(2, run.count(
+        # V366 R6 permits exactly one extra call only inside the native
+        # sticky-A fixture; keep both original rejoin calls untouched.
+        self.assertEqual(3, run.count(
             "v348_resume_confirmed_original_pause("))
+        self.assertEqual(2, run.split("if args.locked_target:", 1)[0].count(
+            "v348_resume_confirmed_original_pause("))
+        sticky = run.split("if args.locked_target:", 1)[1].split(
+            "if args.simultaneous:", 1)[0]
+        self.assertEqual(1, sticky.count("v348_resume_confirmed_original_pause("))
+        self.assertIn(
+            "if args.rejoin_target or args.rejoin_release or args.locked_target:",
+            run)
+        self.assertIn("CUSTOMMC_189_V366_LOCK_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+                      sticky)
         method = SOURCE.split(
             "def v348_resume_confirmed_original_pause(", 1)[1].split(
             "def restore_real_attacker_focus(", 1)[0]
