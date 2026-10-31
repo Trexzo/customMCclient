@@ -53,6 +53,8 @@ public final class Minecraft189ArrayListModule
             "render.array-list.showBackground";
     public static final String ANIMATE_SETTING_ID =
             "render.array-list.animate";
+    public static final String TEXT_SHADOW_SETTING_ID =
+            "render.array-list.textShadow";
     // Intrinsic-size chips replace S12's identical 184px rectangles.
     // S36 measures original Mojang FontRenderer text widths on the genuine
     // host; test-only hosts fall back to the conservative source estimate.
@@ -105,6 +107,11 @@ public final class Minecraft189ArrayListModule
             value -> value != null, SettingCodecs.BOOLEAN);
     private final Setting<Boolean> animate = new Setting<Boolean>(
             ANIMATE_SETTING_ID, Boolean.TRUE,
+            value -> value != null, SettingCodecs.BOOLEAN);
+    // Native Minecraft 1.8.9 drops one understated dark pixel offset
+    // behind white text. Unlike extra backplates, this stays text-first.
+    private final Setting<Boolean> textShadow = new Setting<Boolean>(
+            TEXT_SHADOW_SETTING_ID, Boolean.TRUE,
             value -> value != null, SettingCodecs.BOOLEAN);
     private final Minecraft189ArrayListMotion motion =
             new Minecraft189ArrayListMotion();
@@ -170,6 +177,7 @@ public final class Minecraft189ArrayListModule
     public Setting<Boolean> rightAlignedSetting() { return rightAligned; }
     public Setting<Boolean> showBackgroundSetting() { return showBackground; }
     public Setting<Boolean> animateSetting() { return animate; }
+    public Setting<Boolean> textShadowSetting() { return textShadow; }
 
     static int categoryOrder(final ModuleDescriptor descriptor) {
         final String id = descriptor == null
@@ -238,6 +246,17 @@ public final class Minecraft189ArrayListModule
         return Minecraft189HudTextMetrics.width(label);
     }
 
+    private void drawRowText(final float textX, final float textY,
+            final String label, final int color) {
+        if (textShadow.get().booleanValue()) {
+            hostCallbacks.drawTextShadow(
+                    UiFonts.DEFAULT, textX, textY, label, color);
+        } else {
+            hostCallbacks.drawText(
+                    UiFonts.DEFAULT, textX, textY, label, color);
+        }
+    }
+
     private void drawModuleCard(final UiViewport viewport,
             final float currentY, final String originalLabel, final float phase) {
         final boolean right = rightAligned.get().booleanValue();
@@ -257,8 +276,7 @@ public final class Minecraft189ArrayListModule
             hostCallbacks.pushClip(4.0F, currentY - 1.0F,
                     Math.max(0.0F, screenWidth - 8.0F), CHIP_HEIGHT);
             try {
-                hostCallbacks.drawText(UiFonts.DEFAULT,
-                        textX, currentY, label,
+                drawRowText(textX, currentY, label,
                         Minecraft189ArrayListMotion.withOpacity(TEXT_ARGB, phase));
             } finally {
                 hostCallbacks.popClip();
@@ -298,8 +316,7 @@ public final class Minecraft189ArrayListModule
             hostCallbacks.pushClip(textX, currentY - 1.0F,
                     clipWidth, CHIP_HEIGHT);
             try {
-                hostCallbacks.drawText(UiFonts.DEFAULT,
-                        textX, currentY, label,
+                drawRowText(textX, currentY, label,
                         Minecraft189ArrayListMotion.withOpacity(
                                 theme.color(UiColorRole.TEXT_PRIMARY), phase));
             } finally {
