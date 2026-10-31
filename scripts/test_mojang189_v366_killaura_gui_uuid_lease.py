@@ -188,7 +188,7 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         # never forge a CLEAR verdict, controller click, server damage or
         # loosen the original GuiScreen veto in production.
         self.assertIn(
-            'if args.rejoin_target or args.rejoin_release or args.locked_target:',
+            'or args.locked_target or args.simultaneous):',
             HARNESS)
         self.assertIn(
             '"custommc.acceptance.reportKillAuraLockedTarget"',
@@ -237,6 +237,46 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         self.assertIn("Minecraft189NativeGuiCombatVeto.blocks(minecraft)", veto)
         self.assertIn("return true;", veto)
         self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
+
+    def test_r7_simultaneous_original_gui_clear_has_strict_server_oracles(self):
+        # The R5 source-confirmed axp failure was in sticky-A, and R6 fixed
+        # that exact fixture. Simultaneous remains independently strict.
+        # Neither fixture is allowed to forge attack, target or damage data.
+        self.assertIn(
+            '"custommc.acceptance.reportKillAuraSimultaneous"',
+            BRIDGE.split('private static void reportAcceptanceScreen()', 1)[0])
+        simultaneous = HARNESS.split('if args.simultaneous:', 1)[1].split(
+            'if args.multi_target:', 1)[0]
+        self.assertLess(simultaneous.index('SIM_READY, deadline,'),
+                        simultaneous.index('v348_resume_confirmed_original_pause('))
+        self.assertLess(
+            simultaneous.index('v348_resume_confirmed_original_pause('),
+            simultaneous.index('SIM_HIT_A, deadline,'))
+        self.assertIn(
+            'v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)"',
+            simultaneous)
+        self.assertIn(
+            "CUSTOMMC_189_V366_SIMULTANEOUS_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+            simultaneous)
+        for oracle in (
+            'wait_for(host, host_log, SIM_HIT_A, deadline,',
+            'wait_for_real_score(server, server_log, "CITarget", deadline)',
+            '"scoreboard players test CITargetB taken 0 0"',
+            'CUSTOMMC_189_SIMULTANEOUS_A_DAMAGED_B_STILL_ZERO_PASS=YES',
+            'wait_for_real_score(server, server_log, "CITargetB", deadline)',
+        ):
+            self.assertIn(oracle, simultaneous)
+        source = HARNESS.split('def v348_resume_confirmed_original_pause(', 1)[1].split(
+            'def restore_real_attacker_focus(', 1)[0]
+        self.assertIn('if screen != "axp":', source)
+        self.assertIn('send_real_host_key(host, window, "Escape")', source)
+        self.assertIn('b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)"', source)
+        veto = BRIDGE.split(
+            "private static boolean vetoOriginalScreenBeforeNativeCombat(", 1)[1].split(
+            "public static synchronized void autoClick(", 1)[0]
+        self.assertIn('Minecraft189NativeGuiCombatVeto.blocks(minecraft)', veto)
+        self.assertIn('host.suspendSyntheticCombatForOriginalGui();', veto)
+        self.assertIn('return true;', veto)
 
     def test_original_v47_rejoin_server_damage_oracle_unchanged(self):
         for term in (
