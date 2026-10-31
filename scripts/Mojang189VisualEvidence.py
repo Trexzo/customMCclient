@@ -203,11 +203,13 @@ def original_arraylist_native_shadow_pixels(rgb, width, height):
 def original_watermark_recovery_pixels(rgb, width, height):
     """X11 frame: recovered Watermark glyphs above the vanilla bottom rail.
 
-    The original 854x480 guiScale-2 font is rendered at logical (8,224)
-    after the saved 4096,4096 position is recovered. The expected white
-    CustomMC glyphs occupy the lower-left x=16..180 / y=448..459 ROI.
-    The unmodified real S39 screenshot has ZERO neutral white pixels there;
-    the vanilla hotbar/bottom border is y>=461 and deliberately excluded.
+    The original 854x480 guiScale-2 font is rendered at recovered logical
+    (8,224). The genuine X11 screenshot from the failed initial S40 gate
+    places its white CustomMC glyphs at x=16..104/y=428..441 (the
+    original X11 framebuffer capture differs by 20px in screen Y from
+    naive logical-Y-times-GUI-scale assumptions). The unchanged real S39
+    baseline has ZERO white pixels in x=16..179/y=424..444; vanilla
+    hotbar/bottom pixels are y>=461 and remain deliberately excluded.
     Source-native saved-X/Y render receipt is an independent hard gate.
     """
     if width != 854 or height != 480 or len(rgb) != width * height * 3:
@@ -215,7 +217,7 @@ def original_watermark_recovery_pixels(rgb, width, height):
     bright = 0
     columns = set()
     rows = set()
-    for y in range(446, 461):
+    for y in range(424, 445):
         for x in range(16, 180):
             off = (y * width + x) * 3
             red, green, blue = rgb[off:off + 3]
