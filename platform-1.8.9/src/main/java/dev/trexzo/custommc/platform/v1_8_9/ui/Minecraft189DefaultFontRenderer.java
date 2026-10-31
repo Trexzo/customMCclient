@@ -18,6 +18,12 @@ public final class Minecraft189DefaultFontRenderer
     }
 
     @Override
+    public int measureText(final String text) {
+        return Math.max(0, access.getStringWidth(
+                Objects.requireNonNull(text, "text")));
+    }
+
+    @Override
     public void drawText(
             final UiFontHandle font,
             final float x,
