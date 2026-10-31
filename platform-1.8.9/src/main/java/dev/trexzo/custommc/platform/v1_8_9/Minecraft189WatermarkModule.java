@@ -53,6 +53,7 @@ public final class Minecraft189WatermarkModule
                             && value <= 4096,
                     SettingCodecs.INTEGER);
     private RenderPipeline.Registration renderRegistration;
+    private boolean acceptanceRecoveryReported;
 
     public Minecraft189WatermarkModule(
             final RenderPipeline renderPipeline,
