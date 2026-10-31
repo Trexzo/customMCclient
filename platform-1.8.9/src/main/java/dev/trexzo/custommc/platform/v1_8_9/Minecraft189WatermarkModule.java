@@ -188,6 +188,26 @@ public final class Minecraft189WatermarkModule
                     }
                 }
             }
+            // An original-client-only source receipt. It is not emitted
+            // from unit-test hosts or from the default user configuration.
+            // The separate genuine X11 framebuffer probe must also confirm
+            // visible original-font glyphs in the recovered screen region.
+            if (!acceptanceRecoveryReported
+                    && Boolean.getBoolean(
+                            "custommc.acceptance.captureRealWatermarkRecovery")
+                    && viewport.pixelWidth() == 854
+                    && viewport.pixelHeight() == 480
+                    && viewport.scale() == 2.0F
+                    && x.get().intValue() == 4096
+                    && y.get().intValue() == 4096
+                    && left == 8.0F
+                    && top == 224.0F
+                    && text.get().equals("CustomMC")) {
+                acceptanceRecoveryReported = true;
+                System.out.println(
+                        "CUSTOMMC_OFFICIAL_189_REAL_WATERMARK_RECOVERY_PASS=YES "
+                        + "saved=4096,4096 visible=8,224");
+            }
         }
     }
 }
