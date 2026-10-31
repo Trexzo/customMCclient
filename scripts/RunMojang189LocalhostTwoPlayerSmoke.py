@@ -2978,6 +2978,9 @@ def run(args):
                 wait_for(host, host_log,
                          b"CUSTOMMC_OFFICIAL_189_REAL_ARRAYLIST_DRAW_PASS=YES",
                          deadline, "source-enabled ArrayList draw")
+                wait_for(host, host_log,
+                         b"CUSTOMMC_OFFICIAL_189_REAL_ARRAYLIST_NATIVE_FONT_METRICS_PASS=YES",
+                         deadline, "actual Mojang FontRenderer width used for ArrayList")
                 check_process(host, "two-player HUD screenshot")
                 if host_window is None:
                     raise AssertionError("missing uniquely identified original host window")
