@@ -110,8 +110,18 @@ class NativePauseV348(TestCase):
 
     def test_exact_two_rejoin_calls_and_strict_server_authority_stay(self):
         run = SOURCE.split("def run(", 1)[1].split("    except BaseException:", 1)[0]
-        self.assertEqual(2, run.count("v348_resume_confirmed_original_pause("))
-        self.assertEqual(2, run.count("host, host_log, deadline, host_window)"))
+        # V366 R6 adds one independently guarded sticky-lock recovery.
+        # The previous two rejoin recoveries must remain exactly two.
+        self.assertEqual(3, run.count("v348_resume_confirmed_original_pause("))
+        self.assertEqual(2, run.split("if args.locked_target:", 1)[0].count(
+            "v348_resume_confirmed_original_pause("))
+        self.assertEqual(3, run.count("host, host_log, deadline, host_window)"))
+        sticky = run.split("if args.locked_target:", 1)[1].split(
+            "if args.simultaneous:", 1)[0]
+        self.assertEqual(1, sticky.count("v348_resume_confirmed_original_pause("))
+        self.assertIn(
+            'v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)"',
+            sticky)
         pretarget = run.index("host_window = identify_original_host_window_before_target(host)", 
                               run.index("host_cmd = client_command("))
         self.assertLess(pretarget, run.index('with target_log.open("wb")'))
@@ -119,6 +129,9 @@ class NativePauseV348(TestCase):
             "def v348_resume_confirmed_original_pause(", 1)[1].split(
             "def restore_real_attacker_focus(", 1)[0])
         self.assertIn("if args.rejoin_target or args.rejoin_release:", run)
+        self.assertIn(
+            "if args.rejoin_target or args.rejoin_release or args.locked_target:",
+            run)
         self.assertIn("wait_for_log_occurrences(", run)
         method = SOURCE.split("def v348_resume_confirmed_original_pause(", 1)[1].split(
             "def restore_real_attacker_focus(", 1)[0]
