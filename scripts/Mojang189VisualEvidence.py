@@ -51,7 +51,64 @@ def graphite_sample_count(rgb, width, height):
     return matches, sampled
 
 
-def capture_original_x11(window, png_file):
+def original_target_hud_native_text_contrast(rgb, width, height):
+    """Read only ORIGINAL framebuffer bytes inside the known S33 Graphite card.
+
+    The fixed native CI window is 854x480, guiScale 2. The genuine
+    original-client color #EE8755 is the thin Target HUD accent rail.
+    Detect that rail from X11 pixels (not from mocked HUD data), then
+    require near-neutral bright native-font pixels in BOTH actual text
+    lines. S32's wrong texture atlas supplied only 3/3 such pixels versus
+    S33's real 536/424 in these positions. Fail closed for absent/other
+    resolution or missing evidence. This is a bounded visual smoke gate,
+    not text recognition, a style score or an inference of target identity.
+    """
+    if width != 854 or height != 480 or len(rgb) != width * height * 3:
+        raise AssertionError("native Target HUD pixel witness needs exact CI window")
+    target = (238, 135, 85)
+    rail = None
+    for x in range(15, 100):
+        if rail is not None:
+            break
+        streak = 0
+        for y in range(40, 340):
+            at = (y * width + x) * 3
+            color = rgb[at:at + 3]
+            if all(abs(color[i] - target[i]) <= 3 for i in range(3)):
+                streak += 1
+            else:
+                streak = 0
+            if streak >= 35:
+                rail = (x, y - streak + 1)
+                break
+    if rail is None:
+        raise AssertionError("actual native HUD accent rail absent in screenshot")
+    x, y = rail
+
+    def neutral_bright_count(x0, x1, y0, y1):
+        count = 0
+        for py in range(max(0, y0), min(height, y1)):
+            for px in range(max(0, x0), min(width, x1)):
+                offset = (py * width + px) * 3
+                red, green, blue = rgb[offset:offset + 3]
+                if min(red, green, blue) > 130 \
+                        and max(red, green, blue) - min(red, green, blue) < 50:
+                    count += 1
+        return count
+
+    # Native text inset + 12px logical from card left and corresponding
+    # original FontRenderer baselines. Exclude the proximity meter and scene.
+    first = neutral_bright_count(x + 21, x + 191, y + 11, y + 32)
+    second = neutral_bright_count(x + 21, x + 191, y + 42, y + 65)
+    if first < 80 or second < 80:
+        raise AssertionError(
+            "actual native Target HUD glyph/texture pixels implausible: "
+            "nearby={} distance={}".format(first, second))
+    return {"rail": [x, y], "nearby_neutral_pixels": first,
+            "distance_neutral_pixels": second}
+
+
+def capture_original_x11(window, png_file, require_target_hud_text=False):
     """Screenshot the exact original X11 game window, never a mock canvas."""
     from mss import mss, tools
 
@@ -76,7 +133,7 @@ def capture_original_x11(window, png_file):
     png = target.read_bytes()
     if not png.startswith(b"\x89PNG\r\n\x1a\n") or len(png) < 1024:
         raise AssertionError("original X11 screenshot is not a valid PNG")
-    return {
+    result = {
         "filename": target.name,
         "sha256": hashlib.sha256(png).hexdigest(),
         "bytes": len(png),
@@ -84,6 +141,10 @@ def capture_original_x11(window, png_file):
         "graphite_hits": matches,
         "graphite_samples": sampled,
     }
+    if require_target_hud_text:
+        result["native_target_hud_text"] = original_target_hud_native_text_contrast(
+            rgb, rectangle["width"], rectangle["height"])
+    return result
 
 
 def require_visible_graphite(before, after):

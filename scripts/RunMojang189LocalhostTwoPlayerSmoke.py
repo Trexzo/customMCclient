@@ -3002,7 +3002,8 @@ def run(args):
                         "original host GUI reopened before HUD screenshot")
                 check_process(host, "actual host HUD screenshot frame")
                 screenshot = capture_original_x11(
-                    host_window, Path(args.hud_visual_dir) / "target-hud-arraylist.png")
+                    host_window, Path(args.hud_visual_dir) / "target-hud-arraylist.png",
+                    require_target_hud_text=True)
                 print("CUSTOMMC_OFFICIAL_189_REAL_TWO_PLAYER_HUD_PNG="
                       + json.dumps(screenshot, sort_keys=True), flush=True)
                 print("CUSTOMMC_OFFICIAL_189_REAL_TWO_PLAYER_HUD_VISUAL_CAPTURE_PASS=YES",

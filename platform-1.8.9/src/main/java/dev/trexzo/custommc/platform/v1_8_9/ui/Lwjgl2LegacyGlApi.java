@@ -12,8 +12,14 @@ public final class Lwjgl2LegacyGlApi
                     | GL11.GL_ENABLE_BIT
                     | GL11.GL_COLOR_BUFFER_BIT
                     | GL11.GL_LINE_BIT
-                    | GL11.GL_SCISSOR_BIT
-                    | GL11.GL_TEXTURE_BIT;
+                    | GL11.GL_SCISSOR_BIT;
+    // Do not push/pop GL_TEXTURE_BIT around independently scheduled HUD
+    // passes. Mojang 1.8.9's GlStateManager caches the texture binding in
+    // Java. Restoring ONLY the raw OpenGL binding via glPopAttrib causes the
+    // cache and actual GL texture to disagree: the next FontRenderer draw
+    // can skip rebinding font.png and sample the prior GUI/atlas texture.
+    // Preserve enabled flags/matrices/scissor as before, but let the native
+    // FontRenderer's texture binding remain current for the next HUD pass.
 
     private boolean frameOpen;
     private boolean primitiveOpen;
