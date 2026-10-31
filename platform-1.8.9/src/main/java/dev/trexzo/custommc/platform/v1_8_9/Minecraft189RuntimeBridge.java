@@ -1425,7 +1425,9 @@ public final class Minecraft189RuntimeBridge {
                         || Boolean.getBoolean(
                                 "custommc.acceptance.reportKillAuraMultiTarget")
                         || Boolean.getBoolean(
-                                "custommc.acceptance.reportTriggerBotRealPvp"))) {
+                                "custommc.acceptance.reportTriggerBotRealPvp")
+                        || Boolean.getBoolean(
+                                "custommc.acceptance.reportKillAuraWallRecovery"))) {
                 reportAcceptanceScreen();
             }
             if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")
