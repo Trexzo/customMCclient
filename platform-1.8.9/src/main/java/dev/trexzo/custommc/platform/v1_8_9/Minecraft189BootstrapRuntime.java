@@ -319,6 +319,11 @@ public final class Minecraft189BootstrapRuntime
             // S31: opt-in isolated genuine two-player visual evidence only.
             // No production default, user profile, or persisted state changes.
             if (Boolean.getBoolean("custommc.acceptance.captureRealHudVisuals")) {
+                // Keep a genuine loaded-remote-player Target HUD away from
+                // the vanilla hotbar while diagnosing legibility. This is
+                // test-only; existing persisted X/Y and production defaults
+                // remain untouched.
+                installed.featureCatalog().targetHud().ySetting().set(84);
                 moduleController.enable(Minecraft189TargetHudModule.ID);
                 moduleController.enable(Minecraft189ArrayListModule.ID);
             }
