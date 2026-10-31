@@ -1935,9 +1935,11 @@ def run(args):
             # Unique real Minecraft client on this freshly allocated Xvfb
             # display; later target windows cannot be mistaken for CIHost.
             host_window = identify_original_host_window_before_target(host)
-        if args.rejoin_target or args.rejoin_release:
+        if args.rejoin_target or args.rejoin_release or args.locked_target:
             # Capture host only while it remains the *sole* Minecraft
             # window, not by ambiguous late --pid once targets exist.
+            # V366 R6: sticky-A recovery may only send real Escape to this
+            # captured host window after genuine axp pause source evidence.
             if host_window is not None:
                 raise AssertionError(
                     "V349 host window already captured by another fixture")
@@ -3462,6 +3464,19 @@ def run(args):
                                     "scoreboard players test {} taken 0 0".format(player),
                                     expected=b"score 0 is in range 0 to 0")
             print("CUSTOMMC_OFFICIAL_189_LOCK_NEARER_B_STILL_ZERO_DAMAGE_PASS=YES",
+                  flush=True)
+            # V366 R6: three real client windows may leave CIHost in Mojang's
+            # original axp pause menu. Preserve the strict GUI combat veto.
+            # Only the known host window and a source-confirmed axp may
+            # authorize a real XTest Escape; no synthetic attack, screen
+            # mutation or arbitrary window choice is allowed here.
+            v348_resume_confirmed_original_pause(
+                host, host_log, deadline, host_window)
+            if v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)":
+                raise AssertionError(
+                    "sticky A original host GUI did not establish native CLEAR "
+                    "before genuine controller/server-damage acceptance")
+            print("CUSTOMMC_189_V366_LOCK_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
                   flush=True)
             # A now enters normal survival, and real attacks MUST produce
             # genuine positive server damage, not merely a creative click.
