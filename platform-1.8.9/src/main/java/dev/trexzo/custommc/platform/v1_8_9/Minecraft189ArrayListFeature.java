@@ -50,6 +50,9 @@ final class Minecraft189ArrayListFeature
     private final SettingRegistry.Registration animateSetting;
     private final SettingPresentationRegistry.Registration animatePresentation;
     private final ModuleSettingRegistry.Registration animateBinding;
+    private final SettingRegistry.Registration textShadowSetting;
+    private final SettingPresentationRegistry.Registration textShadowPresentation;
+    private final ModuleSettingRegistry.Registration textShadowBinding;
     private boolean closed;
 
     private Minecraft189ArrayListFeature(
@@ -83,7 +86,10 @@ final class Minecraft189ArrayListFeature
             final ModuleSettingRegistry.Registration showBackgroundBinding,
             final SettingRegistry.Registration animateSetting,
             final SettingPresentationRegistry.Registration animatePresentation,
-            final ModuleSettingRegistry.Registration animateBinding) {
+            final ModuleSettingRegistry.Registration animateBinding,
+            final SettingRegistry.Registration textShadowSetting,
+            final SettingPresentationRegistry.Registration textShadowPresentation,
+            final ModuleSettingRegistry.Registration textShadowBinding) {
         this.controller = controller;
         this.module = module;
         this.moduleRegistration = moduleRegistration;
@@ -115,6 +121,9 @@ final class Minecraft189ArrayListFeature
         this.animateSetting = animateSetting;
         this.animatePresentation = animatePresentation;
         this.animateBinding = animateBinding;
+        this.textShadowSetting = textShadowSetting;
+        this.textShadowPresentation = textShadowPresentation;
+        this.textShadowBinding = textShadowBinding;
     }
 
     static Minecraft189ArrayListFeature install(
@@ -170,6 +179,9 @@ final class Minecraft189ArrayListFeature
         SettingRegistry.Registration animateSetting = null;
         SettingPresentationRegistry.Registration animatePresentation = null;
         ModuleSettingRegistry.Registration animateBinding = null;
+        SettingRegistry.Registration textShadowSetting = null;
+        SettingPresentationRegistry.Registration textShadowPresentation = null;
+        ModuleSettingRegistry.Registration textShadowBinding = null;
 
         try {
             moduleRegistration =
@@ -197,6 +209,7 @@ final class Minecraft189ArrayListFeature
             rightAlignedSetting = settings.register(module.rightAlignedSetting());
             showBackgroundSetting = settings.register(module.showBackgroundSetting());
             animateSetting = settings.register(module.animateSetting());
+            textShadowSetting = settings.register(module.textShadowSetting());
 
             xPresentation =
                     settingPresentations.register(
@@ -251,6 +264,10 @@ final class Minecraft189ArrayListFeature
                     new SettingDescriptor(
                             Minecraft189ArrayListModule.ANIMATE_SETTING_ID,
                             "Animate Entries", SettingValueKind.BOOLEAN, 80));
+            textShadowPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189ArrayListModule.TEXT_SHADOW_SETTING_ID,
+                            "Text Shadow", SettingValueKind.BOOLEAN, 90));
 
             xBinding =
                     moduleSettings.register(
@@ -294,6 +311,10 @@ final class Minecraft189ArrayListFeature
                     new ModuleSettingBinding(
                             Minecraft189ArrayListModule.ID,
                             Minecraft189ArrayListModule.ANIMATE_SETTING_ID, 80));
+            textShadowBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189ArrayListModule.ID,
+                            Minecraft189ArrayListModule.TEXT_SHADOW_SETTING_ID, 90));
 
             return new Minecraft189ArrayListFeature(
                     controller,
@@ -326,8 +347,14 @@ final class Minecraft189ArrayListFeature
                     showBackgroundBinding,
                     animateSetting,
                     animatePresentation,
-                    animateBinding);
+                    animateBinding,
+                    textShadowSetting,
+                    textShadowPresentation,
+                    textShadowBinding);
         } catch (RuntimeException failure) {
+            closeQuietly(textShadowBinding, failure);
+            closeQuietly(textShadowPresentation, failure);
+            closeQuietly(textShadowSetting, failure);
             closeQuietly(animateBinding, failure);
             closeQuietly(animatePresentation, failure);
             closeQuietly(animateSetting, failure);
@@ -388,6 +415,9 @@ final class Minecraft189ArrayListFeature
             failure = closeFailure;
         }
 
+        failure = close(textShadowBinding, failure);
+        failure = close(textShadowPresentation, failure);
+        failure = close(textShadowSetting, failure);
         failure = close(animateBinding, failure);
         failure = close(animatePresentation, failure);
         failure = close(animateSetting, failure);
