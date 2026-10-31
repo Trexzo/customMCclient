@@ -341,7 +341,7 @@ final class Minecraft189TargetHudModuleTest {
             gui.model().close();
             assertEquals("18", settings.snapshotEncoded().get(
                     Minecraft189TargetHudModule.X_SETTING_ID));
-            assertEquals("210", settings.snapshotEncoded().get(
+            assertEquals("84", settings.snapshotEncoded().get(
                     Minecraft189TargetHudModule.Y_SETTING_ID));
 
             final int renderedTextsBeforeClear = host.texts.size();
