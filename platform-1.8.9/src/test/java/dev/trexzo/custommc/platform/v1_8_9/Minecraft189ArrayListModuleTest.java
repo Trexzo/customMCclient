@@ -102,6 +102,24 @@ final class Minecraft189ArrayListModuleTest {
                     host.positions);
 
             assertEquals(0xFFEE8755, host.lastAccentColor);
+            assertEquals(Boolean.TRUE,
+                    runtime.featureCatalog().arrayList().textShadowSetting().get());
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.TEXT_SHADOW_SETTING_ID));
+            assertEquals(2, host.shadowDraws);
+            // Persisted opt-out leaves the source enabled row list intact.
+            runtime.featureCatalog().arrayList().textShadowSetting().set(false);
+            host.clear();
+            runtime.renderHud(10L, 0.0F);
+            assertEquals(0, host.shadowDraws);
+            assertEquals(Arrays.asList(
+                    "CustomMC", "Watermark", "Array List"), host.text);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.TEXT_SHADOW_SETTING_ID));
+            runtime.featureCatalog().arrayList().textShadowSetting().set(true);
+            host.clear();
+            runtime.renderHud(11L, 0.0F);
+            assertEquals(2, host.shadowDraws);
             assertEquals(Boolean.FALSE,
                     runtime.featureCatalog().arrayList().showBackgroundSetting().get());
             assertEquals(0, host.roundedRects);
@@ -164,6 +182,7 @@ final class Minecraft189ArrayListModuleTest {
                         Minecraft189ArrayListModule.Y_SETTING_ID));
         assertNull(settings.find(Minecraft189ArrayListModule.SHOW_CATEGORIES_SETTING_ID));
         assertNull(settings.find(Minecraft189ArrayListModule.GROUP_CATEGORIES_SETTING_ID));
+        assertNull(settings.find(Minecraft189ArrayListModule.TEXT_SHADOW_SETTING_ID));
     }
 
     @Test
@@ -504,6 +523,7 @@ final class Minecraft189ArrayListModuleTest {
         private final List<Integer> textColors = new ArrayList<Integer>();
         private int lastAccentColor;
         private int roundedRects;
+        private int shadowDraws;
         private int windowWidth = 1280;
         private int windowHeight = 720;
 
@@ -512,6 +532,7 @@ final class Minecraft189ArrayListModuleTest {
             positions.clear();
             textColors.clear();
             roundedRects = 0;
+            shadowDraws = 0;
         }
 
         @Override
@@ -592,6 +613,15 @@ final class Minecraft189ArrayListModuleTest {
                     Float.toString(x)
                             + ","
                             + Float.toString(y));
+        }
+
+        @Override
+        public void drawTextShadow(
+                final UiFontHandle font,
+                final float x, final float y,
+                final String value, final int argb) {
+            shadowDraws++;
+            drawText(font, x, y, value, argb);
         }
 
         @Override

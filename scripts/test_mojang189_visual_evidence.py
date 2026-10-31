@@ -5,6 +5,7 @@ from Mojang189VisualEvidence import (
     graphite_sample_count, parse_x11_geometry, require_visible_graphite,
     original_target_hud_native_text_contrast,
     original_arraylist_compact_row_pitch,
+    original_arraylist_native_shadow_pixels,
 )
 
 
@@ -60,6 +61,38 @@ class NativeVisualEvidenceTests(unittest.TestCase):
             require_visible_graphite(before, after)
 
 
+
+    def test_original_arraylist_shadow_requires_dark_pixels_adjacent_to_glyphs(self):
+        # Unit classifier fixture only: never an original-game screenshot.
+        width, height = 854, 480
+        sky = bytes((173, 203, 255)) * (width * height)
+        frame = bytearray(sky)
+
+        def paint(x0, y0, x1, y1, color):
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    at = (y * width + x) * 3
+                    frame[at:at + 3] = bytes(color)
+
+        for y in (30, 52, 74):
+            # Dark adjacent glyph outlines; bright interior pixels.
+            paint(678, y - 2, 762, y + 12, (42, 42, 42))
+            paint(680, y, 760, y + 10, (242, 242, 242))
+        result = original_arraylist_native_shadow_pixels(frame, width, height)
+        self.assertGreaterEqual(result["bright_glyph_pixels"], 600)
+        self.assertGreaterEqual(result["adjacent_dark_shadow_pixels"], 400)
+        with self.assertRaisesRegex(AssertionError, "exact CI window"):
+            original_arraylist_native_shadow_pixels(frame, 640, 480)
+
+        # Removing shadow keeps the exact same bright glyph geometry,
+        # but must fail the original RGB witness.
+        for y in (30, 52, 74):
+            paint(678, y - 2, 762, y + 12, (173, 203, 255))
+            paint(680, y, 760, y + 10, (242, 242, 242))
+        with self.assertRaisesRegex(AssertionError, "shadow pixels absent"):
+            original_arraylist_native_shadow_pixels(frame, width, height)
+        with self.assertRaisesRegex(AssertionError, "shadow pixels absent"):
+            original_arraylist_native_shadow_pixels(sky, width, height)
 
     def test_compact_arraylist_glyph_pitch_accepts_real_size_only(self):
         # Synthetic RGB classifier-only unit input, never a game image.

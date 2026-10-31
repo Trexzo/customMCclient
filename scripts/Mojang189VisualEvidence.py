@@ -158,6 +158,44 @@ def original_arraylist_compact_row_pitch(rgb, width, height):
 
 
 
+
+def original_arraylist_native_shadow_pixels(rgb, width, height):
+    """Prove subtle Mojang text shadow against bright sky in REAL X11 RGB.
+
+    This is bounded to the authentic 854x480 two-player acceptance scene.
+    The native font adapter receipt separately proves drawString(shadow=True);
+    this function additionally rejects native output that has no adjacent
+    dark glyph pixels even if source receipt exists. Never OCR or mock game UI.
+    """
+    if width != 854 or height != 480 or len(rgb) != width * height * 3:
+        raise AssertionError("ArrayList shadow pixel witness needs exact CI window")
+    x0, x1, y0, y1 = 655, 832, 26, 96
+    bright = set()
+    dark = set()
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            at = (y * width + x) * 3
+            red, green, blue = rgb[at:at + 3]
+            if min(red, green, blue) > 175 and (
+                    max(red, green, blue) - min(red, green, blue)) < 35:
+                bright.add((x, y))
+            elif max(red, green, blue) < 125 and (
+                    max(red, green, blue) - min(red, green, blue)) < 50:
+                dark.add((x, y))
+    near_glyph = 0
+    for x, y in dark:
+        if any((x + dx, y + dy) in bright
+               for dy in range(-2, 3) for dx in range(-2, 3)):
+            near_glyph += 1
+    if len(bright) < 600 or near_glyph < 400:
+        raise AssertionError(
+            "native ArrayList original-font shadow pixels absent: "
+            "bright={} adjacent_dark={}".format(len(bright), near_glyph))
+    return {"bright_glyph_pixels": len(bright),
+            "adjacent_dark_shadow_pixels": near_glyph}
+
+
+
 def capture_original_x11(window, png_file, require_target_hud_text=False):
     """Screenshot the exact original X11 game window, never a mock canvas."""
     from mss import mss, tools
@@ -195,6 +233,8 @@ def capture_original_x11(window, png_file, require_target_hud_text=False):
         result["native_target_hud_text"] = original_target_hud_native_text_contrast(
             rgb, rectangle["width"], rectangle["height"])
         result["native_arraylist_compact_pitch"] = original_arraylist_compact_row_pitch(
+            rgb, rectangle["width"], rectangle["height"])
+        result["native_arraylist_shadow"] = original_arraylist_native_shadow_pixels(
             rgb, rectangle["width"], rectangle["height"])
     return result
 

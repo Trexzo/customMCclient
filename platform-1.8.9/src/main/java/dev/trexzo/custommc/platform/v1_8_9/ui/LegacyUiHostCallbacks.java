@@ -45,6 +45,13 @@ public interface LegacyUiHostCallbacks
             String text,
             int argb);
 
+    // Non-native/mock hosts remain source-compatible. On the original
+    // LWJGL/Mojang host, this calls FontRenderer.drawString(..., true).
+    default void drawTextShadow(final UiFontHandle font,
+            final float x, final float y, final String text, final int argb) {
+        drawText(font, x, y, text, argb);
+    }
+
     // Existing non-LWJGL test hosts stay source-compatible; -1 requests
     // the bounded historical approximation in the ArrayList renderer.
     default int measureText(final String text) { return -1; }
