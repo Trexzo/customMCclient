@@ -188,7 +188,7 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         # never forge a CLEAR verdict, controller click, server damage or
         # loosen the original GuiScreen veto in production.
         self.assertIn(
-            'or args.locked_target or args.simultaneous):',
+            'or args.multi_target):',
             HARNESS)
         self.assertIn(
             '"custommc.acceptance.reportKillAuraLockedTarget"',
@@ -277,6 +277,54 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         self.assertIn('Minecraft189NativeGuiCombatVeto.blocks(minecraft)', veto)
         self.assertIn('host.suspendSyntheticCombatForOriginalGui();', veto)
         self.assertIn('return true;', veto)
+
+    def test_r8_original_multi_target_pause_recovery_keeps_uuid_and_server_oracles(self):
+        # A missing A controller click may not be waived by a new GUI
+        # fixture. The actual vanilla screen must be proven CLEAR, and
+        # original A/B UUID clicks and dedicated server damage stay strict.
+        self.assertIn(
+            '"custommc.acceptance.reportKillAuraMultiTarget"',
+            BRIDGE.split('private static void reportAcceptanceScreen()', 1)[0])
+        multi = HARNESS.split('if args.multi_target:', 1)[1].split(
+            'if args.wall_veto or args.wall_recovery or args.wall_lifecycle:', 1)[0]
+        self.assertEqual(1, multi.count('v348_resume_confirmed_original_pause('))
+        self.assertLess(multi.index('MULTI_READY, deadline,'),
+                        multi.index('v348_resume_confirmed_original_pause('))
+        self.assertLess(multi.index('v348_resume_confirmed_original_pause('),
+                        multi.index('MULTI_HIT_A, deadline,'))
+        self.assertIn(
+            'v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)"',
+            multi)
+        self.assertIn(
+            'CUSTOMMC_189_V366_MULTI_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES',
+            multi)
+        for mandatory in (
+            'wait_for(host, host_log, MULTI_HIT_A, deadline,',
+            'wait_for_real_score(server, server_log, "CITarget", deadline)',
+            '"scoreboard players test CITargetB taken 0 0"',
+            'wait_for(host, host_log, MULTI_SWITCH, deadline,',
+            'wait_for(host, host_log, MULTI_HIT_B, deadline,',
+            'wait_for_real_score(server, server_log, "CITargetB", deadline)',
+            '"scoreboard players test CITarget taken 1 999999"',
+            "CUSTOMMC_OFFICIAL_189_MULTI_PER_TARGET_SERVER_DAMAGE_PASS=YES",
+        ):
+            self.assertIn(mandatory, multi)
+        recovery = HARNESS.split(
+            "def v348_resume_confirmed_original_pause(", 1)[1].split(
+            "def restore_real_attacker_focus(", 1)[0]
+        for mandatory in (
+            'if screen != "axp":',
+            'if v348_latest_original_gui_screen(host_log) != "axp":',
+            'send_real_host_key(host, window, "Escape")',
+            'b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)"',
+        ):
+            self.assertIn(mandatory, recovery)
+        veto = BRIDGE.split(
+            "private static boolean vetoOriginalScreenBeforeNativeCombat(", 1)[1].split(
+            "public static synchronized void autoClick(", 1)[0]
+        self.assertIn("Minecraft189NativeGuiCombatVeto.blocks(minecraft)", veto)
+        self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
+        self.assertIn("return true;", veto)
 
     def test_original_v47_rejoin_server_damage_oracle_unchanged(self):
         for term in (
