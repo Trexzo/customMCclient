@@ -402,6 +402,68 @@ final class Minecraft189TargetHudModuleTest {
     }
 
     @Test
+    void longSourceCoordinatesAndDistanceUseMeasuredNativeWidthWithoutChangingTarget() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final RecordingHost host = new RecordingHost();
+        host.nativeWidthPerCharacter = 12;
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189TargetHudModule hud =
+                    runtime.featureCatalog().targetHud();
+            hud.showCoordinatesSetting().set(Boolean.TRUE);
+            controller.enable(Minecraft189TargetHudModule.ID);
+            runtime.playerPositionState().update(0.0D, 0.0D, 0.0D);
+            runtime.worldEntityPositionState().update(new double[] {
+                    0.0D, 0.0D, 0.0D, 1234567.0D, 234567.0D, 3456789.0D});
+            runtime.worldEntityKindState().update(new int[] {
+                    Minecraft189WorldEntityKindState.LIVING
+                            | Minecraft189WorldEntityKindState.PLAYER
+                            | Minecraft189WorldEntityKindState.LOCAL_PLAYER,
+                    Minecraft189WorldEntityKindState.LIVING
+                            | Minecraft189WorldEntityKindState.PLAYER});
+            runtime.nearestPlayerTargetState().update(
+                    runtime.playerPositionState().snapshot(),
+                    runtime.worldEntityPositionState().snapshot(),
+                    runtime.worldEntityKindState().snapshot());
+            runtime.targetRotationState().update(
+                    runtime.playerPositionState().snapshot(),
+                    runtime.nearestPlayerTargetState().snapshot());
+            final String fullCoordinates = Minecraft189TargetHudModule.coordinateText(
+                    runtime.nearestPlayerTargetState().snapshot());
+            assertTrue(fullCoordinates.length() * 12 > 184);
+            runtime.renderHud(7L, 0.0F);
+            assertEquals(3, host.texts.size());
+            assertEquals("NEARBY  02", host.texts.get(0));
+            assertTrue(host.texts.get(1).endsWith("..."));
+            assertTrue(host.texts.get(2).startsWith("XYZ  "));
+            assertTrue(host.texts.get(2).endsWith("..."));
+            assertTrue(host.nativeMeasurementCalls > 3);
+            for (String text : host.texts) {
+                assertTrue(text.length() * 12 <= 184,
+                        "native target text exceeded actual 184px clip: " + text);
+            }
+            assertEquals(fullCoordinates, Minecraft189TargetHudModule.coordinateText(
+                    runtime.nearestPlayerTargetState().snapshot()));
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189TargetHudModule.SHOW_COORDINATES_SETTING_ID));
+            assertEquals(host.pushClips, host.popClips);
+        } finally {
+            runtime.close();
+        }
+    }
+
+    @Test
     void coordinatesOnlyUseAvailableFiniteNearestPlayerAuthority() {
         final Minecraft189NearestPlayerTargetState nearest =
                 new Minecraft189NearestPlayerTargetState();
@@ -624,6 +686,8 @@ final class Minecraft189TargetHudModuleTest {
         private int ends;
         private float lastX;
         private float lastY;
+        private int nativeWidthPerCharacter = -1;
+        private int nativeMeasurementCalls;
 
         @Override
         public int framebufferWidth() {
@@ -712,6 +776,13 @@ final class Minecraft189TargetHudModuleTest {
             textColors.add(Integer.valueOf(argb));
             lastX = x;
             lastY = y;
+        }
+
+        @Override
+        public int measureText(final String text) {
+            nativeMeasurementCalls++;
+            return nativeWidthPerCharacter < 0 ? -1
+                    : nativeWidthPerCharacter * text.length();
         }
 
         @Override
