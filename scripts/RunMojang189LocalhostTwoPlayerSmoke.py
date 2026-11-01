@@ -1938,11 +1938,11 @@ def run(args):
         if (args.rejoin_target or args.rejoin_release
                 or args.locked_target or args.simultaneous
                 or args.multi_target or args.triggerbot_pvp
-                or args.wall_recovery):
+                or args.wall_recovery or args.wall_lifecycle):
             # Capture host only while it remains the *sole* Minecraft
             # window, not by ambiguous late --pid once targets exist.
-            # V366 R10: real wall removal uses the same verified CIHost
-            # window recovery as the sticky, simultaneous and PvP fixtures.
+            # V366 R11: both original wall-recovery and wall-lifecycle
+            # modes retain the only verified CIHost X11 owner.
             if host_window is not None:
                 raise AssertionError(
                     "V349 host window already captured by another fixture")
@@ -3831,13 +3831,15 @@ def run(args):
                       flush=True)
                 wait_for(host, host_log, WALL_RECOVERY_VISIBLE, deadline,
                          "same native remote player visible and selected after wall removal")
-                if args.wall_recovery:
-                    # R9 original native GUI timeline was unavailable in
-                    # wall recovery, even though server AIR and a real
-                    # visible selected player were verified. Do not bypass
-                    # the original game GUI veto: physically dismiss ONLY
-                    # a source-confirmed vanilla axp pause on the unique
-                    # pre-target CIHost X11 window, then require CLEAR.
+                if args.wall_recovery or args.wall_lifecycle:
+                    # R10 independently certified original server AIR,
+                    # native target visibility and actual damage in the
+                    # recovery fixture. R11 applies that same protected
+                    # pause-only recovery to the separate Wall Check
+                    # off/on lifecycle fixture. Neither mode may bypass
+                    # the live GUI veto: physically dismiss ONLY original
+                    # source-confirmed axp on the pre-target CIHost X11
+                    # window; then require source-native CLEAR.
                     v348_resume_confirmed_original_pause(
                         host, host_log, deadline, host_window)
                     if v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)":
