@@ -2605,20 +2605,13 @@ public final class Minecraft189HostRuntime
     boolean mayStartAutoBlock(final boolean playerHit, final int hitIndex,
             final int previousCombatSlot, final boolean itemAlreadyInUse) {
         requireOpen();
-        if (!mayDispatchScheduledCombatLane()) return false;
-        // The native sword getter can reenter a module toggle or GUI.
-        // That old attack may never authorize a new sword right-click.
-        final boolean verifiedSword = holdingVerifiedSword();
-        return mayDispatchScheduledCombatLane()
-                && featureCatalog.autoBlock().mayStart(
-                        verifiedSword,
-                        playerHit && worldEntityCombatState.snapshot().alive(hitIndex),
-                        clickGuiRuntime.coreRuntime().model().snapshot().open(),
-                        inputState.pointerPressed(
-                                Minecraft189ClickRateTracker.RIGHT_BUTTON),
-                        previousCombatSlot >= 0,
-                        itemAlreadyInUse)
-                && mayDispatchScheduledCombatLane();
+        return featureCatalog.autoBlock().mayStart(
+                holdingVerifiedSword(),
+                playerHit && worldEntityCombatState.snapshot().alive(hitIndex),
+                clickGuiRuntime.coreRuntime().model().snapshot().open(),
+                inputState.pointerPressed(Minecraft189ClickRateTracker.RIGHT_BUTTON),
+                previousCombatSlot >= 0,
+                itemAlreadyInUse);
     }
 
     long beginAutoBlockNativeUse() {
@@ -2627,7 +2620,6 @@ public final class Minecraft189HostRuntime
         // reservation must not invoke an additional native HeldItem getter.
         // Keep original callback ordering; bind the actual current owner
         // serial at reservation and revalidate it AFTER right-click returns.
-        if (!mayDispatchScheduledCombatLane()) return 0L;
         return featureCatalog.autoBlock().beginNativeUse(
                 heldItemOwnerSerial);
     }
@@ -2642,20 +2634,17 @@ public final class Minecraft189HostRuntime
      */
     boolean mayDispatchAutoBlockNativeUse(final long useToken) {
         requireOpen();
-        if (useToken == 0L || !mayDispatchScheduledCombatLane())
-            return false;
+        if (useToken == 0L) return false;
         final long ownerBeforeRead = heldItemOwnerSerial;
         final boolean nativeSwordStillHeld = holdingVerifiedSword();
         return nativeSwordStillHeld
                 && ownerBeforeRead == heldItemOwnerSerial
-                && mayDispatchScheduledCombatLane()
                 && featureCatalog.autoBlock().permitsNativeUseDispatch(
                         useToken, nativeSwordStillHeld,
                         clickGuiRuntime.coreRuntime().model().snapshot().open(),
                         inputState.pointerPressed(
                                 Minecraft189ClickRateTracker.RIGHT_BUTTON),
-                        heldItemOwnerSerial)
-                && mayDispatchScheduledCombatLane();
+                        heldItemOwnerSerial);
     }
 
     /** Final cleanup: never send native item release or revoke newer lease. */
@@ -2665,13 +2654,11 @@ public final class Minecraft189HostRuntime
 
     void recordAutoBlockStart(final long useToken) {
         requireOpen();
-        if (!mayDispatchScheduledCombatLane()) return;
         // The native isUsingItem result was already observed in the bridge.
         // This second source check may itself trigger a NEW HeldItem callback.
         // Never allow a sword of the same TYPE from a newer callback to
         // commit an older synthetic use-item lease.
         final boolean currentSword = holdingVerifiedSword();
-        if (!mayDispatchScheduledCombatLane()) return;
         featureCatalog.autoBlock().completeNativeUse(
                 useToken, currentSword,
                 clickGuiRuntime.coreRuntime().model().snapshot().open(),
