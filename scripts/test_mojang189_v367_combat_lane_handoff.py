@@ -73,16 +73,19 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
             "                            || !host.mayDispatchScheduledCombatLane())",
             dispatch)
         self.assertEqual(2, dispatch.count(
-            "if (!host.mayDispatchScheduledCombatLane())\n"
+            "if (!host.mayDispatchScheduledCombatLane()\n"
+            "                                        || !host.mayRetainOriginalCriticalsAdmission())\n"
             "                                    return;\n"
             "                                minecraft.customMcAttackCrosshairEntity();"
         ) + dispatch.count(
-            "if (!host.mayDispatchScheduledCombatLane())\n"
+            "if (!host.mayDispatchScheduledCombatLane()\n"
+            "                                            || !host.mayRetainOriginalCriticalsAdmission())\n"
             "                                        return;\n"
             "                                    minecraft.customMcAttackCrosshairEntity();"
         ))
         self.assertIn(
-            "if (!host.mayDispatchScheduledCombatLane())\n"
+            "if (!host.mayDispatchScheduledCombatLane()\n"
+            "                                        || !host.mayRetainOriginalCriticalsAdmission())\n"
             "                                    return;\n"
             "                                minecraft.customMcClickMouse();",
             dispatch)
@@ -96,6 +99,60 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
         ):
             self.assertIn(requirement, dispatch)
         self.assertNotIn("leftClickCounter =", dispatch)
+
+    def test_r4_original_criticals_policy_retained_after_hitselect_and_gui(self):
+        # This is only the source contract: original Java/Mojang integration
+        # and real server-positive damage require exact-head CI separately.
+        proof = HOST.split("boolean mayRetainOriginalCriticalsAdmission() {", 1)[1].split(
+            "\n    }", 1)[0]
+        for guard in (
+            "if (!mayDispatchScheduledCombatLane()",
+            "criticalsNativeAdmissionSerial < 0L",
+            "criticalsNativeAdmissionSerial",
+            "!= triggerDispatchAdmissionSerial",
+            "module.active() != criticalsNativeActive",
+            "module.lifecycleEpoch() != criticalsNativeLifecycleEpoch",
+            "module.minimumFallDistanceSetting().get()",
+            "!= criticalsNativeMinimumFall",
+            "module.requireDescendingSetting().get()",
+            "!= criticalsNativeRequireDescending",
+            "return !module.active()",
+            "criticalNativeSourceStillOwned(",
+            "criticalsNativeSourceGeneration",
+        ):
+            self.assertIn(guard, proof)
+        # Do not inject new vanilla mapped fall getters or a source-motion
+        # sample between HitSelect proof and the real controller attack.
+        for forbidden in (
+            "customMcOnGround()", "customMcFallDistance()",
+            "customMcMotionY()", "customMcAttackCrosshairEntity()",
+            "customMcClickMouse()", "new HitSelectNativeControllerIntent",
+        ):
+            self.assertNotIn(forbidden, proof)
+        dispatch = BRIDGE.split(
+            "if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {",
+            1)[1].split("} finally {\n                // Every early return", 1)[0]
+        self.assertEqual(3, dispatch.count(
+            "host.mayRetainOriginalCriticalsAdmission()"))
+        self.assertEqual(3, dispatch.count(
+            "if (!host.mayDispatchOriginalCriticals()) return;"))
+        self.assertEqual(3, dispatch.count(
+            "permitsHitSelectAtNativeDispatch("))
+        # Every lane has the same admission sequence, not merely a
+        # late global check which could be skipped for a native branch.
+        for native_call in (
+            "minecraft.customMcAttackCrosshairEntity();",
+            "minecraft.customMcClickMouse();",
+        ):
+            self.assertIn(native_call, dispatch)
+        for section in dispatch.split("host.mayDispatchOriginalCriticals()")[1:]:
+            self.assertLess(section.index("permitsHitSelectAtNativeDispatch("),
+                            section.index("mayRetainOriginalCriticalsAdmission()"))
+            self.assertLess(section.index("mayRetainOriginalCriticalsAdmission()"),
+                            min((section.find(name) for name in (
+                                "minecraft.customMcAttackCrosshairEntity();",
+                                "minecraft.customMcClickMouse();")
+                                if section.find(name) >= 0)))
 
     def test_r3_post_melee_autoblock_preserves_standalone_source_api(self):
         # Existing sword-source JUnit fixtures deliberately call the host
