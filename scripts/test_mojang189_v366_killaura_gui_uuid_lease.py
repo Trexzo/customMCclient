@@ -535,6 +535,63 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
         self.assertIn("return true;", veto)
 
+    def test_r13_ordinary_real_pvp_requires_native_gui_clear_and_server_damage(self):
+        # Step 73: isolated ordinary Kill Aura was normally enabled, but
+        # original X11 game screen had no diagnostic source at all. Add only
+        # a strict source-verified axp Escape to normal Aura acceptance.
+        # Original controller, real hurt and dedicated-server PvP score
+        # remain authoritative; do not send a manual click or fake UUID.
+        source = BRIDGE.split("private static void reportAcceptanceScreen()", 1)[0]
+        self.assertIn('"custommc.acceptance.reportKillAuraLocalPvp"', source)
+        harness = HARNESS.split("def run(", 1)[1].split(
+            "    except BaseException:", 1)[0]
+        before_target = harness.split('with target_log.open("wb")', 1)[0]
+        self.assertIn("or args.unlocked_scoped_veto or args.pvp):", before_target)
+        self.assertIn("host_window = identify_original_host_window_before_target(host)",
+                      before_target)
+        pvp = harness.split("if args.pvp:", 1)[1].split(
+            "for phase, proc in (", 1)[0]
+        self.assertEqual(3, pvp.count("v348_resume_confirmed_original_pause("))
+        ordinary = pvp.split(
+            "if not (args.unlocked_remote_owner_veto or args.unlocked_scoped_veto):",
+            1)[1].split('wait_for(host, host_log, AURA_ATTACK, deadline,', 1)[0]
+        self.assertEqual(1, ordinary.count("v348_resume_confirmed_original_pause("))
+        self.assertIn(
+            'v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)"',
+            ordinary)
+        self.assertIn(
+            "CUSTOMMC_189_V366_ORDINARY_PVP_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+            ordinary)
+        self.assertLess(
+            pvp.index('v348_resume_confirmed_original_pause(',
+                      pvp.index("if not (args.unlocked_remote_owner_veto or args.unlocked_scoped_veto):")),
+            pvp.index("AURA_ATTACK, deadline,"))
+        for strict in (
+            'wait_for(host, host_log, AURA_ATTACK, deadline,',
+            'wait_for(host, host_log, CONTROLLER_ATTACK,',
+            'TRIGGER_HURT if args.triggerbot_pvp else AURA_HURT',
+            '"scoreboard players test CITarget taken 1 999999"',
+            'CUSTOMMC_OFFICIAL_189_SERVER_ACCEPTED_PLAYER_DAMAGE_PASS=YES',
+        ):
+            self.assertIn(strict, pvp)
+        recovery = HARNESS.split(
+            "def v348_resume_confirmed_original_pause(", 1)[1].split(
+            "def restore_real_attacker_focus(", 1)[0]
+        for term in (
+            'if screen != "axp":',
+            'if v348_latest_original_gui_screen(host_log) != "axp":',
+            'send_real_host_key(host, window, "Escape")',
+            'b"CUSTOMMC_189_ACCEPTANCE_SCREEN=(in-game/no GUI)"',
+            "V349 captured original host window disappeared",
+        ):
+            self.assertIn(term, recovery)
+        veto = BRIDGE.split(
+            "private static boolean vetoOriginalScreenBeforeNativeCombat(", 1)[1].split(
+            "public static synchronized void autoClick(", 1)[0]
+        self.assertIn("Minecraft189NativeGuiCombatVeto.blocks(minecraft)", veto)
+        self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
+        self.assertIn("return true;", veto)
+
     def test_original_v47_rejoin_server_damage_oracle_unchanged(self):
         for term in (
             "CUSTOMMC_189_REJOIN_REAL_A_DISCONNECTED_PASS",
