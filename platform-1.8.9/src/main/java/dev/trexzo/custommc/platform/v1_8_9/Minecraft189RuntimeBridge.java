@@ -1433,7 +1433,9 @@ public final class Minecraft189RuntimeBridge {
                         || Boolean.getBoolean(
                                 "custommc.acceptance.requireRemotePairAuraOwnerVeto")
                         || Boolean.getBoolean(
-                                "custommc.acceptance.requireUnlockedAuraOwnerVeto"))) {
+                                "custommc.acceptance.requireUnlockedAuraOwnerVeto")
+                        || Boolean.getBoolean(
+                                "custommc.acceptance.reportKillAuraLocalPvp"))) {
                 reportAcceptanceScreen();
             }
             if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")
