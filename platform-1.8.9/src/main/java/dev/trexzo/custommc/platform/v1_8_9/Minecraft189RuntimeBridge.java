@@ -3687,6 +3687,11 @@ public final class Minecraft189RuntimeBridge {
                             // sword check: source getters may open GuiScreen.
                             if (vetoOriginalScreenBeforeNativeCombat(
                                     host, minecraft)) return;
+                            // V367 R3: an original GUI getter or module
+                            // lifecycle transition after sword validation
+                            // must not inherit the melee lane's old reblock.
+                            if (!host.mayDispatchScheduledCombatLane())
+                                return;
                             minecraft.customMcRightClickMouse();
                             if (swordBlock.customMcIsUsingItem()) {
                                 host.recordAutoBlockStart(useToken);
