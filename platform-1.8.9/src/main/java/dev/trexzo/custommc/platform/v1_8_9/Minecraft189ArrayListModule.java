@@ -273,6 +273,31 @@ public final class Minecraft189ArrayListModule
             if (label.isEmpty()) return;
             final float textX = Math.max(4.0F,
                     left - Minecraft189ArrayListMotion.slide(phase));
+            // S45: mirror the restrained right-aligned accent rail and the
+            // already-persisted optional chip in left-aligned profiles.
+            // Keep the original user-owned text X (including during entry)
+            // and never draw outside the logical 4px viewport margin.
+            final float railX = Math.max(4.0F, left - 8.0F);
+            final float cardRight = Math.min(screenWidth - 4.0F,
+                    textX + measuredTextWidth(label) + 4.0F);
+            final float chipWidth = Math.max(0.0F, cardRight - railX);
+            final UiTheme theme = themeSettings == null
+                    ? UiThemes.graphite()
+                    : UiThemeSettings.resolve(themeSettings, UiThemes.graphite());
+            if (showBackground.get().booleanValue() && chipWidth >= 2.0F) {
+                hostCallbacks.fillRoundedRect(railX, currentY - 1.0F,
+                        chipWidth, CHIP_HEIGHT, Math.min(2.0F, chipWidth * .5F),
+                        Minecraft189ArrayListMotion.withOpacity(
+                                0x50000000 | (theme.color(UiColorRole.SURFACE)
+                                        & 0xFFFFFF), phase));
+            }
+            // Skip an overlapping rail only while the entering label is
+            // physically sliding across it, or on a too-narrow left inset.
+            if (textX >= railX + 4.0F && railX + 2.0F <= screenWidth - 4.0F) {
+                hostCallbacks.fillRect(railX, currentY, 2.0F, 9.0F,
+                        Minecraft189ArrayListMotion.withOpacity(
+                                theme.color(UiColorRole.ACCENT), phase));
+            }
             hostCallbacks.pushClip(4.0F, currentY - 1.0F,
                     Math.max(0.0F, screenWidth - 8.0F), CHIP_HEIGHT);
             try {
