@@ -61,9 +61,9 @@ final class UiModuleDetailStickyHeaderTest {
         assertFalse(UiModuleDetailBackLink.hit(PANEL, 670, 45));
         assertTrue(UiModuleDetailBackLink.hit(PANEL, 685, 46));
         assertTrue(UiModuleDetailStickyHeader.blocksPointer(
-                PANEL, 230.0F, 40.0F));
+                PANEL, 102.0F, 230.0F, 40.0F));
         assertFalse(UiModuleDetailStickyHeader.blocksPointer(
-                PANEL, 230.0F, 60.0F));
+                PANEL, 102.0F, 230.0F, 60.0F));
     }
 
     @Test
