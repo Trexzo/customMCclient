@@ -186,6 +186,97 @@ final class Minecraft189ArrayListModuleTest {
     }
 
     @Test
+    void leftAlignedListMirrorsSourceAccentAndOptionalIntrinsicChips() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189ArrayListModule list =
+                    runtime.featureCatalog().arrayList();
+            controller.enable(Minecraft189WatermarkModule.ID);
+            controller.enable(Minecraft189ArrayListModule.ID);
+            controller.enable(Minecraft189AutoSprintModule.ID);
+            list.rightAlignedSetting().set(false);
+            list.animateSetting().set(false);
+            list.showBackgroundSetting().set(true);
+            list.xSetting().set(40);
+            list.ySetting().set(50);
+
+            runtime.renderHud(50L, 0.0F);
+            assertEquals(4, host.text.size()); // Watermark + 3 real source rows
+            assertEquals(3, host.accentRailX.size());
+            assertEquals(3, host.chipX.size());
+            assertEquals(3, host.chipWidths.size());
+            for (int index = 0; index < 3; index++) {
+                assertEquals(32.0F, host.accentRailX.get(index), .0001F);
+                assertEquals(32.0F, host.chipX.get(index), .0001F);
+                assertTrue(host.chipWidths.get(index) > 20.0F);
+                assertTrue(host.chipWidths.get(index) < 180.0F,
+                        "left chip must hug actual text, not fill viewport");
+                assertEquals("40.0", host.positions.get(index + 1).split(",")[0]);
+            }
+            assertEquals(0xFFEE8755, host.lastAccentColor);
+            assertEquals(host.clipPushes, host.clipPops);
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.RIGHT_ALIGNED_SETTING_ID));
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.SHOW_BACKGROUND_SETTING_ID));
+
+            host.clear();
+            assertTrue(UiThemeSettings.cycle(
+                    settings.find(UiThemeSettings.ID), true));
+            runtime.renderHud(51L, 0.0F);
+            assertEquals(0xFF5994EA, host.lastAccentColor);
+            assertEquals(3, host.accentRailX.size());
+            assertEquals(host.clipPushes, host.clipPops);
+
+            // Default opt-out makes zero backgrounds in the same left mode.
+            list.showBackgroundSetting().set(false);
+            host.clear();
+            runtime.renderHud(52L, 0.0F);
+            assertEquals(0, host.chipX.size());
+            assertEquals(3, host.accentRailX.size());
+            assertEquals(host.clipPushes, host.clipPops);
+
+            // Saved X from a larger desktop recovers visibly after shrink
+            // without modifying either stored setting or enabled module.
+            host.windowWidth = 854;
+            list.xSetting().set(4096);
+            host.clear();
+            runtime.renderHud(53L, 0.0F);
+            assertEquals(0, host.chipX.size());
+            assertEquals(3, host.accentRailX.size());
+            for (String pos : host.positions.subList(1, host.positions.size())) {
+                assertEquals(8.0F,
+                        Float.parseFloat(pos.split(",")[0]), .0001F);
+            }
+            assertEquals("4096", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.X_SETTING_ID));
+
+            // A cramped inset cannot overpaint its own accent rail.
+            list.xSetting().set(4);
+            host.clear();
+            runtime.renderHud(54L, 0.0F);
+            assertEquals(0, host.accentRailX.size());
+            assertEquals(4, host.text.size());
+            assertEquals(host.clipPushes, host.clipPops);
+        } finally {
+            runtime.close();
+        }
+    }
+
+    @Test
     void nativeHudSlidesNewModuleWithoutShowingDisabledGhostRows() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
@@ -590,6 +681,11 @@ final class Minecraft189ArrayListModuleTest {
         private int lastAccentColor;
         private int roundedRects;
         private int shadowDraws;
+        private final List<Float> accentRailX = new ArrayList<Float>();
+        private final List<Float> chipX = new ArrayList<Float>();
+        private final List<Float> chipWidths = new ArrayList<Float>();
+        private int clipPushes;
+        private int clipPops;
         private int windowWidth = 1280;
         private int windowHeight = 720;
         private boolean nativeMeasurementsEnabled;
@@ -602,6 +698,11 @@ final class Minecraft189ArrayListModuleTest {
             textColors.clear();
             roundedRects = 0;
             shadowDraws = 0;
+            accentRailX.clear();
+            chipX.clear();
+            chipWidths.clear();
+            clipPushes = 0;
+            clipPops = 0;
             nativeWidthCalls.clear();
         }
 
@@ -634,6 +735,7 @@ final class Minecraft189ArrayListModuleTest {
                 final int argb) {
             if (width == 2.0F && height == 9.0F) {
                 lastAccentColor = argb;
+                accentRailX.add(x);
             }
         }
 
@@ -646,6 +748,8 @@ final class Minecraft189ArrayListModuleTest {
                 final float radius,
                 final int argb) {
             roundedRects++;
+            chipX.add(x);
+            chipWidths.add(width);
         }
 
         @Override
@@ -664,10 +768,12 @@ final class Minecraft189ArrayListModuleTest {
                 final float y,
                 final float width,
                 final float height) {
+            clipPushes++;
         }
 
         @Override
         public void popClip() {
+            clipPops++;
         }
 
         @Override
