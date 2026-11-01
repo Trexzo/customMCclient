@@ -46,12 +46,15 @@ public final class Minecraft189FeatureCatalog
     private final SettingRegistry.Registration textSetting;
     private final SettingRegistry.Registration xSetting;
     private final SettingRegistry.Registration ySetting;
+    private final SettingRegistry.Registration watermarkShadowSetting;
     private final SettingPresentationRegistry.Registration textPresentation;
     private final SettingPresentationRegistry.Registration xPresentation;
     private final SettingPresentationRegistry.Registration yPresentation;
+    private final SettingPresentationRegistry.Registration watermarkShadowPresentation;
     private final ModuleSettingRegistry.Registration textBinding;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
+    private final ModuleSettingRegistry.Registration watermarkShadowBinding;
     private final Minecraft189ArrayListFeature arrayListFeature;
     private final Minecraft189KeystrokesFeature keystrokesFeature;
     private final Minecraft189FpsFeature fpsFeature;
@@ -152,12 +155,15 @@ public final class Minecraft189FeatureCatalog
             final SettingRegistry.Registration textSetting,
             final SettingRegistry.Registration xSetting,
             final SettingRegistry.Registration ySetting,
+            final SettingRegistry.Registration watermarkShadowSetting,
             final SettingPresentationRegistry.Registration textPresentation,
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
+            final SettingPresentationRegistry.Registration watermarkShadowPresentation,
             final ModuleSettingRegistry.Registration textBinding,
             final ModuleSettingRegistry.Registration xBinding,
             final ModuleSettingRegistry.Registration yBinding,
+            final ModuleSettingRegistry.Registration watermarkShadowBinding,
             final Minecraft189ArrayListFeature arrayListFeature,
             final Minecraft189KeystrokesFeature keystrokesFeature,
             final Minecraft189FpsFeature fpsFeature,
@@ -252,12 +258,15 @@ public final class Minecraft189FeatureCatalog
         this.textSetting = textSetting;
         this.xSetting = xSetting;
         this.ySetting = ySetting;
+        this.watermarkShadowSetting = watermarkShadowSetting;
         this.textPresentation = textPresentation;
         this.xPresentation = xPresentation;
         this.yPresentation = yPresentation;
+        this.watermarkShadowPresentation = watermarkShadowPresentation;
         this.textBinding = textBinding;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
+        this.watermarkShadowBinding = watermarkShadowBinding;
         this.arrayListFeature = arrayListFeature;
         this.keystrokesFeature = keystrokesFeature;
         this.fpsFeature = fpsFeature;
@@ -415,12 +424,15 @@ public final class Minecraft189FeatureCatalog
         SettingRegistry.Registration textSetting = null;
         SettingRegistry.Registration xSetting = null;
         SettingRegistry.Registration ySetting = null;
+        SettingRegistry.Registration watermarkShadowSetting = null;
         SettingPresentationRegistry.Registration textPresentation = null;
         SettingPresentationRegistry.Registration xPresentation = null;
         SettingPresentationRegistry.Registration yPresentation = null;
+        SettingPresentationRegistry.Registration watermarkShadowPresentation = null;
         ModuleSettingRegistry.Registration textBinding = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
+        ModuleSettingRegistry.Registration watermarkShadowBinding = null;
         Minecraft189ArrayListFeature arrayListFeature = null;
         Minecraft189KeystrokesFeature keystrokesFeature = null;
         Minecraft189FpsFeature fpsFeature = null;
@@ -550,6 +562,8 @@ public final class Minecraft189FeatureCatalog
             ySetting =
                     settings.register(
                             watermark.ySetting());
+            watermarkShadowSetting =
+                    settings.register(watermark.textShadowSetting());
 
             textPresentation =
                     settingPresentations.register(
@@ -580,6 +594,10 @@ public final class Minecraft189FeatureCatalog
                                             0.0D,
                                             4096.0D,
                                             1.0D)));
+            watermarkShadowPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID,
+                            "Text Shadow", SettingValueKind.BOOLEAN, 30));
 
             textBinding =
                     moduleSettings.register(
@@ -599,6 +617,11 @@ public final class Minecraft189FeatureCatalog
                                     Minecraft189WatermarkModule.ID,
                                     Minecraft189WatermarkModule.Y_SETTING_ID,
                                     20));
+            watermarkShadowBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189WatermarkModule.ID,
+                            Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID,
+                            30));
 
             autoSprintFeature =
                     Minecraft189AutoSprintFeature.install(
@@ -1292,12 +1315,15 @@ public final class Minecraft189FeatureCatalog
                     textSetting,
                     xSetting,
                     ySetting,
+                    watermarkShadowSetting,
                     textPresentation,
                     xPresentation,
                     yPresentation,
+                    watermarkShadowPresentation,
                     textBinding,
                     xBinding,
                     yBinding,
+                    watermarkShadowBinding,
                     arrayListFeature,
                     keystrokesFeature,
                     fpsFeature,
@@ -1455,12 +1481,15 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(fpsFeature, failure);
             closeQuietly(keystrokesFeature, failure);
             closeQuietly(arrayListFeature, failure);
+            closeQuietly(watermarkShadowBinding, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
             closeQuietly(textBinding, failure);
+            closeQuietly(watermarkShadowPresentation, failure);
             closeQuietly(yPresentation, failure);
             closeQuietly(xPresentation, failure);
             closeQuietly(textPresentation, failure);
+            closeQuietly(watermarkShadowSetting, failure);
             closeQuietly(ySetting, failure);
             closeQuietly(xSetting, failure);
             closeQuietly(textSetting, failure);
@@ -3078,12 +3107,15 @@ public final class Minecraft189FeatureCatalog
                     closeFailure);
         }
 
+        failure = close(watermarkShadowBinding, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
         failure = close(textBinding, failure);
+        failure = close(watermarkShadowPresentation, failure);
         failure = close(yPresentation, failure);
         failure = close(xPresentation, failure);
         failure = close(textPresentation, failure);
+        failure = close(watermarkShadowSetting, failure);
         failure = close(ySetting, failure);
         failure = close(xSetting, failure);
         failure = close(textSetting, failure);
