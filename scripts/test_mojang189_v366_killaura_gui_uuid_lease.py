@@ -430,6 +430,55 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
         self.assertIn("return true;", veto)
 
+    def test_r11_wall_check_lifecycle_requires_true_native_clear_and_damage(self):
+        # R10 exact-head original binary passed wall recovery but R11's
+        # independent off/on lifecycle reached genuine visible native target
+        # without an actual click. GUI recovery applies ONLY after the
+        # wall was truly removed and target selected, preserving the
+        # negative occluded proof, off/on state and server damage oracle.
+        source = BRIDGE.split(
+            "private static void reportAcceptanceScreen()", 1)[0]
+        self.assertIn(
+            '"custommc.acceptance.reportKillAuraWallLifecycle"', source)
+        wall = HARNESS.split(
+            "if args.wall_veto or args.wall_recovery or args.wall_lifecycle:", 1
+        )[1].split("if args.fov_veto:", 1)[0]
+        self.assertEqual(1, wall.count("v348_resume_confirmed_original_pause("))
+        self.assertIn("if args.wall_recovery or args.wall_lifecycle:", wall)
+        self.assertLess(wall.index("WALL_RECOVERY_VISIBLE, deadline,"),
+                        wall.index("v348_resume_confirmed_original_pause("))
+        self.assertLess(wall.index("v348_resume_confirmed_original_pause("),
+                        wall.index("WALL_RECOVERY_CLICK, deadline,"))
+        self.assertIn(
+            'v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)"',
+            wall)
+        for evidence in (
+            "WALL_LIFECYCLE_DISABLED, deadline,",
+            "WALL_LIFECYCLE_SELECTED, deadline,",
+            "WALL_LIFECYCLE_REENABLED, deadline,",
+            "WALL_LIFECYCLE_VETO, deadline,",
+            '"scoreboard players test CITarget taken 0 0"',
+            "actual_server_clear_wall_command(wall_fill)",
+            "WALL_RECOVERY_VISIBLE, deadline,",
+            "WALL_RECOVERY_CLICK, deadline,",
+            "WALL_RECOVERY_CONTROLLER, deadline,",
+            '"scoreboard players test CITarget taken 1 999999"',
+            "CUSTOMMC_OFFICIAL_189_WALL_REMOVAL_SERVER_DAMAGE_PASS=YES",
+        ):
+            self.assertIn(evidence, wall)
+        pretarget = HARNESS.split("def run(", 1)[1].split(
+            'with target_log.open("wb")', 1)[0]
+        self.assertIn("or args.wall_recovery or args.wall_lifecycle):",
+                      pretarget)
+        self.assertIn("host_window = identify_original_host_window_before_target(host)",
+                      pretarget)
+        veto = BRIDGE.split(
+            "private static boolean vetoOriginalScreenBeforeNativeCombat(", 1
+        )[1].split("public static synchronized void autoClick(", 1)[0]
+        self.assertIn("Minecraft189NativeGuiCombatVeto.blocks(minecraft)", veto)
+        self.assertIn("host.suspendSyntheticCombatForOriginalGui();", veto)
+        self.assertIn("return true;", veto)
+
     def test_original_v47_rejoin_server_damage_oracle_unchanged(self):
         for term in (
             "CUSTOMMC_189_REJOIN_REAL_A_DISCONNECTED_PASS",
