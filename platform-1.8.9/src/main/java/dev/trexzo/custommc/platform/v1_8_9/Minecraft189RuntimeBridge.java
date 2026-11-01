@@ -3246,6 +3246,7 @@ public final class Minecraft189RuntimeBridge {
                 Minecraft189LockedTargetAcceptance.observeNativeRay(
                         host, playerHit, playerIndex);
             if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {
+                if (!host.mayDispatchScheduledCombatLane()) return;
                 if (!host.claimSyntheticCombatPrimary(
                         combatCycleToken,
                         Minecraft189CombatCycleArbiter.Primary.MELEE))
@@ -3444,7 +3445,8 @@ public final class Minecraft189RuntimeBridge {
                     // the failed -1 lease must not still attack with the
                     // other module's temporary item. A clean no-switch
                     // vanilla attack remains legal with no active owner.
-                    if (!host.mayDispatchSyntheticMelee(originalSlot))
+                    if (!host.mayDispatchSyntheticMelee(originalSlot)
+                            || !host.mayDispatchScheduledCombatLane())
                         return;
                     if (Boolean.getBoolean(
                             "custommc.acceptance.reportTriggerBotRealPvp")) {
@@ -3545,6 +3547,8 @@ public final class Minecraft189RuntimeBridge {
                             armHitSelectOriginalControllerIntent(
                                     host, hitSelectInitialUuid);
                             try {
+                                if (!host.mayDispatchScheduledCombatLane())
+                                    return;
                                 minecraft.customMcAttackCrosshairEntity();
                             } finally {
                                 hitSelectNativeControllerIntent.remove();
@@ -3591,6 +3595,8 @@ public final class Minecraft189RuntimeBridge {
                                 armHitSelectOriginalControllerIntent(
                                         host, hitSelectInitialUuid);
                                 try {
+                                    if (!host.mayDispatchScheduledCombatLane())
+                                        return;
                                     minecraft.customMcAttackCrosshairEntity();
                                 } finally {
                                     hitSelectNativeControllerIntent.remove();
@@ -3637,6 +3643,8 @@ public final class Minecraft189RuntimeBridge {
                                 // Keep precisely one original clickMouse
                                 // call: physical/hold mode is unscoped;
                                 // trigger mode carries an original UUID.
+                                if (!host.mayDispatchScheduledCombatLane())
+                                    return;
                                 minecraft.customMcClickMouse();
                             } finally {
                                 hitSelectNativeControllerIntent.remove();
