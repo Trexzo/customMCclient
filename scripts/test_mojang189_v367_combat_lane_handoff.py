@@ -127,10 +127,10 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
             "host.recordAutoBlockStart(useToken);",
         ):
             self.assertIn(phrase, native)
-        self.assertEqual(6, native.count("host.mayDispatchScheduledCombatLane()"))
+        self.assertEqual(5, native.count("host.mayDispatchScheduledCombatLane()"))
         self.assertLess(
-            native.index("host.mayDispatchScheduledCombatLane()"),
-            native.index("host.mayStartAutoBlock("))
+            native.index("host.mayStartAutoBlock("),
+            native.index("host.mayDispatchScheduledCombatLane()"))
         self.assertLess(
             native.index("host.mayStartAutoBlock("),
             native.index("host.claimSyntheticCombatReblock(combatCycleToken)"))
