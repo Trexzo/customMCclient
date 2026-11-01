@@ -1429,7 +1429,11 @@ public final class Minecraft189RuntimeBridge {
                         || Boolean.getBoolean(
                                 "custommc.acceptance.reportKillAuraWallRecovery")
                         || Boolean.getBoolean(
-                                "custommc.acceptance.reportKillAuraWallLifecycle"))) {
+                                "custommc.acceptance.reportKillAuraWallLifecycle")
+                        || Boolean.getBoolean(
+                                "custommc.acceptance.requireRemotePairAuraOwnerVeto")
+                        || Boolean.getBoolean(
+                                "custommc.acceptance.requireUnlockedAuraOwnerVeto"))) {
                 reportAcceptanceScreen();
             }
             if (Boolean.getBoolean("custommc.acceptance.reportLiveWorld")
