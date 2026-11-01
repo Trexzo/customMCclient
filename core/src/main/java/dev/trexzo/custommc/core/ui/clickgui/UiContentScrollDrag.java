@@ -60,6 +60,11 @@ final class UiContentScrollDrag {
         return dragging;
     }
 
+    void cancel() {
+        dragging = false;
+        grabY = 0.0F;
+    }
+
     private void seek(final float pointerY, final UiBounds bounds,
             final float contentHeight, final ClickGuiContentScrollState scroll) {
         scroll.setOffset(UiContentScrollRail.offsetForPointer(
