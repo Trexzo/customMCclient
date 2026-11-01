@@ -50,6 +50,34 @@ final class Minecraft189ArrayListMotionTest {
     }
 
     @Test
+    void entranceReallyLasts180MillisecondsAt30Through240Fps() {
+        // The old S35–S42 formula started at .22, then added elapsed/180ms:
+        // it completed around 140ms, even though the advertised duration
+        // was 180ms. The remaining .78 now spans the FULL 180ms.
+        for (int fps : new int[] {30, 60, 144, 240}) {
+            final float atZero = phaseAfter(fps, 0L);
+            final float at90 = phaseAfter(fps, 90_000_000L);
+            final float at140 = phaseAfter(fps, 140_000_000L);
+            final float at179 = phaseAfter(fps, 179_000_000L);
+            final float at180 = phaseAfter(fps, 180_000_000L);
+            assertEquals(.22F, atZero, .0001F);
+            assertEquals(.61F, at90, .0001F);
+            assertTrue(at140 > at90 && at140 < 1.0F,
+                    "premature full opacity at " + fps + " fps");
+            assertTrue(at179 > at140 && at179 < 1.0F,
+                    "premature finish at " + fps + " fps");
+            assertEquals(1.0F, at180, .0001F);
+            assertTrue(Minecraft189ArrayListMotion.slide(at140) > 0.0F);
+            assertTrue(Minecraft189ArrayListMotion.slide(at140)
+                    > Minecraft189ArrayListMotion.slide(at179));
+            assertEquals(0.0F,
+                    Minecraft189ArrayListMotion.slide(at180), .0001F);
+        }
+        assertEquals(phaseAfter(30, 140_000_000L),
+                phaseAfter(240, 140_000_000L), .0001F);
+    }
+
+    @Test
     void clockStallAndBackwardTimeAreSafelyBounded() {
         final AtomicLong nanos = new AtomicLong(10_000_000_000L);
         final Minecraft189ArrayListMotion motion =
