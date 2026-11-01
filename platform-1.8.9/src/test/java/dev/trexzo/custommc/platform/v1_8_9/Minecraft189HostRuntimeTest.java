@@ -117,10 +117,10 @@ final class Minecraft189HostRuntimeTest {
                 settings.find(
                         Minecraft189FpsModule.Y_SETTING_ID)
                         != null);
-        // S46 adds the optional native Watermark shadow without removing
-        // existing Text/X/Y bindings or changing their values.
+        // S46 native shadow and S47 theme accent are both optional.
+        // Existing Text/X/Y bindings remain unchanged.
         assertEquals(
-                4,
+                5,
                 moduleSettings.bindingsForModule(
                         Minecraft189WatermarkModule.ID)
                         .size());
@@ -128,6 +128,10 @@ final class Minecraft189HostRuntimeTest {
                 Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID) != null);
         assertEquals("false", settings.snapshotEncoded().get(
                 Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID));
+        assertTrue(settings.find(
+                Minecraft189WatermarkModule.USE_THEME_ACCENT_SETTING_ID) != null);
+        assertEquals("false", settings.snapshotEncoded().get(
+                Minecraft189WatermarkModule.USE_THEME_ACCENT_SETTING_ID));
         assertTrue(
                 settings.find(
                         Minecraft189WatermarkModule.TEXT_SETTING_ID)
