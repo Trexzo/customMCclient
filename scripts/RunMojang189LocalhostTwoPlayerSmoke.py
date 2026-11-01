@@ -1940,11 +1940,11 @@ def run(args):
                 or args.multi_target or args.triggerbot_pvp
                 or args.wall_recovery or args.wall_lifecycle
                 or args.unlocked_remote_owner_veto
-                or args.unlocked_scoped_veto):
+                or args.unlocked_scoped_veto or args.pvp):
             # Capture host only while it remains the *sole* Minecraft
             # window, not by ambiguous late --pid once targets exist.
-            # V366 R12: unlocked Aura UUID owner veto fixtures also retain
-            # the original unique CIHost X11 identity before target launch.
+            # V366 R13: ordinary PvP now also retains source-proven host X11
+            # ownership; this is capture-only and never alters combat.
             if host_window is not None:
                 raise AssertionError(
                     "V349 host window already captured by another fixture")
@@ -4123,6 +4123,23 @@ def run(args):
                 print("CUSTOMMC_189_TRIGGERBOT_OWNED_REAL_PLAYER_CLICK=YES",
                       flush=True)
             else:
+                if not (args.unlocked_remote_owner_veto or args.unlocked_scoped_veto):
+                    # R12 original vanilla CI reached normal Aura enabled
+                    # but recorded no owned PvP attack; that fixture lacked
+                    # source-original GuiScreen reporting/recovery. Only a
+                    # real vanilla axp pause permits a physical Escape on
+                    # the unique pre-target CIHost window. Require fresh
+                    # source-native CLEAR before genuine controller/hurt
+                    # and server-positive damage proof. Existing negative
+                    # owner fixtures have their earlier separate guard.
+                    v348_resume_confirmed_original_pause(
+                        host, host_log, deadline, host_window)
+                    if v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)":
+                        raise AssertionError(
+                            "ordinary Aura real PvP requires original "
+                            "GuiScreen CLEAR before native player attack")
+                    print("CUSTOMMC_189_V366_ORDINARY_PVP_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
+                          flush=True)
                 wait_for(host, host_log, AURA_ATTACK, deadline,
                          "host-owned Kill Aura synthetic rotated player attack")
                 print("CUSTOMMC_189_CLIENT_AURA_CLICK_OBSERVED=YES", flush=True)
