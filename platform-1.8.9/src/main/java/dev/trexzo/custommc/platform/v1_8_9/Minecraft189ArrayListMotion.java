@@ -17,7 +17,10 @@ import java.util.function.LongSupplier;
  */
 final class Minecraft189ArrayListMotion {
     private static final float FIRST_VISIBLE_PHASE = 0.22F;
-    private static final long ENTER_DURATION_NANOS = 180_000_000L;
+    // A newly appearing module is already slightly visible at phase .22;
+    // the remaining .78 must take the FULL 180 ms rather than finishing
+    // after .78 * 180 = 140.4 ms as in S35–S42.
+    static final long ENTER_DURATION_NANOS = 180_000_000L;
     private static final long MAX_ELAPSED_NANOS = 200_000_000L;
     private final Map<String, Float> progress = new LinkedHashMap<String, Float>();
     private final LongSupplier nanoClock;
@@ -54,7 +57,8 @@ final class Minecraft189ArrayListMotion {
             final float next = instant ? 1.0F
                     : prior == null ? FIRST_VISIBLE_PHASE
                     : Math.min(1.0F, prior.floatValue()
-                            + (float) elapsed / (float) ENTER_DURATION_NANOS);
+                            + (1.0F - FIRST_VISIBLE_PHASE)
+                            * (float) elapsed / (float) ENTER_DURATION_NANOS);
             progress.put(id, Float.valueOf(next));
         }
         initialized = true;
