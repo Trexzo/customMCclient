@@ -64,7 +64,7 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
         dispatch = BRIDGE.split(
             "if (host.shouldAutoClick(playerHit, playerIndex, nativeHitbox)) {",
             1)[1].split("} finally {\n                // Every early return", 1)[0]
-        self.assertEqual(6, dispatch.count("host.mayDispatchScheduledCombatLane()"))
+        self.assertEqual(11, dispatch.count("host.mayDispatchScheduledCombatLane()"))
         self.assertLess(
             dispatch.index("host.mayDispatchScheduledCombatLane()"),
             dispatch.index("host.claimSyntheticCombatPrimary("))
@@ -97,44 +97,49 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
             self.assertIn(requirement, dispatch)
         self.assertNotIn("leftClickCounter =", dispatch)
 
-    def test_r3_post_melee_autoblock_cannot_borrow_a_stale_lane(self):
-        # Verified original sword getters, hotbar leases and the physical
-        # rightClickMouse() still own reblock. A module epoch change cannot
-        # borrow a previously accepted automatic melee callback.
+    def test_r3_post_melee_autoblock_preserves_standalone_source_api(self):
+        # Existing sword-source JUnit fixtures deliberately call the host
+        # native sword/lease APIs without an automatic melee callback.
+        # Only the real bridge call path may require a synthetic lane ticket.
         block = HOST.split("boolean mayStartAutoBlock(", 1)[1].split(
             "private boolean identityRequired()", 1)[0]
+        self.assertNotIn("mayDispatchScheduledCombatLane()", block)
         for phrase in (
-            "if (!mayDispatchScheduledCombatLane()) return false;",
-            "final boolean verifiedSword = holdingVerifiedSword();",
-            "return mayDispatchScheduledCombatLane()",
             "featureCatalog.autoBlock().mayStart(",
-            "if (!mayDispatchScheduledCombatLane()) return 0L;",
             "return featureCatalog.autoBlock().beginNativeUse(",
-            "if (useToken == 0L || !mayDispatchScheduledCombatLane())",
             "final boolean nativeSwordStillHeld = holdingVerifiedSword();",
             "featureCatalog.autoBlock().permitsNativeUseDispatch(",
-            "&& mayDispatchScheduledCombatLane();",
             "featureCatalog.autoBlock().cancelPendingNativeUse(useToken);",
             "featureCatalog.autoBlock().completeNativeUse(",
         ):
             self.assertIn(phrase, block)
-        native = BRIDGE.split("if (swordBlock != null && host.mayStartAutoBlock(", 1)[1].split(
+        native = BRIDGE.split("if (swordBlock != null\n", 1)[1].split(
             "host.cancelAutoBlockNativeUse(useToken);", 1)[0]
         for phrase in (
             "host.claimSyntheticCombatReblock(combatCycleToken)",
             "host.beginAutoBlockNativeUse()",
             "host.mayDispatchAutoBlockNativeUse(useToken)",
-            "if (!host.mayDispatchScheduledCombatLane())",
+            "host.mayDispatchScheduledCombatLane()",
             "minecraft.customMcRightClickMouse();",
             "host.recordAutoBlockStart(useToken);",
         ):
             self.assertIn(phrase, native)
+        self.assertEqual(6, native.count("host.mayDispatchScheduledCombatLane()"))
+        self.assertLess(
+            native.index("host.mayDispatchScheduledCombatLane()"),
+            native.index("host.mayStartAutoBlock("))
+        self.assertLess(
+            native.index("host.mayStartAutoBlock("),
+            native.index("host.claimSyntheticCombatReblock(combatCycleToken)"))
         self.assertLess(
             native.rindex("if (!host.mayDispatchScheduledCombatLane())"),
             native.index("minecraft.customMcRightClickMouse();"))
         self.assertLess(
             native.index("minecraft.customMcRightClickMouse();"),
             native.index("host.recordAutoBlockStart(useToken);"))
+        self.assertIn("swordBlock.customMcIsUsingItem()\n"
+                      "                                    && host.mayDispatchScheduledCombatLane()",
+                      native)
         self.assertIn(
             "finally {\n                            // This exact uncommitted native use lease",
             BRIDGE)
