@@ -117,11 +117,17 @@ final class Minecraft189HostRuntimeTest {
                 settings.find(
                         Minecraft189FpsModule.Y_SETTING_ID)
                         != null);
+        // S46 adds the optional native Watermark shadow without removing
+        // existing Text/X/Y bindings or changing their values.
         assertEquals(
-                3,
+                4,
                 moduleSettings.bindingsForModule(
                         Minecraft189WatermarkModule.ID)
                         .size());
+        assertTrue(settings.find(
+                Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID) != null);
+        assertEquals("false", settings.snapshotEncoded().get(
+                Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID));
         assertTrue(
                 settings.find(
                         Minecraft189WatermarkModule.TEXT_SETTING_ID)
