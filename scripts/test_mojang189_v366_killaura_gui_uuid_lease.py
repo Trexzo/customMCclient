@@ -188,7 +188,7 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
         # never forge a CLEAR verdict, controller click, server damage or
         # loosen the original GuiScreen veto in production.
         self.assertIn(
-            'or args.wall_recovery):',
+            'or args.wall_recovery or args.wall_lifecycle):',
             HARNESS)
         self.assertIn(
             '"custommc.acceptance.reportKillAuraLockedTarget"',
@@ -344,7 +344,7 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
             "CUSTOMMC_189_V366_TRIGGERBOT_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
             pvp)
         self.assertIn(
-            "or args.wall_recovery):",
+            "or args.wall_recovery or args.wall_lifecycle):",
             HARNESS)
         for real in (
             "wait_for(host, host_log, TRIGGER_CLICK, deadline,",
@@ -388,7 +388,7 @@ class OriginalAuraGuiUuidLeaseV366(unittest.TestCase):
             "if args.wall_veto or args.wall_recovery or args.wall_lifecycle:", 1
         )[1].split("if args.fov_veto:", 1)[0]
         self.assertEqual(1, wall.count('v348_resume_confirmed_original_pause('))
-        self.assertIn("if args.wall_recovery:", wall)
+        self.assertIn("if args.wall_recovery or args.wall_lifecycle:", wall)
         self.assertLess(
             wall.index('WALL_RECOVERY_VISIBLE, deadline,'),
             wall.index('v348_resume_confirmed_original_pause('))
