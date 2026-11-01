@@ -47,14 +47,17 @@ public final class Minecraft189FeatureCatalog
     private final SettingRegistry.Registration xSetting;
     private final SettingRegistry.Registration ySetting;
     private final SettingRegistry.Registration watermarkShadowSetting;
+    private final SettingRegistry.Registration watermarkAccentSetting;
     private final SettingPresentationRegistry.Registration textPresentation;
     private final SettingPresentationRegistry.Registration xPresentation;
     private final SettingPresentationRegistry.Registration yPresentation;
     private final SettingPresentationRegistry.Registration watermarkShadowPresentation;
+    private final SettingPresentationRegistry.Registration watermarkAccentPresentation;
     private final ModuleSettingRegistry.Registration textBinding;
     private final ModuleSettingRegistry.Registration xBinding;
     private final ModuleSettingRegistry.Registration yBinding;
     private final ModuleSettingRegistry.Registration watermarkShadowBinding;
+    private final ModuleSettingRegistry.Registration watermarkAccentBinding;
     private final Minecraft189ArrayListFeature arrayListFeature;
     private final Minecraft189KeystrokesFeature keystrokesFeature;
     private final Minecraft189FpsFeature fpsFeature;
@@ -156,14 +159,17 @@ public final class Minecraft189FeatureCatalog
             final SettingRegistry.Registration xSetting,
             final SettingRegistry.Registration ySetting,
             final SettingRegistry.Registration watermarkShadowSetting,
+            final SettingRegistry.Registration watermarkAccentSetting,
             final SettingPresentationRegistry.Registration textPresentation,
             final SettingPresentationRegistry.Registration xPresentation,
             final SettingPresentationRegistry.Registration yPresentation,
             final SettingPresentationRegistry.Registration watermarkShadowPresentation,
+            final SettingPresentationRegistry.Registration watermarkAccentPresentation,
             final ModuleSettingRegistry.Registration textBinding,
             final ModuleSettingRegistry.Registration xBinding,
             final ModuleSettingRegistry.Registration yBinding,
             final ModuleSettingRegistry.Registration watermarkShadowBinding,
+            final ModuleSettingRegistry.Registration watermarkAccentBinding,
             final Minecraft189ArrayListFeature arrayListFeature,
             final Minecraft189KeystrokesFeature keystrokesFeature,
             final Minecraft189FpsFeature fpsFeature,
@@ -259,14 +265,17 @@ public final class Minecraft189FeatureCatalog
         this.xSetting = xSetting;
         this.ySetting = ySetting;
         this.watermarkShadowSetting = watermarkShadowSetting;
+        this.watermarkAccentSetting = watermarkAccentSetting;
         this.textPresentation = textPresentation;
         this.xPresentation = xPresentation;
         this.yPresentation = yPresentation;
         this.watermarkShadowPresentation = watermarkShadowPresentation;
+        this.watermarkAccentPresentation = watermarkAccentPresentation;
         this.textBinding = textBinding;
         this.xBinding = xBinding;
         this.yBinding = yBinding;
         this.watermarkShadowBinding = watermarkShadowBinding;
+        this.watermarkAccentBinding = watermarkAccentBinding;
         this.arrayListFeature = arrayListFeature;
         this.keystrokesFeature = keystrokesFeature;
         this.fpsFeature = fpsFeature;
@@ -425,14 +434,17 @@ public final class Minecraft189FeatureCatalog
         SettingRegistry.Registration xSetting = null;
         SettingRegistry.Registration ySetting = null;
         SettingRegistry.Registration watermarkShadowSetting = null;
+        SettingRegistry.Registration watermarkAccentSetting = null;
         SettingPresentationRegistry.Registration textPresentation = null;
         SettingPresentationRegistry.Registration xPresentation = null;
         SettingPresentationRegistry.Registration yPresentation = null;
         SettingPresentationRegistry.Registration watermarkShadowPresentation = null;
+        SettingPresentationRegistry.Registration watermarkAccentPresentation = null;
         ModuleSettingRegistry.Registration textBinding = null;
         ModuleSettingRegistry.Registration xBinding = null;
         ModuleSettingRegistry.Registration yBinding = null;
         ModuleSettingRegistry.Registration watermarkShadowBinding = null;
+        ModuleSettingRegistry.Registration watermarkAccentBinding = null;
         Minecraft189ArrayListFeature arrayListFeature = null;
         Minecraft189KeystrokesFeature keystrokesFeature = null;
         Minecraft189FpsFeature fpsFeature = null;
@@ -515,7 +527,8 @@ public final class Minecraft189FeatureCatalog
         final Minecraft189WatermarkModule watermark =
                 new Minecraft189WatermarkModule(
                         renderPipeline,
-                        hostCallbacks);
+                        hostCallbacks,
+                        settings);
         try {
             combatCategory =
                     categories.register(
@@ -564,6 +577,8 @@ public final class Minecraft189FeatureCatalog
                             watermark.ySetting());
             watermarkShadowSetting =
                     settings.register(watermark.textShadowSetting());
+            watermarkAccentSetting =
+                    settings.register(watermark.useThemeAccentSetting());
 
             textPresentation =
                     settingPresentations.register(
@@ -598,6 +613,10 @@ public final class Minecraft189FeatureCatalog
                     new SettingDescriptor(
                             Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID,
                             "Text Shadow", SettingValueKind.BOOLEAN, 30));
+            watermarkAccentPresentation = settingPresentations.register(
+                    new SettingDescriptor(
+                            Minecraft189WatermarkModule.USE_THEME_ACCENT_SETTING_ID,
+                            "Theme Accent", SettingValueKind.BOOLEAN, 40));
 
             textBinding =
                     moduleSettings.register(
@@ -622,6 +641,11 @@ public final class Minecraft189FeatureCatalog
                             Minecraft189WatermarkModule.ID,
                             Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID,
                             30));
+            watermarkAccentBinding = moduleSettings.register(
+                    new ModuleSettingBinding(
+                            Minecraft189WatermarkModule.ID,
+                            Minecraft189WatermarkModule.USE_THEME_ACCENT_SETTING_ID,
+                            40));
 
             autoSprintFeature =
                     Minecraft189AutoSprintFeature.install(
@@ -1316,14 +1340,17 @@ public final class Minecraft189FeatureCatalog
                     xSetting,
                     ySetting,
                     watermarkShadowSetting,
+                    watermarkAccentSetting,
                     textPresentation,
                     xPresentation,
                     yPresentation,
                     watermarkShadowPresentation,
+                    watermarkAccentPresentation,
                     textBinding,
                     xBinding,
                     yBinding,
                     watermarkShadowBinding,
+                    watermarkAccentBinding,
                     arrayListFeature,
                     keystrokesFeature,
                     fpsFeature,
@@ -1481,14 +1508,17 @@ public final class Minecraft189FeatureCatalog
             closeQuietly(fpsFeature, failure);
             closeQuietly(keystrokesFeature, failure);
             closeQuietly(arrayListFeature, failure);
+            closeQuietly(watermarkAccentBinding, failure);
             closeQuietly(watermarkShadowBinding, failure);
             closeQuietly(yBinding, failure);
             closeQuietly(xBinding, failure);
             closeQuietly(textBinding, failure);
+            closeQuietly(watermarkAccentPresentation, failure);
             closeQuietly(watermarkShadowPresentation, failure);
             closeQuietly(yPresentation, failure);
             closeQuietly(xPresentation, failure);
             closeQuietly(textPresentation, failure);
+            closeQuietly(watermarkAccentSetting, failure);
             closeQuietly(watermarkShadowSetting, failure);
             closeQuietly(ySetting, failure);
             closeQuietly(xSetting, failure);
@@ -3107,14 +3137,17 @@ public final class Minecraft189FeatureCatalog
                     closeFailure);
         }
 
+        failure = close(watermarkAccentBinding, failure);
         failure = close(watermarkShadowBinding, failure);
         failure = close(yBinding, failure);
         failure = close(xBinding, failure);
         failure = close(textBinding, failure);
+        failure = close(watermarkAccentPresentation, failure);
         failure = close(watermarkShadowPresentation, failure);
         failure = close(yPresentation, failure);
         failure = close(xPresentation, failure);
         failure = close(textPresentation, failure);
+        failure = close(watermarkAccentSetting, failure);
         failure = close(watermarkShadowSetting, failure);
         failure = close(ySetting, failure);
         failure = close(xSetting, failure);

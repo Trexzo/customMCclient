@@ -295,13 +295,17 @@ final class Minecraft189ArrayListModuleTest {
         try {
             final Minecraft189WatermarkModule mark = runtime.featureCatalog().watermark();
             assertEquals(Boolean.FALSE, mark.textShadowSetting().get());
+            assertEquals(Boolean.FALSE, mark.useThemeAccentSetting().get());
             assertEquals("false", settings.snapshotEncoded().get(
                     Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID));
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189WatermarkModule.USE_THEME_ACCENT_SETTING_ID));
             controller.enable(Minecraft189WatermarkModule.ID);
             runtime.renderHud(1L, 0.0F);
             assertEquals(Arrays.asList("CustomMC"), host.text);
             assertEquals(Arrays.asList("8.0,8.0"), host.positions);
             assertEquals(0, host.shadowDraws);
+            assertEquals(0xFFFFFFFF, host.textColors.get(0).intValue());
             assertEquals(host.clipPushes, host.clipPops);
 
             mark.textShadowSetting().set(Boolean.TRUE);
@@ -312,6 +316,25 @@ final class Minecraft189ArrayListModuleTest {
             assertEquals(1, host.shadowDraws);
             assertEquals("true", settings.snapshotEncoded().get(
                     Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID));
+            assertEquals(host.clipPushes, host.clipPops);
+
+            // S47: opt in to the shared source theme while preserving
+            // S46 native shadow, exact original glyphs and saved position.
+            mark.useThemeAccentSetting().set(Boolean.TRUE);
+            host.clear();
+            runtime.renderHud(21L, 0.0F);
+            assertEquals(0xFFEE8755, host.textColors.get(0).intValue());
+            assertEquals(1, host.shadowDraws);
+            assertEquals(Arrays.asList("8.0,8.0"), host.positions);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189WatermarkModule.USE_THEME_ACCENT_SETTING_ID));
+            assertTrue(UiThemeSettings.cycle(
+                    settings.find(UiThemeSettings.ID), true));
+            host.clear();
+            runtime.renderHud(22L, 0.0F);
+            assertEquals(0xFF5994EA, host.textColors.get(0).intValue());
+            assertEquals(1, host.shadowDraws);
+            assertEquals(Arrays.asList("8.0,8.0"), host.positions);
             assertEquals(host.clipPushes, host.clipPops);
 
             // Existing S39/S40 recovered source position stays unchanged
@@ -325,17 +348,20 @@ final class Minecraft189ArrayListModuleTest {
             assertEquals(Arrays.asList("CustomMC"), host.text);
             assertEquals(Arrays.asList("8.0,464.0"), host.positions);
             assertEquals(1, host.shadowDraws);
+            assertEquals(0xFF5994EA, host.textColors.get(0).intValue());
             assertEquals("4096", settings.snapshotEncoded().get(
                     Minecraft189WatermarkModule.X_SETTING_ID));
             assertEquals("4096", settings.snapshotEncoded().get(
                     Minecraft189WatermarkModule.Y_SETTING_ID));
             assertEquals(host.clipPushes, host.clipPops);
 
+            mark.useThemeAccentSetting().set(Boolean.FALSE);
             mark.textShadowSetting().set(Boolean.FALSE);
             host.clear();
             runtime.renderHud(4L, 0.0F);
             assertEquals(0, host.shadowDraws);
             assertEquals(Arrays.asList("CustomMC"), host.text);
+            assertEquals(0xFFFFFFFF, host.textColors.get(0).intValue());
             assertEquals(host.clipPushes, host.clipPops);
 
             controller.disable(Minecraft189WatermarkModule.ID);
@@ -346,6 +372,7 @@ final class Minecraft189ArrayListModuleTest {
             runtime.close();
         }
         assertNull(settings.find(Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID));
+        assertNull(settings.find(Minecraft189WatermarkModule.USE_THEME_ACCENT_SETTING_ID));
         assertNull(modules.find(Minecraft189WatermarkModule.ID));
     }
 
