@@ -3468,6 +3468,20 @@ public final class Minecraft189HostRuntime
                 nativeHitbox, true);
     }
 
+    /** Single host view of module priority and lifecycle. The snapshot is
+     * captured only after suspending inactive lanes; original World getters
+     * cannot transfer an earned click across a later lane/epoch transition.
+     */
+    private Minecraft189CombatLaneAdmission currentCombatLaneAdmission() {
+        final Minecraft189KillAuraModule aura = featureCatalog.killAura();
+        final Minecraft189TriggerBotModule trigger = featureCatalog.triggerBot();
+        final Minecraft189AutoClickerModule clicker = featureCatalog.autoClicker();
+        return Minecraft189CombatLaneAdmission.capture(
+                aura.active(), trigger.active(), clicker.active(),
+                aura.lifecycleEpoch(), trigger.nativeWorldOwnerEpoch(),
+                clicker.nativeOwnerEpoch());
+    }
+
     private boolean shouldAutoClickInternal(final boolean crosshairPlayerHit,
             final int crosshairPlayerIndex, final double[] nativeHitbox,
             final boolean requireOriginalTargetUuid) {
@@ -3505,10 +3519,13 @@ public final class Minecraft189HostRuntime
                     worldEntityCombatState.snapshot());
         }
         // Exactly one Combat module can own an automatic attack callback.
-        // Dedicated Trigger Bot has precedence; legacy Auto Clicker trigger
-        // mode remains for backward-compatible persisted profiles.
+        // Preserve Aura > TriggerBot > legacy Auto Clicker priority, but
+        // never recompute the owner after a reentrant original World getter.
         final Minecraft189TriggerBotModule trigger = featureCatalog.triggerBot();
         final Minecraft189KillAuraModule aura = featureCatalog.killAura();
+        final Minecraft189CombatLaneAdmission.Owner selectedLane =
+                currentCombatLaneAdmission().owner();
+        final Minecraft189CombatLaneAdmission admittedLane;
         final boolean attackHeld = inputState.pointerPressed(
                 Minecraft189ClickRateTracker.LEFT_BUTTON);
         final boolean rightHeld = inputState.pointerPressed(
@@ -3520,9 +3537,11 @@ public final class Minecraft189HostRuntime
         boolean nativeAutoClickerScheduled = false;
         boolean nativeAutoClickerTriggerMode = false;
         long verifiedTriggerEpoch = -1L;
-        if (aura.active()) {
+        if (selectedLane == Minecraft189CombatLaneAdmission.Owner.AURA) {
             trigger.suspend();
             featureCatalog.autoClicker().suspendForGui();
+            admittedLane = currentCombatLaneAdmission();
+            if (admittedLane.owner() != selectedLane) return false;
             // No ray-confirmed player means NO click is possible. Let the
             // existing Aura.shouldClick(false, ...) drop CPS credit without
             // deleting the genuine UUID lock during aim convergence.
@@ -3552,9 +3571,12 @@ public final class Minecraft189HostRuntime
                     "custommc.acceptance.reportKillAuraLockedTarget"))
                 Minecraft189LockedTargetAcceptance.observeAuraSchedule(
                         this, confirmedHit, crosshairPlayerIndex, click);
-        } else if (trigger.active()) {
+        } else if (selectedLane ==
+                Minecraft189CombatLaneAdmission.Owner.TRIGGER_BOT) {
             aura.suspend();
             featureCatalog.autoClicker().suspendForGui();
+            admittedLane = currentCombatLaneAdmission();
+            if (admittedLane.owner() != selectedLane) return false;
             // Runtime source evidence, NOT a cached index or a synthetic
             // guess: bind TriggerBot's confirmation/click credit to the
             // current ORIGINAL World loaded UUID at this exact crosshair.
@@ -3608,6 +3630,8 @@ public final class Minecraft189HostRuntime
         } else {
             aura.suspend();
             trigger.suspend();
+            admittedLane = currentCombatLaneAdmission();
+            if (admittedLane.owner() != selectedLane) return false;
             final Minecraft189AutoClickerModule clicker =
                     featureCatalog.autoClicker();
             final boolean uuidBoundTrigger = requireOriginalTargetUuid
@@ -3679,9 +3703,14 @@ public final class Minecraft189HostRuntime
         // It never alters genuine vanilla mouse presses. A rejected click
         // consumes scheduler credit rather than banking a late burst.
         if (!click) return false;
+        // Never spend click credit earned by another lane or by an earlier
+        // OFF->ON lifetime, even if an original getter reentered and then
+        // restored the same visible active flags (ABA).
+        if (!admittedLane.matches(currentCombatLaneAdmission()))
+            return false;
         final Minecraft189WorldEntityCombatState.Snapshot combat =
                 worldEntityCombatState.snapshot();
-        if (aura.active()) {
+        if (selectedLane == Minecraft189CombatLaneAdmission.Owner.AURA) {
             final Minecraft189TargetRotationState.Snapshot selected =
                     targetRotationState.snapshot();
             if (!selected.available()
@@ -3799,7 +3828,8 @@ public final class Minecraft189HostRuntime
             }
         }
         if (admissionSerial != triggerDispatchAdmissionSerial
-                || clickGuiRuntime.coreRuntime().model().snapshot().open())
+                || clickGuiRuntime.coreRuntime().model().snapshot().open()
+                || !admittedLane.matches(currentCombatLaneAdmission()))
             return false;
         if (verifiedTriggerUuid != null) {
             // Require the ORIGINAL source UUID and module activation that
