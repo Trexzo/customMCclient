@@ -61,6 +61,9 @@ public final class Minecraft189HostRuntime
             autoClickerControllerLease =
             new Minecraft189AutoClickerControllerLease();
     private long triggerDispatchAdmissionSerial;
+    // One accepted scheduler callback may cross into vanilla mouse/controller
+    // only while its *exact* module lane and lifecycle remain unchanged.
+    private Minecraft189CombatLaneAdmission pendingCombatLane;
     private final Minecraft189CriticalsEvidence criticalsEvidence =
             new Minecraft189CriticalsEvidence();
     // Only one exact native player, module policy and scheduler callback
@@ -3426,6 +3429,7 @@ public final class Minecraft189HostRuntime
     void suspendSyntheticCombatForOriginalGui() {
         requireOpen();
         ++triggerDispatchAdmissionSerial;
+        pendingCombatLane = null;
         criticalsNativeAdmissionSerial = -1L;
         criticalsNativePlayer = null;
         triggerDispatchLease.clear();
@@ -3489,6 +3493,7 @@ public final class Minecraft189HostRuntime
         // Nested external mapped World getters may reenter this scheduler.
         // An older outer callback cannot revive its stale prior admission.
         final long admissionSerial = ++triggerDispatchAdmissionSerial;
+        pendingCombatLane = null;
         criticalsNativeAdmissionSerial = -1L;
         criticalsNativePlayer = null;
         triggerDispatchLease.clear();
@@ -3884,7 +3889,24 @@ public final class Minecraft189HostRuntime
         criticalsNativeAdmissionSerial = admissionSerial;
         clickRateTracker.recordPress(
                 Minecraft189ClickRateTracker.LEFT_BUTTON);
+        if (!admittedLane.matches(currentCombatLaneAdmission()))
+            return false;
+        pendingCombatLane = admittedLane;
         return true;
+    }
+
+    /**
+     * V367: the scheduled lane stays owned across the original bridge's
+     * hotbar selection, GuiScreen reads, HitSelect and native controller.
+     * Never transfer an accepted click after a module OFF->ON ABA or a
+     * reentrant higher/lower-priority toggle; no module is enabled here.
+     * This read-only gate is intentionally repeatable before each dispatch.
+     */
+    boolean mayDispatchScheduledCombatLane() {
+        requireOpen();
+        return pendingCombatLane != null
+                && pendingCombatLane.matches(currentCombatLaneAdmission())
+                && !clickGuiRuntime.coreRuntime().model().snapshot().open();
     }
 
     /**
@@ -4128,6 +4150,7 @@ public final class Minecraft189HostRuntime
         // lease, module, hotbar or UI teardown. A stale finally cannot
         // release a newer generation created by another callback.
         combatCycle.revoke();
+        pendingCombatLane = null;
         autoClickerControllerLease.clear();
         inputState.clear();
         frameRateTracker.clear();
