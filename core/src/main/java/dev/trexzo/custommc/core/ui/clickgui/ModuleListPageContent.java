@@ -47,6 +47,7 @@ public final class ModuleListPageContent
     private final String detailPageId;
     private final ClickGuiContentScrollState scroll =
             new ClickGuiContentScrollState();
+    private final UiContentScrollDrag railDrag = new UiContentScrollDrag();
 
     public ModuleListPageContent(
             final ModuleRegistry modules,
@@ -308,20 +309,24 @@ public final class ModuleListPageContent
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(event, "event");
 
-        if (event.action() != UiPointerAction.PRESS) {
+        if (event.action() != UiPointerAction.PRESS
+                && !railDrag.dragging()) {
             return false;
         }
-        if (event.button() != UiPointerButton.LEFT
-                && event.button() != UiPointerButton.RIGHT) {
-            return false;
-        }
-
         final List<Entry> visible =
-                filteredModules(
-                        context.snapshot());
-        final boolean categoryHeaders =
-                hasCategoryHeaders(visible);
+                filteredModules(context.snapshot());
+        final boolean categoryHeaders = hasCategoryHeaders(visible);
         final float totalHeight = contentHeight(visible, categoryHeaders);
+        if (railDrag.pointer(event, context.bounds(), totalHeight, scroll)) {
+            // This press/move/release belongs to the scrollbar, NEVER
+            // to a source-enabled module toggle or detail button.
+            return true;
+        }
+        if (event.action() != UiPointerAction.PRESS
+                || (event.button() != UiPointerButton.LEFT
+                    && event.button() != UiPointerButton.RIGHT)) {
+            return false;
+        }
         final float scrollOffset =
                 scroll.offset(totalHeight, context.bounds().height());
         if (UiContentBottomCue.blocksPointer(
