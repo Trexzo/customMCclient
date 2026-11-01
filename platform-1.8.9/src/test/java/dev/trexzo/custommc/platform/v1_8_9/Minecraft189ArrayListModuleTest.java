@@ -277,6 +277,79 @@ final class Minecraft189ArrayListModuleTest {
     }
 
     @Test
+    void watermarkOptInNativeShadowRespectsOriginalFontAndSavedPosition() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final RecordingHost host = new RecordingHost();
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189WatermarkModule mark = runtime.featureCatalog().watermark();
+            assertEquals(Boolean.FALSE, mark.textShadowSetting().get());
+            assertEquals("false", settings.snapshotEncoded().get(
+                    Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID));
+            controller.enable(Minecraft189WatermarkModule.ID);
+            runtime.renderHud(1L, 0.0F);
+            assertEquals(Arrays.asList("CustomMC"), host.text);
+            assertEquals(Arrays.asList("8.0,8.0"), host.positions);
+            assertEquals(0, host.shadowDraws);
+            assertEquals(host.clipPushes, host.clipPops);
+
+            mark.textShadowSetting().set(Boolean.TRUE);
+            host.clear();
+            runtime.renderHud(2L, 0.0F);
+            assertEquals(Arrays.asList("CustomMC"), host.text);
+            assertEquals(Arrays.asList("8.0,8.0"), host.positions);
+            assertEquals(1, host.shadowDraws);
+            assertEquals("true", settings.snapshotEncoded().get(
+                    Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID));
+            assertEquals(host.clipPushes, host.clipPops);
+
+            // Existing S39/S40 recovered source position stays unchanged
+            // even with native shadow and a shrinking framebuffer.
+            host.windowWidth = 854;
+            host.windowHeight = 480;
+            mark.xSetting().set(4096);
+            mark.ySetting().set(4096);
+            host.clear();
+            runtime.renderHud(3L, 0.0F);
+            assertEquals(Arrays.asList("CustomMC"), host.text);
+            assertEquals(Arrays.asList("8.0,464.0"), host.positions);
+            assertEquals(1, host.shadowDraws);
+            assertEquals("4096", settings.snapshotEncoded().get(
+                    Minecraft189WatermarkModule.X_SETTING_ID));
+            assertEquals("4096", settings.snapshotEncoded().get(
+                    Minecraft189WatermarkModule.Y_SETTING_ID));
+            assertEquals(host.clipPushes, host.clipPops);
+
+            mark.textShadowSetting().set(Boolean.FALSE);
+            host.clear();
+            runtime.renderHud(4L, 0.0F);
+            assertEquals(0, host.shadowDraws);
+            assertEquals(Arrays.asList("CustomMC"), host.text);
+            assertEquals(host.clipPushes, host.clipPops);
+
+            controller.disable(Minecraft189WatermarkModule.ID);
+            host.clear();
+            runtime.renderHud(5L, 0.0F);
+            assertTrue(host.text.isEmpty());
+        } finally {
+            runtime.close();
+        }
+        assertNull(settings.find(Minecraft189WatermarkModule.TEXT_SHADOW_SETTING_ID));
+        assertNull(modules.find(Minecraft189WatermarkModule.ID));
+    }
+
+    @Test
     void nativeHudSlidesNewModuleWithoutShowingDisabledGhostRows() {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
