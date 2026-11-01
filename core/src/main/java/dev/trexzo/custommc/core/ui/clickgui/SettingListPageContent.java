@@ -61,6 +61,7 @@ public final class SettingListPageContent
     private final SettingPresentationRegistry presentations;
     private final ClickGuiContentScrollState scroll =
             new ClickGuiContentScrollState();
+    private final UiContentScrollDrag railDrag = new UiContentScrollDrag();
     private final SettingEditorController editor =
             new SettingEditorController();
 
@@ -167,13 +168,20 @@ public final class SettingListPageContent
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(event, "event");
 
+        if (event.action() != UiPointerAction.PRESS
+                && !railDrag.dragging()) {
+            return false;
+        }
+        final List<Entry> visible = entries(context.snapshot());
+        final float totalHeight = contentHeight(visible.size());
+        if (railDrag.pointer(event, context.bounds(), totalHeight, scroll)) {
+            // Never send rail gestures to the setting editor: no value
+            // adjustment, field focus or unintended theme cycling.
+            return true;
+        }
         if (event.action() != UiPointerAction.PRESS) {
             return false;
         }
-
-        final List<Entry> visible =
-                entries(context.snapshot());
-        final float totalHeight = contentHeight(visible.size());
         final float scrollOffset =
                 scroll.offset(totalHeight, context.bounds().height());
         if (UiContentBottomCue.blocksPointer(
