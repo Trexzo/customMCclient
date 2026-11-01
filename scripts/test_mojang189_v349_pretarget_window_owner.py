@@ -100,14 +100,14 @@ class V349OriginalHostWindowOwner(TestCase):
         wall = run.split("if args.wall_veto or args.wall_recovery or args.wall_lifecycle:", 1)[1].split(
             "if args.fov_veto:", 1)[0]
         self.assertEqual(1, wall.count("v348_resume_confirmed_original_pause("))
-        self.assertIn("if args.wall_recovery:", wall)
+        self.assertIn("if args.wall_recovery or args.wall_lifecycle:", wall)
         self.assertIn(
             "CUSTOMMC_189_V366_WALL_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
             wall)
         self.assertIn("CUSTOMMC_189_V366_TRIGGERBOT_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
                       pvp)
         self.assertIn(
-            "or args.wall_recovery):",
+            "or args.wall_recovery or args.wall_lifecycle):",
             run)
         self.assertIn("CUSTOMMC_189_V366_LOCK_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
                       sticky)
