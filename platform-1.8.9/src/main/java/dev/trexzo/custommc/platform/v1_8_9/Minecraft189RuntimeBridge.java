@@ -3664,12 +3664,18 @@ public final class Minecraft189RuntimeBridge {
                     // vanilla clickMouse() throws during invocation.
                     host.restoreCombatSlotAfterSyntheticClick(originalSlot);
                 }
-                if (swordBlock != null && host.mayStartAutoBlock(
-                        playerHit, playerIndex, originalSlot, alreadyUsingItem)
+                if (swordBlock != null
+                        && host.mayDispatchScheduledCombatLane()
+                        && host.mayStartAutoBlock(
+                                playerHit, playerIndex, originalSlot, alreadyUsingItem)
+                        && host.mayDispatchScheduledCombatLane()
                         && host.claimSyntheticCombatReblock(combatCycleToken)) {
                     // Source-mapped rightClickMouse is the only way to begin
                     // vanilla sword use. Verify it actually started before
                     // tracking ownership (cooldown/no-item may refuse it).
+                    // Keep standalone original-sword APIs unchanged: only
+                    // an automatic melee callback owns this extra lane veto.
+                    if (!host.mayDispatchScheduledCombatLane()) return;
                     final long useToken = host.beginAutoBlockNativeUse();
                     if (useToken != 0) {
                         try {
@@ -3681,7 +3687,8 @@ public final class Minecraft189RuntimeBridge {
                             // the original source AFTER mayStart/beginNativeUse
                             // and replace the item, player or policy. Veto
                             // the *actual* vanilla right click before dispatch.
-                            if (!host.mayDispatchAutoBlockNativeUse(useToken))
+                            if (!host.mayDispatchAutoBlockNativeUse(useToken)
+                                    || !host.mayDispatchScheduledCombatLane())
                                 return;
                             // Final vanilla screen read AFTER that native
                             // sword check: source getters may open GuiScreen.
@@ -3693,7 +3700,8 @@ public final class Minecraft189RuntimeBridge {
                             if (!host.mayDispatchScheduledCombatLane())
                                 return;
                             minecraft.customMcRightClickMouse();
-                            if (swordBlock.customMcIsUsingItem()) {
+                            if (swordBlock.customMcIsUsingItem()
+                                    && host.mayDispatchScheduledCombatLane()) {
                                 host.recordAutoBlockStart(useToken);
                             }
                         } finally {
