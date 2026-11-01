@@ -113,10 +113,10 @@ class NativePauseV348(TestCase):
         # V366 R10: two original rejoin and one each for sticky-A,
         # simultaneous, multi-target, isolated TriggerBot and real wall
         # recovery. Never expand these source-confirmed X11 call sites.
-        self.assertEqual(7, run.count("v348_resume_confirmed_original_pause("))
+        self.assertEqual(8, run.count("v348_resume_confirmed_original_pause("))
         self.assertEqual(2, run.split("if args.locked_target:", 1)[0].count(
             "v348_resume_confirmed_original_pause("))
-        self.assertEqual(7, run.count("host, host_log, deadline, host_window)"))
+        self.assertEqual(8, run.count("host, host_log, deadline, host_window)"))
         sticky = run.split("if args.locked_target:", 1)[1].split(
             "if args.simultaneous:", 1)[0]
         self.assertEqual(1, sticky.count("v348_resume_confirmed_original_pause("))
@@ -136,7 +136,16 @@ class NativePauseV348(TestCase):
             'v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)"',
             multi)
         pvp = run.split("if args.pvp:", 1)[1].split("for phase, proc in (", 1)[0]
-        self.assertEqual(1, pvp.count("v348_resume_confirmed_original_pause("))
+        self.assertEqual(2, pvp.count("v348_resume_confirmed_original_pause("))
+        self.assertIn(
+            "CUSTOMMC_189_V366_UNLOCKED_OWNER_PREVETO_ORIGINAL_GUI_CLEAR_PASS=YES",
+            pvp)
+        self.assertLess(pvp.index("AURA_ENABLED, deadline,"),
+                        pvp.index("v348_resume_confirmed_original_pause(",
+                                  pvp.index("if args.unlocked_remote_owner_veto or args.unlocked_scoped_veto:")))
+        self.assertLess(pvp.index("v348_resume_confirmed_original_pause(",
+                                  pvp.index("if args.unlocked_remote_owner_veto or args.unlocked_scoped_veto:")),
+                        pvp.index("REMOTE_PAIR_SCOPE_VETO, deadline,"))
         wall = run.split("if args.wall_veto or args.wall_recovery or args.wall_lifecycle:", 1)[1].split(
             "if args.fov_veto:", 1)[0]
         self.assertEqual(1, wall.count("v348_resume_confirmed_original_pause("))
@@ -159,7 +168,7 @@ class NativePauseV348(TestCase):
             "def restore_real_attacker_focus(", 1)[0])
         self.assertIn("if args.rejoin_target or args.rejoin_release:", run)
         self.assertIn(
-            "or args.wall_recovery or args.wall_lifecycle):",
+            "or args.unlocked_scoped_veto):",
             run)
         self.assertIn("wait_for_log_occurrences(", run)
         method = SOURCE.split("def v348_resume_confirmed_original_pause(", 1)[1].split(
