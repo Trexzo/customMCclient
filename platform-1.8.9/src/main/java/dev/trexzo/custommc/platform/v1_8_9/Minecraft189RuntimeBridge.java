@@ -3700,9 +3700,12 @@ public final class Minecraft189RuntimeBridge {
                             if (!host.mayDispatchScheduledCombatLane())
                                 return;
                             minecraft.customMcRightClickMouse();
-                            if (swordBlock.customMcIsUsingItem()
-                                    && host.mayDispatchScheduledCombatLane()) {
-                                host.recordAutoBlockStart(useToken);
+                            if (swordBlock.customMcIsUsingItem()) {
+                                // The original vanilla item observation may
+                                // itself reenter a different combat module.
+                                // Never record stale synthetic sword ownership.
+                                if (host.mayDispatchScheduledCombatLane())
+                                    host.recordAutoBlockStart(useToken);
                             }
                         } finally {
                             // This exact uncommitted native use lease may
