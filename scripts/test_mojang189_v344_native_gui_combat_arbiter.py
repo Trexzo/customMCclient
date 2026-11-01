@@ -121,7 +121,7 @@ class NativeGuiAndCombatCycleV344(unittest.TestCase):
             "triggerDispatchLease.clear()",
             "featureCatalog.autoClicker().suspendForGui()",
             "featureCatalog.triggerBot().suspend()",
-            "featureCatalog.killAura().suspend()",
+            "featureCatalog.killAura().suspendForGui()",
             "featureCatalog.wTap().suspendForGui(",
             "pendingKeepSprintSource = null",
         ):

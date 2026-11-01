@@ -6,6 +6,15 @@ final class Minecraft189LockedTargetAcceptance {
     private static UUID aUuid, bUuid;
     private static int phase, initialTicks, armedTicks, heldTicks;
     private static boolean aHit, bHit;
+    // V366 R2: bounded, acceptance-only observations from the original
+    // crosshair/scheduler callback. Never used to admit an action.
+    private static int phaseThreeRayObservations, phaseThreeScheduleObservations;
+    private static int phaseThreeTickObservations;
+    /** Opt-in original autoClick path checkpoints. They never admit attacks. */
+    enum CombatStage { ENTER, SCREEN_CLEAR, GUI_VETO, POTION_RETURN,
+        ROD_RETURN, BEFORE_RAY }
+    private static int phase3Entered, phase3ScreenClear, phase3GuiVeto;
+    private static int phase3PotionReturn, phase3RodReturn, phase3BeforeRay;
     // Acceptance-only provenance copied from the SAME existing snapshots.
     // Never participates in initial eligibility, target selection, or clicks.
     private static int initialSourceObservations, maxInitialAStreak;
@@ -19,6 +28,10 @@ final class Minecraft189LockedTargetAcceptance {
         aUuid = bUuid = null;
         phase = initialTicks = armedTicks = heldTicks = 0;
         aHit = bHit = false;
+        phaseThreeRayObservations = phaseThreeScheduleObservations = 0;
+        phaseThreeTickObservations = 0;
+        phase3Entered = phase3ScreenClear = phase3GuiVeto = 0;
+        phase3PotionReturn = phase3RodReturn = phase3BeforeRay = 0;
         initialSourceObservations = maxInitialAStreak = 0;
         phase0SourceUnavailable = phase0CountMismatch = 0;
         phase0RemoteIdentityMissing = phase0NonfiniteDistance = 0;
@@ -183,12 +196,167 @@ final class Minecraft189LockedTargetAcceptance {
                 }
             } else heldTicks=0;
         }
+        // V366 R3: if the genuine original tick observer continues while
+        // phase-3 ray/scheduler hooks go silent, distinguish missing native
+        // callbacks from a target/rotation mismatch. No additional source
+        // getters, actions, target ownership mutations or artificial PASS.
+        if (phase == 3) {
+            final int tick = ++phaseThreeTickObservations;
+            if (tick == 1 || tick % 40 == 0) {
+                final Minecraft189PlayerRotationState.Snapshot rotation =
+                        host.playerRotationState().snapshot();
+                System.out.println("CUSTOMMC_189_V366_LOCK_PHASE3_TICK_DIAG"
+                        + " n=" + tick
+                        + " pathEntered=" + phase3Entered
+                        + " screenClear=" + phase3ScreenClear
+                        + " guiVeto=" + phase3GuiVeto
+                        + " potReturn=" + phase3PotionReturn
+                        + " rodReturn=" + phase3RodReturn
+                        + " beforeRay=" + phase3BeforeRay
+                        + " rayCallbacks=" + phaseThreeRayObservations
+                        + " scheduleCallbacks=" + phaseThreeScheduleObservations
+                        + " sourceReason=" + lastReadReason
+                        + " lockedUuid=" + aura.lockedTargetUuid()
+                        + " aIndex=" + (e == null ? -1 : e.a)
+                        + " bIndex=" + (e == null ? -1 : e.b)
+                        + " a3D=" + (e == null ? Double.NaN : e.da)
+                        + " b3D=" + (e == null ? Double.NaN : e.db)
+                        + " selectedIndex=" + (e == null ? -1 : e.near.entityIndex())
+                        + " aimIndex=" + (e == null ? -1 : e.aim.entityIndex())
+                        + " aimYaw=" + (e == null ? Double.NaN : e.aim.yaw())
+                        + " aimPitch=" + (e == null ? Double.NaN : e.aim.pitch())
+                        + " rotationAvailable=" + rotation.available()
+                        + " rotationYaw=" + rotation.yaw()
+                        + " rotationPitch=" + rotation.pitch());
+                System.out.flush();
+            }
+        }
         if (phase==4 && e!=null && e.aFarBSelected()
                 && bUuid.equals(aura.lockedTargetUuid())) {
             phase=5;
             System.out.println("CUSTOMMC_189_LOCK_A_INELIGIBLE_RELEASES_TO_B_PASS=YES");
             System.out.flush();
         }
+    }
+
+    /** V366 R4 read-only callback-stage receipt; no source getter or action. */
+    static void observeCombatStage(final CombatStage stage) {
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraLockedTarget")
+                || phase != 3 || stage == null) return;
+        switch (stage) {
+            case ENTER: phase3Entered++; break;
+            case SCREEN_CLEAR: phase3ScreenClear++; break;
+            case GUI_VETO: phase3GuiVeto++; break;
+            case POTION_RETURN: phase3PotionReturn++; break;
+            case ROD_RETURN: phase3RodReturn++; break;
+            case BEFORE_RAY: phase3BeforeRay++; break;
+            default: throw new IllegalStateException("unrecognized diagnostic stage");
+        }
+    }
+
+    /**
+     * V366 R5: read-only, bounded investigation of a rejected original
+     * GuiScreen. Must run only AFTER the unchanged native gate has blocked.
+     * Never converts OPEN/UNAVAILABLE into a CLEAR admission verdict.
+     */
+    static void observeBlockedNativeScreen(final Object originalMinecraft) {
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraLockedTarget")
+                || phase != 3) return;
+        final int n = phase3GuiVeto;
+        if (n != 1 && n % 80 != 0) return;
+        String screenClass = "unavailable";
+        int matchedFields = 0;
+        try {
+            if (originalMinecraft != null) {
+                java.lang.reflect.Field screen = null;
+                for (java.lang.reflect.Field candidate :
+                        originalMinecraft.getClass().getDeclaredFields()) {
+                    if (!"axu".equals(candidate.getType().getName())) continue;
+                    matchedFields++;
+                    screen = candidate;
+                }
+                if (matchedFields == 1 && screen != null) {
+                    screen.setAccessible(true);
+                    final Object value = screen.get(originalMinecraft);
+                    screenClass = value == null ? "null" : value.getClass().getName();
+                }
+            }
+        } catch (ReflectiveOperationException | RuntimeException unavailable) {
+            screenClass = "reflection-unavailable";
+        }
+        final Minecraft189ScaffoldScreenGate.Verdict verdict =
+                Minecraft189ScaffoldScreenGate.inspect(originalMinecraft);
+        System.out.println("CUSTOMMC_189_V366_LOCK_PHASE3_ORIGINAL_SCREEN_DIAG"
+                + " n=" + n
+                + " sourceClass=" + (originalMinecraft == null ? "null"
+                    : originalMinecraft.getClass().getName())
+                + " screenFieldCount=" + matchedFields
+                + " screenClass=" + screenClass
+                + " originalVerdict=" + verdict
+                + " thread=" + Thread.currentThread().getName());
+        System.out.flush();
+    }
+
+    /** Diagnostic only. The original renderer's ray is already published
+     * by Minecraft before this hook; no new ray, UUID, packet or click.
+     */
+    static void observeNativeRay(Minecraft189HostRuntime host,
+            final boolean originalPlayerHit, final int originalIndex) {
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraLockedTarget")
+                || phase != 3) return;
+        final int callback = ++phaseThreeRayObservations;
+        if (callback != 1 && callback % 40 != 0) return;
+        final Evidence e = read(host); // only existing native snapshots
+        final Minecraft189WorldEntityUuidState.Snapshot ids =
+                host.worldEntityUuidState().snapshot();
+        final UUID rayUuid = originalPlayerHit && ids.available()
+                && originalIndex >= 0 && originalIndex < ids.entityCount()
+                ? ids.at(originalIndex) : null;
+        System.out.println("CUSTOMMC_189_V366_LOCK_PHASE3_NATIVE_RAY_DIAG"
+                + " n=" + callback
+                + " rayPlayer=" + originalPlayerHit
+                + " rayIndex=" + originalIndex
+                + " rayUuid=" + rayUuid
+                + " selectedIndex=" + (e == null ? -1 : e.near.entityIndex())
+                + " aimIndex=" + (e == null ? -1 : e.aim.entityIndex())
+                + " lockedUuid=" + host.featureCatalog().killAura().lockedTargetUuid()
+                + " aIndex=" + (e == null ? -1 : e.a)
+                + " bIndex=" + (e == null ? -1 : e.b)
+                + " a3D=" + (e == null ? Double.NaN : e.da)
+                + " b3D=" + (e == null ? Double.NaN : e.db)
+                + " sourceReason=" + lastReadReason);
+        System.out.flush();
+    }
+
+    /** This reports the actual Aura scheduler decision; false is NOT a
+     * failed controller packet, never an invented native hit.
+     */
+    static void observeAuraSchedule(Minecraft189HostRuntime host,
+            final boolean originalPlayerHit, final int originalIndex,
+            final boolean schedulerPermitted) {
+        if (!Boolean.getBoolean("custommc.acceptance.reportKillAuraLockedTarget")
+                || phase != 3) return;
+        final int callback = ++phaseThreeScheduleObservations;
+        if (callback != 1 && callback % 40 != 0) return;
+        final Minecraft189TargetRotationState.Snapshot target =
+                host.targetRotationState().snapshot();
+        final Minecraft189PlayerRotationState.Snapshot rotation =
+                host.playerRotationState().snapshot();
+        System.out.println("CUSTOMMC_189_V366_LOCK_PHASE3_SCHEDULE_DIAG"
+                + " n=" + callback
+                + " approved=" + schedulerPermitted
+                + " rayPlayer=" + originalPlayerHit
+                + " rayIndex=" + originalIndex
+                + " aimAvailable=" + target.available()
+                + " aimIndex=" + target.entityIndex()
+                + " aimYaw=" + target.yaw()
+                + " aimPitch=" + target.pitch()
+                + " actualYaw=" + rotation.yaw()
+                + " actualPitch=" + rotation.pitch()
+                + " auraActive=" + host.featureCatalog().killAura().active()
+                + " originalGuiOpen="
+                + host.clickGuiRuntime().coreRuntime().model().snapshot().open());
+        System.out.flush();
     }
 
     static void verifyOwnedClick(Minecraft189HostRuntime host,

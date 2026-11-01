@@ -191,6 +191,83 @@ final class Minecraft189KillAuraTargetSelectorTest {
     }
 
     @Test
+    void rejoinedCloserOriginalAUnableToStealGuiPausedSurvivorB() {
+        final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
+        final Minecraft189PlayerPositionState local =
+                new Minecraft189PlayerPositionState();
+        final Minecraft189PlayerRotationState rotation =
+                new Minecraft189PlayerRotationState();
+        final Minecraft189WorldEntityPositionState positions =
+                new Minecraft189WorldEntityPositionState();
+        final Minecraft189WorldEntityKindState kinds =
+                new Minecraft189WorldEntityKindState();
+        final Minecraft189WorldEntityCombatState combat =
+                new Minecraft189WorldEntityCombatState();
+        final Minecraft189WorldEntityUuidState identities =
+                new Minecraft189WorldEntityUuidState();
+        final Minecraft189NearestPlayerTargetState selected =
+                new Minecraft189NearestPlayerTargetState();
+        // Real-world-shaped, fixed test UUIDs: actual server provenance
+        // is only established by the strict original multiplayer gate.
+        final java.util.UUID a = java.util.UUID.fromString(
+                "e3542dd1-56f3-3ab4-82cb-2c015df72d8d");
+        final java.util.UUID b = java.util.UUID.fromString(
+                "9c6b2c0b-a653-3300-9829-2617908fae14");
+        local.update(0, 0, 0);
+        rotation.update(0, 0);
+        aura.fovSetting().set(180.0D);
+        aura.lockTargetSetting().set(true);
+        aura.onEnable();
+        try {
+            // Original server A has genuinely disconnected; survivor B
+            // is the only loaded remote identity, selected as real UUID.
+            positions.update(new double[]{0, 0, 2.2});
+            kinds.update(new int[]{3});
+            combat.update(new int[]{1});
+            identities.update(new java.util.UUID[]{b});
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, identities.snapshot(), selected);
+            assertEquals(b, aura.lockedTargetUuid());
+            assertEquals(0, selected.snapshot().entityIndex());
+            aura.suspendForGui();
+            assertEquals(b, aura.lockedTargetUuid());
+
+            // New original A has rejoined with a fresh loadedEntityList
+            // index and is closer than B. No cached list slot is reused.
+            positions.update(new double[]{0, 0, 1.4, 0, 0, 2.2});
+            kinds.update(new int[]{3, 3});
+            combat.update(new int[]{1, 1});
+            identities.update(new java.util.UUID[]{a, b});
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, identities.snapshot(), selected);
+            assertEquals(1, selected.snapshot().entityIndex());
+            assertEquals(b, aura.lockedTargetUuid(),
+                    "GUI focus must not transfer B's real original UUID to nearer A");
+
+            // B really unloads: original UUID verification must RELEASE
+            // the stale lock, allowing A only on fresh source selection.
+            positions.update(new double[]{0, 0, 1.4});
+            kinds.update(new int[]{3});
+            combat.update(new int[]{1});
+            identities.update(new java.util.UUID[]{a});
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, identities.snapshot(), selected);
+            assertEquals(0, selected.snapshot().entityIndex());
+            assertEquals(a, aura.lockedTargetUuid());
+            identities.clear();
+            Minecraft189KillAuraTargetSelector.select(aura, local.snapshot(),
+                    rotation.snapshot(), positions.snapshot(), kinds.snapshot(),
+                    combat.snapshot(), null, null, identities.snapshot(), selected);
+            assertFalse(selected.snapshot().available());
+            assertNull(aura.lockedTargetUuid(),
+                    "an invalid native UUID list cannot preserve GUI pause ownership");
+        } finally { aura.onDisable(); }
+    }
+
+    @Test
     void standaloneTeamGuardFiltersAuraWithoutAntiBotEnabled() {
         final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
         final Minecraft189AntiBotModule bot = new Minecraft189AntiBotModule();

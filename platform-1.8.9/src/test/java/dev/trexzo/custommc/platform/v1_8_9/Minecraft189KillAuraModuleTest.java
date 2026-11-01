@@ -124,6 +124,66 @@ final class Minecraft189KillAuraModuleTest {
     }
 
     @Test
+    void genuineGuiPauseRetainsOnlyStickyUuidNotSchedulerCreditOrIndex() {
+        final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
+        final Minecraft189TargetRotationState target = targetAtTwoBlocks();
+        final Minecraft189PlayerRotationState rotation =
+                new Minecraft189PlayerRotationState();
+        final Minecraft189PlayerMovementState movement =
+                new Minecraft189PlayerMovementState();
+        rotation.update(0.0F, 0.0F);
+        movement.update(true, false, true);
+        aura.lockTargetSetting().set(true);
+        aura.minCpsSetting().set(10);
+        aura.maxCpsSetting().set(10);
+        aura.onEnable();
+        final java.util.UUID survivorB = java.util.UUID.fromString(
+                "9c6b2c0b-a653-3300-9829-2617908fae14");
+        try {
+            aura.rememberSelectedTarget(survivorB);
+            assertTrue(aura.aim(new RotationPlayer(), rotation.snapshot(),
+                    target.snapshot(), false, movement.snapshot()));
+            assertFalse(aura.shouldClick(true, 0, rotation.snapshot(),
+                    target.snapshot(), false, false, movement.snapshot(), false));
+            aura.suspendForGui();
+            assertEquals(survivorB, aura.lockedTargetUuid());
+            // Cached index/aim must not authorize a synthetic click on
+            // focus return, even if the original index happens to match.
+            assertFalse(aura.shouldClick(true, 0, rotation.snapshot(),
+                    target.snapshot(), false, false, movement.snapshot(), false));
+            // A fresh source selector must revalidate B before original aim
+            // and CPS credit are allowed to resume.
+            assertTrue(aura.aim(new RotationPlayer(), rotation.snapshot(),
+                    target.snapshot(), false, movement.snapshot()));
+            assertFalse(aura.shouldClick(true, 0, rotation.snapshot(),
+                    target.snapshot(), false, false, movement.snapshot(), false));
+            assertTrue(aura.shouldClick(true, 0, rotation.snapshot(),
+                    target.snapshot(), false, false, movement.snapshot(), false));
+            aura.suspend();
+            assertNull(aura.lockedTargetUuid(),
+                    "genuine original-player/world-owner loss remains a hard reset");
+        } finally {
+            aura.onDisable();
+        }
+    }
+
+    @Test
+    void disabledAuraCannotRetainGuiPausedUuid() {
+        final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
+        aura.lockTargetSetting().set(true);
+        aura.onEnable();
+        aura.rememberSelectedTarget(java.util.UUID.randomUUID());
+        assertNotNull(aura.lockedTargetUuid());
+        aura.suspendForGui();
+        assertNotNull(aura.lockedTargetUuid());
+        aura.lockTargetSetting().set(false);
+        assertNull(aura.lockedTargetUuid());
+        aura.onDisable();
+        aura.suspendForGui();
+        assertNull(aura.lockedTargetUuid());
+    }
+
+    @Test
     void movementAndRangeGatesFailClosedAndDoNotBankClicks() {
         final Minecraft189KillAuraModule aura = new Minecraft189KillAuraModule();
         final Minecraft189TargetRotationState target = targetAtTwoBlocks();
