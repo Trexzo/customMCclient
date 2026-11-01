@@ -97,6 +97,45 @@ final class UiContextualModuleDetailScrollTest {
                 thumbY(fixture.compose()), .001F);
     }
 
+    @Test
+    void scrolledModuleRetainsClippedIdentityAndBackWithoutClickThrough() {
+        final Fixture fixture = new Fixture();
+        fixture.install("many", 24);
+        fixture.select("many");
+        assertFalse(texts(fixture.compose()).contains("many  /  24 settings"));
+        final float railX = PANEL.x() + PANEL.width() - 9.0F;
+        final float railBottom = PANEL.y() + PANEL.height() - 21.1F;
+        assertTrue(fixture.pointer(railX, railBottom, UiPointerAction.PRESS));
+        assertTrue(fixture.pointer(railX, railBottom, UiPointerAction.RELEASE));
+        assertTrue(texts(fixture.compose()).contains("many  /  24 settings"));
+
+        // The original content rows scroll behind the fixed, source-colored
+        // 26px header. A press there MUST be consumed by the overlay, never
+        // by a setting text field, slider, or module keybind capture.
+        assertTrue(fixture.pointer(PANEL.x() + 30.0F,
+                PANEL.y() + 12.0F, UiPointerAction.PRESS));
+        for (Setting<?> setting : fixture.settings.snapshot()) {
+            assertEquals(7, setting.get());
+        }
+        // The pre-existing fixed Back control retains its clickable area,
+        // even while a sticky identity bar is painted behind that control.
+        final java.util.concurrent.atomic.AtomicReference<String> navigated =
+                new java.util.concurrent.atomic.AtomicReference<String>();
+        final ClickGuiContentInputContext back =
+                new ClickGuiContentInputContext(
+                        SNAPSHOT, PAGE, PANEL, null, id -> {
+                            navigated.set(id);
+                            return true;
+                        });
+        assertTrue(fixture.detail.pointer(back,
+                new UiPointerEvent(685.0F, 46.0F,
+                        UiPointerButton.LEFT, UiPointerAction.PRESS)));
+        assertEquals(ClickGuiRuntime.MODULES_PAGE_ID, navigated.get());
+
+        fixture.select("many");
+        assertTrue(texts(fixture.compose()).contains("many  /  24 settings"));
+    }
+
     private static final class Fixture {
         final ModuleRegistry modules = new ModuleRegistry();
         final ModuleController controller = new ModuleController(modules);
