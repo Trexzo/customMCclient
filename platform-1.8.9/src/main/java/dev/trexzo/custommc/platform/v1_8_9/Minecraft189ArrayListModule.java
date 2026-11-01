@@ -325,6 +325,27 @@ public final class Minecraft189ArrayListModule
         }
     }
 
+    /**
+     * Source-enabled module presentation captured once per HUD frame.
+     * Measuring a label in Comparator.compare() repeatedly called the
+     * original Mojang FontRenderer O(n log n) times, with no benefit to the
+     * source-enforced enabled-module snapshot or text-first layout.
+     */
+    private static final class MeasuredEntry {
+        private final String moduleId;
+        private final String label;
+        private final int category;
+        private final int width;
+
+        private MeasuredEntry(final String moduleId,
+                final String label, final int category, final int width) {
+            this.moduleId = moduleId;
+            this.label = label;
+            this.category = category;
+            this.width = width;
+        }
+    }
+
     private final class ArrayListRenderPass
             implements RenderPass {
         @Override
@@ -361,35 +382,37 @@ public final class Minecraft189ArrayListModule
             try {
                 float currentY = Minecraft189ArrayListLayout.safeTop(
                         y.get().floatValue(), viewport.logicalHeight());
-                final List<Module> enabled = new ArrayList<Module>();
-                for (Module module : modules.snapshot()) {
-                    if (controller.stateOf(module.id()) == ModuleState.ENABLED) {
-                        enabled.add(module);
-                    }
-                }
                 final boolean withCategory = showCategories.get().booleanValue();
                 final boolean grouped = groupCategories.get().booleanValue();
-                // Stable sort: choose category first only when explicitly
-                // grouped, then descending intrinsic text-width estimate.
-                Collections.sort(enabled, new Comparator<Module>() {
-                    @Override
-                    public int compare(final Module left, final Module right) {
+                final List<MeasuredEntry> enabled = new ArrayList<MeasuredEntry>();
+                for (Module module : modules.snapshot()) {
+                    if (controller.stateOf(module.id()) == ModuleState.ENABLED) {
+                        final String id = module.id();
+                        final ModuleDescriptor descriptor = presentations.find(id);
+                        final String label = moduleLabel(id, descriptor, withCategory);
+                        // One native FontRenderer measurement for sorting
+                        // each enabled source module. A stable per-frame
+                        // snapshot prevents comparator-inconsistent widths.
+                        enabled.add(new MeasuredEntry(id, label,
+                                categoryOrder(descriptor), measuredTextWidth(label)));
+                    }
+                }
+                // TimSort remains stable: equal-width rows preserve source
+                // registry ordering and grouped category behavior.
+                Collections.sort(enabled, new Comparator<MeasuredEntry>() {
+                    @Override public int compare(
+                            final MeasuredEntry left, final MeasuredEntry right) {
                         if (grouped) {
                             final int category = Integer.compare(
-                                    categoryOrder(presentations.find(left.id())),
-                                    categoryOrder(presentations.find(right.id())));
+                                    left.category, right.category);
                             if (category != 0) return category;
                         }
-                        return Integer.compare(
-                                measuredTextWidth(moduleLabel(
-                                        right.id(), presentations.find(right.id()), withCategory)),
-                                measuredTextWidth(moduleLabel(
-                                        left.id(), presentations.find(left.id()), withCategory)));
+                        return Integer.compare(right.width, left.width);
                     }
                 });
                 final List<String> activeIds = new ArrayList<String>(enabled.size());
-                for (Module module : enabled) {
-                    activeIds.add(module.id());
+                for (MeasuredEntry entry : enabled) {
+                    activeIds.add(entry.moduleId);
                 }
                 final Map<String, Float> phases =
                         motion.advance(activeIds, animate.get().booleanValue());
@@ -399,11 +422,9 @@ public final class Minecraft189ArrayListModule
                         enabled.size(), maxVisible.get().intValue(),
                         capacity, showOverflow.get().booleanValue());
                 for (int index = 0; index < displayed; index++) {
-                    final Module module = enabled.get(index);
-                    final ModuleDescriptor descriptor = presentations.find(module.id());
-                    drawModuleCard(viewport, currentY,
-                            moduleLabel(module.id(), descriptor, withCategory),
-                            phases.get(module.id()).floatValue());
+                    final MeasuredEntry entry = enabled.get(index);
+                    drawModuleCard(viewport, currentY, entry.label,
+                            phases.get(entry.moduleId).floatValue());
                     currentY += LINE_HEIGHT;
                 }
                 // No fabricated modules: the overflow count is computed

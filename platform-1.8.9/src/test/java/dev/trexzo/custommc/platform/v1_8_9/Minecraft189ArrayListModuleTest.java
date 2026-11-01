@@ -257,6 +257,72 @@ final class Minecraft189ArrayListModuleTest {
     }
 
     @Test
+    void oneOriginalFontSortMeasurementPerEnabledModulePerHudFrame() {
+        final ModuleRegistry modules = new ModuleRegistry();
+        final ModuleController controller = new ModuleController(modules);
+        final SettingRegistry settings = new SettingRegistry();
+        final ServiceRegistry services = new ServiceRegistry();
+        services.register(RenderPipeline.class, new RenderPipeline());
+        final Minecraft189Platform platform = new Minecraft189Platform();
+        platform.attach(new PlatformContext(new EventBus(),
+                modules, controller, services));
+        final RecordingHost host = new RecordingHost();
+        host.nativeMeasurementsEnabled = true;
+        final Minecraft189HostRuntime runtime = Minecraft189HostRuntime.install(
+                platform, new ModulePresentationRegistry(),
+                new ModuleCategoryRegistry(),
+                new ModuleSettingRegistry(modules, settings),
+                null, null, settings, new SettingPresentationRegistry(), host);
+        try {
+            final Minecraft189ArrayListModule list =
+                    runtime.featureCatalog().arrayList();
+            controller.enable(Minecraft189WatermarkModule.ID);
+            controller.enable(Minecraft189ArrayListModule.ID);
+            controller.enable(Minecraft189AutoSprintModule.ID);
+            controller.enable(Minecraft189FastPlaceModule.ID);
+            controller.enable(Minecraft189NoHitDelayModule.ID);
+            list.maxVisibleSetting().set(1);
+            list.animateSetting().set(false);
+            host.clear();
+            runtime.renderHud(41L, 0.0F);
+            assertEquals(2, host.text.size()); // Watermark + one real row
+            final String shown = host.text.get(1);
+            final String[] sourceLabels = {
+                    "Watermark", "Array List", "Auto Sprint",
+                    "Fast Place", "No Hit Delay"};
+            for (String label : sourceLabels) {
+                final Integer calls = host.nativeWidthCalls.get(label);
+                // Drawn row: one sorting measurement + one fit query +
+                // one final alignment width. Hidden rows: sort only.
+                assertEquals(shown.equals(label) ? 3 : 1,
+                        calls == null ? 0 : calls.intValue(),
+                        "duplicate original font sort work: " + label);
+            }
+            assertEquals(1, host.nativeWidthCalls.get("CustomMC").intValue());
+            assertEquals("1", settings.snapshotEncoded().get(
+                    Minecraft189ArrayListModule.MAX_VISIBLE_SETTING_ID));
+
+            // Category ordering and stable labels are unchanged, but
+            // native widths must still be measured once per source row.
+            list.maxVisibleSetting().set(10);
+            list.showCategoriesSetting().set(true);
+            list.groupCategoriesSetting().set(true);
+            host.clear();
+            runtime.renderHud(42L, 0.0F);
+            assertEquals(Arrays.asList("CustomMC", "[Combat] No Hit Delay",
+                    "[Movement] Auto Sprint", "[Player] Fast Place",
+                    "[Visuals] Watermark", "[Visuals] Array List"), host.text);
+            for (String label : host.text.subList(1, host.text.size())) {
+                assertEquals(3, host.nativeWidthCalls.get(label).intValue(),
+                        "original native font row sorting remeasured " + label);
+            }
+            assertEquals(1, host.nativeWidthCalls.get("CustomMC").intValue());
+        } finally {
+            runtime.close();
+        }
+    }
+
+    @Test
     void categoryLabelsCoverAllFourSupportedCategoriesAndFallback() {
         assertEquals("[Other] unmapped.module",
                 Minecraft189ArrayListModule.moduleLabel("unmapped.module", null, true));
@@ -526,6 +592,9 @@ final class Minecraft189ArrayListModuleTest {
         private int shadowDraws;
         private int windowWidth = 1280;
         private int windowHeight = 720;
+        private boolean nativeMeasurementsEnabled;
+        private final java.util.Map<String, Integer> nativeWidthCalls =
+                new java.util.LinkedHashMap<String, Integer>();
 
         private void clear() {
             text.clear();
@@ -533,6 +602,7 @@ final class Minecraft189ArrayListModuleTest {
             textColors.clear();
             roundedRects = 0;
             shadowDraws = 0;
+            nativeWidthCalls.clear();
         }
 
         @Override
@@ -622,6 +692,15 @@ final class Minecraft189ArrayListModuleTest {
                 final String value, final int argb) {
             shadowDraws++;
             drawText(font, x, y, value, argb);
+        }
+
+        @Override
+        public int measureText(final String value) {
+            if (!nativeMeasurementsEnabled) return -1;
+            nativeWidthCalls.put(value, Integer.valueOf(
+                    nativeWidthCalls.containsKey(value)
+                            ? nativeWidthCalls.get(value).intValue() + 1 : 1));
+            return Minecraft189HudTextMetrics.width(value);
         }
 
         @Override
