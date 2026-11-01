@@ -49,6 +49,10 @@ public final class ModuleDetailPageContent
             new SettingEditorController();
     private final ClickGuiContentScrollState scroll =
             new ClickGuiContentScrollState();
+    private final UiContentScrollDrag railDrag = new UiContentScrollDrag();
+    // A detail page is contextual: different module settings must never
+    // inherit the previous module's scrolled-to-middle position.
+    private String displayedModuleId;
 
     public ModuleDetailPageContent(
             final ModuleSelectionModel selection,
@@ -132,6 +136,7 @@ public final class ModuleDetailPageContent
         final UiBounds bounds = context.bounds();
         final UiTheme theme = context.theme();
         final Module module = selection.selectedModule();
+        syncSelection(module == null ? null : module.id());
 
         if (module == null) {
             commands.add(
@@ -183,6 +188,23 @@ public final class ModuleDetailPageContent
         commands.addAll(UiModuleDetailHeader.compose(
                 bounds, scrollOffset, displayName,
                 state, description, bindText, capturing, theme));
+        // The settings visible here belong to THIS selected module, not
+        // the 397-item global settings list. Keep this quiet indicator
+        // outside the original name, bind and back-button hit regions.
+        if (bounds.width() >= 430.0F) {
+            commands.add(new UiTextCommand(1,
+                    bounds.x() + bounds.width() - 117.0F,
+                    bounds.y() + PADDING + 44.0F - scrollOffset,
+                    UiFonts.DEFAULT, visible.size() + " settings",
+                    theme.color(UiColorRole.TEXT_MUTED)));
+        }
+        if (visible.isEmpty()) {
+            commands.add(new UiTextCommand(1,
+                    bounds.x() + PADDING,
+                    bounds.y() + PADDING + HEADER_HEIGHT + 10.0F,
+                    UiFonts.DEFAULT, "No settings for this module",
+                    theme.color(UiColorRole.TEXT_MUTED)));
+        }
 
         for (int index = 0;
              index < visible.size();
@@ -218,14 +240,19 @@ public final class ModuleDetailPageContent
         Objects.requireNonNull(event, "event");
 
         final Module module = selection.selectedModule();
+        syncSelection(module == null ? null : module.id());
         if (module == null) {
             return false;
         }
 
         final List<SettingEntry> visible =
-                visibleSettings(
-                        module.id());
+                visibleSettings(module.id());
         final float totalHeight = contentHeight(visible.size());
+        // S49: use the same S48 native rail drag in contextual details,
+        // before keybind focus, back navigation and setting editing.
+        if (railDrag.pointer(event, context.bounds(), totalHeight, scroll)) {
+            return true;
+        }
         final float scrollOffset =
                 scroll.offset(totalHeight, context.bounds().height());
         if (event.action() == UiPointerAction.PRESS
@@ -290,6 +317,7 @@ public final class ModuleDetailPageContent
         Objects.requireNonNull(event, "event");
 
         final Module module = selection.selectedModule();
+        syncSelection(module == null ? null : module.id());
         if (module == null) {
             return false;
         }
@@ -302,6 +330,14 @@ public final class ModuleDetailPageContent
                                 .size()),
                 context.bounds().height());
         return true;
+    }
+
+    private void syncSelection(final String moduleId) {
+        if (!Objects.equals(displayedModuleId, moduleId)) {
+            displayedModuleId = moduleId;
+            scroll.reset();
+            railDrag.cancel();
+        }
     }
 
     private List<SettingEntry> visibleSettings(
