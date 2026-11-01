@@ -113,7 +113,10 @@ class CombatLaneOriginalBridgeV367(unittest.TestCase):
             "featureCatalog.autoBlock().completeNativeUse(",
         ):
             self.assertIn(phrase, block)
-        native = BRIDGE.split("if (swordBlock != null\n", 1)[1].split(
+        native = BRIDGE.split(
+            "if (swordBlock != null\n"
+            "                        && host.mayDispatchScheduledCombatLane()", 1
+        )[1].split(
             "host.cancelAutoBlockNativeUse(useToken);", 1)[0]
         for phrase in (
             "host.claimSyntheticCombatReblock(combatCycleToken)",
