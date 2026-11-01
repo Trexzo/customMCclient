@@ -78,7 +78,9 @@ final class UiContentScrollDragTest {
         assertFalse(drag.pointer(pointer(track.x(), track.y() + 2,
                 UiPointerButton.RIGHT, UiPointerAction.PRESS),
                 PANEL, total, scroll));
-        assertTrue(drag.pointer(pointer(track.x(), track.y() + track.height(),
+        // The viewport uses half-open hit bounds; stay just inside
+        // the last rail pixel instead of clicking its excluded endpoint.
+        assertTrue(drag.pointer(pointer(track.x(), track.y() + track.height() - .1F,
                 UiPointerButton.LEFT, UiPointerAction.PRESS),
                 PANEL, total, scroll));
         assertEquals(total - PANEL.height(),
