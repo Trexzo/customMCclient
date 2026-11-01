@@ -7,6 +7,10 @@ import dev.trexzo.custommc.core.render.RenderPipeline;
 import dev.trexzo.custommc.core.render.RenderStage;
 import dev.trexzo.custommc.core.setting.Setting;
 import dev.trexzo.custommc.core.setting.SettingCodecs;
+import dev.trexzo.custommc.core.setting.SettingRegistry;
+import dev.trexzo.custommc.core.ui.UiColorRole;
+import dev.trexzo.custommc.core.ui.UiThemeSettings;
+import dev.trexzo.custommc.core.ui.UiThemes;
 import dev.trexzo.custommc.core.ui.UiFonts;
 import dev.trexzo.custommc.core.ui.UiViewport;
 import dev.trexzo.custommc.platform.v1_8_9.ui.LegacyUiHostCallbacks;
@@ -25,6 +29,8 @@ public final class Minecraft189WatermarkModule
             "render.watermark.y";
     public static final String TEXT_SHADOW_SETTING_ID =
             "render.watermark.textShadow";
+    public static final String USE_THEME_ACCENT_SETTING_ID =
+            "render.watermark.useThemeAccent";
     public static final String RENDER_PASS_ID =
             "watermark";
 
@@ -33,6 +39,7 @@ public final class Minecraft189WatermarkModule
 
     private final RenderPipeline renderPipeline;
     private final LegacyUiHostCallbacks hostCallbacks;
+    private final SettingRegistry themeSettings;
     private final Setting<String> text =
             new Setting<String>(
                     TEXT_SETTING_ID,
@@ -59,12 +66,25 @@ public final class Minecraft189WatermarkModule
     private final Setting<Boolean> textShadow = new Setting<Boolean>(
             TEXT_SHADOW_SETTING_ID, Boolean.FALSE,
             value -> value != null, SettingCodecs.BOOLEAN);
+    // Default OFF: existing Watermark text stays exactly white. Only an
+    // opted-in user sees the resolved, shared Graphite/Blue theme accent.
+    private final Setting<Boolean> useThemeAccent = new Setting<Boolean>(
+            USE_THEME_ACCENT_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
     private boolean acceptanceRecoveryReported;
 
     public Minecraft189WatermarkModule(
             final RenderPipeline renderPipeline,
             final LegacyUiHostCallbacks hostCallbacks) {
+        this(renderPipeline, hostCallbacks, null);
+    }
+
+    public Minecraft189WatermarkModule(
+            final RenderPipeline renderPipeline,
+            final LegacyUiHostCallbacks hostCallbacks,
+            final SettingRegistry themeSettings) {
+        this.themeSettings = themeSettings;
         this.renderPipeline =
                 Objects.requireNonNull(
                         renderPipeline,
@@ -94,6 +114,10 @@ public final class Minecraft189WatermarkModule
 
     public Setting<Boolean> textShadowSetting() {
         return textShadow;
+    }
+
+    public Setting<Boolean> useThemeAccentSetting() {
+        return useThemeAccent;
     }
 
     @Override
@@ -178,12 +202,19 @@ public final class Minecraft189WatermarkModule
                     hostCallbacks.pushClip(left, Math.max(0.0F, top - 1.0F),
                             width, Math.min(11.0F, logicalHeight - top));
                     try {
+                        final int labelColor = !useThemeAccent.get().booleanValue()
+                                ? TEXT_ARGB
+                                : (themeSettings == null
+                                        ? UiThemes.graphite()
+                                        : UiThemeSettings.resolve(
+                                                themeSettings, UiThemes.graphite()))
+                                        .color(UiColorRole.ACCENT);
                         if (textShadow.get().booleanValue()) {
                             hostCallbacks.drawTextShadow(UiFonts.DEFAULT,
-                                    left, top, visible, TEXT_ARGB);
+                                    left, top, visible, labelColor);
                         } else {
                             hostCallbacks.drawText(UiFonts.DEFAULT,
-                                    left, top, visible, TEXT_ARGB);
+                                    left, top, visible, labelColor);
                         }
                     } finally {
                         hostCallbacks.popClip();
