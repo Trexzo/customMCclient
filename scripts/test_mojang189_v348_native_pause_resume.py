@@ -140,7 +140,7 @@ class NativePauseV348(TestCase):
         wall = run.split("if args.wall_veto or args.wall_recovery or args.wall_lifecycle:", 1)[1].split(
             "if args.fov_veto:", 1)[0]
         self.assertEqual(1, wall.count("v348_resume_confirmed_original_pause("))
-        self.assertIn("if args.wall_recovery:", wall)
+        self.assertIn("if args.wall_recovery or args.wall_lifecycle:", wall)
         self.assertIn(
             "CUSTOMMC_189_V366_WALL_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
             wall)
@@ -159,7 +159,7 @@ class NativePauseV348(TestCase):
             "def restore_real_attacker_focus(", 1)[0])
         self.assertIn("if args.rejoin_target or args.rejoin_release:", run)
         self.assertIn(
-            "or args.wall_recovery):",
+            "or args.wall_recovery or args.wall_lifecycle):",
             run)
         self.assertIn("wait_for_log_occurrences(", run)
         method = SOURCE.split("def v348_resume_confirmed_original_pause(", 1)[1].split(
