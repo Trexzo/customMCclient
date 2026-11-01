@@ -1938,11 +1938,13 @@ def run(args):
         if (args.rejoin_target or args.rejoin_release
                 or args.locked_target or args.simultaneous
                 or args.multi_target or args.triggerbot_pvp
-                or args.wall_recovery or args.wall_lifecycle):
+                or args.wall_recovery or args.wall_lifecycle
+                or args.unlocked_remote_owner_veto
+                or args.unlocked_scoped_veto):
             # Capture host only while it remains the *sole* Minecraft
             # window, not by ambiguous late --pid once targets exist.
-            # V366 R11: both original wall-recovery and wall-lifecycle
-            # modes retain the only verified CIHost X11 owner.
+            # V366 R12: unlocked Aura UUID owner veto fixtures also retain
+            # the original unique CIHost X11 identity before target launch.
             if host_window is not None:
                 raise AssertionError(
                     "V349 host window already captured by another fixture")
@@ -4062,6 +4064,21 @@ def run(args):
                          "20 disabled genuine nonlocal player target callbacks")
                 wait_for(host, host_log, AURA_ENABLED, deadline,
                          "normal real-player Kill Aura module enable")
+            if args.unlocked_remote_owner_veto or args.unlocked_scoped_veto:
+                # The source-original GUI veto must remain fail-closed.
+                # Only a real axp pause in the original host client can
+                # authorize a physical Escape before the strict mismatched
+                # owner controller test. Never synthesize the rejected
+                # click, the new accepted click or server-authoritative
+                # player damage. On any non-pause GUI, fail.
+                v348_resume_confirmed_original_pause(
+                    host, host_log, deadline, host_window)
+                if v348_latest_original_gui_screen(host_log) != "(in-game/no GUI)":
+                    raise AssertionError(
+                        "unlocked Aura UUID owner proof requires original "
+                        "client GuiScreen CLEAR before genuine native veto")
+                print("CUSTOMMC_189_V366_UNLOCKED_OWNER_PREVETO_ORIGINAL_GUI_CLEAR_PASS=YES",
+                      flush=True)
             if args.unlocked_remote_owner_veto:
                 wait_for(host, host_log, REMOTE_PAIR_SCOPE_VETO, deadline,
                          "native controller A argument vetoes real remote B owner")
