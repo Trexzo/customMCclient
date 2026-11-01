@@ -30,6 +30,10 @@ final class ClickGuiContentScrollState {
                         viewportHeight);
     }
 
+    synchronized void reset() {
+        offset = 0.0F;
+    }
+
     synchronized void setOffset(final float requested,
             final float contentHeight, final float viewportHeight) {
         offset = clamp(requested, contentHeight, viewportHeight);
