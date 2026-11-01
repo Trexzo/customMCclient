@@ -227,7 +227,11 @@ public final class ModuleDetailPageContent
                 bounds, totalHeight, scrollOffset, theme));
         commands.addAll(UiContentBottomCue.compose(
                 bounds, totalHeight, scrollOffset, theme));
-        // Fixed contextual return remains accessible even after scroll.
+        // Only after the full original header scrolls out, pin a quiet
+        // source-derived identity strip above settings and their scrollrail.
+        // Back navigation stays on top and retains its existing hitbox.
+        commands.addAll(UiModuleDetailStickyHeader.compose(
+                bounds, scrollOffset, displayName, visible.size(), state, theme));
         commands.addAll(UiModuleDetailBackLink.compose(bounds, theme));
         return commands;
     }
@@ -268,6 +272,13 @@ public final class ModuleDetailPageContent
             final ClickGuiNavigator navigator = context.navigator();
             return navigator != null
                     && navigator.selectPage(ClickGuiRuntime.MODULES_PAGE_ID);
+        }
+        // A settings row may physically scroll behind the sticky header.
+        // It must never receive mouse edits through the visible strip.
+        if (event.action() == UiPointerAction.PRESS
+                && UiModuleDetailStickyHeader.blocksPointer(
+                        context.bounds(), scrollOffset, event.x(), event.y())) {
+            return true;
         }
 
         if (keybindEditor != null
