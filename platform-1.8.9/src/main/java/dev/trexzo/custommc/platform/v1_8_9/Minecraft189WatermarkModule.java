@@ -23,6 +23,8 @@ public final class Minecraft189WatermarkModule
             "render.watermark.x";
     public static final String Y_SETTING_ID =
             "render.watermark.y";
+    public static final String TEXT_SHADOW_SETTING_ID =
+            "render.watermark.textShadow";
     public static final String RENDER_PASS_ID =
             "watermark";
 
@@ -52,6 +54,11 @@ public final class Minecraft189WatermarkModule
                     value -> value >= 0
                             && value <= 4096,
                     SettingCodecs.INTEGER);
+    // S46: optional subtle Minecraft 1.8.9 native FontRenderer shadow.
+    // Remains OFF for existing profiles and authentic normal screenshots.
+    private final Setting<Boolean> textShadow = new Setting<Boolean>(
+            TEXT_SHADOW_SETTING_ID, Boolean.FALSE,
+            value -> value != null, SettingCodecs.BOOLEAN);
     private RenderPipeline.Registration renderRegistration;
     private boolean acceptanceRecoveryReported;
 
@@ -83,6 +90,10 @@ public final class Minecraft189WatermarkModule
 
     public Setting<Integer> ySetting() {
         return y;
+    }
+
+    public Setting<Boolean> textShadowSetting() {
+        return textShadow;
     }
 
     @Override
@@ -167,8 +178,13 @@ public final class Minecraft189WatermarkModule
                     hostCallbacks.pushClip(left, Math.max(0.0F, top - 1.0F),
                             width, Math.min(11.0F, logicalHeight - top));
                     try {
-                        hostCallbacks.drawText(UiFonts.DEFAULT,
-                                left, top, visible, TEXT_ARGB);
+                        if (textShadow.get().booleanValue()) {
+                            hostCallbacks.drawTextShadow(UiFonts.DEFAULT,
+                                    left, top, visible, TEXT_ARGB);
+                        } else {
+                            hostCallbacks.drawText(UiFonts.DEFAULT,
+                                    left, top, visible, TEXT_ARGB);
+                        }
                     } finally {
                         hostCallbacks.popClip();
                     }
