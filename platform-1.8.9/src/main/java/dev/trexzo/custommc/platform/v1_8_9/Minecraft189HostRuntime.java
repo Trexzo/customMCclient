@@ -3975,6 +3975,39 @@ public final class Minecraft189HostRuntime
                 && !clickGuiRuntime.coreRuntime().model().snapshot().open();
     }
 
+    /**
+     * V367 R4: read-only final Criticals admission. The genuine movement
+     * getters were already checked twice by mayDispatchOriginalCriticals().
+     * A later HitSelect ray, original GuiScreen read or controller-argument
+     * source callback may synchronously OFF->ON Criticals, change policy or
+     * replace the original local player. The earlier successful proof must
+     * not authorize a new lifetime or source.
+     *
+     * Do not query original fall/motion getters here: doing so could mint
+     * a new observation or change native callback ordering. Disabled
+     * Criticals preserves the legacy permissive state, subject to the
+     * exact same scheduler serial, enabled flag and module policy.
+     */
+    boolean mayRetainOriginalCriticalsAdmission() {
+        requireOpen();
+        final Minecraft189CriticalsModule module = featureCatalog.criticals();
+        if (!mayDispatchScheduledCombatLane()
+                || criticalsNativeAdmissionSerial < 0L
+                || criticalsNativeAdmissionSerial
+                        != triggerDispatchAdmissionSerial
+                || module.active() != criticalsNativeActive
+                || module.lifecycleEpoch() != criticalsNativeLifecycleEpoch
+                || module.minimumFallDistanceSetting().get()
+                        != criticalsNativeMinimumFall
+                || module.requireDescendingSetting().get()
+                        != criticalsNativeRequireDescending)
+            return false;
+        return !module.active()
+                || criticalNativeSourceStillOwned(
+                        criticalsNativePlayer,
+                        criticalsNativeSourceGeneration);
+    }
+
     private boolean criticalNativeSourceStillOwned(
             final Minecraft189PlayerInventoryAccess original,
             final long generation) {
