@@ -81,7 +81,7 @@ class V349OriginalHostWindowOwner(TestCase):
         # V366 R10 allows exactly five source-verified fixture recoveries
         # (sticky, simultaneous, multi, TriggerBot, wall recovery) in
         # addition to the original two rejoin calls; X11 identity stays fixed.
-        self.assertEqual(7, run.count(
+        self.assertEqual(8, run.count(
             "v348_resume_confirmed_original_pause("))
         self.assertEqual(2, run.split("if args.locked_target:", 1)[0].count(
             "v348_resume_confirmed_original_pause("))
@@ -96,7 +96,16 @@ class V349OriginalHostWindowOwner(TestCase):
         self.assertEqual(1, multi.count("v348_resume_confirmed_original_pause("))
         self.assertIn("CUSTOMMC_189_V366_MULTI_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES", multi)
         pvp = run.split("if args.pvp:", 1)[1].split("for phase, proc in (", 1)[0]
-        self.assertEqual(1, pvp.count("v348_resume_confirmed_original_pause("))
+        self.assertEqual(2, pvp.count("v348_resume_confirmed_original_pause("))
+        self.assertIn(
+            "CUSTOMMC_189_V366_UNLOCKED_OWNER_PREVETO_ORIGINAL_GUI_CLEAR_PASS=YES",
+            pvp)
+        self.assertLess(pvp.index("AURA_ENABLED, deadline,"),
+                        pvp.index("v348_resume_confirmed_original_pause(",
+                                  pvp.index("if args.unlocked_remote_owner_veto or args.unlocked_scoped_veto:")))
+        self.assertLess(pvp.index("v348_resume_confirmed_original_pause(",
+                                  pvp.index("if args.unlocked_remote_owner_veto or args.unlocked_scoped_veto:")),
+                        pvp.index("REMOTE_PAIR_SCOPE_VETO, deadline,"))
         wall = run.split("if args.wall_veto or args.wall_recovery or args.wall_lifecycle:", 1)[1].split(
             "if args.fov_veto:", 1)[0]
         self.assertEqual(1, wall.count("v348_resume_confirmed_original_pause("))
@@ -107,7 +116,7 @@ class V349OriginalHostWindowOwner(TestCase):
         self.assertIn("CUSTOMMC_189_V366_TRIGGERBOT_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
                       pvp)
         self.assertIn(
-            "or args.wall_recovery or args.wall_lifecycle):",
+            "or args.unlocked_scoped_veto):",
             run)
         self.assertIn("CUSTOMMC_189_V366_LOCK_PREATTACK_ORIGINAL_GUI_CLEAR_PASS=YES",
                       sticky)
